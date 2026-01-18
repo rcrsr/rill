@@ -1,0 +1,11 @@
+[[1, 2],[3, 4]] -> $input
+|x, y| (x * y) -> $mul
+
+
+$input -> each * -> each |x, y| (x * y) -> $mul_1  # each with tuple destructuring and inline closure
+$input -> each * -> each $mul() -> $mul_2          # each with tuple destructuring and named closure
+$input -> each |xy| (xy[0] * xy[1]) -> $mul_3      # each without tuple destructuring and inline closure
+$input -> each ($[0] * $[1]) -> $mul_4             # each without tuple destructuring and implicit $
+$input -> each mul($[0], $[1]) -> $mul_4           # each without tuple destructuring and named closure
+
+same for "map"

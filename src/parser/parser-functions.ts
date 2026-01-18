@@ -1,0 +1,208 @@
+/**
+ * Parser Extension: Function Parsing
+ * Function calls, method calls, closure calls, and type operations
+ */
+
+import { Parser } from './parser.js';
+import type {
+  ClosureCallNode,
+  ExpressionNode,
+  HostCallNode,
+  MethodCallNode,
+  PipeInvokeNode,
+  PrimaryNode,
+  TypeAssertionNode,
+  TypeCheckNode,
+} from '../types.js';
+import { TOKEN_TYPES } from '../types.js';
+import { check, advance, expect, current, makeSpan } from './state.js';
+import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
+
+// Declaration merging to add methods to Parser interface
+declare module './parser.js' {
+  interface Parser {
+    parseArgumentList(): ExpressionNode[];
+    parseHostCall(): HostCallNode;
+    parseClosureCall(): ClosureCallNode;
+    parsePipeInvoke(): PipeInvokeNode;
+    parseMethodCall(): MethodCallNode;
+    parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
+    parsePostfixTypeOperation(
+      primary: PrimaryNode,
+      start: { line: number; column: number; offset: number }
+    ): TypeAssertionNode | TypeCheckNode;
+  }
+}
+
+// ============================================================
+// ARGUMENT LIST PARSING
+// ============================================================
+
+Parser.prototype.parseArgumentList = function (this: Parser): ExpressionNode[] {
+  const args: ExpressionNode[] = [];
+  if (!check(this.state, TOKEN_TYPES.RPAREN)) {
+    args.push(this.parseExpression());
+    while (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      args.push(this.parseExpression());
+    }
+  }
+  return args;
+};
+
+// ============================================================
+// FUNCTION CALLS
+// ============================================================
+
+Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
+  const start = current(this.state).span.start;
+  const nameToken = advance(this.state);
+  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+  const args = this.parseArgumentList();
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+
+  return {
+    type: 'HostCall',
+    name: nameToken.value,
+    args,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $');
+  const nameToken = expect(
+    this.state,
+    TOKEN_TYPES.IDENTIFIER,
+    'Expected variable name'
+  );
+  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+  const args = this.parseArgumentList();
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+
+  return {
+    type: 'ClosureCall',
+    name: nameToken.value,
+    args,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.PIPE_VAR, 'Expected $');
+  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+  const args = this.parseArgumentList();
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+
+  return {
+    type: 'PipeInvoke',
+    args,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// METHOD CALLS
+// ============================================================
+
+Parser.prototype.parseMethodCall = function (this: Parser): MethodCallNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
+  const nameToken = expect(
+    this.state,
+    TOKEN_TYPES.IDENTIFIER,
+    'Expected method name'
+  );
+
+  let args: ExpressionNode[] = [];
+  if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    advance(this.state);
+    args = this.parseArgumentList();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  }
+
+  return {
+    type: 'MethodCall',
+    name: nameToken.value,
+    args,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// TYPE OPERATIONS
+// ============================================================
+
+Parser.prototype.parseTypeOperation = function (
+  this: Parser
+): TypeAssertionNode | TypeCheckNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+
+  const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
+  if (isCheck) {
+    advance(this.state);
+  }
+
+  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+
+  const span = makeSpan(start, current(this.state).span.end);
+
+  if (isCheck) {
+    return {
+      type: 'TypeCheck',
+      operand: null,
+      typeName,
+      span,
+    };
+  }
+
+  return {
+    type: 'TypeAssertion',
+    operand: null,
+    typeName,
+    span,
+  };
+};
+
+Parser.prototype.parsePostfixTypeOperation = function (
+  this: Parser,
+  primary: PrimaryNode,
+  start: { line: number; column: number; offset: number }
+): TypeAssertionNode | TypeCheckNode {
+  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+
+  const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
+  if (isCheck) {
+    advance(this.state);
+  }
+
+  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+
+  const operand = {
+    type: 'PostfixExpr' as const,
+    primary,
+    methods: [],
+    span: makeSpan(start, current(this.state).span.end),
+  };
+
+  const span = makeSpan(start, current(this.state).span.end);
+
+  if (isCheck) {
+    return {
+      type: 'TypeCheck',
+      operand,
+      typeName,
+      span,
+    };
+  }
+
+  return {
+    type: 'TypeAssertion',
+    operand,
+    typeName,
+    span,
+  };
+};

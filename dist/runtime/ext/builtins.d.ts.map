@@ -1,0 +1,1 @@
+{"version":3,"file":"builtins.d.ts","sourceRoot":"","sources":["../../../src/runtime/ext/builtins.ts"],"names":[],"mappings":"AAAA;;;;;;;GAOG;AAEH,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,qBAAqB,CAAC;AAEtD,OAAO,KAAK,EAAE,UAAU,EAAkB,MAAM,kBAAkB,CAAC;AAqGnE;;GAEG;AAEH,eAAO,MAAM,iBAAiB,EAAE,MAAM,CAAC,MAAM,EAAE,UAAU,CAoMxD,CAAC;AAmBF,eAAO,MAAM,eAAe,EAAE,MAAM,CAAC,MAAM,EAAE,UAAU,CAsTtD,CAAC"}

@@ -1,0 +1,20 @@
+# Dict Examples
+# Demonstrates dicts, property access, and defaults
+
+# Create a dict
+[name: "alice", age: 30, city: "seattle"] -> $person
+
+# Property access
+$person.name -> log
+$person.age -> log
+
+# Default value for missing key
+$person.country ?? "unknown" -> log
+
+# Existence check
+$person.?email -> log
+
+# Iterate over dict entries
+$person @ {
+  "{$.key}: {$.value}"
+} -> .join(", ")

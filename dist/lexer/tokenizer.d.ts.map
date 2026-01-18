@@ -1,0 +1,1 @@
+{"version":3,"file":"tokenizer.d.ts","sourceRoot":"","sources":["../../src/lexer/tokenizer.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,aAAa,CAAC;AAkBzC,OAAO,EAKL,KAAK,UAAU,EAGhB,MAAM,YAAY,CAAC;AAgBpB,wBAAgB,SAAS,CAAC,KAAK,EAAE,UAAU,GAAG,KAAK,CAsElD;AAED,wBAAgB,QAAQ,CAAC,MAAM,EAAE,MAAM,GAAG,KAAK,EAAE,CAWhD"}

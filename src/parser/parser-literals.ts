@@ -1,0 +1,420 @@
+/**
+ * Parser Extension: Literal Parsing
+ * Strings, numbers, booleans, tuples, dicts, and closures
+ */
+
+import { Parser } from './parser.js';
+import type {
+  ClosureNode,
+  ClosureParamNode,
+  DictEntryNode,
+  DictNode,
+  ExpressionNode,
+  InterpolationNode,
+  LiteralNode,
+  BodyNode,
+  SourceLocation,
+  StringLiteralNode,
+  TupleNode,
+} from '../types.js';
+import { ParseError, TOKEN_TYPES } from '../types.js';
+import { tokenize } from '../lexer/index.js';
+import {
+  check,
+  advance,
+  expect,
+  current,
+  skipNewlines,
+  makeSpan,
+} from './state.js';
+import { isDictStart, FUNC_PARAM_TYPES, parseTypeName } from './helpers.js';
+
+// Declaration merging to add methods to Parser interface
+declare module './parser.js' {
+  interface Parser {
+    parseLiteral(): LiteralNode;
+    parseString(): StringLiteralNode;
+    parseStringParts(
+      raw: string,
+      baseLocation: SourceLocation
+    ): (string | InterpolationNode)[];
+    parseInterpolationExpr(
+      source: string,
+      baseLocation: SourceLocation
+    ): InterpolationNode;
+    unescapeBraces(s: string): string;
+    parseTupleOrDict(): TupleNode | DictNode;
+    parseTuple(start: SourceLocation): TupleNode;
+    parseDict(start: SourceLocation): DictNode;
+    parseDictEntry(): DictEntryNode;
+    parseClosure(): ClosureNode;
+    parseBody(): BodyNode;
+    parseClosureParam(): ClosureParamNode;
+  }
+}
+
+// ============================================================
+// LITERAL PARSING
+// ============================================================
+
+Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
+  if (check(this.state, TOKEN_TYPES.STRING)) {
+    return this.parseString();
+  }
+
+  if (check(this.state, TOKEN_TYPES.NUMBER)) {
+    const token = advance(this.state);
+    return {
+      type: 'NumberLiteral',
+      value: parseFloat(token.value),
+      span: token.span,
+    };
+  }
+
+  if (check(this.state, TOKEN_TYPES.TRUE)) {
+    const token = advance(this.state);
+    return { type: 'BoolLiteral', value: true, span: token.span };
+  }
+
+  if (check(this.state, TOKEN_TYPES.FALSE)) {
+    const token = advance(this.state);
+    return { type: 'BoolLiteral', value: false, span: token.span };
+  }
+
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    return this.parseTupleOrDict();
+  }
+
+  const token = current(this.state);
+  let hint = '';
+  if (token.type === TOKEN_TYPES.ASSIGN) {
+    hint = ". Hint: Use '->' for assignment, not '='";
+  } else if (token.type === TOKEN_TYPES.EOF) {
+    hint = '. Hint: Unexpected end of input';
+  }
+  throw new ParseError(
+    `Expected literal, got: ${token.value}${hint}`,
+    token.span.start
+  );
+};
+
+// ============================================================
+// STRING PARSING
+// ============================================================
+
+Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
+  const token = advance(this.state);
+  const raw = token.value;
+
+  const parts = this.parseStringParts(raw, token.span.start);
+
+  return {
+    type: 'StringLiteral',
+    parts,
+    isHeredoc: raw.includes('\n'),
+    span: token.span,
+  };
+};
+
+Parser.prototype.parseStringParts = function (
+  this: Parser,
+  raw: string,
+  baseLocation: SourceLocation
+): (string | InterpolationNode)[] {
+  const parts: (string | InterpolationNode)[] = [];
+  let i = 0;
+  let literalStart = 0;
+
+  while (i < raw.length) {
+    if (raw[i] === '{') {
+      if (raw[i + 1] === '{') {
+        i += 2;
+        continue;
+      }
+
+      if (i > literalStart) {
+        const literal = this.unescapeBraces(raw.slice(literalStart, i));
+        if (literal) parts.push(literal);
+      }
+
+      const exprStart = i + 1;
+      let depth = 1;
+      i++;
+      while (i < raw.length && depth > 0) {
+        if (raw[i] === '{' && raw[i + 1] === '{') {
+          i += 2;
+          continue;
+        }
+        if (raw[i] === '}' && raw[i + 1] === '}') {
+          i += 2;
+          continue;
+        }
+        if (raw[i] === '{') depth++;
+        else if (raw[i] === '}') depth--;
+        i++;
+      }
+
+      if (depth !== 0) {
+        throw new ParseError(
+          "Unterminated string interpolation. Hint: Check for missing '}' in interpolation",
+          baseLocation
+        );
+      }
+
+      const exprSource = raw.slice(exprStart, i - 1);
+      if (!exprSource.trim()) {
+        throw new ParseError('Empty string interpolation', baseLocation);
+      }
+
+      const interpolation = this.parseInterpolationExpr(
+        exprSource,
+        baseLocation
+      );
+      parts.push(interpolation);
+      literalStart = i;
+    } else if (raw[i] === '}' && raw[i + 1] === '}') {
+      i += 2;
+    } else {
+      i++;
+    }
+  }
+
+  if (literalStart < raw.length) {
+    const literal = this.unescapeBraces(raw.slice(literalStart));
+    if (literal) parts.push(literal);
+  }
+
+  if (parts.length === 0) {
+    parts.push('');
+  }
+
+  return parts;
+};
+
+Parser.prototype.unescapeBraces = function (this: Parser, s: string): string {
+  return s.replaceAll('{{', '{').replaceAll('}}', '}');
+};
+
+Parser.prototype.parseInterpolationExpr = function (
+  this: Parser,
+  source: string,
+  baseLocation: SourceLocation
+): InterpolationNode {
+  const tokens = tokenize(source);
+
+  const filtered = tokens.filter(
+    (t) => t.type !== TOKEN_TYPES.NEWLINE && t.type !== TOKEN_TYPES.COMMENT
+  );
+
+  if (filtered.length === 0 || filtered[0]?.type === TOKEN_TYPES.EOF) {
+    throw new ParseError('Empty string interpolation', baseLocation);
+  }
+
+  const subParser = new Parser(filtered);
+  const expression = subParser.parseExpression();
+
+  if (subParser.state.tokens[subParser.state.pos]?.type !== TOKEN_TYPES.EOF) {
+    throw new ParseError(
+      `Unexpected token in interpolation: ${subParser.state.tokens[subParser.state.pos]?.value}`,
+      baseLocation
+    );
+  }
+
+  return {
+    type: 'Interpolation',
+    expression,
+    span: expression.span,
+  };
+};
+
+// ============================================================
+// TUPLE & DICT PARSING
+// ============================================================
+
+Parser.prototype.parseTupleOrDict = function (
+  this: Parser
+): TupleNode | DictNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.LBRACKET, 'Expected [');
+  skipNewlines(this.state);
+
+  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+    advance(this.state);
+    return {
+      type: 'Tuple',
+      elements: [],
+      span: makeSpan(start, current(this.state).span.end),
+    };
+  }
+
+  if (
+    check(this.state, TOKEN_TYPES.COLON) &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
+  ) {
+    advance(this.state);
+    advance(this.state);
+    return {
+      type: 'Dict',
+      entries: [],
+      span: makeSpan(start, current(this.state).span.end),
+    };
+  }
+
+  if (isDictStart(this.state)) {
+    return this.parseDict(start);
+  }
+
+  return this.parseTuple(start);
+};
+
+Parser.prototype.parseTuple = function (
+  this: Parser,
+  start: SourceLocation
+): TupleNode {
+  const elements: ExpressionNode[] = [];
+  elements.push(this.parseExpression());
+  skipNewlines(this.state);
+
+  while (check(this.state, TOKEN_TYPES.COMMA)) {
+    advance(this.state);
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
+    elements.push(this.parseExpression());
+    skipNewlines(this.state);
+  }
+
+  expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  return {
+    type: 'Tuple',
+    elements,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+Parser.prototype.parseDict = function (
+  this: Parser,
+  start: SourceLocation
+): DictNode {
+  const entries: DictEntryNode[] = [];
+  entries.push(this.parseDictEntry());
+  skipNewlines(this.state);
+
+  while (check(this.state, TOKEN_TYPES.COMMA)) {
+    advance(this.state);
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
+    entries.push(this.parseDictEntry());
+    skipNewlines(this.state);
+  }
+
+  expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  return {
+    type: 'Dict',
+    entries,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
+  const start = current(this.state).span.start;
+  const keyToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, 'Expected key');
+  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  const value = this.parseExpression();
+
+  return {
+    type: 'DictEntry',
+    key: keyToken.value,
+    value,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// CLOSURE PARSING
+// ============================================================
+
+Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
+  const start = current(this.state).span.start;
+
+  if (check(this.state, TOKEN_TYPES.OR)) {
+    advance(this.state);
+    const body = this.parseBody();
+    return {
+      type: 'Closure',
+      params: [],
+      body,
+      span: makeSpan(start, body.span.end),
+    };
+  }
+
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+
+  const params: ClosureParamNode[] = [];
+  if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+    params.push(this.parseClosureParam());
+    while (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      params.push(this.parseClosureParam());
+    }
+  }
+
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+
+  const body = this.parseBody();
+
+  return {
+    type: 'Closure',
+    params,
+    body,
+    span: makeSpan(start, body.span.end),
+  };
+};
+
+Parser.prototype.parseBody = function (this: Parser): BodyNode {
+  if (check(this.state, TOKEN_TYPES.LBRACE)) {
+    return this.parseBlock();
+  }
+
+  if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    return this.parseGrouped();
+  }
+
+  if (
+    check(this.state, TOKEN_TYPES.BREAK) ||
+    check(this.state, TOKEN_TYPES.RETURN)
+  ) {
+    return this.parsePipeChain();
+  }
+
+  return this.parsePostfixExpr();
+};
+
+Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
+  const start = current(this.state).span.start;
+  const nameToken = expect(
+    this.state,
+    TOKEN_TYPES.IDENTIFIER,
+    'Expected parameter name'
+  );
+
+  let typeName: 'string' | 'number' | 'bool' | null = null;
+  let defaultValue: LiteralNode | null = null;
+
+  if (check(this.state, TOKEN_TYPES.COLON)) {
+    advance(this.state);
+    typeName = parseTypeName(this.state, FUNC_PARAM_TYPES);
+  }
+
+  if (check(this.state, TOKEN_TYPES.ASSIGN)) {
+    advance(this.state);
+    defaultValue = this.parseLiteral();
+  }
+
+  return {
+    type: 'ClosureParam',
+    name: nameToken.value,
+    typeName,
+    defaultValue,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};

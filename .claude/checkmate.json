@@ -1,0 +1,52 @@
+{
+  "environments": [
+    {
+      "name": "root",
+      "paths": ["."],
+      "exclude": ["dist/**"],
+      "checks": {
+        ".ts": [
+          {
+            "name": "prettier",
+            "command": "npx",
+            "args": ["prettier", "--check", "$FILE"],
+            "parser": "prettier",
+            "_auto": true
+          },
+          {
+            "name": "eslint",
+            "command": "npx",
+            "args": ["eslint", "$FILE"],
+            "parser": "eslint",
+            "_auto": true
+          }
+        ],
+        ".js": [
+          {
+            "name": "prettier",
+            "command": "npx",
+            "args": ["prettier", "--check", "$FILE"],
+            "parser": "prettier",
+            "_auto": true
+          },
+          {
+            "name": "eslint",
+            "command": "npx",
+            "args": ["eslint", "$FILE"],
+            "parser": "eslint",
+            "_auto": true
+          }
+        ],
+        ".json,.md": [
+          {
+            "name": "prettier",
+            "command": "npx",
+            "args": ["prettier", "--check", "$FILE"],
+            "parser": "prettier",
+            "_auto": true
+          }
+        ]
+      }
+    }
+  ]
+}

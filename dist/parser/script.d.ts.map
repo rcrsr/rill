@@ -1,0 +1,1 @@
+{"version":3,"file":"script.d.ts","sourceRoot":"","sources":["../../src/parser/script.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,KAAK,EACV,sBAAsB,EAKtB,UAAU,EAEV,aAAa,EACd,MAAM,aAAa,CAAC;AAErB,OAAO,EACL,KAAK,WAAW,EAQjB,MAAM,YAAY,CAAC;AAQpB,wBAAgB,WAAW,CAAC,KAAK,EAAE,WAAW,GAAG,UAAU,CAiD1D;AA6DD;;;;GAIG;AACH,wBAAgB,cAAc,CAC5B,KAAK,EAAE,WAAW,GACjB,aAAa,GAAG,sBAAsB,CAexC"}
