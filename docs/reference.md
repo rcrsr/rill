@@ -1200,6 +1200,10 @@ const ctx = createRuntimeContext({
       return await callLLM(args[0]);
     },
     exec: async (args) => { /* spawn process */ },
+
+    // Namespaced functions use :: separator
+    'io::read': async (args) => fs.readFile(String(args[0]), 'utf-8'),
+    'io::write': async (args) => fs.writeFile(String(args[0]), String(args[1])),
   },
 
   // Initial variables (can include callables)
@@ -1220,6 +1224,15 @@ const ctx = createRuntimeContext({
 // controller.abort();
 
 const result = await execute(parse(script), ctx);
+```
+
+**Namespaced functions:**
+
+Use `::` to organize functions into namespaces. Scripts call them with the same syntax:
+
+```text
+io::read("config.json") -> parse_json -> $config
+$config.data -> io::write("output.json")
 ```
 
 **Function signature:**

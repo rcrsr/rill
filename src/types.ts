@@ -207,6 +207,7 @@ export const TOKEN_TYPES = {
   AT: 'AT', // @
   CARET: 'CARET', // ^ (annotation prefix)
   COLON: 'COLON', // :
+  DOUBLE_COLON: 'DOUBLE_COLON', // :: (namespace separator)
   COMMA: 'COMMA', // ,
 
   // Boolean operators

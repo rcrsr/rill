@@ -31,14 +31,33 @@ export const FUNC_PARAM_TYPES = ['string', 'number', 'bool'] as const;
 // ============================================================
 
 /**
- * Check for function call: identifier(
+ * Check for function call: identifier( or namespace::func(
+ * Supports: func(), ns::func(), ns::sub::func()
  * @internal
  */
 export function isHostCall(state: ParserState): boolean {
-  return (
-    check(state, TOKEN_TYPES.IDENTIFIER) &&
-    peek(state, 1).type === TOKEN_TYPES.LPAREN
-  );
+  if (!check(state, TOKEN_TYPES.IDENTIFIER)) {
+    return false;
+  }
+
+  // Simple case: identifier(
+  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
+    return true;
+  }
+
+  // Namespaced case: identifier::identifier(
+  // Scan ahead for pattern: IDENT (:: IDENT)* (
+  let offset = 1;
+  while (peek(state, offset).type === TOKEN_TYPES.DOUBLE_COLON) {
+    offset++; // skip ::
+    if (peek(state, offset).type !== TOKEN_TYPES.IDENTIFIER) {
+      return false; // :: must be followed by identifier
+    }
+    offset++; // skip identifier
+  }
+
+  // If we consumed at least one ::, check for (
+  return offset > 1 && peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
 /**

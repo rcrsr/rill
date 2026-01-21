@@ -126,6 +126,37 @@ const ctx = createRuntimeContext({
 });
 ```
 
+### Namespaced Functions
+
+Use `::` to organize functions into namespaces:
+
+```typescript
+const ctx = createRuntimeContext({
+  functions: {
+    // Namespaced functions use :: separator
+    'math::add': (args) => (args[0] as number) + (args[1] as number),
+    'math::multiply': (args) => (args[0] as number) * (args[1] as number),
+    'str::upper': (args) => String(args[0]).toUpperCase(),
+    'str::lower': (args) => String(args[0]).toLowerCase(),
+
+    // Multi-level namespaces
+    'io::file::read': async (args) => fs.readFile(String(args[0]), 'utf-8'),
+    'io::file::write': async (args) => fs.writeFile(String(args[0]), String(args[1])),
+  },
+});
+```
+
+Scripts call namespaced functions with the same syntax:
+
+```text
+math::add(1, 2)           # 3
+"hello" -> str::upper     # "HELLO"
+io::file::read("config.json") -> parse_json
+```
+
+Namespaces help organize host APIs and avoid name collisions without requiring the `$` variable prefix.
+```
+
 ### CallableFn Signature
 
 ```typescript

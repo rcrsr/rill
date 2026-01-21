@@ -185,23 +185,33 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
   let sliceStop: SliceBoundNode | null = null;
   let sliceStep: SliceBoundNode | null = null;
 
-  if (!check(this.state, TOKEN_TYPES.COLON)) {
-    sliceStart = this.parseSliceBound();
-  }
-
-  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
-
-  if (
-    !check(this.state, TOKEN_TYPES.COLON) &&
-    !check(this.state, TOKEN_TYPES.GT)
-  ) {
-    sliceStop = this.parseSliceBound();
-  }
-
-  if (check(this.state, TOKEN_TYPES.COLON)) {
-    advance(this.state);
+  // Handle :: as shorthand for empty start and stop (e.g., /<::2> means [::2])
+  if (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
+    advance(this.state); // consume ::
+    // Both start and stop are empty, parse step if present
     if (!check(this.state, TOKEN_TYPES.GT)) {
       sliceStep = this.parseSliceBound();
+    }
+  } else {
+    // Normal parsing: start:stop:step
+    if (!check(this.state, TOKEN_TYPES.COLON)) {
+      sliceStart = this.parseSliceBound();
+    }
+
+    expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+
+    if (
+      !check(this.state, TOKEN_TYPES.COLON) &&
+      !check(this.state, TOKEN_TYPES.GT)
+    ) {
+      sliceStop = this.parseSliceBound();
+    }
+
+    if (check(this.state, TOKEN_TYPES.COLON)) {
+      advance(this.state);
+      if (!check(this.state, TOKEN_TYPES.GT)) {
+        sliceStep = this.parseSliceBound();
+      }
     }
   }
 

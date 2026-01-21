@@ -260,8 +260,9 @@ capture-type  = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tu
 
 host-call = host-name , "(" , [ arguments ] , ")" ;
 
-host-name = identifier ;
-              (*rill is a vanilla language. The host provides all domain functions.
+host-name = identifier , { "::" , identifier } ;
+              (* Namespaced functions use :: separator: math::add, io::file::read
+                 rill is a vanilla language. The host provides all domain functions.
 
                  Core global functions (built-in):
                  - type($value)  -- returns type name: "string", "number", "bool", "closure", "list", "dict", "tuple"

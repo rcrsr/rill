@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Namespaced Functions** — Host functions can use `::` separator for organization
+  - Register: `functions: { 'math::add': (args) => ... }`
+  - Call: `math::add(1, 2)` or `5 -> math::double`
+  - Supports multi-level: `io::file::read("path")`
+
 ## [0.0.1] - 2025-01-20
 
 Initial release.

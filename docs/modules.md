@@ -279,9 +279,43 @@ async function loadModule(
 }
 ```
 
-### Host Modules (@host/)
+### Host Functions with Namespaces
 
-Register host-specific functionality as pre-built dicts:
+For host-specific functionality, you can use namespaced functions with `::` syntax instead of the module convention. This is simpler when you don't need the full module system:
+
+```typescript
+const ctx = createRuntimeContext({
+  functions: {
+    'http::get': async (args) => {
+      const response = await fetch(String(args[0]));
+      return response.text();
+    },
+    'http::post': async (args) => {
+      const response = await fetch(String(args[0]), {
+        method: 'POST',
+        body: String(args[1]),
+      });
+      return response.text();
+    },
+    'fs::read': async (args) => fs.readFile(String(args[0]), 'utf-8'),
+    'fs::write': async (args) => {
+      await fs.writeFile(String(args[0]), String(args[1]));
+      return true;
+    },
+  },
+});
+```
+
+Scripts call these directly:
+
+```text
+http::get("https://api.example.com") -> parse_json
+fs::read("config.json") -> parse_json -> $config
+```
+
+### Host Modules (@host/) — Alternative
+
+For more complex scenarios, register host modules as dicts with callable members:
 
 ```typescript
 import { callable } from '@rcrsr/rill';
@@ -314,6 +348,8 @@ if (specifier.startsWith('@host/')) {
   return hostModules[specifier] ?? {};
 }
 ```
+
+This approach requires the `$` prefix (`$http.get()`) but allows passing modules as values.
 
 ### Core Modules (@core/)
 

@@ -56,14 +56,26 @@ Parser.prototype.parseArgumentList = function (this: Parser): ExpressionNode[] {
 
 Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   const start = current(this.state).span.start;
-  const nameToken = advance(this.state);
+
+  // Collect namespaced name: ident or ident::ident::...
+  let name = advance(this.state).value;
+  while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
+    advance(this.state); // consume ::
+    const next = expect(
+      this.state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected identifier after ::'
+    );
+    name += '::' + next.value;
+  }
+
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
 
   return {
     type: 'HostCall',
-    name: nameToken.value,
+    name,
     args,
     span: makeSpan(start, current(this.state).span.end),
   };

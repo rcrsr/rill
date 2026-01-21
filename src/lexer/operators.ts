@@ -18,6 +18,7 @@ export const TWO_CHAR_OPERATORS: Record<string, TokenType> = {
   '>=': TOKEN_TYPES.GE,
   '??': TOKEN_TYPES.NULLISH_COALESCE,
   '.?': TOKEN_TYPES.DOT_QUESTION,
+  '::': TOKEN_TYPES.DOUBLE_COLON,
 };
 
 /** Single-character operator lookup table */

@@ -547,13 +547,25 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseHostCall();
   }
 
-  // Bare function name: "-> greet"
+  // Bare function name: "-> greet" or "-> ns::func"
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     const start = current(this.state).span.start;
-    const nameToken = advance(this.state);
+    let name = advance(this.state).value;
+
+    // Collect namespaced name: ident::ident::...
+    while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
+      advance(this.state); // consume ::
+      const next = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected identifier after ::'
+      );
+      name += '::' + next.value;
+    }
+
     return {
       type: 'HostCall',
-      name: nameToken.value,
+      name,
       args: [],
       span: makeSpan(start, current(this.state).span.end),
     };
