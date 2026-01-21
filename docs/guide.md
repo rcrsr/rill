@@ -55,6 +55,30 @@ Methods can also chain directly without `->`:
 
 Each `->` passes its left side to its right side. The result flows through the chain.
 
+### Statement Flow
+
+Each statement's result automatically becomes `$` for the next statement:
+
+```text
+"hello"          # Result: "hello", $ becomes "hello"
+.upper           # Uses $, result: "HELLO", $ becomes "HELLO"
+.len             # Uses $, result: 5
+```
+
+This enables concise multi-line scripts without explicit piping between statements:
+
+```text
+prompt("analyze this")
+.contains("ERROR") ? error($) ! "OK"
+```
+
+The second line implicitly operates on the result of the first. This is equivalent to:
+
+```text
+prompt("analyze this") -> $result
+$result -> .contains("ERROR") ? error($result) ! "OK"
+```
+
 ## Variables
 
 Capture values into named variables with `-> $name`:

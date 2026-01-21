@@ -5,7 +5,7 @@
 *Pipe-based scripting for workflow orchestration*
 
 > [!WARNING]
-> **This language is experimental** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
+> **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
 
 ## Why rill?
 

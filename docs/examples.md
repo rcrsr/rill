@@ -256,6 +256,31 @@ $final -> ?(.contains("SUCCESS")) {
 }
 ```
 
+### Do-While Retry
+
+When you always want at least one attempt, do-while is cleaner:
+
+```text
+---
+args: operation: string
+---
+
+# Do-while: body runs first, then condition checked
+^(limit: 5) @ {
+  prompt(<<EOF
+Perform: {$operation}
+
+Output SUCCESS, RETRY, or FAILED.
+EOF
+  )
+} ? (.contains("RETRY"))
+
+# Loop exits when result doesn't contain RETRY
+.contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$}"]
+```
+
+The do-while form eliminates the separate first-attempt code since the body always executes at least once.
+
 ## Inline Capture Pattern
 
 Captures mid-chain for debugging or later reference while data continues flowing.

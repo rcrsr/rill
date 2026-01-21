@@ -1,9 +1,0 @@
-# Rill Basics
-# Demonstrates core language features
-
-# Pipes and variables
-"alice, bob, charlie".split(", ") @ {
-  (.len > 4) ? "{$} (long)" ! "{$} (short)"
-} -> .join(" | ")
-
-# result: "alice (long) | bob (short) | charlie (long)"

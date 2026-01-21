@@ -891,6 +891,18 @@ Post-condition loop. Body executes first, then condition is checked:
 @ { body } ? (condition)
 ```
 
+**Practical example — validation loop:**
+
+```text
+# Keep prompting until output passes validation
+^(limit: 5) @ {
+  prompt("Generate valid JSON for a user profile")
+} ? (parse_json($) -> type != "dict")
+
+# Loop exits when parse_json returns a dict
+parse_json($) -> $profile
+```
+
 **Early exit:**
 
 ```text
@@ -1590,7 +1602,7 @@ $doc -> parse_frontmatter -> *<meta: $m, body: $b>
 $tasks -> parse_checklist -> filter { $.0 }
 ```
 
-See [Examples](examples.md) for parsing workflow patterns.
+See [Parsing](parsing.md) for detailed usage and [Examples](examples.md) for workflow patterns.
 
 ## Comments
 

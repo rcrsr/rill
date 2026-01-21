@@ -19,6 +19,7 @@
 | [Collections](collections.md) | `each`, `map`, `filter`, `fold` operators |
 | [Iterators](iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
 | [Strings](strings.md) | String methods for text manipulation |
+| [Parsing](parsing.md) | Extract structured data from text and LLM output |
 | [Host Integration](host-integration.md) | Embedding rill in applications |
 | [Modules](modules.md) | Convention for host-provided module systems |
 
