@@ -1,1 +1,0 @@
-{"version":3,"file":"arithmetic.d.ts","sourceRoot":"","sources":["../../src/parser/arithmetic.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,KAAK,EAAE,cAAc,EAA8B,MAAM,aAAa,CAAC;AAE9E,OAAO,EAAE,KAAK,WAAW,EAA6C,MAAM,YAAY,CAAC;AAOzF;;;;;;;GAOG;AACH,wBAAgB,eAAe,CAAC,KAAK,EAAE,WAAW,GAAG,cAAc,CAYlE"}
