@@ -30,3 +30,6 @@ Thumbs.db
 # Misc
 *.tgz
 .npm
+
+# Internal notes
+internal/

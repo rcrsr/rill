@@ -37,7 +37,32 @@
             "_auto": true
           }
         ],
-        ".json,.md": [
+        ".json": [
+          {
+            "name": "prettier",
+            "command": "npx",
+            "args": ["prettier", "--check", "$FILE"],
+            "parser": "prettier",
+            "_auto": true
+          }
+        ],
+        ".md": [
+          {
+            "name": "prettier",
+            "command": "npx",
+            "args": ["prettier", "--check", "$FILE"],
+            "parser": "prettier",
+            "_auto": true
+          },
+          {
+            "name": "test-examples",
+            "command": "npx",
+            "args": ["tsx", "scripts/test-examples.ts", "--json", "$FILE"],
+            "parser": "jsonl",
+            "_auto": true
+          }
+        ],
+        ".yml": [
           {
             "name": "prettier",
             "command": "npx",

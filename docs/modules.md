@@ -70,7 +70,7 @@ All imports require a name (the key before the colon). This ensures:
 
 Scripts export values via the `export` frontmatter key:
 
-```text
+```rill
 ---
 export:
   - double
@@ -93,7 +93,7 @@ The host:
 
 A module is a Rill script with frontmatter declaring exports:
 
-```text
+```rill
 # utils/math.rill
 ---
 export:
@@ -308,7 +308,7 @@ const ctx = createRuntimeContext({
 
 Scripts call these directly:
 
-```text
+```rill
 http::get("https://api.example.com") -> parse_json
 fs::read("config.json") -> parse_json -> $config
 ```
@@ -368,7 +368,7 @@ Hosts can implement these in Rill or TypeScript. Consistency across hosts improv
 
 ### Basic Module
 
-```text
+```rill
 # greet.rill
 ---
 export:
@@ -396,7 +396,7 @@ use:
 
 Imported modules can be re-exported:
 
-```text
+```rill
 # utils/index.rill
 ---
 use:
@@ -424,7 +424,7 @@ use:
 
 Non-exported variables remain private:
 
-```text
+```rill
 ---
 export:
   - processAll
@@ -454,7 +454,7 @@ export:
 
 Cache modules by canonical path. Same module imported multiple times shares the same export object:
 
-```text
+```rill
 # Both reference the same loaded module
 ---
 use:

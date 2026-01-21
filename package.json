@@ -38,7 +38,8 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "clean": "rm -rf dist",
-    "rill": "npx tsx src/cli.ts"
+    "rill": "npx tsx src/cli.ts",
+    "test:examples": "npx tsx scripts/test-examples.ts"
   },
   "keywords": [
     "rill",

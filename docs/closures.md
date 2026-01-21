@@ -28,7 +28,7 @@ Closures resolve captured variables at **call time**, not definition time. This 
 
 ### Basic Example
 
-```text
+```rill
 10 -> $x
 ||($x + 5) -> $fn
 20 -> $x
@@ -37,7 +37,7 @@ $fn()    # 25 (sees current $x=20, not $x=10 at definition)
 
 ### Recursive Closures
 
-```text
+```rill
 |n| { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } -> $factorial
 $factorial(5)    # 120
 ```
@@ -46,7 +46,7 @@ The closure references `$factorial` before it exists. Late binding resolves `$fa
 
 ### Mutual Recursion
 
-```text
+```rill
 |n| { ($n == 0) ? true ! $odd($n - 1) } -> $even
 |n| { ($n == 0) ? false ! $even($n - 1) } -> $odd
 $even(4)    # true
@@ -54,7 +54,7 @@ $even(4)    # true
 
 ### Forward References
 
-```text
+```rill
 [
   || { $helper(1) },
   || { $helper(2) }
@@ -70,7 +70,7 @@ $handlers[1]()    # 20
 
 Closures see the current value of captured variables:
 
-```text
+```rill
 0 -> $counter
 || { $counter } -> $get
 || { $counter + 1 } -> $getPlus1
@@ -86,7 +86,7 @@ Closures stored in dicts have `$` late-bound to the containing dict at invocatio
 
 ### Zero-Arg Closures Auto-Invoke
 
-```text
+```rill
 [
   name: "toolkit",
   count: 3,
@@ -98,7 +98,7 @@ $obj.summary    # "toolkit: 3 items" (auto-invoked on access)
 
 ### Accessing Sibling Fields
 
-```text
+```rill
 [
   width: 10,
   height: 5,
@@ -110,7 +110,7 @@ $rect.area    # 50
 
 ### Parameterized Dict Closures
 
-```text
+```rill
 [
   name: "tools",
   greet: |x| { "{$.name} says: {$x}" }
@@ -121,7 +121,7 @@ $obj.greet("hello")    # "tools says: hello"
 
 ### Reusable Closures Across Dicts
 
-```text
+```rill
 || { "{$.name}: {$.count} items" } -> $describer
 
 [name: "tools", count: 3, str: $describer] -> $obj1
@@ -133,7 +133,7 @@ $obj2.str    # "actions: 5 items"
 
 ### Calling Sibling Methods
 
-```text
+```rill
 [
   double: |n| { $n * 2 },
   quad: |n| { $.double($.double($n)) }
@@ -146,7 +146,7 @@ $math.quad(3)    # 12
 
 Closures in lists maintain their defining scope. Invoke via bracket access:
 
-```text
+```rill
 [
   |x| { $x + 1 },
   |x| { $x * 2 },
@@ -160,7 +160,7 @@ $transforms[2](5)    # 25
 
 ### Chaining List Closures
 
-```text
+```rill
 |n| { $n + 1 } -> $inc
 |n| { $n * 2 } -> $double
 
@@ -171,7 +171,7 @@ $transforms[2](5)    # 25
 
 Closures can appear inline in expressions:
 
-```text
+```rill
 [1, 2, 3] -> map |x| { $x * 2 }    # [2, 4, 6]
 
 [1, 2, 3] -> filter |x| { $x > 1 }    # [2, 3]
@@ -181,7 +181,7 @@ Closures can appear inline in expressions:
 
 ### Inline with Block Bodies
 
-```text
+```rill
 [1, 2, 3] -> map |x| {
   ($x * 10) -> $scaled
   "{$x} -> {$scaled}"
@@ -193,14 +193,14 @@ Closures can appear inline in expressions:
 
 Closures can contain closures. Each captures its defining scope:
 
-```text
+```rill
 |n| { || { $n } } -> $makeGetter
 $makeGetter(42)()    # 42
 ```
 
 ### Closure Factory Pattern
 
-```text
+```rill
 |multiplier| {
   |x| { $x * $multiplier }
 } -> $makeMultiplier
@@ -214,7 +214,7 @@ $tenX(5)      # 50
 
 ### Nested Late Binding
 
-```text
+```rill
 1 -> $x
 || { || { $x } } -> $outer
 5 -> $x
@@ -225,7 +225,7 @@ $outer()()    # 5 (inner closure sees updated $x)
 
 Closure parameters shadow captured variables of the same name:
 
-```text
+```rill
 100 -> $x
 |x| { $x * 2 } -> $double
 $double(5)    # 10 (parameter $x=5 shadows captured $x=100)
@@ -237,7 +237,7 @@ $double(5)    # 10 (parameter $x=5 shadows captured $x=100)
 
 Each loop iteration creates a new child scope. Capture variables explicitly to preserve per-iteration values:
 
-```text
+```rill
 # Capture $ into named variable for each iteration
 [1, 2, 3] -> @ {
   $ -> $item
@@ -251,7 +251,7 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 
 ### Conditional Branch Closures
 
-```text
+```rill
 10 -> $x
 true ? { || { $x } } ! { || { 0 } } -> $fn
 20 -> $x
@@ -262,14 +262,15 @@ $fn()    # 20 (late binding sees updated $x)
 
 ### Direct Call
 
-```text
+```rill
 |x| { $x + 1 } -> $inc
 $inc(5)    # 6
 ```
 
 ### Pipe Call
 
-```text
+```rill
+|x| { $x + 1 } -> $inc
 5 -> $inc()    # 6
 ```
 
@@ -277,7 +278,7 @@ $inc(5)    # 6
 
 Call closures from bracket access or expressions:
 
-```text
+```rill
 [|x| { $x * 2 }] -> $fns
 $fns[0](5)    # 10
 
@@ -287,7 +288,7 @@ $factory()(5)    # 10 (chained invocation)
 
 ### Method Access After Bracket (Requires Grouping)
 
-```text
+```rill
 ["hello", "world"] -> $list
 
 # This parses .upper as field access on $list (returns null)
@@ -306,21 +307,21 @@ $list[0] -> .upper    # "HELLO"
 
 Undefined variables return `null` at call time:
 
-```text
+```rill
 || { $undefined } -> $fn
 $fn()    # null
 ```
 
 ### Invoking Non-Callable
 
-```text
+```rill
 [1, 2, 3] -> $list
 $list[0]()    # Error: Cannot invoke non-callable value (got number)
 ```
 
 ### Type Errors
 
-```text
+```rill
 |x: string| { $x } -> $fn
 $fn(42)    # Error: Parameter type mismatch: x expects string, got number
 ```

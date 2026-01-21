@@ -9,7 +9,7 @@ String methods for text manipulation, pattern matching, and formatting.
 | `.lower` | `() -> string` | Convert to lowercase |
 | `.upper` | `() -> string` | Convert to uppercase |
 
-```text
+```rill
 "Hello World" -> .lower              # "hello world"
 "Hello World" -> .upper              # "HELLO WORLD"
 ```
@@ -21,7 +21,7 @@ String methods for text manipulation, pattern matching, and formatting.
 | `.starts_with` | `(prefix: string) -> bool` | True if string starts with prefix |
 | `.ends_with`   | `(suffix: string) -> bool` | True if string ends with suffix   |
 
-```text
+```rill
 "hello" -> .starts_with("he")        # true
 "file.txt" -> .ends_with(".txt")     # true
 "Hello" -> .starts_with("hello")     # false (case sensitive)
@@ -34,7 +34,7 @@ String methods for text manipulation, pattern matching, and formatting.
 | `.contains` | `(substr: string) -> bool` | True if string contains substring |
 | `.index_of` | `(substr: string) -> number` | Position of first match (-1 if none) |
 
-```text
+```rill
 "hello world" -> .contains("world")  # true
 "hello world" -> .index_of("o")      # 4
 "hello" -> .index_of("x")            # -1
@@ -54,7 +54,7 @@ Returns a dict with three fields:
 - `index`: Position of match in string
 - `groups`: Capture groups as list
 
-```text
+```rill
 "hello123" -> .match("[0-9]+")
 # [matched: "123", index: 5, groups: []]
 
@@ -67,14 +67,14 @@ Returns a dict with three fields:
 
 ### `.is_match` for Boolean Checks
 
-```text
+```rill
 "hello123" -> .is_match("[0-9]+")    # true
 "hello" -> .is_match("[0-9]+")       # false
 ```
 
 ### Pattern Matching in Conditionals
 
-```text
+```rill
 $response -> .is_match("ERROR") ? handle_error()
 
 $response -> .match("code: (\\d+)") -> $m
@@ -88,7 +88,7 @@ $m -> !.empty ? process($m.groups[0])
 | `.replace`     | `(pattern: string, replacement: string) -> string` | Replace first regex match |
 | `.replace_all` | `(pattern: string, replacement: string) -> string` | Replace all regex matches |
 
-```text
+```rill
 "a-b-c" -> .replace("-", "_")        # "a_b-c"
 "a-b-c" -> .replace_all("-", "_")    # "a_b_c"
 
@@ -107,7 +107,7 @@ $m -> !.empty ? process($m.groups[0])
 | `.pad_start` | `(length: number, fill: string = " ") -> string` | Pad start to length |
 | `.pad_end`   | `(length: number, fill: string = " ") -> string` | Pad end to length   |
 
-```text
+```rill
 "  hello  " -> .trim                 # "hello"
 
 "ab" -> .repeat(3)                   # "ababab"
@@ -128,7 +128,7 @@ $m -> !.empty ? process($m.groups[0])
 | `.join`  | `(sep: string = ",") -> string` | Join list with separator        |
 | `.lines` | `() -> list`                 | Split on newlines (same as .split) |
 
-```text
+```rill
 "a,b,c" -> .split(",")               # ["a", "b", "c"]
 "a\nb\nc" -> .lines                  # ["a", "b", "c"]
 
@@ -144,7 +144,7 @@ $m -> !.empty ? process($m.groups[0])
 | `.num` | `() -> number` | Parse string to number      |
 | `.len` | `() -> number` | String length               |
 
-```text
+```rill
 42 -> .str                           # "42"
 "42" -> .num                         # 42
 "hello" -> .len                      # 5
@@ -158,7 +158,7 @@ $m -> !.empty ? process($m.groups[0])
 | `.tail`  | `-> string`            | Last character (errors on empty)  |
 | `.at`    | `(index: number) -> string` | Character at index  |
 
-```text
+```rill
 "hello" -> .head                     # "h"
 "hello" -> .tail                     # "o"
 "hello" -> .at(1)                    # "e"
@@ -168,19 +168,19 @@ $m -> !.empty ? process($m.groups[0])
 
 ### Normalize and Compare
 
-```text
+```rill
 $input -> .trim -> .lower -> .eq("yes")
 ```
 
 ### Extract and Validate
 
-```text
+```rill
 $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! error("Invalid email")
 ```
 
 ### Format Output
 
-```text
+```rill
 $items -> each {
   $.name -> .pad_end(20) -> $name
   $.value -> .str -> .pad_start(10) -> $val
@@ -190,13 +190,13 @@ $items -> each {
 
 ### Replace Patterns
 
-```text
+```rill
 $text -> .replace_all("\\s+", " ") -> .trim
 ```
 
 ### Parse Structured Text
 
-```text
+```rill
 $line -> .match("(\\w+):\\s*(.+)") -> $m
 $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 ```

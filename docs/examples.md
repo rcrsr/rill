@@ -8,7 +8,7 @@ Examples demonstrating core language features for workflow orchestration.
 
 Validates requirements, creates spec, iterates on review, then implements.
 
-```text
+```rill
 ---
 timeout: 00:10:00
 args: requirements: string
@@ -81,7 +81,7 @@ $verification -> ?(.contains("PASS")) {
 
 Works through a checklist until complete.
 
-```text
+```rill
 ---
 args: plan: string
 ---
@@ -110,7 +110,7 @@ EOF
 
 Runs tests, fixes failures, repeats until passing.
 
-```text
+```rill
 ---
 args: target: string
 ---
@@ -142,7 +142,7 @@ $final -> ?(.contains("PASS")) {
 
 Reviews code against multiple criteria.
 
-```text
+```rill
 ---
 args: file: string
 ---
@@ -184,7 +184,7 @@ $performance -> ?(.contains("FAIL")) {
 
 Deploys based on environment configuration.
 
-```text
+```rill
 ---
 args: service: string
 ---
@@ -220,47 +220,9 @@ EOF
 
 ## Retry Pattern
 
-Retries an operation until success or max attempts.
+Retries an operation until success or max attempts. Use do-while since you always want at least one attempt:
 
-```text
----
-args: operation: string
----
-
-# Attempt loop with counter in prompt
-prompt(<<EOF
-Attempt 1 of 3: {$operation}
-
-If successful, output SUCCESS.
-If failed but retryable, output RETRY with what went wrong.
-If failed permanently, output FAILED with reason.
-EOF
-) -> $result
-
-^(limit: 3) ($result -> .contains("RETRY")) @ {
-  pause("00:00:05")
-
-  prompt(<<EOF
-Previous attempt result:
-{$}
-
-Try again. Output SUCCESS, RETRY, or FAILED.
-EOF
-  ) -> $result
-} -> $final
-
-$final -> ?(.contains("SUCCESS")) {
-  [0, "Operation succeeded"]
-} ! {
-  [1, "Operation failed: {$final}"]
-}
-```
-
-### Do-While Retry
-
-When you always want at least one attempt, do-while is cleaner:
-
-```text
+```rill
 ---
 args: operation: string
 ---
@@ -285,7 +247,7 @@ The do-while form eliminates the separate first-attempt code since the body alwa
 
 Captures mid-chain for debugging or later reference while data continues flowing.
 
-```text
+```rill
 ---
 args: file: string
 ---
@@ -317,7 +279,7 @@ Semantically, `-> $var ->` is `-> $var.set($) ->` — the capture acts like `log
 
 Uses type annotations to prevent accidental type changes during script execution.
 
-```text
+```rill
 ---
 args: file: string
 ---
@@ -354,7 +316,7 @@ prompt("Analyze {$file}") -> $analysis:string
 
 Extracts specific information from responses.
 
-```text
+```rill
 ---
 args: logfile: string
 ---
@@ -381,40 +343,32 @@ EOF
 
 Each phase can halt the pipeline on failure.
 
-```text
+```rill
 ---
 args: file: string
 ---
 
-{
-  # Phase 1: Read
-  prompt("Read {$file} and validate format") -> $content
-  $content -> ?(.contains("INVALID")) { "Read failed: invalid format" -> return }
+# Multi-phase pipeline with early exit on errors
+"content of {$file}" -> $content
 
-  # Phase 2: Analyze
-  prompt("Analyze this content:\n{$content}") -> $analysis
-  $analysis -> ?(.contains("ERROR")) { "Analysis failed" -> return }
-
-  # Phase 3: Transform
-  prompt("Transform based on analysis:\n{$analysis}") -> $result
-  $result -> ?(.contains("FAILED")) { "Transform failed" -> return }
-
-  # Success
-  [0, $result]
-} -> $outcome
-
-$outcome -> ?(.contains("failed")) {
-  error($outcome)
-} ! {
-  "Pipeline complete"
+$content -> ?(.contains("ERROR")) {
+  "Read failed" -> return
 }
+
+"analyzed: {$content}" -> $analysis
+
+$analysis -> ?(.contains("FAIL")) {
+  "Analysis failed" -> return
+}
+
+"Pipeline complete: {$analysis}"
 ```
 
 ## Arithmetic in Loops
 
 Uses bar-delimited arithmetic for calculations within workflow logic.
 
-```text
+```rill
 ---
 args: items: string
 ---
@@ -433,9 +387,9 @@ $m.groups[0] -> .num -> $count
 
 "Processing {$count} items in {$batches} batches" -> log
 
-# Process each batch
-1 -> $batch_num
-@($batch_num -> .le($batches)) {
+# Process each batch using range
+range(1, $batches + 1) -> each {
+  $ -> $batch_num
   (($batch_num - 1) * 10) -> $start
   ($start + 10) -> $end
 
@@ -444,9 +398,7 @@ Process batch {$batch_num} of {$batches}
 Items {$start} through {$end}
 EOF
   )
-
-  ($batch_num + 1) -> $batch_num
-} -> $result
+}
 
 [0, "Processed all batches"]
 ```
@@ -455,7 +407,7 @@ EOF
 
 Uses explicit signals for workflow control.
 
-```text
+```rill
 ---
 args: task: string
 exceptions:
@@ -494,13 +446,12 @@ Demonstrates destructuring, slicing, and enumeration.
 
 ### Destructuring Function Results
 
-```text
-# exec() is host-provided, returns [output: string, exitcode: number]
-exec("run-tests", [$ARGS[0]]) -> *<output: $out, exitcode: $code>
+```rill
+# Destructure list results into named variables
+["test output", 0] -> *<$out, $code>
 
 $code -> ?(.gt(0)) {
   "Tests failed:\n{$out}" -> log
-  error("Test failure")
 }
 
 "All tests passed" -> log
@@ -508,21 +459,21 @@ $code -> ?(.gt(0)) {
 
 ### Processing Structured Data
 
-```text
+```rill
 # Process list of [file, mode] pairs
 [
   ["src/auth.ts", "security"],
   ["src/api.ts", "performance"],
   ["src/db.ts", "security"]
 ] -> each {
-  $ -> *<$file, $mode>
-  prompt("Review {$file} for {$mode} issues")
+  $ -> *<$f, $mode>
+  "Review {$f} for {$mode} issues" -> log
 }
 ```
 
 ### Enumerated Progress
 
-```text
+```rill
 enumerate($tasks) @ {
   "[{$.index + 1}/{$tasks.len}] Processing: {$.value}" -> log()
   prompt("Complete task: {$.value}")
@@ -531,7 +482,7 @@ enumerate($tasks) @ {
 
 ### Slicing Results
 
-```text
+```rill
 # Get first 3 errors
 prompt("List all errors") -> .lines() -> /<:3> -> each {
   prompt("Fix error: {$}")
@@ -545,7 +496,7 @@ $items -> /<::-1> -> each {
 
 ### Dict Iteration
 
-```text
+```rill
 # Iterate over dict directly (yields { key, value } objects)
 [host: "localhost", port: 8080, debug: true] -> each {
   "{$.key}={$.value}"
@@ -565,7 +516,7 @@ Explicit argument unpacking with validation.
 
 ### Positional Args
 
-```text
+```rill
 # Define a function
 |a, b, c| { "{$a}-{$b}-{$c}" } -> $fmt
 
@@ -579,7 +530,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ### Named Args
 
-```text
+```rill
 # Named args match by parameter name, order doesn't matter
 |width, height|($width * $height) -> $area
 
@@ -588,7 +539,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ### Parameter Defaults
 
-```text
+```rill
 # Defaults provide opt-in leniency
 |x, y = 10, z = 20|($x + $y + $z) -> $fn
 
@@ -598,7 +549,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ### Type Checking with Global Functions
 
-```text
+```rill
 # Use type() to inspect values
 42 -> type              # "number"
 "hello" -> type         # "string"
@@ -618,28 +569,23 @@ $myArgs -> $fmt()       # "1-2-3"
 
 Built-in functions for extracting structured data from LLM responses.
 
-### Auto-Detect with `parse`
+### Auto-Detect with `parse_auto`
 
-```text
-# Parse any structured response
-prompt("Return a JSON config") -> parse_auto -> $result
+```rill
+# parse_auto detects and extracts structured content
+"{{\"status\": \"ok\", \"count\": 42}}" -> parse_auto -> $result
 
-?($result.type == "json") {
-  $result.data -> process_config()
-} ! {
-  error("Expected JSON, got {$result.type}")
-}
+$result.type -> log        # "json"
+$result.data.status -> log # "ok"
 
-# Check confidence for ambiguous responses
-prompt("Analyze this") -> parse_auto -> $parsed
-?($parsed.confidence -> .lt(0.8)) {
-  "Low confidence parse: {$parsed.type}" -> log
-}
+# Also works with XML
+"<response><code>200</code></response>" -> parse_auto -> $xml
+$xml.data.code -> log      # "200"
 ```
 
 ### Extract JSON from Fenced Blocks
 
-```text
+```rill
 # LLM returns: "Here's the config:\n```json\n{...}\n```"
 prompt("Generate JSON config") -> parse_fence("json") -> parse_json -> $config
 
@@ -650,7 +596,7 @@ $config.port -> log
 
 ### Extract XML Tags (Claude-Style)
 
-```text
+```rill
 # LLM returns: "<thinking>...</thinking><answer>...</answer>"
 prompt("Analyze step by step") -> $response
 
@@ -663,7 +609,7 @@ $response -> parse_xml("answer") -> parse_json -> $answer
 
 ### Parse Tool Calls
 
-```text
+```rill
 prompt(<<EOF
 What function should I call?
 Return in format: <tool><name>func</name><args>{...}</args></tool>
@@ -680,79 +626,49 @@ call($fn_name, $fn_args)
 
 ### Process Checklists
 
-```text
-# LLM returns task list with checkboxes
-prompt("Create a todo list for deployment") -> parse_checklist -> $tasks
+```rill
+# parse_checklist extracts checkbox items as [done, text] pairs
+"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist -> $tasks
 
 # Filter incomplete tasks
-$tasks -> filter { !$.0 } -> each {
-  "TODO: {$.1}" -> log
+$tasks -> filter |task| { !$task.at(0) } -> each |task| {
+  "TODO: " -> log
+  $task.at(1) -> log
 }
-
-# Count completed
-$tasks -> filter { $.0 } -> .len -> $done
-"{$done} of {$tasks -> .len} tasks complete" -> log
 ```
 
 ### Parse Frontmatter Documents
 
-```text
-# LLM returns document with YAML frontmatter
-prompt("Generate a document with metadata") -> parse_frontmatter -> $doc
+```rill
+# parse_frontmatter extracts YAML header and body
+"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter -> $doc
 
-$doc.meta.title -> log
-$doc.meta.status -> ?(.eq("draft")) {
-  "Document is still in draft" -> log
-}
-
-$doc.body -> process_content()
-```
-
-### Repair Malformed JSON
-
-```text
-# LLM returns JSON with common errors
-# {name: 'test', items: [1, 2, 3,],}
-prompt("Return JSON data") -> parse_json -> $data
-
-# parse_json auto-repairs:
-# - Unquoted keys (name: -> "name":)
-# - Single quotes ('test' -> "test")
-# - Trailing commas ([1, 2, 3,] -> [1, 2, 3])
+$doc.meta.title -> log    # "Guide"
+$doc.body -> log          # "Content here"
 ```
 
 ### Multi-Block Extraction
 
-```text
-# LLM returns multiple code examples
-prompt("Show examples in Python, JavaScript, and TypeScript") -> parse_fences -> each {
-  "{$.lang}:" -> log
+```rill
+# parse_fences extracts all fenced code blocks
+"```python\nprint(1)\n```\n```js\nconsole.log(1)\n```" -> parse_fences -> each {
+  $.lang -> log
   $.content -> log
-  "" -> log
 }
 ```
 
 ### Structured Response Validation
 
-```text
-# Expect specific format, validate before use
-prompt("Return JSON with 'status' and 'items' fields") -> parse_auto -> $result
+```rill
+# Validate parsed content before use
+"{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto -> $result
 
 ?($result.type != "json") {
-  error("Expected JSON response")
+  "Expected JSON" -> log
 }
 
-?($result.data.status -> .empty) {
-  error("Missing 'status' field")
-}
-
-?($result.data.items -> type -> .ne("tuple")) {
-  error("'items' must be an array")
-}
-
-$result.data.items -> each {
-  process_item($)
-}
+$result.data.status -> log   # "ok"
+$result.data.items -> each { $ -> log }
 ```
 
 ## Collection Operations
@@ -761,31 +677,26 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ### Map with Parallel Spread
 
-```text
-# Transform each element
-|x|($x * 2) -> $double
+```rill
+# Define closure first, then use it
+|x| { $x * 2 } -> $double
 [1, 2, 3, 4, 5] -> map $double
 # [2, 4, 6, 8, 10]
 
 # Map with inline block
 ["alice", "bob", "carol"] -> map { "Hello, {$}!" }
 # ["Hello, alice!", "Hello, bob!", "Hello, carol!"]
-
-# Parallel API calls
-$endpoints -> map {
-  prompt("Fetch status from {$}")
-}
 ```
 
 ### Filter with Parallel Filter
 
-```text
+```rill
 # Keep elements matching condition (block form)
 [1, 2, 3, 4, 5] -> filter { .gt(2) }
 # [3, 4, 5]
 
 # Filter with closure predicate
-|x|($x % 2 == 0) -> $even
+|x| { $x % 2 == 0 } -> $even
 [1, 2, 3, 4, 5, 6] -> filter $even
 # [2, 4, 6]
 
@@ -794,13 +705,9 @@ $endpoints -> map {
 # ["hello", "world"]
 
 # Chain filter and map
-[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $double
+|x| { $x * 2 } -> $dbl
+[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
 # [6, 8, 10]
-
-# Filter log lines for errors
-$log -> .lines -> filter { .contains("ERROR") } -> each {
-  prompt("Analyze error: {$}")
-}
 
 # Filter structured data
 [
@@ -813,7 +720,7 @@ $log -> .lines -> filter { .contains("ERROR") } -> each {
 
 ### Reduce with Sequential Spread
 
-```text
+```rill
 # Chain transformations
 |s|"{$s} -> validated" -> $validate
 |s|"{$s} -> processed" -> $process
@@ -832,7 +739,7 @@ $log -> .lines -> filter { .contains("ERROR") } -> each {
 
 ### Find First Match
 
-```text
+```rill
 # Find first element matching condition
 [1, 2, 3, 4, 5] -> each {
   ?(.gt(3)) { $ -> break }
@@ -848,33 +755,20 @@ $result -> ?(.empty) { "not found" } ! { "found: {$result}" }
 
 ### Aggregate/Sum
 
-```text
-# Sum numbers
-0 -> $total
-[10, 20, 30, 40] -> each {
-  ($total + $) -> $total
-}
-$total
+```rill
+# Sum numbers using fold
+[10, 20, 30, 40] -> fold(0) { $@ + $ }
 # 100
 
-# Count matching elements
-0 -> $count
-$items -> each {
-  ?(.contains("error")) {
-    ($count + 1) -> $count
-  }
-}
+# Count matching elements using filter
+$items -> filter { .contains("error") } -> .len -> $count
 "Found {$count} errors" -> log
 ```
 
 ### Transform and Collect
 
-```text
-# Process files, collect results
-[] -> $results
-$files -> each {
-  prompt("Analyze {$}") -> $analysis
-  [$results, $analysis] -> $results
-}
-$results -> .join("\n---\n")
+```rill
+# Process items, collect results using map
+["file1.txt", "file2.txt", "file3.txt"] -> map { "analyzed: {$}" } -> .join("\n")
+# "analyzed: file1.txt\nanalyzed: file2.txt\nanalyzed: file3.txt"
 ```

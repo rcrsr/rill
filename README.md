@@ -2,20 +2,28 @@
   <img src="docs/assets/logo.png" alt="rill logo" width="280">
 </p>
 
-*Pipe-based scripting for workflow orchestration*
+*Embeddable workflow language for LLM orchestration*
 
 > [!WARNING]
 > **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
 
 ## Why rill?
 
-LLM context limits degrade adherence in complex scenarios. rill provides deterministic orchestration for prompt-based workflows that require reliable state control.
+rill enables platform builders to make their apps scriptable without exposing arbitrary code execution.
 
-- **Pipes over assignment.** Data flows forward. No boilerplate, no class hierarchies.
-- **Pattern-driven conditionals.** Branch based on response patterns.
-- **Bounded loops.** Retry with limits. Prevents runaway execution.
-- **Built-in LLM output parsing.** Auto-detect JSON, XML, YAML, checklists.
-- **Embeddable.** Zero dependencies. Host provides domain functions.
+rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic.
+
+- **Embeddable.** Zero dependencies. Runs in browser or backend. [Integration](docs/host-integration.md) only requires a few lines of code.
+- **Sandboxed.** Users can only call functions you explicitly provide. No filesystem, no network, no `eval()` disasters.
+- **Bounded execution.** Retry limits prevent exhausting LLM usage limits because of runaway loops.
+- **Consistent, clean syntax.** Ships with [EBNF grammar](docs/grammar.ebnf). LLMs can write rill scripts for your users.
+- **Built-in LLM output parsing.** [Auto-detect](docs/parsing.md) JSON, XML, YAML, checklists.
+
+## Who is this for?
+
+**Platform builders** who want power users to define custom LLM workflows without hand-coding each one.
+
+rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
 
 ## Quick Start
 
@@ -158,10 +166,12 @@ EOF
 
 ## Use Cases
 
+- **User-defined workflows.** Let power users script automation in your app.
 - **Multi-phase pipelines.** Chain steps with review gates.
 - **Parallel agent fan-out.** Launch specialists concurrently.
-- **Review-improve loops.** Iterate until approval or max attempts.
-- **Structured output extraction.** Parse JSON, XML, checklists from LLM responses.
+- **Edit-Review loops.** Iterate until approval or max attempts.
+
+See [Examples](docs/examples.md) for complete workflow patterns.
 
 ## Documentation
 

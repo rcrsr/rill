@@ -74,3 +74,20 @@ const result = await execute(ast, ctx);
 | [docs/collections.md](docs/collections.md) | each, map, filter, fold |
 | [docs/host-integration.md](docs/host-integration.md) | Embedding API |
 | [docs/grammar.ebnf](docs/grammar.ebnf) | Formal grammar |
+
+## Documentation Examples
+
+Run `npx tsx scripts/test-examples.ts docs/` to validate all code blocks.
+
+**Fence types:**
+- ` ```rill ` — Executable code (tested)
+- ` ```text ` — Pseudo-code, syntax demos (skipped)
+
+**Function namespacing:**
+- `app::prompt()`, `app::fetch()` — Host-provided functions use `app::` prefix
+- `log`, `range`, `parse_json` — Built-ins need no prefix
+- `$module.func()` — Module imports via `use:` frontmatter
+
+**Auto-skipped patterns:**
+- `# Error:` — Expected error demonstrations
+- `# ...` — Continuation markers

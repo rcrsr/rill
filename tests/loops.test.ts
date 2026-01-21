@@ -313,4 +313,59 @@ describe('Rill Runtime: Loops', () => {
       expect(await run(script)).toEqual([2, 5]);
     });
   });
+
+  describe('Iterator Loops', () => {
+    it('$ is consistent in condition and body (parenthesized)', async () => {
+      // Workaround: parenthesize condition and body
+      const script = `
+        [1, 2, 3] -> .first() -> (!$.done) @ ($.next())
+      `;
+      const result = (await run(script)) as Record<string, unknown>;
+      expect(result.done).toBe(true);
+    });
+
+    it('$ is consistent in condition and body (unparenthesized)', async () => {
+      // Expected behavior: $ should be the iterator in both condition and body
+      const script = `
+        [1, 2, 3] -> .first() -> !$.done @ $.next()
+      `;
+      const result = (await run(script)) as Record<string, unknown>;
+      expect(result.done).toBe(true);
+    });
+
+    it('$ in body should be iterator, not condition result', async () => {
+      // The body should see $ as the iterator (dict), not as a boolean
+      const script = `
+        [1, 2, 3] -> .first() -> !$.done @ (type($) -> break)
+      `;
+      expect(await run(script)).toBe('dict');
+    });
+
+    it('loop advances iterator correctly', async () => {
+      // After looping, iterator should be exhausted
+      const script = `
+        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) -> $it
+        $it.done
+      `;
+      expect(await run(script)).toBe(true);
+    });
+
+    it('implicit $ in condition and body', async () => {
+      // Using .done and .next without explicit $
+      const script = `
+        [1, 2, 3] -> .first -> !.done @ .next
+      `;
+      const result = (await run(script)) as Record<string, unknown>;
+      expect(result.done).toBe(true);
+    });
+
+    it('simplest form with different data', async () => {
+      // Most concise iterator loop form
+      const script = `
+        [0, 1, 2] -> .first -> !.done @ .next
+      `;
+      const result = (await run(script)) as Record<string, unknown>;
+      expect(result.done).toBe(true);
+    });
+  });
 });

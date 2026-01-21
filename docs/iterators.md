@@ -20,7 +20,7 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 - Lazy: Elements generated on demand
 - Composable: Work with all collection operators (`each`, `map`, `filter`, `fold`)
 
-```text
+```rill
 range(0, 5) -> each { $ * 2 }           # [0, 2, 4, 6, 8]
 repeat("x", 3) -> each { $ }            # ["x", "x", "x"]
 [1, 2, 3] -> .first() -> each { $ }     # [1, 2, 3]
@@ -38,7 +38,7 @@ Iterators are dicts with three fields:
 | `done` | bool | True if exhausted |
 | `next` | closure | Returns new iterator at next position |
 
-```text
+```rill
 # Iterator structure
 [
   value: 0,
@@ -49,7 +49,7 @@ Iterators are dicts with three fields:
 
 Collection operators automatically recognize and expand iterators:
 
-```text
+```rill
 range(1, 4) -> map { $ * 10 }     # [10, 20, 30]
 range(0, 10) -> filter { $ > 5 }  # [6, 7, 8, 9]
 range(1, 6) -> fold(0) { $@ + $ } # 15
@@ -69,7 +69,7 @@ Generate a sequence of numbers from `start` (inclusive) to `end` (exclusive).
 | `end` | number | required | Stop value (exclusive) |
 | `step` | number | 1 | Increment (can be negative) |
 
-```text
+```rill
 range(0, 5)           # 0, 1, 2, 3, 4
 range(1, 6)           # 1, 2, 3, 4, 5
 range(0, 10, 2)       # 0, 2, 4, 6, 8
@@ -80,7 +80,7 @@ range(0, 1, 0.25)     # 0, 0.25, 0.5, 0.75
 
 **Edge cases:**
 
-```text
+```rill
 range(5, 5)           # empty (start == end)
 range(5, 3)           # empty (start > end with positive step)
 range(0, 5, -1)       # empty (wrong direction)
@@ -96,7 +96,7 @@ Generate a value repeated n times.
 | `value` | any | Value to repeat |
 | `count` | number | Number of repetitions |
 
-```text
+```rill
 repeat("x", 3)        # "x", "x", "x"
 repeat(0, 5)          # 0, 0, 0, 0, 0
 repeat([a: 1], 2)     # [a: 1], [a: 1]
@@ -104,7 +104,7 @@ repeat([a: 1], 2)     # [a: 1], [a: 1]
 
 **Edge cases:**
 
-```text
+```rill
 repeat("x", 0)        # empty
 repeat("x", -1)       # ERROR: count cannot be negative
 ```
@@ -122,7 +122,7 @@ Returns an iterator for any collection. Provides a consistent interface for manu
 | dict | Iterator over `[key: k, value: v]` entries |
 | iterator | Returns itself (identity) |
 
-```text
+```rill
 [1, 2, 3] -> .first()        # iterator at 1
 "abc" -> .first()            # iterator at "a"
 [a: 1, b: 2] -> .first()     # iterator at [key: "a", value: 1]
@@ -131,14 +131,14 @@ range(0, 5) -> .first()      # iterator at 0 (identity)
 
 **Empty collections** return a done iterator:
 
-```text
+```rill
 [] -> .first()               # [done: true, next: ...]
 "" -> .first()               # [done: true, next: ...]
 ```
 
 **Using `.first()` with collection operators:**
 
-```text
+```rill
 [1, 2, 3] -> .first() -> each { $ * 2 }    # [2, 4, 6]
 "hello" -> .first() -> each { $ }          # ["h", "e", "l", "l", "o"]
 ```
@@ -149,7 +149,7 @@ range(0, 5) -> .first()      # iterator at 0 (identity)
 
 Traverse an iterator by accessing `.value`, `.done`, and calling `.next()`:
 
-```text
+```rill
 [1, 2, 3] -> .first() -> $it
 
 # Check if done
@@ -163,20 +163,26 @@ $it.next() -> $it
 $it.value                    # 2
 ```
 
-**Loop pattern:**
+**Loop pattern (using $ as accumulator):**
 
 ```text
-"hello" -> .first() -> $it
-!$it.done @ {
-  $it.value -> log
-  $it.next() -> $it
+"hello" -> .first() -> !$.done @ {
+  $.value -> log
+  $.next()
 }
+# logs: h, e, l, l, o
+```
+
+**Preferred: use `each` for iteration:**
+
+```rill
+"hello" -> each { log($) }
 # logs: h, e, l, l, o
 ```
 
 **Check before access:**
 
-```text
+```rill
 $list -> .first() -> $it
 $it.done ? "empty" ! $it.value
 ```
@@ -187,7 +193,7 @@ $it.done ? "empty" ! $it.value
 
 Create custom iterators by implementing the protocol:
 
-```text
+```rill
 # Counter from start to max
 |start, max| [
   value: $start,
@@ -219,14 +225,13 @@ $fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
   next: || { $naturals($.value + 1) }
 ] -> $naturals
 
-# Take first 5
-$naturals(1) -> .first() -> $it
-[] -> $results
-($results -> .len < 5) @ {
-  [...$results, $it.value] -> $results
-  $it.next() -> $it
-}
-$results    # [1, 2, 3, 4, 5]
+# Take first 5 using fold with compound accumulator
+$naturals(1) -> .first() -> fold([list: [], it: $]) {
+  ($@.list -> .len >= 5) ? $@ -> break ! [
+    list: [...$@.list, $@.it.value],
+    it: $@.it.next()
+  ]
+} -> $.list    # [1, 2, 3, 4, 5]
 ```
 
 ---
@@ -240,7 +245,7 @@ For direct element access (not iteration), use `.head` and `.tail`:
 | `.head` | First element (errors on empty) |
 | `.tail` | Last element (errors on empty) |
 
-```text
+```rill
 [1, 2, 3] -> .head    # 1
 [1, 2, 3] -> .tail    # 3
 "hello" -> .head      # "h"
@@ -249,7 +254,7 @@ For direct element access (not iteration), use `.head` and `.tail`:
 
 **Empty collections error** (no null in rill):
 
-```text
+```rill
 [] -> .head           # ERROR: Cannot get head of empty list
 "" -> .tail           # ERROR: Cannot get tail of empty string
 ```
@@ -267,21 +272,21 @@ For direct element access (not iteration), use `.head` and `.tail`:
 
 ### Sum of squares
 
-```text
+```rill
 range(1, 11) -> map { $ * $ } -> fold(0) { $@ + $ }
 # 385 (1 + 4 + 9 + ... + 100)
 ```
 
 ### Generate index markers
 
-```text
+```rill
 range(0, 5) -> each { "Item {$}" }
 # ["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
 ```
 
 ### Retry pattern
 
-```text
+```rill
 repeat(1, 3) -> each {
   attempt() -> $result
   $result.success ? ($result -> break)
@@ -292,17 +297,15 @@ repeat(1, 3) -> each {
 
 ### Filter even numbers
 
-```text
+```rill
 range(0, 20) -> filter { ($ % 2) == 0 }
 # [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 ```
 
 ### Nested iteration
 
-```text
-range(1, 4) -> each { |row|
-  range(1, 4) -> each { $row * $ }
-}
+```rill
+range(1, 4) -> each { $ -> $row -> range(1, 4) -> each { $row * $ } }
 # [[1, 2, 3], [2, 4, 6], [3, 6, 9]]
 ```
 
@@ -312,7 +315,7 @@ range(1, 4) -> each { |row|
 
 Iterators are expanded eagerly when passed to collection operators. A default limit of 10000 elements prevents infinite loops:
 
-```text
+```rill
 # This would error after 10000 elements
 |n| [value: $n, done: false, next: || { $inf($.value + 1) }] -> $inf
 $inf(0) -> each { $ }    # ERROR: Iterator exceeded 10000 elements

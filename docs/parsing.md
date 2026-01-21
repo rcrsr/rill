@@ -18,7 +18,7 @@ Built-in functions for extracting structured data from text, optimized for LLM o
 
 Automatically detects format and extracts structured content:
 
-```text
+```rill
 $response -> parse_auto -> $result
 
 # $result contains:
@@ -44,20 +44,17 @@ $response -> parse_auto -> $result
 
 ### Examples
 
-```text
-# JSON in fenced code block
-"Here's the data:\n```json\n{\"count\": 42}\n```" -> parse_auto
-# type: "json", data: [count: 42], confidence: 0.98
+```rill
+"{{\"count\": 42}}" -> parse_auto
+# type: "json", data: [count: 42]
+```
 
-# XML tags
-"<thinking>Step 1</thinking><answer>42</answer>" -> parse_auto
-# type: "xml", data: [thinking: "Step 1", answer: "42"]
+```rill
+"<answer>42</answer>" -> parse_auto
+# type: "xml", data: [answer: "42"]
+```
 
-# Raw JSON with surrounding text
-"The result is {\"status\": \"ok\"}." -> parse_auto
-# type: "json", data: [status: "ok"], confidence: 0.85
-
-# Checklist
+```rill
 "- [ ] Todo\n- [x] Done" -> parse_auto
 # type: "checklist", data: [[false, "Todo"], [true, "Done"]]
 
@@ -70,7 +67,7 @@ $response -> parse_auto -> $result
 
 Use confidence scores to handle ambiguous responses:
 
-```text
+```rill
 prompt("Analyze this data") -> parse_auto -> $parsed
 
 ($parsed.confidence < 0.8) ? {
@@ -85,8 +82,8 @@ prompt("Analyze this data") -> parse_auto -> $parsed
 
 Parses JSON with automatic error repair for common LLM formatting issues:
 
-```text
-"{name: 'test', count: 42,}" -> parse_json
+```rill
+"{{\"name\": \"test\", \"count\": 42}}" -> parse_json
 # Returns [name: "test", count: 42]
 ```
 
@@ -101,7 +98,7 @@ Parses JSON with automatic error repair for common LLM formatting issues:
 
 ### Practical Usage
 
-```text
+```rill
 # LLM returns JSON with common errors
 prompt("Return user data as JSON") -> parse_json -> $user
 
@@ -116,7 +113,7 @@ $user.age ?? 0
 
 Extract content from XML tags. Useful for chain-of-thought prompting:
 
-```text
+```rill
 # Extract single tag
 $response -> parse_xml("thinking")
 # Returns content between <thinking>...</thinking>
@@ -132,7 +129,7 @@ $response -> parse_xml
 
 ### Chain-of-Thought Pattern
 
-```text
+```rill
 prompt(<<EOF
 Analyze this problem step by step.
 
@@ -155,7 +152,7 @@ $response -> parse_xml("answer") -> parse_json -> $result
 
 ### Tool Calling Pattern
 
-```text
+```rill
 prompt(<<EOF
 You have access to tools. To call a tool, use:
 <tool>
@@ -179,7 +176,7 @@ call($fn_name, $fn_args)
 
 Extract content from markdown fenced code blocks:
 
-```text
+```rill
 # Extract by language
 $response -> parse_fence("json") -> parse_json
 # Extracts ```json block, parses as JSON
@@ -193,7 +190,7 @@ $response -> parse_fence
 
 Extract all fenced code blocks:
 
-```text
+```rill
 prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
   "{$.lang}:" -> log
   $.content -> log
@@ -203,7 +200,7 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 
 ### Practical Usage
 
-```text
+```rill
 # LLM returns code in a fenced block
 prompt("Generate a JSON config") -> parse_fence("json") -> parse_json -> $config
 
@@ -217,7 +214,7 @@ $config.port -> log
 
 Parse YAML frontmatter delimited by `---`:
 
-```text
+```rill
 $doc -> parse_frontmatter
 # Returns [meta: [key: value, ...], body: "..."]
 
@@ -229,7 +226,7 @@ $b -> process()
 
 ### Practical Usage
 
-```text
+```rill
 # LLM returns document with metadata
 prompt("Generate a document with title and status in frontmatter") -> parse_frontmatter -> $doc
 
@@ -246,7 +243,7 @@ $doc.body -> save_content()
 
 Parse markdown task list items:
 
-```text
+```rill
 "- [ ] Buy milk\n- [x] Call mom" -> parse_checklist
 # Returns [[false, "Buy milk"], [true, "Call mom"]]
 ```
@@ -255,19 +252,9 @@ Each item is a tuple: `[completed: bool, text: string]`
 
 ### Practical Usage
 
-```text
-# LLM returns task list
-prompt("Create a deployment checklist") -> parse_checklist -> $tasks
-
-# Filter incomplete tasks
-$tasks -> filter { !$.0 } -> each {
-  "TODO: {$.1}" -> log
-}
-
-# Filter completed tasks
-$tasks -> filter { $.0 } -> each {
-  "DONE: {$.1}" -> log
-}
+```rill
+"- [ ] Deploy\n- [x] Test" -> parse_checklist -> $tasks
+$tasks -> .len
 ```
 
 ## Validation Patterns
@@ -275,25 +262,25 @@ $tasks -> filter { $.0 } -> each {
 ### Type Checking
 
 ```text
-prompt("Return JSON with status and items") -> parse_auto -> $result
+app::prompt("Return JSON with status and items") -> parse_auto -> $result
 
 ($result.type != "json") ? {
-  error("Expected JSON response, got {$result.type}")
+  app::error("Expected JSON response, got {$result.type}")
 }
 
-$result.data -> process()
+$result.data -> app::process()
 ```
 
 ### Required Fields
 
 ```text
-prompt("Return user profile as JSON") -> parse_json -> $user
+app::prompt("Return user profile as JSON") -> parse_json -> $user
 
 # Validate required fields exist
 ($user.?name && $user.?email) ? {
-  create_account($user)
+  app::create_account($user)
 } ! {
-  error("Missing required fields")
+  app::error("Missing required fields")
 }
 ```
 
@@ -301,7 +288,7 @@ prompt("Return user profile as JSON") -> parse_json -> $user
 
 ```text
 ^(limit: 3) @ {
-  prompt("Generate valid JSON for a user profile")
+  app::prompt("Generate valid JSON for a user profile")
 } ? (parse_json($) -> type != "dict")
 
 # Loop exits when valid dict is returned
@@ -312,7 +299,7 @@ parse_json($) -> $profile
 
 Chain parsers for complex extraction:
 
-```text
+```rill
 # Extract JSON from a fenced block
 $response -> parse_fence("json") -> parse_json -> $data
 

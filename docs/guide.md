@@ -6,7 +6,7 @@
 
 rill is a scripting language where data flows through pipes. Instead of assigning values to variables and then using them, you pipe data from one operation to the next.
 
-```text
+```rill
 "hello" -> .len
 # Result: 5
 ```
@@ -17,7 +17,7 @@ rill is designed for orchestrating workflows—sequences of operations where eac
 
 The simplest rill script is just a value:
 
-```text
+```rill
 "Hello, world!"
 ```
 
@@ -27,7 +27,7 @@ This evaluates to `"Hello, world!"`. The last value in a script is its result.
 
 The `->` operator pipes a value to the next operation:
 
-```text
+```rill
 "hello" -> .trim
 # Result: "hello"
 
@@ -41,14 +41,14 @@ The special variable `$` refers to the current piped value. Inside a pipe chain,
 
 Pipes chain naturally:
 
-```text
+```rill
 "  hello world  " -> .trim -> .split(" ")
 # Result: ["hello", "world"]
 ```
 
 Methods can also chain directly without `->`:
 
-```text
+```rill
 "  hello world  ".trim.split(" ")
 # Result: ["hello", "world"]
 ```
@@ -59,7 +59,7 @@ Each `->` passes its left side to its right side. The result flows through the c
 
 Each statement's result automatically becomes `$` for the next statement:
 
-```text
+```rill
 "hello"          # Result: "hello", $ becomes "hello"
 .upper           # Uses $, result: "HELLO", $ becomes "HELLO"
 .len             # Uses $, result: 5
@@ -67,14 +67,14 @@ Each statement's result automatically becomes `$` for the next statement:
 
 This enables concise multi-line scripts without explicit piping between statements:
 
-```text
+```rill
 prompt("analyze this")
 .contains("ERROR") ? error($) ! "OK"
 ```
 
 The second line implicitly operates on the result of the first. This is equivalent to:
 
-```text
+```rill
 prompt("analyze this") -> $result
 $result -> .contains("ERROR") ? error($result) ! "OK"
 ```
@@ -83,7 +83,7 @@ $result -> .contains("ERROR") ? error($result) ! "OK"
 
 Capture values into named variables with `-> $name`:
 
-```text
+```rill
 "hello" -> $greeting
 $greeting -> .len -> $length
 $length
@@ -110,8 +110,12 @@ rill has seven value types:
 
 Strings support interpolation with `{expression}`. Any valid expression works:
 
-```text
+```rill
 "alice" -> $name
+3 -> $a
+5 -> $b
+10 -> $count
+true -> $ok
 "Hello, {$name}!"                    # Variable interpolation
 "sum: {$a + $b}"                     # Arithmetic
 "valid: {$count > 0}"                # Comparison
@@ -121,13 +125,13 @@ Strings support interpolation with `{expression}`. Any valid expression works:
 
 Use `{{` and `}}` for literal braces:
 
-```text
+```rill
 "JSON: {{\"key\": \"value\"}}"       # Produces: JSON: {"key": "value"}
 ```
 
 Multiline strings use heredoc syntax (also supports interpolation):
 
-```text
+```rill
 <<EOF
 Hello, {$name}!
 Line two
@@ -138,7 +142,7 @@ EOF
 
 Lists hold ordered values:
 
-```text
+```rill
 [1, 2, 3] -> $nums
 $nums[0]        # 1
 $nums[-1]       # 3 (last element)
@@ -147,7 +151,7 @@ $nums -> .len   # 3
 
 Dicts hold key-value pairs:
 
-```text
+```rill
 [name: "alice", age: 30] -> $person
 $person.name    # "alice"
 $person.age     # 30
@@ -157,7 +161,7 @@ $person.age     # 30
 
 Methods are called with `.name()` syntax. The pipe value becomes the implicit first argument:
 
-```text
+```rill
 "hello world" -> .split(" ")
 # Result: ["hello", "world"]
 
@@ -176,7 +180,7 @@ Common list operations: `.len`, `.head`, `.tail`, `.at()`, `.join()`, `map $fn`,
 
 Use `?` for if-else decisions:
 
-```text
+```rill
 # condition ? then-branch ! else-branch
 true ? "yes" ! "no"
 # Result: "yes"
@@ -187,7 +191,7 @@ true ? "yes" ! "no"
 
 The else branch (`! ...`) is optional:
 
-```text
+```rill
 # Only runs then-branch if true
 true ? "executed"
 ```
@@ -196,7 +200,7 @@ true ? "executed"
 
 When you pipe into `?`, the pipe value becomes the condition:
 
-```text
+```rill
 "hello" -> .contains("ell") ? "found it"
 # Result: "found it"
 
@@ -210,7 +214,7 @@ When you pipe into `?`, the pipe value becomes the condition:
 
 Iterate over a list with `each { body }`:
 
-```text
+```rill
 [1, 2, 3] -> each { $ * 2 }
 # Result: [2, 4, 6]
 ```
@@ -221,7 +225,7 @@ Inside the loop body, `$` is the current element. The loop collects all body res
 
 When the left side of `@` is a boolean, it's a while loop. Use `$` as the accumulator:
 
-```text
+```rill
 0 -> ($ < 5) @ { $ + 1 }
 # Result: 5
 ```
@@ -234,7 +238,7 @@ The body's result becomes the next iteration's `$`. The loop exits when the cond
 
 Use `break` to exit a loop early:
 
-```text
+```rill
 [1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $
@@ -246,7 +250,7 @@ Use `break` to exit a loop early:
 
 Define reusable logic with closure syntax `|params| body`. See [Closures](closures.md) for advanced patterns including late binding and dict-bound closures.
 
-```text
+```rill
 |x|($x * 2) -> $double
 
 5 -> $double()
@@ -258,7 +262,7 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](closur
 
 ### Multiple Parameters
 
-```text
+```rill
 |a, b|($a + $b) -> $add
 
 $add(3, 4)
@@ -269,7 +273,7 @@ $add(3, 4)
 
 Optional type hints help catch errors:
 
-```text
+```rill
 |name: string, age: number| "Name: {$name}, Age: {$age}"
 ```
 
@@ -277,7 +281,7 @@ Optional type hints help catch errors:
 
 Access dict fields and list indices:
 
-```text
+```rill
 [name: "alice", scores: [85, 92, 78]] -> $data
 
 $data.name           # "alice"
@@ -289,14 +293,14 @@ $data.scores[-1]     # 78 (last)
 
 Use `??` for default values when a field might be missing:
 
-```text
+```rill
 $data.nickname ?? "anonymous"
 # Result: "anonymous" (if no nickname field)
 ```
 
 Use `.?` to check existence:
 
-```text
+```rill
 $data.?nickname      # false
 $data.?name          # true
 ```
@@ -305,7 +309,7 @@ $data.?name          # true
 
 Group multiple statements in braces. The last value is the block's result:
 
-```text
+```rill
 {
   "hello" -> $greeting
   $greeting -> .upper -> $shouted
@@ -316,7 +320,7 @@ Group multiple statements in braces. The last value is the block's result:
 
 Use `return` to exit a block early:
 
-```text
+```rill
 {
   5 -> $x
   ($x > 3) ? ("big" -> return)
@@ -329,10 +333,10 @@ Use `return` to exit a block early:
 
 Annotations modify how statements execute. The most common is `limit` for loops:
 
-```text
-# Limit loop to 100 iterations max
-^(limit: 100) ($ready == false) @ {
-  check_status() -> $ready
+```rill
+# Limit loop to 100 iterations max ($ flows through as accumulator)
+^(limit: 100) false -> ($ == false) @ {
+  check_status()
 }
 ```
 
@@ -342,25 +346,10 @@ Without a limit, while loops default to 10,000 max iterations.
 
 Here's a complete example that processes a list of names:
 
-```text
-# Input data
+```rill
 ["alice", "bob", "charlie"] -> $names
-
-# Transform: add suffix to names longer than 3 characters
-$names -> each {
-  ($ -> .len > 3) ? {
-    "{$} (long)"
-  } ! {
-    "{$} (short)"
-  }
-} -> $processed
-
-# Filter: only keep long names
-$processed -> filter |s|($s -> .contains("long")) -> $filtered
-
-# Format output
-"Processed {$filtered -> .len} names: {$filtered -> .join(", ")}"
-# Result: "Processed 2 names: alice (long), charlie (long)"
+$names -> map |name| { "{$name}: {$name -> .len} chars" } -> $descriptions
+$descriptions -> .join(", ")
 ```
 
 ## Key Differences from Other Languages

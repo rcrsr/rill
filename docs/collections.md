@@ -15,7 +15,7 @@ rill provides four collection operators for transforming, filtering, and reducin
 
 All three operators share similar syntax but differ in execution model and output.
 
-```text
+```rill
 # Sequential: results in order, one at a time
 [1, 2, 3] -> each { $ * 2 }     # [2, 4, 6]
 
@@ -45,7 +45,7 @@ Each operator accepts multiple body syntaxes. Choose based on readability and co
 
 Use braces for multi-statement bodies. `$` refers to the current element.
 
-```text
+```rill
 [1, 2, 3] -> each {
   $ -> $x
   $x * 2
@@ -57,7 +57,7 @@ Use braces for multi-statement bodies. `$` refers to the current element.
 
 Use parentheses for single expressions. `$` refers to the current element.
 
-```text
+```rill
 [1, 2, 3] -> each ($ + 10)
 # Result: [11, 12, 13]
 ```
@@ -66,7 +66,7 @@ Use parentheses for single expressions. `$` refers to the current element.
 
 Define parameters explicitly. The first parameter receives each element.
 
-```text
+```rill
 [1, 2, 3] -> each |x| ($x * 2)
 # Result: [2, 4, 6]
 ```
@@ -75,7 +75,7 @@ Define parameters explicitly. The first parameter receives each element.
 
 Reference a pre-defined closure by variable.
 
-```text
+```rill
 |x| ($x * 2) -> $double
 [1, 2, 3] -> each $double
 # Result: [2, 4, 6]
@@ -85,7 +85,7 @@ Reference a pre-defined closure by variable.
 
 Use bare `$` to return elements unchanged.
 
-```text
+```rill
 [1, 2, 3] -> each $
 # Result: [1, 2, 3]
 ```
@@ -96,14 +96,14 @@ Use bare `$` to return elements unchanged.
 
 `each` iterates over a collection in order. Each iteration completes before the next begins.
 
-```text
+```rill
 collection -> each body
 collection -> each (init) body   # with accumulator
 ```
 
 ### Basic Usage
 
-```text
+```rill
 # Double each number
 [1, 2, 3] -> each { $ * 2 }
 # Result: [2, 4, 6]
@@ -121,7 +121,7 @@ collection -> each (init) body   # with accumulator
 
 When iterating over a dict, `$` contains `key` and `value` fields.
 
-```text
+```rill
 [name: "alice", age: 30] -> each { "{$.key}: {$.value}" }
 # Result: ["name: alice", "age: 30"]
 
@@ -137,7 +137,7 @@ When iterating over a dict, `$` contains `key` and `value` fields.
 
 Place initial value in parentheses before the block. Access accumulator via `$@`.
 
-```text
+```rill
 # Running sum (scan pattern)
 [1, 2, 3] -> each(0) { $@ + $ }
 # Result: [1, 3, 6]
@@ -151,7 +151,7 @@ Place initial value in parentheses before the block. Access accumulator via `$@`
 
 Define accumulator as the last parameter with a default value.
 
-```text
+```rill
 # Running sum
 [1, 2, 3] -> each |x, acc = 0| ($acc + $x)
 # Result: [1, 3, 6]
@@ -161,7 +161,7 @@ Define accumulator as the last parameter with a default value.
 
 Use `break` to exit `each` early. Returns results collected before the break.
 
-```text
+```rill
 [1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $ * 2
@@ -173,7 +173,7 @@ Use `break` to exit `each` early. Returns results collected before the break.
 
 `each` returns `[]` for empty collections. The body never executes.
 
-```text
+```rill
 [] -> each { $ * 2 }
 # Result: []
 
@@ -188,18 +188,20 @@ Use `break` to exit `each` early. Returns results collected before the break.
 
 `map` iterates concurrently using `Promise.all`. Order is preserved despite parallel execution.
 
-```text
+```rill
 collection -> map body
 ```
 
 ### Basic Usage
 
-```text
-# Concurrent API calls
-$urls -> map |url| fetch($url)
+```rill
+# Map with closure parameter
+["a", "b", "c"] -> map |x| { "{$x}!" }
+# Result: ["a!", "b!", "c!"]
 
-# Block expression
-$items -> map { process($) }
+# Block expression (implicit $)
+[1, 2, 3] -> map { $ * 2 }
+# Result: [2, 4, 6]
 
 # Grouped expression
 [1, 2, 3] -> map ($ * 2)
@@ -219,9 +221,9 @@ Use `map` when:
 - Order of execution doesn't matter (results still ordered)
 - I/O-bound operations benefit from concurrency
 
-```text
+```rill
 # Fetch pages concurrently (faster than sequential)
-["page1", "page2", "page3"] -> map |id| fetchPage($id)
+["page1", "page2", "page3"] -> map |id| fetch_page($id)
 
 # CPU-bound: same result as each, but runs in parallel
 [1, 2, 3, 4, 5] -> map { $ * $ }
@@ -232,7 +234,7 @@ Use `map` when:
 
 `map` returns `[]` for empty collections. The body never executes.
 
-```text
+```rill
 [] -> map { $ * 2 }
 # Result: []
 ```
@@ -243,13 +245,13 @@ Use `map` when:
 
 `filter` keeps elements where the predicate returns truthy. Executes concurrently using `Promise.all`.
 
-```text
+```rill
 collection -> filter body
 ```
 
 ### Basic Usage
 
-```text
+```rill
 # Keep numbers greater than 2
 [1, 2, 3, 4, 5] -> filter { $ > 2 }
 # Result: [3, 4, 5]
@@ -267,7 +269,7 @@ collection -> filter body
 
 `filter` accepts the same body forms as `map`:
 
-```text
+```rill
 # Block form
 [1, 2, 3, 4, 5] -> filter { $ > 2 }
 
@@ -286,7 +288,7 @@ collection -> filter body
 
 When filtering a dict, `$` contains `key` and `value` fields. Returns list of matching entries.
 
-```text
+```rill
 [a: 1, b: 5, c: 3] -> filter { $.value > 2 }
 # Result: [{ key: "b", value: 5 }, { key: "c", value: 3 }]
 ```
@@ -295,14 +297,14 @@ When filtering a dict, `$` contains `key` and `value` fields. Returns list of ma
 
 Filters characters in a string.
 
-```text
+```rill
 "hello" -> filter { $ != "l" }
 # Result: ["h", "e", "o"]
 ```
 
 ### Chaining with Other Operators
 
-```text
+```rill
 # Filter then transform
 [1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 }
 # Result: [6, 8, 10]
@@ -320,7 +322,7 @@ Filters characters in a string.
 
 `filter` returns `[]` for empty collections or when nothing matches.
 
-```text
+```rill
 [] -> filter { $ > 0 }
 # Result: []
 
@@ -334,15 +336,14 @@ Filters characters in a string.
 
 `fold` reduces a collection to a single value. Requires an accumulator.
 
-```text
-collection -> fold (init) body   # block form
-collection -> fold |x, acc = init| body   # closure form
-collection -> fold $fn   # variable closure (must define accumulator)
-```
+Syntax forms:
+- Block form: `collection -> fold(init) { body }`
+- Closure form: `collection -> fold |x, acc = init| (body)`
+- Variable closure: `collection -> fold $fn`
 
 ### Basic Usage
 
-```text
+```rill
 # Sum numbers
 [1, 2, 3] -> fold(0) { $@ + $ }
 # Result: 6
@@ -356,21 +357,21 @@ collection -> fold $fn   # variable closure (must define accumulator)
 
 #### Sum
 
-```text
+```rill
 [1, 2, 3, 4, 5] -> fold(0) { $@ + $ }
 # Result: 15
 ```
 
 #### Product
 
-```text
+```rill
 [1, 2, 3, 4] -> fold(1) { $@ * $ }
 # Result: 24
 ```
 
 #### Maximum
 
-```text
+```rill
 [3, 1, 4, 1, 5, 9] -> fold(0) {
   ($@ > $) ? $@ ! $
 }
@@ -379,14 +380,14 @@ collection -> fold $fn   # variable closure (must define accumulator)
 
 #### Count
 
-```text
+```rill
 [1, 2, 3, 4, 5] -> fold(0) { $@ + 1 }
 # Result: 5
 ```
 
 #### String Join
 
-```text
+```rill
 ["a", "b", "c"] -> fold("") { "{$@}{$}" }
 # Result: "abc"
 
@@ -401,7 +402,7 @@ collection -> fold $fn   # variable closure (must define accumulator)
 
 When folding over a dict, `$` contains `key` and `value` fields.
 
-```text
+```rill
 [a: 1, b: 2, c: 3] -> fold |entry, sum = 0| ($sum + $entry.value)
 # Result: 6
 ```
@@ -410,7 +411,7 @@ When folding over a dict, `$` contains `key` and `value` fields.
 
 Define closures for common reductions.
 
-```text
+```rill
 # Define reusable reducers
 |x, sum = 0| ($sum + $x) -> $summer
 |x, max = 0| (($x > $max) ? $x ! $max) -> $maxer
@@ -425,7 +426,7 @@ Define closures for common reductions.
 
 `fold` returns the initial value for empty collections. The body never executes.
 
-```text
+```rill
 [] -> fold(0) { $@ + $ }
 # Result: 0
 
@@ -449,7 +450,7 @@ Both `each` and `fold` support accumulators. The difference is in what they retu
 
 ### Side-by-Side Example
 
-```text
+```rill
 # each: returns every intermediate result
 [1, 2, 3] -> each(0) { $@ + $ }
 # Result: [1, 3, 6]  (running totals)
@@ -463,7 +464,7 @@ Both `each` and `fold` support accumulators. The difference is in what they retu
 
 Use `each` with accumulator when you need intermediate states (scan pattern):
 
-```text
+```rill
 # Running balance
 [100, -50, 200, -75] -> each(0) { $@ + $ }
 # Result: [100, 50, 250, 175]
@@ -471,7 +472,7 @@ Use `each` with accumulator when you need intermediate states (scan pattern):
 
 Use `fold` when you only need the final result:
 
-```text
+```rill
 # Final balance
 [100, -50, 200, -75] -> fold(0) { $@ + $ }
 # Result: 175
@@ -483,7 +484,7 @@ Use `fold` when you only need the final result:
 
 Combine operators for multi-stage transformations.
 
-```text
+```rill
 # Double each element, then sum
 [1, 2, 3] -> map { $ * 2 } -> fold(0) { $@ + $ }
 # Result: 12
@@ -492,12 +493,9 @@ Combine operators for multi-stage transformations.
 [1, 2, 3, 4, 5] -> filter { ($ % 2) == 0 }
 # Result: [2, 4]
 
-# Complex pipeline
-$data
-  -> map { normalize($) }
-  -> filter { $.valid }
-  -> each { transform($) }
-  -> fold([]) { [...$@, $] }
+# Complex pipeline: filter, then transform
+[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 10 }
+# Result: [30, 40, 50]
 ```
 
 ---
@@ -547,7 +545,7 @@ For inline closures with accumulators, specific rules apply.
 
 ### Lists
 
-```text
+```rill
 [1, 2, 3] -> each { $ * 2 }
 # Result: [2, 4, 6]
 ```
@@ -556,7 +554,7 @@ For inline closures with accumulators, specific rules apply.
 
 Iterates over characters.
 
-```text
+```rill
 "abc" -> each { "{$}!" }
 # Result: ["a!", "b!", "c!"]
 ```
@@ -565,7 +563,7 @@ Iterates over characters.
 
 Iterates over entries with `key` and `value` fields.
 
-```text
+```rill
 [a: 1, b: 2] -> each { "{$.key}={$.value}" }
 # Result: ["a=1", "b=2"]
 ```
@@ -576,13 +574,13 @@ Iterates over entries with `key` and `value` fields.
 
 Process nested structures with nested operators.
 
-```text
+```rill
 # Double nested values
-[[1, 2], [3, 4]] -> map { $ -> map { $ * 2 } }
+[[1, 2], [3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
 # Result: [[2, 4], [6, 8]]
 
-# Flatten and sum
-[[1, 2], [3, 4]] -> fold([]) { [...$@, ...$] } -> fold(0) { $@ + $ }
+# Sum all nested values
+[[1, 2], [3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
 # Result: 10
 ```
 
@@ -608,29 +606,23 @@ Process nested structures with nested operators.
 
 ## Quick Reference
 
-```text
+```rill
 # each - sequential, all results
 [1, 2, 3] -> each { $ * 2 }           # [2, 4, 6]
 [1, 2, 3] -> each(0) { $@ + $ }       # [1, 3, 6] (running sum)
 
 # map - parallel, all results
 [1, 2, 3] -> map { $ * 2 }            # [2, 4, 6]
-$urls -> map |u| fetch($u)            # concurrent fetch
+["a", "b"] -> map |x| { "{$x}!" }     # ["a!", "b!"]
 
 # filter - parallel, matching elements
 [1, 2, 3, 4, 5] -> filter { $ > 2 }   # [3, 4, 5]
+|x| { $x % 2 == 0 } -> $isEven
 [1, 2, 3, 4, 5] -> filter $isEven     # [2, 4]
 
 # fold - sequential, final result only
 [1, 2, 3] -> fold(0) { $@ + $ }       # 6
 [1, 2, 3] -> fold |x, s = 0| ($s + $x) # 6
-
-# Body forms (all operators)
--> each { body }                       # block
--> each (expr)                         # grouped
--> each |x| body                       # inline closure
--> each $fn                            # variable
--> each $                              # identity
 
 # Dict iteration
 [a: 1, b: 2] -> each { $.key }        # ["a", "b"]
