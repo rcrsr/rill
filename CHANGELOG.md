@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Call: `math::add(1, 2)` or `5 -> math::double`
   - Supports multi-level: `io::file::read("path")`
 
+- **Pipe-style Dict Closure Invocation** — Closures in dicts can receive piped values
+  - `5 -> $math.double()` passes `5` to `$math.double` closure
+  - Supports nested access: `7 -> $obj.utils.transform()`
+  - Enables method-like chaining: `5 -> $math.double() -> $math.triple()`
+
 ## [0.0.1] - 2025-01-20
 
 Initial release.

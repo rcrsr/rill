@@ -820,10 +820,11 @@ export interface InvokeNode extends BaseNode {
   readonly args: ExpressionNode[];
 }
 
-/** Call a closure stored in a variable: $fn(args) */
+/** Call a closure stored in a variable: $fn(args) or $obj.method(args) */
 export interface ClosureCallNode extends BaseNode {
   readonly type: 'ClosureCall';
   readonly name: string; // Variable name (without $)
+  readonly accessChain: string[]; // Property access chain (e.g., ['double'] for $math.double)
   readonly args: ExpressionNode[];
 }
 

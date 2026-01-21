@@ -31,6 +31,7 @@ import { check, advance, expect, current, makeSpan } from './state.js';
 import {
   isHostCall,
   isClosureCall,
+  isClosureCallWithAccess,
   canStartPipeInvoke,
   isMethodCall,
   isTypedCaptureWithArrow,
@@ -284,9 +285,9 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       break;
     }
 
-    // Check for capture vs ClosureCall: $identifier
+    // Check for capture vs ClosureCall: $identifier or $dict.method()
     if (check(this.state, TOKEN_TYPES.DOLLAR)) {
-      if (isClosureCall(this.state)) {
+      if (isClosureCallWithAccess(this.state)) {
         pipes.push(this.parsePipeTarget());
         continue;
       }
@@ -522,8 +523,8 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return methodCall;
   }
 
-  // Closure call as pipe target
-  if (isClosureCall(this.state)) {
+  // Closure call as pipe target (supports property access: $math.double())
+  if (isClosureCallWithAccess(this.state)) {
     return this.parseClosureCall();
   }
 

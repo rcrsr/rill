@@ -15,7 +15,7 @@ import type {
   TypeCheckNode,
 } from '../types.js';
 import { TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan } from './state.js';
+import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
@@ -89,6 +89,17 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
     TOKEN_TYPES.IDENTIFIER,
     'Expected variable name'
   );
+
+  // Parse optional .property chain: $math.double(), $obj.nested.method()
+  const accessChain: string[] = [];
+  while (
+    check(this.state, TOKEN_TYPES.DOT) &&
+    peek(this.state, 1).type === TOKEN_TYPES.IDENTIFIER
+  ) {
+    advance(this.state); // consume .
+    accessChain.push(advance(this.state).value); // consume identifier
+  }
+
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
@@ -96,6 +107,7 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
   return {
     type: 'ClosureCall',
     name: nameToken.value,
+    accessChain,
     args,
     span: makeSpan(start, current(this.state).span.end),
   };

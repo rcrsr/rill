@@ -265,6 +265,38 @@ describe('Rill Runtime: Late-Bound Closures', () => {
       `;
       expect(await run(script)).toBe(14);
     });
+
+    it('pipe-style invocation with dict closure', async () => {
+      const script = `
+        [double: |x| { $x * 2 }] -> $math
+        5 -> $math.double()
+      `;
+      expect(await run(script)).toBe(10);
+    });
+
+    it('pipe-style invocation with nested dict closure', async () => {
+      const script = `
+        [ops: [double: |x| { $x * 2 }, triple: |x| { $x * 3 }]] -> $math
+        7 -> $math.ops.double()
+      `;
+      expect(await run(script)).toBe(14);
+    });
+
+    it('pipe-style invocation chains with dict closure', async () => {
+      const script = `
+        [double: |x| { $x * 2 }] -> $math
+        5 -> $math.double() -> $math.double()
+      `;
+      expect(await run(script)).toBe(20);
+    });
+
+    it('pipe-style dict closure with explicit args ignores pipe value', async () => {
+      const script = `
+        [double: |x| { $x * 2 }] -> $math
+        999 -> $math.double(7)
+      `;
+      expect(await run(script)).toBe(14);
+    });
   });
 
   describe('Scope Isolation', () => {

@@ -1924,8 +1924,9 @@ async function evaluateClosureCallWithPipe(
   pipeInput: RillValue | null,
   ctx: RuntimeContext
 ): Promise<RillValue> {
-  const closure = getVariable(ctx, node.name);
-  if (!closure) {
+  // Get the base variable
+  let value: RillValue | undefined = getVariable(ctx, node.name);
+  if (value === undefined || value === null) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
       `Unknown variable: $${node.name}`,
@@ -1934,12 +1935,27 @@ async function evaluateClosureCallWithPipe(
     );
   }
 
+  // Traverse accessChain to get the closure (e.g., $math.double)
+  const fullPath = ['$' + node.name, ...node.accessChain].join('.');
+  for (const prop of node.accessChain) {
+    if (value === null) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Cannot access property '${prop}' on null in ${fullPath}`,
+        getNodeLocation(node),
+        { property: prop, path: fullPath }
+      );
+    }
+    value = accessField(value, prop);
+  }
+
+  const closure = value;
   if (!isCallable(closure)) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Variable $${node.name} is not a function (got ${typeof closure})`,
+      `${fullPath} is not a function (got ${typeof closure})`,
       getNodeLocation(node),
-      { variableName: node.name, actualType: typeof closure }
+      { path: fullPath, actualType: typeof closure }
     );
   }
 

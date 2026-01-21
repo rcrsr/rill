@@ -327,6 +327,10 @@ function functionCallEquals(a: HostCallNode, b: HostCallNode): boolean {
 
 function closureCallEquals(a: ClosureCallNode, b: ClosureCallNode): boolean {
   if (a.name !== b.name) return false;
+  if (a.accessChain.length !== b.accessChain.length) return false;
+  for (let i = 0; i < a.accessChain.length; i++) {
+    if (a.accessChain[i] !== b.accessChain[i]) return false;
+  }
   return argsListEquals(a.args, b.args);
 }
 

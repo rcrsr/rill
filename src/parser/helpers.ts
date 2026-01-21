@@ -61,7 +61,8 @@ export function isHostCall(state: ParserState): boolean {
 }
 
 /**
- * Check for closure call: $name(
+ * Check for simple closure call: $name(
+ * Used in expression context where $var.method() should be parsed as Variable + MethodCall
  * @internal
  */
 export function isClosureCall(state: ParserState): boolean {
@@ -70,6 +71,26 @@ export function isClosureCall(state: ParserState): boolean {
     peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
     peek(state, 2).type === TOKEN_TYPES.LPAREN
   );
+}
+
+/**
+ * Check for closure call with property access: $name( or $name.prop...(
+ * Used in pipe target context where $dict.closure() should invoke the closure
+ * @internal
+ */
+export function isClosureCallWithAccess(state: ParserState): boolean {
+  if (!check(state, TOKEN_TYPES.DOLLAR)) return false;
+  if (peek(state, 1).type !== TOKEN_TYPES.IDENTIFIER) return false;
+
+  // Scan through .identifier chains to find terminal (
+  let offset = 2;
+  while (peek(state, offset).type === TOKEN_TYPES.DOT) {
+    offset++; // skip .
+    if (peek(state, offset).type !== TOKEN_TYPES.IDENTIFIER) return false;
+    offset++; // skip identifier
+  }
+
+  return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
 /**
