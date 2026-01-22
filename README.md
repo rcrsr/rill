@@ -62,7 +62,8 @@ Branch based on content patterns. Ideal for parsing LLM output.
 app::prompt("analyze code")
   -> .contains("ERROR")
     ? app::error("Analysis failed")
-    ! app::process($) -> log
+    ! app::process($) 
+  -> log
 ```
 
 ### Bounded Loops
