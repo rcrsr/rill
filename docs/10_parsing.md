@@ -318,3 +318,47 @@ $parsed.body -> parse_checklist :> $tasks
 3. **Check confidence for ambiguous content** — Handle low-confidence parses specially
 4. **Chain parsers for nested structures** — XML containing JSON, frontmatter with checklists
 5. **Validate before using** — Check type and required fields exist
+
+## Limitations
+
+These parsers handle common LLM output patterns with zero external dependencies. For full-featured parsing (nested YAML, XML attributes, streaming JSON), host applications can register their own functions via `RuntimeContext`.
+
+### YAML Parser
+
+The YAML parser handles **flat `key: value` format only**:
+
+```text
+# Supported
+title: My Document
+count: 42
+enabled: true
+
+# NOT supported (returns raw string or fails)
+nested:
+  child: value
+items:
+  - one
+  - two
+multiline: |
+  long text
+  across lines
+```
+
+### JSON Repair
+
+Repairs common LLM errors but **cannot fix**:
+
+| Repaired | Not Repaired |
+|----------|--------------|
+| Trailing commas | Missing commas between items |
+| Single quotes on values | Malformed string escapes |
+| Unquoted keys | Truncated mid-string |
+| Unclosed braces | Invalid Unicode |
+
+### XML Parser
+
+Extracts simple `<tag>content</tag>` but **does not support**:
+
+- Attribute extraction (`<tag attr="val">` — attr ignored)
+- Nested same-name tags (`<item><item>...</item></item>`)
+- CDATA sections, namespaces, self-closing tags

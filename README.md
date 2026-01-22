@@ -13,11 +13,11 @@ rill enables platform builders to make their apps scriptable without exposing ar
 
 rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic.
 
-- **Embeddable.** Zero dependencies. Runs in browser or backend. [Integration](docs/host-integration.md) only requires a few lines of code.
+- **Embeddable.** Zero dependencies. Runs in browser or backend. [Integration](docs/14_host-integration.md) only requires a few lines of code.
 - **Sandboxed.** Users can only call functions you explicitly provide. No filesystem, no network, no `eval()` disasters.
 - **Bounded execution.** Retry limits prevent exhausting LLM usage limits because of runaway loops.
-- **Consistent, clean syntax.** Ships with [EBNF grammar](docs/grammar.ebnf). LLMs can write rill scripts for your users.
-- **Built-in LLM output parsing.** [Auto-detect](docs/parsing.md) JSON, XML, YAML, checklists.
+- **Consistent, clean syntax.** Ships with [EBNF grammar](docs/15_grammar.ebnf). LLMs can write rill scripts for your users.
+- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) JSON, XML, YAML, checklists.
 
 ## Who is this for?
 
@@ -172,15 +172,14 @@ See [Examples](docs/examples.md) for complete workflow patterns.
 
 ## Documentation
 
+See [docs/00_INDEX.md](docs/00_INDEX.md) for full navigation.
+
 | Document | Description |
 |----------|-------------|
-| [Guide](docs/guide.md) | Beginner introduction |
-| [Reference](docs/reference.md) | Complete language specification |
-| [Examples](docs/examples.md) | Workflow patterns |
-| [Collections](docs/collections.md) | `each`, `map`, `filter`, `fold` |
-| [Strings](docs/strings.md) | String methods |
-| [Host Integration](docs/host-integration.md) | Embedding rill in applications |
-| [Grammar](docs/grammar.ebnf) | Formal EBNF grammar |
+| [Guide](docs/01_guide.md) | Beginner introduction |
+| [Reference](docs/11_reference.md) | Language specification |
+| [Examples](docs/12_examples.md) | Workflow patterns |
+| [Host Integration](docs/14_host-integration.md) | Embedding API |
 
 ## License
 

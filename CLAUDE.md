@@ -38,13 +38,11 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 
 ## Documentation
 
-| Document | Content |
-|----------|---------|
-| @docs/00_INDEX.md | Documentation index |
-| @docs/01_guide.md | Beginner introduction |
-| @docs/11_reference.md | Language specification |
-| @docs/14_host-integration.md | Embedding API |
-| @docs/15_grammar.ebnf | Formal grammar |
+Start at @docs/00_INDEX.md for full navigation. Key docs:
+
+- @docs/01_guide.md — Beginner introduction
+- @docs/11_reference.md — Language specification
+- @docs/14_host-integration.md — Embedding API
 
 ## Documentation Examples
 
