@@ -212,4 +212,73 @@ describe('Rill Runtime: Conditionals', () => {
       ).toBe('then');
     });
   });
+
+  describe('Bare Function Calls in Branches', () => {
+    it('passes $ implicitly to bare function in then branch', async () => {
+      const result = await run(
+        '"ERROR" -> .contains("ERROR") ? handle ! "ok"',
+        {
+          functions: { handle: (args) => `handled:${args[0]}` },
+        }
+      );
+      expect(result).toBe('handled:ERROR');
+    });
+
+    it('passes $ implicitly to bare function in else branch', async () => {
+      const result = await run(
+        '"OK" -> .contains("ERROR") ? "error" ! process',
+        {
+          functions: { process: (args) => `processed:${args[0]}` },
+        }
+      );
+      expect(result).toBe('processed:OK');
+    });
+
+    it('passes $ implicitly to namespaced function in then branch', async () => {
+      const result = await run(
+        '"ERROR" -> .contains("ERROR") ? app::error ! "ok"',
+        {
+          functions: { 'app::error': (args) => `error:${args[0]}` },
+        }
+      );
+      expect(result).toBe('error:ERROR');
+    });
+
+    it('passes $ implicitly to namespaced function in else branch', async () => {
+      const result = await run(
+        '"OK" -> .contains("ERROR") ? "error" ! app::process',
+        {
+          functions: { 'app::process': (args) => `processed:${args[0]}` },
+        }
+      );
+      expect(result).toBe('processed:OK');
+    });
+
+    it('passes $ to both branches when both are bare functions', async () => {
+      const result = await run(
+        '"ERROR data" -> .contains("ERROR") ? app::error ! app::process',
+        {
+          functions: {
+            'app::error': (args) => `error:${args[0]}`,
+            'app::process': (args) => `processed:${args[0]}`,
+          },
+        }
+      );
+      expect(result).toBe('error:ERROR data');
+    });
+
+    it('chains bare functions in else-if', async () => {
+      const result = await run(
+        '"warn" -> .eq("error") ? handleError ! .eq("warn") ? handleWarn ! handleInfo',
+        {
+          functions: {
+            handleError: (args) => `error:${args[0]}`,
+            handleWarn: (args) => `warn:${args[0]}`,
+            handleInfo: (args) => `info:${args[0]}`,
+          },
+        }
+      );
+      expect(result).toBe('warn:warn');
+    });
+  });
 });

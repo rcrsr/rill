@@ -562,7 +562,8 @@ export type PipeTargetNode =
   | MapExprNode
   | FoldExprNode
   | FilterExprNode
-  | VariableNode; // -> $fn invokes closure
+  | PostfixExprNode
+  | VariableNode; // -> $fn invokes closure // -> $fn invokes closure
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {

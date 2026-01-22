@@ -2359,7 +2359,7 @@ async function evaluateMethod(
   if (!method) {
     // Fall back to property access on dict (no-arg only)
     if (isDict(receiver) && args.length === 0 && node.name in receiver) {
-      return receiver[node.name];
+      return receiver[node.name] as RillValue;
     }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD,
