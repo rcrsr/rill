@@ -6,7 +6,12 @@
  */
 
 import type { RillTypeName } from '../../types.js';
-import { callableEquals, isScriptCallable } from './callable.js';
+import {
+  callableEquals,
+  isCallable,
+  isDict,
+  isScriptCallable,
+} from './callable.js';
 
 // Forward declaration - actual callable types defined in callable.ts
 // This avoids circular dependency
@@ -256,27 +261,4 @@ export function isRillIterator(value: RillValue): boolean {
   // 'value' field only required when not done
   if (!dict['done'] && !('value' in dict)) return false;
   return true;
-}
-
-/** Type guard for dict values */
-function isDict(value: RillValue): value is Record<string, RillValue> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    !(
-      '__type' in value && (value as { __type: string }).__type === 'callable'
-    ) &&
-    !isTuple(value)
-  );
-}
-
-/** Type guard for callable values */
-function isCallable(value: RillValue): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__type' in value &&
-    (value as { __type: string }).__type === 'callable'
-  );
 }
