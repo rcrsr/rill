@@ -3,7 +3,7 @@
  * Functions to read specific token types from source
  */
 
-import type { Token, TokenType } from '../types.js';
+import type { Token } from '../types.js';
 import { TOKEN_TYPES } from '../types.js';
 import { LexerError } from './errors.js';
 import {
@@ -13,6 +13,7 @@ import {
   isWhitespace,
   makeToken,
 } from './helpers.js';
+import { KEYWORDS } from './operators.js';
 import {
   advance,
   currentLocation,
@@ -153,35 +154,7 @@ export function readIdentifier(state: LexerState): Token {
     value += advance(state);
   }
 
-  // Check for keywords
-  let type: TokenType = TOKEN_TYPES.IDENTIFIER;
-  switch (value) {
-    case 'true':
-      type = TOKEN_TYPES.TRUE;
-      break;
-    case 'false':
-      type = TOKEN_TYPES.FALSE;
-      break;
-    case 'break':
-      type = TOKEN_TYPES.BREAK;
-      break;
-    case 'return':
-      type = TOKEN_TYPES.RETURN;
-      break;
-    case 'each':
-      type = TOKEN_TYPES.EACH;
-      break;
-    case 'map':
-      type = TOKEN_TYPES.MAP;
-      break;
-    case 'fold':
-      type = TOKEN_TYPES.FOLD;
-      break;
-    case 'filter':
-      type = TOKEN_TYPES.FILTER;
-      break;
-  }
-
+  const type = KEYWORDS[value] ?? TOKEN_TYPES.IDENTIFIER;
   return makeToken(type, value, start, currentLocation(state));
 }
 

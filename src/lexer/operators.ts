@@ -48,3 +48,15 @@ export const SINGLE_CHAR_OPERATORS: Record<string, TokenType> = {
   '&': TOKEN_TYPES.AMPERSAND,
   '^': TOKEN_TYPES.CARET,
 };
+
+/** Keyword lookup table */
+export const KEYWORDS: Record<string, TokenType> = {
+  true: TOKEN_TYPES.TRUE,
+  false: TOKEN_TYPES.FALSE,
+  break: TOKEN_TYPES.BREAK,
+  return: TOKEN_TYPES.RETURN,
+  each: TOKEN_TYPES.EACH,
+  map: TOKEN_TYPES.MAP,
+  fold: TOKEN_TYPES.FOLD,
+  filter: TOKEN_TYPES.FILTER,
+};
