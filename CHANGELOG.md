@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Strict Null Elimination** — All undefined/missing access now throws errors instead of returning `null`
+  - `$undefined` throws `Undefined variable: $undefined` (was `null`)
+  - `$` without pipe context throws `Undefined variable: $`
+  - `$dict.missing` throws `Dict has no field 'missing'` (was `null`)
+  - `$list[99]` throws `List index out of bounds: 99` (was `null`)
+  - `.at(-1)` throws `List index out of bounds` (was `null`)
+  - Use `??` for default values or `.?` for existence checks when missing values are expected
+
 ## [0.0.5] - 2026-01-21
 
 ### Changed
