@@ -48,28 +48,24 @@ describe('Rill Runtime: Conditionals', () => {
       expect(await run('"" -> (!.empty) ? "has" ! "empty"')).toBe('empty');
     });
 
-    it('uses bare ? for truthy check on non-empty string', async () => {
-      expect(await run('"x" -> ? "truthy" ! "falsy"')).toBe('truthy');
+    it('uses bare ? with true', async () => {
+      expect(await run('true -> ? "yes" ! "no"')).toBe('yes');
     });
 
-    it('uses bare ? for truthy check on empty string', async () => {
-      expect(await run('"" -> ? "truthy" ! "falsy"')).toBe('falsy');
+    it('uses bare ? with false', async () => {
+      expect(await run('false -> ? "yes" ! "no"')).toBe('no');
     });
 
-    it('uses bare ? for truthy check on true', async () => {
-      expect(await run('true -> ? "truthy" ! "falsy"')).toBe('truthy');
+    it('rejects non-boolean string in piped conditional', async () => {
+      await expect(run('"x" -> ? "yes" ! "no"')).rejects.toThrow(
+        'Piped conditional requires boolean, got string'
+      );
     });
 
-    it('uses bare ? for truthy check on false', async () => {
-      expect(await run('false -> ? "truthy" ! "falsy"')).toBe('falsy');
-    });
-
-    it('uses bare ? for truthy check on number', async () => {
-      expect(await run('42 -> ? "truthy" ! "falsy"')).toBe('truthy');
-    });
-
-    it('uses bare ? for truthy check on zero', async () => {
-      expect(await run('0 -> ? "truthy" ! "falsy"')).toBe('falsy');
+    it('rejects non-boolean number in piped conditional', async () => {
+      await expect(run('42 -> ? "yes" ! "no"')).rejects.toThrow(
+        'Piped conditional requires boolean, got number'
+      );
     });
   });
 

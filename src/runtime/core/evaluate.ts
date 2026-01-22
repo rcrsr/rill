@@ -811,11 +811,18 @@ async function evaluateIteratorBody(
       const closure = await createClosure(body, ctx);
       const args: RillValue[] = [element];
       // Accumulator is passed as second arg if closure has 2+ params
-      // and the last param has a default (accumulator pattern)
       if (accumulator !== null && closure.params.length >= 2) {
         args.push(accumulator);
       }
-      return invokeCallable(closure, args, ctx, body.span.start);
+      // Create context with $@ for closures that use it (e.g., |x| { $x + $@ })
+      let invokeCtx = ctx;
+      if (accumulator !== null) {
+        invokeCtx = createChildContext(ctx);
+        invokeCtx.variables.set('@', accumulator);
+        // Update closure's definingScope to include $@
+        closure.definingScope = invokeCtx;
+      }
+      return invokeCallable(closure, args, invokeCtx, body.span.start);
     }
 
     case 'Block': {
@@ -829,19 +836,30 @@ async function evaluateIteratorBody(
     }
 
     case 'GroupedExpr': {
-      // Grouped: evaluate with $ = element
+      // Grouped: evaluate with $ = element, $@ = accumulator (for fold)
       const groupedCtx = createChildContext(ctx);
       groupedCtx.pipeValue = element;
+      if (accumulator !== null) {
+        groupedCtx.variables.set('@', accumulator);
+      }
       return evaluateGroupedExpr(body, groupedCtx);
     }
 
     case 'Variable': {
-      // Variable closure: get closure and invoke with element
-      const varValue = getVariable(ctx, body.name ?? '');
-      if (body.isPipeVar) {
-        // $ by itself = identity, return element unchanged
+      // Bare $ = identity, return element unchanged
+      if (body.isPipeVar && !body.name && body.accessChain.length === 0) {
         return element;
       }
+
+      // $[idx] or $.field - evaluate access chain on current element
+      if (body.isPipeVar && body.accessChain.length > 0) {
+        const bodyCtx = createChildContext(ctx);
+        bodyCtx.pipeValue = element;
+        return evaluateVariableAsync(body, bodyCtx);
+      }
+
+      // Variable closure: get closure and invoke with element
+      const varValue = getVariable(ctx, body.name ?? '');
       if (!varValue) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
@@ -1096,12 +1114,20 @@ async function evaluateFilter(
   const predicatePromises = elements.map(async (element) => {
     checkAborted(ctx, node);
     const result = await evaluateIteratorBody(node.body, element, null, ctx);
-    return { element, keep: isTruthy(result) };
+    // Predicate must return boolean
+    if (typeof result !== 'boolean') {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Filter predicate must return boolean, got ${inferType(result)}`,
+        node.span.start
+      );
+    }
+    return { element, keep: result };
   });
 
   const results = await Promise.all(predicatePromises);
 
-  // Filter elements where predicate was truthy
+  // Filter elements where predicate was true
   return results.filter((r) => r.keep).map((r) => r.element);
 }
 
@@ -2409,9 +2435,26 @@ async function evaluateConditional(
   let conditionResult: boolean;
   if (node.condition) {
     const conditionValue = await evaluateBodyExpression(node.condition, ctx);
-    conditionResult = isTruthy(conditionValue);
+    // Condition must be boolean
+    if (typeof conditionValue !== 'boolean') {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Conditional expression must be boolean, got ${inferType(conditionValue)}`,
+        node.span.start
+      );
+    }
+    conditionResult = conditionValue;
   } else {
-    conditionResult = isTruthy(ctx.pipeValue);
+    // Piped conditional: $ -> ? then ! else
+    // The pipe value must be boolean
+    if (typeof ctx.pipeValue !== 'boolean') {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Piped conditional requires boolean, got ${inferType(ctx.pipeValue)}`,
+        node.span.start
+      );
+    }
+    conditionResult = ctx.pipeValue;
   }
 
   // Restore pipe value for then/else branch evaluation
@@ -2531,7 +2574,15 @@ async function evaluateDoWhileLoop(
       ctx.pipeValue = value;
 
       const conditionValue = await evaluateBodyExpression(node.condition, ctx);
-      shouldContinue = isTruthy(conditionValue);
+      // Condition must be boolean
+      if (typeof conditionValue !== 'boolean') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Do-while condition must be boolean, got ${inferType(conditionValue)}`,
+          getNodeLocation(node)
+        );
+      }
+      shouldContinue = conditionValue;
     }
   } catch (e) {
     if (e instanceof BreakSignal) {

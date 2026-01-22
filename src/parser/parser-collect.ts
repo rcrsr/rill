@@ -12,7 +12,7 @@ import type {
   MapExprNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, expect, current, makeSpan, peek } from './state.js';
+import { check, expect, current, makeSpan, peek, advance } from './state.js';
 import { isClosureStart } from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
@@ -60,8 +60,32 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
     return this.parsePostfixExpr();
   }
 
+  // Bare function name: func or ns::func (no parens)
+  if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+    const start = current(this.state).span.start;
+    let name = advance(this.state).value;
+
+    // Collect namespaced name: ident::ident::...
+    while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
+      advance(this.state);
+      const next = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected identifier after ::'
+      );
+      name += '::' + next.value;
+    }
+
+    return {
+      type: 'HostCall',
+      name,
+      args: [],
+      span: makeSpan(start, current(this.state).span.end),
+    };
+  }
+
   throw new ParseError(
-    `Expected collection body (closure, block, grouped, variable, spread, or method), got: ${current(this.state).value}`,
+    `Expected collection body (closure, block, grouped, variable, spread, method, or function), got: ${current(this.state).value}`,
     current(this.state).span.start
   );
 };

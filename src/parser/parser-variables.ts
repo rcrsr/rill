@@ -58,6 +58,15 @@ Parser.prototype.parseVariable = function (this: Parser): VariableNode {
     return this.makeVariableWithAccess('@', false, start);
   }
 
+  // Handle $ followed by access chain (no name): $[0], $.field
+  if (
+    check(this.state, TOKEN_TYPES.LBRACKET) ||
+    check(this.state, TOKEN_TYPES.DOT) ||
+    check(this.state, TOKEN_TYPES.DOT_QUESTION)
+  ) {
+    return this.makeVariableWithAccess(null, true, start);
+  }
+
   const nameToken = expect(
     this.state,
     TOKEN_TYPES.IDENTIFIER,

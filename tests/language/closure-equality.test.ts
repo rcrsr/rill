@@ -91,8 +91,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('complex closures', () => {
     it('closures with different conditionals are not equal', async () => {
       const code = `
-        { $ ? "yes" ! "no" } :> $a
-        { $ ? "yes" ! "maybe" } :> $b
+        |b: bool| { $b ? "yes" ! "no" } :> $a
+        |b: bool| { $b ? "yes" ! "maybe" } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
