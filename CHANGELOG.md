@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-01-21
+
 ### Added
+
+- **Capture Operator (`:>`)** — Variable assignment that continues the chain
+  - `"hello" :> $x -> .upper` captures "hello" into `$x`, result is "HELLO"
+  - Multiple captures: `"a" :> $first -> "{$}b" :> $second -> "{$}c"`
+  - Line continuation: `:>` at line start continues previous chain
+  - Distinction: `-> $var` terminates chain, `:> $var` continues it
+
+- **Method Shorthand in Iterators** — `.method` as body form for collection operators
+  - `["hello", "world"] -> each .upper` returns `["HELLO", "WORLD"]`
+  - `["  hi  ", " there "] -> map .trim` returns `["hi", "there"]`
+  - Supports arguments: `["a", "b"] -> map .pad_start(3, "0")`
+  - Equivalent to `{ $.method() }` block form
 
 - **Namespaced Functions** — Host functions can use `::` separator for organization
   - Register: `functions: { 'math::add': (args) => ... }`
@@ -18,6 +32,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `5 -> $math.double()` passes `5` to `$math.double` closure
   - Supports nested access: `7 -> $obj.utils.transform()`
   - Enables method-like chaining: `5 -> $math.double() -> $math.triple()`
+
+- **Documentation Example Tester** — Validates code blocks in markdown files
+  - Run `npx tsx scripts/test-examples.ts docs/` to test all examples
+  - Supports ` ```rill ` fenced blocks with mock host functions
+  - Auto-skips error demonstrations and continuation markers
+
+### Changed
+
+- **Scope Isolation** — Statements are sibling scopes, not a sequence
+  - `$` is immutable within a scope; flows only via explicit `->`
+  - Siblings inherit parent's `$`, not previous sibling's result
+  - Child scopes read parent variables but cannot reassign them
+  - Variables captured via `:>` are promoted to containing block scope
+  - Empty block `{}` returns inherited `$`
+
+- **While Loop Semantics** — `@` requires boolean condition
+  - `cond @ body` — while loop (cond must evaluate to boolean)
+  - `@ body ? cond` — do-while (body executes first, then checks condition)
+  - Non-boolean conditions throw runtime error
+  - Do-while returns body result, not condition result
+
+- **Documentation Conventions** — Standardized host function naming
+  - Host functions use `app::` namespace prefix (e.g., `app::prompt`, `app::fetch`)
+  - Built-in functions remain unqualified (e.g., `log`, `range`, `parse_json`)
+  - Docs updated across all guides for consistency
+
+### Removed
+
+- **`list @ body` For-Each Syntax** — Use `each` operator instead
+  - Before: `[1, 2, 3] @ { $ * 2 }`
+  - After: `[1, 2, 3] -> each { $ * 2 }`
+  - `@` now exclusively handles while and do-while loops
+
+### Breaking Changes
+
+- **Scope isolation changes `$` behavior between statements**
+  - Before: `"hello"; $` returned "hello" (sibling inherited previous result)
+  - After: `"hello"; $` returns parent's `$` (siblings don't affect each other)
+  - Migration: Use explicit capture `"hello" :> $val; $val` or chain `"hello" -> $`
+
+- **`list @ body` syntax removed**
+  - Attempting `[1, 2, 3] @ { body }` throws error requiring boolean condition
+  - Migration: Use `[1, 2, 3] -> each { body }` for iteration
 
 ## [0.0.1] - 2025-01-20
 
@@ -83,5 +140,6 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/rcrsr/rill/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/rcrsr/rill/releases/tag/v0.0.1
