@@ -12,8 +12,8 @@ import type {
   MapExprNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, expect, current, makeSpan, peek, advance } from './state.js';
-import { isClosureStart } from './helpers.js';
+import { check, expect, current, makeSpan, peek } from './state.js';
+import { isClosureStart, parseBareHostCall } from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -62,26 +62,7 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
 
   // Bare function name: func or ns::func (no parens)
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    const start = current(this.state).span.start;
-    let name = advance(this.state).value;
-
-    // Collect namespaced name: ident::ident::...
-    while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
-      advance(this.state);
-      const next = expect(
-        this.state,
-        TOKEN_TYPES.IDENTIFIER,
-        'Expected identifier after ::'
-      );
-      name += '::' + next.value;
-    }
-
-    return {
-      type: 'HostCall',
-      name,
-      args: [],
-      span: makeSpan(start, current(this.state).span.end),
-    };
+    return parseBareHostCall(this.state);
   }
 
   throw new ParseError(

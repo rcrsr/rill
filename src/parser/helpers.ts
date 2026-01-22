@@ -4,7 +4,7 @@
  * @internal This module contains internal parser utilities
  */
 
-import type { BlockNode, PostfixExprNode, SourceSpan } from '../types.js';
+import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect } from './state.js';
 
@@ -265,29 +265,37 @@ export function makeBoolLiteralBlock(
   };
 }
 
-/**
- * Wrap a PostfixExprNode in a block for use in conditionals
- * @internal
- */
-export function wrapExprInBlock(expr: PostfixExprNode): BlockNode {
-  return {
-    type: 'Block',
-    statements: [
-      {
-        type: 'Statement',
-        expression: {
-          type: 'PipeChain',
-          head: expr,
-          pipes: [],
-          terminator: null,
-          span: expr.span,
-        },
-        span: expr.span,
-      },
-    ],
-    span: expr.span,
-  };
-}
-
 // Note: parseArgumentList is defined in expressions.ts to avoid circular dependencies
 // since it depends on parseExpression
+
+// ============================================================
+// BARE HOST CALL PARSING
+// ============================================================
+
+/**
+ * Parse a bare function name (no parens): `func` or `ns::func` or `ns::sub::func`
+ * Returns a HostCallNode with empty args.
+ * @internal
+ */
+export function parseBareHostCall(state: ParserState): HostCallNode {
+  const start = state.tokens[state.pos]!.span.start;
+  let name = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier').value;
+
+  // Collect namespaced name: ident::ident::...
+  while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
+    state.pos++; // consume ::
+    const next = expect(
+      state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected identifier after ::'
+    );
+    name += '::' + next.value;
+  }
+
+  return {
+    type: 'HostCall',
+    name,
+    args: [],
+    span: { start, end: state.tokens[state.pos - 1]!.span.end },
+  };
+}

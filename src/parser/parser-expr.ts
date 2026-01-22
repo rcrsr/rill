@@ -39,6 +39,7 @@ import {
   isLiteralStart,
   isClosureStart,
   makeBoolLiteralBlock,
+  parseBareHostCall,
   VALID_TYPE_NAMES,
   parseTypeName,
 } from './helpers.js';
@@ -472,26 +473,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
 
   // Bare function name: "greet" or "ns::func" (no parens)
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    const start = current(this.state).span.start;
-    let name = advance(this.state).value;
-
-    // Collect namespaced name: ident::ident::...
-    while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
-      advance(this.state); // consume ::
-      const next = expect(
-        this.state,
-        TOKEN_TYPES.IDENTIFIER,
-        'Expected identifier after ::'
-      );
-      name += '::' + next.value;
-    }
-
-    return {
-      type: 'HostCall',
-      name,
-      args: [],
-      span: makeSpan(start, current(this.state).span.end),
-    };
+    return parseBareHostCall(this.state);
   }
 
   // Common constructs
@@ -626,26 +608,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
 
   // Bare function name: "-> greet" or "-> ns::func"
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    const start = current(this.state).span.start;
-    let name = advance(this.state).value;
-
-    // Collect namespaced name: ident::ident::...
-    while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
-      advance(this.state); // consume ::
-      const next = expect(
-        this.state,
-        TOKEN_TYPES.IDENTIFIER,
-        'Expected identifier after ::'
-      );
-      name += '::' + next.value;
-    }
-
-    return {
-      type: 'HostCall',
-      name,
-      args: [],
-      span: makeSpan(start, current(this.state).span.end),
-    };
+    return parseBareHostCall(this.state);
   }
 
   // Common constructs
