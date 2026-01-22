@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After: `[1, 2, 3] -> each { $ * 2 }`
   - `@` now exclusively handles while and do-while loops
 
+### Fixed
+
+- **Implicit Property Access** — `.field` now works as sugar for `$.field`
+  - `[a: 1] -> .a` returns `1` (falls back to dict property when method not found)
+  - `-> $.field` works as pipe target (property access on pipe value)
+  - Chained access: `[a: [b: 1]] -> .a.b` returns `1`
+
 ### Breaking Changes
 
 - **Scope isolation changes `$` behavior between statements**
