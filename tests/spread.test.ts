@@ -11,7 +11,7 @@ describe('Rill Runtime: Collection Operators', () => {
   describe('map - Parallel Iteration', () => {
     it('applies closure to each element in parallel', async () => {
       const result = await run(`
-        |x| { ($x * 2) } -> $double
+        |x| { ($x * 2) } :> $double
         [1, 2, 3] -> map $double
       `);
       expect(result).toEqual([2, 4, 6]);
@@ -19,7 +19,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
     it('applies closure with string transformation', async () => {
       const result = await run(`
-        |s| { "item: {$s}" } -> $format
+        |s| { "item: {$s}" } :> $format
         ["a", "b", "c"] -> map $format
       `);
       expect(result).toEqual(['item: a', 'item: b', 'item: c']);
@@ -76,7 +76,7 @@ describe('Rill Runtime: Collection Operators', () => {
     describe('Closure form: filter $predicate', () => {
       it('uses closure as predicate', async () => {
         const result = await run(`
-          |x| { $x -> .gt(2) } -> $gtTwo
+          |x| { $x -> .gt(2) } :> $gtTwo
           [1, 2, 3, 4, 5] -> filter $gtTwo
         `);
         expect(result).toEqual([3, 4, 5]);
@@ -84,7 +84,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
       it('uses complex predicate closure', async () => {
         const result = await run(`
-          |x| { ($x % 2) -> .eq(0) } -> $even
+          |x| { ($x % 2) -> .eq(0) } :> $even
           [1, 2, 3, 4, 5, 6] -> filter $even
         `);
         expect(result).toEqual([2, 4, 6]);
@@ -92,7 +92,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
       it('uses predicate with string operations', async () => {
         const result = await run(`
-          |s| { $s -> .len -> .gt(3) } -> $longEnough
+          |s| { $s -> .len -> .gt(3) } :> $longEnough
           ["a", "ab", "abc", "abcd", "abcde"] -> filter $longEnough
         `);
         expect(result).toEqual(['abcd', 'abcde']);
@@ -116,7 +116,7 @@ describe('Rill Runtime: Collection Operators', () => {
     describe('Chaining with map', () => {
       it('filter then map', async () => {
         const result = await run(`
-          |x| { ($x * 2) } -> $double
+          |x| { ($x * 2) } :> $double
           [1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $double
         `);
         expect(result).toEqual([6, 8, 10]);
@@ -124,7 +124,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
       it('map then filter', async () => {
         const result = await run(`
-          |x| { ($x * 2) } -> $double
+          |x| { ($x * 2) } :> $double
           [1, 2, 3, 4, 5] -> map $double -> filter { .gt(5) }
         `);
         expect(result).toEqual([6, 8, 10]);
@@ -144,9 +144,9 @@ describe('Rill Runtime: Collection Operators', () => {
     describe('Chain closures', () => {
       it('chains closures sequentially', async () => {
         const result = await run(`
-          |x| { ($x + 1) } -> $inc
-          |x| { ($x * 2) } -> $double
-          |x| { ($x + 10) } -> $add10
+          |x| { ($x + 1) } :> $inc
+          |x| { ($x * 2) } :> $double
+          |x| { ($x + 10) } :> $add10
           5 -> @[$inc, $double, $add10]
         `);
         // (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
@@ -155,7 +155,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
       it('chains single closure', async () => {
         const result = await run(`
-          |x| { ($x * 2) } -> $double
+          |x| { ($x * 2) } :> $double
           5 -> @$double
         `);
         expect(result).toBe(10);
@@ -163,9 +163,9 @@ describe('Rill Runtime: Collection Operators', () => {
 
       it('passes result from each step to next', async () => {
         const result = await run(`
-          |s| { "{$s}-a" } -> $addA
-          |s| { "{$s}-b" } -> $addB
-          |s| { "{$s}-c" } -> $addC
+          |s| { "{$s}-a" } :> $addA
+          |s| { "{$s}-b" } :> $addB
+          |s| { "{$s}-c" } :> $addC
           "start" -> @[$addA, $addB, $addC]
         `);
         expect(result).toBe('start-a-b-c');
@@ -177,8 +177,8 @@ describe('Rill Runtime: Collection Operators', () => {
         // Note: This tests inline blocks in sequential spread
         // In the current implementation, blocks receive pipe value as $
         const result = await run(`
-          |x| { ($x + 1) } -> $inc
-          |x| { ($x * 2) } -> $double
+          |x| { ($x + 1) } :> $inc
+          |x| { ($x * 2) } :> $double
           3 -> @[$inc, $double]
         `);
         // (3 + 1) = 4, (4 * 2) = 8
@@ -190,10 +190,10 @@ describe('Rill Runtime: Collection Operators', () => {
   describe('Combining map and Sequential Spread', () => {
     it('map then sequential', async () => {
       const result = await run(`
-        |x| { ($x * 2) } -> $double
+        |x| { ($x * 2) } :> $double
 
         # Parallel: double both values
-        [5, 10] -> map $double -> $doubled
+        [5, 10] -> map $double :> $doubled
 
         # For-each over results
         $doubled -> each { $ }
@@ -298,7 +298,7 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
         [
           name: "tools",
           greet: || { "I am {$.name}" }
-        ] -> $obj
+        ] :> $obj
         $obj.greet
       `);
       expect(result).toBe('I am tools');
@@ -310,7 +310,7 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
           name: "toolkit",
           count: 3,
           str: || { "{$.name}: {$.count} items" }
-        ] -> $obj
+        ] :> $obj
         $obj.str
       `);
       expect(result).toBe('toolkit: 3 items');
@@ -321,8 +321,8 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
         [
           name: "tools",
           process: |x| { "{$x} from tools" }
-        ] -> $obj
-        $obj.process -> $fn
+        ] :> $obj
+        $obj.process :> $fn
         $fn("hello")
       `);
       expect(result).toBe('hello from tools');
@@ -333,8 +333,8 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
         [
           name: "tools",
           process: |x| { "{$.name}: {$x}" }
-        ] -> $obj
-        $obj.process -> $fn
+        ] :> $obj
+        $obj.process :> $fn
         $fn("hello")
       `);
       expect(result).toBe('tools: hello');
@@ -344,19 +344,19 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
   describe('Reusable closures', () => {
     it('closure can be reused across dicts', async () => {
       const result = await run(`
-        || { "{$.name}: {$.count} items" } -> $describer
+        || { "{$.name}: {$.count} items" } :> $describer
 
         [
           name: "tools",
           count: 3,
           str: $describer
-        ] -> $obj1
+        ] :> $obj1
 
         [
           name: "actions",
           count: 5,
           str: $describer
-        ] -> $obj2
+        ] :> $obj2
 
         [$obj1.str, $obj2.str]
       `);
@@ -373,7 +373,7 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
             name: "inner",
             str: || { $.name }
           ]
-        ] -> $obj
+        ] :> $obj
         $obj.inner.str
       `);
       expect(result).toBe('inner');
@@ -383,11 +383,11 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
   describe('Blocks vs closures', () => {
     it('naked block { } executes immediately in dict', async () => {
       const result = await run(`
-        "computed" -> $val
+        "computed" :> $val
         [
           name: "test",
           immediate: { $val }
-        ] -> $obj
+        ] :> $obj
         $obj.immediate
       `);
       expect(result).toBe('computed');
@@ -398,7 +398,7 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
         [
           name: "test",
           method: || { $.name }
-        ] -> $obj
+        ] :> $obj
         $obj.method
       `);
       expect(result).toBe('test');

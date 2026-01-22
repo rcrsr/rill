@@ -22,7 +22,7 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('arithmetic result can be piped', async () => {
-      expect(await run('5 + 3 -> $x\n$x * 2')).toBe(16);
+      expect(await run('5 + 3 :> $x\n$x * 2')).toBe(16);
     });
 
     it('comparison as standalone expression', async () => {
@@ -102,15 +102,15 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('uses named variable', async () => {
-      expect(await run('5 -> $x\n($x * 2)')).toBe(10);
+      expect(await run('5 :> $x\n($x * 2)')).toBe(10);
     });
 
     it('uses multiple variables', async () => {
-      expect(await run('3 -> $a\n4 -> $b\n($a + $b)')).toBe(7);
+      expect(await run('3 :> $a\n4 :> $b\n($a + $b)')).toBe(7);
     });
 
     it('combines pipe and named variable', async () => {
-      expect(await run('5 -> $x\n10 -> ($ + $x)')).toBe(15);
+      expect(await run('5 :> $x\n10 -> ($ + $x)')).toBe(15);
     });
   });
 
@@ -120,7 +120,7 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('chains with capture', async () => {
-      expect(await run('(3 + 4) -> $result\n$result')).toBe(7);
+      expect(await run('(3 + 4) :> $result\n$result')).toBe(7);
     });
 
     it('uses result in method call', async () => {
@@ -148,7 +148,7 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('errors on non-number variable', async () => {
-      await expect(run('"hello" -> $x\n($x + 1)')).rejects.toThrow(
+      await expect(run('"hello" :> $x\n($x + 1)')).rejects.toThrow(
         'Arithmetic requires number, got string'
       );
     });
@@ -173,13 +173,13 @@ describe('Rill Runtime: Arithmetic', () => {
   describe('In Loops', () => {
     it('uses arithmetic in loop', async () => {
       // For loop returns array of results
-      expect(await run('[1, 2, 3] -> @ { ($ * 2) }')).toEqual([2, 4, 6]);
+      expect(await run('[1, 2, 3] -> each { ($ * 2) }')).toEqual([2, 4, 6]);
     });
 
     it('captures last element from loop', async () => {
       // Use while loop to get last value
       expect(
-        await run('[1, 2, 3] -> @ { ($ * 2) } -> $result\n$result')
+        await run('[1, 2, 3] -> each { ($ * 2) } :> $result\n$result')
       ).toEqual([2, 4, 6]);
     });
   });

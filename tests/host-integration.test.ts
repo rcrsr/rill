@@ -167,7 +167,7 @@ describe('Rill Runtime: Host Integration', () => {
       };
 
       await expect(
-        run('[1,2,3,4,5,6,7,8,9,10] -> @ { count() }', {
+        run('[1,2,3,4,5,6,7,8,9,10] -> each { count() }', {
           functions: { count: countFn },
           signal: controller.signal,
         })
@@ -270,7 +270,7 @@ describe('Rill Runtime: Host Integration', () => {
     });
 
     it('application callable can be invoked after capture', async () => {
-      const result = await run('getGreeter() -> $greet -> $greet("World")', {
+      const result = await run('getGreeter() :> $greet -> $greet("World")', {
         functions: {
           getGreeter: () => callable((args) => `Hello, ${args[0]}!`),
         },

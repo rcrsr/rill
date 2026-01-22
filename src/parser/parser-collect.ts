@@ -55,8 +55,13 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
     return this.parseSpread();
   }
 
+  // Method shorthand: .method applies method to each element
+  if (check(this.state, TOKEN_TYPES.DOT)) {
+    return this.parsePostfixExpr();
+  }
+
   throw new ParseError(
-    `Expected collection body (closure, block, grouped, variable, or spread), got: ${current(this.state).value}`,
+    `Expected collection body (closure, block, grouped, variable, spread, or method), got: ${current(this.state).value}`,
     current(this.state).span.start
   );
 };

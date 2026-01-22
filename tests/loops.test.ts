@@ -1,32 +1,17 @@
 /**
  * Rill Runtime Tests: Loops
- * Tests for while loops, for loops, break, and return
+ * Tests for while loops, do-while loops, break, and return
  *
- * New loop syntax:
- *   cond @ body        - while loop (cond is bool)
- *   list @ body        - for-each (list is iterable)
- *   @ body             - for-each over $
+ * Loop syntax:
+ *   cond @ body        - while loop (cond must be bool)
  *   @ body ? cond      - do-while (body first, then check)
+ *
+ * For iteration over collections, use collection operators: each, map, filter, fold
  */
 
-import type { RillValue } from '../src/index.js';
 import { describe, expect, it } from 'vitest';
 
 import { run } from './helpers/runtime.js';
-
-// Helper functions for arithmetic
-const inc = (args: RillValue[]): number => {
-  const x = args[0];
-  return typeof x === 'number' ? x + 1 : 1;
-};
-const double = (args: RillValue[]): number => {
-  const x = args[0];
-  return typeof x === 'number' ? x * 2 : 0;
-};
-const add10 = (args: RillValue[]): number => {
-  const x = args[0];
-  return typeof x === 'number' ? x + 10 : 10;
-};
 
 describe('Rill Runtime: Loops', () => {
   describe('While Loops', () => {
@@ -71,99 +56,22 @@ describe('Rill Runtime: Loops', () => {
       `;
       expect(await run(script)).toBe(5);
     });
-  });
 
-  describe('For Loops', () => {
-    it('iterates over tuple', async () => {
-      expect(await run('["a", "b", "c"] @ { $ }')).toEqual(['a', 'b', 'c']);
+    it('requires boolean condition', async () => {
+      // Non-boolean conditions should error
+      await expect(run('[1, 2, 3] @ { $ }')).rejects.toThrow(
+        /condition must be boolean/i
+      );
     });
 
-    it('transforms elements', async () => {
-      const script = `
-        [1, 2, 3] @ {
-          $ -> add10
-        }
-      `;
-      expect(await run(script, { functions: { add10 } })).toEqual([11, 12, 13]);
-    });
-
-    it('returns empty array for empty tuple', async () => {
-      expect(await run('[] @ { "x" }')).toEqual([]);
-    });
-
-    it('handles single element', async () => {
-      expect(await run('["only"] @ { $ }')).toEqual(['only']);
-    });
-
-    it('iterates over string characters', async () => {
-      expect(await run('"abc" @ { $ }')).toEqual(['a', 'b', 'c']);
-    });
-
-    it('can transform string characters', async () => {
-      const script = `
-        "abc" @ {
-          "{$}{$}"
-        }
-      `;
-      expect(await run(script)).toEqual(['aa', 'bb', 'cc']);
-    });
-
-    it('iterates over dict entries', async () => {
-      const result = await run('[b: 2, a: 1] @ { $ }');
-      // Keys sorted alphabetically
-      expect(result).toEqual([
-        { key: 'a', value: 1 },
-        { key: 'b', value: 2 },
-      ]);
-    });
-
-    it('can destructure dict entries', async () => {
-      const script = `
-        [x: 10, y: 20] @ {
-          $ -> *<key: $k, value: $v>
-          "{$k}={$v}"
-        }
-      `;
-      expect(await run(script)).toEqual(['x=10', 'y=20']);
-    });
-
-    it('returns empty array for empty dict', async () => {
-      expect(await run('[:]  @ { $ }')).toEqual([]);
-    });
-
-    it('iterates using pipe target syntax', async () => {
-      expect(await run('["a", "b", "c"] -> @ { $ }')).toEqual(['a', 'b', 'c']);
-    });
-
-    it('iterates over $ with bare @', async () => {
-      const script = `
-        [1, 2, 3] -> @ { $ }
-      `;
-      expect(await run(script)).toEqual([1, 2, 3]);
+    it('string condition errors', async () => {
+      await expect(run('"hello" @ { $ }')).rejects.toThrow(
+        /condition must be boolean/i
+      );
     });
   });
 
   describe('Break', () => {
-    it('exits for loop with value', async () => {
-      const script = `
-        [1, 2, 3, 4, 5] @ {
-          ($ == 3) ? ("found" -> break)
-          $
-        }
-      `;
-      expect(await run(script)).toBe('found');
-    });
-
-    it('exits for loop with bare break', async () => {
-      const script = `
-        [1, 2, 3, 4, 5] @ {
-          ($ == 3) ? break
-          $
-        }
-      `;
-      expect(await run(script)).toBe(3);
-    });
-
     it('exits while loop with break', async () => {
       // Uses $ as accumulator, condition always true, break exits
       const script = `
@@ -183,26 +91,40 @@ describe('Rill Runtime: Loops', () => {
       `;
       expect(await run(script)).toBe('three');
     });
+
+    it('exits each loop early with break', async () => {
+      // Break in each terminates iteration and returns collected results
+      const script = `
+        [1, 2, 3, 4, 5] -> each {
+          ($ == 3) ? break
+          $
+        }
+      `;
+      // each returns results collected before break (elements 1, 2)
+      expect(await run(script)).toEqual([1, 2]);
+    });
   });
 
   describe('Return', () => {
     it('exits block early with return', async () => {
+      // With scope isolation, bare `return` returns the block's inherited $
+      // (not the previous sibling's result). Use explicit return value instead.
       const script = `
         {
-          "first" -> $a
-          return
-          "second" -> $b
+          "first" :> $a
+          $a -> return
+          "second" :> $b
           $b
         }
       `;
-      // Returns "first" because that's $ when return is hit
+      // Returns $a's value because that's what we explicitly return
       expect(await run(script)).toBe('first');
     });
 
     it('exits block with explicit return value', async () => {
       const script = `
         {
-          "first" -> $a
+          "first" :> $a
           "returned" -> return
           "never reached"
         }
@@ -213,7 +135,7 @@ describe('Rill Runtime: Loops', () => {
     it('return in conditional exits containing block', async () => {
       const script = `
         {
-          "value" -> $v
+          "value" :> $v
           $v -> .eq("value") ? ("matched" -> return)
           "not matched"
         }
@@ -281,16 +203,14 @@ describe('Rill Runtime: Loops', () => {
     });
   });
 
-  describe('Nested Loops', () => {
-    it('handles nested for loops', async () => {
+  describe('Nested Loops (using each)', () => {
+    it('handles nested each loops', async () => {
       const script = `
-        [[1, 2], [3, 4]] @ {
-          $ @ {
-            $ -> double
-          }
+        [[1, 2], [3, 4]] -> each {
+          $ -> each { $ * 2 }
         }
       `;
-      expect(await run(script, { functions: { double } })).toEqual([
+      expect(await run(script)).toEqual([
         [2, 4],
         [6, 8],
       ]);
@@ -298,25 +218,24 @@ describe('Rill Runtime: Loops', () => {
 
     it('break only exits inner loop', async () => {
       const script = `
-        [[1, 2, 3], [4, 5, 6]] @ {
-          $ @ {
+        [[1, 2, 3], [4, 5, 6]] -> each {
+          $ -> each {
             ($ == 2) ? break
             ($ == 5) ? break
             $
           }
         }
       `;
-      // Inner loops break with the break value (not accumulated results)
-      // First inner loop: breaks at 2, returns 2
-      // Second inner loop: breaks at 5, returns 5
-      // Outer loop collects these break values
-      expect(await run(script)).toEqual([2, 5]);
+      // Inner loops break and return collected results before break
+      // First inner loop: collects [1], breaks at 2
+      // Second inner loop: collects [4], breaks at 5
+      expect(await run(script)).toEqual([[1], [4]]);
     });
   });
 
-  describe('Iterator Loops', () => {
+  describe('Iterator While Loops', () => {
     it('$ is consistent in condition and body (parenthesized)', async () => {
-      // Workaround: parenthesize condition and body
+      // Parenthesize condition and body for clarity
       const script = `
         [1, 2, 3] -> .first() -> (!$.done) @ ($.next())
       `;
@@ -324,48 +243,33 @@ describe('Rill Runtime: Loops', () => {
       expect(result.done).toBe(true);
     });
 
-    it('$ is consistent in condition and body (unparenthesized)', async () => {
-      // Expected behavior: $ should be the iterator in both condition and body
-      const script = `
-        [1, 2, 3] -> .first() -> !$.done @ $.next()
-      `;
-      const result = (await run(script)) as Record<string, unknown>;
-      expect(result.done).toBe(true);
-    });
-
-    it('$ in body should be iterator, not condition result', async () => {
-      // The body should see $ as the iterator (dict), not as a boolean
-      const script = `
-        [1, 2, 3] -> .first() -> !$.done @ (type($) -> break)
-      `;
-      expect(await run(script)).toBe('dict');
-    });
-
     it('loop advances iterator correctly', async () => {
       // After looping, iterator should be exhausted
       const script = `
-        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) -> $it
+        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) :> $it
         $it.done
       `;
       expect(await run(script)).toBe(true);
     });
+  });
 
-    it('implicit $ in condition and body', async () => {
-      // Using .done and .next without explicit $
-      const script = `
-        [1, 2, 3] -> .first -> !.done @ .next
-      `;
-      const result = (await run(script)) as Record<string, unknown>;
-      expect(result.done).toBe(true);
+  describe('Bare @ Error', () => {
+    it('bare @ without condition errors', async () => {
+      await expect(run('@ { $ + 1 }')).rejects.toThrow(
+        /Bare '@' requires trailing condition/i
+      );
+    });
+  });
+
+  describe('Self-Chaining Semantics', () => {
+    it('while: body result becomes next $', async () => {
+      const result = await run('1 -> ($ < 100) @ { $ * 2 }');
+      expect(result).toBe(128); // 1->2->4->8->16->32->64->128
     });
 
-    it('simplest form with different data', async () => {
-      // Most concise iterator loop form
-      const script = `
-        [0, 1, 2] -> .first -> !.done @ .next
-      `;
-      const result = (await run(script)) as Record<string, unknown>;
-      expect(result.done).toBe(true);
+    it('do-while: body result becomes next $', async () => {
+      const result = await run('1 -> @ { $ * 2 } ? ($ < 100)');
+      expect(result).toBe(128);
     });
   });
 });

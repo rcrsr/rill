@@ -26,7 +26,7 @@ import type {
   FieldAccess,
   FilterExprNode,
   FoldExprNode,
-  ForLoopNode,
+  WhileLoopNode,
   HostCallNode,
   ClosureNode,
   GroupedExprNode,
@@ -208,12 +208,12 @@ function setVariable(
     );
   }
 
-  // Check if this is a new variable that would shadow an outer scope variable
-  // (error: cannot shadow outer scope variables in child scopes)
+  // Check if this is a new variable that would reassign an outer scope variable
+  // (error: cannot reassign outer scope variables from child scopes)
   if (!ctx.variables.has(name) && ctx.parent && hasVariable(ctx.parent, name)) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Cannot shadow outer variable $${name} in child scope`,
+      `Cannot reassign outer variable $${name} from child scope`,
       location,
       { variableName: name }
     );
@@ -297,6 +297,9 @@ async function evaluatePipeChain(
   chain: PipeChainNode,
   ctx: RuntimeContext
 ): Promise<RillValue> {
+  // Save parent's $ - chains don't leak $ modifications to parent scope
+  const savedPipeValue = ctx.pipeValue;
+
   // Evaluate head (can be PostfixExpr, BinaryExpr, or UnaryExpr)
   let value: RillValue;
   switch (chain.head.type) {
@@ -310,24 +313,31 @@ async function evaluatePipeChain(
       value = await evaluatePostfixExpr(chain.head, ctx);
       break;
   }
-  ctx.pipeValue = value;
+  ctx.pipeValue = value; // OK: local to this chain evaluation
 
   for (const target of chain.pipes) {
     value = await evaluatePipeTarget(target, value, ctx);
-    ctx.pipeValue = value;
+    ctx.pipeValue = value; // OK: flows within chain
   }
 
   // Handle chain terminator (capture, break, return)
   if (chain.terminator) {
     if (chain.terminator.type === 'Break') {
+      // Restore parent's $ before throwing (cleanup)
+      ctx.pipeValue = savedPipeValue;
       throw new BreakSignal(value);
     }
     if (chain.terminator.type === 'Return') {
+      // Restore parent's $ before throwing (cleanup)
+      ctx.pipeValue = savedPipeValue;
       throw new ReturnSignal(value);
     }
     // Capture
     handleCapture(chain.terminator, value, ctx);
   }
+
+  // Restore parent's $ - chain result is returned, but $ doesn't leak
+  ctx.pipeValue = savedPipeValue;
 
   return value;
 }
@@ -383,8 +393,8 @@ async function evaluatePrimary(
     case 'Conditional':
       return evaluateConditional(primary, ctx);
 
-    case 'ForLoop':
-      return evaluateForLoop(primary, ctx);
+    case 'WhileLoop':
+      return evaluateWhileLoop(primary, ctx);
 
     case 'DoWhileLoop':
       return evaluateDoWhileLoop(primary, ctx);
@@ -477,8 +487,8 @@ async function evaluatePipeTarget(
     case 'Conditional':
       return evaluateConditional(target, ctx);
 
-    case 'ForLoop':
-      return evaluateForLoop(target, ctx);
+    case 'WhileLoop':
+      return evaluateWhileLoop(target, ctx);
 
     case 'DoWhileLoop':
       return evaluateDoWhileLoop(target, ctx);
@@ -522,6 +532,9 @@ async function evaluatePipeTarget(
     case 'FilterExpr':
       return evaluateFilter(target, input, ctx);
 
+    case 'Variable':
+      return evaluateVariableInvoke(target, input, ctx);
+
     default:
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
@@ -545,7 +558,8 @@ export async function executeStatement(
   }
 
   const value = await evaluateExpression(stmt.expression, ctx);
-  ctx.pipeValue = value;
+  // Note: Do NOT set ctx.pipeValue = value here.
+  // Statements don't propagate $ to siblings. $ flows only via explicit ->.
   checkAutoExceptions(value, ctx, stmt);
 
   // Terminator handling is now inside PipeChainNode evaluation
@@ -1976,6 +1990,52 @@ async function evaluateClosureCallWithPipe(
   return invokeCallable(closure, args, ctx, node.span.start);
 }
 
+/**
+ * Evaluate a bare variable as a pipe target: -> $fn
+ * This invokes the closure stored in $fn with the pipe value as argument.
+ * Use :> for captures instead.
+ */
+async function evaluateVariableInvoke(
+  node: VariableNode,
+  pipeInput: RillValue,
+  ctx: RuntimeContext
+): Promise<RillValue> {
+  // Handle pipe variable ($) - can't invoke $ as a closure
+  if (node.isPipeVar && !node.name) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Cannot invoke $ as pipe target. Use :> to capture, or $() to invoke $ as closure`,
+      getNodeLocation(node)
+    );
+  }
+
+  // Check if variable exists
+  const rawValue = node.name ? getVariable(ctx, node.name) : null;
+  if (rawValue === undefined) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+      `Unknown variable: $${node.name}`,
+      getNodeLocation(node),
+      { variableName: node.name }
+    );
+  }
+
+  // Get the full variable value (with access chain)
+  const value = evaluateVariable(node, ctx);
+
+  // Check if it's callable
+  if (!isCallable(value)) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Cannot invoke $${node.name}: expected closure, got ${inferType(value)}. Use :> to capture values.`,
+      getNodeLocation(node)
+    );
+  }
+
+  // Invoke with pipe input as first argument
+  return invokeCallable(value, [pipeInput], ctx, node.span.start);
+}
+
 async function invokeCallable(
   callable: RillCallable,
   args: RillValue[],
@@ -2303,96 +2363,39 @@ async function evaluateConditional(
 }
 
 /**
- * Evaluate a loop (unified while/for-each).
- *
- * New syntax: input @ body
- *   - If input is bool: while loop (re-evaluate input each iteration)
- *   - If input is list/string: for-each (iterate over elements)
- *   - If no input: for-each over $ (current pipe value)
+ * While loop evaluation: cond @ body
+ * Condition must evaluate to boolean. Re-evaluated each iteration.
+ * Each iteration creates a child scope (reads parent, writes local only).
+ * For iteration over collections, use `each` operator instead.
  */
-async function evaluateForLoop(
-  node: ForLoopNode,
+async function evaluateWhileLoop(
+  node: WhileLoopNode,
   ctx: RuntimeContext
 ): Promise<RillValue> {
-  // Save original pipe value before evaluating input expression
-  // (evaluating the input may modify ctx.pipeValue)
+  // Save original pipe value before evaluating condition
   const originalPipeValue = ctx.pipeValue;
 
-  // Evaluate input expression (or use $ if no input)
-  let input: RillValue;
-  if (node.input) {
-    input = await evaluateExpression(node.input, ctx);
-    // Restore original pipe value for loop body
-    ctx.pipeValue = originalPipeValue;
-  } else {
-    input = ctx.pipeValue;
+  // Evaluate condition
+  const conditionValue = await evaluateExpression(node.condition, ctx);
+
+  // Restore original pipe value for loop body
+  ctx.pipeValue = originalPipeValue;
+
+  // Condition must be boolean
+  if (typeof conditionValue !== 'boolean') {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `While loop condition must be boolean, got ${typeof conditionValue}`,
+      getNodeLocation(node)
+    );
   }
 
-  // Runtime type determines loop behavior
-  if (typeof input === 'boolean') {
-    // While loop: re-evaluate input expression each iteration
-    return evaluateWhileLoopMode(node, input, ctx);
-  }
-
-  // For-each loop: iterate over list or string
-  // Each iteration creates a child scope (reads parent, writes local only)
-  const results: RillValue[] = [];
-  try {
-    if (Array.isArray(input)) {
-      for (const item of input) {
-        checkAborted(ctx, node);
-        const iterCtx = createChildContext(ctx);
-        iterCtx.pipeValue = item;
-        results.push(await evaluateBody(node.body, iterCtx));
-      }
-    } else if (typeof input === 'string') {
-      for (const char of input) {
-        checkAborted(ctx, node);
-        const iterCtx = createChildContext(ctx);
-        iterCtx.pipeValue = char;
-        results.push(await evaluateBody(node.body, iterCtx));
-      }
-    } else if (isDict(input)) {
-      // Iterate over dict entries as { key, value } objects
-      const keys = Object.keys(input).sort();
-      for (const key of keys) {
-        checkAborted(ctx, node);
-        const iterCtx = createChildContext(ctx);
-        iterCtx.pipeValue = { key, value: input[key]! };
-        results.push(await evaluateBody(node.body, iterCtx));
-      }
-    } else {
-      // Non-iterable: execute body once with input as $
-      checkAborted(ctx, node);
-      const iterCtx = createChildContext(ctx);
-      iterCtx.pipeValue = input;
-      results.push(await evaluateBody(node.body, iterCtx));
-    }
-  } catch (e) {
-    if (e instanceof BreakSignal) {
-      return e.value;
-    }
-    throw e;
-  }
-
-  return results;
-}
-
-/**
- * While loop mode: condition is re-evaluated each iteration.
- * Each iteration creates a child scope (reads parent, writes local only).
- */
-async function evaluateWhileLoopMode(
-  node: ForLoopNode,
-  initialCondition: boolean,
-  ctx: RuntimeContext
-): Promise<RillValue> {
   let value = ctx.pipeValue;
   let iterCount = 0;
   const maxIter = getIterationLimit(ctx);
 
   try {
-    let conditionResult = initialCondition;
+    let conditionResult = conditionValue;
     while (conditionResult) {
       iterCount++;
       if (iterCount > maxIter) {
@@ -2411,17 +2414,18 @@ async function evaluateWhileLoopMode(
       value = await evaluateBody(node.body, iterCtx);
       ctx.pipeValue = value;
 
-      // Re-evaluate the input expression for next iteration
-      if (node.input) {
-        const nextCondition = await evaluateExpression(node.input, ctx);
-        conditionResult =
-          typeof nextCondition === 'boolean' ? nextCondition : false;
-        // Restore pipeValue after condition evaluation (condition may have modified it)
-        ctx.pipeValue = value;
-      } else {
-        // No input expression - use $ truthiness
-        conditionResult = isTruthy(ctx.pipeValue);
+      // Re-evaluate condition for next iteration
+      const nextCondition = await evaluateExpression(node.condition, ctx);
+      if (typeof nextCondition !== 'boolean') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `While loop condition must be boolean, got ${typeof nextCondition}`,
+          getNodeLocation(node)
+        );
       }
+      conditionResult = nextCondition;
+      // Restore pipeValue after condition evaluation
+      ctx.pipeValue = value;
     }
   } catch (e) {
     if (e instanceof BreakSignal) {
@@ -2468,15 +2472,35 @@ async function evaluateBlock(
   node: BlockNode,
   ctx: RuntimeContext
 ): Promise<RillValue> {
-  // Create child scope: reads from parent, writes to local only
-  const childCtx = createChildContext(ctx);
-  let lastValue: RillValue = childCtx.pipeValue;
+  // Create child scope for the block: reads from parent, writes to local only
+  const blockCtx = createChildContext(ctx);
+
+  // All siblings inherit the SAME $ from parent (captured when block entered)
+  const parentPipeValue = blockCtx.pipeValue;
+  let lastValue: RillValue = parentPipeValue;
 
   for (const stmt of node.statements) {
-    lastValue = await executeStatement(stmt, childCtx);
+    // Each statement gets fresh child context with parent's $
+    // This ensures siblings don't share $ - each sees the block's $
+    const stmtCtx = createChildContext(blockCtx);
+    stmtCtx.pipeValue = parentPipeValue; // Always parent's $, not previous sibling's
+
+    lastValue = await executeStatement(stmt, stmtCtx);
+
+    // Variables captured via -> need to be promoted to block scope
+    // so they're visible to later siblings
+    for (const [name, value] of stmtCtx.variables) {
+      if (!blockCtx.variables.has(name)) {
+        blockCtx.variables.set(name, value);
+        const varType = stmtCtx.variableTypes.get(name);
+        if (varType !== undefined) {
+          blockCtx.variableTypes.set(name, varType);
+        }
+      }
+    }
   }
 
-  return lastValue;
+  return lastValue; // Last sibling's result is block result
 }
 
 async function evaluateBlockExpression(

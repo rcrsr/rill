@@ -26,11 +26,13 @@ describe('Rill Runtime: Observability', () => {
     });
 
     it('includes current pipeValue', async () => {
+      // With scope isolation, $ doesn't propagate between sibling statements
+      // Both statements see the initial $ (null unless host provides a value)
       const { events, callbacks } = createEventCollector();
       await run('"first"\n"second"', { observability: callbacks });
 
       expect(events.stepStart[0]?.pipeValue).toBe(null);
-      expect(events.stepStart[1]?.pipeValue).toBe('first');
+      expect(events.stepStart[1]?.pipeValue).toBe(null); // Was 'first' before scope isolation
     });
   });
 
@@ -102,9 +104,7 @@ describe('Rill Runtime: Observability', () => {
       });
 
       expect(events.hostCall).toHaveLength(3);
-      expect(events.hostCall.every((e) => e.name === 'identity')).toBe(
-        true
-      );
+      expect(events.hostCall.every((e) => e.name === 'identity')).toBe(true);
     });
 
     it('fires for chained function calls', async () => {
@@ -112,9 +112,7 @@ describe('Rill Runtime: Observability', () => {
       await run('"x" -> identity -> identity', { observability: callbacks });
 
       expect(events.hostCall).toHaveLength(2);
-      expect(events.hostCall.every((e) => e.name === 'identity')).toBe(
-        true
-      );
+      expect(events.hostCall.every((e) => e.name === 'identity')).toBe(true);
     });
   });
 
@@ -168,7 +166,7 @@ describe('Rill Runtime: Observability', () => {
   describe('onCapture', () => {
     it('fires when variable is captured', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('"value" -> $myVar', { observability: callbacks });
+      await run('"value" :> $myVar', { observability: callbacks });
 
       expect(events.capture).toHaveLength(1);
       expect(events.capture[0]).toEqual({ name: 'myVar', value: 'value' });
@@ -176,7 +174,7 @@ describe('Rill Runtime: Observability', () => {
 
     it('fires for each capture', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('"a" -> $x\n"b" -> $y\n"c" -> $z', {
+      await run('"a" :> $x\n"b" :> $y\n"c" :> $z', {
         observability: callbacks,
       });
 
@@ -186,7 +184,7 @@ describe('Rill Runtime: Observability', () => {
 
     it('fires for captures in nested blocks', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('true -> ? { "inner" -> $nested }', {
+      await run('true -> ? { "inner" :> $nested }', {
         observability: callbacks,
       });
 
@@ -266,7 +264,7 @@ describe('Rill Runtime: Observability', () => {
   describe('Combined Events', () => {
     it('fires events in correct order for complex script', async () => {
       const order: string[] = [];
-      await run('"start" -> $x\n"end" -> identity', {
+      await run('"start" :> $x\n"end" -> identity', {
         observability: {
           onStepStart: (e) => order.push(`stepStart:${e.index}`),
           onStepEnd: (e) => order.push(`stepEnd:${e.index}`),

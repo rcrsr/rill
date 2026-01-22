@@ -38,7 +38,7 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('interpolates variable', async () => {
-      expect(await run('"x" -> $v\n"val:{$v}"')).toBe('val:x');
+      expect(await run('"x" :> $v\n"val:{$v}"')).toBe('val:x');
     });
 
     it('interpolates pipe variable in block', async () => {
@@ -47,7 +47,7 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('interpolates field access', async () => {
-      expect(await run('[a: "b"] -> $d\n"{$d.a}"')).toBe('b');
+      expect(await run('[a: "b"] :> $d\n"{$d.a}"')).toBe('b');
     });
   });
 
@@ -108,19 +108,19 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('accesses first element by index', async () => {
-      expect(await run('["a", "b"] -> $t\n$t[0]')).toBe('a');
+      expect(await run('["a", "b"] :> $t\n$t[0]')).toBe('a');
     });
 
     it('accesses second element by index', async () => {
-      expect(await run('["a", "b"] -> $t\n$t[1]')).toBe('b');
+      expect(await run('["a", "b"] :> $t\n$t[1]')).toBe('b');
     });
 
     it('returns null for out of bounds index', async () => {
-      expect(await run('["a"] -> $t\n$t[5]')).toBe(null);
+      expect(await run('["a"] :> $t\n$t[5]')).toBe(null);
     });
 
     it('returns null for index on empty tuple', async () => {
-      expect(await run('[] -> $t\n$t[0]')).toBe(null);
+      expect(await run('[] :> $t\n$t[0]')).toBe(null);
     });
   });
 
@@ -142,15 +142,15 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('accesses field', async () => {
-      expect(await run('[a: 1, b: 2] -> $d\n$d.a')).toBe(1);
+      expect(await run('[a: 1, b: 2] :> $d\n$d.a')).toBe(1);
     });
 
     it('returns null for missing field', async () => {
-      expect(await run('[a: 1] -> $d\n$d.missing')).toBe(null);
+      expect(await run('[a: 1] :> $d\n$d.missing')).toBe(null);
     });
 
     it('accesses nested dict field', async () => {
-      expect(await run('[x: [y: 1]] -> $d\n$d.x.y')).toBe(1);
+      expect(await run('[x: [y: 1]] :> $d\n$d.x.y')).toBe(1);
     });
   });
 });

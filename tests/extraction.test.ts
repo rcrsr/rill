@@ -168,8 +168,8 @@ describe('Rill Runtime: Extraction Operators', () => {
     describe('Variable bounds', () => {
       it('uses variable as bound', async () => {
         const result = await run(`
-          2 -> $start
-          4 -> $end
+          2 :> $start
+          4 :> $end
           [1, 2, 3, 4, 5] -> /<$start:$end>
         `);
         expect(result).toEqual([3, 4]);
@@ -179,7 +179,7 @@ describe('Rill Runtime: Extraction Operators', () => {
     describe('Grouped expression bounds', () => {
       it('uses grouped expression as start bound', async () => {
         const result = await run(`
-          1 -> $offset
+          1 :> $offset
           [1, 2, 3, 4, 5] -> /<($offset + 1):4>
         `);
         expect(result).toEqual([3, 4]);
@@ -187,7 +187,7 @@ describe('Rill Runtime: Extraction Operators', () => {
 
       it('uses grouped expression as stop bound', async () => {
         const result = await run(`
-          2 -> $len
+          2 :> $len
           [1, 2, 3, 4, 5] -> /<1:($len + 2)>
         `);
         expect(result).toEqual([2, 3, 4]);

@@ -202,6 +202,7 @@ export const TOKEN_TYPES = {
 
   // Operators
   ARROW: 'ARROW', // ->
+  CAPTURE_ARROW: 'CAPTURE_ARROW', // :>
   DOT: 'DOT', // .
   QUESTION: 'QUESTION', // ?
   AT: 'AT', // @
@@ -303,7 +304,6 @@ export type NodeType =
   | 'Capture'
   | 'Conditional'
   | 'WhileLoop'
-  | 'ForLoop'
   | 'DoWhileLoop'
   | 'Block'
   | 'StringLiteral'
@@ -534,7 +534,6 @@ export type PrimaryNode =
   | MethodCallNode
   | ConditionalNode
   | WhileLoopNode
-  | ForLoopNode
   | DoWhileLoopNode
   | BlockNode
   | GroupedExprNode
@@ -549,7 +548,6 @@ export type PipeTargetNode =
   | PipeInvokeNode
   | ConditionalNode
   | WhileLoopNode
-  | ForLoopNode
   | DoWhileLoopNode
   | BlockNode
   | StringLiteralNode
@@ -563,7 +561,8 @@ export type PipeTargetNode =
   | EachExprNode
   | MapExprNode
   | FoldExprNode
-  | FilterExprNode;
+  | FilterExprNode
+  | VariableNode; // -> $fn invokes closure
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -851,14 +850,7 @@ export interface ConditionalNode extends BaseNode {
 
 export interface WhileLoopNode extends BaseNode {
   readonly type: 'WhileLoop';
-  readonly input: ExpressionNode | null; // null = implied $
-  readonly condition: BodyNode;
-  readonly body: BodyNode;
-}
-
-export interface ForLoopNode extends BaseNode {
-  readonly type: 'ForLoop';
-  readonly input: ExpressionNode | null; // null = implied $
+  readonly condition: ExpressionNode; // must evaluate to boolean
   readonly body: BodyNode;
 }
 
@@ -1153,7 +1145,6 @@ export type ASTNode =
   | VariableNode
   | ConditionalNode
   | WhileLoopNode
-  | ForLoopNode
   | DoWhileLoopNode
   | BlockNode
   | StringLiteralNode

@@ -150,7 +150,7 @@ range(0, 5) -> .first()      # iterator at 0 (identity)
 Traverse an iterator by accessing `.value`, `.done`, and calling `.next()`:
 
 ```rill
-[1, 2, 3] -> .first() -> $it
+[1, 2, 3] -> .first() :> $it
 
 # Check if done
 $it.done                     # false
@@ -159,7 +159,7 @@ $it.done                     # false
 $it.value                    # 1
 
 # Advance to next position
-$it.next() -> $it
+$it.next() :> $it
 $it.value                    # 2
 ```
 
@@ -183,7 +183,7 @@ $it.value                    # 2
 **Check before access:**
 
 ```rill
-$list -> .first() -> $it
+$list -> .first() :> $it
 $it.done ? "empty" ! $it.value
 ```
 
@@ -199,7 +199,7 @@ Create custom iterators by implementing the protocol:
   value: $start,
   done: ($start > $max),
   next: || { $counter($.value + 1, $max) }
-] -> $counter
+] :> $counter
 
 $counter(1, 5) -> each { $ }    # [1, 2, 3, 4, 5]
 ```
@@ -211,7 +211,7 @@ $counter(1, 5) -> each { $ }    # [1, 2, 3, 4, 5]
   value: $a,
   done: ($a > $max),
   next: || { $fib($.b, $.a + $.b, $max) }
-] -> $fib
+] :> $fib
 
 $fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
@@ -223,7 +223,7 @@ $fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
   value: $n,
   done: false,
   next: || { $naturals($.value + 1) }
-] -> $naturals
+] :> $naturals
 
 # Take first 5 using fold with compound accumulator
 $naturals(1) -> .first() -> fold([list: [], it: $]) {
@@ -288,7 +288,7 @@ range(0, 5) -> each { "Item {$}" }
 
 ```rill
 repeat(1, 3) -> each {
-  attempt() -> $result
+  attempt() :> $result
   $result.success ? ($result -> break)
   pause("00:00:01")
   $result
@@ -305,7 +305,7 @@ range(0, 20) -> filter { ($ % 2) == 0 }
 ### Nested iteration
 
 ```rill
-range(1, 4) -> each { $ -> $row -> range(1, 4) -> each { $row * $ } }
+range(1, 4) -> each { $ :> $row -> range(1, 4) -> each { $row * $ } }
 # [[1, 2, 3], [2, 4, 6], [3, 6, 9]]
 ```
 
@@ -317,7 +317,7 @@ Iterators are expanded eagerly when passed to collection operators. A default li
 
 ```rill
 # This would error after 10000 elements
-|n| [value: $n, done: false, next: || { $inf($.value + 1) }] -> $inf
+|n| [value: $n, done: false, next: || { $inf($.value + 1) }] :> $inf
 $inf(0) -> each { $ }    # ERROR: Iterator exceeded 10000 elements
 ```
 

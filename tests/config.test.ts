@@ -109,7 +109,7 @@ describe('Rill Runtime: Configuration', () => {
     it('checks after each statement', async () => {
       // First statement OK, second triggers exception
       await expect(
-        run('"OK" -> $first\n"ERROR happened"', {
+        run('"OK" :> $first\n"ERROR happened"', {
           autoExceptions: ['ERROR'],
         })
       ).rejects.toThrow(AutoExceptionError);

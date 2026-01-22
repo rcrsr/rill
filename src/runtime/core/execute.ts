@@ -127,10 +127,19 @@ export function createStepper(
         const value = await executeStatement(stmt, context);
 
         // Get the inner statement's expression for capture detection
+        // Check both terminator (legacy -> $var) and pipes (new :> $var)
         const innerStmt = getInnerStatement(stmt);
-        const terminator = innerStmt.expression.terminator;
-        if (terminator?.type === 'Capture') {
-          captured = { name: terminator.name, value };
+        const expr = innerStmt.expression;
+        if (expr.terminator?.type === 'Capture') {
+          captured = { name: expr.terminator.name, value };
+        } else {
+          // Check for :> captures in pipes array (last capture wins)
+          for (const pipe of expr.pipes) {
+            if (pipe.type === 'Capture') {
+              const captureValue = context.variables.get(pipe.name);
+              captured = { name: pipe.name, value: captureValue ?? value };
+            }
+          }
         }
         lastValue = value;
 

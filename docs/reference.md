@@ -119,7 +119,7 @@ When certain constructs appear without explicit input, the current pipe value `$
 }
 
 # In each loops, $ is the current item
-|x| { $x * 2 } -> $double
+|x| { $x * 2 } :> $double
 [1, 2, 3] -> each { $double() }   # $double receives 1, 2, 3
 ```
 
@@ -127,11 +127,11 @@ When certain constructs appear without explicit input, the current pipe value `$
 
 ```rill
 # Explicit args override implied $
-|x| { $x } -> $fn
+|x| { $x } :> $fn
 $fn("explicit")           # uses "explicit", not $
 
 # Params with defaults use the default
-|x: string = "default"| { $x } -> $fn
+|x: string = "default"| { $x } :> $fn
 $fn()                     # uses "default", not $
 ```
 
@@ -141,10 +141,14 @@ This enables concise chaining inside blocks without repeating the piped value.
 
 | Syntax                              | Description                    |
 | ----------------------------------- | ------------------------------ |
-| `|p: type|{ } -> $fn`              | Define and capture function    |
+| `|p: type|{ } :> $fn`              | Define and capture function    |
 | `|p = default|{ }`                 | Parameter with default (type inferred) |
 | `|p: type = default|{ }`           | Parameter with default (type explicit) |
-| `$fn(arg)` or `arg -> $fn()`        | Call function                  |
+| `$fn(arg)`                          | Call function directly         |
+| `arg -> $fn()`                      | Call function with pipe value  |
+| `arg -> $fn`                        | Pipe-style invoke (bare variable) |
+
+**Note:** `-> $fn` (bare variable, no parens) invokes `$fn` with the piped value. Use `:> $fn` to capture values.
 
 ### Special Variables
 
@@ -188,20 +192,20 @@ Functions are first-class values created with function literals and stored in va
 # Define functions by capturing function literals
 |target: string|{
   prompt("Check if {$target} is ready") -> .contains("READY") ? true ! false
-} -> $check_ready
+} :> $check_ready
 
 |op: string|{
   ^(limit: 3) @ {
     prompt("{$op}")
   } ? (.contains("RETRY"))
-} -> $retry_operation
+} :> $retry_operation
 ```
 
 ### Syntax
 
 ```rill
-# General pattern: |param, param: type, param = default|{ body } -> $name
-|a, b: string, c = 10| { "{$a} {$b} {$c}" } -> $example
+# General pattern: |param, param: type, param = default|{ body } :> $name
+|a, b: string, c = 10| { "{$a} {$b} {$c}" } :> $example
 $example(1, "hello")    # "1 hello 10"
 ```
 
@@ -224,11 +228,11 @@ $example(1, "hello")    # "1 hello 10"
 
 ```rill
 # Define a function
-|task: string| { "checking: {$task}" } -> $check
+|task: string| { "checking: {$task}" } :> $check
 $check("build")                # "checking: build"
 
 # With defaults
-|msg: string, attempts = 3| { "{$msg} x{$attempts}" } -> $retry
+|msg: string, attempts = 3| { "{$msg} x{$attempts}" } :> $retry
 $retry("deploy")               # uses default attempts=3
 $retry("deploy", 5)            # override attempts
 
@@ -242,15 +246,15 @@ Closures can be invoked immediately after any expression that returns them:
 
 ```rill
 # From bracket access
-[|x|($x * 2), |x|($x + 1)] -> $fns
+[|x|($x * 2), |x|($x + 1)] :> $fns
 $fns[0](5)                    # 10
 
 # Chained invocation
-|| { |n|($n * 2) } -> $factory
+|| { |n|($n * 2) } :> $factory
 $factory()(5)                 # 10
 
 # After method access
-[double: |n|($n * 2)] -> $math
+[double: |n|($n * 2)] :> $math
 $math.double(7)               # 14
 ```
 
@@ -264,12 +268,12 @@ Same as blocks:
 - **Cannot modify outer:** Outer scope variables cannot be reassigned
 
 ```rill
-"context" -> $ctx
+"context" :> $ctx
 
 |item: string|{
   # $ctx IS accessible here (captured from outer scope)
   prompt("process {$item} with {$ctx}")
-} -> $process
+} :> $process
 
 $process("data")
 ```
@@ -291,7 +295,7 @@ For simple transformations, use interpolation or arithmetic directly:
 For reusable logic, define the closure first:
 
 ```rill
-|x: string|"item: {$x}" -> $format
+|x: string|"item: {$x}" :> $format
 ["a", "b", "c"] -> map $format           # parallel map
 ```
 
@@ -332,7 +336,7 @@ $result.exitcode                 # field access
 ```rill
 [] -> .at(0)                     # "" (empty list)
 ["a"] -> .at(5)                  # "" (index out of bounds)
-[:] -> $d
+[:] :> $d
 $d.missing                       # "" (key not found)
 ```
 
@@ -350,19 +354,19 @@ Tuples package values for explicit argument unpacking at closure invocation. Cre
 
 ```rill
 # From list (positional)
-*[1, 2, 3] -> $t              # tuple with positional values
+*[1, 2, 3] :> $t              # tuple with positional values
 
 # From dict (named)
-*[x: 1, y: 2] -> $t           # tuple with named values
+*[x: 1, y: 2] :> $t           # tuple with named values
 
 # Via pipe target
-[1, 2, 3] -> * -> $t          # convert list to tuple
+[1, 2, 3] -> * :> $t          # convert list to tuple
 ```
 
 **Using tuples at invocation:**
 
 ```rill
-|a, b, c| { "{$a}-{$b}-{$c}" } -> $fmt
+|a, b, c| { "{$a}-{$b}-{$c}" } :> $fmt
 
 # Positional unpacking (from list)
 *[1, 2, 3] -> $fmt()          # "1-2-3"
@@ -374,7 +378,7 @@ Tuples package values for explicit argument unpacking at closure invocation. Cre
 **Strict validation:** When invoking with tuples, missing required parameters error, and extra arguments error:
 
 ```rill
-|x, y|($x + $y) -> $fn
+|x, y|($x + $y) :> $fn
 *[1] -> $fn()                 # Error: missing argument 'y'
 *[1, 2, 3] -> $fn()           # Error: extra positional argument
 *[x: 1, z: 3] -> $fn()        # Error: unknown argument 'z'
@@ -383,7 +387,7 @@ Tuples package values for explicit argument unpacking at closure invocation. Cre
 **Parameter defaults with tuples:**
 
 ```rill
-|x, y = 10, z = 20|($x + $y + $z) -> $fn
+|x, y = 10, z = 20|($x + $y + $z) :> $fn
 *[5] -> $fn()                 # 35 (5 + 10 + 20)
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
 ```
@@ -466,10 +470,26 @@ Literal `true` and `false`. Bare `?` uses truthy semantics (false, empty string,
 
 ### Declaration
 
-Variables are declared via capture (`->`), not assignment:
+Variables are declared via capture (`:>`), not assignment:
 
 ```rill
-prompt("analyze") -> $result
+app::prompt("analyze") :> $result
+```
+
+The `:>` operator captures the value AND continues the chain:
+
+```rill
+"hello"
+    :> $greeting         # capture "hello" into $greeting
+    -> "{$} world"       # $ is still "hello"
+    :> $message          # capture "hello world" into $message
+    -> .upper            # result: "HELLO WORLD"
+```
+
+Terminal capture (`:> $var`) captures and ends the chain:
+
+```rill
+"hello" :> $result       # capture and end chain (result: "hello")
 ```
 
 ### Type-Locked Variables
@@ -477,12 +497,12 @@ prompt("analyze") -> $result
 Variables are type-locked after first assignment. The type is inferred from the value or declared explicitly:
 
 ```rill
-"hello" -> $name              # implicit: locked as string
-"world" -> $name              # OK: same type
-5 -> $name                    # ERROR: cannot assign number to string
+"hello" :> $name              # implicit: locked as string
+"world" :> $name              # OK: same type
+5 :> $name                    # ERROR: cannot assign number to string
 
-"hello" -> $name:string       # explicit: declare and lock as string
-42 -> $count:number           # explicit: declare and lock as number
+"hello" :> $name:string       # explicit: declare and lock as string
+42 :> $count:number           # explicit: declare and lock as number
 ```
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
@@ -490,14 +510,14 @@ Variables are type-locked after first assignment. The type is inferred from the 
 **Inline capture with type:**
 
 ```rill
-"hello" -> $x:string -> .len  # type annotation in mid-chain
+"hello" :> $x:string -> .len  # type annotation in mid-chain
 ```
 
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-|x|$x -> $fn             # locked as closure
-"text" -> $fn                 # ERROR: cannot assign string to closure
+|x|$x :> $fn             # locked as closure
+"text" :> $fn                 # ERROR: cannot assign string to closure
 ```
 
 ### Type Assertions and Checks
@@ -552,7 +572,7 @@ $val -> :?list ? process() ! skip()   # branch on type
 |data| {
   $data -> :list              # assert input is list
   $data -> each { $ * 2 }
-} -> $process_items
+} :> $process_items
 $process_items([1, 2, 3])     # [2, 4, 6]
 ```
 
@@ -562,17 +582,17 @@ Type checks with `:?type` return booleans for conditional branching:
 # Type-safe value handling
 |val| {
   $val -> :?number ? ($val * 2) ! ($val -> .len)
-} -> $process
+} :> $process
 $process(5)        # 10
 $process("hello")  # 5
 ```
 
 ### Inline Capture (Pass-Through)
 
-Captures can appear mid-chain. Semantically, `-> $a ->` is `-> $a.set($) ->` — an implicit `.set()` method that stores the value and returns it unchanged:
+Captures can appear mid-chain. Semantically, `:> $a ->` is `:> $a.set($) ->` — an implicit `.set()` method that stores the value and returns it unchanged:
 
 ```rill
-"analyze this" -> $result -> log -> .len
+"analyze this" :> $result -> log -> .len
 # logs "analyze this", then returns 12
 ```
 
@@ -599,12 +619,12 @@ Blocks, loops, conditionals, and grouped expressions create child scopes:
 3. **No leakage:** Variables created inside don't exist outside
 
 ```rill
-"context" -> $ctx
+"context" :> $ctx
 
 prompt("check") -> .contains("READY") ? {
   prompt("process with {$ctx}")    # OK: read outer variable
-  "local" -> $temp                 # OK: new local variable
-  "new" -> $ctx                    # ERROR: cannot shadow outer $ctx
+  "local" :> $temp                 # OK: new local variable
+  "new" :> $ctx                    # ERROR: cannot shadow outer $ctx
 }
 # $temp not accessible here (created in conditional block)
 ```
@@ -617,7 +637,7 @@ prompt("check") -> .contains("READY") ? {
 
 # Variables inside loop body are local to each iteration
 0 -> ($ < 3) @ {
-  ($ * 10) -> $temp    # $temp exists only in this iteration
+  ($ * 10) :> $temp    # $temp exists only in this iteration
   $ + 1
 }
 # $temp not accessible here
@@ -626,7 +646,7 @@ prompt("check") -> .contains("READY") ? {
 **Reading outer variables:**
 
 ```rill
-10 -> $x
+10 :> $x
 [1, 2, 3] -> each {
   $x + $      # Reads outer $x = 10
 }
@@ -640,7 +660,7 @@ prompt("check") -> .contains("READY") ? {
 `->` passes the left-hand value to the right-hand side:
 
 ```rill
-prompt("analyze") -> $result
+prompt("analyze") :> $result
 $result -> .contains("DONE") ? stop()
 ```
 
@@ -661,7 +681,7 @@ $str.contains("x")   # equivalent: $str -> .contains("x")
 Implicit `$` syntax (`.method()`) works in any expression:
 
 ```rill
-"" -> $val
+"" :> $val
 $val -> .empty() ? "is empty" ! "has content"    # $.empty() as condition
 "xyz" -> .contains("x") ? "found" ! "missing"    # $.contains("x") as condition
 ```
@@ -706,7 +726,7 @@ Arithmetic works as standalone expressions and integrates with pipes:
 5 + 3                      # 8 (standalone arithmetic)
 2 + 3 * 4                  # 14 (precedence: * before +)
 (2 + 3) * 4                # 20 (parentheses override precedence)
-5 + 3 -> $x                # pipe arithmetic result to capture
+5 + 3 :> $x                # pipe arithmetic result to capture
 $x * 2                     # use variables in expressions
 { 5 + 3 }                  # arithmetic in blocks
 (5 + 3)                    # arithmetic in grouped expressions
@@ -785,7 +805,7 @@ $val -> .eq("A") ? "a" ! .eq("B") ? "b" ! "other"
 **Return value:** Conditionals return the last expression of the executed branch:
 
 ```rill
-$val -> .contains("x") ? "yes" ! "no" -> $result   # "yes" or "no"
+$val -> .contains("x") ? "yes" ! "no" :> $result   # "yes" or "no"
 ```
 
 ### While Loop
@@ -812,7 +832,7 @@ Pre-condition loop. Condition is evaluated before each iteration. The body resul
 # Runs 10 iterations, returns 10
 ```
 
-### For Loop
+### Iteration (each)
 
 Iterates over list, string, or dict. `$` is bound to each element:
 
@@ -850,12 +870,12 @@ $items -> each {
 
 ```rill
 ["a", "b", "STOP", "c"] -> each {
-  ($ == "STOP") ? "found" -> break
-  $ -> log
-} -> $result    # "found"
+  ($ == "STOP") ? break
+  $
+} :> $result    # ["a", "b"] (results collected before break)
 ```
 
-**Returns:** Last `$` value, or break value if exited early.
+**Returns:** List of results from each iteration. On `break`, returns results collected before the break.
 
 ### Do-While Loop
 
@@ -904,10 +924,10 @@ Post-condition loop. Body executes first, then condition is checked:
 
 # Exit block early
 {
-  prompt("step 1") -> $a
+  prompt("step 1") :> $a
   $a -> .contains("SKIP") ? return            # exit block
   prompt("step 2 with {$a}")
-} -> $result
+} :> $result
 ```
 
 ### Control Flow Summary
@@ -930,24 +950,24 @@ Spread operators enable parallel and sequential execution of closures.
 Chain closures where each receives the previous result (fold pattern).
 
 ```rill
-|x|($x + 1) -> $inc
-|x|($x * 2) -> $double
-|x|($x + 10) -> $add10
+|x|($x + 1) :> $inc
+|x|($x * 2) :> $double
+|x|($x + 10) :> $add10
 
 # Chain: (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
-5 -> @[$inc, $double, $add10] -> $result    # 22
+5 -> @[$inc, $double, $add10] :> $result    # 22
 
 # With single closure
-5 -> @$double -> $result    # 10
+5 -> @$double :> $result    # 10
 ```
 
 **Use Cases:**
 
 ```rill
 # Pipeline of transformations
-|s|"{$s}-processed" -> $process
-|s|"{$s}-validated" -> $validate
-|s|"{$s}-complete" -> $complete
+|s|"{$s}-processed" :> $process
+|s|"{$s}-validated" :> $validate
+|s|"{$s}-complete" :> $complete
 
 "input" -> @[$process, $validate, $complete]
 # "input-processed-validated-complete"
@@ -1202,7 +1222,7 @@ const result = await execute(parse(script), ctx);
 Use `::` to organize functions into namespaces. Scripts call them with the same syntax:
 
 ```rill
-io::read("config.json") -> parse_json -> $config
+io::read("config.json") -> parse_json :> $config
 $config.data -> io::write("output.json")
 ```
 
@@ -1313,12 +1333,12 @@ Global functions are invoked without a receiver, typically at the end of a pipe:
 "hello" -> type         # "string"
 [1, 2] -> type          # "list"
 *[1, 2] -> type         # "tuple"
-||{ $ } -> $fn
+||{ $ } :> $fn
 $fn -> type             # "closure"
 
 "debug" -> log          # prints "debug", returns "debug"
 [a: 1] -> json          # returns JSON string
-"{{\"a\":1}}" -> parse_json -> $dict   # [a: 1]
+"{{\"a\":1}}" -> parse_json :> $dict   # [a: 1]
 ```
 
 ### Dict Methods
@@ -1353,7 +1373,7 @@ Function literals in dicts have `$` late-bound to the containing dict (like `thi
   name: "toolkit",
   count: 3,
   str: ||"{$.name}: {$.count} items"
-] -> $obj
+] :> $obj
 
 $obj.str    # "toolkit: 3 items" (auto-invoked)
 ```
@@ -1364,19 +1384,19 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 [
   name: "tools",
   process: |x|"{$.name}: {$x}"
-] -> $obj
+] :> $obj
 
-$obj.process -> $fn    # extract closure
+$obj.process :> $fn    # extract closure
 $fn("hello")           # "tools: hello"
 ```
 
 **Reusable closures** can be defined once and placed in multiple dicts:
 
 ```rill
-||"{$.name}: {$.count} items" -> $describer
+||"{$.name}: {$.count} items" :> $describer
 
-[name: "tools", count: 3, str: $describer] -> $obj1
-[name: "actions", count: 5, str: $describer] -> $obj2
+[name: "tools", count: 3, str: $describer] :> $obj1
+[name: "actions", count: 5, str: $describer] :> $obj2
 
 $obj1.str    # "tools: 3 items"
 $obj2.str    # "actions: 5 items"
@@ -1422,11 +1442,11 @@ $response -> !.empty ? prompt("process {$}")
 
 ```rill
 # Extract error message from response
-$response -> .match("Error: (.+)") -> $m
+$response -> .match("Error: (.+)") :> $m
 $m -> !.empty ? error("Found error: {$m.groups[0]}")
 
 # Multiple capture groups
-"v1.2.3" -> .match("v(\\d+)\\.(\\d+)\\.(\\d+)") -> $m
+"v1.2.3" -> .match("v(\\d+)\\.(\\d+)\\.(\\d+)") :> $m
 # $m is [matched: "v1.2.3", index: 0, groups: ["1", "2", "3"]]
 
 # Access match info
@@ -1462,7 +1482,7 @@ rill provides built-in parsing for structured content commonly found in LLM resp
 Auto-detect and extract structured content from text. Returns a dict with parsing results.
 
 ```rill
-$response -> parse_auto -> $result
+$response -> parse_auto :> $result
 # $result contains:
 #   type: "json" | "xml" | "yaml" | "frontmatter" | "fence" | "checklist" | "text"
 #   data: <parsed structured data>
@@ -1656,14 +1676,14 @@ false                             # exit 1
 
 Prefer implied `$` over explicit captures when the value flows directly to the next statement:
 
-```rill
+```text
 # Verbose — unnecessary capture
-prompt("check status") -> $status
-$status -> .empty ? error("No status")
+app::prompt("check status") :> $status
+$status -> .empty ? app::error("No status")
 
 # Idiomatic — data flows naturally
-prompt("check status")
-.empty ? error("No status")
+app::prompt("check status")
+.empty ? app::error("No status")
 ```
 
 The previous statement's result becomes `$` for the next statement. Only capture to a named variable when you need to reference it later by name.
@@ -1691,7 +1711,7 @@ prompt("run tests")
 Capture when you need the value in multiple places or in interpolation after other statements:
 
 ```rill
-prompt("analyze {$file}") -> $analysis    # need $analysis twice below
+prompt("analyze {$file}") :> $analysis    # need $analysis twice below
 
 .contains("ERROR") ? error("Analysis failed: {$analysis}")
 

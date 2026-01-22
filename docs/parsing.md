@@ -19,7 +19,7 @@ Built-in functions for extracting structured data from text, optimized for LLM o
 Automatically detects format and extracts structured content:
 
 ```rill
-$response -> parse_auto -> $result
+$response -> parse_auto :> $result
 
 # $result contains:
 #   type: "json" | "xml" | "yaml" | "frontmatter" | "fence" | "checklist" | "text"
@@ -68,7 +68,7 @@ $response -> parse_auto -> $result
 Use confidence scores to handle ambiguous responses:
 
 ```rill
-prompt("Analyze this data") -> parse_auto -> $parsed
+prompt("Analyze this data") -> parse_auto :> $parsed
 
 ($parsed.confidence < 0.8) ? {
   "Low confidence parse: {$parsed.type}" -> log
@@ -100,7 +100,7 @@ Parses JSON with automatic error repair for common LLM formatting issues:
 
 ```rill
 # LLM returns JSON with common errors
-prompt("Return user data as JSON") -> parse_json -> $user
+prompt("Return user data as JSON") -> parse_json :> $user
 
 # Safe access with defaults
 $user.name ?? "Unknown"
@@ -141,13 +141,13 @@ Show your reasoning here
 Return your final answer as JSON
 </answer>
 EOF
-) -> $response
+) :> $response
 
 # Log reasoning for debugging
 $response -> parse_xml("thinking") -> log
 
 # Parse structured answer
-$response -> parse_xml("answer") -> parse_json -> $result
+$response -> parse_xml("answer") -> parse_json :> $result
 ```
 
 ### Tool Calling Pattern
@@ -160,11 +160,11 @@ You have access to tools. To call a tool, use:
   <args>{"param": "value"}</args>
 </tool>
 EOF
-) -> $response
+) :> $response
 
-$response -> parse_xml("tool") -> $tool
-$tool -> parse_xml("name") -> $fn_name
-$tool -> parse_xml("args") -> parse_json -> $fn_args
+$response -> parse_xml("tool") :> $tool
+$tool -> parse_xml("name") :> $fn_name
+$tool -> parse_xml("args") -> parse_json :> $fn_args
 
 # Call the function dynamically
 call($fn_name, $fn_args)
@@ -202,7 +202,7 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 
 ```rill
 # LLM returns code in a fenced block
-prompt("Generate a JSON config") -> parse_fence("json") -> parse_json -> $config
+prompt("Generate a JSON config") -> parse_fence("json") -> parse_json :> $config
 
 $config.host -> log
 $config.port -> log
@@ -228,7 +228,7 @@ $b -> process()
 
 ```rill
 # LLM returns document with metadata
-prompt("Generate a document with title and status in frontmatter") -> parse_frontmatter -> $doc
+prompt("Generate a document with title and status in frontmatter") -> parse_frontmatter :> $doc
 
 $doc.meta.title -> log
 $doc.meta.status -> ?(.eq("draft")) {
@@ -253,7 +253,7 @@ Each item is a tuple: `[completed: bool, text: string]`
 ### Practical Usage
 
 ```rill
-"- [ ] Deploy\n- [x] Test" -> parse_checklist -> $tasks
+"- [ ] Deploy\n- [x] Test" -> parse_checklist :> $tasks
 $tasks -> .len
 ```
 
@@ -262,7 +262,7 @@ $tasks -> .len
 ### Type Checking
 
 ```text
-app::prompt("Return JSON with status and items") -> parse_auto -> $result
+app::prompt("Return JSON with status and items") -> parse_auto :> $result
 
 ($result.type != "json") ? {
   app::error("Expected JSON response, got {$result.type}")
@@ -274,7 +274,7 @@ $result.data -> app::process()
 ### Required Fields
 
 ```text
-app::prompt("Return user profile as JSON") -> parse_json -> $user
+app::prompt("Return user profile as JSON") -> parse_json :> $user
 
 # Validate required fields exist
 ($user.?name && $user.?email) ? {
@@ -292,7 +292,7 @@ app::prompt("Return user profile as JSON") -> parse_json -> $user
 } ? (parse_json($) -> type != "dict")
 
 # Loop exits when valid dict is returned
-parse_json($) -> $profile
+parse_json($) :> $profile
 ```
 
 ## Combining Parsers
@@ -301,14 +301,14 @@ Chain parsers for complex extraction:
 
 ```rill
 # Extract JSON from a fenced block
-$response -> parse_fence("json") -> parse_json -> $data
+$response -> parse_fence("json") -> parse_json :> $data
 
 # Extract XML answer, parse as JSON
-$response -> parse_xml("answer") -> parse_json -> $result
+$response -> parse_xml("answer") -> parse_json :> $result
 
 # Parse frontmatter, then parse body as checklist
-$doc -> parse_frontmatter -> $parsed
-$parsed.body -> parse_checklist -> $tasks
+$doc -> parse_frontmatter :> $parsed
+$parsed.body -> parse_checklist :> $tasks
 ```
 
 ## Best Practices

@@ -20,7 +20,7 @@ Review the requirements document at {$requirements}.
 Check for completeness and clarity.
 Output READY if complete, or list missing elements.
 EOF
-) -> $validation
+) :> $validation
 
 $validation -> ?(!.contains("READY")) {
   error("Requirements incomplete: {$validation}")
@@ -31,7 +31,7 @@ prompt(<<EOF
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
 EOF
-) -> $spec
+) :> $spec
 
 "Specification created" -> log
 
@@ -43,7 +43,7 @@ Review this specification for issues:
 
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
 EOF
-  ) -> $review
+  ) :> $review
 
   $review -> ?(.contains("APPROVED")) { break }
 
@@ -56,7 +56,7 @@ Original spec:
 {$}
 EOF
   )
-} -> $approved_spec
+} :> $approved_spec
 
 # Phase 4: Implementation
 prompt(<<EOF
@@ -65,10 +65,10 @@ Implement the approved specification:
 
 Create the necessary files and tests.
 EOF
-) -> $implementation
+) :> $implementation
 
 # Phase 5: Verify
-prompt("Run tests and verify implementation") -> $verification
+prompt("Run tests and verify implementation") :> $verification
 
 $verification -> ?(.contains("PASS")) {
   [0, "Workflow complete"]
@@ -87,7 +87,7 @@ args: plan: string
 ---
 
 # Initial check
-prompt("Read {$plan} and find the first unchecked item (- [ ])") -> $status
+prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
 
 # Work loop
 $status -> @(!.contains("ALL COMPLETE")) {
@@ -101,7 +101,7 @@ Based on this status:
 4. Output ALL COMPLETE if done, or describe next item
 EOF
   )
-} -> $final
+} :> $final
 
 "Plan complete: {$final}" -> log
 ```
@@ -116,7 +116,7 @@ args: target: string
 ---
 
 # Run tests
-prompt("Run tests for {$target} and report results") -> $result
+prompt("Run tests for {$target} and report results") :> $result
 
 # Fix loop
 $result -> @(.contains("FAIL")) {
@@ -129,7 +129,7 @@ Fix these test failures:
 Make minimal changes. Then run tests again and report results.
 EOF
   )
-} -> $final
+} :> $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
@@ -148,7 +148,7 @@ args: file: string
 ---
 
 # Get file summary
-prompt("Read and summarize {$file}") -> $summary
+prompt("Read and summarize {$file}") :> $summary
 
 # Security check
 prompt(<<EOF
@@ -157,7 +157,7 @@ Evaluate for SECURITY issues:
 
 Output PASS, WARN, or FAIL with explanation.
 EOF
-) -> $security
+) :> $security
 
 # Performance check
 prompt(<<EOF
@@ -166,7 +166,7 @@ Evaluate for PERFORMANCE issues:
 
 Output PASS, WARN, or FAIL with explanation.
 EOF
-) -> $performance
+) :> $performance
 
 # Check results
 $security -> ?(.contains("FAIL")) {
@@ -212,7 +212,7 @@ EOF
   )
 } ! {
   prompt("Deploy {$service} to development environment")
-} -> $result
+} :> $result
 
 "Deployment complete" -> log
 [0, "Deployed {$service} to {$ENV.DEPLOY_ENV}"]
@@ -253,12 +253,12 @@ args: file: string
 ---
 
 # Inline capture: value flows through $raw to log to conditional
-prompt("Read {$file}") -> $raw -> log -> ?(.contains("ERROR")) {
+prompt("Read {$file}") :> $raw -> log -> ?(.contains("ERROR")) {
   error("Failed to read: {$raw}")
 }
 
 # Continue with $raw available for later use
-prompt("Analyze this content:\n{$raw}") -> $analysis -> log -> ?(.empty()) {
+prompt("Analyze this content:\n{$raw}") :> $analysis -> log -> ?(.empty()) {
   error("Analysis produced no output")
 }
 
@@ -273,7 +273,7 @@ EOF
 )
 ```
 
-Semantically, `-> $var ->` is `-> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
+Semantically, `:> $var ->` is `:> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
 
 ## Type-Safe Variables
 
@@ -287,23 +287,23 @@ args: file: string
 # Define a typed helper closure
 |input: string| {
   prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
-} -> $validate:closure
+} :> $validate:closure
 
 # Capture with explicit type locks the variable
-"processing" -> $status:string
-"checking {$file}" -> $status          # OK: same type
-# 42 -> $status                        # ERROR: cannot assign number to string
+"processing" :> $status:string
+"checking {$file}" :> $status          # OK: same type
+# 42 :> $status                        # ERROR: cannot assign number to string
 
 # Closures are type-locked too
-# "oops" -> $validate                  # ERROR: cannot assign string to closure
+# "oops" :> $validate                  # ERROR: cannot assign string to closure
 
 # Inline type annotation in pipe chain
-prompt("Check {$file}") -> $result:string -> log -> ?(.contains("ERROR")) {
+prompt("Check {$file}") :> $result:string -> log -> ?(.contains("ERROR")) {
   error($result)
 }
 
 # Type annotations catch mistakes early
-prompt("Analyze {$file}") -> $analysis:string
+prompt("Analyze {$file}") :> $analysis:string
 
 ?(.contains("FAIL")) {
   error("Analysis failed: {$analysis}")
@@ -321,7 +321,7 @@ Extracts specific information from responses.
 args: logfile: string
 ---
 
-prompt("Read {$logfile} and find all ERROR lines") -> $errors
+prompt("Read {$logfile} and find all ERROR lines") :> $errors
 
 $errors -> ?(.empty()) {
   "No errors found"
@@ -332,7 +332,7 @@ Analyze these errors and categorize them:
 
 For each unique error type, suggest a fix.
 EOF
-  ) -> $analysis
+  ) :> $analysis
 
   "Error analysis complete" -> log
   $analysis
@@ -349,13 +349,13 @@ args: file: string
 ---
 
 # Multi-phase pipeline with early exit on errors
-"content of {$file}" -> $content
+"content of {$file}" :> $content
 
 $content -> ?(.contains("ERROR")) {
   "Read failed" -> return
 }
 
-"analyzed: {$content}" -> $analysis
+"analyzed: {$content}" :> $analysis
 
 $analysis -> ?(.contains("FAIL")) {
   "Analysis failed" -> return
@@ -374,24 +374,24 @@ args: items: string
 ---
 
 # Count items and calculate batch sizes
-prompt("Count items in {$items}") -> .match("(\\d+) items") -> $m
+prompt("Count items in {$items}") -> .match("(\\d+) items") :> $m
 
 $m -> ?(.empty()) {
   error("Could not parse item count")
 }
 
-$m.groups[0] -> .num -> $count
+$m.groups[0] -> .num :> $count
 
 # Calculate batches: ceil(count / 10)
-(($count + 9) / 10) -> $batches
+(($count + 9) / 10) :> $batches
 
 "Processing {$count} items in {$batches} batches" -> log
 
 # Process each batch using range
 range(1, $batches + 1) -> each {
-  $ -> $batch_num
-  (($batch_num - 1) * 10) -> $start
-  ($start + 10) -> $end
+  $ :> $batch_num
+  (($batch_num - 1) * 10) :> $start
+  ($start + 10) :> $end
 
   prompt(<<EOF
 Process batch {$batch_num} of {$batches}
@@ -423,7 +423,7 @@ Rules:
 - Output :::NEEDS_HUMAN::: if human judgment is required
 - Output :::DONE::: when complete
 EOF
-) -> $result
+) :> $result
 
 $result -> @(!.contains(":::DONE:::")) {
   prompt(<<EOF
@@ -435,7 +435,7 @@ Previous progress:
 Remember the signal rules.
 EOF
   )
-} -> $final
+} :> $final
 
 "Task complete: {$final}" -> log
 ```
@@ -474,7 +474,7 @@ $code -> ?(.gt(0)) {
 ### Enumerated Progress
 
 ```rill
-enumerate($tasks) @ {
+enumerate($tasks) -> each {
   "[{$.index + 1}/{$tasks.len}] Processing: {$.value}" -> log()
   prompt("Complete task: {$.value}")
 }
@@ -504,8 +504,8 @@ $items -> /<::-1> -> each {
 # "debug=true\nhost=localhost\nport=8080"
 
 # Use enumerate() when you need the index
-enumerate([host: "localhost", port: 8080]) @ {
-  "{$.index}: {$.key}={$.value}"
+enumerate([host: "localhost", port: 8080]) -> each {
+  "{$.index}: {$.value.key}={$.value.value}"
 }
 # => ["0: host=localhost", "1: port=8080"]
 ```
@@ -518,13 +518,13 @@ Explicit argument unpacking with validation.
 
 ```rill
 # Define a function
-|a, b, c| { "{$a}-{$b}-{$c}" } -> $fmt
+|a, b, c| { "{$a}-{$b}-{$c}" } :> $fmt
 
 # Create args from tuple and invoke
 *[1, 2, 3] -> $fmt()    # "1-2-3"
 
 # Store args for later use
-*[1, 2, 3] -> $myArgs
+*[1, 2, 3] :> $myArgs
 $myArgs -> $fmt()       # "1-2-3"
 ```
 
@@ -532,7 +532,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ```rill
 # Named args match by parameter name, order doesn't matter
-|width, height|($width * $height) -> $area
+|width, height|($width * $height) :> $area
 
 *[height: 20, width: 10] -> $area()  # 200
 ```
@@ -541,7 +541,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ```rill
 # Defaults provide opt-in leniency
-|x, y = 10, z = 20|($x + $y + $z) -> $fn
+|x, y = 10, z = 20|($x + $y + $z) :> $fn
 
 *[5] -> $fn()                 # 35 (5 + 10 + 20)
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
@@ -573,13 +573,13 @@ Built-in functions for extracting structured data from LLM responses.
 
 ```rill
 # parse_auto detects and extracts structured content
-"{{\"status\": \"ok\", \"count\": 42}}" -> parse_auto -> $result
+"{{\"status\": \"ok\", \"count\": 42}}" -> parse_auto :> $result
 
 $result.type -> log        # "json"
 $result.data.status -> log # "ok"
 
 # Also works with XML
-"<response><code>200</code></response>" -> parse_auto -> $xml
+"<response><code>200</code></response>" -> parse_auto :> $xml
 $xml.data.code -> log      # "200"
 ```
 
@@ -587,7 +587,7 @@ $xml.data.code -> log      # "200"
 
 ```rill
 # LLM returns: "Here's the config:\n```json\n{...}\n```"
-prompt("Generate JSON config") -> parse_fence("json") -> parse_json -> $config
+prompt("Generate JSON config") -> parse_fence("json") -> parse_json :> $config
 
 # Access parsed data
 $config.host -> log
@@ -598,13 +598,13 @@ $config.port -> log
 
 ```rill
 # LLM returns: "<thinking>...</thinking><answer>...</answer>"
-prompt("Analyze step by step") -> $response
+prompt("Analyze step by step") :> $response
 
 # Extract thinking for logging
 $response -> parse_xml("thinking") -> log
 
 # Extract and parse answer
-$response -> parse_xml("answer") -> parse_json -> $answer
+$response -> parse_xml("answer") -> parse_json :> $answer
 ```
 
 ### Parse Tool Calls
@@ -614,11 +614,11 @@ prompt(<<EOF
 What function should I call?
 Return in format: <tool><name>func</name><args>{...}</args></tool>
 EOF
-) -> $response
+) :> $response
 
-$response -> parse_xml("tool") -> $tool
-$tool -> parse_xml("name") -> $fn_name
-$tool -> parse_xml("args") -> parse_json -> $fn_args
+$response -> parse_xml("tool") :> $tool
+$tool -> parse_xml("name") :> $fn_name
+$tool -> parse_xml("args") -> parse_json :> $fn_args
 
 # Call the function
 call($fn_name, $fn_args)
@@ -628,7 +628,7 @@ call($fn_name, $fn_args)
 
 ```rill
 # parse_checklist extracts checkbox items as [done, text] pairs
-"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist -> $tasks
+"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist :> $tasks
 
 # Filter incomplete tasks
 $tasks -> filter |task| { !$task.at(0) } -> each |task| {
@@ -641,7 +641,7 @@ $tasks -> filter |task| { !$task.at(0) } -> each |task| {
 
 ```rill
 # parse_frontmatter extracts YAML header and body
-"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter -> $doc
+"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter :> $doc
 
 $doc.meta.title -> log    # "Guide"
 $doc.body -> log          # "Content here"
@@ -661,7 +661,7 @@ $doc.body -> log          # "Content here"
 
 ```rill
 # Validate parsed content before use
-"{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto -> $result
+"{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto :> $result
 
 ?($result.type != "json") {
   "Expected JSON" -> log
@@ -679,7 +679,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ```rill
 # Define closure first, then use it
-|x| { $x * 2 } -> $double
+|x| { $x * 2 } :> $double
 [1, 2, 3, 4, 5] -> map $double
 # [2, 4, 6, 8, 10]
 
@@ -696,7 +696,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # [3, 4, 5]
 
 # Filter with closure predicate
-|x| { $x % 2 == 0 } -> $even
+|x| { $x % 2 == 0 } :> $even
 [1, 2, 3, 4, 5, 6] -> filter $even
 # [2, 4, 6]
 
@@ -705,7 +705,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # ["hello", "world"]
 
 # Chain filter and map
-|x| { $x * 2 } -> $dbl
+|x| { $x * 2 } :> $dbl
 [1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
 # [6, 8, 10]
 
@@ -722,16 +722,16 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ```rill
 # Chain transformations
-|s|"{$s} -> validated" -> $validate
-|s|"{$s} -> processed" -> $process
-|s|"{$s} -> complete" -> $complete
+|s|"{$s} -> validated" :> $validate
+|s|"{$s} -> processed" :> $process
+|s|"{$s} -> complete" :> $complete
 
 "input" -> @[$validate, $process, $complete]
 # "input -> validated -> processed -> complete"
 
 # Numeric reduction
-|x|($x + 10) -> $add10
-|x|($x * 2) -> $double
+|x|($x + 10) :> $add10
+|x|($x * 2) :> $double
 
 5 -> @[$add10, $double, $add10]
 # ((5 + 10) * 2) + 10 = 40
@@ -743,13 +743,13 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # Find first element matching condition
 [1, 2, 3, 4, 5] -> each {
   ?(.gt(3)) { $ -> break }
-} -> $found
+} :> $found
 # 4
 
 # Find with default
 [1, 2, 3] -> each {
   ?(.gt(10)) { $ -> break }
-} -> $result
+} :> $result
 $result -> ?(.empty) { "not found" } ! { "found: {$result}" }
 ```
 
@@ -761,7 +761,7 @@ $result -> ?(.empty) { "not found" } ! { "found: {$result}" }
 # 100
 
 # Count matching elements using filter
-$items -> filter { .contains("error") } -> .len -> $count
+$items -> filter { .contains("error") } -> .len :> $count
 "Found {$count} errors" -> log
 ```
 

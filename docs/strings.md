@@ -77,7 +77,7 @@ Returns a dict with three fields:
 ```rill
 $response -> .is_match("ERROR") ? handle_error()
 
-$response -> .match("code: (\\d+)") -> $m
+$response -> .match("code: (\\d+)") :> $m
 $m -> !.empty ? process($m.groups[0])
 ```
 
@@ -182,8 +182,8 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! error("Invalid email")
 
 ```rill
 $items -> each {
-  $.name -> .pad_end(20) -> $name
-  $.value -> .str -> .pad_start(10) -> $val
+  $.name -> .pad_end(20) :> $name
+  $.value -> .str -> .pad_start(10) :> $val
   "{$name}{$val}"
 } -> .join("\n")
 ```
@@ -197,6 +197,6 @@ $text -> .replace_all("\\s+", " ") -> .trim
 ### Parse Structured Text
 
 ```rill
-$line -> .match("(\\w+):\\s*(.+)") -> $m
+$line -> .match("(\\w+):\\s*(.+)") :> $m
 $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 ```

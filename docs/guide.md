@@ -75,17 +75,17 @@ prompt("analyze this")
 The second line implicitly operates on the result of the first. This is equivalent to:
 
 ```rill
-prompt("analyze this") -> $result
+prompt("analyze this") :> $result
 $result -> .contains("ERROR") ? error($result) ! "OK"
 ```
 
 ## Variables
 
-Capture values into named variables with `-> $name`:
+Capture values into named variables with `:> $name`:
 
 ```rill
-"hello" -> $greeting
-$greeting -> .len -> $length
+"hello" :> $greeting
+$greeting -> .len :> $length
 $length
 # Result: 5
 ```
@@ -111,11 +111,11 @@ rill has seven value types:
 Strings support interpolation with `{expression}`. Any valid expression works:
 
 ```rill
-"alice" -> $name
-3 -> $a
-5 -> $b
-10 -> $count
-true -> $ok
+"alice" :> $name
+3 :> $a
+5 :> $b
+10 :> $count
+true :> $ok
 "Hello, {$name}!"                    # Variable interpolation
 "sum: {$a + $b}"                     # Arithmetic
 "valid: {$count > 0}"                # Comparison
@@ -143,7 +143,7 @@ EOF
 Lists hold ordered values:
 
 ```rill
-[1, 2, 3] -> $nums
+[1, 2, 3] :> $nums
 $nums[0]        # 1
 $nums[-1]       # 3 (last element)
 $nums -> .len   # 3
@@ -152,7 +152,7 @@ $nums -> .len   # 3
 Dicts hold key-value pairs:
 
 ```rill
-[name: "alice", age: 30] -> $person
+[name: "alice", age: 30] :> $person
 $person.name    # "alice"
 $person.age     # 30
 ```
@@ -251,7 +251,7 @@ Use `break` to exit a loop early:
 Define reusable logic with closure syntax `|params| body`. See [Closures](closures.md) for advanced patterns including late binding and dict-bound closures.
 
 ```rill
-|x|($x * 2) -> $double
+|x|($x * 2) :> $double
 
 5 -> $double()
 # Result: 10
@@ -263,7 +263,7 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](closur
 ### Multiple Parameters
 
 ```rill
-|a, b|($a + $b) -> $add
+|a, b|($a + $b) :> $add
 
 $add(3, 4)
 # Result: 7
@@ -282,7 +282,7 @@ Optional type hints help catch errors:
 Access dict fields and list indices:
 
 ```rill
-[name: "alice", scores: [85, 92, 78]] -> $data
+[name: "alice", scores: [85, 92, 78]] :> $data
 
 $data.name           # "alice"
 $data.scores[0]      # 85
@@ -311,8 +311,8 @@ Group multiple statements in braces. The last value is the block's result:
 
 ```rill
 {
-  "hello" -> $greeting
-  $greeting -> .upper -> $shouted
+  "hello" :> $greeting
+  $greeting -> .upper :> $shouted
   "{$shouted}!"
 }
 # Result: "HELLO!"
@@ -322,7 +322,7 @@ Use `return` to exit a block early:
 
 ```rill
 {
-  5 -> $x
+  5 :> $x
   ($x > 3) ? ("big" -> return)
   "small"
 }
@@ -347,8 +347,8 @@ Without a limit, while loops default to 10,000 max iterations.
 Here's a complete example that processes a list of names:
 
 ```rill
-["alice", "bob", "charlie"] -> $names
-$names -> map |name| { "{$name}: {$name -> .len} chars" } -> $descriptions
+["alice", "bob", "charlie"] :> $names
+$names -> map |name| { "{$name}: {$name -> .len} chars" } :> $descriptions
 $descriptions -> .join(", ")
 ```
 
@@ -372,7 +372,7 @@ $descriptions -> .join(", ")
 ```text
 # Pipes
 value -> operation          # pipe value to operation
-value -> $var               # capture into variable
+value :> $var               # capture into variable
 $                           # current pipe value
 
 # Types

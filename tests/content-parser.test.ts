@@ -528,7 +528,7 @@ describe('Content Parsing: Runtime Integration', () => {
 code here
 \`\`\`
 EOF
-} -> $input
+} :> $input
 $input -> parse_fence`);
       expect(result).toBe('code here');
     });
@@ -540,7 +540,7 @@ $input -> parse_fence`);
 print("hi")
 \`\`\`
 EOF
-} -> $input
+} :> $input
 $input -> parse_fence("python")`);
       expect(result).toBe('print("hi")');
     });
@@ -557,7 +557,7 @@ $input -> parse_fence("python")`);
 code
 \`\`\`
 EOF
-} -> $input
+} :> $input
 $input -> parse_fence("python")`);
       expect(result).toBe('');
     });
@@ -574,7 +574,7 @@ a
 b
 \`\`\`
 EOF
-} -> $input
+} :> $input
 $input -> parse_fences`)) as Array<{ lang: string; content: string }>;
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ lang: 'js', content: 'a' });
@@ -596,7 +596,7 @@ title: Test
 ---
 Body content
 EOF
-} -> $input
+} :> $input
 $input -> parse_frontmatter`)) as { meta: Record<string, unknown>; body: string };
       expect(result.meta).toEqual({ title: 'Test' });
       expect(result.body).toBe('Body content');
@@ -619,7 +619,7 @@ $input -> parse_frontmatter`)) as { meta: Record<string, unknown>; body: string 
 - [ ] Todo
 - [x] Done
 EOF
-} -> $input
+} :> $input
 $input -> parse_checklist`);
       expect(result).toEqual([
         [false, 'Todo'],

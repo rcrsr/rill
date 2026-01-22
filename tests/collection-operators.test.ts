@@ -41,7 +41,7 @@ describe('Rill Runtime: Collection Operators', () => {
     it('iterates with variable closure', async () => {
       // Define $fn as a closure first, then use it in each
       const script = `
-        |x| ($x * 2) -> $fn
+        |x| ($x * 2) :> $fn
         [1, 2, 3] -> each $fn
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
@@ -185,7 +185,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
     it('reduce with variable closure', async () => {
       const script = `
-        |x, acc = 0| ($acc + $x) -> $sum
+        |x, acc = 0| ($acc + $x) :> $sum
         [1, 2, 3] -> fold $sum
       `;
       expect(await run(script)).toBe(6);
@@ -246,6 +246,97 @@ describe('Rill Runtime: Collection Operators', () => {
     it('works with function calls in body', async () => {
       const script = '[1, 2, 3] -> map { $ -> double }';
       expect(await run(script, { functions: { double } })).toEqual([2, 4, 6]);
+    });
+  });
+
+  describe('Method Shorthand Syntax', () => {
+    describe('basic .method form', () => {
+      it('each .method', async () => {
+        const result = await run('["hello", "world"] -> each .upper');
+        expect(result).toEqual(['HELLO', 'WORLD']);
+      });
+
+      it('map .method', async () => {
+        const result = await run('["hello", "world"] -> map .upper');
+        expect(result).toEqual(['HELLO', 'WORLD']);
+      });
+
+      it('filter .method', async () => {
+        const result = await run('["hello", "", "world"] -> filter .empty');
+        expect(result).toEqual(['']);
+      });
+
+      it('filter with negation (!.empty) uses grouped form', async () => {
+        // Negated methods require grouped expression
+        const result = await run('["hello", "", "world"] -> filter (!.empty)');
+        expect(result).toEqual(['hello', 'world']);
+      });
+    });
+
+    describe('method with arguments', () => {
+      it('.method(arg)', async () => {
+        const result = await run('["a", "b"] -> map .pad_start(3, "0")');
+        expect(result).toEqual(['00a', '00b']);
+      });
+
+      it('.method(arg1, arg2)', async () => {
+        // .replace replaces first occurrence only
+        const result = await run(
+          '["hello world", "foo bar"] -> map .replace("o", "0")'
+        );
+        expect(result).toEqual(['hell0 world', 'f0o bar']);
+      });
+    });
+
+    describe('chained methods', () => {
+      it('.method1.method2', async () => {
+        const result = await run(
+          '["  HELLO  ", "  WORLD  "] -> map .trim.lower'
+        );
+        expect(result).toEqual(['hello', 'world']);
+      });
+
+      it('triple chain .trim.upper.len', async () => {
+        const result = await run('["  hi  ", " bye "] -> each .trim.upper.len');
+        expect(result).toEqual([2, 3]);
+      });
+    });
+
+    describe('all collection operators', () => {
+      it('each .method', async () => {
+        const result = await run('[1, 2, 3] -> each .str');
+        expect(result).toEqual(['1', '2', '3']);
+      });
+
+      it('map .method', async () => {
+        const result = await run('[1, 2, 3] -> map .str');
+        expect(result).toEqual(['1', '2', '3']);
+      });
+
+      it('filter .method', async () => {
+        const result = await run('["", "a", "", "b"] -> filter .empty');
+        expect(result).toEqual(['', '']);
+      });
+    });
+
+    describe('consistency with other body forms', () => {
+      it('.method equivalent to { $.method() }', async () => {
+        const methodResult = await run('["a", "b"] -> map .upper');
+        const blockResult = await run('["a", "b"] -> map { $.upper() }');
+        expect(methodResult).toEqual(blockResult);
+      });
+
+      it('.method equivalent to ($.method())', async () => {
+        const methodResult = await run('["a", "b"] -> map .upper');
+        const groupedResult = await run('["a", "b"] -> map ($.upper())');
+        expect(methodResult).toEqual(groupedResult);
+      });
+
+      it('.method equivalent to |x| $x.method()', async () => {
+        const methodResult = await run('["a", "b"] -> map .upper');
+        const closureResult = await run('["a", "b"] -> map |x| $x.upper()');
+        expect(methodResult).toEqual(closureResult);
+      });
     });
   });
 });

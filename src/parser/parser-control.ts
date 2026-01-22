@@ -10,7 +10,7 @@ import type {
   ConditionalNode,
   DoWhileLoopNode,
   ExpressionNode,
-  ForLoopNode,
+  WhileLoopNode,
   BodyNode,
   StatementNode,
 } from '../types.js';
@@ -34,8 +34,10 @@ declare module './parser.js' {
       condition: BodyNode | null,
       start: { line: number; column: number; offset: number }
     ): ConditionalNode;
-    parseLoop(input: ExpressionNode | null): ForLoopNode | DoWhileLoopNode;
-    parseLoopWithInput(input: BodyNode): ForLoopNode | DoWhileLoopNode;
+    parseLoop(
+      condition: ExpressionNode | null
+    ): WhileLoopNode | DoWhileLoopNode;
+    parseLoopWithInput(condition: BodyNode): WhileLoopNode | DoWhileLoopNode;
     parseBlock(): BlockNode;
   }
 }
@@ -99,29 +101,40 @@ Parser.prototype.parseConditionalRest = function (
 
 Parser.prototype.parseLoop = function (
   this: Parser,
-  input: ExpressionNode | null
-): ForLoopNode | DoWhileLoopNode {
-  const start = input ? input.span.start : current(this.state).span.start;
+  condition: ExpressionNode | null
+): WhileLoopNode | DoWhileLoopNode {
+  const start = condition
+    ? condition.span.start
+    : current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.AT, 'Expected @');
 
   const body = this.parseBody();
 
+  // Check for do-while: @ body ? cond
   if (check(this.state, TOKEN_TYPES.QUESTION)) {
     advance(this.state);
-    const condition = this.parseBody();
+    const doWhileCondition = this.parseBody();
 
     return {
       type: 'DoWhileLoop',
-      input,
+      input: condition,
       body,
-      condition,
+      condition: doWhileCondition,
       span: makeSpan(start, current(this.state).span.end),
     };
   }
 
+  // While loop: cond @ body - condition is required
+  if (!condition) {
+    throw new ParseError(
+      "Bare '@' requires trailing condition: @ body ? cond (do-while)",
+      start
+    );
+  }
+
   return {
-    type: 'ForLoop',
-    input,
+    type: 'WhileLoop',
+    condition,
     body,
     span: makeSpan(start, current(this.state).span.end),
   };
@@ -129,30 +142,30 @@ Parser.prototype.parseLoop = function (
 
 Parser.prototype.parseLoopWithInput = function (
   this: Parser,
-  input: BodyNode
-): ForLoopNode | DoWhileLoopNode {
-  let inputExpr: ExpressionNode;
-  if (input.type === 'PipeChain') {
-    inputExpr = input;
+  condition: BodyNode
+): WhileLoopNode | DoWhileLoopNode {
+  let conditionExpr: ExpressionNode;
+  if (condition.type === 'PipeChain') {
+    conditionExpr = condition;
   } else {
-    inputExpr = {
+    conditionExpr = {
       type: 'PipeChain',
       head:
-        input.type === 'PostfixExpr'
-          ? input
+        condition.type === 'PostfixExpr'
+          ? condition
           : {
               type: 'PostfixExpr',
-              primary: input,
+              primary: condition,
               methods: [],
-              span: input.span,
+              span: condition.span,
             },
       pipes: [],
       terminator: null,
-      span: input.span,
+      span: condition.span,
     };
   }
 
-  return this.parseLoop(inputExpr);
+  return this.parseLoop(conditionExpr);
 };
 
 // ============================================================

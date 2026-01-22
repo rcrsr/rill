@@ -13,7 +13,7 @@ import type {
   ConditionalNode,
   DoWhileLoopNode,
   ExpressionNode,
-  ForLoopNode,
+  WhileLoopNode,
   GroupedExprNode,
   InvokeNode,
   MethodCallNode,
@@ -27,15 +27,13 @@ import type {
   VariableNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan } from './state.js';
+import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import {
   isHostCall,
   isClosureCall,
   isClosureCallWithAccess,
   canStartPipeInvoke,
   isMethodCall,
-  isTypedCaptureWithArrow,
-  isInlineCaptureWithArrow,
   isClosureChainTarget,
   isNegativeNumber,
   isLiteralStart,
@@ -48,7 +46,7 @@ import {
 /** Constructs valid as both primary expressions and pipe targets */
 type CommonConstruct =
   | ConditionalNode
-  | ForLoopNode
+  | WhileLoopNode
   | DoWhileLoopNode
   | BlockNode
   | GroupedExprNode;
@@ -85,7 +83,7 @@ declare module './parser.js' {
       span: SourceSpan
     ): PostfixExprNode;
     wrapLoopInPostfixExpr(
-      loop: ForLoopNode | DoWhileLoopNode,
+      loop: WhileLoopNode | DoWhileLoopNode,
       span: SourceSpan
     ): PostfixExprNode;
   }
@@ -268,8 +266,44 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   const pipes: (PipeTargetNode | CaptureNode)[] = [];
   let terminator: ChainTerminator | null = null;
 
-  while (check(this.state, TOKEN_TYPES.ARROW)) {
+  // Helper: check for -> or :> possibly after newlines (line continuation)
+  const checkChainContinuation = (): boolean => {
+    if (
+      check(this.state, TOKEN_TYPES.ARROW) ||
+      check(this.state, TOKEN_TYPES.CAPTURE_ARROW)
+    ) {
+      return true;
+    }
+    // Check for line continuation: newlines followed by -> or :>
+    if (check(this.state, TOKEN_TYPES.NEWLINE)) {
+      let lookahead = 1;
+      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      const nextToken = peek(this.state, lookahead);
+      if (
+        nextToken.type === TOKEN_TYPES.ARROW ||
+        nextToken.type === TOKEN_TYPES.CAPTURE_ARROW
+      ) {
+        // Skip newlines to reach the arrow
+        while (check(this.state, TOKEN_TYPES.NEWLINE)) advance(this.state);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  while (checkChainContinuation()) {
+    const isCapture = check(this.state, TOKEN_TYPES.CAPTURE_ARROW);
     advance(this.state);
+
+    if (isCapture) {
+      // :> always followed by $name, always inline (continues chain)
+      pipes.push(this.parseCapture());
+      continue;
+    }
+
+    // -> handling (existing logic)
 
     // Check for break terminator: -> break
     if (check(this.state, TOKEN_TYPES.BREAK)) {
@@ -285,24 +319,9 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       break;
     }
 
-    // Check for capture vs ClosureCall: $identifier or $dict.method()
-    if (check(this.state, TOKEN_TYPES.DOLLAR)) {
-      if (isClosureCallWithAccess(this.state)) {
-        pipes.push(this.parsePipeTarget());
-        continue;
-      }
-      if (isInlineCaptureWithArrow(this.state)) {
-        pipes.push(this.parseCapture());
-        continue;
-      }
-      if (isTypedCaptureWithArrow(this.state)) {
-        pipes.push(this.parseCapture());
-        continue;
-      }
-      terminator = this.parseCapture();
-      break;
-    }
-
+    // -> always pipes/invokes, never captures
+    // Use :> for captures: "hello" :> $var
+    // parsePipeTarget handles all cases including bare $var (closure invoke)
     pipes.push(this.parsePipeTarget());
   }
 
@@ -538,6 +557,11 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parsePipeInvoke();
   }
 
+  // Bare variable as pipe target: -> $var (invokes closure stored in $var)
+  if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+    return this.parseVariable();
+  }
+
   // String literal
   if (check(this.state, TOKEN_TYPES.STRING)) {
     return this.parseString();
@@ -681,7 +705,7 @@ Parser.prototype.wrapConditionalInPostfixExpr = function (
 
 Parser.prototype.wrapLoopInPostfixExpr = function (
   this: Parser,
-  loop: ForLoopNode | DoWhileLoopNode,
+  loop: WhileLoopNode | DoWhileLoopNode,
   span: SourceSpan
 ): PostfixExprNode {
   return {

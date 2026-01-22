@@ -105,6 +105,22 @@ export function nextToken(state: LexerState): Token {
   const twoChar = peekString(state, 2);
   const twoCharType = TWO_CHAR_OPERATORS[twoChar];
   if (twoCharType) {
+    // Special case: :> is only CAPTURE_ARROW when followed by $ (possibly with whitespace)
+    // This avoids conflict with slice syntax /<start:> where :> should be COLON + GT
+    if (twoChar === ':>') {
+      let lookAhead = 2;
+      while (
+        state.pos + lookAhead < state.source.length &&
+        isWhitespace(state.source[state.pos + lookAhead] ?? '')
+      ) {
+        lookAhead++;
+      }
+      const charAfter = state.source[state.pos + lookAhead] ?? '';
+      if (charAfter !== '$') {
+        // Not a capture arrow - treat as separate : and > tokens
+        return advanceAndMakeToken(state, 1, TOKEN_TYPES.COLON, ':', start);
+      }
+    }
     return advanceAndMakeToken(state, 2, twoCharType, twoChar, start);
   }
 

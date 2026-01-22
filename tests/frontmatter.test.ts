@@ -91,8 +91,8 @@ y: 2
       const script = `---
 description: Capture test
 ---
-"a" -> $x
-"b" -> $y
+"a" :> $x
+"b" :> $y
 [$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
@@ -143,7 +143,7 @@ not: frontmatter
       const script = `---
 name: test
 ---
-[1, 2, 3] -> @ { ($ * 2) }`;
+[1, 2, 3] -> each { ($ * 2) }`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 

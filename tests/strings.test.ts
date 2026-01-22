@@ -74,7 +74,7 @@ EMPTY`;
 <<MSG
 Hello
 MSG
-} -> $greeting
+} :> $greeting
 $greeting -> .trim`;
       expect(await run(script)).toBe('Hello');
     });
@@ -98,16 +98,16 @@ TXT
     });
 
     it('ignores comment at end of line', async () => {
-      const script = `"hello" -> $x # capture greeting
+      const script = `"hello" :> $x # capture greeting
 $x`;
       expect(await run(script)).toBe('hello');
     });
 
     it('ignores multiple comments', async () => {
       const script = `# First comment
-"a" -> $a
+"a" :> $a
 # Second comment
-"b" -> $b
+"b" :> $b
 # Third comment
 [$a, $b]`;
       expect(await run(script)).toEqual(['a', 'b']);
@@ -154,7 +154,7 @@ $x`;
     });
 
     it('handles escape before interpolation', async () => {
-      expect(await run('"x" -> $v\n"\\n{$v}"')).toBe('\nx');
+      expect(await run('"x" :> $v\n"\\n{$v}"')).toBe('\nx');
     });
 
     it('handles CRLF in string', async () => {
@@ -164,28 +164,28 @@ $x`;
 
   describe('String Interpolation Edge Cases', () => {
     it('interpolates variable', async () => {
-      expect(await run('"hello" -> $v\n"say: {$v}"')).toBe('say: hello');
+      expect(await run('"hello" :> $v\n"say: {$v}"')).toBe('say: hello');
     });
 
     it('interpolates field access', async () => {
-      expect(await run('[a: 1] -> $d\n"val: {$d.a}"')).toBe('val: 1');
+      expect(await run('[a: 1] :> $d\n"val: {$d.a}"')).toBe('val: 1');
     });
 
     it('interpolates tuple element via .at', async () => {
-      expect(await run('[1, 2, 3] -> $t\n$t.at(1) -> $v\n"second: {$v}"')).toBe(
+      expect(await run('[1, 2, 3] :> $t\n$t.at(1) :> $v\n"second: {$v}"')).toBe(
         'second: 2'
       );
     });
 
     it('interpolates multiple values', async () => {
-      const script = `"a" -> $x
-"b" -> $y
+      const script = `"a" :> $x
+"b" :> $y
 "{$x}-{$y}"`;
       expect(await run(script)).toBe('a-b');
     });
 
     it('interpolates closure call', async () => {
-      const script = `|x| { $x } -> $fn
+      const script = `|x| { $x } :> $fn
 "result: {$fn("test")}"`;
       expect(await run(script)).toBe('result: test');
     });
@@ -196,8 +196,8 @@ $x`;
 
     it('interpolates nested dict via intermediate variable', async () => {
       // Nested access in interpolation may need intermediate variable
-      const script = `[x: [y: "deep"]] -> $d
-$d.x.y -> $val
+      const script = `[x: [y: "deep"]] :> $d
+$d.x.y :> $val
 "found: {$val}"`;
       expect(await run(script)).toBe('found: deep');
     });
@@ -205,45 +205,45 @@ $d.x.y -> $val
 
   describe('Expression Interpolation', () => {
     it('interpolates arithmetic expressions', async () => {
-      const script = `3 -> $a
-5 -> $b
+      const script = `3 :> $a
+5 :> $b
 "sum: {$a + $b}"`;
       expect(await run(script)).toBe('sum: 8');
     });
 
     it('interpolates comparison expressions', async () => {
-      const script = `5 -> $count
+      const script = `5 :> $count
 "valid: {$count > 0}"`;
       expect(await run(script)).toBe('valid: true');
     });
 
     it('interpolates conditional expressions', async () => {
-      const script = `true -> $ok
+      const script = `true :> $ok
 "status: {$ok ? \\"yes\\" ! \\"no\\"}"`;
       expect(await run(script)).toBe('status: yes');
     });
 
     it('interpolates method chains', async () => {
-      const script = `"hello" -> $name
+      const script = `"hello" :> $name
 "upper: {$name -> .upper}"`;
       expect(await run(script)).toBe('upper: HELLO');
     });
 
     it('interpolates nested function calls', async () => {
-      const script = `|x| ($x * 2) -> $double
-|x| ($x + 1) -> $inc
+      const script = `|x| ($x * 2) :> $double
+|x| ($x + 1) :> $inc
 "result: {$double($inc(5))}"`;
       expect(await run(script)).toBe('result: 12');
     });
 
     it('interpolates deep property access', async () => {
-      const script = `[users: [[name: "alice"], [name: "bob"]]] -> $data
+      const script = `[users: [[name: "alice"], [name: "bob"]]] :> $data
 "first: {$data.users[0].name}"`;
       expect(await run(script)).toBe('first: alice');
     });
 
     it('interpolates list length', async () => {
-      const script = `[1, 2, 3] -> $list
+      const script = `[1, 2, 3] :> $list
 "count: {$list -> .len}"`;
       expect(await run(script)).toBe('count: 3');
     });
@@ -258,7 +258,7 @@ $d.x.y -> $val
     });
 
     it('mixes interpolation and escaped braces', async () => {
-      const script = `42 -> $x
+      const script = `42 :> $x
 "{$x} and {{literal}}"`;
       expect(await run(script)).toBe('42 and {literal}');
     });
@@ -271,7 +271,7 @@ EOF`;
     });
 
     it('interpolates in heredoc', async () => {
-      const script = `"world" -> $name
+      const script = `"world" :> $name
 <<EOF
 Hello, {$name}!
 EOF`;

@@ -20,7 +20,7 @@ import type {
   DoWhileLoopNode,
   ExpressionNode,
   FieldAccess,
-  ForLoopNode,
+  WhileLoopNode,
   ClosureParamNode,
   HostCallNode,
   ClosureNode,
@@ -110,8 +110,8 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'Conditional':
       return conditionalEquals(a, b as ConditionalNode);
 
-    case 'ForLoop':
-      return forLoopEquals(a, b as ForLoopNode);
+    case 'WhileLoop':
+      return whileLoopEquals(a, b as WhileLoopNode);
 
     case 'DoWhileLoop':
       return doWhileLoopEquals(a, b as DoWhileLoopNode);
@@ -362,8 +362,8 @@ function conditionalEquals(a: ConditionalNode, b: ConditionalNode): boolean {
   return nullableEquals(a.elseBranch, b.elseBranch);
 }
 
-function forLoopEquals(a: ForLoopNode, b: ForLoopNode): boolean {
-  if (!nullableEquals(a.input, b.input)) return false;
+function whileLoopEquals(a: WhileLoopNode, b: WhileLoopNode): boolean {
+  if (!astEquals(a.condition as ASTNode, b.condition as ASTNode)) return false;
   return simpleBodyEquals(a.body, b.body);
 }
 

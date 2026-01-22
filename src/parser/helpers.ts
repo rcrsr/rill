@@ -116,30 +116,6 @@ export function isMethodCall(state: ParserState): boolean {
 }
 
 /**
- * Check for typed capture with arrow: $name:type ->
- * @internal
- */
-export function isTypedCaptureWithArrow(state: ParserState): boolean {
-  return (
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
-    peek(state, 2).type === TOKEN_TYPES.COLON &&
-    peek(state, 3).type === TOKEN_TYPES.IDENTIFIER &&
-    peek(state, 4).type === TOKEN_TYPES.ARROW
-  );
-}
-
-/**
- * Check for inline capture: $name ->
- * @internal
- */
-export function isInlineCaptureWithArrow(state: ParserState): boolean {
-  return (
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
-    peek(state, 2).type === TOKEN_TYPES.ARROW
-  );
-}
-
-/**
  * Check for sequential spread target: @$ or @[ (not @{ which is for-loop)
  * @internal
  */

@@ -143,7 +143,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
     it('uses type check for branching logic', async () => {
       const script = `
-        42 -> $val
+        42 :> $val
         $val -> :?number ? ($val -> ($ * 2)) ! 0
       `;
       expect(await run(script)).toBe(84);
@@ -152,8 +152,8 @@ describe('Rill Runtime: Type Assertions', () => {
     it('type check with list processing', async () => {
       // Type check returns bool, so we need to use the original value in the branch
       const script = `
-        [1, 2, 3] -> $data
-        $data -> :?list ? ($data -> @ { ($ * 2) }) ! []
+        [1, 2, 3] :> $data
+        $data -> :?list ? ($data -> each { ($ * 2) }) ! []
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
@@ -211,7 +211,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
   describe('Type Check Returns Boolean', () => {
     it('type check result can be stored in variable', async () => {
-      expect(await run('"hello" -> :?string -> $result\n$result')).toBe(true);
+      expect(await run('"hello" -> :?string :> $result\n$result')).toBe(true);
     });
 
     it('type check result can be negated', async () => {
@@ -239,7 +239,7 @@ describe('Rill Runtime: Type Assertions', () => {
   describe('Complex Scenarios', () => {
     it('type assertion in closure body', async () => {
       const script = `
-        |x| { $x -> :number -> ($ * 2) } -> $double
+        |x| { $x -> :number -> ($ * 2) } :> $double
         $double(21)
       `;
       expect(await run(script)).toBe(42);
@@ -247,7 +247,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
     it('type assertion in closure body - failure', async () => {
       const script = `
-        |x| { $x -> :number -> ($ * 2) } -> $double
+        |x| { $x -> :number -> ($ * 2) } :> $double
         $double("hello")
       `;
       await expect(run(script)).rejects.toThrow();
@@ -258,7 +258,7 @@ describe('Rill Runtime: Type Assertions', () => {
       const script = `
         |val| {
           $val -> :?number ? ($val * 2) ! ($val -> :?string ? ($val -> .len) ! 0)
-        } -> $process
+        } :> $process
         [$process(5), $process("hello"), $process(true)]
       `;
       expect(await run(script)).toEqual([10, 5, 0]);
@@ -266,7 +266,7 @@ describe('Rill Runtime: Type Assertions', () => {
 
     it('chained type checks', async () => {
       const script = `
-        "test" -> $v
+        "test" :> $v
         [
           $v -> :?string,
           $v -> :?number,

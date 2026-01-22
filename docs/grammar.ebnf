@@ -46,6 +46,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
 
    Continuation tokens (extend current statement):
      "->"  pipe operator (to pipe-target or capture)
+     ":>"  capture operator (captures value and continues chain)
      "."   method chain
      "?"   conditional operator (expr ? then ! else)
      "!"   else clause (after conditional then-branch)
@@ -59,17 +60,31 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
      literals     strings, numbers, bools, tuples, dicts
 
    After any complete expression, if the next token is not a continuation,
-   it must begin a new statement. No lookahead beyond one token is needed. *)
+   it must begin a new statement. No lookahead beyond one token is needed.
+
+   Line continuation: -> or :> at the beginning of a line continues the
+   previous line's pipe chain. This allows readable multi-line chains:
+     "hello"
+       :> $greeting
+       -> .upper *)
 
 (* Parsing note: "->" capture vs "->" pipe-target is unambiguous because
    capture ("$" identifier) and pipe-target are disjoint sets. Parsers
    should greedily consume pipe-chain, then check for trailing "-> $id". *)
 
-(* Chain terminators: break and return terminate pipe chains.
-   Capture can appear mid-chain (inline capture) or at the end (terminal capture).
+(* Capture operators:
+   - ":>" (capture-arrow) captures value and continues chain
+   - "->" to "$var" (terminal) captures value and ends chain
 
-   "hello" -> $x                 -- terminal capture
-   "hello" -> $x -> .len         -- inline capture (value flows through)
+   ":>" is preferred for most captures because it's clearer:
+   "hello" :> $x -> .upper       -- capture "hello", chain continues, result is "HELLO"
+   "hello" :> $x                 -- capture and emit (result is "hello")
+
+   Chain terminators: break and return terminate pipe chains.
+
+   "hello" -> $x                 -- terminal capture (ends chain)
+   "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
+   "hello" :> $x -> .len         -- capture arrow (clearer, same effect)
    [1,2,3] -> each { break }     -- break terminates (exits loop)
    "result" -> return            -- return terminates (exits function) *)
 
@@ -91,7 +106,8 @@ annotation-arg = identifier , ":" , literal ;
 expression    = pipe-chain ;
 
 pipe-chain    = value-expr , [ "?" , body , [ "!" , body ] ]
-              , { "->" , ( pipe-target | capture ) } , [ "->" , chain-terminator ] ;
+              , { ( "->" , ( pipe-target | capture ) ) | ( ":>" , capture ) }
+              , [ "->" , chain-terminator ] ;
               (* Expression head can include arithmetic, comparisons, and logical ops.
                  5 + 3                    -- standalone arithmetic
                  5 > 3                    -- comparison (returns bool)
@@ -248,9 +264,19 @@ digits        = digit , { digit } ;
 
 (* Capture with optional type annotation.
    Variables are type-locked after first assignment.
-   "hello" -> $name           -- implicit string type
-   "hello" -> $name:string    -- explicit type (validated on assignment)
-   5 -> $name                 -- ERROR if $name was previously string *)
+
+   Capture arrow (:>) captures value into variable:
+   "hello" :> $name           -- capture, chain continues with "hello"
+   "hello" :> $name -> .upper -- capture, then transform (result: "HELLO")
+   "hello" :> $name:string    -- explicit type (validated on assignment)
+
+   Pipe arrow (-> $var) invokes closure stored in $var:
+   "hello" -> $fn             -- invoke $fn("hello") if $fn is closure
+   "hello" -> $fn -> .len     -- invoke, then continue chain
+
+   Type locking:
+   "hello" :> $name           -- $name is now type-locked to string
+   5 :> $name                 -- ERROR: $name was previously string *)
 capture       = "$" , identifier , [ ":" , capture-type ] ;
 capture-type  = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
 
@@ -348,6 +374,7 @@ method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
 pipe-target   = host-call       (* $ -> greet("world") — call with explicit args *)
               | closure-call      (* $ -> $fn("arg") — invoke closure with args *)
               | pipe-invoke        (* $ -> $() — invoke $ as closure, $ -> $(args) with args *)
+              | variable           (* $ -> $fn — invoke closure stored in $fn with $ as arg *)
               | host-name      (* $ -> greet — bare name, $ becomes implicit first arg *)
               | method-call        (* $ -> .len — method on $, $ -> .at(0) with args *)
               | string             (* $ -> "hello {$}" — template with interpolation *)
@@ -542,8 +569,9 @@ iterator-body = closure | block | grouped-expr | postfix-expr ;
                  closure: |x| body or |x, acc = init| body
                  block: { body } where $ is current element
                  grouped-expr: ( expr ) where $ is current element
-                 postfix-expr: includes variables ($fn) and bare $ for identity
-                 Note: variable not listed separately since postfix-expr -> primary -> variable *)
+                 postfix-expr: includes variables ($fn), bare $ for identity, and .method shorthand
+                 Note: variable not listed separately since postfix-expr -> primary -> variable
+                 .method shorthand applies method to each element: ["a","b"] -> map .upper *)
 
 each-expr     = "each" , [ "(" , expression , ")" ] , iterator-body ;
               (* Sequential iteration returning list of all body results.

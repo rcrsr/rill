@@ -30,12 +30,12 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('parses annotation with variable value', () => {
-      const ast = parse('10 -> $n\n^(limit: $n) "hello"');
+      const ast = parse('10 :> $n\n^(limit: $n) "hello"');
       expect(ast.statements[1]?.type).toBe('AnnotatedStatement');
     });
 
     it('parses spread annotation', () => {
-      const ast = parse('[limit: 10] -> $opts\n^(*$opts) "hello"');
+      const ast = parse('[limit: 10] :> $opts\n^(*$opts) "hello"');
       const stmt = ast.statements[1];
       expect(stmt?.type).toBe('AnnotatedStatement');
       if (stmt?.type === 'AnnotatedStatement') {
@@ -56,12 +56,12 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('evaluates annotation variables', async () => {
-      const result = await run('10 -> $n\n^(limit: $n) "hello"');
+      const result = await run('10 :> $n\n^(limit: $n) "hello"');
       expect(result).toBe('hello');
     });
 
     it('spreads dict as annotations', async () => {
-      const result = await run('[limit: 10] -> $opts\n^(*$opts) "hello"');
+      const result = await run('[limit: 10] :> $opts\n^(*$opts) "hello"');
       expect(result).toBe('hello');
     });
 
@@ -99,7 +99,7 @@ describe('Rill Runtime: Annotations', () => {
 
     it('allows for-each loops within limit', async () => {
       const script = `
-        ^(limit: 10) [1, 2, 3] @ { $ }
+        ^(limit: 10) [1, 2, 3] -> each { $ }
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
@@ -162,7 +162,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('Annotations with Various Statements', () => {
     it('works with pipe chains', async () => {
       const script = `
-        ^(limit: 5) [1, 2, 3] -> @ { $ } -> .len
+        ^(limit: 5) [1, 2, 3] -> each { $ } -> .len
       `;
       expect(await run(script)).toBe(3);
     });
@@ -177,8 +177,8 @@ describe('Rill Runtime: Annotations', () => {
     it('works with blocks', async () => {
       const script = `
         ^(limit: 5) {
-          1 -> $a
-          2 -> $b
+          1 :> $a
+          2 :> $b
           $a + $b
         }
       `;
