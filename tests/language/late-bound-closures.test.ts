@@ -148,13 +148,13 @@ describe('Rill Runtime: Late-Bound Closures', () => {
   });
 
   describe('Error Cases', () => {
-    it('undefined variable returns null at call time', async () => {
+    it('undefined variable errors at call time', async () => {
       const script = `
         || { $undefined } :> $fn
         $fn()
       `;
-      // With late binding, undefined variables return null
-      expect(await run(script)).toBeNull();
+      // With late binding, undefined variables throw error at call time
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
 
     it('invoking non-callable throws error', async () => {

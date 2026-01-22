@@ -49,8 +49,10 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('false -> .str')).toBe('false');
     });
 
-    it('returns empty string for null', async () => {
-      expect(await run('$undefined -> .str')).toBe('');
+    it('errors for undefined variable (no null in rill)', async () => {
+      await expect(run('$undefined -> .str')).rejects.toThrow(
+        'Undefined variable'
+      );
     });
 
     it('returns string unchanged', async () => {
@@ -261,12 +263,16 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"abc" -> .at(2)')).toBe('c');
     });
 
-    it('returns null for out of bounds', async () => {
-      expect(await run('["a"] -> .at(5)')).toBe(null);
+    it('errors for out of bounds', async () => {
+      await expect(run('["a"] -> .at(5)')).rejects.toThrow(
+        'List index out of bounds'
+      );
     });
 
-    it('returns null for negative index', async () => {
-      expect(await run('["a", "b"] -> .at(-1)')).toBe(null);
+    it('errors for negative index', async () => {
+      await expect(run('["a", "b"] -> .at(-1)')).rejects.toThrow(
+        'List index out of bounds'
+      );
     });
   });
 });

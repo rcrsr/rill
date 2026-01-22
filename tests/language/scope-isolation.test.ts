@@ -150,14 +150,15 @@ describe('Phase 0: Scope Isolation', () => {
     });
 
     it('variables created in child are not visible outside', async () => {
-      const result = await run(`
+      // Variable not found throws an error
+      await expect(
+        run(`
         {
           "local" :> $x
         }
         $x
-      `);
-      // Variable not found returns null
-      expect(result).toBe(null);
+      `)
+      ).rejects.toThrow('Undefined variable');
     });
   });
 

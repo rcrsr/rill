@@ -17,8 +17,10 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"x" -> .empty')).toBe(false);
     });
 
-    it('returns true for null', async () => {
-      expect(await run('$undefined -> .empty')).toBe(true);
+    it('errors for undefined variable (no null in rill)', async () => {
+      await expect(run('$undefined -> .empty')).rejects.toThrow(
+        'Undefined variable'
+      );
     });
 
     it('returns true for empty tuple', async () => {

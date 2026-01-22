@@ -28,12 +28,12 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('inner variable not visible after block exits', async () => {
       // Variable created inside block is not visible outside
-      // Accessing undefined variable returns null
+      // Accessing undefined variable throws an error
       const script = `
         [1, 2, 3] -> each { "created" :> $y }
         $y
       `;
-      expect(await run(script)).toBeNull();
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
 
     it('reading outer variable inside block works', async () => {
@@ -134,7 +134,7 @@ describe('Rill Runtime: Block Scoping', () => {
         true ? { "created" :> $y }
         $y
       `;
-      expect(await run(script)).toBeNull();
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
   });
 
@@ -164,7 +164,7 @@ describe('Rill Runtime: Block Scoping', () => {
         ("created" :> $y)
         $y
       `;
-      expect(await run(script)).toBeNull();
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
   });
 
@@ -237,7 +237,7 @@ describe('Rill Runtime: Block Scoping', () => {
         $inner
       `;
       // $inner was only created inside loop, not visible outside
-      expect(await run(script)).toBeNull();
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
   });
 
@@ -259,7 +259,7 @@ describe('Rill Runtime: Block Scoping', () => {
         $inner
       `;
       // $inner was only created inside loop, not visible outside
-      expect(await run(script)).toBeNull();
+      await expect(run(script)).rejects.toThrow('Undefined variable');
     });
   });
 });

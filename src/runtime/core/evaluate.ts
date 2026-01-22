@@ -1622,7 +1622,22 @@ function getBaseVariableValue(
     }
     return ctx.pipeValue;
   }
-  if (node.name) return getVariable(ctx, node.name) ?? null;
+  if (node.name) {
+    const result = getVariable(ctx, node.name);
+    if (result === undefined) {
+      // Variable doesn't exist - only return null if we'll handle with default/existence check
+      if (node.defaultValue || node.existenceCheck) {
+        return null;
+      }
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+        `Undefined variable: $${node.name}`,
+        node.span?.start,
+        { variable: node.name }
+      );
+    }
+    return result;
+  }
   return null;
 }
 
@@ -1685,11 +1700,23 @@ function evaluateVariable(node: VariableNode, ctx: RuntimeContext): RillValue {
       continue;
     }
     if (value === null) {
-      // Can't apply default in sync context (may need async evaluation)
-      return null;
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Cannot access field on null value`,
+        node.span?.start,
+        {}
+      );
     }
     const field = resolveFieldAccess(access, value, ctx);
     value = accessField(value, field);
+  }
+  if (value === null) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Field access returned null`,
+      node.span?.start,
+      {}
+    );
   }
   return value;
 }
@@ -1747,12 +1774,20 @@ async function evaluateVariableAsync(
 
   // Apply unified access chain (maintains order of dot and bracket accesses)
   for (const access of node.accessChain) {
-    // If value is null/missing, either use default or continue with null
+    // If value is null/missing, either use default or error
     if (value === null) {
       if (node.defaultValue) {
         return evaluateBody(node.defaultValue, ctx);
       }
-      return null;
+      if (node.existenceCheck) {
+        return false; // .?field returns false for missing
+      }
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Cannot access field on null value`,
+        node.span?.start,
+        {}
+      );
     }
 
     // Check if this is a bracket access
@@ -1777,21 +1812,63 @@ async function evaluateVariableAsync(
         }
       }
 
+      const prevValue = value;
       value = accessField(value, index);
+
+      // If we got null and there's no default, throw specific error
+      if (value === null && !node.defaultValue && !node.existenceCheck) {
+        if (Array.isArray(prevValue)) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `List index out of bounds: ${index}`,
+            node.span?.start,
+            {}
+          );
+        }
+      }
     } else {
       // Field access
       const field = await resolveFieldAccessAsync(access, value, ctx);
+      const prevValue = value;
       value = accessField(value, field);
 
       if (isCallable(value) && value.isProperty && value.boundDict) {
         value = await invokeCallable(value, [], ctx, node.span.start);
       }
+
+      // If we got null and there's no default, throw specific error
+      if (value === null && !node.defaultValue && !node.existenceCheck) {
+        if (
+          typeof prevValue === 'object' &&
+          prevValue !== null &&
+          !Array.isArray(prevValue) &&
+          !isScriptCallable(prevValue)
+        ) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Dict has no field '${field}'`,
+            node.span?.start,
+            {}
+          );
+        }
+      }
     }
   }
 
-  // Apply default if final value is null
-  if (value === null && node.defaultValue) {
-    return evaluateBody(node.defaultValue, ctx);
+  // Apply default if final value is null, or error if no default
+  if (value === null) {
+    if (node.defaultValue) {
+      return evaluateBody(node.defaultValue, ctx);
+    }
+    if (node.existenceCheck) {
+      return false;
+    }
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Field access returned null`,
+      node.span?.start,
+      {}
+    );
   }
 
   return value;
@@ -2079,7 +2156,15 @@ async function evaluatePipePropertyAccess(
             getNodeLocation(node)
           );
         }
-        value = value[indexValue] ?? null;
+        const result = value[indexValue];
+        if (result === undefined) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `List index out of bounds: ${indexValue}`,
+            getNodeLocation(node)
+          );
+        }
+        value = result;
       } else if (isDict(value)) {
         if (typeof indexValue !== 'string') {
           throw new RuntimeError(
@@ -2088,7 +2173,15 @@ async function evaluatePipePropertyAccess(
             getNodeLocation(node)
           );
         }
-        value = value[indexValue] ?? null;
+        const result = value[indexValue];
+        if (result === undefined) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Undefined dict key: ${indexValue}`,
+            getNodeLocation(node)
+          );
+        }
+        value = result;
       } else {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
@@ -2100,6 +2193,13 @@ async function evaluatePipePropertyAccess(
       // Field access: .field
       const field = await resolveFieldAccessAsync(access, value, ctx);
       value = accessField(value, field);
+      if (value === null) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Undefined field: ${field}`,
+          getNodeLocation(node)
+        );
+      }
     }
   }
 

@@ -98,8 +98,8 @@ describe('Rill Runtime: Variables', () => {
       expect(await run('"a" :> $x\n"b" :> $y\n[$x, $y]')).toEqual(['a', 'b']);
     });
 
-    it('returns null for undefined variable', async () => {
-      expect(await run('$undefined')).toBe(null);
+    it('errors for undefined variable', async () => {
+      await expect(run('$undefined')).rejects.toThrow('Undefined variable');
     });
 
     it('captures in execution result', async () => {

@@ -445,11 +445,33 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
   },
 
   /** Get element at index */
-  at: (receiver, args) => {
+  at: (receiver, args, _ctx, location) => {
     const idx = typeof args[0] === 'number' ? args[0] : 0;
-    if (Array.isArray(receiver)) return receiver[idx] ?? null;
-    if (typeof receiver === 'string') return receiver[idx] ?? '';
-    return null;
+    if (Array.isArray(receiver)) {
+      if (idx < 0 || idx >= receiver.length) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `List index out of bounds: ${idx}`,
+          location
+        );
+      }
+      return receiver[idx]!;
+    }
+    if (typeof receiver === 'string') {
+      if (idx < 0 || idx >= receiver.length) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `String index out of bounds: ${idx}`,
+          location
+        );
+      }
+      return receiver[idx]!;
+    }
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Cannot call .at() on ${typeof receiver}`,
+      location
+    );
   },
 
   // === String operations ===

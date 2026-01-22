@@ -115,12 +115,16 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('["a", "b"] :> $t\n$t[1]')).toBe('b');
     });
 
-    it('returns null for out of bounds index', async () => {
-      expect(await run('["a"] :> $t\n$t[5]')).toBe(null);
+    it('errors for out of bounds index', async () => {
+      await expect(run('["a"] :> $t\n$t[5]')).rejects.toThrow(
+        'List index out of bounds'
+      );
     });
 
-    it('returns null for index on empty tuple', async () => {
-      expect(await run('[] :> $t\n$t[0]')).toBe(null);
+    it('errors for index on empty list', async () => {
+      await expect(run('[] :> $t\n$t[0]')).rejects.toThrow(
+        'List index out of bounds'
+      );
     });
   });
 
@@ -145,8 +149,10 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('[a: 1, b: 2] :> $d\n$d.a')).toBe(1);
     });
 
-    it('returns null for missing field', async () => {
-      expect(await run('[a: 1] :> $d\n$d.missing')).toBe(null);
+    it('errors for missing field', async () => {
+      await expect(run('[a: 1] :> $d\n$d.missing')).rejects.toThrow(
+        "Dict has no field 'missing'"
+      );
     });
 
     it('accesses nested dict field', async () => {
