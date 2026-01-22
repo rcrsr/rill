@@ -517,9 +517,15 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseFilterExpr();
   }
 
-  // Method call
+  // Method call (possibly chained: .a.b.c)
   if (check(this.state, TOKEN_TYPES.DOT)) {
-    const methodCall = this.parseMethodCall();
+    const methods: MethodCallNode[] = [];
+    const start = current(this.state).span.start;
+
+    // Collect all chained method calls
+    while (check(this.state, TOKEN_TYPES.DOT)) {
+      methods.push(this.parseMethodCall());
+    }
 
     if (check(this.state, TOKEN_TYPES.QUESTION)) {
       const postfixExpr: PostfixExprNode = {
@@ -531,15 +537,34 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
           accessChain: [],
           defaultValue: null,
           existenceCheck: null,
-          span: methodCall.span,
+          span: methods[0]!.span,
         },
-        methods: [methodCall],
-        span: methodCall.span,
+        methods,
+        span: makeSpan(start, current(this.state).span.end),
       };
       return this.parseConditionalWithCondition(postfixExpr);
     }
 
-    return methodCall;
+    // Single method: return as-is
+    if (methods.length === 1) {
+      return methods[0]!;
+    }
+
+    // Multiple methods: wrap in PostfixExpr with $ as primary
+    return {
+      type: 'PostfixExpr',
+      primary: {
+        type: 'Variable',
+        name: null,
+        isPipeVar: true,
+        accessChain: [],
+        defaultValue: null,
+        existenceCheck: null,
+        span: methods[0]!.span,
+      },
+      methods,
+      span: makeSpan(start, current(this.state).span.end),
+    } as PostfixExprNode;
   }
 
   // Closure call as pipe target (supports property access: $math.double())
@@ -557,8 +582,11 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parsePipeInvoke();
   }
 
-  // Bare variable as pipe target: -> $var (invokes closure stored in $var)
-  if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+  // Bare variable as pipe target: -> $var or -> $ or -> $.field
+  if (
+    check(this.state, TOKEN_TYPES.DOLLAR) ||
+    check(this.state, TOKEN_TYPES.PIPE_VAR)
+  ) {
     return this.parseVariable();
   }
 

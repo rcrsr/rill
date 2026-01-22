@@ -533,7 +533,20 @@ async function evaluatePipeTarget(
       return evaluateFilter(target, input, ctx);
 
     case 'Variable':
+      // $.field is property access on pipe value, not closure invocation
+      if (target.isPipeVar && !target.name && target.accessChain.length > 0) {
+        return evaluatePipePropertyAccess(target, input, ctx);
+      }
       return evaluateVariableInvoke(target, input, ctx);
+
+    case 'PostfixExpr': {
+      // Chained methods on pipe value: -> .a.b.c
+      let value = input;
+      for (const method of target.methods) {
+        value = await evaluateMethod(method, value, ctx);
+      }
+      return value;
+    }
 
     default:
       throw new RuntimeError(
@@ -1991,6 +2004,64 @@ async function evaluateClosureCallWithPipe(
 }
 
 /**
+ * Evaluate $.field as property access on the pipe value.
+ * This allows -> $.a to access property 'a' of the current pipe value.
+ */
+async function evaluatePipePropertyAccess(
+  node: VariableNode,
+  pipeInput: RillValue,
+  ctx: RuntimeContext
+): Promise<RillValue> {
+  let value = pipeInput;
+
+  for (const access of node.accessChain) {
+    if (value === null) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Cannot access property on null`,
+        getNodeLocation(node)
+      );
+    }
+
+    if (isBracketAccess(access)) {
+      // Bracket access: [expr]
+      const indexValue = await evaluatePipeChain(access.expression, ctx);
+      if (Array.isArray(value)) {
+        if (typeof indexValue !== 'number') {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `List index must be number, got ${inferType(indexValue)}`,
+            getNodeLocation(node)
+          );
+        }
+        value = value[indexValue] ?? null;
+      } else if (isDict(value)) {
+        if (typeof indexValue !== 'string') {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Dict key must be string, got ${inferType(indexValue)}`,
+            getNodeLocation(node)
+          );
+        }
+        value = value[indexValue] ?? null;
+      } else {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Cannot index ${inferType(value)}`,
+          getNodeLocation(node)
+        );
+      }
+    } else {
+      // Field access: .field
+      const field = await resolveFieldAccessAsync(access, value, ctx);
+      value = accessField(value, field);
+    }
+  }
+
+  return value;
+}
+
+/**
  * Evaluate a bare variable as a pipe target: -> $fn
  * This invokes the closure stored in $fn with the pipe value as argument.
  * Use :> for captures instead.
@@ -2286,6 +2357,10 @@ async function evaluateMethod(
 
   const method = ctx.methods.get(node.name);
   if (!method) {
+    // Fall back to property access on dict (no-arg only)
+    if (isDict(receiver) && args.length === 0 && node.name in receiver) {
+      return receiver[node.name];
+    }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD,
       `Unknown method: ${node.name}`,
