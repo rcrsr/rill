@@ -38,6 +38,7 @@ const script = `
 const ctx = createRuntimeContext({
   functions: {
     prompt: async (args) => await callYourLLM(args[0]),
+    error: (args) => { throw new Error(String(args[0])); },
   },
 });
 
@@ -48,7 +49,7 @@ const result = await execute(parse(script), ctx);
 
 ### Pipes
 
-Data flows forward through pipes (app::* denotes an application-specific host function call).
+Data flows forward through pipes (`app::*` denotes an application-specific host function call).
 
 ```rill
 app::prompt("analyze this code") -> .trim -> log
@@ -60,10 +61,7 @@ Branch based on content patterns. Ideal for parsing LLM output.
 
 ```rill
 app::prompt("analyze code")
-  -> .contains("ERROR")
-    ? app::error("Analysis failed")
-    ! app::process($) 
-  -> log
+  -> .contains("ERROR") ? app::error() ! app::process()
 ```
 
 ### Bounded Loops
@@ -80,22 +78,6 @@ Retry with limits. Prevents runaway execution.
 ["a.txt", "b.txt"] -> each { "Processing: {$}" -> log }
 ```
 
-### Parallel Execution
-
-Fan out work concurrently. Results preserve order.
-
-```rill
-# Parallel map
-["security", "performance", "style"] -> map |aspect| {
-  app::prompt("Review for {$aspect} issues")
-}
-```
-
-```rill
-# Parallel filter
-["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
-```
-
 ### Closures
 
 First-class functions with captured environment.
@@ -106,24 +88,39 @@ First-class functions with captured environment.
 5 -> $double              # 10
 ```
 
+### Parallel Execution
+
+Fan out work concurrently. Results preserve order.
+
+```rill
+# Parallel map with closure
+["security", "performance", "style"] -> map |aspect| {
+  app::prompt("Review for {$aspect} issues")
+}
+```
+
+```rill
+# Parallel filter with method
+["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
+```
+
 ### LLM Output Parsing
 
 Built-in functions for extracting structured data from LLM responses.
 
 ```rill
 # Auto-detect format (JSON, XML, YAML, checklist)
-"[1, 2, 3]" -> parse_auto
-  -> (.type == "json") ? .data ! "not json"
+"[1, 2, 3]" -> parse_auto -> .data  # [1, 2, 3]
+```
+
+```rill
+# Extract fenced code blocks
+"```json\n[1,2]\n```" -> parse_fence("json") -> parse_json
 ```
 
 ```rill
 # Extract XML tags
 "<answer>42</answer>" -> parse_xml("answer")  # "42"
-```
-
-```rill
-# Parse fenced code blocks
-$response -> parse_fence("json") -> parse_json
 ```
 
 ### String Interpolation
@@ -135,6 +132,7 @@ Embed expressions in strings. Heredoc for multi-line.
 ```
 
 ```rill
+"x + 1" :> $code
 <<EOF
 Analyze: {$code}
 Return: PASS or FAIL
