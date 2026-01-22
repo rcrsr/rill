@@ -137,6 +137,18 @@ describe('Rill Runtime: Variables', () => {
         'third'
       );
     });
+
+    it('$ is undefined at script level without host context', async () => {
+      await expect(run('$')).rejects.toThrow('Undefined variable: $');
+    });
+
+    it('bare method errors when $ is undefined', async () => {
+      await expect(run('.len')).rejects.toThrow('Undefined variable: $');
+    });
+
+    it('$.field errors when $ is undefined', async () => {
+      await expect(run('$.name')).rejects.toThrow('Undefined variable: $');
+    });
   });
 
   describe('Field Access', () => {

@@ -209,10 +209,9 @@ describe('Phase 0: Scope Isolation', () => {
       expect(result).toBe('value');
     });
 
-    it('script-level $ without host context is null', async () => {
-      // Without host-provided pipeValue, $ is null
-      const result = await run('$');
-      expect(result).toBe(null);
+    it('script-level $ without host context is undefined', async () => {
+      // Without host-provided pipeValue, $ is undefined
+      await expect(run('$')).rejects.toThrow('Undefined variable: $');
     });
 
     it('$ in piped block receives the piped value', async () => {

@@ -15,8 +15,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('identical closures', () => {
     it('closures with same body are equal', async () => {
       const code = `
-        { .trim } :> $a
-        { .trim } :> $b
+        ||{ .trim } :> $a
+        ||{ .trim } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -24,8 +24,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with method calls are equal', async () => {
       const code = `
-        { .trim } :> $a
-        { .trim } :> $b
+        ||{ .trim } :> $a
+        ||{ .trim } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -35,8 +35,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('different closures', () => {
     it('closures with different body are not equal', async () => {
       const code = `
-        { .trim } :> $a
-        { .len } :> $b
+        ||{ .trim } :> $a
+        ||{ .len } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -107,19 +107,19 @@ describe('Rill Runtime: Closure Equality', () => {
       expect(await run(code)).toBe(true);
     });
 
-    it('nested closures are compared structurally', async () => {
+    it('closures containing nested closures are compared structurally', async () => {
       const code = `
-        { { .trim } } :> $a
-        { { .trim } } :> $b
+        ||{ ||{ "inner" } } :> $a
+        ||{ ||{ "inner" } } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
     });
 
-    it('nested closures with differences are not equal', async () => {
+    it('closures containing different nested closures are not equal', async () => {
       const code = `
-        { { .trim } } :> $a
-        { { .len } } :> $b
+        ||{ ||{ "inner1" } } :> $a
+        ||{ ||{ "inner2" } } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -129,8 +129,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('inequality operator', () => {
     it('!= returns true for different closures', async () => {
       const code = `
-        { .trim } :> $a
-        { .len } :> $b
+        ||{ .trim } :> $a
+        ||{ .len } :> $b
         ($a != $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -138,8 +138,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('!= returns false for same closures', async () => {
       const code = `
-        { .trim } :> $a
-        { .trim } :> $b
+        ||{ .trim } :> $a
+        ||{ .trim } :> $b
         ($a != $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -149,8 +149,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('closures in collections', () => {
     it('tuples containing different closures are not equal', async () => {
       const code = `
-        [{ .trim }, { .len }] :> $a
-        [{ .trim }, { .str }] :> $b
+        [||{ .trim }, ||{ .len }] :> $a
+        [||{ .trim }, ||{ .str }] :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -158,8 +158,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('dicts containing different closures are not equal', async () => {
       const code = `
-        [f: { .trim }] :> $a
-        [f: { .len }] :> $b
+        [f: ||{ .trim }] :> $a
+        [f: ||{ .len }] :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -187,8 +187,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with pipe variable are equal', async () => {
       const code = `
-        { $ } :> $a
-        { $ } :> $b
+        ||{ $ } :> $a
+        ||{ $ } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -196,7 +196,7 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('same closure reference equals itself', async () => {
       const code = `
-        { .trim } :> $a
+        ||{ .trim } :> $a
         ($a == $a) ? true ! false
       `;
       expect(await run(code)).toBe(true);

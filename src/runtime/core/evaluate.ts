@@ -388,6 +388,14 @@ async function evaluatePrimary(
       return evaluateClosureCall(primary, ctx);
 
     case 'MethodCall':
+      if (ctx.pipeValue === null) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+          'Undefined variable: $',
+          primary.span?.start,
+          { variable: '$' }
+        );
+      }
       return evaluateMethod(primary, ctx.pipeValue, ctx);
 
     case 'Conditional':
@@ -1603,7 +1611,17 @@ function getBaseVariableValue(
   node: VariableNode,
   ctx: RuntimeContext
 ): RillValue {
-  if (node.isPipeVar) return ctx.pipeValue;
+  if (node.isPipeVar) {
+    if (ctx.pipeValue === null) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+        'Undefined variable: $',
+        node.span?.start,
+        { variable: '$' }
+      );
+    }
+    return ctx.pipeValue;
+  }
   if (node.name) return getVariable(ctx, node.name) ?? null;
   return null;
 }
