@@ -18,6 +18,15 @@ npm run lint:fix       # Auto-fix lint errors
 npm run format         # Format with prettier
 ```
 
+## Test Organization
+
+| Directory | Purpose | Policy |
+|-----------|---------|--------|
+| `tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes. |
+| `tests/runtime/` | Runtime API and implementation | Normal test maintenance applies. |
+
+Run subsets: `npm test -- tests/language` or `npm test -- tests/runtime`
+
 ## Architecture
 
 ```
