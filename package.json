@@ -1,7 +1,7 @@
 {
   "name": "@rcrsr/rill",
-  "version": "0.0.2",
-  "description": "Rill - A pipe-based scripting language for orchestrating workflows",
+  "version": "0.0.3",
+  "description": "Rill - An embeddable scripting language for orchestrating LLM workflows",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -58,12 +58,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@types/node": "^25.0.9",
-    "@typescript-eslint/eslint-plugin": "^8.53.0",
-    "@typescript-eslint/parser": "^8.53.0",
+    "@types/node": "^25.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
-    "prettier": "^3.8.0",
+    "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   }
