@@ -168,7 +168,7 @@ EOF
 - **Parallel agent fan-out.** Launch specialists concurrently.
 - **Edit-Review loops.** Iterate until approval or max attempts.
 
-See [Examples](docs/examples.md) for complete workflow patterns.
+See [Examples](docs/12_examples.md) for complete workflow patterns.
 
 ## Documentation
 
