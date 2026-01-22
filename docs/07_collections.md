@@ -679,8 +679,8 @@ Process nested structures with nested operators.
 
 ## See Also
 
-- [Iterators](iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
-- [Reference](reference.md) — Complete language specification
-- [Closures](closures.md) — Closure semantics and patterns
-- [Guide](guide.md) — Beginner introduction
-- [Examples](examples.md) — Workflow examples
+- [Iterators](08_iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
+- [Reference](11_reference.md) — Complete language specification
+- [Closures](06_closures.md) — Closure semantics and patterns
+- [Guide](01_guide.md) — Beginner introduction
+- [Examples](12_examples.md) — Workflow examples

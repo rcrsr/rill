@@ -349,6 +349,6 @@ Closures store a reference to their defining scope (`definingScope`). At invocat
 
 ## Related Documentation
 
-- [Reference](reference.md) — Language specification
-- [Collections](collections.md) — `each`, `map`, `filter`, `fold` with closures
-- [Guide](guide.md) — Getting started tutorial
+- [Reference](11_reference.md) — Language specification
+- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` with closures
+- [Guide](01_guide.md) — Getting started tutorial

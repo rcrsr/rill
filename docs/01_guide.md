@@ -248,7 +248,7 @@ Use `break` to exit a loop early:
 
 ## Closures (Functions)
 
-Define reusable logic with closure syntax `|params| body`. See [Closures](closures.md) for advanced patterns including late binding and dict-bound closures.
+Define reusable logic with closure syntax `|params| body`. See [Closures](06_closures.md) for advanced patterns including late binding and dict-bound closures.
 
 ```rill
 |x|($x * 2) :> $double
@@ -362,10 +362,10 @@ $descriptions -> .join(", ")
 
 ## Next Steps
 
-- [Reference](reference.md) — Complete language specification
-- [Closures](closures.md) — Late binding, dict-bound, and invocation patterns
-- [Collections](collections.md) — `each`, `map`, `filter`, `fold` operators
-- [Examples](examples.md) — Workflow patterns
+- [Reference](11_reference.md) — Complete language specification
+- [Closures](06_closures.md) — Late binding, dict-bound, and invocation patterns
+- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` operators
+- [Examples](12_examples.md) — Workflow patterns
 
 ## Quick Reference Card
 

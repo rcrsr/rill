@@ -325,6 +325,6 @@ $inf(0) -> each { $ }    # ERROR: Iterator exceeded 10000 elements
 
 ## See Also
 
-- [Collections](collections.md) — `each`, `map`, `filter`, `fold` operators
-- [Closures](closures.md) — Closure semantics for custom iterators
-- [Reference](reference.md) — Complete language specification
+- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` operators
+- [Closures](06_closures.md) — Closure semantics for custom iterators
+- [Reference](11_reference.md) — Complete language specification
