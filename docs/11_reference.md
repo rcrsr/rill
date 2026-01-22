@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.0.4
+# rill Core Language Specification v0.0.5
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.0.4).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.0.5).** Active development. Breaking changes until v1.0.
 
 ## Overview
 

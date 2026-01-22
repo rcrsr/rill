@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-01-21
+
+### Changed
+
+- **Parser Refactor** — Consolidated bare host call parsing into `parseBareHostCall` helper
+  - Removes duplicate logic from `parsePrimary`, `parsePipeTarget`, and `parseIteratorBody`
+  - No user-facing changes
+
+- **Lexer Refactor** — Replaced keyword switch statement with `KEYWORDS` lookup table
+  - Moves keyword definitions to `operators.ts` for consistency with operator tables
+  - No user-facing changes
+
+- **Runtime Refactor** — Removed duplicate `isDict` and `isCallable` from `values.ts`
+  - Now imports from `callable.ts` where canonical definitions live
+  - No user-facing changes
+
 ## [0.0.4] - 2026-01-21
 
 ### Added
@@ -187,7 +203,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/rcrsr/rill/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/rcrsr/rill/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/rcrsr/rill/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/rcrsr/rill/compare/v0.0.1...v0.0.2
