@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-01-21
+
+### Added
+
+- **Bare Function Names in Iterators** — Collection operators accept bare function names as body
+  - `[1, 2, 3] -> each double` calls `double($)` for each element
+  - Namespaced functions work: `[1, 2, 3] -> map math::square`
+  - Equivalent to `{ func($) }` block form
+
+- **Pipe Variable Access Chains** — `$[idx]` and `$.field` syntax without identifier
+  - `$[0]` accesses first element of pipe value
+  - `$.name` accesses field on pipe value
+  - Works in pipe targets: `-> $[0]` or `-> $.field`
+
+- **Accumulator in Grouped Expressions** — `$@` available in fold/each grouped bodies
+  - `[1, 2, 3] -> fold(0) ($ + $@)` sums to 6
+  - `[1, 2, 3] -> each(0) ($@ + $)` produces running sum `[1, 3, 6]`
+
+- **Accumulator in Closure Bodies** — `$@` accessible in iterator closures
+  - `[1, 2, 3] -> fold(0) |x| { $x + $@ }` works correctly
+  - Closures receive accumulator via defining scope
+
+### Fixed
+
+- **Strict Boolean Enforcement** — Conditionals, loops, and filters require boolean values
+  - `$val -> ? "yes" ! "no"` requires `$val` to be boolean (not truthy/falsy)
+  - `(cond) @ { body }` while condition must be boolean
+  - `@ { body } ? (cond)` do-while condition must be boolean
+  - `-> filter { predicate }` predicate must return boolean
+  - Non-boolean values throw `RuntimeError` with descriptive message
+  - Migration: use comparisons (`.empty`, `.eq()`, `> 0`) instead of truthy values
+
+- **Variable Access Chain in Iterators** — `$[1]` and `$.field` now work as iterator bodies
+  - `[[1,2], [3,4]] -> each $[0]` returns `[1, 3]`
+  - `[{a:1}, {a:2}] -> each $.a` returns `[1, 2]`
+
 ## [0.0.3] - 2026-01-21
 
 ### Fixed
@@ -151,6 +187,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/rcrsr/rill/compare/v0.0.3...v0.0.4
+[0.0.3]: https://github.com/rcrsr/rill/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/rcrsr/rill/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/rcrsr/rill/releases/tag/v0.0.1
