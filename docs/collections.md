@@ -10,7 +10,7 @@ rill provides four collection operators for transforming, filtering, and reducin
 |----------|-----------|-------------|---------|
 | `each` | Sequential | Optional | List of all results |
 | `map` | Parallel | No | List of all results |
-| `filter` | Parallel | No | Elements where predicate is truthy |
+| `filter` | Parallel | No | Elements where predicate is true |
 | `fold` | Sequential | Required | Final result only |
 
 All three operators share similar syntax but differ in execution model and output.
@@ -280,7 +280,7 @@ Use `map` when:
 
 ## filter — Parallel Filtering
 
-`filter` keeps elements where the predicate returns truthy. Executes concurrently using `Promise.all`.
+`filter` keeps elements where the predicate returns `true`. Predicates must return boolean values. Executes concurrently using `Promise.all`.
 
 ```rill
 collection -> filter body

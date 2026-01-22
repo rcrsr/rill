@@ -289,7 +289,7 @@ range(0, 5) -> each { "Item {$}" }
 ```rill
 repeat(1, 3) -> each {
   attempt() :> $result
-  $result.success ? ($result -> break)
+  ($result.success == true) ? ($result -> break)
   pause("00:00:01")
   $result
 }

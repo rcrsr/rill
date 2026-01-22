@@ -351,13 +351,13 @@ args: file: string
 # Multi-phase pipeline with early exit on errors
 "content of {$file}" :> $content
 
-$content -> ?(.contains("ERROR")) {
+$content -> .contains("ERROR") ? {
   "Read failed" -> return
 }
 
 "analyzed: {$content}" :> $analysis
 
-$analysis -> ?(.contains("FAIL")) {
+$analysis -> .contains("FAIL") ? {
   "Analysis failed" -> return
 }
 
@@ -450,7 +450,7 @@ Demonstrates destructuring, slicing, and enumeration.
 # Destructure list results into named variables
 ["test output", 0] -> *<$out, $code>
 
-$code -> ?(.gt(0)) {
+$code -> .gt(0) ? {
   "Tests failed:\n{$out}" -> log
 }
 
@@ -663,7 +663,7 @@ $doc.body -> log          # "Content here"
 # Validate parsed content before use
 "{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto :> $result
 
-?($result.type != "json") {
+($result.type != "json") ? {
   "Expected JSON" -> log
 }
 
@@ -742,15 +742,15 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 ```rill
 # Find first element matching condition
 [1, 2, 3, 4, 5] -> each {
-  ?(.gt(3)) { $ -> break }
+  .gt(3) ? { $ -> break }
 } :> $found
 # 4
 
 # Find with default
 [1, 2, 3] -> each {
-  ?(.gt(10)) { $ -> break }
+  .gt(10) ? { $ -> break }
 } :> $result
-$result -> ?(.empty) { "not found" } ! { "found: {$result}" }
+$result -> .empty ? { "not found" } ! { "found: {$result}" }
 ```
 
 ### Aggregate/Sum

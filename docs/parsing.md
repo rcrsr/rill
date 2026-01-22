@@ -231,7 +231,7 @@ $b -> process()
 prompt("Generate a document with title and status in frontmatter") -> parse_frontmatter :> $doc
 
 $doc.meta.title -> log
-$doc.meta.status -> ?(.eq("draft")) {
+$doc.meta.status -> .eq("draft") ? {
   "Document is still a draft" -> log
 }
 $doc.body -> save_content()

@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.0.1
+# rill Core Language Specification v0.0.4
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.0.1).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.0.4).** Active development. Breaking changes until v1.0.
 
 ## Overview
 
@@ -68,8 +68,8 @@ See [Collections](collections.md) for detailed documentation.
 | ----------------------------- | ---------------------------------------- |
 | `$list -> map $closure`       | Parallel map: apply closure to each element |
 | `$list -> map { body }`       | Parallel map with block body                |
-| `$list -> filter { cond }`    | Parallel filter: keep truthy elements       |
-| `$list -> filter $predicate`  | Parallel filter: keep where pred is true    |
+| `$list -> filter { cond }`    | Parallel filter: keep where predicate is true |
+| `$list -> filter $predicate`  | Parallel filter: keep where pred returns true |
 | `$input -> @$closures`        | Sequential fold: chain closures          |
 | `$input -> @[$f, $g, $h]`     | Sequential chain: f then g then h        |
 
@@ -464,7 +464,7 @@ Used for exit codes and loop limits:
 
 ### Booleans
 
-Literal `true` and `false`. Bare `?` uses truthy semantics (false, empty string, 0, empty list are falsy).
+Literal `true` and `false`. Conditional expressions (`?`), loop conditions (`@`), and filter predicates require boolean values. Non-boolean values cause runtime errors.
 
 ## Variables
 
@@ -605,7 +605,7 @@ This mirrors `log` behavior — both have side effects (storing/printing) while 
 `$` holds the piped value in the current scope. The `|` visually indicates "this came through the pipe":
 
 ```rill
-$response -> ?(.contains("ERROR")) {
+$response -> .contains("ERROR") ? {
   "Failed: {$}" -> log
 }
 ```
@@ -772,17 +772,17 @@ $val -> ? then-body ! else-body     # piped form: $ is the condition
 
 **Standalone form** — condition precedes `?`:
 
-```rill
+```text
 true ? "yes" ! "no"                 # "yes"
-$ready ? prompt("proceed")          # execute if $ready is truthy
+$ready ? prompt("proceed")          # execute if $ready is true (must be bool)
 (5 > 3) ? "big" ! "small"           # grouped comparison as condition
-"hello".contains("ell") ? "found"   # method call as condition
+"hello" -> .contains("ell") ? "found"   # method call returns boolean
 ```
 
 **Piped form** — use `$` as condition:
 
-```rill
-"test" -> ? "truthy" ! "falsy"           # "truthy" (non-empty string)
+```text
+true -> ? "yes" ! "no"                   # "yes" (pipe value must be bool)
 "xyz" -> .contains("x") ? "found" ! "no" # "found"
 5 -> ($ > 3) ? "big" ! "small"           # "big"
 ```
@@ -1605,7 +1605,7 @@ $doc -> parse_frontmatter -> *<meta: $m, body: $b>
 # Returns [[false, "Buy milk"], [true, "Call mom"]]
 
 # Filter completed items
-$tasks -> parse_checklist -> filter { $.0 }
+$tasks -> parse_checklist -> filter { $[0] }
 ```
 
 See [Parsing](parsing.md) for detailed usage and [Examples](examples.md) for workflow patterns.
@@ -1746,7 +1746,7 @@ Bare `.method()` implies `$` as receiver—no need to write it explicitly.
 
 When piping a boolean, use bare `?`:
 
-```rill
+```text
 # Verbose
 ($ready == true) ? proceed()
 $ready ? proceed()

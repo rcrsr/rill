@@ -1,4 +1,4 @@
-(* rill v0.0.1 Grammar - EBNF Notation *)
+(* rill v0.0.4 Grammar - EBNF Notation *)
 (* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
@@ -490,16 +490,18 @@ type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tu
 (* ============================================================ *)
 
 (* Conditional syntax: condition ? then-branch ! else-branch
-   The condition can be any body that evaluates to a truthy/falsy value.
+   The condition MUST evaluate to a boolean value (true or false).
+   Non-boolean values will cause a runtime error.
 
    Examples:
-     $ready ? "go" ! "wait"              -- variable condition
-     .valid ? process() ! reject()       -- method call condition
-     ($x > 10) ? "big" ! "small"         -- grouped comparison condition
-     true ? "yes" ! "no"                 -- literal condition
+     $ready ? "go" ! "wait"              -- variable must be boolean
+     .valid ? process() ! reject()       -- method must return boolean
+     ($x > 10) ? "big" ! "small"         -- comparison returns boolean
+     true ? "yes" ! "no"                 -- literal boolean
 
    Piped form (? alone uses $ as condition):
-     $value -> ? "truthy" ! "falsy"      -- tests truthiness of piped value
+     true -> ? "yes" ! "no"              -- pipe value must be boolean
+     ($x > 5) -> ? "big" ! "small"       -- expression evaluates to boolean
 
    Else-if chaining:
      .eq("A") ? 1 ! .eq("B") ? 2 ! 3     -- chained conditions *)
@@ -510,6 +512,9 @@ else-clause   = conditional | body ;
 
 (* Loop syntax: condition @ body [? condition]
    The @ operator is for while loops only. For iteration, use collection operators.
+   Both while and do-while conditions MUST evaluate to boolean (true or false).
+   Non-boolean values will cause a runtime error.
+
    - bool input: while loop (re-evaluates condition each iteration)
    - trailing ? condition: do-while (body first, then check)
 
@@ -517,7 +522,7 @@ else-clause   = conditional | body ;
    See docs/collections.md for collection operators.
 
    Examples:
-     ($x < 10) @ { ($x + 1) -> $x }     -- while loop (condition is bool)
+     ($x < 10) @ { ($x + 1) :> $x }     -- while loop (condition is bool)
      @ { $ } ? ($x < 10)                -- do-while (body, then check)
      [1, 2, 3] -> each { $ * 2 }        -- for-each (use each operator)
      "abc" -> each { $ }                -- iterate over string chars
@@ -564,12 +569,13 @@ loop          = [ body ] , "@" , body , [ "?" , body ] ;
      [1, 2, 3] -> each |x, s = 0| ($s + $x) -- [1, 3, 6]
 *)
 
-iterator-body = closure | block | grouped-expr | postfix-expr ;
-              (* Valid body forms for each, map, fold operators.
+iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
+              (* Valid body forms for each, map, fold, filter operators.
                  closure: |x| body or |x, acc = init| body
                  block: { body } where $ is current element
                  grouped-expr: ( expr ) where $ is current element
                  postfix-expr: includes variables ($fn), bare $ for identity, and .method shorthand
+                 host-name: bare function name (func or ns::func), element passed as first arg
                  Note: variable not listed separately since postfix-expr -> primary -> variable
                  .method shorthand applies method to each element: ["a","b"] -> map .upper *)
 
@@ -601,12 +607,14 @@ fold-expr     = "fold" , ( "(" , expression , ")" , iterator-body | closure | va
                  [1, 2, 3] -> fold |x, s = 0| ($s + $x)   -- 6 *)
 
 filter-expr   = "filter" , iterator-body ;
-              (* Parallel filtering returning elements where body is truthy.
+              (* Parallel filtering returning elements where predicate is true.
+                 Predicate MUST return boolean (true or false).
+                 Non-boolean values will cause a runtime error.
                  Executes all predicates concurrently via Promise.all.
                  Order is preserved despite parallel execution.
                  No accumulator (each element evaluated independently).
                  [1, 2, 3, 4, 5] -> filter { $ > 2 }    -- [3, 4, 5]
-                 $users -> filter |u| ($u.active)      -- active users *)
+                 $users -> filter |u| ($u.active)      -- active users (must be bool) *)
 
 block         = "{" , statement , { statement } , "}" ;
               (* Empty blocks not allowed. Blocks return their last expression's value,
