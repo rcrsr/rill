@@ -286,7 +286,7 @@ range(0, 5) -> each { "Item {$}" }
 
 ### Retry pattern
 
-```rill
+```text
 repeat(1, 3) -> each {
   attempt() :> $result
   ($result.success == true) ? ($result -> break)

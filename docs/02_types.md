@@ -131,11 +131,18 @@ $nums -> .len              # 3
 - `.tail` — Last element (errors on empty)
 - `.at(n)` — Element at index
 
-**Out-of-bounds access** returns empty string:
+**Out-of-bounds access** throws an error:
+
+```text
+[] -> .at(0)               # Error: List index out of bounds
+["a"] -> .at(5)            # Error: List index out of bounds
+```
+
+Use `??` for safe access with default:
 
 ```rill
-[] -> .at(0)               # "" (empty list)
-["a"] -> .at(5)            # "" (index out of bounds)
+["a"] :> $list
+$list[0] ?? "default"  # "a"
 ```
 
 See [Collections](07_collections.md) for iteration operators.
@@ -161,11 +168,11 @@ $person.age                # 30
 - `.?field` — Existence check (returns bool)
 - `.?field&type` — Existence + type check
 
-**Missing key access** returns empty string:
+**Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
 [:] :> $d
-$d.missing                 # "" (key not found)
+$d.missing ?? ""           # "" (safe default)
 ```
 
 ### Dict Methods
@@ -291,6 +298,11 @@ Returns boolean, no error:
 
 # Pipe target form
 "hello" -> :?string           # true
+```
+
+Type checks work in conditionals:
+
+```text
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 

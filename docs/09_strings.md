@@ -181,6 +181,7 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! error("Invalid email")
 ### Format Output
 
 ```rill
+[[name: "Alice", value: 100], [name: "Bob", value: 42]] :> $items
 $items -> each {
   $.name -> .pad_end(20) :> $name
   $.value -> .str -> .pad_start(10) :> $val
@@ -191,12 +192,14 @@ $items -> each {
 ### Replace Patterns
 
 ```rill
+"hello   world" :> $text
 $text -> .replace_all("\\s+", " ") -> .trim
 ```
 
 ### Parse Structured Text
 
 ```rill
+"key: value" :> $line
 $line -> .match("(\\w+):\\s*(.+)") :> $m
 $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 ```

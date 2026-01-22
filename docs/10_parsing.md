@@ -201,11 +201,10 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 ### Practical Usage
 
 ```rill
-# LLM returns code in a fenced block
-prompt("Generate a JSON config") -> parse_fence("json") -> parse_json :> $config
-
-$config.host -> log
-$config.port -> log
+# ...
+# Parse fenced JSON from LLM response
+# prompt("Generate JSON") -> parse_fence("json") -> parse_json :> $config
+# $config.host -> log
 ```
 
 ## Frontmatter Parsing
@@ -215,26 +214,28 @@ $config.port -> log
 Parse YAML frontmatter delimited by `---`:
 
 ```rill
+"---\ntitle: Hello\n---\nBody text" :> $doc
 $doc -> parse_frontmatter
-# Returns [meta: [key: value, ...], body: "..."]
+# Returns [meta: [title: "Hello"], body: "Body text"]
+```
 
-# Destructure into variables
+Destructure into variables:
+
+```rill
+"---\ntitle: Hello\n---\nBody text" :> $doc
 $doc -> parse_frontmatter -> *<meta: $m, body: $b>
 $m.title -> log
-$b -> process()
 ```
 
 ### Practical Usage
 
 ```rill
-# LLM returns document with metadata
-prompt("Generate a document with title and status in frontmatter") -> parse_frontmatter :> $doc
+# Parse frontmatter from document
+"---\ntitle: My Doc\nstatus: draft\n---\nContent here" -> parse_frontmatter :> $doc
 
 $doc.meta.title -> log
-$doc.meta.status -> .eq("draft") ? {
-  "Document is still a draft" -> log
-}
-$doc.body -> save_content()
+($doc.meta.status ?? "") -> .eq("draft") ? { "Document is still a draft" -> log }
+$doc.body -> log
 ```
 
 ## Checklist Parsing
@@ -300,15 +301,16 @@ parse_json($) :> $profile
 Chain parsers for complex extraction:
 
 ```rill
+# ...
 # Extract JSON from a fenced block
-$response -> parse_fence("json") -> parse_json :> $data
+# $response -> parse_fence("json") -> parse_json :> $data
 
 # Extract XML answer, parse as JSON
-$response -> parse_xml("answer") -> parse_json :> $result
+# $response -> parse_xml("answer") -> parse_json :> $result
 
 # Parse frontmatter, then parse body as checklist
-$doc -> parse_frontmatter :> $parsed
-$parsed.body -> parse_checklist :> $tasks
+# $doc -> parse_frontmatter :> $parsed
+# $parsed.body -> parse_checklist :> $tasks
 ```
 
 ## Best Practices

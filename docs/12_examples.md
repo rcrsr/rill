@@ -474,40 +474,34 @@ $code -> .gt(0) ? {
 ### Enumerated Progress
 
 ```rill
-enumerate($tasks) -> each {
-  "[{$.index + 1}/{$tasks.len}] Processing: {$.value}" -> log()
-  prompt("Complete task: {$.value}")
-}
+# ...
+# enumerate($tasks) -> each {
+#   "[{$.index + 1}/{$tasks.len}] Processing: {$.value}" -> log()
+#   prompt("Complete task: {$.value}")
+# }
 ```
 
 ### Slicing Results
 
 ```rill
-# Get first 3 errors
-prompt("List all errors") -> .lines() -> /<:3> -> each {
-  prompt("Fix error: {$}")
-}
+# Get first 3 items
+["a", "b", "c", "d", "e"] -> /<:3>
+# ["a", "b", "c"]
+```
 
+```rill
 # Process in reverse order
-$items -> /<::-1> -> each {
-  prompt("Process {$}")
-}
+["a", "b", "c"] -> /<::-1>
+# ["c", "b", "a"]
 ```
 
 ### Dict Iteration
 
 ```rill
-# Iterate over dict directly (yields { key, value } objects)
-[host: "localhost", port: 8080, debug: true] -> each {
-  "{$.key}={$.value}"
+# Use .entries to iterate over dict key-value pairs
+[host: "localhost", port: 8080] -> .entries -> each {
+  "{$[0]}={$[1]}"
 } -> .join("\n")
-# "debug=true\nhost=localhost\nport=8080"
-
-# Use enumerate() when you need the index
-enumerate([host: "localhost", port: 8080]) -> each {
-  "{$.index}: {$.value.key}={$.value.value}"
-}
-# => ["0: host=localhost", "1: port=8080"]
 ```
 
 ## Args Type and Strict Invocation
@@ -577,10 +571,13 @@ Built-in functions for extracting structured data from LLM responses.
 
 $result.type -> log        # "json"
 $result.data.status -> log # "ok"
+```
 
-# Also works with XML
-"<response><code>200</code></response>" -> parse_auto :> $xml
-$xml.data.code -> log      # "200"
+For XML content, use `parse_xml` for more precise extraction:
+
+```rill
+"<response>200</response>" -> parse_xml("response")
+# "200"
 ```
 
 ### Extract JSON from Fenced Blocks

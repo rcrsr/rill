@@ -291,9 +291,6 @@ $factory()(5)    # 10 (chained invocation)
 ```rill
 ["hello", "world"] :> $list
 
-# This parses .upper as field access on $list (returns null)
-$list[0].upper    # null
-
 # Use grouping to call method on bracket result
 ($list[0]).upper    # "HELLO"
 
@@ -301,15 +298,17 @@ $list[0].upper    # null
 $list[0] -> .upper    # "HELLO"
 ```
 
+Note: `$list[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
+
 ## Error Behavior
 
 ### Undefined Variables
 
-Undefined variables return `null` at call time:
+Undefined variables throw an error at call time (rill has no null):
 
-```rill
+```text
 || { $undefined } :> $fn
-$fn()    # null
+$fn()    # Error: Undefined variable: $undefined
 ```
 
 ### Invoking Non-Callable

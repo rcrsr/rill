@@ -37,6 +37,8 @@ The `->` operator pipes a value to the next operation:
 
 The special variable `$` refers to the current piped value. Inside a pipe chain, `$` holds whatever was piped in.
 
+When you write `.trim` without an explicit receiver, it's syntactic sugar for `$.trim()`. The method is called on the current pipe value. Parentheses can be omitted when a method takes no arguments.
+
 ### Chaining Operations
 
 Pipes chain naturally:
@@ -54,30 +56,6 @@ Methods can also chain directly without `->`:
 ```
 
 Each `->` passes its left side to its right side. The result flows through the chain.
-
-### Statement Flow
-
-Each statement's result automatically becomes `$` for the next statement:
-
-```rill
-"hello"          # Result: "hello", $ becomes "hello"
-.upper           # Uses $, result: "HELLO", $ becomes "HELLO"
-.len             # Uses $, result: 5
-```
-
-This enables concise multi-line scripts without explicit piping between statements:
-
-```rill
-prompt("analyze this")
-.contains("ERROR") ? error($) ! "OK"
-```
-
-The second line implicitly operates on the result of the first. This is equivalent to:
-
-```rill
-prompt("analyze this") :> $result
-$result -> .contains("ERROR") ? error($result) ! "OK"
-```
 
 ## Variables
 
@@ -132,6 +110,7 @@ Use `{{` and `}}` for literal braces:
 Multiline strings use heredoc syntax (also supports interpolation):
 
 ```rill
+"World" :> $name
 <<EOF
 Hello, {$name}!
 Line two

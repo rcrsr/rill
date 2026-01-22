@@ -455,14 +455,14 @@ export:
 Cache modules by canonical path. Same module imported multiple times shares the same export object:
 
 ```rill
+# ...
 # Both reference the same loaded module
----
-use:
-  - a: "./utils/math.rill"
-  - b: "../project/utils/math.rill"  # Same canonical path
----
-
-$a == $b    # true (same export object)
+# ---
+# use:
+#   - a: "./utils/math.rill"
+#   - b: "../project/utils/math.rill"  # Same canonical path
+# ---
+# $a == $b    # true (same export object)
 ```
 
 ## Design Rationale

@@ -4,8 +4,6 @@
 
 > **Experimental (v0.0.5).** Active development. Breaking changes until v1.0.
 
-rill is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught—no implicit conversions or coercions.
-
 ## Quick Links
 
 | Document | Description |
