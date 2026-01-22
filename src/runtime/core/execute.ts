@@ -174,6 +174,21 @@ export function createStepper(
     },
 
     getResult(): ExecutionResult {
+      // Empty script implicitly evaluates to $
+      if (total === 0) {
+        if (context.pipeValue === null) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'Undefined variable: $',
+            undefined,
+            { variable: '$' }
+          );
+        }
+        return {
+          value: context.pipeValue,
+          variables: collectVariables(),
+        };
+      }
       return {
         value: lastValue,
         variables: collectVariables(),

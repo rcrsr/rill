@@ -177,16 +177,18 @@ $parts -> each { "{$}!" }`;
   });
 
   describe('Edge Cases', () => {
-    it('empty script returns null', async () => {
-      expect(await run('')).toBe(null);
+    it('empty script errors (implicit $ undefined)', async () => {
+      await expect(run('')).rejects.toThrow('Undefined variable: $');
     });
 
-    it('whitespace-only script returns null', async () => {
-      expect(await run('   \n\n   ')).toBe(null);
+    it('whitespace-only script errors (implicit $ undefined)', async () => {
+      await expect(run('   \n\n   ')).rejects.toThrow('Undefined variable: $');
     });
 
-    it('comment-only script returns null', async () => {
-      expect(await run('# just a comment')).toBe(null);
+    it('comment-only script errors (implicit $ undefined)', async () => {
+      await expect(run('# just a comment')).rejects.toThrow(
+        'Undefined variable: $'
+      );
     });
 
     it('handles CRLF line endings', async () => {

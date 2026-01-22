@@ -396,7 +396,7 @@ use:
 
 Imported modules can be re-exported:
 
-```rill
+```text
 # utils/index.rill
 ---
 use:
