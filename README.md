@@ -32,7 +32,7 @@ import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 
 const script = `
   prompt("Analyze this code for issues")
-  .contains("ERROR") ? error($) ! "Analysis complete"
+    -> .contains("ERROR") ? error($) ! "Analysis complete"
 `;
 
 const ctx = createRuntimeContext({
@@ -48,79 +48,79 @@ const result = await execute(parse(script), ctx);
 
 ### Pipes
 
-Data flows forward through pipes. No assignment operator.
+Data flows forward through pipes (app::* denotes an application-specific host function call).
 
-```text
-prompt("analyze this code") -> $result
-$result -> .trim -> log
+```rill
+app::prompt("analyze this code") -> .trim -> log
 ```
 
 ### Pattern-Driven Conditionals
 
 Branch based on content patterns. Ideal for parsing LLM output.
 
-```text
-$response -> .contains("ERROR") ? {
-  error("Analysis failed")
-} ! {
-  $response -> process() -> log
-}
+```rill
+app::prompt("analyze code")
+  -> .contains("ERROR")
+    ? app::error("Analysis failed")
+    ! app::process($) -> log
 ```
 
 ### Bounded Loops
 
 Retry with limits. Prevents runaway execution.
 
-```text
-# While loop with max attempts
-^(limit: 5) ($task -> .contains("RETRY")) @ {
-  prompt("Retrying: {$task}") -> $task
-}
+```rill
+# While loop: condition @ body
+0 -> ($ < 3) @ { $ + 1 }  # Result: 3
+```
 
-# For-each over collection
-$files -> each {
-  "Processing: {$}" -> log
-}
+```rill
+# Iteration with each
+["a.txt", "b.txt"] -> each { "Processing: {$}" -> log }
 ```
 
 ### Parallel Execution
 
 Fan out work concurrently. Results preserve order.
 
-```text
+```rill
 # Parallel map
 ["security", "performance", "style"] -> map |aspect| {
-  prompt("Review for {$aspect} issues")
+  app::prompt("Review for {$aspect} issues")
 }
+```
 
+```rill
 # Parallel filter
-$items -> filter { .contains("critical") }
+["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
 ```
 
 ### Closures
 
 First-class functions with captured environment.
 
-```text
-|x|($x * 2) -> $double
-[1, 2, 3] -> map $double    # [2, 4, 6]
-
-# Sequential fold
-5 -> @[$increment, $double] -> $result
+```rill
+|x| ($x * 2) :> $double
+[1, 2, 3] -> map $double  # [2, 4, 6]
+5 -> $double              # 10
 ```
 
 ### LLM Output Parsing
 
 Built-in functions for extracting structured data from LLM responses.
 
-```text
+```rill
 # Auto-detect format (JSON, XML, YAML, checklist)
-prompt("Return JSON config") -> parse_auto -> $result
-$result.type == "json" ? process($result.data)
+"[1, 2, 3]" -> parse_auto
+  -> (.type == "json") ? .data ! "not json"
+```
 
-# Extract XML tags (Claude-style thinking)
-$response -> parse_xml("answer") -> parse_json
+```rill
+# Extract XML tags
+"<answer>42</answer>" -> parse_xml("answer")  # "42"
+```
 
+```rill
 # Parse fenced code blocks
 $response -> parse_fence("json") -> parse_json
 ```
@@ -129,15 +129,15 @@ $response -> parse_fence("json") -> parse_json
 
 Embed expressions in strings. Heredoc for multi-line.
 
-```text
-"Hello, {$name}!" -> log
+```rill
+"world" -> "Hello, {$}!" -> log  # Hello, world!
+```
 
-prompt(<<EOF
-Analyze the following code:
-{$code}
-Return PASS or FAIL.
+```rill
+<<EOF
+Analyze: {$code}
+Return: PASS or FAIL
 EOF
-) -> $verdict
 ```
 
 ## Core Syntax
@@ -145,16 +145,14 @@ EOF
 | Syntax | Description |
 |--------|-------------|
 | `->` | Pipe data forward |
-| `-> $var` | Capture to variable |
+| `:>` | Capture and continue |
 | `$` | Current pipe value |
-| `cond ? then ! else` | Conditional branch |
-| `(cond) @ { }` | While loop |
-| `-> each { }` | Sequential iteration |
-| `-> map { }` | Parallel map |
-| `-> filter { }` | Parallel filter |
-| `-> fold(init) { }` | Reduction |
-| `.method()` | Method call |
-| `parse_auto`, `parse_json` | LLM output parsing |
+| `.field` | Property access on `$` |
+| `cond ? a ! b` | Conditional |
+| `cond @ { }` | While loop |
+| `each`, `map`, `filter` | Collection operators |
+| `fold(init)` | Reduction |
+| `parse_auto` | LLM output parsing |
 
 ## Language Characteristics
 
