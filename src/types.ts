@@ -881,7 +881,8 @@ export type IteratorBody =
   | GroupedExprNode // (expr)
   | VariableNode // $fn
   | PostfixExprNode // $ or other simple expression
-  | SpreadNode; // * (spread element to tuple)
+  | SpreadNode // * (spread element to tuple)
+  | HostCallNode; // greet (bare function name)
 
 /**
  * Each expression: sequential iteration returning list of all results.

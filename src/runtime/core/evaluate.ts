@@ -816,13 +816,14 @@ async function evaluateIteratorBody(
       }
       // Create context with $@ for closures that use it (e.g., |x| { $x + $@ })
       let invokeCtx = ctx;
+      let closureToInvoke = closure;
       if (accumulator !== null) {
         invokeCtx = createChildContext(ctx);
         invokeCtx.variables.set('@', accumulator);
-        // Update closure's definingScope to include $@
-        closure.definingScope = invokeCtx;
+        // Create new closure with updated definingScope to include $@
+        closureToInvoke = { ...closure, definingScope: invokeCtx };
       }
-      return invokeCallable(closure, args, invokeCtx, body.span.start);
+      return invokeCallable(closureToInvoke, args, invokeCtx, body.span.start);
     }
 
     case 'Block': {
