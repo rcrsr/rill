@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Evaluator Decomposition** — Replaced 2980-line `evaluate.ts` monolith with mixin-based architecture
+  - `src/runtime/core/eval/base.ts` — Abstract base class with shared state and utilities
+  - `src/runtime/core/eval/evaluator.ts` — Composed evaluator combining all mixins
+  - Mixins in `src/runtime/core/eval/mixins/`:
+    - `core.ts` — Statement sequencing, blocks, pipe operations
+    - `literals.ts` — Strings, numbers, booleans, lists, dicts
+    - `variables.ts` — Variable declaration, capture, scope management
+    - `expressions.ts` — Binary/unary operators, comparisons
+    - `control-flow.ts` — Conditionals, while/do-while loops, break/return
+    - `collections.ts` — `each`, `map`, `filter`, `fold` operators
+    - `closures.ts` — Closure definition, invocation, method calls
+    - `extraction.ts` — Destructuring, slicing, spread operations
+    - `types.ts` — Type assertions and checks
+    - `annotations.ts` — Statement annotations (`^(limit: N)`)
+  - New test suites: `evaluator-base`, `evaluator-composition`, `*-mixin` tests
+  - No user-facing changes
+
 ### Fixed
 
 - **Strict Null Elimination** — All undefined/missing access now throws errors instead of returning `null`
