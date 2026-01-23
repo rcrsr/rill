@@ -149,9 +149,10 @@ EOF
 | `.field` | Property access on `$` |
 | `cond ? a ! b` | Conditional |
 | `cond @ { }` | While loop |
+| `@ { } ? cond` | Do-while loop |
 | `each`, `map`, `filter` | Collection operators |
 | `fold(init)` | Reduction |
-| `parse_auto` | LLM output parsing |
+| `\|args\| { }` | Closure |
 
 ## Language Characteristics
 
