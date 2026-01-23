@@ -1,0 +1,262 @@
+RILL LANGUAGE REFERENCE FOR LLM AGENTS
+=======================================
+
+Rill is a pipe-based scripting language. Data flows through pipes (->), not assignment (=).
+
+CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
+----------------------------------------------
+
+1. NO ASSIGNMENT OPERATOR
+   Wrong: x = 5
+   Right: 5 :> $x
+
+   Pipe (->): passes value to next operation
+   Capture (:>): stores value AND continues chain
+   Example: "hello" :> $x -> .upper :> $y   # $x="hello", $y="HELLO"
+
+2. NO NULL/UNDEFINED
+   Empty values ("", [], [:]) exist. "No value" cannot be represented.
+   Use ?? for defaults: $dict.field ?? "default"
+   Use .empty to check: $str -> .empty ? "was empty"
+
+3. NO TRUTHINESS
+   Conditions MUST be boolean. No implicit coercion.
+   Wrong: "" ? "yes" ! "no"
+   Right: "" -> .empty ? "yes" ! "no"
+   Wrong: 0 ? "yes" ! "no"
+   Right: (0 == 0) ? "yes" ! "no"
+
+4. VARIABLES LOCK TO FIRST TYPE
+   "hello" :> $x
+   42 :> $x        # ERROR: cannot assign number to string variable
+
+5. NO VARIABLE SHADOWING
+   Child scopes can READ parent variables but cannot WRITE or redeclare them.
+   Variables created inside blocks/loops do NOT leak out.
+
+6. NO EXCEPTIONS
+   Errors halt execution. No try/catch. Use conditionals for error handling.
+   stop() exits with code 0; error("msg") exits with code 1.
+
+SYNTAX QUICK REFERENCE
+----------------------
+
+Variables:     $name (always prefixed with $)
+Strings:       "hello {$var}"          # interpolation with {}
+               <<EOF ... EOF           # heredoc (also interpolates)
+Numbers:       42, 3.14, -7
+Booleans:      true, false
+Lists:         [1, 2, 3]
+Dicts:         [name: "alice", age: 30]
+Tuples:        *[1, 2, 3]              # for argument unpacking
+Closures:      |x|($x + 1)             # like lambda/arrow functions
+Comments:      # single line only
+
+PIPES AND $ BINDING
+-------------------
+
+$ is the current piped value. Its meaning depends on context:
+
+| Context                    | $ contains              |
+|----------------------------|-------------------------|
+| -> { body }                | piped value             |
+| -> each { }                | current item            |
+| (cond) @ { }               | accumulated value       |
+| @ { } ? cond               | accumulated value       |
+| cond ? { } ! { }           | tested value            |
+| -> ? { } ! { }             | piped value             |
+| ||{ $.field } in dict      | the containing dict     |
+| |x|{ } stored closure      | N/A - use parameters    |
+
+Implied $: bare .method() means $ -> .method()
+Example: "hello" -> .upper   # same as "hello" -> $.upper()
+
+CONTROL FLOW
+------------
+
+Conditional (if-else):
+  cond ? then_expr ! else_expr
+  cond ? then_expr                    # else returns ""
+
+Piped conditional ($ becomes condition):
+  value -> ? then_expr ! else_expr
+
+While loop:
+  init_value -> ($ < 10) @ { $ + 1 }  # $ is accumulator
+
+Do-while loop (body runs at least once):
+  init_value -> @ { $ + 1 } ? ($ < 10)
+
+Break (exits loop, returns collected results before break):
+  [1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns [1, 2]
+
+Return (exits block with value):
+  { 5 :> $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
+
+COLLECTION OPERATORS
+--------------------
+
+| Operator           | Execution  | Returns              | Break? |
+|--------------------|------------|----------------------|--------|
+| -> each { }        | sequential | all body results     | yes    |
+| -> each(i) { $@+$} | sequential | all with accumulator | yes    |
+| -> map { }         | parallel   | all body results     | NO     |
+| -> filter { }      | parallel   | matching elements    | NO     |
+| -> fold(i) { $@+$} | sequential | final result only    | yes    |
+
+$@ is the accumulator in each(init) and fold(init).
+
+Method shorthand in collection operators:
+  ["a", "b"] -> map .upper            # ["A", "B"]
+  ["", "x"] -> filter (!.empty)       # ["x"]
+
+CLOSURES
+--------
+
+Definition:
+  |x|($x + 1) :> $inc                 # single param
+  |a, b|($a + $b) :> $add             # multiple params
+  |x = 0|($x + 1) :> $inc_or_one      # default value
+  |x: number|($x + 1) :> $typed       # type annotation
+
+Invocation:
+  $inc(5)                             # direct call: 6
+  5 -> $inc()                         # piped call: 6
+  [1,2,3] -> map $inc                 # in collection op
+
+LATE BINDING: closures capture scope, not values. Variables resolve at call time.
+
+Dict closures (methods):
+  [count: 3, double: ||{ $.count * 2 }] :> $obj
+  $obj.double                         # 6 ($ is bound to dict)
+
+PROPERTY ACCESS
+---------------
+
+$data.field                           # dict field
+$data[0], $data[-1]                   # list index (negative from end)
+$data.$key                            # variable as key
+$data.($i + 1)                        # computed key
+$data.(a || b)                        # try keys left-to-right
+$data.field ?? "default"              # default if missing
+$data.?field                          # existence check (boolean)
+$data.?field&string                   # existence AND type check
+
+TYPE OPERATIONS
+---------------
+
+:type   - assert type (error if wrong): 42:number passes; "x":number errors
+:?type  - check type (boolean): 42:?number is true; "x":?number is false
+
+Types: string, number, boolean, list, dict, tuple, closure
+
+EXTRACTION OPERATORS
+--------------------
+
+Destructure (*<>):
+  [1, 2, 3] -> *<$a, $b, $c>          # $a=1, $b=2, $c=3
+  [x: 1, y: 2] -> *<x: $a, y: $b>     # $a=1, $b=2
+  [1, 2, 3] -> *<$first, _, $third>   # _ skips element
+
+Slice (/<start:stop:step>):
+  [0,1,2,3,4] -> /<1:3>               # [1, 2]
+  [0,1,2,3,4] -> /<-2:>               # [3, 4]
+  [0,1,2,3,4] -> /<::-1>              # [4,3,2,1,0] (reverse)
+  "hello" -> /<1:4>                   # "ell"
+
+TUPLES FOR ARGUMENT UNPACKING
+-----------------------------
+
+*[1, 2, 3] -> $fn()                   # positional: $fn(1, 2, 3)
+*[b: 2, a: 1] -> $fn()                # named: $fn(a=1, b=2)
+
+SPREAD OPERATOR (@)
+-------------------
+
+Chains closures sequentially:
+  5 -> @[$inc, $double, $add10]       # (5+1)*2+10 = 22
+
+STRING METHODS
+--------------
+
+.len            length
+.empty          is empty string
+.trim           remove whitespace
+.upper          uppercase
+.lower          lowercase
+.split(sep)     split into list
+.lines          split on newlines
+.join(sep)      join list with separator (on list)
+.contains(s)    substring check
+.starts_with(s) prefix check
+.ends_with(s)   suffix check
+.replace(p,r)   replace first match
+.replace_all(p,r) replace all matches
+.match(regex)   first match info (dict with matched, index, groups)
+.is_match(regex) boolean regex check
+.head           first character
+.tail           last character
+.at(i)          character at index
+
+LIST/DICT METHODS
+-----------------
+
+.len            length
+.empty          is empty
+.head           first element
+.tail           last element
+.at(i)          element at index
+.keys           dict keys as list
+.values         dict values as list
+.entries        dict as list of [key: k, value: v]
+
+PARSING FUNCTIONS (for LLM output)
+----------------------------------
+
+parse_auto(str)           auto-detect format
+parse_json(str)           parse JSON (repairs common errors)
+parse_xml(str, tag?)      extract XML tag content
+parse_fence(str, lang?)   extract fenced code block
+parse_fences(str)         all fenced blocks as list
+parse_frontmatter(str)    parse --- delimited YAML + body
+parse_checklist(str)      parse markdown task lists
+
+GLOBAL FUNCTIONS
+----------------
+
+type(val)                 returns type name
+log(val)                  print and pass through
+json(val)                 convert to JSON string
+identity(val)             returns input unchanged
+range(start, end, step?)  number sequence
+repeat(val, count)        repeat value n times
+enumerate(coll)           add index to elements
+
+ITERATION LIMITS
+----------------
+
+Default: 10,000 iterations max for loops.
+Override: ^(limit: N) statement
+
+Example:
+  ^(limit: 100) 0 -> ($ < 50) @ { $ + 1 }
+
+COMMON MISTAKES
+---------------
+
+1. Using = for assignment          -> use :> instead
+2. Using || for defaults           -> use ?? instead
+3. Assuming truthiness             -> explicit boolean checks required
+4. Breaking from map/filter        -> only works in each/fold
+5. Expecting variable shadowing    -> not allowed
+6. Expecting variables to leak     -> block scope is strict
+7. Forgetting () on methods        -> .upper() not .upper (unless property)
+8. Reassigning different type      -> variables lock to first type
+
+SCRIPT RETURN VALUES
+--------------------
+
+true / non-empty string -> exit code 0
+false / empty string    -> exit code 1
+[0, "message"]          -> exit code 0 with message
+[1, "message"]          -> exit code 1 with message

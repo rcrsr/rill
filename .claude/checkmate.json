@@ -1,5 +1,8 @@
 {
-  "environments": [
+  "reviewers": [
+    { "match": "*-engineer", "reviewer": "*-code-reviewer" , "message": "This work requires a review. Invoke $REVIEWER subagent to validate the implementation." }
+  ],
+    "environments": [
     {
       "name": "root",
       "paths": ["."],
