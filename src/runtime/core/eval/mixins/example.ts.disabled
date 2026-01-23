@@ -1,0 +1,74 @@
+/**
+ * Example Mixin Implementation
+ *
+ * This file demonstrates the mixin pattern infrastructure.
+ * It is disabled (.disabled extension) and serves as documentation only.
+ *
+ * Actual mixin implementations will be added in Phase 2 tasks.
+ *
+ * @internal
+ */
+
+import type { EvaluatorConstructor, Mixin } from '../types.js';
+import type { EvaluatorBase } from '../base.js';
+import type { ExpressionNode } from '../../../../types.js';
+import type { RillValue } from '../../values.js';
+
+/**
+ * Example interface for the extended evaluator.
+ * Each mixin extends the base with new protected methods.
+ */
+interface ExampleEvaluator extends EvaluatorBase {
+  evaluateExample(expr: ExpressionNode): Promise<RillValue>;
+}
+
+/**
+ * Example mixin implementation.
+ *
+ * Pattern:
+ * 1. Receive a base constructor
+ * 2. Return a class extending that base
+ * 3. Add new protected methods
+ * 4. Methods can call this.ctx, this.checkAborted(), etc.
+ * 5. Methods can call other mixin methods like this.evaluateExpression()
+ */
+export const ExampleMixin: Mixin<EvaluatorBase, ExampleEvaluator> = (
+  Base: EvaluatorConstructor<EvaluatorBase>
+) => {
+  return class extends Base {
+    /**
+     * Example method showing mixin pattern.
+     * - Uses 'protected' visibility for mixin access
+     * - Can call this.ctx for context
+     * - Can call base utilities like this.checkAborted()
+     * - Can call other mixin methods (after composition)
+     */
+    protected async evaluateExample(
+      expr: ExpressionNode
+    ): Promise<RillValue> {
+      // Check for abort before processing
+      this.checkAborted(expr);
+
+      // Example: Access context
+      const timeout = this.ctx.timeout;
+
+      // Example: In actual mixins, would call this.evaluateExpression()
+      // after full composition
+      return 'example result';
+    }
+  };
+};
+
+/**
+ * Example composition (for documentation only).
+ *
+ * Actual composition happens in evaluator.ts during Phase 3:
+ *
+ * ```typescript
+ * const Evaluator = ExampleMixin(
+ *   AnotherMixin(
+ *     EvaluatorBase
+ *   )
+ * );
+ * ```
+ */

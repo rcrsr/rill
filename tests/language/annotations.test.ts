@@ -88,6 +88,36 @@ describe('Rill Runtime: Annotations', () => {
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
     });
 
+    it('includes iteration count in error context when limit exceeded', async () => {
+      // Verify AC-13: error context contains limit and iteration count
+      const script = `
+        ^(limit: 5) 0 -> ($ < 100) @ { $ + 1 }
+      `;
+      try {
+        await run(script);
+        throw new Error('Expected error to be thrown');
+      } catch (err) {
+        expect(err).toBeDefined();
+        if (err && typeof err === 'object' && 'context' in err) {
+          const context = (err as { context?: unknown }).context;
+          expect(context).toEqual(
+            expect.objectContaining({
+              limit: 5,
+              iterations: expect.any(Number),
+            })
+          );
+          // Iteration count should be > limit
+          if (
+            context &&
+            typeof context === 'object' &&
+            'iterations' in context
+          ) {
+            expect(context.iterations).toBeGreaterThan(5);
+          }
+        }
+      }
+    });
+
     it('uses default limit when not specified', async () => {
       // This should succeed because default is 10000
       // Uses $ as accumulator

@@ -93,15 +93,15 @@ describe('Rill Runtime: Loops', () => {
     });
 
     it('exits each loop early with break', async () => {
-      // Break in each terminates iteration and returns collected results
+      // Break in each terminates iteration and returns break value
       const script = `
         [1, 2, 3, 4, 5] -> each {
           ($ == 3) ? break
           $
         }
       `;
-      // each returns results collected before break (elements 1, 2)
-      expect(await run(script)).toEqual([1, 2]);
+      // each returns break value (3), not partial results
+      expect(await run(script)).toBe(3);
     });
   });
 
@@ -226,10 +226,11 @@ describe('Rill Runtime: Loops', () => {
           }
         }
       `;
-      // Inner loops break and return collected results before break
-      // First inner loop: collects [1], breaks at 2
-      // Second inner loop: collects [4], breaks at 5
-      expect(await run(script)).toEqual([[1], [4]]);
+      // Inner loops break and return break value
+      // First inner loop: returns 2 (break value)
+      // Second inner loop: returns 5 (break value)
+      // Outer loop collects these break values into [2, 5]
+      expect(await run(script)).toEqual([2, 5]);
     });
   });
 

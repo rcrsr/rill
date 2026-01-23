@@ -16,7 +16,7 @@ import {
   executeStatement,
   checkAutoExceptions,
   checkAborted,
-} from './evaluate.js';
+} from './eval/index.js';
 import type {
   ExecutionResult,
   ExecutionStepper,
