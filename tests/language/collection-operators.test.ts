@@ -74,8 +74,8 @@ describe('Rill Runtime: Collection Operators', () => {
           $ * 2
         }
       `;
-      // break terminates at 3, returning break value (not partial results)
-      expect(await run(script)).toBe(3);
+      // break terminates at 3, returning results collected before break
+      expect(await run(script)).toEqual([2, 4]);
     });
 
     describe('with accumulator', () => {

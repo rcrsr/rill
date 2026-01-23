@@ -2,13 +2,13 @@
  * CollectionsMixin: each/map/fold/filter
  *
  * Handles collection operators:
- * - Each: sequential iteration with all results (or break value on early exit)
+ * - Each: sequential iteration with all results (partial results on break)
  * - Map: parallel iteration with all results
  * - Fold: sequential reduction to final value
  * - Filter: parallel filtering by predicate
  *
  * Interface requirements (from spec):
- * - evaluateEach(node, input) -> Promise<RillValue>  -- Break value OR list
+ * - evaluateEach(node, input) -> Promise<RillValue[]>
  * - evaluateMap(node, input) -> Promise<RillValue[]>
  * - evaluateFold(node, input) -> Promise<RillValue>
  * - evaluateFilter(node, input) -> Promise<RillValue[]>
@@ -62,7 +62,7 @@ const DEFAULT_MAX_ITERATIONS = 10000;
  * - createClosure() (from future CoreMixin composition)
  *
  * Methods added:
- * - evaluateEach(node, input) -> Promise<RillValue>  -- Break value OR list
+ * - evaluateEach(node, input) -> Promise<RillValue[]>
  * - evaluateMap(node, input) -> Promise<RillValue[]>
  * - evaluateFold(node, input) -> Promise<RillValue>
  * - evaluateFilter(node, input) -> Promise<RillValue[]>
@@ -348,12 +348,12 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *   collection -> each |x| body              -- inline closure
      *   collection -> each |x, acc = init| body  -- closure with accumulator
      *
-     * Supports break for early termination (returns break value).
+     * Supports break for early termination (returns partial results).
      */
     protected async evaluateEach(
       node: EachExprNode,
       input: RillValue
-    ): Promise<RillValue> {
+    ): Promise<RillValue[]> {
       const elements = await this.getIterableElements(input, node);
 
       // Empty collection: return []
@@ -411,8 +411,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       } catch (e) {
         if (e instanceof BreakSignal) {
-          // Break: return break value (consistent with while loop behavior)
-          return e.value;
+          // Break: return partial results collected before break
+          return results;
         }
         throw e;
       }

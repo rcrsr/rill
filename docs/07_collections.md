@@ -196,14 +196,14 @@ Define accumulator as the last parameter with a default value.
 
 ### Early Termination
 
-Use `break` to exit `each` early. Returns results collected before the break.
+Use `break` to exit `each` early. Returns partial results collected before the break.
 
 ```rill
 [1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $ * 2
 }
-# Result: [2, 4]
+# Result: [2, 4] (partial results before break)
 ```
 
 ### Empty Collections
@@ -666,7 +666,7 @@ Process nested structures with nested operators.
 [a: 1, b: 2] -> each { $.value }      # [1, 2]
 
 # Break (each only)
-[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # [1, 2]
+[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # [1, 2] (partial results)
 
 # Empty collections
 [] -> each { $ }      # []

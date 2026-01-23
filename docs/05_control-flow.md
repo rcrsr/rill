@@ -229,16 +229,16 @@ $value -> break          # exit with value
 # Returns 4
 ```
 
-### Results Before Break
+### Break Value
 
-In `each`, results collected before break are returned:
+In `each`, break returns partial results collected before the break:
 
 ```rill
 ["a", "b", "STOP", "c"] -> each {
   ($ == "STOP") ? break
   $
 }
-# Returns ["a", "b"]
+# Returns ["a", "b"] (partial results before break)
 ```
 
 ### Break Not Allowed

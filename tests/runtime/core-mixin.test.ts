@@ -235,7 +235,7 @@ describe('CoreMixin Error Contracts', () => {
       const result = await run(
         '[1, 2, 3] -> each { ($ == 2) ? ($ -> break)\n$ }'
       );
-      expect(result).toBe(2);
+      expect(result).toEqual([1]);
     });
 
     it('evaluatePipeChain handles return terminator', async () => {

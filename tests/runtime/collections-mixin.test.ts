@@ -29,7 +29,7 @@ describe('CollectionsMixin', () => {
       const result = await run(
         '[1, 2, 3, 4, 5] -> each { ($ == 3) ? break ! $ }'
       );
-      expect(result).toBe(3);
+      expect(result).toEqual([1, 2]);
     });
 
     it('iterates over strings as characters', async () => {

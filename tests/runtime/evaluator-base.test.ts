@@ -334,8 +334,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           $
         }
       `);
-      // each with break returns break value
-      expect(result).toBe(3);
+      // each with break returns partial results
+      expect(result).toEqual([1, 2]);
     });
   });
 

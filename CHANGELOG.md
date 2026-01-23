@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- **`each` break returns partial results** — Break in `each` now returns collected results instead of break value
+  - Before: `[1,2,3] -> each { ($ == 2) ? break ! $ }` returned `2` (break value)
+  - After: Same code returns `[1]` (partial results before break)
+  - Rationale: `each` now always returns `RillValue[]`, making return type predictable
+  - Use `while` loop if break value semantics are needed
+
 ### Changed
 
 - **Evaluator Decomposition** — Replaced 2980-line `evaluate.ts` monolith with mixin-based architecture
