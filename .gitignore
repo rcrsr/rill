@@ -31,5 +31,8 @@ Thumbs.db
 *.tgz
 .npm
 
-# Internal notes
+# Internal files
 internal/
+conduct/
+.claude/
+.serena/
