@@ -214,7 +214,12 @@ describe('Rill Runtime: Conditionals', () => {
       const result = await run(
         '"ERROR" -> .contains("ERROR") ? handle ! "ok"',
         {
-          functions: { handle: (args) => `handled:${args[0]}` },
+          functions: {
+            handle: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `handled:${args[0]}`,
+            },
+          },
         }
       );
       expect(result).toBe('handled:ERROR');
@@ -224,7 +229,12 @@ describe('Rill Runtime: Conditionals', () => {
       const result = await run(
         '"OK" -> .contains("ERROR") ? "error" ! process',
         {
-          functions: { process: (args) => `processed:${args[0]}` },
+          functions: {
+            process: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `processed:${args[0]}`,
+            },
+          },
         }
       );
       expect(result).toBe('processed:OK');
@@ -234,7 +244,12 @@ describe('Rill Runtime: Conditionals', () => {
       const result = await run(
         '"ERROR" -> .contains("ERROR") ? app::error ! "ok"',
         {
-          functions: { 'app::error': (args) => `error:${args[0]}` },
+          functions: {
+            'app::error': {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `error:${args[0]}`,
+            },
+          },
         }
       );
       expect(result).toBe('error:ERROR');
@@ -244,7 +259,12 @@ describe('Rill Runtime: Conditionals', () => {
       const result = await run(
         '"OK" -> .contains("ERROR") ? "error" ! app::process',
         {
-          functions: { 'app::process': (args) => `processed:${args[0]}` },
+          functions: {
+            'app::process': {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `processed:${args[0]}`,
+            },
+          },
         }
       );
       expect(result).toBe('processed:OK');
@@ -255,8 +275,14 @@ describe('Rill Runtime: Conditionals', () => {
         '"ERROR data" -> .contains("ERROR") ? app::error ! app::process',
         {
           functions: {
-            'app::error': (args) => `error:${args[0]}`,
-            'app::process': (args) => `processed:${args[0]}`,
+            'app::error': {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `error:${args[0]}`,
+            },
+            'app::process': {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `processed:${args[0]}`,
+            },
           },
         }
       );
@@ -268,9 +294,18 @@ describe('Rill Runtime: Conditionals', () => {
         '"warn" -> .eq("error") ? handleError ! .eq("warn") ? handleWarn ! handleInfo',
         {
           functions: {
-            handleError: (args) => `error:${args[0]}`,
-            handleWarn: (args) => `warn:${args[0]}`,
-            handleInfo: (args) => `info:${args[0]}`,
+            handleError: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `error:${args[0]}`,
+            },
+            handleWarn: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `warn:${args[0]}`,
+            },
+            handleInfo: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: (args) => `info:${args[0]}`,
+            },
           },
         }
       );

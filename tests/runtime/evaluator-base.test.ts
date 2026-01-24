@@ -124,9 +124,12 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         await run('slowFunc()', {
           timeout: 10,
           functions: {
-            slowFunc: async () => {
-              await new Promise((r) => setTimeout(r, 100));
-              return 'done';
+            slowFunc: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
+              },
             },
           },
         });
@@ -143,9 +146,12 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       const result = await run('fastFunc()', {
         timeout: 1000,
         functions: {
-          fastFunc: async () => {
-            await new Promise((r) => setTimeout(r, 10));
-            return 'done';
+          fastFunc: {
+            params: [],
+            fn: async () => {
+              await new Promise((r) => setTimeout(r, 10));
+              return 'done';
+            },
           },
         },
       });
@@ -157,9 +163,12 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         await run('mySlowFunc()', {
           timeout: 10,
           functions: {
-            mySlowFunc: async () => {
-              await new Promise((r) => setTimeout(r, 100));
-              return 'done';
+            mySlowFunc: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
+              },
             },
           },
         });
@@ -177,17 +186,23 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         await run('outer()', {
           timeout: 10,
           functions: {
-            outer: async (args, ctx) => {
-              // Call another async function that will timeout
-              const innerFn = ctx.functions.get('inner');
-              if (innerFn) {
-                return await innerFn([], ctx);
-              }
-              return 'no-inner';
+            outer: {
+              params: [],
+              fn: async (args, ctx) => {
+                // Call another async function that will timeout
+                const innerFn = ctx.functions.get('inner');
+                if (innerFn && 'fn' in innerFn) {
+                  return await innerFn.fn([], ctx);
+                }
+                return 'no-inner';
+              },
             },
-            inner: async () => {
-              await new Promise((r) => setTimeout(r, 100));
-              return 'done';
+            inner: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
+              },
             },
           },
         });
@@ -199,13 +214,16 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('timeout applies per function call, not total execution', async () => {
       // Multiple fast calls should succeed even if total time > timeout
-      const result = await run('fast() -> fast() -> fast()', {
+      const result = await run('"start" -> fast() -> fast() -> fast()', {
         timeout: 100,
         functions: {
-          fast: async (args) => {
-            const input = args[0] ?? 'start';
-            await new Promise((r) => setTimeout(r, 40));
-            return `${input}-done`;
+          fast: {
+            params: [{ name: 'input', type: 'string' }],
+            fn: async (args) => {
+              const input = args[0];
+              await new Promise((r) => setTimeout(r, 40));
+              return `${input}-done`;
+            },
           },
         },
       });

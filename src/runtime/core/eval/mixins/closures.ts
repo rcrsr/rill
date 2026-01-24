@@ -400,8 +400,17 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const args = await this.evaluateArgs(node.args);
 
+      // Add pipe value to empty args list UNLESS function has typed params with length 0
+      // (typed functions with params: [] explicitly declare zero parameters)
       if (args.length === 0 && this.ctx.pipeValue !== null) {
-        args.push(this.ctx.pipeValue);
+        const fnHasTypedZeroParams =
+          typeof fn === 'object' &&
+          'params' in fn &&
+          fn.params !== undefined &&
+          fn.params.length === 0;
+        if (!fnHasTypedZeroParams) {
+          args.push(this.ctx.pipeValue);
+        }
       }
 
       // Observability: onHostCall before execution

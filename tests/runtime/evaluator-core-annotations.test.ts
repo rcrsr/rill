@@ -114,13 +114,16 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       const controller = new AbortController();
       let callCount = 0;
 
-      const slowFn = async (): Promise<RillValue> => {
-        callCount++;
-        if (callCount >= 2) {
-          controller.abort();
-        }
-        await new Promise((r) => setTimeout(r, 10));
-        return callCount;
+      const slowFn = {
+        params: [],
+        fn: async (): Promise<RillValue> => {
+          callCount++;
+          if (callCount >= 2) {
+            controller.abort();
+          }
+          await new Promise((r) => setTimeout(r, 10));
+          return callCount;
+        },
       };
 
       await expect(
@@ -140,9 +143,12 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       await expect(
         run('{ slow() -> slow() -> slow() }', {
           functions: {
-            slow: async () => {
-              controller.abort();
-              return 'done';
+            slow: {
+              params: [],
+              fn: async () => {
+                controller.abort();
+                return 'done';
+              },
             },
           },
           signal: controller.signal,
@@ -176,13 +182,16 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       await expect(
         run('"test" -> check -> check', {
           functions: {
-            check: async (args) => {
-              callCount++;
-              if (callCount >= 1) {
-                controller.abort();
-              }
-              await new Promise((r) => setTimeout(r, 5));
-              return args[0];
+            check: {
+              params: [{ name: 'input', type: 'string' }],
+              fn: async (args) => {
+                callCount++;
+                if (callCount >= 1) {
+                  controller.abort();
+                }
+                await new Promise((r) => setTimeout(r, 5));
+                return args[0];
+              },
             },
           },
           signal: controller.signal,
@@ -235,8 +244,11 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       await expect(
         run('^(limit: 10) fail()', {
           functions: {
-            fail: () => {
-              throw new Error('Custom error');
+            fail: {
+              params: [],
+              fn: () => {
+                throw new Error('Custom error');
+              },
             },
           },
         })
@@ -298,8 +310,11 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       await expect(
         run('^(limit: fail()) "test"', {
           functions: {
-            fail: () => {
-              throw new Error('Annotation error');
+            fail: {
+              params: [],
+              fn: () => {
+                throw new Error('Annotation error');
+              },
             },
           },
         })
@@ -340,8 +355,11 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       await expect(
         run('^(limit: getLimit()) "test"', {
           functions: {
-            getLimit: () => {
-              throw new Error('Failed to get limit');
+            getLimit: {
+              params: [],
+              fn: () => {
+                throw new Error('Failed to get limit');
+              },
             },
           },
         })

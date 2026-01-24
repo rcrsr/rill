@@ -50,70 +50,202 @@ function trackUnknownFunction(name: string, location: string): void {
 // and methods (.len, .trim, .upper, .lower, .join, etc.) are NOT mocked here
 function createMockFunctions(): Record<
   string,
-  (...args: RillValue[]) => RillValue | Promise<RillValue>
+  import('../src/runtime/index.js').HostFunctionDefinition
 > {
   return {
     // Primary app:: namespace (preferred convention for docs)
-    'app::prompt': () => 'mock LLM response',
-    'app::fetch': () => '{"status": "ok"}',
-    'app::read': () => 'file contents',
-    'app::write': () => true,
-    'app::exec': () => ['output', 0],
-    'app::error': (msg) => {
-      throw new Error(String(msg));
+    'app::prompt': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => 'mock LLM response',
     },
-    'app::sleep': () => null,
-    'app::process': () => 'processed',
-    'app::validate': (v) => v,
-    'app::command': () => 'output',
-    'app::attempt': () => 'success',
-    'app::pause': () => null,
+    'app::fetch': {
+      params: [{ name: 'url', type: 'string' }],
+      fn: () => '{"status": "ok"}',
+    },
+    'app::read': {
+      params: [{ name: 'path', type: 'string' }],
+      fn: () => 'file contents',
+    },
+    'app::write': {
+      params: [
+        { name: 'path', type: 'string' },
+        { name: 'content', type: 'string' },
+      ],
+      fn: () => true,
+    },
+    'app::exec': {
+      params: [{ name: 'cmd', type: 'string' }],
+      fn: () => ['output', 0],
+    },
+    'app::error': {
+      params: [{ name: 'msg', type: 'string' }],
+      fn: (msg) => {
+        throw new Error(String(msg));
+      },
+    },
+    'app::sleep': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    'app::process': {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () => 'processed',
+    },
+    'app::validate': {
+      params: [{ name: 'value', type: 'string' }],
+      fn: (v) => v,
+    },
+    'app::command': {
+      params: [{ name: 'cmd', type: 'string' }],
+      fn: () => 'output',
+    },
+    'app::attempt': {
+      params: [{ name: 'action', type: 'string' }],
+      fn: () => 'success',
+    },
+    'app::pause': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
 
     // IO namespace
-    'io::read': () => 'file contents',
-    'io::write': () => true,
-    'io::file::read': () => 'file contents',
-    'io::file::write': () => true,
+    'io::read': {
+      params: [{ name: 'path', type: 'string' }],
+      fn: () => 'file contents',
+    },
+    'io::write': {
+      params: [
+        { name: 'path', type: 'string' },
+        { name: 'content', type: 'string' },
+      ],
+      fn: () => true,
+    },
+    'io::file::read': {
+      params: [{ name: 'path', type: 'string' }],
+      fn: () => 'file contents',
+    },
+    'io::file::write': {
+      params: [
+        { name: 'path', type: 'string' },
+        { name: 'content', type: 'string' },
+      ],
+      fn: () => true,
+    },
 
     // Math namespace
-    'math::add': (a, b) => (a as number) + (b as number),
-    'math::multiply': (a, b) => (a as number) * (b as number),
+    'math::add': {
+      params: [
+        { name: 'a', type: 'number' },
+        { name: 'b', type: 'number' },
+      ],
+      fn: (a, b) => (a as number) + (b as number),
+    },
+    'math::multiply': {
+      params: [
+        { name: 'a', type: 'number' },
+        { name: 'b', type: 'number' },
+      ],
+      fn: (a, b) => (a as number) * (b as number),
+    },
 
     // HTTP namespace
-    'http::get': () => '{"data": "mock"}',
-    'http::post': () => '{"status": "ok"}',
+    'http::get': {
+      params: [{ name: 'url', type: 'string' }],
+      fn: () => '{"data": "mock"}',
+    },
+    'http::post': {
+      params: [
+        { name: 'url', type: 'string' },
+        { name: 'data', type: 'string' },
+      ],
+      fn: () => '{"status": "ok"}',
+    },
 
     // String namespace (for host-provided string utils, not built-in methods)
-    'str::upper': (s) => String(s).toUpperCase(),
-    'str::lower': (s) => String(s).toLowerCase(),
+    'str::upper': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: (s) => String(s).toUpperCase(),
+    },
+    'str::lower': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: (s) => String(s).toLowerCase(),
+    },
 
     // FS namespace
-    'fs::read': () => 'file contents',
-    'fs::write': () => true,
+    'fs::read': {
+      params: [{ name: 'path', type: 'string' }],
+      fn: () => 'file contents',
+    },
+    'fs::write': {
+      params: [
+        { name: 'path', type: 'string' },
+        { name: 'content', type: 'string' },
+      ],
+      fn: () => true,
+    },
 
     // Legacy unnamespaced - these should be migrated to app:: in docs
-    prompt: () => 'mock LLM response',
-    fetch: () => '{"status": "ok"}',
-    fetch_page: () => '<html>page</html>',
-    exec: () => ['output', 0],
-    error: (msg) => {
-      throw new Error(String(msg));
+    prompt: {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => 'mock LLM response',
     },
-    process: () => 'processed',
-    proceed: () => 'proceeded',
-    handle: () => 'handled',
-    validate: (v) => v,
-    check_status: () => 'ok',
-    get_page: () => '<html></html>',
-    retry: () => 'retried',
-    process_config: (v) => v,
-    process_content: (v) => v,
-    save_content: () => true,
-    command: () => 'output',
-    skip: () => null,
-    attempt: () => 'success',
-    pause: () => null,
-    slow_process: () => 'processed',
+    fetch: {
+      params: [{ name: 'url', type: 'string' }],
+      fn: () => '{"status": "ok"}',
+    },
+    fetch_page: {
+      params: [{ name: 'url', type: 'string' }],
+      fn: () => '<html>page</html>',
+    },
+    exec: {
+      params: [{ name: 'cmd', type: 'string' }],
+      fn: () => ['output', 0],
+    },
+    error: {
+      params: [{ name: 'msg', type: 'string' }],
+      fn: (msg) => {
+        throw new Error(String(msg));
+      },
+    },
+    process: {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () => 'processed',
+    },
+    proceed: {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () => 'proceeded',
+    },
+    handle: {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () => 'handled',
+    },
+    validate: { params: [{ name: 'value', type: 'string' }], fn: (v) => v },
+    check_status: { params: [], fn: () => 'ok' },
+    get_page: {
+      params: [{ name: 'url', type: 'string' }],
+      fn: () => '<html></html>',
+    },
+    retry: {
+      params: [{ name: 'action', type: 'string' }],
+      fn: () => 'retried',
+    },
+    process_config: {
+      params: [{ name: 'config', type: 'string' }],
+      fn: (v) => v,
+    },
+    process_content: {
+      params: [{ name: 'content', type: 'string' }],
+      fn: (v) => v,
+    },
+    save_content: {
+      params: [{ name: 'content', type: 'string' }],
+      fn: () => true,
+    },
+    command: { params: [{ name: 'cmd', type: 'string' }], fn: () => 'output' },
+    skip: { params: [{ name: 'reason', type: 'string' }], fn: () => null },
+    attempt: {
+      params: [{ name: 'action', type: 'string' }],
+      fn: () => 'success',
+    },
+    pause: { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    slow_process: {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () => 'processed',
+    },
   };
 }
 

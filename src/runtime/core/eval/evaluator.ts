@@ -20,6 +20,84 @@
  * The order ensures that each mixin can depend on the methods provided
  * by mixins below it in the stack.
  *
+ * ## Design Rationale: Why Mixins Over Composition
+ *
+ * The nested mixin pattern addresses three problems that make traditional
+ * composition awkward for this use case:
+ *
+ * **1. Circular method dependencies**
+ *
+ * Mixins call each other's methods freely across the composition:
+ * - ClosuresMixin.evaluateArgs() calls evaluateExpression() (ExpressionsMixin)
+ * - ExpressionsMixin calls invokeCallable() (ClosuresMixin)
+ * - CollectionsMixin calls evaluateBodyExpression() (CoreMixin)
+ *
+ * With composition, this creates circular references between components
+ * requiring complex dependency injection or a mediator pattern.
+ *
+ * **2. Shared mutable state**
+ *
+ * All mixins share direct access to `this.ctx` (RuntimeContext), including
+ * the current pipe value and variable maps. Composition would require
+ * threading context through every call or synchronizing state across objects.
+ *
+ * **3. Protected method visibility**
+ *
+ * Mixins call each other's protected methods directly. Composition would
+ * require public interfaces or accessor patterns, breaking encapsulation.
+ *
+ * ## Trade-offs
+ *
+ * The mixin pattern trades compile-time type safety for simpler cross-cutting
+ * dispatch. Cross-mixin calls use `(this as any).methodName()` because
+ * TypeScript cannot infer the final composed type within each mixin.
+ * These casts are localized to cross-mixin call sites.
+ *
+ * ## Alternatives Considered
+ *
+ * **Handler Registry with Central Dispatch**
+ * ```
+ * class Evaluator {
+ *   private handlers = new Map<string, NodeHandler>();
+ *   async evaluate(node: ASTNode) {
+ *     return this.handlers.get(node.type)!(node, this.ctx);
+ *   }
+ * }
+ * ```
+ * Pros: No circular deps, testable handlers. Cons: Loses node type safety,
+ * all handlers public, shared state still needs threading.
+ *
+ * **Capability Interfaces with Lazy Resolution**
+ * ```
+ * interface IClosureEval { invokeCallable(...): Promise<RillValue>; }
+ * class ClosuresEval {
+ *   constructor(private lazy: (k: string) => any) {}
+ *   invoke() { return this.lazy('expressions').evaluate(node); }
+ * }
+ * ```
+ * Pros: Type-safe interfaces, mockable. Cons: More boilerplate, lazy
+ * accessor indirection, shared state still awkward.
+ *
+ * **Proxy-Based Dynamic Dispatch**
+ * ```
+ * class Evaluator {
+ *   private createProxy() {
+ *     return new Proxy({}, {
+ *       get: (_, method) => this.findMethod(method)
+ *     });
+ *   }
+ * }
+ * ```
+ * Pros: Clean separation. Cons: No compile-time checking, runtime errors
+ * for typos, harder debugging.
+ *
+ * ## Conclusion
+ *
+ * The coupling between expression evaluation, closure invocation, and
+ * variable resolution is fundamental to the domain. The mixin pattern
+ * reflects this reality with minimal indirection. The `as any` casts
+ * are the localized cost; alternatives trade this for other complexity.
+ *
  * @internal
  */
 

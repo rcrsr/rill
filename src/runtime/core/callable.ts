@@ -74,16 +74,15 @@ export interface HostFunctionParam {
 }
 
 /**
- * Host function with optional parameter type declarations.
+ * Host function with required parameter type declarations.
  *
- * When params provided, runtime validates arguments before invocation.
- * When params omitted, function receives untyped args (backward compat).
+ * Runtime validates arguments before invocation.
  */
 export interface HostFunctionDefinition {
-  /** Parameter declarations (optional for backward compatibility) */
-  readonly params?: readonly HostFunctionParam[];
+  /** Parameter declarations (required) */
+  readonly params: readonly HostFunctionParam[];
 
-  /** Function implementation (receives validated args when params present) */
+  /** Function implementation (receives validated args) */
   readonly fn: CallableFn;
 }
 

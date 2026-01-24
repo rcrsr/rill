@@ -61,9 +61,12 @@ describe('CoreMixin Error Contracts', () => {
       await expect(
         run('"test" -> slow() -> slow()', {
           functions: {
-            slow: async () => {
-              await new Promise((r) => setTimeout(r, 30));
-              return 'done';
+            slow: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 30));
+                return 'done';
+              },
             },
           },
           signal: controller.signal,
@@ -79,15 +82,21 @@ describe('CoreMixin Error Contracts', () => {
       await expect(
         run('first() -> second()', {
           functions: {
-            first: async () => {
-              callCount++;
-              await new Promise((r) => setTimeout(r, 5));
-              controller.abort();
-              return 'first';
+            first: {
+              params: [],
+              fn: async () => {
+                callCount++;
+                await new Promise((r) => setTimeout(r, 5));
+                controller.abort();
+                return 'first';
+              },
             },
-            second: async () => {
-              callCount++;
-              return 'second';
+            second: {
+              params: [],
+              fn: async () => {
+                callCount++;
+                return 'second';
+              },
             },
           },
           signal: controller.signal,
@@ -167,12 +176,15 @@ describe('CoreMixin Error Contracts', () => {
       await expect(
         run('[1, 2, 3] -> each { count() }', {
           functions: {
-            count: () => {
-              callCount++;
-              if (callCount >= 2) {
-                controller.abort();
-              }
-              return callCount;
+            count: {
+              params: [],
+              fn: () => {
+                callCount++;
+                if (callCount >= 2) {
+                  controller.abort();
+                }
+                return callCount;
+              },
             },
           },
           signal: controller.signal,
@@ -188,12 +200,18 @@ describe('CoreMixin Error Contracts', () => {
       await expect(
         run('fn(a(), b())', {
           functions: {
-            fn: (args) => args[0],
-            a: () => {
-              controller.abort();
-              return 1;
+            fn: {
+              params: [{ name: 'x', type: 'number' }],
+              fn: (args) => args[0],
             },
-            b: () => 2,
+            a: {
+              params: [],
+              fn: () => {
+                controller.abort();
+                return 1;
+              },
+            },
+            b: { params: [], fn: () => 2 },
           },
           signal: controller.signal,
         })
@@ -264,9 +282,15 @@ describe('CoreMixin Error Contracts', () => {
     it('evaluateArgs preserves pipe value', async () => {
       const result = await run('10 -> add($, 5)', {
         functions: {
-          add: (args) =>
-            (typeof args[0] === 'number' ? args[0] : 0) +
-            (typeof args[1] === 'number' ? args[1] : 0),
+          add: {
+            params: [
+              { name: 'a', type: 'number' },
+              { name: 'b', type: 'number' },
+            ],
+            fn: (args) =>
+              (typeof args[0] === 'number' ? args[0] : 0) +
+              (typeof args[1] === 'number' ? args[1] : 0),
+          },
         },
       });
       expect(result).toBe(15);

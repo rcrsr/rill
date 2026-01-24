@@ -9,7 +9,6 @@ import {
   type ExecutionResult,
   type ObservabilityCallbacks,
   parse,
-  type CallableFn,
   type HostFunctionDefinition,
   type RillValue,
   type RuntimeOptions,
@@ -18,7 +17,7 @@ import {
 
 /** Options for test execution */
 export interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
-  functions?: Record<string, CallableFn | HostFunctionDefinition>;
+  functions?: Record<string, HostFunctionDefinition>;
 }
 
 /** Shared setup for all execution modes */
@@ -61,28 +60,40 @@ export async function runStepped(
 }
 
 /** Create a mock async function with configurable delay */
-export function mockAsyncFn(delay: number, returnValue: RillValue): CallableFn {
-  return async () => {
-    await new Promise((r) => setTimeout(r, delay));
-    return returnValue;
+export function mockAsyncFn(
+  delay: number,
+  returnValue: RillValue
+): HostFunctionDefinition {
+  return {
+    params: [],
+    fn: async () => {
+      await new Promise((r) => setTimeout(r, delay));
+      return returnValue;
+    },
   };
 }
 
 /** Create a mock sync function that tracks calls */
-export function mockFn(returnValue: RillValue = null): CallableFn & {
+export function mockFn(
+  returnValue: RillValue = null
+): HostFunctionDefinition & {
   calls: RillValue[][];
   callCount: number;
 } {
   const calls: RillValue[][] = [];
-  const fn = ((args: RillValue[]) => {
+  const fn = (args: RillValue[]) => {
     calls.push(args);
     return returnValue;
-  }) as CallableFn & { calls: RillValue[][]; callCount: number };
-  fn.calls = calls;
-  Object.defineProperty(fn, 'callCount', {
+  };
+  const hostDef = {
+    params: [],
+    fn,
+  } as HostFunctionDefinition & { calls: RillValue[][]; callCount: number };
+  hostDef.calls = calls;
+  Object.defineProperty(hostDef, 'callCount', {
     get: () => calls.length,
   });
-  return fn;
+  return hostDef;
 }
 
 /** Event collector for observability testing */

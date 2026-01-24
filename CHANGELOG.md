@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- **Mandatory Host Function Type Declarations** — `params` is now required in `HostFunctionDefinition`
+  - Before: `functions: { add: (args) => args[0] + args[1] }` (raw `CallableFn`)
+  - After: `functions: { add: { params: [...], fn: (args) => args[0] + args[1] } }`
+  - Backward compatibility for untyped functions removed
+  - Migration: Wrap all host functions in `{ params: [...], fn: ... }` format
+
+### Fixed
+
+- **Zero-Parameter Function Pipe Injection** — Functions with `params: []` no longer receive automatic pipe value
+  - Before: `timestamp()` with `params: []` received pipe value as first argument
+  - After: `timestamp()` with `params: []` receives empty args array as declared
+  - Functions without `params` field still receive pipe value (application callables)
+
+### Changed
+
+- **Evaluator Mixin Documentation** — Added design rationale in `evaluator.ts`
+  - Documents circular method dependencies between mixins
+  - Explains shared mutable state requirements
+  - Lists alternatives considered (handler registry, capability interfaces, proxy dispatch)
+  - Justifies `as any` casts as localized trade-off
+
+- **Documentation Updates** — All host function examples use typed format
+  - README quick start updated
+  - Host integration guide updated
+  - Test examples script updated
+
 ## [0.1.0] - 2026-01-23
 
 ### Breaking

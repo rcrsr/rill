@@ -3,7 +3,7 @@
  * Tests for various pipe target types: invoke, bare functions, variable calls
  */
 
-import type { RillValue } from '../../src/index.js';
+import type { HostFunctionDefinition, RillValue } from '../../src/index.js';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
@@ -40,9 +40,12 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('invokes closure returned from function', async () => {
       // Function that returns a closure
-      const greet = (args: RillValue[]): RillValue => {
-        const name = args[0] as string;
-        return `Hello, ${name}!`;
+      const greet: HostFunctionDefinition = {
+        params: [{ name: 'name', type: 'string' }],
+        fn: (args: RillValue[]): RillValue => {
+          const name = args[0] as string;
+          return `Hello, ${name}!`;
+        },
       };
       expect(await run('"World" -> greet', { functions: { greet } })).toBe(
         'Hello, World!'
@@ -106,9 +109,12 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('uses custom function with bare name', async () => {
-      const double = (args: RillValue[]): number => {
-        const x = args[0];
-        return typeof x === 'number' ? x * 2 : 0;
+      const double: HostFunctionDefinition = {
+        params: [{ name: 'x', type: 'number' }],
+        fn: (args: RillValue[]): number => {
+          const x = args[0];
+          return typeof x === 'number' ? x * 2 : 0;
+        },
       };
       expect(await run('5 -> double', { functions: { double } })).toBe(10);
     });

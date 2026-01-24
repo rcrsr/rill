@@ -142,7 +142,7 @@ describe('Rill Runtime: Observability', () => {
     it('measures async function duration', async () => {
       const slowFn = mockAsyncFn(50, 'done');
       const { events, callbacks } = createEventCollector();
-      await run('"x" -> slowFn', {
+      await run('slowFn()', {
         functions: { slowFn },
         observability: callbacks,
       });
@@ -247,7 +247,7 @@ describe('Rill Runtime: Observability', () => {
       const { events, callbacks } = createEventCollector();
 
       try {
-        await run('"x" -> slowFn', {
+        await run('slowFn()', {
           functions: { slowFn },
           timeout: 50,
           observability: callbacks,

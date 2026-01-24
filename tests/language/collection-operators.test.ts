@@ -10,9 +10,12 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 
 // Helper functions
-const double = (args: RillValue[]): number => {
-  const x = args[0];
-  return typeof x === 'number' ? x * 2 : 0;
+const double = {
+  params: [{ name: 'x', type: 'number' }],
+  fn: (args: RillValue[]): number => {
+    const x = args[0];
+    return typeof x === 'number' ? x * 2 : 0;
+  },
 };
 
 const add = (args: RillValue[]): number => {

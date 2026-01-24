@@ -90,17 +90,23 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('calls custom function', async () => {
-      const double = (args: unknown[]): number => {
-        const n = args[0] as number;
-        return n * 2;
+      const double = {
+        params: [{ name: 'n', type: 'number' }],
+        fn: (args: unknown[]): number => {
+          const n = args[0] as number;
+          return n * 2;
+        },
       };
       expect(await run('5 -> double', { functions: { double } })).toBe(10);
     });
 
     it('calls async custom function', async () => {
-      const asyncFn = async (args: unknown[]): Promise<string> => {
-        await new Promise((r) => setTimeout(r, 10));
-        return `async:${args[0]}`;
+      const asyncFn = {
+        params: [{ name: 'input', type: 'string' }],
+        fn: async (args: unknown[]): Promise<string> => {
+          await new Promise((r) => setTimeout(r, 10));
+          return `async:${args[0]}`;
+        },
       };
       expect(await run('"test" -> asyncFn', { functions: { asyncFn } })).toBe(
         'async:test'

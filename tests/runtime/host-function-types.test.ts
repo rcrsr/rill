@@ -294,61 +294,70 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
     });
 
-    describe('TC-HOSTTYPE-5: Untyped function backward compatibility', () => {
-      it('runtime skips validation for untyped functions', async () => {
-        // This test proves untyped functions skip validation (backward compat).
-        // The function receives any type without validation errors.
+    describe('TC-HOSTTYPE-5: Empty params array behavior', () => {
+      it('runtime executes function with empty params array', async () => {
+        // This test proves functions with empty params execute correctly (AC-S5).
+        // The function takes no arguments.
         const fn = mockFn('legacy result');
 
-        const result = await run('legacy(42)', {
+        const result = await run('legacy()', {
           functions: {
             legacy: fn,
           },
         });
 
         expect(fn.callCount).toBe(1);
-        expect(fn.calls[0]?.[0]).toBe(42);
         expect(result).toBe('legacy result');
       });
 
-      it('accepts untyped CallableFn without params', async () => {
-        const result = await run('legacy("test")', {
+      it('accepts function with empty params array', async () => {
+        const result = await run('legacy()', {
           functions: {
-            legacy: (args) => `legacy: ${args[0]}`,
+            legacy: { params: [], fn: () => `legacy: executed` },
           },
         });
-        expect(result).toBe('legacy: test');
+        expect(result).toBe('legacy: executed');
       });
 
-      it('untyped function accepts any type', async () => {
-        const result = await run('acceptAll(42)', {
+      it('empty params function executes without arguments', async () => {
+        const result = await run('acceptAll()', {
           functions: {
-            acceptAll: (args) => `value: ${args[0]}`,
+            acceptAll: { params: [], fn: () => `value: none` },
           },
         });
-        expect(result).toBe('value: 42');
+        expect(result).toBe('value: none');
       });
 
-      it('untyped function accepts multiple arguments', async () => {
-        const result = await run('multi("a", 1, true)', {
-          functions: {
-            multi: (args) => `${args[0]}-${args[1]}-${args[2]}`,
-          },
-        });
-        expect(result).toBe('a-1-true');
-      });
-
-      it('untyped function works alongside typed functions', async () => {
-        const result = await run('typed("x") -> untyped', {
-          functions: {
-            typed: {
-              params: [{ name: 'x', type: 'string' }],
-              fn: (args) => args[0],
+      it('empty params function rejects arguments', async () => {
+        await expect(
+          run('multi("a", 1, true)', {
+            functions: {
+              multi: {
+                params: [],
+                fn: () => `should not execute`,
+              },
             },
-            untyped: (args) => `untyped: ${args[0]}`,
-          },
-        });
-        expect(result).toBe('untyped: x');
+          })
+        ).rejects.toThrow('expects 0 arguments, got 3');
+      });
+
+      it('empty params function works alongside typed functions', async () => {
+        const result = await run(
+          `
+          typed("x")
+          zeroArgs()
+        `,
+          {
+            functions: {
+              typed: {
+                params: [{ name: 'x', type: 'string' }],
+                fn: (args) => args[0],
+              },
+              zeroArgs: { params: [], fn: () => `called` },
+            },
+          }
+        );
+        expect(result).toBe('called');
       });
 
       it('untyped function with empty params array works', async () => {
@@ -374,7 +383,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             test: {
               params: [{ name: 'x', type: 'string' }],
-              fn,
+              fn: fn.fn,
             },
           },
         });
@@ -391,7 +400,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             functions: {
               test: {
                 params: [{ name: 'x', type: 'string' }],
-                fn,
+                fn: fn.fn,
               },
             },
           })
@@ -408,7 +417,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             functions: {
               test: {
                 params: [{ name: 'x', type: 'string' }],
-                fn,
+                fn: fn.fn,
               },
             },
           })
@@ -425,7 +434,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             functions: {
               test: {
                 params: [{ name: 'x', type: 'string' }],
-                fn,
+                fn: fn.fn,
               },
             },
           })
@@ -441,7 +450,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             test: {
               params: [{ name: 'x', type: 'string' }],
-              fn,
+              fn: fn.fn,
             },
           },
         });
@@ -1245,22 +1254,28 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
     });
 
-    describe('AC-18: Mixed typed/untyped functions handle both correctly', () => {
-      it('validates typed function while skipping validation for untyped', async () => {
-        const result = await run('typed(42) -> untyped', {
-          functions: {
-            typed: {
-              params: [{ name: 'x', type: 'number' }],
-              fn: (args) => args[0],
+    describe('AC-18: Mixed typed and empty params functions work correctly', () => {
+      it('validates typed function and empty params function together', async () => {
+        const result = await run(
+          `
+          typed(42)
+          zeroArgs()
+        `,
+          {
+            functions: {
+              typed: {
+                params: [{ name: 'x', type: 'number' }],
+                fn: (args) => args[0],
+              },
+              zeroArgs: { params: [], fn: () => `result: called` },
             },
-            untyped: (args) => `result: ${args[0]}`,
-          },
-        });
+          }
+        );
 
-        expect(result).toBe('result: 42');
+        expect(result).toBe('result: called');
       });
 
-      it('throws error for typed function but accepts any for untyped', async () => {
+      it('throws error for typed function with wrong type', async () => {
         await expect(
           run('typed("wrong")', {
             functions: {
@@ -1268,7 +1283,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [{ name: 'x', type: 'number' }],
                 fn: () => 'should not execute',
               },
-              untyped: (args) => args[0],
+              zeroArgs: { params: [], fn: () => 'not called' },
             },
           })
         ).rejects.toMatchObject({
@@ -1293,27 +1308,33 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(result).toBe('test');
       });
 
-      it('handles context with only untyped functions', async () => {
-        const result = await run('a(1) -> b("test")', {
-          functions: {
-            a: (args) => args[0],
-            b: (args) => args[0],
-          },
-        });
+      it('handles context with multiple empty params functions', async () => {
+        const result = await run(
+          `
+          a()
+          b()
+        `,
+          {
+            functions: {
+              a: { params: [], fn: () => 'from a' },
+              b: { params: [], fn: () => 'from b' },
+            },
+          }
+        );
 
-        expect(result).toBe('test');
+        expect(result).toBe('from b');
       });
 
       it('validates typed function in mixed context with many functions', async () => {
         await expect(
           run('typed(true)', {
             functions: {
-              untyped1: (args) => args[0],
+              zeroArgs1: { params: [], fn: () => 'not called' },
               typed: {
                 params: [{ name: 'x', type: 'number' }],
                 fn: () => 'should not execute',
               },
-              untyped2: (args) => args[0],
+              zeroArgs2: { params: [], fn: () => 'not called' },
             },
           })
         ).rejects.toMatchObject({

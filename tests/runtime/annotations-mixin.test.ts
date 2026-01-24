@@ -161,12 +161,15 @@ describe('AnnotationsMixin', () => {
       await expect(
         run('^(limit: 10) [1, 2, 3] -> each { error("boom") }', {
           functions: {
-            error: (args) => {
-              throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                String(args[0]),
-                { line: 1, column: 1, offset: 0 }
-              );
+            error: {
+              params: [{ name: 'msg', type: 'string' }],
+              fn: (args) => {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  String(args[0]),
+                  { line: 1, column: 1, offset: 0 }
+                );
+              },
             },
           },
         })
@@ -184,12 +187,15 @@ describe('AnnotationsMixin', () => {
       await expect(
         run('^(limit: 100) "test" -> fail()', {
           functions: {
-            fail: () => {
-              throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                'Function failed',
-                { line: 1, column: 1, offset: 0 }
-              );
+            fail: {
+              params: [],
+              fn: () => {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  'Function failed',
+                  { line: 1, column: 1, offset: 0 }
+                );
+              },
             },
           },
         })
@@ -254,12 +260,15 @@ describe('AnnotationsMixin', () => {
       await expect(
         run('^(limit: fail()) "hello"', {
           functions: {
-            fail: () => {
-              throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                'Annotation function failed',
-                { line: 1, column: 1, offset: 0 }
-              );
+            fail: {
+              params: [],
+              fn: () => {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  'Annotation function failed',
+                  { line: 1, column: 1, offset: 0 }
+                );
+              },
             },
           },
         })

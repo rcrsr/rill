@@ -14,16 +14,18 @@ rill enables platform builders to make their apps scriptable without exposing ar
 rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic.
 
 - **Embeddable.** Zero dependencies. Runs in browser or backend. [Integration](docs/14_host-integration.md) only requires a few lines of code.
-- **Sandboxed.** Users can only call functions you explicitly provide. No filesystem, no network, no `eval()` disasters.
+- **Sandboxed.** No filesystem, no network, no `eval()`. Host controls all side effects via function bindings.
 - **Bounded execution.** Retry limits prevent exhausting LLM usage limits because of runaway loops.
 - **Consistent, clean syntax.** Ships with [EBNF grammar](docs/15_grammar.ebnf). LLMs can write rill scripts for your users.
-- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) JSON, XML, YAML, checklists.
+- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) and parse JSON, XML, YAML, checklists.
 
 ## Who is this for?
 
-**Platform builders** who want power users to define custom LLM workflows without hand-coding each one.
+**Application and Platform builders** who want to enable their power users to define custom automation workflows and logic.
 
 rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
+
+rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
 
 ## Quick Start
 
@@ -37,8 +39,14 @@ const script = `
 
 const ctx = createRuntimeContext({
   functions: {
-    prompt: async (args) => await callYourLLM(args[0]),
-    error: (args) => { throw new Error(String(args[0])); },
+    prompt: {
+      params: [{ name: 'message', type: 'string' }],
+      fn: async (args) => await callYourLLM(args[0]),
+    },
+    error: {
+      params: [{ name: 'message', type: 'string' }],
+      fn: (args) => { throw new Error(String(args[0])); },
+    },
   },
 });
 

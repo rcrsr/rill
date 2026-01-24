@@ -24,7 +24,10 @@ describe('Rill Runtime: Host Integration', () => {
     it('registers and calls custom function', async () => {
       const result = await run('shout("hello")', {
         functions: {
-          shout: (args) => String(args[0]).toUpperCase(),
+          shout: {
+            params: [{ name: 'text', type: 'string' }],
+            fn: (args) => String(args[0]).toUpperCase(),
+          },
         },
       });
       expect(result).toBe('HELLO');
@@ -33,10 +36,16 @@ describe('Rill Runtime: Host Integration', () => {
     it('custom function receives arguments', async () => {
       const result = await run('repeat("hello", 3)', {
         functions: {
-          repeat: (args) => {
-            const str = String(args[0]);
-            const count = typeof args[1] === 'number' ? args[1] : 1;
-            return str.repeat(count);
+          repeat: {
+            params: [
+              { name: 'str', type: 'string' },
+              { name: 'count', type: 'number' },
+            ],
+            fn: (args) => {
+              const str = String(args[0]);
+              const count = typeof args[1] === 'number' ? args[1] : 1;
+              return str.repeat(count);
+            },
           },
         },
       });
@@ -47,9 +56,12 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('withPrefix("test")', {
         variables: { prefix: 'PREFIX:' },
         functions: {
-          withPrefix: (args, ctx) => {
-            const prefix = ctx.variables.get('prefix') ?? '';
-            return `${prefix}${args[0]}`;
+          withPrefix: {
+            params: [{ name: 'text', type: 'string' }],
+            fn: (args, ctx) => {
+              const prefix = ctx.variables.get('prefix') ?? '';
+              return `${prefix}${args[0]}`;
+            },
           },
         },
       });
@@ -59,9 +71,12 @@ describe('Rill Runtime: Host Integration', () => {
     it('custom function can be async', async () => {
       const result = await run('fetchData("url")', {
         functions: {
-          fetchData: async (args) => {
-            await new Promise((r) => setTimeout(r, 10));
-            return `fetched:${args[0]}`;
+          fetchData: {
+            params: [{ name: 'url', type: 'string' }],
+            fn: async (args) => {
+              await new Promise((r) => setTimeout(r, 10));
+              return `fetched:${args[0]}`;
+            },
           },
         },
       });
@@ -71,7 +86,10 @@ describe('Rill Runtime: Host Integration', () => {
     it('custom function overrides built-in function', async () => {
       const result = await run('type("hello")', {
         functions: {
-          type: () => 'custom-type',
+          type: {
+            params: [{ name: 'value', type: 'string' }],
+            fn: () => 'custom-type',
+          },
         },
       });
       expect(result).toBe('custom-type');
@@ -83,9 +101,12 @@ describe('Rill Runtime: Host Integration', () => {
       let capturedLocation: SourceLocation | undefined;
       await run('locate("test")', {
         functions: {
-          locate: (_args, _ctx, location) => {
-            capturedLocation = location;
-            return 'done';
+          locate: {
+            params: [{ name: 'text', type: 'string' }],
+            fn: (_args, _ctx, location) => {
+              capturedLocation = location;
+              return 'done';
+            },
           },
         },
       });
@@ -97,9 +118,12 @@ describe('Rill Runtime: Host Integration', () => {
       const locations: SourceLocation[] = [];
       await run('track(1)\ntrack(2)\ntrack(3)', {
         functions: {
-          track: (_args, _ctx, location) => {
-            if (location) locations.push(location);
-            return null;
+          track: {
+            params: [{ name: 'value', type: 'number' }],
+            fn: (_args, _ctx, location) => {
+              if (location) locations.push(location);
+              return null;
+            },
           },
         },
       });
@@ -137,9 +161,12 @@ describe('Rill Runtime: Host Integration', () => {
     it('throws AbortError when aborted during function call', async () => {
       const controller = new AbortController();
 
-      const slowFn = async (): Promise<RillValue> => {
-        await new Promise((r) => setTimeout(r, 50));
-        return 'done';
+      const slowFn: HostFunctionDefinition = {
+        params: [{ name: 'input', type: 'string' }],
+        fn: async (): Promise<RillValue> => {
+          await new Promise((r) => setTimeout(r, 50));
+          return 'done';
+        },
       };
 
       // Abort after a short delay
@@ -158,12 +185,15 @@ describe('Rill Runtime: Host Integration', () => {
       const controller = new AbortController();
       let iterations = 0;
 
-      const countFn = (): RillValue => {
-        iterations++;
-        if (iterations >= 3) {
-          controller.abort();
-        }
-        return iterations;
+      const countFn: HostFunctionDefinition = {
+        params: [{ name: 'item', type: 'number' }],
+        fn: (): RillValue => {
+          iterations++;
+          if (iterations >= 3) {
+            controller.abort();
+          }
+          return iterations;
+        },
       };
 
       await expect(
@@ -181,16 +211,19 @@ describe('Rill Runtime: Host Integration', () => {
       const controller = new AbortController();
       let iterations = 0;
 
-      const tickFn = (): RillValue => {
-        iterations++;
-        if (iterations >= 3) {
-          controller.abort();
-        }
-        return iterations;
+      const tickFn: HostFunctionDefinition = {
+        params: [{ name: 'item', type: 'number' }],
+        fn: (): RillValue => {
+          iterations++;
+          if (iterations >= 3) {
+            controller.abort();
+          }
+          return iterations;
+        },
       };
 
       await expect(
-        run('true @ { tick() }', {
+        run('[1, 2, 3, 4, 5] -> each { tick($) }', {
           functions: { tick: tickFn },
           signal: controller.signal,
         })
@@ -239,7 +272,9 @@ describe('Rill Runtime: Host Integration', () => {
 
       await expect(
         run('custom()', {
-          functions: { custom: () => 'should not reach' },
+          functions: {
+            custom: { params: [], fn: () => 'should not reach' },
+          },
           signal: controller.signal,
         })
       ).rejects.toThrow(AbortError);
@@ -263,7 +298,10 @@ describe('Rill Runtime: Host Integration', () => {
     it('application callable can be returned from function', async () => {
       const result = await run('getGreeter()', {
         functions: {
-          getGreeter: () => callable((args) => `Hello, ${args[0]}!`),
+          getGreeter: {
+            params: [],
+            fn: () => callable((args) => `Hello, ${args[0]}!`),
+          },
         },
       });
       expect(isApplicationCallable(result)).toBe(true);
@@ -272,7 +310,10 @@ describe('Rill Runtime: Host Integration', () => {
     it('application callable can be invoked after capture', async () => {
       const result = await run('getGreeter() :> $greet -> $greet("World")', {
         functions: {
-          getGreeter: () => callable((args) => `Hello, ${args[0]}!`),
+          getGreeter: {
+            params: [],
+            fn: () => callable((args) => `Hello, ${args[0]}!`),
+          },
         },
       });
       expect(result).toBe('Hello, World!');

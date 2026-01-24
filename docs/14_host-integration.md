@@ -15,9 +15,11 @@ const source = `
 const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
-    prompt: async (args) => {
-      const text = String(args[0]);
-      return await callYourLLM(text);
+    prompt: {
+      params: [{ name: 'text', type: 'string' }],
+      fn: async (args) => {
+        return await callYourLLM(args[0]);
+      },
     },
   },
 });
@@ -33,7 +35,7 @@ The `createRuntimeContext()` function accepts these options:
 | Option | Type | Description |
 |--------|------|-------------|
 | `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
-| `functions` | `Record<string, CallableFn \| HostFunctionDefinition>` | Custom functions callable as `name()` |
+| `functions` | `Record<string, HostFunctionDefinition>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
 | `timeout` | `number` | Timeout in ms for async functions |
@@ -51,18 +53,24 @@ Host functions must follow these rules to ensure correct script behavior:
 ```typescript
 // WRONG: Mutates input array
 functions: {
-  addItem: (args) => {
-    const list = args[0] as unknown[];
-    list.push('new');  // DON'T DO THIS
-    return list;
+  addItem: {
+    params: [{ name: 'list', type: 'list' }],
+    fn: (args) => {
+      const list = args[0] as unknown[];
+      list.push('new');  // DON'T DO THIS
+      return list;
+    },
   },
 }
 
 // CORRECT: Return new value
 functions: {
-  addItem: (args) => {
-    const list = args[0] as unknown[];
-    return [...list, 'new'];  // Create new array
+  addItem: {
+    params: [{ name: 'list', type: 'list' }],
+    fn: (args) => {
+      const list = args[0] as unknown[];
+      return [...list, 'new'];  // Create new array
+    },
   },
 }
 ```
@@ -75,9 +83,12 @@ For maximum safety, consider freezing values passed to host functions:
 import { deepFreeze } from './utils'; // Your utility
 
 functions: {
-  process: (args) => {
-    const frozen = deepFreeze(args[0]);
-    return transform(frozen);  // Any mutation throws
+  process: {
+    params: [{ name: 'input', type: 'string' }],
+    fn: (args) => {
+      const frozen = deepFreeze(args[0]);
+      return transform(frozen);  // Any mutation throws
+    },
   },
 }
 ```
@@ -96,31 +107,40 @@ Functions are called by name: `functionName(arg1, arg2)`.
 const ctx = createRuntimeContext({
   functions: {
     // Sync function
-    add: (args) => {
-      const a = typeof args[0] === 'number' ? args[0] : 0;
-      const b = typeof args[1] === 'number' ? args[1] : 0;
-      return a + b;
+    add: {
+      params: [
+        { name: 'a', type: 'number' },
+        { name: 'b', type: 'number' },
+      ],
+      fn: (args) => args[0] + args[1],
     },
 
     // Async function
-    fetch: async (args, ctx, location) => {
-      const url = String(args[0]);
-      const response = await fetch(url);
-      return await response.text();
+    fetch: {
+      params: [{ name: 'url', type: 'string' }],
+      fn: async (args, ctx, location) => {
+        const response = await fetch(args[0]);
+        return await response.text();
+      },
     },
 
     // Function with context access
-    getVar: (args, ctx) => {
-      const name = String(args[0]);
-      return ctx.variables.get(name) ?? null;
+    getVar: {
+      params: [{ name: 'name', type: 'string' }],
+      fn: (args, ctx) => {
+        return ctx.variables.get(args[0]) ?? null;
+      },
     },
 
     // Function with location for error reporting
-    validate: (args, ctx, location) => {
-      if (!args[0]) {
-        throw new Error(`Validation failed at line ${location?.line}`);
-      }
-      return args[0];
+    validate: {
+      params: [{ name: 'value', type: 'string' }],
+      fn: (args, ctx, location) => {
+        if (!args[0]) {
+          throw new Error(`Validation failed at line ${location?.line}`);
+        }
+        return args[0];
+      },
     },
   },
 });
@@ -134,14 +154,41 @@ Use `::` to organize functions into namespaces:
 const ctx = createRuntimeContext({
   functions: {
     // Namespaced functions use :: separator
-    'math::add': (args) => (args[0] as number) + (args[1] as number),
-    'math::multiply': (args) => (args[0] as number) * (args[1] as number),
-    'str::upper': (args) => String(args[0]).toUpperCase(),
-    'str::lower': (args) => String(args[0]).toLowerCase(),
+    'math::add': {
+      params: [
+        { name: 'a', type: 'number' },
+        { name: 'b', type: 'number' },
+      ],
+      fn: (args) => args[0] + args[1],
+    },
+    'math::multiply': {
+      params: [
+        { name: 'a', type: 'number' },
+        { name: 'b', type: 'number' },
+      ],
+      fn: (args) => args[0] * args[1],
+    },
+    'str::upper': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: (args) => args[0].toUpperCase(),
+    },
+    'str::lower': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: (args) => args[0].toLowerCase(),
+    },
 
     // Multi-level namespaces
-    'io::file::read': async (args) => fs.readFile(String(args[0]), 'utf-8'),
-    'io::file::write': async (args) => fs.writeFile(String(args[0]), String(args[1])),
+    'io::file::read': {
+      params: [{ name: 'path', type: 'string' }],
+      fn: async (args) => fs.readFile(args[0], 'utf-8'),
+    },
+    'io::file::write': {
+      params: [
+        { name: 'path', type: 'string' },
+        { name: 'content', type: 'string' },
+      ],
+      fn: async (args) => fs.writeFile(args[0], args[1]),
+    },
   },
 });
 ```
@@ -159,6 +206,8 @@ Namespaces help organize host APIs and avoid name collisions without requiring t
 
 ### CallableFn Signature
 
+The `fn` property in `HostFunctionDefinition` uses the `CallableFn` type:
+
 ```typescript
 type CallableFn = (
   args: RillValue[],
@@ -169,17 +218,17 @@ type CallableFn = (
 
 | Parameter | Description |
 |-----------|-------------|
-| `args` | Positional arguments passed to the function |
+| `args` | Positional arguments passed to the function (already validated against `params`) |
 | `ctx` | Runtime context with variables, pipeValue, etc. |
 | `location` | Source location of the call site (for error reporting) |
 
-## Typed Host Functions
+## Host Function Type Declarations
 
-Host functions can declare parameter types and defaults. The runtime validates arguments before calling your function, eliminating manual type checking.
+All host functions must declare parameter types and optional defaults using the `HostFunctionDefinition` interface. The runtime validates arguments before calling your function, eliminating manual type checking.
 
-### Basic Type Declarations
+### Parameter Type Declarations
 
-Declare parameter types using the `HostFunctionDefinition` interface:
+Declare parameter types in the `params` array:
 
 ```typescript
 const ctx = createRuntimeContext({
@@ -253,62 +302,6 @@ Error details include:
 - Parameter position
 - Expected type
 - Actual type received
-
-### Migration from Untyped Functions
-
-Typed function declarations are optional. Existing untyped functions continue working without changes.
-
-**Before (manual validation):**
-
-```typescript
-functions: {
-  repeat: (args) => {
-    const str = typeof args[0] === 'string' ? args[0] : '';
-    const count = typeof args[1] === 'number' ? args[1] : 1;
-    return str.repeat(count);
-  },
-}
-```
-
-**After (declarative validation):**
-
-```typescript
-functions: {
-  repeat: {
-    params: [
-      { name: 'str', type: 'string' },
-      { name: 'count', type: 'number', defaultValue: 1 },
-    ],
-    fn: (args) => args[0].repeat(args[1]), // Types guaranteed
-  },
-}
-```
-
-Benefits of migration:
-
-- Eliminates manual type checking code
-- Provides clear error messages to script authors
-- Documents expected types in function signature
-- Reduces bugs from incorrect type coercion
-
-### Mixed Function Definitions
-
-You can mix typed and untyped functions in the same context:
-
-```typescript
-const ctx = createRuntimeContext({
-  functions: {
-    // Untyped (legacy)
-    'legacy::func': (args) => args[0],
-
-    // Typed (new)
-    'typed::func': {
-      params: [{ name: 'x', type: 'string' }],
-      fn: (args) => args[0],
-    },
-  },
-});
-```
 
 ### HostFunctionDefinition Interface
 
@@ -439,9 +432,12 @@ const controller = new AbortController();
 const ctx = createRuntimeContext({
   signal: controller.signal,
   functions: {
-    longTask: async () => {
-      await new Promise((r) => setTimeout(r, 10000));
-      return 'done';
+    longTask: {
+      params: [],
+      fn: async () => {
+        await new Promise((r) => setTimeout(r, 10000));
+        return 'done';
+      },
     },
   },
 });
@@ -620,10 +616,13 @@ Set a timeout for async operations:
 const ctx = createRuntimeContext({
   timeout: 30000, // 30 seconds
   functions: {
-    slowOperation: async () => {
-      // Will throw TimeoutError if exceeds 30s
-      await longRunningTask();
-      return 'done';
+    slowOperation: {
+      params: [],
+      fn: async () => {
+        // Will throw TimeoutError if exceeds 30s
+        await longRunningTask();
+        return 'done';
+      },
     },
   },
 });
@@ -640,10 +639,13 @@ const ctx = createRuntimeContext({
     'FATAL',         // Matches "FATAL" anywhere
   ],
   functions: {
-    process: (args) => {
-      // If this returns "error: invalid input",
-      // execution halts with AutoExceptionError
-      return externalProcess(args[0]);
+    process: {
+      params: [{ name: 'input', type: 'string' }],
+      fn: (args) => {
+        // If this returns "error: invalid input",
+        // execution halts with AutoExceptionError
+        return externalProcess(args[0]);
+      },
     },
   },
 });
@@ -749,9 +751,12 @@ const ctx = createRuntimeContext({
   },
 
   functions: {
-    prompt: async (args, ctx, location) => {
-      console.log(`[prompt at line ${location?.line}]`);
-      return await callLLM(String(args[0]));
+    prompt: {
+      params: [{ name: 'text', type: 'string' }],
+      fn: async (args, ctx, location) => {
+        console.log(`[prompt at line ${location?.line}]`);
+        return await callLLM(args[0]);
+      },
     },
   },
 

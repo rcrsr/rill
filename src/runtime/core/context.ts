@@ -64,41 +64,30 @@ export function createRuntimeContext(
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      // Type-discriminate CallableFn vs HostFunctionDefinition
-      if ('fn' in definition) {
-        // It's HostFunctionDefinition with typed parameters
-        const { params, fn } = definition;
+      // All functions must be HostFunctionDefinition with params
+      const { params, fn } = definition;
 
-        // Validate default values at registration time (EC-4)
-        if (params) {
-          for (const param of params) {
-            validateDefaultValueType(param, name);
-          }
-
-          // Convert HostFunctionParam[] to CallableParam[]
-          const callableParams: CallableParam[] = params.map((p) => ({
-            name: p.name,
-            typeName: p.type ?? null,
-            defaultValue: p.defaultValue ?? null,
-          }));
-
-          // Create ApplicationCallable with params field populated
-          const appCallable = callable(fn, false);
-          const typedCallable: import('./callable.js').ApplicationCallable = {
-            ...appCallable,
-            params: callableParams,
-          };
-
-          // Store ApplicationCallable for runtime validation in task 1.5
-          functions.set(name, typedCallable);
-        } else {
-          // HostFunctionDefinition without params (backward compat)
-          functions.set(name, fn);
-        }
-      } else {
-        // It's CallableFn (backward compat)
-        functions.set(name, definition);
+      // Validate default values at registration time (EC-4)
+      for (const param of params) {
+        validateDefaultValueType(param, name);
       }
+
+      // Convert HostFunctionParam[] to CallableParam[]
+      const callableParams: CallableParam[] = params.map((p) => ({
+        name: p.name,
+        typeName: p.type ?? null,
+        defaultValue: p.defaultValue ?? null,
+      }));
+
+      // Create ApplicationCallable with params field populated
+      const appCallable = callable(fn, false);
+      const typedCallable: import('./callable.js').ApplicationCallable = {
+        ...appCallable,
+        params: callableParams,
+      };
+
+      // Store ApplicationCallable for runtime validation
+      functions.set(name, typedCallable);
     }
   }
 

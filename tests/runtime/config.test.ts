@@ -17,7 +17,7 @@ describe('Rill Runtime: Configuration', () => {
   describe('Timeout', () => {
     it('completes when function finishes before timeout', async () => {
       const fastFn = mockAsyncFn(10, 'done');
-      const result = await run('"x" -> slowFn', {
+      const result = await run('slowFn()', {
         functions: { slowFn: fastFn },
         timeout: 100,
       });
@@ -27,7 +27,7 @@ describe('Rill Runtime: Configuration', () => {
     it('throws TimeoutError when function exceeds timeout', async () => {
       const slowFn = mockAsyncFn(200, 'done');
       await expect(
-        run('"x" -> slowFn', {
+        run('slowFn()', {
           functions: { slowFn },
           timeout: 50,
         })
@@ -37,7 +37,7 @@ describe('Rill Runtime: Configuration', () => {
     it('TimeoutError has correct properties', async () => {
       const slowFn = mockAsyncFn(200, 'done');
       try {
-        await run('"x" -> slowFn', {
+        await run('slowFn()', {
           functions: { slowFn },
           timeout: 50,
         });
@@ -51,7 +51,10 @@ describe('Rill Runtime: Configuration', () => {
     });
 
     it('does not apply timeout to sync functions', async () => {
-      const syncFn = (): string => 'sync result';
+      const syncFn = {
+        params: [{ name: 'input', type: 'string' }],
+        fn: (): string => 'sync result',
+      };
       const result = await run('"x" -> syncFn', {
         functions: { syncFn },
         timeout: 1, // Very short timeout
@@ -61,10 +64,13 @@ describe('Rill Runtime: Configuration', () => {
 
     it('timeout applies to each function call independently', async () => {
       let callCount = 0;
-      const fn = async (): Promise<string> => {
-        callCount++;
-        await new Promise((r) => setTimeout(r, 30));
-        return `call${callCount}`;
+      const fn = {
+        params: [{ name: 'input', type: 'string' }],
+        fn: async (): Promise<string> => {
+          callCount++;
+          await new Promise((r) => setTimeout(r, 30));
+          return `call${callCount}`;
+        },
       };
       const result = await run('"x" -> fn -> fn -> fn', {
         functions: { fn },
@@ -178,7 +184,7 @@ describe('Rill Runtime: Configuration', () => {
 
       // AutoException should trigger on the result
       await expect(
-        run('"x" -> slowFn', {
+        run('slowFn()', {
           functions: { slowFn },
           timeout: 200,
           autoExceptions: ['ERROR'],
@@ -190,7 +196,7 @@ describe('Rill Runtime: Configuration', () => {
       const verySlowFn = mockAsyncFn(500, 'ERROR: failed');
 
       await expect(
-        run('"x" -> verySlowFn', {
+        run('verySlowFn()', {
           functions: { verySlowFn },
           timeout: 50,
           autoExceptions: ['ERROR'],

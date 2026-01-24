@@ -138,8 +138,8 @@ export interface RuntimeContext {
 export interface RuntimeOptions {
   /** Initial variables */
   variables?: Record<string, RillValue>;
-  /** Host functions: untyped (CallableFn) or typed (HostFunctionDefinition) */
-  functions?: Record<string, CallableFn | HostFunctionDefinition>;
+  /** Host functions: typed definitions with parameter declarations */
+  functions?: Record<string, HostFunctionDefinition>;
   /** I/O callbacks */
   callbacks?: Partial<RuntimeCallbacks>;
   /** Observability callbacks for monitoring execution */
