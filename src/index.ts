@@ -19,6 +19,8 @@ export {
   type ExecutionResult,
   type ExecutionStepper,
   type HostCallEvent,
+  type HostFunctionDefinition,
+  type HostFunctionParam,
   type FunctionReturnEvent,
   isApplicationCallable,
   isTuple,
@@ -41,5 +43,6 @@ export {
   type StepEndEvent,
   type StepResult,
   type StepStartEvent,
+  validateHostFunctionArgs,
 } from './runtime/index.js';
 export * from './types.js';

@@ -6,7 +6,7 @@
  */
 
 import type { RillTypeName } from '../../types.js';
-import type { CallableFn } from './callable.js';
+import type { CallableFn, HostFunctionDefinition } from './callable.js';
 import type { RillValue } from './values.js';
 
 /**
@@ -107,8 +107,11 @@ export interface RuntimeContext {
   readonly variables: Map<string, RillValue>;
   /** Variable types - locked after first assignment (local to this scope) */
   readonly variableTypes: Map<string, RillTypeName>;
-  /** Built-in and user-defined functions */
-  readonly functions: Map<string, CallableFn>;
+  /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
+  readonly functions: Map<
+    string,
+    CallableFn | import('./callable.js').ApplicationCallable
+  >;
   /** Built-in and user-defined methods */
   readonly methods: Map<string, RillMethod>;
   /** I/O callbacks */
@@ -135,8 +138,8 @@ export interface RuntimeContext {
 export interface RuntimeOptions {
   /** Initial variables */
   variables?: Record<string, RillValue>;
-  /** Custom functions */
-  functions?: Record<string, CallableFn>;
+  /** Host functions: untyped (CallableFn) or typed (HostFunctionDefinition) */
+  functions?: Record<string, CallableFn | HostFunctionDefinition>;
   /** I/O callbacks */
   callbacks?: Partial<RuntimeCallbacks>;
   /** Observability callbacks for monitoring execution */

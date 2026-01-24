@@ -33,7 +33,7 @@ The `createRuntimeContext()` function accepts these options:
 | Option | Type | Description |
 |--------|------|-------------|
 | `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
-| `functions` | `Record<string, CallableFn>` | Custom functions callable as `name()` |
+| `functions` | `Record<string, CallableFn \| HostFunctionDefinition>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
 | `timeout` | `number` | Timeout in ms for async functions |
@@ -172,6 +172,158 @@ type CallableFn = (
 | `args` | Positional arguments passed to the function |
 | `ctx` | Runtime context with variables, pipeValue, etc. |
 | `location` | Source location of the call site (for error reporting) |
+
+## Typed Host Functions
+
+Host functions can declare parameter types and defaults. The runtime validates arguments before calling your function, eliminating manual type checking.
+
+### Basic Type Declarations
+
+Declare parameter types using the `HostFunctionDefinition` interface:
+
+```typescript
+const ctx = createRuntimeContext({
+  functions: {
+    repeat: {
+      params: [
+        { name: 'str', type: 'string' },
+        { name: 'count', type: 'number', defaultValue: 1 },
+      ],
+      fn: (args) => {
+        // args[0] guaranteed to be string
+        // args[1] guaranteed to be number (or default)
+        return args[0].repeat(args[1]);
+      },
+    },
+  },
+});
+```
+
+Scripts call typed functions the same way:
+
+```text
+repeat("hello", 3)        # "hellohellohello"
+repeat("hi")              # "hi" (uses default count)
+```
+
+### Supported Types
+
+| Type | Rill Value | Validation |
+|------|------------|------------|
+| `'string'` | String | `typeof value === 'string'` |
+| `'number'` | Number | `typeof value === 'number'` |
+| `'bool'` | Boolean | `typeof value === 'boolean'` |
+| `'list'` | List | `Array.isArray(value)` |
+| `'dict'` | Dict | `isDict(value)` |
+
+### Default Values
+
+Parameters with default values are optional. The default applies when the argument is missing:
+
+```typescript
+functions: {
+  greet: {
+    params: [
+      { name: 'name', type: 'string' },
+      { name: 'greeting', type: 'string', defaultValue: 'Hello' },
+    ],
+    fn: (args) => `${args[1]}, ${args[0]}!`,
+  },
+}
+```
+
+```text
+greet("Alice")            # "Hello, Alice!"
+greet("Bob", "Hi")        # "Hi, Bob!"
+```
+
+### Type Mismatch Errors
+
+When argument types don't match, the runtime throws `RuntimeError` with code `RUNTIME_TYPE_ERROR`:
+
+```typescript
+// Script: repeat(42, 3)
+// Error: Function 'repeat' expects parameter 'str' (position 0) to be string, got number
+```
+
+Error details include:
+
+- Function name
+- Parameter name
+- Parameter position
+- Expected type
+- Actual type received
+
+### Migration from Untyped Functions
+
+Typed function declarations are optional. Existing untyped functions continue working without changes.
+
+**Before (manual validation):**
+
+```typescript
+functions: {
+  repeat: (args) => {
+    const str = typeof args[0] === 'string' ? args[0] : '';
+    const count = typeof args[1] === 'number' ? args[1] : 1;
+    return str.repeat(count);
+  },
+}
+```
+
+**After (declarative validation):**
+
+```typescript
+functions: {
+  repeat: {
+    params: [
+      { name: 'str', type: 'string' },
+      { name: 'count', type: 'number', defaultValue: 1 },
+    ],
+    fn: (args) => args[0].repeat(args[1]), // Types guaranteed
+  },
+}
+```
+
+Benefits of migration:
+
+- Eliminates manual type checking code
+- Provides clear error messages to script authors
+- Documents expected types in function signature
+- Reduces bugs from incorrect type coercion
+
+### Mixed Function Definitions
+
+You can mix typed and untyped functions in the same context:
+
+```typescript
+const ctx = createRuntimeContext({
+  functions: {
+    // Untyped (legacy)
+    'legacy::func': (args) => args[0],
+
+    // Typed (new)
+    'typed::func': {
+      params: [{ name: 'x', type: 'string' }],
+      fn: (args) => args[0],
+    },
+  },
+});
+```
+
+### HostFunctionDefinition Interface
+
+```typescript
+interface HostFunctionDefinition {
+  params: HostFunctionParam[];
+  fn: CallableFn;
+}
+
+interface HostFunctionParam {
+  name: string;
+  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
+  defaultValue?: RillValue;
+}
+```
 
 ## Application Callables
 
@@ -553,7 +705,7 @@ try {
 | `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
 | `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
 | `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
-| `RUNTIME_TYPE_ERROR` | Type mismatch |
+| `RUNTIME_TYPE_ERROR` | Type mismatch (includes host function parameter validation) |
 | `RUNTIME_TIMEOUT` | Operation timed out |
 | `RUNTIME_ABORTED` | Execution cancelled |
 | `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
@@ -646,6 +798,10 @@ export type { ExecutionStepper, StepResult };
 // Callable types
 export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable };
 export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
+
+// Host function types
+export type { HostFunctionDefinition, HostFunctionParam };
+export { validateHostFunctionArgs };
 
 // Value types
 export type { RillValue, RillArgs };

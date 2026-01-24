@@ -7,12 +7,29 @@
  * - ApplicationCallable: Host application-provided functions
  *
  * Public API for host applications.
+ *
+ * ## Implementation Notes
+ *
+ * [DEVIATION] EC-1 Error Context Fields
+ * - Spec defines error context as { functionName, paramName, expectedType, actualType }
+ * - EC-1 (excess arguments) uses { functionName, expectedCount, actualCount }
+ * - Rationale: Excess arguments is an arity check, not a type check
+ *
+ * [ASSUMPTION] validateDefaultValueType _functionName Parameter
+ * - Parameter accepted but unused (prefixed with _ to satisfy eslint)
+ * - Kept for API consistency with validateHostFunctionArgs signature
+ *
+ * [ASSUMPTION] validateHostFunctionArgs Args Array Mutation
+ * - args array mutated in-place when substituting default values
+ * - Per spec algorithm: "Apply default values for missing arguments before validation"
+ * - Mutation occurs before host function receives args, maintaining immutability contract
  */
 
 import type { BodyNode, SourceLocation } from '../../types.js';
+import { RILL_ERROR_CODES, RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import type { RillValue } from './values.js';
-import { formatValue, isTuple } from './values.js';
+import { formatValue, inferType, isTuple } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -35,8 +52,39 @@ export type CallableFn = (
 /** Parameter definition for script closures */
 export interface CallableParam {
   readonly name: string;
-  readonly typeName: 'string' | 'number' | 'bool' | null;
+  readonly typeName: 'string' | 'number' | 'bool' | 'list' | 'dict' | null;
   readonly defaultValue: RillValue | null;
+}
+
+/**
+ * Parameter metadata for host-provided functions.
+ *
+ * Parameters without defaultValue are required.
+ * Parameters with defaultValue are optional.
+ */
+export interface HostFunctionParam {
+  /** Parameter name (for error messages and documentation) */
+  readonly name: string;
+
+  /** Expected type: limited to 5 primitive types */
+  readonly type: 'string' | 'number' | 'bool' | 'list' | 'dict';
+
+  /** Default value if argument omitted. Makes parameter optional. */
+  readonly defaultValue?: RillValue;
+}
+
+/**
+ * Host function with optional parameter type declarations.
+ *
+ * When params provided, runtime validates arguments before invocation.
+ * When params omitted, function receives untyped args (backward compat).
+ */
+export interface HostFunctionDefinition {
+  /** Parameter declarations (optional for backward compatibility) */
+  readonly params?: readonly HostFunctionParam[];
+
+  /** Function implementation (receives validated args when params present) */
+  readonly fn: CallableFn;
 }
 
 /** Common fields for all callable types */
@@ -70,6 +118,7 @@ export interface RuntimeCallable extends CallableBase {
 /** Application callable - host application-provided functions */
 export interface ApplicationCallable extends CallableBase {
   readonly kind: 'application';
+  readonly params: CallableParam[] | undefined;
   readonly fn: CallableFn;
 }
 
@@ -108,6 +157,7 @@ export function isApplicationCallable(
 
 /**
  * Create an application callable from a host function.
+ * Creates an untyped callable (params: undefined) that skips validation.
  * @param fn The function to wrap
  * @param isProperty If true, auto-invokes when accessed from dict (property-style)
  */
@@ -115,7 +165,13 @@ export function callable(
   fn: CallableFn,
   isProperty = false
 ): ApplicationCallable {
-  return { __type: 'callable', kind: 'application', fn, isProperty };
+  return {
+    __type: 'callable',
+    kind: 'application',
+    params: undefined,
+    fn,
+    isProperty,
+  };
 }
 
 /** Type guard for dict (plain object, not array, not callable, not tuple) */
@@ -175,4 +231,190 @@ export function callableEquals(
   if (a.definingScope !== b.definingScope) return false;
 
   return true;
+}
+
+/**
+ * Validate defaultValue type matches declared parameter type.
+ *
+ * Called at registration time to catch configuration errors early.
+ * Throws Error (not RuntimeError) to indicate registration failure.
+ *
+ * @param param - Parameter with defaultValue to validate
+ * @param _functionName - Function name (unused, kept for API consistency)
+ * @throws Error if defaultValue type doesn't match param.type
+ */
+export function validateDefaultValueType(
+  param: HostFunctionParam,
+  _functionName: string
+): void {
+  if (param.defaultValue === undefined) return;
+
+  const actualType = inferType(param.defaultValue);
+  const expectedType = param.type;
+
+  if (actualType !== expectedType) {
+    throw new Error(
+      `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
+    );
+  }
+}
+
+/**
+ * Validate host function arguments against parameter declarations.
+ *
+ * Called before function invocation to enforce type contracts.
+ * Throws RuntimeError on validation failure.
+ *
+ * @param args - Evaluated arguments from call site
+ * @param params - Parameter declarations from function definition
+ * @param functionName - Function name for error messages
+ * @param location - Source location for error reporting
+ * @throws RuntimeError with RUNTIME_TYPE_ERROR on validation failure
+ */
+export function validateHostFunctionArgs(
+  args: RillValue[],
+  params: readonly HostFunctionParam[],
+  functionName: string,
+  location?: SourceLocation
+): void {
+  // Check for excess arguments
+  if (args.length > params.length) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      location,
+      {
+        functionName,
+        expectedCount: params.length,
+        actualCount: args.length,
+      }
+    );
+  }
+
+  // Validate each parameter
+  for (let i = 0; i < params.length; i++) {
+    const param = params[i];
+    if (param === undefined) continue;
+
+    let arg = args[i];
+
+    // Handle missing argument
+    if (arg === undefined) {
+      if (param.defaultValue !== undefined) {
+        // Substitute default value (already validated at registration)
+        arg = param.defaultValue;
+        args[i] = arg;
+      } else {
+        // Missing required argument
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Missing required argument '${param.name}' for function '${functionName}'`,
+          location,
+          {
+            functionName,
+            paramName: param.name,
+          }
+        );
+      }
+    }
+
+    // Validate argument type
+    const actualType = inferType(arg);
+    const expectedType = param.type;
+
+    if (actualType !== expectedType) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+        location,
+        {
+          functionName,
+          paramName: param.name,
+          expectedType,
+          actualType,
+        }
+      );
+    }
+  }
+}
+
+/**
+ * Validate arguments against CallableParam[] for ApplicationCallable.
+ *
+ * Similar to validateHostFunctionArgs but works with CallableParam[] (used in ApplicationCallable).
+ * Validates argument count, applies defaults, and checks types for primitive parameters.
+ *
+ * @param args - Arguments array (mutated in-place when defaults applied)
+ * @param params - Parameter definitions
+ * @param functionName - Function name for error messages
+ * @param location - Source location for error reporting
+ * @throws RuntimeError with RUNTIME_TYPE_ERROR on validation failure
+ */
+export function validateCallableArgs(
+  args: RillValue[],
+  params: readonly CallableParam[],
+  functionName: string,
+  location?: SourceLocation
+): void {
+  // Check for excess arguments
+  if (args.length > params.length) {
+    throw new RuntimeError(
+      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      location,
+      {
+        functionName,
+        expectedCount: params.length,
+        actualCount: args.length,
+      }
+    );
+  }
+
+  // Validate each parameter
+  for (let i = 0; i < params.length; i++) {
+    const param = params[i];
+    if (param === undefined) continue;
+
+    let arg = args[i];
+
+    // Handle missing argument
+    if (arg === undefined) {
+      if (param.defaultValue !== null) {
+        // Substitute default value
+        arg = param.defaultValue;
+        args[i] = arg;
+      } else {
+        // Missing required argument
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Missing required argument '${param.name}' for function '${functionName}'`,
+          location,
+          {
+            functionName,
+            paramName: param.name,
+          }
+        );
+      }
+    }
+
+    // Validate argument type (only for typed parameters)
+    if (param.typeName !== null) {
+      const actualType = inferType(arg);
+      const expectedType = param.typeName;
+
+      if (actualType !== expectedType) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+          location,
+          {
+            functionName,
+            paramName: param.name,
+            expectedType,
+            actualType,
+          }
+        );
+      }
+    }
+  }
 }

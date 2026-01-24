@@ -10,6 +10,7 @@ import {
   type ObservabilityCallbacks,
   parse,
   type CallableFn,
+  type HostFunctionDefinition,
   type RillValue,
   type RuntimeOptions,
   type StepResult,
@@ -17,7 +18,7 @@ import {
 
 /** Options for test execution */
 export interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
-  functions?: Record<string, CallableFn>;
+  functions?: Record<string, CallableFn | HostFunctionDefinition>;
 }
 
 /** Shared setup for all execution modes */
@@ -60,10 +61,7 @@ export async function runStepped(
 }
 
 /** Create a mock async function with configurable delay */
-export function mockAsyncFn(
-  delay: number,
-  returnValue: RillValue
-): CallableFn {
+export function mockAsyncFn(delay: number, returnValue: RillValue): CallableFn {
   return async () => {
     await new Promise((r) => setTimeout(r, delay));
     return returnValue;

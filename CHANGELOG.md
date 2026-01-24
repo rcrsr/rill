@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-01-23
+
 ### Breaking
 
 - **`each` break returns partial results** — Break in `each` now returns collected results instead of break value
@@ -14,6 +16,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After: Same code returns `[1]` (partial results before break)
   - Rationale: `each` now always returns `RillValue[]`, making return type predictable
   - Use `while` loop if break value semantics are needed
+
+- **Strict Null Elimination** — All undefined/missing access now throws errors instead of returning `null`
+  - `$undefined` throws `Undefined variable: $undefined` (was `null`)
+  - `$` without pipe context throws `Undefined variable: $`
+  - `$dict.missing` throws `Dict has no field 'missing'` (was `null`)
+  - `$list[99]` throws `List index out of bounds: 99` (was `null`)
+  - `.at(-1)` throws `List index out of bounds` (was `null`)
+  - Empty scripts throw `Undefined variable: $` (implicit `$` evaluation)
+  - Use `??` for default values or `.?` for existence checks when missing values are expected
+
+### Added
+
+- **Typed Host Functions** — Declarative parameter types with runtime validation
+  - Declare types: `{ params: [{ name: 'x', type: 'string' }], fn: (args) => ... }`
+  - Supported types: `string`, `number`, `bool`, `list`, `dict`
+  - Default values: `{ name: 'count', type: 'number', defaultValue: 1 }`
+  - Clear error messages: `expects parameter 'x' (position 0) to be string, got number`
+  - Mixed definitions: typed and untyped functions in same context
+  - Exports: `HostFunctionDefinition`, `HostFunctionParam`, `validateHostFunctionArgs`
+
+- **Style Guide** — `docs/16_conventions.md` with idiomatic patterns
+  - Naming: snake_case for variables, closures, dict keys
+  - Spacing: operators spaced, braces spaced inside, parentheses tight
+  - Implicit `$` shorthand: `.method` not `$.method()`, `func` not `func($)`
+  - No throwaway captures: use line continuation instead
+  - Chain continuations: 2-space indent on continued lines
+
+- **LLM Reference** — `docs/99_llm-reference.txt` compact plain-text reference
+  - Single-file format optimized for LLM context windows
+  - Covers syntax, operators, control flow, common mistakes
+  - Includes style conventions summary
 
 ### Changed
 
@@ -33,17 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `annotations.ts` — Statement annotations (`^(limit: N)`)
   - New test suites: `evaluator-base`, `evaluator-composition`, `*-mixin` tests
   - No user-facing changes
-
-### Fixed
-
-- **Strict Null Elimination** — All undefined/missing access now throws errors instead of returning `null`
-  - `$undefined` throws `Undefined variable: $undefined` (was `null`)
-  - `$` without pipe context throws `Undefined variable: $`
-  - `$dict.missing` throws `Dict has no field 'missing'` (was `null`)
-  - `$list[99]` throws `List index out of bounds: 99` (was `null`)
-  - `.at(-1)` throws `List index out of bounds` (was `null`)
-  - Empty scripts throw `Undefined variable: $` (implicit `$` evaluation)
-  - Use `??` for default values or `.?` for existence checks when missing values are expected
 
 ## [0.0.5] - 2026-01-21
 
@@ -241,7 +263,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/rcrsr/rill/compare/v0.0.5...v0.1.0
 [0.0.5]: https://github.com/rcrsr/rill/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/rcrsr/rill/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/rcrsr/rill/compare/v0.0.2...v0.0.3

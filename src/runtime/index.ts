@@ -45,6 +45,8 @@ export type {
 export type {
   ApplicationCallable,
   CallableFn,
+  HostFunctionDefinition,
+  HostFunctionParam,
   RillCallable,
   RuntimeCallable,
   ScriptCallable,
@@ -57,6 +59,7 @@ export {
   isDict,
   isRuntimeCallable,
   isScriptCallable,
+  validateHostFunctionArgs,
 } from './core/callable.js';
 
 // ============================================================

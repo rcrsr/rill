@@ -28,6 +28,21 @@
  * - Parameter type mismatches throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-20]
  * - Async operations timeout per TimeoutError [EC-21]
  *
+ * ## Implementation Notes
+ *
+ * [DEVIATION] Function naming: Spec references validateHostFunctionArgs but implementation
+ * uses validateCallableArgs because ApplicationCallable stores CallableParam[] (not
+ * HostFunctionParam[]). The two interfaces have different type field names ('type' vs
+ * 'typeName'). Separate validation functions maintain proper abstraction boundaries.
+ *
+ * [ASSUMPTION] Excess argument validation occurs before default application to fail fast
+ * on arity mismatches, improving error messages. This matches the algorithm order in the
+ * spec where excess check happens first.
+ *
+ * [ASSUMPTION] boundDict substitution happens before validation for property-style
+ * callables to ensure type checks apply to the effective arguments (including bound dict).
+ * This prevents validation bypass when property-style callables are accessed.
+ *
  * @internal
  */
 
@@ -50,7 +65,13 @@ import type {
   ApplicationCallable,
   CallableParam,
 } from '../../callable.js';
-import { isCallable, isScriptCallable, isDict } from '../../callable.js';
+import {
+  isCallable,
+  isScriptCallable,
+  isApplicationCallable,
+  isDict,
+  validateCallableArgs,
+} from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
 import type { RillValue, RillTuple } from '../../values.js';
@@ -128,14 +149,31 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Invoke runtime or application callable (native functions).
      * Handles bound dict for property-style callables.
+     * Validates typed ApplicationCallable arguments before invocation.
      */
     protected async invokeFnCallable(
       callable: RuntimeCallable | ApplicationCallable,
       args: RillValue[],
-      callLocation?: SourceLocation
+      callLocation?: SourceLocation,
+      functionName = 'callable'
     ): Promise<RillValue> {
+      // Apply boundDict BEFORE validation (property-style callables need dict as first arg)
       const effectiveArgs =
         callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
+
+      // Validate arguments for typed ApplicationCallable (task 1.5)
+      // Only validate if callable has params metadata (not undefined)
+      // ApplicationCallable from HostFunctionDefinition: params is CallableParam[] (may be empty for zero-arg functions)
+      // ApplicationCallable from callable(): params is undefined (untyped, skip validation)
+      if (isApplicationCallable(callable) && callable.params !== undefined) {
+        // Validate with effective args (validates count, applies defaults, checks types)
+        validateCallableArgs(
+          effectiveArgs,
+          callable.params,
+          functionName,
+          callLocation
+        );
+      }
 
       const result = callable.fn(effectiveArgs, this.ctx, callLocation);
       return result instanceof Promise ? await result : result;
@@ -370,8 +408,19 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx.observability.onHostCall?.({ name: node.name, args });
 
       const startTime = performance.now();
+
+      // Use invokeFnCallable for consistent validation and invocation
       const wrappedPromise = this.withTimeout(
-        (async () => fn(args, this.ctx, node.span.start))(),
+        (async () => {
+          // Handle both CallableFn and ApplicationCallable
+          if (typeof fn === 'function') {
+            // Raw CallableFn - call directly (no validation)
+            return fn(args, this.ctx, node.span.start);
+          } else {
+            // ApplicationCallable - use invokeFnCallable for validation
+            return this.invokeFnCallable(fn, args, node.span.start, node.name);
+          }
+        })(),
         this.ctx.timeout,
         node.name,
         node

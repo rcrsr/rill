@@ -3,6 +3,43 @@ RILL LANGUAGE REFERENCE FOR LLM AGENTS
 
 Rill is a pipe-based scripting language. Data flows through pipes (->), not assignment (=).
 
+NAMING CONVENTION: snake_case
+-----------------------------
+Use snake_case for all identifiers:
+  $user_name, $item_list, $is_valid    # variables
+  $double_value, $cleanup_text         # closures
+  [first_name: "x", last_name: "y"]    # dict keys
+
+SPACING RULES
+-------------
+Operators:    space both sides       5 + 3, $x -> .upper, "a" :> $b
+Parentheses:  no inner space         ($x + 1), ($ > 3) ? "yes"
+Braces:       space inside           { $x + 1 }, each { $ * 2 }
+Brackets:     no inner space         $list[0], $dict.items[1]
+Literals:     space after , and :    [1, 2, 3], [name: "x", age: 30]
+Closures:     space after params     |x| ($x * 2), |a, b| { $a + $b }
+Methods:      no space before . or ( $str.upper(), $list.join(", ")
+Pipes:        space both sides       "x" -> .upper -> .len
+Continuations: indent 2 spaces       $data
+                                       -> .filter { $.active }
+                                       -> map { $.name }
+
+IMPLICIT $ SHORTHAND (always prefer)
+------------------------------------
+$.method()  ->  .method            "x" -> .upper  (not $.upper())
+func($)     ->  func               "x" -> log     (not log($))
+$fn($)      ->  $fn                5 -> $double   (not $double($))
+
+NO THROWAWAY CAPTURES
+---------------------
+Don't capture just to continue - use line continuation instead:
+  # avoid                          # good
+  "x" :> $a                        "x"
+  $a -> .upper :> $b                 -> .upper
+  $b -> .len                         -> .len
+
+Only capture when the variable is reused later in the code.
+
 CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
 ----------------------------------------------
 

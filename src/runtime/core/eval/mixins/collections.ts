@@ -321,7 +321,9 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (accumulator !== null) {
             args.push(accumulator);
           }
-          return fn(args, this.ctx, body.span.start);
+          // Handle both CallableFn and ApplicationCallable (task 1.5 will refactor validation)
+          const fnToCall = typeof fn === 'function' ? fn : fn.fn;
+          return fnToCall(args, this.ctx, body.span.start);
         }
 
         default: {

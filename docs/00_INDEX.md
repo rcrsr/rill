@@ -2,7 +2,7 @@
 
 *Pipe-based scripting for workflow orchestration*
 
-> **Experimental (v0.0.5).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.1.0).** Active development. Breaking changes until v1.0.
 
 ## Quick Links
 
@@ -41,6 +41,12 @@
 ## Grammar
 
 The formal EBNF grammar is in [grammar.ebnf](15_grammar.ebnf).
+
+## Style
+
+| Topic | Description |
+|-------|-------------|
+| [Conventions](16_conventions.md) | Naming, idioms, best practices |
 
 ## Learning Path
 
