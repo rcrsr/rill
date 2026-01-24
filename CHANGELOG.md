@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Script-Level Return** — `return` now exits entire script, not just blocks
+  - `"result" -> return` exits script early with value
+  - Stops executing remaining statements
+  - Works with conditionals: `$done ? ("early" -> return)`
+  - `stop()` and `error()` removed from docs (host-provided, not built-in)
+
 - **Typed Host Functions** — Declarative parameter types with runtime validation
   - Declare types: `{ params: [{ name: 'x', type: 'string' }], fn: (args) => ... }`
   - Supported types: `string`, `number`, `bool`, `list`, `dict`

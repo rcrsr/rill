@@ -14,8 +14,6 @@ rill provides singular control flow—no exceptions, no try/catch. Errors halt e
 | `@ body ? cond` | Do-while (body first) |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block |
-| `stop()` | Exit script (code 0) |
-| `error("msg")` | Exit script (code 1) |
 
 ---
 
@@ -286,36 +284,16 @@ $value -> return         # exit with value
 
 ---
 
-## Script Exit
-
-### `stop()`
-
-Exit script with success (code 0):
-
-```text
-$ready -> ? stop()    # exit if ready
-```
-
-### `error("message")`
-
-Exit script with failure (code 1):
-
-```text
-$data -> .empty ? error("No data found")
-```
-
----
-
 ## Control Flow Summary
 
 | Statement | Scope | Effect |
 |-----------|-------|--------|
 | `break` | Loop | Exit loop with current `$` |
 | `$val -> break` | Loop | Exit loop with value |
-| `return` | Block | Exit block with current `$` |
-| `$val -> return` | Block | Exit block with value |
-| `stop()` | Script | Exit script (code 0) |
-| `error("message")` | Script | Exit script (code 1) |
+| `return` | Block/Script | Exit block or script with current `$` |
+| `$val -> return` | Block/Script | Exit block or script with value |
+
+> **Note:** Script-level exit functions like `error()` or `stop()` must be provided by the host application. See [Host Integration](14_host-integration.md).
 
 ---
 
@@ -323,12 +301,12 @@ $data -> .empty ? error("No data found")
 
 ### Guard Clauses
 
-Exit early on invalid conditions:
+Exit early on invalid conditions (assumes host provides `error()`):
 
 ```text
 |data| {
-  $data -> .empty ? error("Empty input")
-  $data -> :?list ? $ ! error("Expected list")
+  $data -> .empty ? app::error("Empty input")
+  $data -> :?list ? $ ! app::error("Expected list")
   $data -> each { $ * 2 }
 } :> $process
 ```

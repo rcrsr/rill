@@ -17,6 +17,7 @@ import {
   checkAutoExceptions,
   checkAborted,
 } from './eval/index.js';
+import { ReturnSignal } from './signals.js';
 import type {
   ExecutionResult,
   ExecutionStepper,
@@ -164,6 +165,19 @@ export function createStepper(
           captured,
         };
       } catch (error) {
+        // Handle script-level return
+        if (error instanceof ReturnSignal) {
+          lastValue = error.value;
+          isDone = true;
+          return {
+            value: lastValue,
+            done: true,
+            index,
+            total,
+            captured,
+          };
+        }
+
         // Fire onError
         context.observability.onError?.({
           error: error instanceof Error ? error : new Error(String(error)),

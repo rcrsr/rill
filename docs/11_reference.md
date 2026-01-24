@@ -52,11 +52,9 @@ See [Operators](04_operators.md) for detailed documentation.
 | `(cond) @ body` | While loop |
 | `@ body ? cond` | Do-while |
 | `break` / `$val -> break` | Exit loop |
-| `return` / `$val -> return` | Exit block |
-| `stop()` | Exit script (code 0) |
-| `error("msg")` | Exit script (code 1) |
+| `return` / `$val -> return` | Exit block or script |
 
-See [Control Flow](05_control-flow.md) for detailed documentation.
+See [Control Flow](05_control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
 ### Collection Operators
 

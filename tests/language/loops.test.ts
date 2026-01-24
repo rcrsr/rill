@@ -272,4 +272,39 @@ describe('Rill Runtime: Loops', () => {
       expect(result).toBe(128);
     });
   });
+
+  describe('Script-Level Return', () => {
+    it('exits script with explicit return value', async () => {
+      const script = `
+        "hello" -> return
+      `;
+      expect(await run(script)).toBe('hello');
+    });
+
+    it('stops executing remaining statements', async () => {
+      const script = `
+        "first" :> $a
+        $a -> return
+        "second" :> $b
+        $b
+      `;
+      expect(await run(script)).toBe('first');
+    });
+
+    it('returns current $ when no explicit value', async () => {
+      const script = `
+        "piped value" -> return
+      `;
+      expect(await run(script)).toBe('piped value');
+    });
+
+    it('works with conditional at script level', async () => {
+      const script = `
+        "check" :> $val
+        $val -> .eq("check") ? ("matched" -> return)
+        "not matched"
+      `;
+      expect(await run(script)).toBe('matched');
+    });
+  });
 });

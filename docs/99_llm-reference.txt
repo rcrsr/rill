@@ -73,7 +73,7 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
 
 6. NO EXCEPTIONS
    Errors halt execution. No try/catch. Use conditionals for error handling.
-   stop() exits with code 0; error("msg") exits with code 1.
+   Script-level exit functions (error, stop) must be host-provided.
 
 SYNTAX QUICK REFERENCE
 ----------------------
@@ -127,8 +127,9 @@ Do-while loop (body runs at least once):
 Break (exits loop, returns collected results before break):
   [1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns [1, 2]
 
-Return (exits block with value):
+Return (exits block or script with value):
   { 5 :> $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
+  "done" -> return                                     # exits script with "done"
 
 COLLECTION OPERATORS
 --------------------
