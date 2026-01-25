@@ -36,3 +36,5 @@ internal/
 conduct/
 .claude/
 .serena/
+.codanna/
+.fastembed_cache

@@ -11,6 +11,10 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "rill-exec": "./dist/cli-exec.js",
+    "rill-eval": "./dist/cli-eval.js"
+  },
   "files": [
     "dist",
     "docs"
@@ -38,7 +42,7 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "clean": "rm -rf dist",
-    "rill": "npx tsx src/cli.ts",
+    "rill": "npx tsx src/cli-exec.ts",
     "test:examples": "npx tsx scripts/test-examples.ts docs/",
     "check": "npm run test:examples && npm run format:check && npm run lint && npm run typecheck && npm run test"
   },
@@ -66,5 +70,8 @@
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
+  },
+  "dependencies": {
+    "yaml": "^2.8.2"
   }
 }

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI Commands** — Two new commands for executing Rill scripts from the command line
+  - `rill-exec <file> [args...]` — Execute a Rill script file with arguments
+    - Arguments passed as `$` list (all strings, no type conversion)
+    - Stdin support: `rill-exec -` reads script from stdin
+    - Module imports via `use:` frontmatter declarations
+    - Exit codes: `true`/non-empty → 0, `false`/empty → 1, `[code, msg]` → custom
+  - `rill-eval <expression>` — Evaluate a Rill expression directly
+    - `$` initialized to empty list `[]`
+    - No module imports (inline evaluation only)
+  - Both support `--help` and `--version` flags
+  - Structured error output with line numbers and error codes
+
+- **Module Loader** — `loadModule()` function for frontmatter-based imports
+  - Resolves modules relative to importing script
+  - Caches by canonical path for efficiency
+  - Circular dependency detection with clear error chain
+  - Parses `use:` and `export:` frontmatter declarations
+
 ### Breaking
 
 - **Mandatory Host Function Type Declarations** — `params` is now required in `HostFunctionDefinition`
@@ -17,12 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Frontmatter Parser Whitespace** — Parser now preserves whitespace in frontmatter content
+  - Before: Token concatenation lost inter-token spaces, breaking YAML parsing
+  - After: Raw source text captured between `---` delimiters
+  - Fixes: `use: [{mod: ./path}]` now parses correctly as YAML
+  - Location: `src/parser/parser-script.ts:124-146`, `src/parser/index.ts:40`
+
 - **Zero-Parameter Function Pipe Injection** — Functions with `params: []` no longer receive automatic pipe value
   - Before: `timestamp()` with `params: []` received pipe value as first argument
   - After: `timestamp()` with `params: []` receives empty args array as declared
   - Functions without `params` field still receive pipe value (application callables)
 
 ### Changed
+
+- **Deprecated `src/cli.ts`** — Use `rill-exec` or `rill-eval` instead
+  - Original CLI preserved for backward compatibility
+  - Will be removed in v1.0
 
 - **Evaluator Mixin Documentation** — Added design rationale in `evaluator.ts`
   - Documents circular method dependencies between mixins

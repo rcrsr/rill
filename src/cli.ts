@@ -2,6 +2,8 @@
 /**
  * Rill CLI - Run rill scripts from the command line
  *
+ * @deprecated Use rill-exec or rill-eval commands instead. This file will be removed in v1.0.
+ *
  * Usage:
  *   npx tsx src/cli.ts <script.rill>
  *   npx tsx src/cli.ts -e "code"
@@ -9,21 +11,8 @@
  */
 
 import * as fs from 'fs';
-import {
-  createRuntimeContext,
-  execute,
-  parse,
-  type RillValue,
-} from './index.js';
-
-function formatOutput(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return JSON.stringify(value, null, 2);
-}
+import { createRuntimeContext, execute, parse } from './index.js';
+import { formatOutput } from './cli-shared.js';
 
 async function run(source: string): Promise<void> {
   const ctx = createRuntimeContext({

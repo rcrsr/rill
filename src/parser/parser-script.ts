@@ -123,24 +123,32 @@ Parser.prototype.recoverToNextStatement = function (
 
 Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
   const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.FRONTMATTER_DELIM, 'Expected ---');
-  skipNewlines(this.state);
+  const openingDelim = expect(
+    this.state,
+    TOKEN_TYPES.FRONTMATTER_DELIM,
+    'Expected ---'
+  );
 
-  // Collect all content until next ---
-  let content = '';
+  // Record position after opening --- (after the delimiter token ends)
+  const contentStart = openingDelim.span.end.offset;
+
+  // Skip tokens to find closing ---
   while (
     !check(this.state, TOKEN_TYPES.FRONTMATTER_DELIM) &&
     !isAtEnd(this.state)
   ) {
-    const token = advance(this.state);
-    content += token.value;
+    advance(this.state);
   }
+
+  // Capture raw source between delimiters
+  const contentEnd = current(this.state).span.start.offset;
+  const content = this.state.source.slice(contentStart, contentEnd).trim();
 
   expect(this.state, TOKEN_TYPES.FRONTMATTER_DELIM, 'Expected closing ---');
 
   return {
     type: 'Frontmatter',
-    content: content.trim(),
+    content,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

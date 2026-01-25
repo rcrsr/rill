@@ -37,7 +37,7 @@ import './parser-extract.js';
  */
 export function parse(source: string): ScriptNode {
   const tokens = tokenize(source);
-  const parser = new Parser(tokens, { recoveryMode: false, source: '' });
+  const parser = new Parser(tokens, { recoveryMode: false, source });
   return parser.parse();
 }
 
