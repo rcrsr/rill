@@ -36,12 +36,13 @@ import type {
   CaptureNode,
   RillTypeName,
   SourceLocation,
+  ExpressionNode,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
-import { isDict } from '../../callable.js';
+import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -306,8 +307,18 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else {
             value = null;
           }
+        } else if (access.kind === 'variable') {
+          value = await this.evaluateFieldAccessVariable(access, value, node);
+        } else if (access.kind === 'computed') {
+          value = await this.evaluateFieldAccessComputed(access, value, node);
+        } else if (access.kind === 'alternatives') {
+          value = await this.evaluateFieldAccessAlternatives(
+            access,
+            value,
+            node
+          );
         } else {
-          // Other field access types (variable, computed, block, alternatives)
+          // Other field access types (block)
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
             `Field access kind '${access.kind}' not yet supported`,
@@ -323,6 +334,225 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       return value;
+    }
+
+    /**
+     * Evaluate field access using a variable as the key.
+     * Resolves variable by name and uses resulting string/number as dict field or list index.
+     *
+     * @param access - The field access node with variable name
+     * @param value - The current value being accessed (dict or list)
+     * @param node - The parent variable node for location info
+     * @returns The field/element value or null if missing
+     * @throws RuntimeError if variable undefined or wrong type (EC-1, EC-2, EC-3)
+     */
+    protected async evaluateFieldAccessVariable(
+      access: { readonly kind: 'variable'; readonly variableName: string },
+      value: RillValue,
+      node: VariableNode
+    ): Promise<RillValue> {
+      // Resolve the variable (EC-1)
+      const keyValue = getVariable(this.ctx, access.variableName);
+      if (keyValue === undefined) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+          `Variable '${access.variableName}' is undefined`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // Validate key type (EC-2, EC-3)
+      if (typeof keyValue === 'boolean') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Key must be string or number, got bool`,
+          this.getNodeLocation(node)
+        );
+      }
+      if (Array.isArray(keyValue)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Key must be string or number, got list`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // Handle string key (dict access)
+      if (typeof keyValue === 'string') {
+        if (isDict(value)) {
+          // Allow missing fields to return null
+          return await this.accessDictField(
+            value,
+            keyValue,
+            this.getNodeLocation(node),
+            true
+          );
+        }
+        return null;
+      }
+
+      // Handle number key (list access)
+      if (typeof keyValue === 'number') {
+        if (Array.isArray(value)) {
+          let index = keyValue;
+          // Handle negative indices
+          if (index < 0) {
+            index = value.length + index;
+          }
+          const result = value[index];
+          // Return null for out of bounds (use allowMissing pattern)
+          return result !== undefined ? result : null;
+        }
+        return null;
+      }
+
+      // Other types (dict, closure) - fall through to type error
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Key must be string or number, got ${inferType(keyValue)}`,
+        this.getNodeLocation(node)
+      );
+    }
+
+    /**
+     * Evaluate field access using a computed expression as the key.
+     * Evaluates expression and uses resulting string/number as dict field or list index.
+     *
+     * @param access - The field access node with expression
+     * @param value - The current value being accessed (dict or list)
+     * @param node - The parent variable node for location info
+     * @returns The field/element value or null if missing
+     * @throws RuntimeError if expression result is wrong type (EC-4, EC-5)
+     */
+    protected async evaluateFieldAccessComputed(
+      access: {
+        readonly kind: 'computed';
+        readonly expression: ExpressionNode;
+      },
+      value: RillValue,
+      node: VariableNode
+    ): Promise<RillValue> {
+      // Evaluate the expression to get the key
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const keyValue = await (this as any).evaluatePipeChain(access.expression);
+
+      // EC-4: Expression result is closure
+      if (isCallable(keyValue)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Computed key evaluated to closure, expected string or number`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // EC-5: Expression result is dict
+      if (isDict(keyValue)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Computed key evaluated to dict, expected string or number`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // Other invalid types (boolean, list)
+      if (typeof keyValue === 'boolean') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Computed key evaluated to bool, expected string or number`,
+          this.getNodeLocation(node)
+        );
+      }
+      if (Array.isArray(keyValue)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Computed key evaluated to list, expected string or number`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // Handle string key (dict access)
+      if (typeof keyValue === 'string') {
+        if (isDict(value)) {
+          // Allow missing fields to return null
+          return await this.accessDictField(
+            value,
+            keyValue,
+            this.getNodeLocation(node),
+            true
+          );
+        }
+        return null;
+      }
+
+      // Handle number key (list access)
+      if (typeof keyValue === 'number') {
+        if (Array.isArray(value)) {
+          let index = keyValue;
+          // Handle negative indices
+          if (index < 0) {
+            index = value.length + index;
+          }
+          const result = value[index];
+          // Return null for out of bounds (use allowMissing pattern)
+          return result !== undefined ? result : null;
+        }
+        return null;
+      }
+
+      // Shouldn't reach here due to exhaustive type checks above
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Computed key evaluated to unexpected type`,
+        this.getNodeLocation(node)
+      );
+    }
+
+    /**
+     * Evaluate field access using alternatives (try keys left-to-right).
+     * Returns first found value or null if all keys missing.
+     *
+     * @param access - The field access node with alternatives array
+     * @param value - The current value being accessed (must be dict)
+     * @param node - The parent variable node for location info
+     * @returns The first found field value or null if all keys missing
+     * @throws RuntimeError if target is not dict (EC-6)
+     */
+    protected async evaluateFieldAccessAlternatives(
+      access: {
+        readonly kind: 'alternatives';
+        readonly alternatives: string[];
+      },
+      value: RillValue,
+      node: VariableNode
+    ): Promise<RillValue> {
+      // EC-6: Target must be dict
+      if (!isDict(value)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Alternative access requires dict, got ${inferType(value)}`,
+          this.getNodeLocation(node)
+        );
+      }
+
+      // Try each alternative left-to-right (short-circuit on first match)
+      for (const key of access.alternatives) {
+        const dictValue = (value as Record<string, RillValue>)[key];
+        if (dictValue !== undefined && dictValue !== null) {
+          // Property-style callable: auto-invoke when accessed
+          if (isCallable(dictValue) && dictValue.isProperty) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await (this as any).invokeCallable(
+              dictValue,
+              [value],
+              this.getNodeLocation(node)
+            );
+          }
+          return dictValue;
+        }
+      }
+
+      // All keys missing: return null
+      return null;
     }
 
     /**

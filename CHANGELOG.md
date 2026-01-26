@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Static Analysis Tool** — `rill-check` CLI for linting Rill scripts
+  - 25 validation rules across 9 categories: naming, flow, collections, loops, conditionals, closures, types, strings, formatting
+  - Auto-fix support via `--fix` flag for fixable issues
+  - Configuration file support (`.rillcheck.json`) for enabling/disabling rules
+  - Output formats: `--format text` (default) or `--format json`
+  - Rule categories:
+    - **Naming**: snake_case enforcement for variables, closures, dict keys
+    - **Flow**: capture patterns, branch structure
+    - **Collections**: break in parallel ops, prefer map over each, fold intermediates
+    - **Loops**: accumulator usage, prefer do-while, use each for iteration
+    - **Conditionals**: default operator, condition type validation
+    - **Closures**: bare dollar in stored closures, brace style, late binding
+    - **Types**: unnecessary assertions, external validation
+    - **Strings**: heredoc for multiline, `.empty` over `== ""`
+    - **Formatting**: spacing, indentation, implicit `$` patterns
+
+- **Dynamic Field Access** — Variable and computed keys for dict/list access
+  - `$dict.$key` — Use variable value as dict key
+  - `$dict.($i + 1)` — Computed expression as key
+  - `$dict.(a || b)` — Alternative keys (fallback)
+  - Type validation: keys must be string or number
+
+- **Extension System** — API for creating reusable host function packages
+  - `ExtensionFactory<TConfig>` type for configuration-based factories
+  - `prefixFunctions(namespace, functions)` for namespacing extensions
+  - `emitExtensionEvent(ctx, event)` for structured logging
+  - `ExtensionEvent` type with severity levels and timestamps
+
 - **CLI Commands** — Two new commands for executing Rill scripts from the command line
   - `rill-exec <file> [args...]` — Execute a Rill script file with arguments
     - Arguments passed as `$` list (all strings, no type conversion)

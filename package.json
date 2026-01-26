@@ -13,7 +13,8 @@
   },
   "bin": {
     "rill-exec": "./dist/cli-exec.js",
-    "rill-eval": "./dist/cli-eval.js"
+    "rill-eval": "./dist/cli-eval.js",
+    "rill-check": "./dist/cli-check.js"
   },
   "files": [
     "dist",
@@ -31,6 +32,7 @@
     "access": "public"
   },
   "scripts": {
+    "prebuild": "rm -f tsconfig.tsbuildinfo",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
@@ -41,10 +43,10 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "rill": "npx tsx src/cli-exec.ts",
     "test:examples": "npx tsx scripts/test-examples.ts docs/",
-    "check": "npm run test:examples && npm run format:check && npm run lint && npm run typecheck && npm run test"
+    "check": "npm run test:examples && npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test"
   },
   "keywords": [
     "rill",

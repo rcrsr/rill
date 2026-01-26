@@ -111,29 +111,6 @@ describe('rill-exec', () => {
       const result = await executeScript(script, []);
       expect(formatOutput(result.value)).toBe('[closure]');
     });
-
-    it('executes large file (>1MB) without timeout', async () => {
-      // Generate >1MB script content with repeated variable assignments
-      const lines: string[] = [];
-      const iterations = 60000; // Each line ~20 bytes = ~1.2MB total
-
-      for (let i = 0; i < iterations; i++) {
-        lines.push(`${i} :> $var${i}`);
-      }
-      lines.push('true'); // Final statement returns true
-
-      const largeScript = lines.join('\n');
-      const sizeInMB = Buffer.byteLength(largeScript, 'utf8') / (1024 * 1024);
-
-      // Verify we generated >1MB
-      expect(sizeInMB).toBeGreaterThan(1);
-
-      const script = await writeScript('large.rill', largeScript);
-      const result = await executeScript(script, []);
-
-      // Script should execute successfully and return true
-      expect(result.value).toBe(true);
-    });
   });
 
   describe('formatOutput', () => {

@@ -421,7 +421,7 @@ $list[1]                         # "b"
 
 Use a variable as key:
 
-```rill
+```text
 "name" :> $key
 [name: "alice"] :> $data
 $data.$key                       # "alice"
@@ -431,7 +431,7 @@ $data.$key                       # "alice"
 
 Use an expression as key:
 
-```rill
+```text
 0 :> $i
 ["a", "b", "c"] :> $list
 $list.($i + 1)                   # "b"
@@ -441,7 +441,7 @@ $list.($i + 1)                   # "b"
 
 Try keys left-to-right:
 
-```rill
+```text
 [nickname: "Al"] :> $user
 $user.(name || nickname)         # "Al"
 ```

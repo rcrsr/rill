@@ -25,6 +25,20 @@ export type RillMethod = (
 export interface RuntimeCallbacks {
   /** Called when .log is invoked */
   onLog: (value: RillValue) => void;
+  /** Called when extensions emit diagnostic events */
+  onLogEvent?: (event: ExtensionEvent) => void;
+}
+
+/** Structured diagnostic event from extensions */
+export interface ExtensionEvent {
+  /** Semantic event name (required) */
+  event: string;
+  /** Extension identifier (required, pattern: extension:{namespace}) */
+  subsystem: string;
+  /** ISO timestamp (auto-added by runtime if omitted) */
+  timestamp?: string | undefined;
+  /** Extensible context fields */
+  [key: string]: unknown;
 }
 
 /** Observability callbacks for monitoring execution */

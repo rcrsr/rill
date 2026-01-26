@@ -81,6 +81,16 @@ export {
 export { BreakSignal, ReturnSignal } from './core/signals.js';
 
 // ============================================================
+// EXTENSION API
+// ============================================================
+
+export type { ExtensionEvent } from './core/types.js';
+
+export type { ExtensionFactory, ExtensionResult } from './ext/extensions.js';
+
+export { prefixFunctions, emitExtensionEvent } from './ext/extensions.js';
+
+// ============================================================
 // CONTEXT FACTORY
 // ============================================================
 
