@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI Tools Documentation** — `docs/17_cli-tools.md` covering all three CLI commands
+  - `rill-exec`: file execution, stdin, arguments, frontmatter modules, exit codes
+  - `rill-eval`: expression evaluation with examples
+  - `rill-check`: options, output formats, configuration, full lint rule table (29 rules)
+  - Linked from `docs/00_INDEX.md` under Integration section
+
 - **LOOP_OUTER_CAPTURE lint rule** — Detects attempts to modify outer-scope variables from inside loops
   - Flags captures inside `each`, `map`, `filter`, `fold`, `while`, and `do-while` bodies that target outer variables
   - Warning severity with actionable message suggesting `fold`/accumulator patterns

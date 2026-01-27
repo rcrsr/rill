@@ -37,6 +37,7 @@
 |-------|-------------|
 | [Host Integration](14_host-integration.md) | Embedding rill in applications |
 | [Modules](13_modules.md) | Convention for host-provided module systems |
+| [CLI Tools](17_cli-tools.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
 
 ## Grammar
 
