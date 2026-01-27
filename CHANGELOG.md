@@ -7,56 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [0.2.0] - 2026-01-26
 
-- **CLI Tools Documentation** — `docs/17_cli-tools.md` covering all three CLI commands
-  - `rill-exec`: file execution, stdin, arguments, frontmatter modules, exit codes
-  - `rill-eval`: expression evaluation with examples
-  - `rill-check`: options, output formats, configuration, full lint rule table (29 rules)
-  - Linked from `docs/00_INDEX.md` under Integration section
+### Breaking
 
-- **LOOP_OUTER_CAPTURE lint rule** — Detects attempts to modify outer-scope variables from inside loops
-  - Flags captures inside `each`, `map`, `filter`, `fold`, `while`, and `do-while` bodies that target outer variables
-  - Warning severity with actionable message suggesting `fold`/accumulator patterns
-  - Skips closures (separate scope) to avoid false positives
+- **Mandatory Host Function Type Declarations** — `params` is now required in `HostFunctionDefinition`
+  - Before: `functions: { add: (args) => args[0] + args[1] }` (raw `CallableFn`)
+  - After: `functions: { add: { params: [...], fn: (args) => args[0] + args[1] } }`
+  - Backward compatibility for untyped functions removed
+  - Migration: Wrap all host functions in `{ params: [...], fn: ... }` format
 
-- **SPACING_BRACKETS lint rule** — Implemented bracket spacing validation (previously stubbed)
-  - Detects spaces inside bracket access: `$list[ 0 ]` → `$list[0]`
-  - Auto-fix support removes inner whitespace
-  - Handles nested brackets, unicode content, missing/invalid spans gracefully
-  - Parser now emits `span` on `BracketAccess` nodes for source text extraction
-
-- **IMPLICIT_DOLLAR_METHOD lint rule** — Implemented explicit `$` method detection (previously stubbed)
-  - Detects `$.upper()` → suggests `.upper`
-  - Uses `receiverSpan` on `MethodCallNode` to identify bare `$` receiver
-  - Parser now passes `receiverSpan` through `parseMethodCall()`
-
-- **IMPLICIT_DOLLAR_FUNCTION lint rule** — Implemented explicit `$` function arg detection (previously stubbed)
-  - Detects `log($)` → suggests `-> log`
-  - Uses `isBareReference()` helper for O(1) AST node check
-
-- **IMPLICIT_DOLLAR_CLOSURE lint rule** — Implemented explicit `$` closure arg detection (previously stubbed)
-  - Detects `$fn($)` → suggests `-> $fn`
-  - Supports access chains: `$obj.fn($)` → `-> $obj.fn`
-
-- **`isBareReference()` helper** — Detects bare `$` pipe variable in expression nodes
-  - O(1) depth traversal (max 3 node levels): PipeChain → PostfixExpr → Variable
-  - Filters out `$var`, `$.field`, `$[0]`, pipe chains with targets
-
-### Changed
-
-- **Documentation** — Added scope/loop pitfall guidance across 3 docs
-  - `docs/03_variables.md`: Common mistake callout for outer-scope capture in loops
-  - `docs/05_control-flow.md`: Multiple state values pattern using `$` as state dict
-  - `docs/07_collections.md`: Warning about loop body scope limitations
-
-- **Test updates** — Replaced `heredoc` references with triple-quote strings in frontmatter and content-parser tests; reformatted long lines per Prettier
-
-- **Triple-Quote Strings** — Replaced heredoc syntax (`<<EOF...EOF`) with triple-quote strings (`"""..."""`)
+- **Triple-Quote Strings Replace Heredocs** — `<<EOF...EOF` syntax removed, use `"""..."""`
   - `"""content"""` for multiline strings with interpolation support
   - Opening newline after `"""` skipped automatically (Python-style)
   - Nested triple-quotes inside interpolation produce clear error
-  - Removed `MIGRATE_TO_TRIPLE_QUOTE` lint rule (unreachable after heredoc removal)
   - AST field renamed: `isHeredoc` → `isMultiline`
   - Using `<<` produces helpful error suggesting triple-quote alternative
 
@@ -78,18 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Strings**: `.empty` over `== ""`
     - **Formatting**: spacing, indentation, implicit `$` patterns
 
-- **Dynamic Field Access** — Variable and computed keys for dict/list access
-  - `$dict.$key` — Use variable value as dict key
-  - `$dict.($i + 1)` — Computed expression as key
-  - `$dict.(a || b)` — Alternative keys (fallback)
-  - Type validation: keys must be string or number
-
-- **Extension System** — API for creating reusable host function packages
-  - `ExtensionFactory<TConfig>` type for configuration-based factories
-  - `prefixFunctions(namespace, functions)` for namespacing extensions
-  - `emitExtensionEvent(ctx, event)` for structured logging
-  - `ExtensionEvent` type with severity levels and timestamps
-
 - **CLI Commands** — Two new commands for executing Rill scripts from the command line
   - `rill-exec <file> [args...]` — Execute a Rill script file with arguments
     - Arguments passed as `$` list (all strings, no type conversion)
@@ -102,19 +54,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both support `--help` and `--version` flags
   - Structured error output with line numbers and error codes
 
+- **CLI Tools Documentation** — `docs/17_cli-tools.md` covering all three CLI commands
+  - `rill-exec`: file execution, stdin, arguments, frontmatter modules, exit codes
+  - `rill-eval`: expression evaluation with examples
+  - `rill-check`: options, output formats, configuration, full lint rule table (29 rules)
+  - Linked from `docs/00_INDEX.md` under Integration section
+
+- **Dynamic Field Access** — Variable and computed keys for dict/list access
+  - `$dict.$key` — Use variable value as dict key
+  - `$dict.($i + 1)` — Computed expression as key
+  - `$dict.(a || b)` — Alternative keys (fallback)
+  - Type validation: keys must be string or number
+
+- **Extension System** — API for creating reusable host function packages
+  - `ExtensionFactory<TConfig>` type for configuration-based factories
+  - `prefixFunctions(namespace, functions)` for namespacing extensions
+  - `emitExtensionEvent(ctx, event)` for structured logging
+  - `ExtensionEvent` type with severity levels and timestamps
+
 - **Module Loader** — `loadModule()` function for frontmatter-based imports
   - Resolves modules relative to importing script
   - Caches by canonical path for efficiency
   - Circular dependency detection with clear error chain
   - Parses `use:` and `export:` frontmatter declarations
 
-### Breaking
-
-- **Mandatory Host Function Type Declarations** — `params` is now required in `HostFunctionDefinition`
-  - Before: `functions: { add: (args) => args[0] + args[1] }` (raw `CallableFn`)
-  - After: `functions: { add: { params: [...], fn: (args) => args[0] + args[1] } }`
-  - Backward compatibility for untyped functions removed
-  - Migration: Wrap all host functions in `{ params: [...], fn: ... }` format
+- **6 new lint rules** for `rill-check`:
+  - `LOOP_OUTER_CAPTURE` — Detects outer-scope variable capture inside loops; suggests `fold`/accumulator
+  - `SPACING_BRACKETS` — Validates bracket spacing (`$list[ 0 ]` → `$list[0]`); auto-fixable
+  - `IMPLICIT_DOLLAR_METHOD` — Detects `$.upper()` → suggests `.upper`
+  - `IMPLICIT_DOLLAR_FUNCTION` — Detects `log($)` → suggests `-> log`
+  - `IMPLICIT_DOLLAR_CLOSURE` — Detects `$fn($)` → suggests `-> $fn`
+  - `isBareReference()` helper for O(1) bare `$` detection in AST nodes
 
 ### Fixed
 
@@ -122,7 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Before: Token concatenation lost inter-token spaces, breaking YAML parsing
   - After: Raw source text captured between `---` delimiters
   - Fixes: `use: [{mod: ./path}]` now parses correctly as YAML
-  - Location: `src/parser/parser-script.ts:124-146`, `src/parser/index.ts:40`
 
 - **Zero-Parameter Function Pipe Injection** — Functions with `params: []` no longer receive automatic pipe value
   - Before: `timestamp()` with `params: []` received pipe value as first argument
@@ -131,20 +100,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Deprecated `src/cli.ts`** — Use `rill-exec` or `rill-eval` instead
-  - Original CLI preserved for backward compatibility
-  - Will be removed in v1.0
+- **Deprecated `src/cli.ts`** — Use `rill-exec` or `rill-eval` instead; will be removed in v1.0
+
+- **Documentation** — Added scope/loop pitfall guidance across 3 docs
+  - `docs/03_variables.md`: Common mistake callout for outer-scope capture in loops
+  - `docs/05_control-flow.md`: Multiple state values pattern using `$` as state dict
+  - `docs/07_collections.md`: Warning about loop body scope limitations
+  - All host function examples updated to typed format
 
 - **Evaluator Mixin Documentation** — Added design rationale in `evaluator.ts`
   - Documents circular method dependencies between mixins
   - Explains shared mutable state requirements
-  - Lists alternatives considered (handler registry, capability interfaces, proxy dispatch)
-  - Justifies `as any` casts as localized trade-off
 
-- **Documentation Updates** — All host function examples use typed format
-  - README quick start updated
-  - Host integration guide updated
-  - Test examples script updated
+- **Test updates** — Replaced `heredoc` references with triple-quote strings in frontmatter and content-parser tests
 
 ## [0.1.0] - 2026-01-23
 
@@ -408,7 +376,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rcrsr/rill/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rcrsr/rill/compare/v0.0.5...v0.1.0
 [0.0.5]: https://github.com/rcrsr/rill/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/rcrsr/rill/compare/v0.0.3...v0.0.4
