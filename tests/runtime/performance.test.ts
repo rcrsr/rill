@@ -57,25 +57,7 @@ describe('Rill Runtime: Performance Regression', () => {
     const duration = performance.now() - start;
     const avgMs = duration / iterations;
 
-    // Log performance metrics for baseline establishment
-    // eslint-disable-next-line no-console
-    console.log(
-      `Performance: ${iterations} iterations in ${duration.toFixed(2)}ms (avg: ${avgMs.toFixed(3)}ms)`
-    );
-
-    // Check regression only if baseline is established
-    if (BASELINE_MS !== undefined) {
-      const maxAllowed = BASELINE_MS * (1 + REGRESSION_THRESHOLD);
-      expect(avgMs).toBeLessThanOrEqual(maxAllowed);
-      // eslint-disable-next-line no-console
-      console.log(
-        `Baseline: ${BASELINE_MS.toFixed(3)}ms, Current: ${avgMs.toFixed(3)}ms, Max: ${maxAllowed.toFixed(3)}ms`
-      );
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(
-        `No baseline set. Use this value to update BASELINE_MS: ${avgMs.toFixed(3)}`
-      );
-    }
+    const maxAllowed = BASELINE_MS * (1 + REGRESSION_THRESHOLD);
+    expect(avgMs).toBeLessThanOrEqual(maxAllowed);
   }, 60000); // 60s timeout for 1000 iterations
 });

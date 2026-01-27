@@ -140,4 +140,12 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+// Only run main if this is the entry point (not imported)
+const shouldRunMain =
+  process.env['NODE_ENV'] !== 'test' &&
+  !process.env['VITEST'] &&
+  !process.env['VITEST_WORKER_ID'];
+
+if (shouldRunMain) {
+  main();
+}
