@@ -146,7 +146,9 @@ describe('CollectionsMixin', () => {
       await expect(run(script)).rejects.toThrow(
         expect.objectContaining({
           code: 'RUNTIME_LIMIT_EXCEEDED',
-          message: expect.stringMatching(/Iterator expansion exceeded 10000 iterations/),
+          message: expect.stringMatching(
+            /Iterator expansion exceeded 10000 iterations/
+          ),
         })
       );
     });

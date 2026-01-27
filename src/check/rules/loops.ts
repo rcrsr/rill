@@ -21,55 +21,135 @@ import { extractContextLine } from './helpers.js';
 // ============================================================
 
 /**
- * Check if a loop body contains variable captures.
- * Returns true if any captures are found in the body.
+ * Collect all variable captures (:> $name) in the given AST node.
  */
-function containsCaptures(node: ASTNode): boolean {
+function collectCaptures(node: ASTNode, names: string[]): void {
   switch (node.type) {
     case 'Capture':
-      return true;
+      names.push(`$${node.name}`);
+      return;
 
     case 'Block':
-      return node.statements.some((stmt) => containsCaptures(stmt));
+      node.statements.forEach((stmt) => collectCaptures(stmt, names));
+      return;
 
     case 'Statement':
-      return containsCaptures(node.expression);
+      collectCaptures(node.expression, names);
+      return;
 
     case 'AnnotatedStatement':
-      return containsCaptures(node.statement);
+      collectCaptures(node.statement, names);
+      return;
 
     case 'PipeChain':
-      if (node.pipes.some((pipe) => containsCaptures(pipe as ASTNode)))
-        return true;
-      if (node.terminator && node.terminator.type === 'Capture') return true;
-      return false;
+      node.pipes.forEach((pipe) => collectCaptures(pipe as ASTNode, names));
+      if (node.terminator && node.terminator.type === 'Capture')
+        collectCaptures(node.terminator, names);
+      return;
 
     case 'PostfixExpr':
-      if (containsCaptures(node.primary)) return true;
-      return node.methods.some((method) => containsCaptures(method));
+      collectCaptures(node.primary, names);
+      node.methods.forEach((method) => collectCaptures(method, names));
+      return;
 
     case 'BinaryExpr':
-      return containsCaptures(node.left) || containsCaptures(node.right);
+      collectCaptures(node.left, names);
+      collectCaptures(node.right, names);
+      return;
 
     case 'UnaryExpr':
-      return containsCaptures(node.operand);
+      collectCaptures(node.operand, names);
+      return;
 
     case 'GroupedExpr':
-      return containsCaptures(node.expression);
+      collectCaptures(node.expression, names);
+      return;
 
     case 'Conditional':
-      if (node.input && containsCaptures(node.input)) return true;
-      if (node.condition && containsCaptures(node.condition)) return true;
-      if (containsCaptures(node.thenBranch)) return true;
-      if (node.elseBranch && containsCaptures(node.elseBranch)) return true;
-      return false;
+      if (node.input) collectCaptures(node.input, names);
+      if (node.condition) collectCaptures(node.condition, names);
+      collectCaptures(node.thenBranch, names);
+      if (node.elseBranch) collectCaptures(node.elseBranch, names);
+      return;
 
     case 'WhileLoop':
     case 'DoWhileLoop':
-      return containsCaptures(node.body);
+      collectCaptures(node.body, names);
+      return;
 
     default:
-      return false;
+      return;
+  }
+}
+
+/**
+ * Collect all variable references ($name) in the given AST node.
+ */
+function collectVariableReferences(node: ASTNode, names: string[]): void {
+  switch (node.type) {
+    case 'Variable':
+      // Add the variable name if it's not the pipe variable ($)
+      if (!node.isPipeVar && node.name) {
+        names.push(`$${node.name}`);
+      }
+      return;
+
+    case 'Block':
+      node.statements.forEach((stmt) => collectVariableReferences(stmt, names));
+      return;
+
+    case 'Statement':
+      collectVariableReferences(node.expression, names);
+      return;
+
+    case 'AnnotatedStatement':
+      collectVariableReferences(node.statement, names);
+      return;
+
+    case 'PipeChain':
+      collectVariableReferences(node.head, names);
+      node.pipes.forEach((pipe) =>
+        collectVariableReferences(pipe as ASTNode, names)
+      );
+      if (node.terminator)
+        collectVariableReferences(node.terminator as ASTNode, names);
+      return;
+
+    case 'PostfixExpr':
+      collectVariableReferences(node.primary, names);
+      node.methods.forEach((method) =>
+        collectVariableReferences(method, names)
+      );
+      return;
+
+    case 'BinaryExpr':
+      collectVariableReferences(node.left, names);
+      collectVariableReferences(node.right, names);
+      return;
+
+    case 'UnaryExpr':
+      collectVariableReferences(node.operand, names);
+      return;
+
+    case 'GroupedExpr':
+      collectVariableReferences(node.expression, names);
+      return;
+
+    case 'Conditional':
+      if (node.input) collectVariableReferences(node.input, names);
+      if (node.condition) collectVariableReferences(node.condition, names);
+      collectVariableReferences(node.thenBranch, names);
+      if (node.elseBranch) collectVariableReferences(node.elseBranch, names);
+      return;
+
+    case 'WhileLoop':
+    case 'DoWhileLoop':
+      collectVariableReferences(node.condition, names);
+      collectVariableReferences(node.body, names);
+      return;
+
+    default:
+      return;
   }
 }
 
@@ -107,21 +187,28 @@ function callsRetryFunction(node: ASTNode): boolean {
 // ============================================================
 
 /**
- * Validates that $ is used as accumulator in while/do-while loops.
+ * Validates that variables captured in loop bodies aren't referenced in conditions.
  *
  * In while and do-while loops, $ serves as the accumulator across iterations.
- * Variables captured inside the loop body exist only within that iteration.
+ * Variables captured inside the loop body exist only within that iteration, so
+ * referencing them in the loop condition is a logic error - the condition will
+ * always see undefined (or the outer scope variable if one exists).
  *
- * Good pattern ($ accumulates):
- *   0 -> ($ < 5) @ { $ + 1 }
- *
- * Avoid pattern (named variables don't persist):
- *   0 -> ($ < 5) @ {
- *     $ :> $x        # $x exists only in this iteration
+ * Error pattern (captured variable in condition):
+ *   0 -> ($x < 5) @ {        # $x is undefined in condition
+ *     $ :> $x
  *     $x + 1
  *   }
  *
- * This is stylistic - both work, but $ is clearer for accumulation.
+ * Correct pattern ($ as accumulator):
+ *   0 -> ($ < 5) @ { $ + 1 }
+ *
+ * Also correct (capture only used within iteration):
+ *   0 -> ($ < 5) @ {
+ *     $ :> $x
+ *     log($x)                # $x only used in body, not condition
+ *     $x + 1
+ *   }
  *
  * References:
  * - docs/16_conventions.md:151-171
@@ -135,15 +222,30 @@ export const LOOP_ACCUMULATOR: ValidationRule = {
   validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
     const loop = node as WhileLoopNode | DoWhileLoopNode;
 
-    // Check if loop body contains captures
-    if (containsCaptures(loop.body)) {
+    // Collect all variable captures in loop body
+    const capturedNames: string[] = [];
+    collectCaptures(loop.body, capturedNames);
+
+    if (capturedNames.length === 0) {
+      return []; // No captures, no problem
+    }
+
+    // Collect all variable references in loop condition
+    const conditionRefs: string[] = [];
+    collectVariableReferences(loop.condition, conditionRefs);
+
+    // Find captures that are referenced in the condition
+    const capturedSet = new Set(capturedNames);
+    const problematicVars = conditionRefs.filter((ref) => capturedSet.has(ref));
+
+    if (problematicVars.length > 0) {
+      const vars = [...new Set(problematicVars)].join(', ');
       return [
         {
           location: node.span.start,
           severity: 'info',
           code: 'LOOP_ACCUMULATOR',
-          message:
-            'Use $ as accumulator in while/do-while. Variables captured inside loop body exist only within that iteration.',
+          message: `${vars} captured in loop body but referenced in condition; loop body variables reset each iteration`,
           context: extractContextLine(node.span.start.line, context.source),
           fix: null, // Complex fix - requires refactoring loop body
         },

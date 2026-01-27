@@ -69,9 +69,21 @@ describe('LOOP_ACCUMULATOR', () => {
     expect(hasViolations('@ { $ + 1 } ? ($ < 5)', config)).toBe(false);
   });
 
-  it('detects captures in while loop body', () => {
+  it('accepts captures only used within iteration', () => {
     const source = `
 0 -> ($ < 5) @ {
+  $ :> $x
+  log($x)
+  $x + 1
+}
+    `.trim();
+
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('detects captured variable referenced in while loop condition', () => {
+    const source = `
+0 -> ($x < 5) @ {
   $ :> $x
   $x + 1
 }
@@ -79,21 +91,26 @@ describe('LOOP_ACCUMULATOR', () => {
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('Use $ as accumulator');
-    expect(messages[0]).toContain('exist only within that iteration');
+    expect(messages[0]).toContain(
+      '$x captured in loop body but referenced in condition'
+    );
+    expect(messages[0]).toContain('reset each iteration');
   });
 
-  it('detects captures in do-while loop body', () => {
+  it('detects captured variable referenced in do-while loop condition', () => {
     const source = `
 @ {
   $ :> $val
   $val + 1
-} ? ($ < 10)
+} ? ($val < 10)
     `.trim();
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('Use $ as accumulator');
+    expect(messages[0]).toContain(
+      '$val captured in loop body but referenced in condition'
+    );
+    expect(messages[0]).toContain('reset each iteration');
   });
 
   it('accepts loop without captures', () => {
@@ -107,9 +124,40 @@ describe('LOOP_ACCUMULATOR', () => {
     expect(hasViolations(source, config)).toBe(false);
   });
 
+  it('accepts captures not referenced in condition', () => {
+    const source = `
+0 :> $i
+($i < 5) @ {
+  $ :> $temp
+  log($temp)
+  $ + 1
+}
+    `.trim();
+
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('detects multiple captured variables in condition', () => {
+    const source = `
+0 -> ($x < $y) @ {
+  $ :> $x
+  $ :> $y
+  $x + $y
+}
+    `.trim();
+
+    const messages = getDiagnostics(source, config);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0]).toContain(
+      'captured in loop body but referenced in condition'
+    );
+    // Should mention both variables
+    expect(messages[0]).toMatch(/\$x.*\$y|\$y.*\$x/);
+  });
+
   it('has correct severity and code', () => {
     const source = `
-0 -> ($ < 5) @ {
+0 -> ($x < 5) @ {
   $ :> $x
   $x + 1
 }
@@ -246,7 +294,7 @@ describe('Loop rules integration', () => {
   it('can detect multiple violations in same code', () => {
     const source = `
 0 :> $i
-($i < $items.len) @ {
+($index < $items.len) @ {
   $i :> $index
   $items[$index]
   $index + 1
@@ -261,7 +309,7 @@ describe('Loop rules integration', () => {
 
   it('respects rule configuration', () => {
     const source = `
-0 -> ($ < 5) @ {
+0 -> ($x < 5) @ {
   $ :> $x
   $x + 1
 }
