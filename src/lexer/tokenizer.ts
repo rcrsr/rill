@@ -3,7 +3,7 @@
  * Main tokenization logic
  */
 
-import type { Token } from '../types.js';
+import type { Token, SourceLocation } from '../types.js';
 import { TOKEN_TYPES } from '../types.js';
 import { LexerError } from './errors.js';
 import {
@@ -58,6 +58,35 @@ export function nextToken(state: LexerState): Token {
   const start = currentLocation(state);
   const ch = peek(state);
 
+  // Frontmatter content: scan raw lines until closing ---
+  if (state.inFrontmatter) {
+    if (ch === '\n') {
+      advance(state);
+      // Check if next line starts with ---
+      if (peekString(state, 3) === '---') {
+        state.inFrontmatter = false;
+      }
+      return makeToken(
+        TOKEN_TYPES.NEWLINE,
+        '\n',
+        start,
+        currentLocation(state)
+      );
+    }
+    // Consume entire line as an identifier token
+    let value = '';
+    while (!isAtEnd(state) && peek(state) !== '\n') {
+      value += peek(state);
+      advance(state);
+    }
+    return makeToken(
+      TOKEN_TYPES.IDENTIFIER,
+      value,
+      start,
+      currentLocation(state)
+    );
+  }
+
   // Newline
   if (ch === '\n') {
     advance(state);
@@ -90,13 +119,18 @@ export function nextToken(state: LexerState): Token {
   // Three-character operators
   const threeChar = peekString(state, 3);
   if (threeChar === '---') {
-    return advanceAndMakeToken(
+    const token = advanceAndMakeToken(
       state,
       3,
       TOKEN_TYPES.FRONTMATTER_DELIM,
       '---',
       start
     );
+    // Only set frontmatter mode if at actual file start (not in sub-parse)
+    if (state.pos === 3 && state.baseOffset === 0) {
+      state.inFrontmatter = true;
+    }
+    return token;
   }
 
   // Two-character operators (lookup table)
@@ -131,8 +165,11 @@ export function nextToken(state: LexerState): Token {
   throw new LexerError(`Unexpected character: ${ch}`, start);
 }
 
-export function tokenize(source: string): Token[] {
-  const state = createLexerState(source);
+export function tokenize(
+  source: string,
+  baseLocation?: SourceLocation
+): Token[] {
+  const state = createLexerState(source, baseLocation);
   const tokens: Token[] = [];
   let token: Token;
 

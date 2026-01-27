@@ -162,5 +162,94 @@ iterations: 3
 0 -> ($ < 3) @ { ($ + 1) }`;
       expect(await run(script)).toBe(3);
     });
+
+    it('handles frontmatter with apostrophes', async () => {
+      const script = `---
+description: it's a test
+---
+42`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain("it's");
+      expect(ast.frontmatter?.content).toContain('a test');
+      expect(await run(script)).toBe(42);
+    });
+
+    it('handles frontmatter with special characters', async () => {
+      const script = `---
+message: hello! how are you? @user #tag $var
+---
+"ok"`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('hello!');
+      expect(ast.frontmatter?.content).toContain('@user');
+      expect(ast.frontmatter?.content).toContain('#tag');
+      expect(await run(script)).toBe('ok');
+    });
+
+    it('handles frontmatter with Unicode characters', async () => {
+      const script = `---
+message: Hello 世界 🌍
+author: José García
+emoji: 🚀✨
+---
+"unicode"`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('世界');
+      expect(ast.frontmatter?.content).toContain('José');
+      expect(ast.frontmatter?.content).toContain('🚀');
+      expect(await run(script)).toBe('unicode');
+    });
+
+    it('handles frontmatter with dashes not at line start', async () => {
+      const script = `---
+cmd: some-command
+range: 1---10
+separator: " --- "
+---
+100`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('some-command');
+      expect(ast.frontmatter?.content).toContain('1---10');
+      expect(ast.frontmatter?.content).toContain(' --- ');
+      expect(await run(script)).toBe(100);
+    });
+
+    it('handles frontmatter with only whitespace lines', async () => {
+      const script = `---
+
+
+key: value
+
+---
+7`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('key');
+      expect(ast.frontmatter?.content).toContain('value');
+      expect(await run(script)).toBe(7);
+    });
+
+    it('handles frontmatter with empty values', async () => {
+      const script = `---
+empty:
+blank:
+---
+"test"`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('empty');
+      expect(ast.frontmatter?.content).toContain('blank');
+      expect(await run(script)).toBe('test');
+    });
+
+    it('handles frontmatter with quoted strings', async () => {
+      const script = `---
+message: "it's quoted"
+single: 'also quoted'
+---
+5`;
+      const ast = parse(script);
+      expect(ast.frontmatter?.content).toContain('"it\'s quoted"');
+      expect(ast.frontmatter?.content).toContain("'also quoted'");
+      expect(await run(script)).toBe(5);
+    });
   });
 });

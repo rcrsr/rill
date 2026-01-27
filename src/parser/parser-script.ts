@@ -15,6 +15,7 @@ import type {
   StatementNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
+import { LexerError } from '../lexer/index.js';
 import {
   check,
   advance,
@@ -68,10 +69,21 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
       try {
         statements.push(this.parseStatement());
       } catch (err) {
-        if (err instanceof ParseError) {
-          this.state.errors.push(err);
+        if (err instanceof ParseError || err instanceof LexerError) {
+          // Convert LexerError to ParseError for consistency
+          const parseError =
+            err instanceof ParseError
+              ? err
+              : new ParseError(
+                  err.message.replace(/ at line \d+, column \d+$/, ''),
+                  err.location
+                );
+          this.state.errors.push(parseError);
           // Create ErrorNode and skip to next statement boundary
-          const errorNode = this.recoverToNextStatement(stmtStart, err.message);
+          const errorNode = this.recoverToNextStatement(
+            stmtStart,
+            parseError.message
+          );
           statements.push(errorNode);
         } else {
           throw err; // Re-throw non-parse errors

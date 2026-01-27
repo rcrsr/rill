@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-01-27
+
+### Fixed
+
+- **Frontmatter Lexing** — Lexer now scans frontmatter content as raw text between `---` delimiters
+  - Before: Files with apostrophes or special characters in frontmatter caused `Unexpected character` errors
+  - After: Frontmatter content is opaque to the lexer; any characters are valid
+
+- **String Interpolation Error Locations** — Errors inside `{expr}` now report correct source positions
+  - Before: Locations were relative to the interpolation fragment (e.g., line 1, column 1)
+  - After: Locations are absolute within the original source file
+  - Added `baseLocation` parameter to `tokenize()` for sub-parsing with correct offsets
+
+- **`rill-check` Parse Error Recovery** — Parse errors are now reported as diagnostics instead of crashes
+  - Before: `rill-check` exited with unhandled error on first parse failure
+  - After: Reports first parse error as a formatted diagnostic with location
+  - Uses `parseWithRecovery()` to handle both `LexerError` and `ParseError`
+
+- **`rill-check` Entry Point** — CLI now executes when invoked via npm bin shims
+  - Before: `import.meta.url` guard failed when run through `npx` or global link
+  - After: Uses environment variable detection matching `rill-exec` and `rill-eval`
+
+- **CLI Version Reading** — All three CLI tools read version from `package.json` at runtime
+  - Before: `rill-check` had hardcoded `"0.1.0"`; `rill-exec` had fallback `"0.1.0"`
+  - After: Shared `readVersion()` in `cli-shared.ts` used by all CLI tools
+
 ## [0.2.0] - 2026-01-26
 
 ### Breaking
@@ -376,7 +402,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/rcrsr/rill/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rcrsr/rill/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rcrsr/rill/compare/v0.0.5...v0.1.0
 [0.0.5]: https://github.com/rcrsr/rill/compare/v0.0.4...v0.0.5

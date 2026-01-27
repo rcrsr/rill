@@ -12,7 +12,12 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import { parse, execute, createRuntimeContext } from './index.js';
 import type { RillValue, ExecutionResult } from './index.js';
-import { formatOutput, formatError, determineExitCode } from './cli-shared.js';
+import {
+  formatOutput,
+  formatError,
+  determineExitCode,
+  readVersion,
+} from './cli-shared.js';
 import { loadModule } from './cli-module-loader.js';
 
 /**
@@ -172,19 +177,8 @@ Examples:
         return;
 
       case 'version': {
-        // Read version from package.json
-        const packageJsonPath = path.resolve(
-          path.dirname(new URL(import.meta.url).pathname),
-          '../package.json'
-        );
-        try {
-          const packageJson = JSON.parse(
-            await fs.readFile(packageJsonPath, 'utf-8')
-          );
-          console.log(packageJson.version);
-        } catch {
-          console.log('0.1.0'); // Fallback version
-        }
+        const version = await readVersion();
+        console.log(version);
         return;
       }
 

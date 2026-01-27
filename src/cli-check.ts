@@ -14,8 +14,8 @@ import {
   validateScript,
   applyFixes,
 } from './check/index.js';
-import { parse } from './parser/index.js';
-import { ParseError } from './types.js';
+import { parseWithRecovery } from './parser/index.js';
+import { readVersion } from './cli-shared.js';
 
 /**
  * Parsed command-line arguments for rill-check
@@ -275,7 +275,8 @@ Options:
 
     // Handle version mode
     if (args.mode === 'version') {
-      console.log('0.1.0');
+      const version = await readVersion();
+      console.log(version);
       process.exit(0);
     }
 
@@ -329,31 +330,45 @@ Options:
       process.exit(2);
     }
 
-    // Parse AST
-    let ast;
-    try {
-      ast = parse(source);
-    } catch (err) {
-      // Handle parse errors
-      if (err instanceof ParseError) {
-        const location = err.location;
-        if (location) {
-          console.error(
-            `${args.file}:${location.line}:${location.column}: parse error: ${err.message}`
-          );
-        } else {
-          console.error(`${args.file}: parse error: ${err.message}`);
-        }
+    // Parse AST with recovery to collect all errors
+    const parseResult = parseWithRecovery(source);
 
-        // If --fix was requested, report that fixes cannot be applied
-        if (args.fix) {
-          console.error('Cannot apply fixes: file has parse errors');
-        }
+    // Convert parse errors to diagnostics
+    // Only report the first parse error; subsequent errors are usually cascade noise
+    const parseDiagnostics: Diagnostic[] = parseResult.errors
+      .slice(0, 1)
+      .map((err) => {
+        const location = err.location ?? { line: 1, column: 1, offset: 0 };
+        const lineContent = source.split('\n')[location.line - 1]?.trim() ?? '';
+        return {
+          code: 'parse-error',
+          severity: 'error' as const,
+          message: err.message.replace(/ at \d+:\d+$/, ''),
+          location,
+          context: lineContent,
+          fix: null,
+        };
+      });
 
-        process.exit(3);
+    // If there are parse errors, report them and exit
+    if (parseDiagnostics.length > 0) {
+      const output = formatDiagnostics(
+        args.file,
+        parseDiagnostics,
+        args.format,
+        args.verbose
+      );
+      console.log(output);
+
+      // If --fix was requested, report that fixes cannot be applied
+      if (args.fix) {
+        console.error('Cannot apply fixes: file has parse errors');
       }
-      throw err; // Re-throw unexpected errors
+
+      process.exit(3);
     }
+
+    const ast = parseResult.ast;
 
     // Run validation
     const diagnostics = validateScript(ast, source, config);
@@ -431,6 +446,11 @@ Options:
 }
 
 // Only run main if this is the entry point (not imported)
-if (import.meta.url === `file://${process.argv[1]}`) {
+const shouldRunMain =
+  process.env['NODE_ENV'] !== 'test' &&
+  !process.env['VITEST'] &&
+  !process.env['VITEST_WORKER_ID'];
+
+if (shouldRunMain) {
   main();
 }

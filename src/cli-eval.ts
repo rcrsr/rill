@@ -14,8 +14,7 @@ import {
   parse,
   type ExecutionResult,
 } from './index.js';
-import { formatOutput, determineExitCode } from './cli-shared.js';
-import * as fs from 'fs';
+import { formatOutput, determineExitCode, readVersion } from './cli-shared.js';
 
 /**
  * Parse command-line arguments into structured command
@@ -92,13 +91,9 @@ Examples:
 /**
  * Display version information
  */
-function showVersion(): void {
-  // Read version from package.json
-  const packageJsonPath = new URL('../package.json', import.meta.url);
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as {
-    version: string;
-  };
-  console.log(`rill-eval ${packageJson.version}`);
+async function showVersion(): Promise<void> {
+  const version = await readVersion();
+  console.log(`rill-eval ${version}`);
 }
 
 /**
@@ -115,7 +110,7 @@ async function main(): Promise<void> {
     }
 
     if (command.mode === 'version') {
-      showVersion();
+      await showVersion();
       return;
     }
 

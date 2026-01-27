@@ -10,19 +10,30 @@ export interface LexerState {
   pos: number;
   line: number;
   column: number;
+  baseOffset: number;
+  inFrontmatter: boolean;
 }
 
-export function createLexerState(source: string): LexerState {
+export function createLexerState(
+  source: string,
+  baseLocation?: SourceLocation
+): LexerState {
   return {
     source,
     pos: 0,
-    line: 1,
-    column: 1,
+    line: baseLocation?.line ?? 1,
+    column: baseLocation?.column ?? 1,
+    baseOffset: baseLocation?.offset ?? 0,
+    inFrontmatter: false,
   };
 }
 
 export function currentLocation(state: LexerState): SourceLocation {
-  return { line: state.line, column: state.column, offset: state.pos };
+  return {
+    line: state.line,
+    column: state.column,
+    offset: state.pos + state.baseOffset,
+  };
 }
 
 export function peek(state: LexerState, offset = 0): string {

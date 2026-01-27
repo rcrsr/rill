@@ -113,3 +113,17 @@ export function determineExitCode(value: RillValue): {
   // All other values (number, dict, closure, etc.) are truthy: exit 0
   return { code: 0 };
 }
+
+/**
+ * Read version from package.json
+ *
+ * @returns Package version string
+ */
+export async function readVersion(): Promise<string> {
+  const { readFile } = await import('fs/promises');
+  const packageJsonPath = new URL('../package.json', import.meta.url);
+  const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8')) as {
+    version: string;
+  };
+  return packageJson.version;
+}

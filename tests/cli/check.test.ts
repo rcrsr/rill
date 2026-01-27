@@ -115,8 +115,13 @@ describe('rill-check CLI', () => {
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
       const checkPath = path.join(process.cwd(), 'dist', 'cli-check.js');
+      const env = { ...process.env };
+      delete env['VITEST'];
+      delete env['VITEST_WORKER_ID'];
+      delete env['NODE_ENV'];
       const proc = spawn('node', [checkPath, ...args], {
         cwd: tempDir,
+        env,
       });
 
       let stdout = '';
@@ -315,6 +320,14 @@ describe('rill-check CLI', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+
+      // Verify version matches package.json
+      const { readFile } = await import('fs/promises');
+      const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+      const packageJson = JSON.parse(
+        await readFile(packageJsonPath, 'utf-8')
+      ) as { version: string };
+      expect(result.stdout.trim()).toBe(packageJson.version);
     });
   });
 
@@ -342,7 +355,9 @@ describe('rill-check CLI', () => {
       const result = await execCheck([script]);
 
       expect(result.exitCode).toBe(3);
-      expect(result.stderr).toContain('parse error');
+      // Parse errors now reported as diagnostics to stdout
+      expect(result.stdout).toContain('parse-error');
+      expect(result.stdout).toContain('error:');
     });
 
     it('reports parse error with location [AC-B2]', async () => {
@@ -373,6 +388,18 @@ describe('rill-check CLI', () => {
         const source = fssync.readFileSync(script, 'utf-8');
         parse(source);
       }).toThrow(ParseError);
+    });
+
+    it('reports lexer errors as diagnostics instead of crashing', async () => {
+      // Single quote character is invalid in rill (causes LexerError)
+      const script = await writeFile('lex-error.rill', "test' invalid");
+      const result = await execCheck([script]);
+
+      // Should exit with code 3 (parse error) not crash
+      expect(result.exitCode).toBe(3);
+      // Should show diagnostic output, not an unhandled exception
+      expect(result.stdout).toContain('parse-error');
+      expect(result.stdout).toContain('lex-error.rill');
     });
 
     it('exits with code 1 for unknown flag [AC-E4]', async () => {

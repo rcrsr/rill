@@ -4,7 +4,7 @@
  */
 
 import { tokenize } from '../lexer/index.js';
-import type { ParseResult, ScriptNode } from '../types.js';
+import { ParseError, type ParseResult, type ScriptNode } from '../types.js';
 import { Parser } from './parser.js';
 
 // Import extension modules to register prototype methods on Parser.
@@ -60,7 +60,46 @@ export function parse(source: string): ScriptNode {
  * ```
  */
 export function parseWithRecovery(source: string): ParseResult {
-  const tokens = tokenize(source);
+  // Try tokenization, converting LexerError to ParseError if needed
+  let tokens;
+  try {
+    tokens = tokenize(source);
+  } catch (err) {
+    // Handle lexer errors by converting to ParseError and returning empty AST
+    if (err instanceof Error && err.name === 'LexerError') {
+      const lexerErr = err as {
+        location?: { line: number; column: number; offset: number };
+      };
+      const location = lexerErr.location ?? {
+        line: 1,
+        column: 1,
+        offset: 0,
+      };
+      const parseError = new ParseError(
+        err.message.replace(/ at line \d+, column \d+$/, ''),
+        location
+      );
+
+      // Return minimal AST with single error
+      const emptyScript: ScriptNode = {
+        type: 'Script',
+        frontmatter: null,
+        statements: [],
+        span: {
+          start: { line: 1, column: 1, offset: 0 },
+          end: { line: 1, column: 1, offset: 0 },
+        },
+      };
+
+      return {
+        ast: emptyScript,
+        errors: [parseError],
+        success: false,
+      };
+    }
+    throw err; // Re-throw unexpected errors
+  }
+
   const parser = new Parser(tokens, { recoveryMode: true, source });
   const ast = parser.parse();
 
