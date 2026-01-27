@@ -15,6 +15,8 @@ rill provides four collection operators for transforming, filtering, and reducin
 
 All three operators share similar syntax but differ in execution model and output.
 
+> **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](03_variables.md)). Use `fold` or `each(init)` with accumulators instead.
+
 ```rill
 # Sequential: results in order, one at a time
 [1, 2, 3] -> each { $ * 2 }     # [2, 4, 6]

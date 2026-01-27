@@ -11,6 +11,7 @@ import type {
   MethodCallNode,
   PipeInvokeNode,
   PrimaryNode,
+  SourceSpan,
   TypeAssertionNode,
   TypeCheckNode,
 } from '../types.js';
@@ -25,7 +26,7 @@ declare module './parser.js' {
     parseHostCall(): HostCallNode;
     parseClosureCall(): ClosureCallNode;
     parsePipeInvoke(): PipeInvokeNode;
-    parseMethodCall(): MethodCallNode;
+    parseMethodCall(receiverSpan?: SourceSpan | null): MethodCallNode;
     parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
     parsePostfixTypeOperation(
       primary: PrimaryNode,
@@ -131,7 +132,10 @@ Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
 // METHOD CALLS
 // ============================================================
 
-Parser.prototype.parseMethodCall = function (this: Parser): MethodCallNode {
+Parser.prototype.parseMethodCall = function (
+  this: Parser,
+  receiverSpan?: SourceSpan | null
+): MethodCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
   const nameToken = expect(
@@ -151,6 +155,7 @@ Parser.prototype.parseMethodCall = function (this: Parser): MethodCallNode {
     type: 'MethodCall',
     name: nameToken.value,
     args,
+    receiverSpan: receiverSpan ?? null,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

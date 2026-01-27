@@ -13,6 +13,12 @@ import type {
   CaptureNode,
   ConditionalNode,
   GroupedExprNode,
+  EachExprNode,
+  MapExprNode,
+  FilterExprNode,
+  FoldExprNode,
+  WhileLoopNode,
+  DoWhileLoopNode,
 } from '../../types.js';
 import { extractContextLine } from './helpers.js';
 
@@ -259,6 +265,172 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
   }
 
   return maxDepth;
+}
+
+// ============================================================
+// LOOP_OUTER_CAPTURE RULE
+// ============================================================
+
+/**
+ * Detects attempts to modify outer-scope variables from inside loops.
+ * This is a common LLM-generated anti-pattern that never works in Rill.
+ *
+ * Rill's scoping rules mean that captures inside loop bodies create LOCAL
+ * variables that don't affect outer scope. This is a fundamental language
+ * constraint, not a style preference.
+ *
+ * WRONG - this pattern NEVER works:
+ *   0 :> $count
+ *   [1, 2, 3] -> each { $count + 1 :> $count }  # creates LOCAL $count
+ *   $count                                       # still 0!
+ *
+ * RIGHT - use accumulators:
+ *   [1, 2, 3] -> fold(0) { $@ + 1 }             # returns 3
+ *   [1, 2, 3] -> each(0) { $@ + 1 }             # returns [1, 2, 3]
+ *
+ * This rule catches captures inside loop/collection bodies where the
+ * variable name matches an outer-scope variable.
+ *
+ * References:
+ * - docs/99_llm-reference.txt (LOOP STATE PATTERNS)
+ * - docs/03_variables.md (Scope Rules)
+ */
+export const LOOP_OUTER_CAPTURE: ValidationRule = {
+  code: 'LOOP_OUTER_CAPTURE',
+  category: 'anti-patterns',
+  severity: 'warning',
+  nodeTypes: [
+    'EachExpr',
+    'MapExpr',
+    'FilterExpr',
+    'FoldExpr',
+    'WhileLoop',
+    'DoWhileLoop',
+  ],
+
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+
+    // Get the loop body based on node type
+    let body: ASTNode | null = null;
+    switch (node.type) {
+      case 'EachExpr':
+        body = (node as EachExprNode).body;
+        break;
+      case 'MapExpr':
+        body = (node as MapExprNode).body;
+        break;
+      case 'FilterExpr':
+        body = (node as FilterExprNode).body;
+        break;
+      case 'FoldExpr':
+        body = (node as FoldExprNode).body;
+        break;
+      case 'WhileLoop':
+        body = (node as WhileLoopNode).body;
+        break;
+      case 'DoWhileLoop':
+        body = (node as DoWhileLoopNode).body;
+        break;
+    }
+
+    if (!body) return diagnostics;
+
+    // Find all captures in the body
+    const captures = findCapturesInBody(body);
+
+    // Check if any capture targets an outer-scope variable
+    for (const capture of captures) {
+      if (context.variables.has(capture.name)) {
+        const outerLocation = context.variables.get(capture.name)!;
+        diagnostics.push({
+          location: capture.span.start,
+          severity: 'warning',
+          code: 'LOOP_OUTER_CAPTURE',
+          message:
+            `Cannot modify outer variable '$${capture.name}' from inside loop. ` +
+            `Captures inside loops create LOCAL variables. ` +
+            `Use fold(init) with $@ accumulator, or pack state into $ as a dict. ` +
+            `(Outer '$${capture.name}' defined at line ${outerLocation.line})`,
+          context: extractContextLine(capture.span.start.line, context.source),
+          fix: null,
+        });
+      }
+    }
+
+    return diagnostics;
+  },
+};
+
+/**
+ * Recursively find all Capture nodes in a loop body.
+ */
+function findCapturesInBody(node: ASTNode): CaptureNode[] {
+  const captures: CaptureNode[] = [];
+
+  function traverse(n: ASTNode): void {
+    if (n.type === 'Capture') {
+      captures.push(n as CaptureNode);
+      return;
+    }
+
+    // Traverse children based on node type
+    switch (n.type) {
+      case 'Block':
+        for (const stmt of n.statements) traverse(stmt);
+        break;
+      case 'Statement':
+        traverse(n.expression);
+        break;
+      case 'AnnotatedStatement':
+        traverse(n.statement);
+        break;
+      case 'PipeChain':
+        traverse(n.head);
+        for (const pipe of n.pipes) traverse(pipe as ASTNode);
+        if (n.terminator) traverse(n.terminator);
+        break;
+      case 'PostfixExpr':
+        traverse(n.primary);
+        for (const method of n.methods) traverse(method);
+        break;
+      case 'BinaryExpr':
+        traverse(n.left);
+        traverse(n.right);
+        break;
+      case 'UnaryExpr':
+        traverse(n.operand);
+        break;
+      case 'GroupedExpr':
+        traverse(n.expression);
+        break;
+      case 'Conditional':
+        if (n.input) traverse(n.input);
+        if (n.condition) traverse(n.condition);
+        traverse(n.thenBranch);
+        if (n.elseBranch) traverse(n.elseBranch);
+        break;
+      case 'Closure':
+        // Don't traverse into closures - they have their own scope
+        break;
+      // Nested loops - traverse their bodies too
+      case 'WhileLoop':
+        traverse(n.body);
+        break;
+      case 'DoWhileLoop':
+        traverse(n.body);
+        break;
+      case 'EachExpr':
+      case 'MapExpr':
+      case 'FilterExpr':
+      case 'FoldExpr':
+        traverse(n.body);
+        break;
+    }
+  }
+
+  traverse(node);
+  return captures;
 }
 
 /**

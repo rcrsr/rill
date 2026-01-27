@@ -110,6 +110,8 @@ true -> ? {
 
 Pre-condition loop. Condition is evaluated before each iteration. The body result becomes the next iteration's `$`.
 
+> **Note:** There is no `while` keyword. Use `(condition) @ { body }` syntax. Loop bodies cannot modify outer-scope variables—use `$` to carry all state. For multiple values, pack them in a dict.
+
 ### Syntax
 
 ```text
@@ -150,6 +152,25 @@ Use `^(limit: N)` annotation to set maximum iterations (default: 10,000):
 ```
 
 Exceeding the limit throws `RuntimeError` with code `RUNTIME_LIMIT_EXCEEDED`.
+
+### Multiple State Values
+
+When you need to track multiple values across iterations, use `$` as a state dict:
+
+```text
+# Track iteration count, text, and done flag
+[iter: 0, text: $input, done: false]
+  -> (!$.done && $.iter < 3) @ {
+    $.iter + 1 :> $i
+    app::process($.text) :> $result
+    $result.finished
+      ? [iter: $i, text: $.text, done: true]
+      ! [iter: $i, text: $result.text, done: false]
+  }
+# Access final state: $.text, $.iter
+```
+
+This pattern replaces the common (but invalid) approach of trying to modify outer variables from inside the loop.
 
 ---
 

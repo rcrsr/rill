@@ -97,13 +97,13 @@ description: Capture test
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
-    it('handles frontmatter followed by heredoc', async () => {
+    it('handles frontmatter followed by triple-quote string', async () => {
       const script = `---
 type: template
 ---
-<<MSG
+"""
 Hello
-MSG`;
+"""`;
       expect(await run(script)).toBe('Hello\n');
     });
 

@@ -124,14 +124,15 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
     }
 
     if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-      advance(this.state);
+      const openBracket = advance(this.state);
       const expression = this.parsePipeChain();
-      expect(
+      const closeBracket = expect(
         this.state,
         TOKEN_TYPES.RBRACKET,
         'Expected ] after index expression'
       );
-      accessChain.push({ accessKind: 'bracket', expression });
+      const span = makeSpan(openBracket.span.start, closeBracket.span.end);
+      accessChain.push({ accessKind: 'bracket', expression, span });
       continue;
     }
 

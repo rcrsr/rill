@@ -7,7 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **LOOP_OUTER_CAPTURE lint rule** — Detects attempts to modify outer-scope variables from inside loops
+  - Flags captures inside `each`, `map`, `filter`, `fold`, `while`, and `do-while` bodies that target outer variables
+  - Warning severity with actionable message suggesting `fold`/accumulator patterns
+  - Skips closures (separate scope) to avoid false positives
+
+- **SPACING_BRACKETS lint rule** — Implemented bracket spacing validation (previously stubbed)
+  - Detects spaces inside bracket access: `$list[ 0 ]` → `$list[0]`
+  - Auto-fix support removes inner whitespace
+  - Handles nested brackets, unicode content, missing/invalid spans gracefully
+  - Parser now emits `span` on `BracketAccess` nodes for source text extraction
+
+- **IMPLICIT_DOLLAR_METHOD lint rule** — Implemented explicit `$` method detection (previously stubbed)
+  - Detects `$.upper()` → suggests `.upper`
+  - Uses `receiverSpan` on `MethodCallNode` to identify bare `$` receiver
+  - Parser now passes `receiverSpan` through `parseMethodCall()`
+
+- **IMPLICIT_DOLLAR_FUNCTION lint rule** — Implemented explicit `$` function arg detection (previously stubbed)
+  - Detects `log($)` → suggests `-> log`
+  - Uses `isBareReference()` helper for O(1) AST node check
+
+- **IMPLICIT_DOLLAR_CLOSURE lint rule** — Implemented explicit `$` closure arg detection (previously stubbed)
+  - Detects `$fn($)` → suggests `-> $fn`
+  - Supports access chains: `$obj.fn($)` → `-> $obj.fn`
+
+- **`isBareReference()` helper** — Detects bare `$` pipe variable in expression nodes
+  - O(1) depth traversal (max 3 node levels): PipeChain → PostfixExpr → Variable
+  - Filters out `$var`, `$.field`, `$[0]`, pipe chains with targets
+
 ### Changed
+
+- **Documentation** — Added scope/loop pitfall guidance across 3 docs
+  - `docs/03_variables.md`: Common mistake callout for outer-scope capture in loops
+  - `docs/05_control-flow.md`: Multiple state values pattern using `$` as state dict
+  - `docs/07_collections.md`: Warning about loop body scope limitations
+
+- **Test updates** — Replaced `heredoc` references with triple-quote strings in frontmatter and content-parser tests; reformatted long lines per Prettier
 
 - **Triple-Quote Strings** — Replaced heredoc syntax (`<<EOF...EOF`) with triple-quote strings (`"""..."""`)
   - `"""content"""` for multiline strings with interpolation support

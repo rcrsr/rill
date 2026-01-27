@@ -7,6 +7,8 @@ import type {
   ValidationRule,
   Diagnostic,
   ValidationContext,
+  FixContext,
+  Fix,
 } from '../types.js';
 import type {
   ASTNode,
@@ -15,8 +17,14 @@ import type {
   CaptureNode,
   ClosureNode,
   SourceSpan,
+  PostfixExprNode,
+  VariableNode,
+  BracketAccess,
+  MethodCallNode,
+  HostCallNode,
+  ClosureCallNode,
 } from '../../types.js';
-import { extractContextLine } from './helpers.js';
+import { extractContextLine, isBareReference } from './helpers.js';
 
 // ============================================================
 // SPACING_OPERATOR RULE
@@ -225,10 +233,128 @@ export const SPACING_BRACKETS: ValidationRule = {
   severity: 'info',
   nodeTypes: ['PostfixExpr'],
 
-  validate(_node: ASTNode, _context: ValidationContext): Diagnostic[] {
-    // [DEBT] Stubbed - IndexAccess not exposed in PostfixExpr.methods array
-    // AST only exposes MethodCall/Invoke, not bracket indexing operations
-    return [];
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+    const postfixNode = node as PostfixExprNode;
+
+    // Only process if primary is a Variable (contains accessChain)
+    if (postfixNode.primary.type !== 'Variable') {
+      return diagnostics;
+    }
+
+    const variableNode = postfixNode.primary as VariableNode;
+
+    // Check each BracketAccess in the accessChain
+    for (const access of variableNode.accessChain) {
+      // Skip non-bracket accesses
+      if (!('accessKind' in access) || access.accessKind !== 'bracket') {
+        continue;
+      }
+
+      const bracketAccess = access as BracketAccess;
+
+      // EC-3: Skip if span is missing (graceful handling)
+      if (!bracketAccess.span) {
+        continue;
+      }
+
+      // EC-4: Skip if span coordinates are invalid (graceful handling)
+      if (
+        !bracketAccess.span.start ||
+        !bracketAccess.span.end ||
+        bracketAccess.span.start.line < 1 ||
+        bracketAccess.span.end.line < 1 ||
+        bracketAccess.span.start.column < 1 ||
+        bracketAccess.span.end.column < 1
+      ) {
+        continue;
+      }
+
+      // Extract text from bracket span
+      const text = extractSpanText(bracketAccess.span, context.source);
+
+      // Check for space after opening bracket: /\[\s/
+      // Check for space before closing bracket: /\s\]/
+      const hasSpaceAfterOpen = /\[\s/.test(text);
+      const hasSpaceBeforeClose = /\s\]/.test(text);
+
+      if (hasSpaceAfterOpen || hasSpaceBeforeClose) {
+        // Extract content between brackets for error message
+        const content = text.substring(1, text.length - 1).trim();
+
+        diagnostics.push({
+          location: bracketAccess.span.start,
+          severity: 'info',
+          code: 'SPACING_BRACKETS',
+          message: `No spaces inside brackets: remove spaces around ${content}`,
+          context: extractContextLine(
+            bracketAccess.span.start.line,
+            context.source
+          ),
+          fix: null,
+        });
+      }
+    }
+
+    return diagnostics;
+  },
+
+  fix(node: ASTNode, context: FixContext): Fix | null {
+    const postfixNode = node as PostfixExprNode;
+
+    // Only process if primary is a Variable (contains accessChain)
+    if (postfixNode.primary.type !== 'Variable') {
+      return null;
+    }
+
+    const variableNode = postfixNode.primary as VariableNode;
+
+    // Find the first BracketAccess with spacing violation
+    for (const access of variableNode.accessChain) {
+      // Skip non-bracket accesses
+      if (!('accessKind' in access) || access.accessKind !== 'bracket') {
+        continue;
+      }
+
+      const bracketAccess = access as BracketAccess;
+
+      // Skip if span is missing or invalid
+      if (
+        !bracketAccess.span ||
+        !bracketAccess.span.start ||
+        !bracketAccess.span.end ||
+        bracketAccess.span.start.line < 1 ||
+        bracketAccess.span.end.line < 1 ||
+        bracketAccess.span.start.column < 1 ||
+        bracketAccess.span.end.column < 1
+      ) {
+        continue;
+      }
+
+      // Extract text from bracket span
+      const text = extractSpanText(bracketAccess.span, context.source);
+
+      // Check for spacing violations
+      const hasSpaceAfterOpen = /\[\s/.test(text);
+      const hasSpaceBeforeClose = /\s\]/.test(text);
+
+      if (hasSpaceAfterOpen || hasSpaceBeforeClose) {
+        // Build replacement text by removing inner spaces
+        // Replace [ followed by whitespace with [
+        // Replace whitespace followed by ] with ]
+        const replacement = text.replace(/\[\s+/g, '[').replace(/\s+\]/g, ']');
+
+        return {
+          description: 'Remove spaces inside brackets',
+          applicable: true,
+          range: bracketAccess.span,
+          replacement,
+        };
+      }
+    }
+
+    // No fixable violation found
+    return null;
   },
 };
 
@@ -322,7 +448,7 @@ export const INDENT_CONTINUATION: ValidationRule = {
     const diagnostics: Diagnostic[] = [];
     const pipeNode = node as PipeChainNode;
 
-    // Only check multi-line chains
+    // EC-5: Single-line chain - Return []
     if (pipeNode.span.start.line === pipeNode.span.end.line) {
       return [];
     }
@@ -331,14 +457,22 @@ export const INDENT_CONTINUATION: ValidationRule = {
     const text = extractSpanText(pipeNode.span, context.source);
     const lines = text.split('\n');
 
+    // KNOWN LIMITATION: This rule validates multi-line pipe chains where the pipe
+    // operator (`->`) and its target appear on the same line. The parser requires
+    // pipe targets to be on the same line as the `->` operator, so patterns like
+    // `value ->\n  .method()` are invalid. See tests/language/statement-boundaries.test.ts:211-215
+    // for authoritative language behavior.
     if (lines.length > 1) {
-      // Check each continuation line (skip first)
+      // Check each continuation line (skip first line which establishes baseline)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
+
+        // EC-6: Empty continuation line - Skip line
         if (!line) continue;
 
         const indent = line.match(/^(\s*)/)?.[1] || '';
 
+        // Continuation = line starting with -> (after whitespace)
         // Should have at least 2 spaces for continuation
         if (line.trim().startsWith('->') && indent.length < 2) {
           diagnostics.push({
@@ -366,12 +500,33 @@ export const INDENT_CONTINUATION: ValidationRule = {
 // ============================================================
 
 /**
- * Prefer .foo over $.foo() for method calls.
- * When piping, prefer implicit $ shorthand for methods.
+ * Detect explicit $.method() patterns replaceable with .method.
+ *
+ * Flags method calls where the receiver is a bare $ (pipe variable).
+ * The implicit form .method is preferred when $ represents the current
+ * piped value (e.g., in blocks, closures, conditionals).
  *
  * Detection:
- * - MethodCall where receiver is bare $ (isPipeVar)
- * - In pipe context
+ * - MethodCallNode with non-null receiverSpan
+ * - Receiver is bare $ (zero-width or single-char span)
+ * - Method call is first in chain (receiverSpan.end.offset <= 1)
+ *
+ * Note: Cannot use isBareReference() helper here because MethodCallNode.receiverSpan
+ * is a SourceSpan (position range), not an ExpressionNode. The helper requires
+ * an AST node to traverse. Instead, we detect bare $ by checking:
+ * 1. receiverSpan is zero-width (start == end) or single-char
+ * 2. Character at offset is '$'
+ * 3. Next character is '.' (not a variable name continuation)
+ *
+ * Examples:
+ * - $.upper() -> .upper
+ * - $.len -> .len
+ * - $.trim().upper() -> First method flagged, second is chained (not bare $)
+ *
+ * Not flagged:
+ * - .upper (receiverSpan is null)
+ * - $var.method() (receiverSpan is not bare $)
+ * - $.trim().upper() second method (receiverSpan covers $.trim())
  *
  * References:
  * - docs/16_conventions.md:587-598
@@ -382,10 +537,59 @@ export const IMPLICIT_DOLLAR_METHOD: ValidationRule = {
   severity: 'info',
   nodeTypes: ['MethodCall'],
 
-  validate(_node: ASTNode, _context: ValidationContext): Diagnostic[] {
-    // [DEBT] Stubbed - MethodCall node lacks receiver information
-    // Need parent context or AST restructure to detect $.method() pattern
-    return [];
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const methodNode = node as MethodCallNode;
+
+    // EC-7: No receiverSpan means implicit receiver (already correct form)
+    if (methodNode.receiverSpan === null) {
+      return [];
+    }
+
+    // Detect bare $ receiver by analyzing the receiverSpan
+    // For bare $, the span is either:
+    // 1. Zero-width (start.offset == end.offset) at the $ character
+    // 2. Single-char span covering just $
+    const receiverSpan = methodNode.receiverSpan;
+    const spanLength = receiverSpan.end.offset - receiverSpan.start.offset;
+
+    // EC-8: Receiver is not bare $ if span is longer than 1 character
+    // This filters out chains like $.trim().upper() where second method
+    // has receiverSpan covering "$.trim()."
+    if (spanLength > 1) {
+      return [];
+    }
+
+    // Check that the character at the span is '$' and not part of a variable name
+    const offset = receiverSpan.start.offset;
+    const charAtOffset = context.source[offset];
+    const nextChar = context.source[offset + 1];
+
+    // Must be '$' followed by '.' (method call)
+    // This distinguishes $.method() from $var.method()
+    if (charAtOffset !== '$' || nextChar !== '.') {
+      return [];
+    }
+
+    // Generate diagnostic for bare $ receiver
+    const suggestedCode =
+      methodNode.args.length === 0
+        ? `.${methodNode.name}`
+        : `.${methodNode.name}()`;
+
+    return [
+      {
+        code: 'IMPLICIT_DOLLAR_METHOD',
+        message: `Prefer implicit '${suggestedCode}' over explicit '$.${methodNode.name}()'`,
+        severity: 'info',
+        location: {
+          line: methodNode.span.start.line,
+          column: methodNode.span.start.column,
+          offset: methodNode.span.start.offset,
+        },
+        context: extractContextLine(methodNode.span.start.line, context.source),
+        fix: null,
+      },
+    ];
   },
 };
 
@@ -409,10 +613,43 @@ export const IMPLICIT_DOLLAR_FUNCTION: ValidationRule = {
   severity: 'info',
   nodeTypes: ['HostCall'],
 
-  validate(_node: ASTNode, _context: ValidationContext): Diagnostic[] {
-    // [DEBT] Stubbed - HostCall args are ExpressionNode union requiring deep traversal
-    // Need to unwrap PipeChain -> PostfixExpr -> Variable to detect bare $ argument
-    return [];
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const hostCallNode = node as HostCallNode;
+
+    // EC-9: Zero args - Return []
+    if (hostCallNode.args.length === 0) {
+      return [];
+    }
+
+    // EC-10: Multiple args - Return []
+    if (hostCallNode.args.length > 1) {
+      return [];
+    }
+
+    // EC-11: Single arg not bare $ - Return []
+    const singleArg = hostCallNode.args[0];
+    if (!isBareReference(singleArg)) {
+      return [];
+    }
+
+    // Generate diagnostic for bare $ argument
+    return [
+      {
+        code: 'IMPLICIT_DOLLAR_FUNCTION',
+        message: `Prefer pipe syntax '-> ${hostCallNode.name}' over explicit '${hostCallNode.name}($)'`,
+        severity: 'info',
+        location: {
+          line: hostCallNode.span.start.line,
+          column: hostCallNode.span.start.column,
+          offset: hostCallNode.span.start.offset,
+        },
+        context: extractContextLine(
+          hostCallNode.span.start.line,
+          context.source
+        ),
+        fix: null,
+      },
+    ];
   },
 };
 
@@ -436,10 +673,49 @@ export const IMPLICIT_DOLLAR_CLOSURE: ValidationRule = {
   severity: 'info',
   nodeTypes: ['ClosureCall'],
 
-  validate(_node: ASTNode, _context: ValidationContext): Diagnostic[] {
-    // [DEBT] Stubbed - ClosureCall args require same deep ExpressionNode unwrapping
-    // Complex traversal to detect single bare $ argument pattern
-    return [];
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const closureCallNode = node as ClosureCallNode;
+
+    // EC-12: Zero args - Return []
+    if (closureCallNode.args.length === 0) {
+      return [];
+    }
+
+    // EC-13: Multiple args - Return []
+    if (closureCallNode.args.length > 1) {
+      return [];
+    }
+
+    // EC-14: Single arg not bare $ - Return []
+    const singleArg = closureCallNode.args[0];
+    if (!isBareReference(singleArg)) {
+      return [];
+    }
+
+    // Build closure name with access chain for display
+    const closureName =
+      closureCallNode.accessChain.length > 0
+        ? `$${closureCallNode.name}.${closureCallNode.accessChain.join('.')}`
+        : `$${closureCallNode.name}`;
+
+    // Generate diagnostic for bare $ argument
+    return [
+      {
+        code: 'IMPLICIT_DOLLAR_CLOSURE',
+        message: `Prefer pipe syntax '-> ${closureName}' over explicit '${closureName}($)'`,
+        severity: 'info',
+        location: {
+          line: closureCallNode.span.start.line,
+          column: closureCallNode.span.start.column,
+          offset: closureCallNode.span.start.offset,
+        },
+        context: extractContextLine(
+          closureCallNode.span.start.line,
+          context.source
+        ),
+        fix: null,
+      },
+    ];
   },
 };
 

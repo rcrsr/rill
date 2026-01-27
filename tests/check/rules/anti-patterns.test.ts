@@ -20,6 +20,7 @@ function createConfig(rules: Record<string, 'on' | 'off'> = {}): CheckConfig {
     rules: {
       AVOID_REASSIGNMENT: 'on',
       COMPLEX_CONDITION: 'on',
+      LOOP_OUTER_CAPTURE: 'on',
       ...rules,
     },
     severity: {},
@@ -204,5 +205,177 @@ describe('COMPLEX_CONDITION', () => {
     const source = '((($x + 5) * ($y - 10)) > 0) ? "arithmetic"';
 
     expect(hasViolations(source, config)).toBe(false);
+  });
+});
+
+// ============================================================
+// LOOP_OUTER_CAPTURE TESTS
+// ============================================================
+
+describe('LOOP_OUTER_CAPTURE', () => {
+  const config = createConfig({
+    AVOID_REASSIGNMENT: 'off',
+    COMPLEX_CONDITION: 'off',
+  });
+
+  it('accepts captures of new variables in loop body', () => {
+    // This is fine - $temp is new, not modifying outer scope
+    const source = `
+      [1, 2, 3] -> each {
+        $ * 2 :> $temp
+        $temp
+      }
+    `;
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('accepts loops without captures', () => {
+    const source = '[1, 2, 3] -> each { $ * 2 }';
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('accepts fold with accumulator pattern', () => {
+    const source = '[1, 2, 3] -> fold(0) { $@ + $ }';
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('warns when each body captures outer variable', () => {
+    const source = `
+      0 :> $count
+      [1, 2, 3] -> each { $count + 1 :> $count }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('warns when map body captures outer variable', () => {
+    const source = `
+      "" :> $result
+      [1, 2, 3] -> map { $result + $ :> $result }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('warns when while loop body captures outer variable', () => {
+    const source = `
+      0 :> $i
+      0 -> ($ < 3) @ {
+        $i + 1 :> $i
+        $ + 1
+      }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('warns when filter body captures outer variable', () => {
+    const source = `
+      0 :> $count
+      [1, 2, 3] -> filter {
+        $count + 1 :> $count
+        ($ > 1)
+      }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('provides helpful message with line reference', () => {
+    const source = `
+      0 :> $sum
+      [1, 2, 3] -> each { $sum + $ :> $sum }
+    `;
+
+    const messages = getDiagnostics(source, config);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0]).toContain('Cannot modify outer variable');
+    expect(messages[0]).toContain('$sum');
+    expect(messages[0]).toContain('fold');
+    expect(messages[0]).toContain('line');
+  });
+
+  it('has warning severity', () => {
+    const source = `
+      0 :> $x
+      [1, 2, 3] -> each { $x + 1 :> $x }
+    `;
+
+    const ast = parse(source);
+    const diagnostics = validateScript(ast, source, config);
+    const loopCapture = diagnostics.find(
+      (d) => d.code === 'LOOP_OUTER_CAPTURE'
+    );
+
+    expect(loopCapture).toBeDefined();
+    expect(loopCapture?.severity).toBe('warning');
+  });
+
+  it('detects multiple outer captures in same loop', () => {
+    const source = `
+      0 :> $a
+      0 :> $b
+      [1, 2, 3] -> each {
+        $a + 1 :> $a
+        $b + 1 :> $b
+      }
+    `;
+
+    const ast = parse(source);
+    const diagnostics = validateScript(ast, source, config);
+    const loopCaptures = diagnostics.filter(
+      (d) => d.code === 'LOOP_OUTER_CAPTURE'
+    );
+
+    expect(loopCaptures.length).toBe(2);
+  });
+
+  it('warns when do-while loop body captures outer variable', () => {
+    const source = `
+      0 :> $count
+      0 -> @ {
+        $count + 1 :> $count
+        $ + 1
+      } ? ($ < 3)
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('accepts closures that capture outer variables (different scope)', () => {
+    // Closures have their own scope, so captures inside them shouldn't trigger
+    const source = `
+      10 :> $multiplier
+      [1, 2, 3] -> map {
+        |x| ($x * $multiplier) :> $fn
+        $fn($)
+      }
+    `;
+
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('warns when fold body captures outer variable (distinct from accumulator)', () => {
+    const source = `
+      0 :> $extraSum
+      [1, 2, 3] -> fold(0) {
+        $extraSum + 1 :> $extraSum
+        $@ + $ + $extraSum
+      }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
   });
 });

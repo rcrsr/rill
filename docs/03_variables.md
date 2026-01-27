@@ -191,6 +191,16 @@ While loops use `$` as the accumulator since named variables in the body don't p
 # $temp not accessible here
 ```
 
+> **Common Mistake:** Attempting to modify outer-scope variables from inside loops. This pattern NEVER works:
+>
+> ```text
+> 0 :> $count
+> [1, 2, 3] -> each { $count + 1 :> $count }  # Creates LOCAL $count!
+> $count                                       # Still 0!
+> ```
+>
+> Use `fold` for reductions, or pack multiple values into `$` as a dict. See [Collections](07_collections.md) for accumulator patterns.
+
 ### Reading Outer Variables
 
 ```rill

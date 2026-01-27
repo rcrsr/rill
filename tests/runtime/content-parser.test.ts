@@ -431,7 +431,9 @@ describe('Content Parsing: Runtime Integration', () => {
   describe('parse_json()', () => {
     it('parses valid JSON', async () => {
       // Escape braces with {{ }} to avoid interpolation
-      const result = await run(`"{{\\\"a\\\": 1, \\\"b\\\": 2}}" -> parse_json`);
+      const result = await run(
+        `"{{\\\"a\\\": 1, \\\"b\\\": 2}}" -> parse_json`
+      );
       expect(result).toEqual({ a: 1, b: 2 });
     });
 
@@ -456,10 +458,9 @@ describe('Content Parsing: Runtime Integration', () => {
   describe('parse_auto()', () => {
     it('returns dict with type, data, raw, confidence, repaired, repairs', async () => {
       // Escape braces with {{ }} to avoid interpolation
-      const result = (await run(`"{{\\\"test\\\": true}}" -> parse_auto`)) as Record<
-        string,
-        unknown
-      >;
+      const result = (await run(
+        `"{{\\\"test\\\": true}}" -> parse_auto`
+      )) as Record<string, unknown>;
       expect(result).toHaveProperty('type');
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('raw');
@@ -470,19 +471,17 @@ describe('Content Parsing: Runtime Integration', () => {
 
     it('detects JSON', async () => {
       // Escape braces with {{ }} to avoid interpolation
-      const result = (await run(`"{{\\\"test\\\": true}}" -> parse_auto`)) as Record<
-        string,
-        unknown
-      >;
+      const result = (await run(
+        `"{{\\\"test\\\": true}}" -> parse_auto`
+      )) as Record<string, unknown>;
       expect(result.type).toBe('json');
       expect(result.data).toEqual({ test: true });
     });
 
     it('detects XML', async () => {
-      const result = (await run(`"<answer>42</answer>" -> parse_auto`)) as Record<
-        string,
-        unknown
-      >;
+      const result = (await run(
+        `"<answer>42</answer>" -> parse_auto`
+      )) as Record<string, unknown>;
       expect(result.type).toBe('xml');
     });
 
@@ -505,7 +504,9 @@ describe('Content Parsing: Runtime Integration', () => {
     });
 
     it('returns empty string when tag not found', async () => {
-      const result = await run(`"<other>content</other>" -> parse_xml("missing")`);
+      const result = await run(
+        `"<other>content</other>" -> parse_xml("missing")`
+      );
       expect(result).toBe('');
     });
 
@@ -521,13 +522,13 @@ describe('Content Parsing: Runtime Integration', () => {
 
   describe('parse_fence()', () => {
     it('extracts first fenced block without language', async () => {
-      // Heredocs can't be directly piped; wrap in block
+      // Triple-quote strings can't be directly piped; wrap in block
       const result = await run(`{
-<<EOF
+"""
 \`\`\`
 code here
 \`\`\`
-EOF
+"""
 } :> $input
 $input -> parse_fence`);
       expect(result).toBe('code here');
@@ -535,11 +536,11 @@ $input -> parse_fence`);
 
     it('extracts fenced block by language', async () => {
       const result = await run(`{
-<<EOF
+"""
 \`\`\`python
 print("hi")
 \`\`\`
-EOF
+"""
 } :> $input
 $input -> parse_fence("python")`);
       expect(result).toBe('print("hi")');
@@ -552,11 +553,11 @@ $input -> parse_fence("python")`);
 
     it('returns empty string when language not found', async () => {
       const result = await run(`{
-<<EOF
+"""
 \`\`\`js
 code
 \`\`\`
-EOF
+"""
 } :> $input
 $input -> parse_fence("python")`);
       expect(result).toBe('');
@@ -566,14 +567,14 @@ $input -> parse_fence("python")`);
   describe('parse_fences()', () => {
     it('extracts all fenced blocks', async () => {
       const result = (await run(`{
-<<EOF
+"""
 \`\`\`js
 a
 \`\`\`
 \`\`\`py
 b
 \`\`\`
-EOF
+"""
 } :> $input
 $input -> parse_fences`)) as Array<{ lang: string; content: string }>;
       expect(result).toHaveLength(2);
@@ -590,20 +591,25 @@ $input -> parse_fences`)) as Array<{ lang: string; content: string }>;
   describe('parse_frontmatter()', () => {
     it('parses frontmatter and body', async () => {
       const result = (await run(`{
-<<EOF
+"""
 ---
 title: Test
 ---
 Body content
-EOF
+"""
 } :> $input
-$input -> parse_frontmatter`)) as { meta: Record<string, unknown>; body: string };
+$input -> parse_frontmatter`)) as {
+        meta: Record<string, unknown>;
+        body: string;
+      };
       expect(result.meta).toEqual({ title: 'Test' });
       expect(result.body).toBe('Body content');
     });
 
     it('returns empty meta and body when no frontmatter', async () => {
-      const result = (await run(`"No frontmatter here" -> parse_frontmatter`)) as {
+      const result = (await run(
+        `"No frontmatter here" -> parse_frontmatter`
+      )) as {
         meta: Record<string, unknown>;
         body: string;
       };
@@ -615,10 +621,10 @@ $input -> parse_frontmatter`)) as { meta: Record<string, unknown>; body: string 
   describe('parse_checklist()', () => {
     it('parses checklist items as [checked, text] tuples', async () => {
       const result = await run(`{
-<<EOF
+"""
 - [ ] Todo
 - [x] Done
-EOF
+"""
 } :> $input
 $input -> parse_checklist`);
       expect(result).toEqual([
