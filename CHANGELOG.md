@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-01-27
+
+### Fixed
+
+- **SPACING_BRACES False Positives** — Rule no longer flags string interpolation braces inside multi-line blocks
+  - Before: `{$var}` inside strings triggered "Space required before closing brace }" diagnostics
+  - After: Only inspects the actual block brace lines, ignoring interior content
+- **SPACING_BRACES Error Location** — Closing brace violations now report the correct line
+  - Before: Pointed at the opening `{` line
+  - After: Points at the closing `}` line
+
 ## [0.2.2] - 2026-01-27
 
 ### Fixed

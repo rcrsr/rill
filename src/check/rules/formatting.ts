@@ -180,12 +180,18 @@ export const SPACING_BRACES: ValidationRule = {
   validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     const span = node.span;
+    const lines = context.source.split('\n');
 
-    // Extract source text for the node
-    const text = extractSpanText(span, context.source);
+    // For multi-line blocks, only inspect the brace lines themselves
+    // to avoid false positives from string interpolation braces like {$var}
+    const isMultiLine = span.start.line !== span.end.line;
+    const openLine = lines[span.start.line - 1] ?? '';
+    const closeLine = lines[span.end.line - 1] ?? '';
 
     // Check for opening brace without space after
-    if (/\{[^\s]/.test(text) && !text.includes('{\n')) {
+    // Only examine the opening line (from the { onward)
+    const openFrom = openLine.substring(span.start.column - 1);
+    if (/\{[^\s]/.test(openFrom) && !openFrom.includes('{\n')) {
       diagnostics.push({
         location: span.start,
         severity: 'info',
@@ -197,13 +203,17 @@ export const SPACING_BRACES: ValidationRule = {
     }
 
     // Check for closing brace without space before
-    if (/[^\s]\}/.test(text) && !text.includes('\n}')) {
+    // Only examine the closing line (up to and including the })
+    const closeUpTo = isMultiLine
+      ? closeLine.substring(0, span.end.column - 1)
+      : openFrom;
+    if (/[^\s]\}/.test(closeUpTo) && !/\n\s*\}/.test(closeUpTo)) {
       diagnostics.push({
-        location: span.start,
+        location: span.end,
         severity: 'info',
         code: 'SPACING_BRACES',
         message: 'Space required before closing brace }',
-        context: extractContextLine(span.start.line, context.source),
+        context: extractContextLine(span.end.line, context.source),
         fix: null,
       });
     }

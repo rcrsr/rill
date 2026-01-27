@@ -211,6 +211,19 @@ describe('SPACING_BRACES', () => {
     const codes = getCodes('{$x}', config);
     expect(codes).toContain('SPACING_BRACES');
   });
+
+  it('accepts string interpolation braces inside multi-line blocks', () => {
+    const source = `{
+      "value: {$var}" :> $result
+      $result
+    }`;
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('still catches spacing violations in single-line blocks with interpolation', () => {
+    const source = '{"value: {$var}"}';
+    expect(hasViolations(source, config)).toBe(true);
+  });
 });
 
 // ============================================================
