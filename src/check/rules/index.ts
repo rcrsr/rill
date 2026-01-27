@@ -21,8 +21,12 @@ import {
   CLOSURE_LATE_BINDING,
 } from './closures.js';
 import { UNNECESSARY_ASSERTION, VALIDATE_EXTERNAL } from './types.js';
-import { USE_HEREDOC, USE_EMPTY_METHOD } from './strings.js';
-import { AVOID_REASSIGNMENT, COMPLEX_CONDITION } from './anti-patterns.js';
+import { USE_EMPTY_METHOD } from './strings.js';
+import {
+  AVOID_REASSIGNMENT,
+  COMPLEX_CONDITION,
+  LOOP_OUTER_CAPTURE,
+} from './anti-patterns.js';
 import {
   SPACING_OPERATOR,
   SPACING_BRACES,
@@ -56,8 +60,12 @@ export {
   CLOSURE_LATE_BINDING,
 } from './closures.js';
 export { UNNECESSARY_ASSERTION, VALIDATE_EXTERNAL } from './types.js';
-export { USE_HEREDOC, USE_EMPTY_METHOD } from './strings.js';
-export { AVOID_REASSIGNMENT, COMPLEX_CONDITION } from './anti-patterns.js';
+export { USE_EMPTY_METHOD } from './strings.js';
+export {
+  AVOID_REASSIGNMENT,
+  COMPLEX_CONDITION,
+  LOOP_OUTER_CAPTURE,
+} from './anti-patterns.js';
 export {
   SPACING_OPERATOR,
   SPACING_BRACES,
@@ -112,12 +120,12 @@ export const VALIDATION_RULES: ValidationRule[] = [
   VALIDATE_EXTERNAL,
 
   // String handling
-  USE_HEREDOC,
   USE_EMPTY_METHOD,
 
   // Anti-patterns
   AVOID_REASSIGNMENT,
   COMPLEX_CONDITION,
+  LOOP_OUTER_CAPTURE,
 
   // Formatting
   SPACING_OPERATOR,

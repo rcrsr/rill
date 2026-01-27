@@ -381,11 +381,24 @@ Parser.prototype.parsePostfixExprBase = function (
 
   const methods: (MethodCallNode | InvokeNode)[] = [];
 
+  // Track the end of the receiver for method calls
+  let receiverEnd = primary.span.end;
+
   while (isMethodCall(this.state) || check(this.state, TOKEN_TYPES.LPAREN)) {
     if (isMethodCall(this.state)) {
-      methods.push(this.parseMethodCall());
+      // Capture receiver span: from start to current receiver end
+      const receiverSpan = makeSpan(start, receiverEnd);
+      const method = this.parseMethodCall(receiverSpan);
+      methods.push(method);
+      // Update receiver end: position before the next dot (= current token start)
+      // After parsing .trim, current token is the dot before .upper
+      // We want receiverEnd to be just before that dot (= after 'trim')
+      receiverEnd = current(this.state).span.start;
     } else {
-      methods.push(this.parseInvoke());
+      const invoke = this.parseInvoke();
+      methods.push(invoke);
+      // Update receiver end for potential method after invoke
+      receiverEnd = invoke.span.end;
     }
   }
 
@@ -463,7 +476,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
 
   // Bare method call: .method
   if (isMethodCall(this.state)) {
-    return this.parseMethodCall();
+    return this.parseMethodCall(null);
   }
 
   // Function call with parens
@@ -480,10 +493,19 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   const common = this.parseCommonConstruct();
   if (common) return common;
 
-  throw new ParseError(
-    `Unexpected token: ${current(this.state).value}`,
-    current(this.state).span.start
-  );
+  // Detect heredoc syntax (removed feature)
+  const token = current(this.state);
+  if (
+    token.type === TOKEN_TYPES.LT &&
+    peek(this.state, 1).type === TOKEN_TYPES.LT
+  ) {
+    throw new ParseError(
+      `Unexpected token: ${token.value}. Hint: Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead`,
+      token.span.start
+    );
+  }
+
+  throw new ParseError(`Unexpected token: ${token.value}`, token.span.start);
 };
 
 // ============================================================
@@ -530,7 +552,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
 
     // Collect all chained method calls
     while (check(this.state, TOKEN_TYPES.DOT)) {
-      methods.push(this.parseMethodCall());
+      methods.push(this.parseMethodCall(null));
     }
 
     if (check(this.state, TOKEN_TYPES.QUESTION)) {

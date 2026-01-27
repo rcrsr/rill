@@ -133,7 +133,7 @@ Built-in functions for extracting structured data from LLM responses.
 
 ### String Interpolation
 
-Embed expressions in strings. Heredoc for multi-line.
+Embed expressions in strings. Triple-quotes for multi-line.
 
 ```rill
 "world" -> "Hello, {$}!" -> log  # Hello, world!
@@ -141,10 +141,10 @@ Embed expressions in strings. Heredoc for multi-line.
 
 ```rill
 "x + 1" :> $code
-<<EOF
+"""
 Analyze: {$code}
 Return: PASS or FAIL
-EOF
+"""
 ```
 
 ## Core Syntax

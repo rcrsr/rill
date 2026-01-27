@@ -188,7 +188,7 @@ body   = block | grouped-expr | postfix-expr ;
 closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body ;
 
 string        = '"' , { char | escape | brace-escape | interpolation } , '"'
-              | "<<" , delimiter , newline , heredoc-body , delimiter ;
+              | '"""' , { char | escape | brace-escape | interpolation } , '"""' ;
 
 char          = letter | digit | " " | "!" | "#" | "$" | "%" | "&" | "'" | "(" | ")"
               | "*" | "+" | "," | "-" | "." | "/" | ":" | ";" | "<" | "=" | ">"
@@ -196,10 +196,6 @@ char          = letter | digit | " " | "!" | "#" | "$" | "%" | "&" | "'" | "(" |
               (* excludes " \ { } which have special meaning in strings *)
 escape        = "\\" , ( "n" | "r" | "t" | "\\" | '"' ) ;
 brace-escape  = "{{" | "}}" ;   (* {{ -> literal {, }} -> literal } *)
-delimiter     = identifier ;
-heredoc-body  = { heredoc-line } ;    (* heredocs also support interpolation *)
-heredoc-line  = { heredoc-char | interpolation | brace-escape } , newline ;
-heredoc-char  = char | '"' | "\\" ;   (* excludes { } which have special meaning *)
 
 interpolation = "{" , expression , "}" ;
 

@@ -15,10 +15,10 @@ import {
 } from './helpers.js';
 import { SINGLE_CHAR_OPERATORS, TWO_CHAR_OPERATORS } from './operators.js';
 import {
-  readHeredoc,
   readIdentifier,
   readNumber,
   readString,
+  readTripleQuoteString,
   readVariable,
 } from './readers.js';
 import {
@@ -64,14 +64,12 @@ export function nextToken(state: LexerState): Token {
     return makeToken(TOKEN_TYPES.NEWLINE, '\n', start, currentLocation(state));
   }
 
-  // String
+  // String (triple-quote checked before single-quote)
   if (ch === '"') {
+    if (peekString(state, 3) === '"""') {
+      return readTripleQuoteString(state);
+    }
     return readString(state);
-  }
-
-  // Heredoc
-  if (ch === '<' && peek(state, 1) === '<') {
-    return readHeredoc(state);
   }
 
   // Number (positive only - unary minus handled by parser)

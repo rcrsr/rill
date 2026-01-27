@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Triple-Quote Strings** — Replaced heredoc syntax (`<<EOF...EOF`) with triple-quote strings (`"""..."""`)
+  - `"""content"""` for multiline strings with interpolation support
+  - Opening newline after `"""` skipped automatically (Python-style)
+  - Nested triple-quotes inside interpolation produce clear error
+  - Removed `MIGRATE_TO_TRIPLE_QUOTE` lint rule (unreachable after heredoc removal)
+  - AST field renamed: `isHeredoc` → `isMultiline`
+  - Using `<<` produces helpful error suggesting triple-quote alternative
+
 ### Added
 
 - **Static Analysis Tool** — `rill-check` CLI for linting Rill scripts
@@ -22,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Conditionals**: default operator, condition type validation
     - **Closures**: bare dollar in stored closures, brace style, late binding
     - **Types**: unnecessary assertions, external validation
-    - **Strings**: heredoc for multiline, `.empty` over `== ""`
+    - **Strings**: `.empty` over `== ""`
     - **Formatting**: spacing, indentation, implicit `$` patterns
 
 - **Dynamic Field Access** — Variable and computed keys for dict/list access

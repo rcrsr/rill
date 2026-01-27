@@ -72,7 +72,7 @@ See [Collections](07_collections.md) for detailed documentation.
 
 | Type | Syntax | Example |
 |------|--------|---------|
-| String | `"text"` | `"hello"` |
+| String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` |
 | Number | `123`, `0.5` | `42`, `0.9` |
 | Bool | `true`, `false` | `true` |
 | List | `[a, b]` | `["file.ts", 42]` |

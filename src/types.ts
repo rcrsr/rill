@@ -270,11 +270,6 @@ export const TOKEN_TYPES = {
   // Frontmatter
   FRONTMATTER_DELIM: 'FRONTMATTER_DELIM', // ---
 
-  // Heredoc
-  HEREDOC_START: 'HEREDOC_START', // <<DELIMITER
-  HEREDOC_BODY: 'HEREDOC_BODY',
-  HEREDOC_END: 'HEREDOC_END',
-
   // Special
   NEWLINE: 'NEWLINE',
   COMMENT: 'COMMENT',
@@ -592,7 +587,7 @@ export type LiteralNode =
 export interface StringLiteralNode extends BaseNode {
   readonly type: 'StringLiteral';
   readonly parts: (string | InterpolationNode)[];
-  readonly isHeredoc: boolean;
+  readonly isMultiline: boolean;
 }
 
 export interface InterpolationNode extends BaseNode {
@@ -795,6 +790,8 @@ export interface BracketAccess {
   readonly accessKind: 'bracket';
   /** The index expression (evaluates to number) */
   readonly expression: ExpressionNode;
+  /** Source span from opening [ to closing ] (inclusive) */
+  readonly span: SourceSpan;
 }
 
 /**
@@ -818,6 +815,7 @@ export interface MethodCallNode extends BaseNode {
   readonly type: 'MethodCall';
   readonly name: string;
   readonly args: ExpressionNode[];
+  readonly receiverSpan: SourceSpan | null;
 }
 
 /** Postfix invocation: expr(args) - calls the result of expr as a closure */

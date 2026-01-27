@@ -318,16 +318,15 @@ parseJson($input):dict :> $data
 
 ## String Handling
 
-### Use heredocs for multiline content
+### Use triple-quotes for multiline content
 
 ```text
-prompt(<<EOF
+"""
 Analyze this content:
 {$content}
 
 Provide a summary.
-EOF
-)
+"""
 ```
 
 ### Use .empty for emptiness checks

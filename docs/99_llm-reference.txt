@@ -67,9 +67,16 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
    "hello" :> $x
    42 :> $x        # ERROR: cannot assign number to string variable
 
-5. NO VARIABLE SHADOWING
+5. NO VARIABLE SHADOWING (CRITICAL FOR LOOPS)
    Child scopes can READ parent variables but cannot WRITE or redeclare them.
    Variables created inside blocks/loops do NOT leak out.
+
+   WRONG - this pattern NEVER works:
+     0 :> $count
+     [1, 2, 3] -> each { $count + 1 :> $count }  # creates LOCAL $count
+     $count                                       # still 0!
+
+   RIGHT - use $ or $@ as state carrier (see LOOP STATE PATTERNS below)
 
 6. NO EXCEPTIONS
    Errors halt execution. No try/catch. Use conditionals for error handling.
@@ -80,7 +87,7 @@ SYNTAX QUICK REFERENCE
 
 Variables:     $name (always prefixed with $)
 Strings:       "hello {$var}"          # interpolation with {}
-               <<EOF ... EOF           # heredoc (also interpolates)
+               """..."""               # multiline (also interpolates)
 Numbers:       42, 3.14, -7
 Booleans:      true, false
 Lists:         [1, 2, 3]
@@ -118,10 +125,10 @@ Conditional (if-else):
 Piped conditional ($ becomes condition):
   value -> ? then_expr ! else_expr
 
-While loop:
+Condition loop (NO "while" keyword - use @ operator):
   init_value -> ($ < 10) @ { $ + 1 }  # $ is accumulator
 
-Do-while loop (body runs at least once):
+Do-condition loop (body runs at least once):
   init_value -> @ { $ + 1 } ? ($ < 10)
 
 Break (exits loop, returns collected results before break):
@@ -130,6 +137,39 @@ Break (exits loop, returns collected results before break):
 Return (exits block or script with value):
   { 5 :> $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
   "done" -> return                                     # exits script with "done"
+
+LOOP STATE PATTERNS (CRITICAL)
+------------------------------
+Rill loops CANNOT modify outer variables. All state must flow through $ or $@.
+
+WRONG - outer variable modification (NEVER works):
+  0 :> $sum
+  [1, 2, 3] -> each { $sum + $ :> $sum }  # $sum unchanged!
+
+WRONG - "while" keyword does not exist:
+  while ($i < 10) { $i + 1 :> $i }        # SYNTAX ERROR
+
+RIGHT - use fold for reduction:
+  [1, 2, 3] -> fold(0) { $@ + $ }         # 6 ($@ is accumulator)
+
+RIGHT - use each(init) when you need both results AND accumulator:
+  [1, 2, 3] -> each(0) { $@ + $ }         # [1, 3, 6] (running totals)
+
+RIGHT - use (cond) @ { } with $ as state dict for multiple values:
+  [iter: 0, max: 3, text: $input, done: false]
+    -> (!$.done && $.iter < $.max) @ {
+      $.iter + 1 :> $i
+      process($.text) :> $result
+      $result.finished ? [iter: $i, max: $.max, text: $.text, done: true]
+                       ! [iter: $i, max: $.max, text: $result.text, done: false]
+    }
+  # Access final state: $.text, $.iter
+
+Pattern summary:
+  - Single value accumulation     -> fold(init) { $@ + $ }
+  - Per-item results + running    -> each(init) { ... $@ ... }
+  - Multiple state values / while -> (cond) @ { } with $ as state dict
+  - "while" and "for" keywords    -> DO NOT EXIST
 
 COLLECTION OPERATORS
 --------------------
@@ -286,10 +326,11 @@ COMMON MISTAKES
 2. Using || for defaults           -> use ?? instead
 3. Assuming truthiness             -> explicit boolean checks required
 4. Breaking from map/filter        -> only works in each/fold
-5. Expecting variable shadowing    -> not allowed
+5. Modifying outer vars in loops   -> use fold/$@ or $ as state dict (see LOOP STATE PATTERNS)
 6. Expecting variables to leak     -> block scope is strict
 7. Forgetting () on methods        -> .upper() not .upper (unless property)
 8. Reassigning different type      -> variables lock to first type
+9. Using while/for keywords        -> use (cond) @ { } or -> each { } instead
 
 SCRIPT RETURN VALUES
 --------------------

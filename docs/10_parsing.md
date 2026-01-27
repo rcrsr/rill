@@ -130,7 +130,7 @@ $response -> parse_xml
 ### Chain-of-Thought Pattern
 
 ```rill
-prompt(<<EOF
+"""
 Analyze this problem step by step.
 
 <thinking>
@@ -140,8 +140,9 @@ Show your reasoning here
 <answer>
 Return your final answer as JSON
 </answer>
-EOF
-) :> $response
+""" :> $prompt_text
+
+app::prompt($prompt_text) :> $response
 
 # Log reasoning for debugging
 $response -> parse_xml("thinking") -> log
@@ -152,22 +153,21 @@ $response -> parse_xml("answer") -> parse_json :> $result
 
 ### Tool Calling Pattern
 
-```rill
-prompt(<<EOF
+```text
+"""
 You have access to tools. To call a tool, use:
 <tool>
   <name>tool_name</name>
   <args>{"param": "value"}</args>
 </tool>
-EOF
-) :> $response
+""" -> app::prompt() :> $response
 
 $response -> parse_xml("tool") :> $tool
 $tool -> parse_xml("name") :> $fn_name
 $tool -> parse_xml("args") -> parse_json :> $fn_args
 
-# Call the function dynamically
-call($fn_name, $fn_args)
+# Call the function dynamically (host-provided)
+app::call($fn_name, $fn_args)
 ```
 
 ## Fenced Code Blocks

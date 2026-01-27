@@ -252,7 +252,7 @@ function stringLiteralEquals(
   a: StringLiteralNode,
   b: StringLiteralNode
 ): boolean {
-  if (a.isHeredoc !== b.isHeredoc) return false;
+  if (a.isMultiline !== b.isMultiline) return false;
   if (a.parts.length !== b.parts.length) return false;
   for (let i = 0; i < a.parts.length; i++) {
     const aPart = a.parts[i]!;

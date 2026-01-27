@@ -111,7 +111,7 @@ Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
   return {
     type: 'StringLiteral',
     parts,
-    isHeredoc: raw.includes('\n'),
+    isMultiline: raw.includes('\n'),
     span: token.span,
   };
 };
@@ -155,10 +155,7 @@ Parser.prototype.parseStringParts = function (
       }
 
       if (depth !== 0) {
-        throw new ParseError(
-          "Unterminated string interpolation. Hint: Check for missing '}' in interpolation",
-          baseLocation
-        );
+        throw new ParseError('Unterminated string interpolation', baseLocation);
       }
 
       const exprSource = raw.slice(exprStart, i - 1);

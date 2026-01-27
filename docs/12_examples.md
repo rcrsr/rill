@@ -15,57 +15,51 @@ args: requirements: string
 ---
 
 # Phase 1: Validate requirements
-prompt(<<EOF
+"""
 Review the requirements document at {$requirements}.
 Check for completeness and clarity.
 Output READY if complete, or list missing elements.
-EOF
-) :> $validation
+""" -> prompt() :> $validation
 
 $validation -> ?(!.contains("READY")) {
   error("Requirements incomplete: {$validation}")
 }
 
 # Phase 2: Create specification
-prompt(<<EOF
+"""
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
-EOF
-) :> $spec
+""" -> prompt() :> $spec
 
 "Specification created" -> log
 
 # Phase 3: Review loop - iterate until approved
 ($spec -> .contains("REVISION")) @ {
-  prompt(<<EOF
+  """
 Review this specification for issues:
 {$}
 
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
-EOF
-  ) :> $review
+  """ -> prompt() :> $review
 
   $review -> ?(.contains("APPROVED")) { break }
 
   # Apply feedback and continue
-  prompt(<<EOF
+  """
 Update the specification based on this feedback:
 {$review}
 
 Original spec:
 {$}
-EOF
-  )
-} :> $approved_spec
+  """ -> prompt()} :> $approved_spec
 
 # Phase 4: Implementation
-prompt(<<EOF
+"""
 Implement the approved specification:
 {$approved_spec}
 
 Create the necessary files and tests.
-EOF
-) :> $implementation
+""" -> prompt() :> $implementation
 
 # Phase 5: Verify
 prompt("Run tests and verify implementation") :> $verification
@@ -91,7 +85,7 @@ prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
 
 # Work loop
 $status -> @(!.contains("ALL COMPLETE")) {
-  prompt(<<EOF
+  """
 Based on this status:
 {$}
 
@@ -99,9 +93,7 @@ Based on this status:
 2. Mark it complete in {$plan}
 3. Check if any unchecked items remain
 4. Output ALL COMPLETE if done, or describe next item
-EOF
-  )
-} :> $final
+  """ -> prompt()} :> $final
 
 "Plan complete: {$final}" -> log
 ```
@@ -122,14 +114,12 @@ prompt("Run tests for {$target} and report results") :> $result
 $result -> @(.contains("FAIL")) {
   "Fixing failures..." -> log
 
-  prompt(<<EOF
+  """
 Fix these test failures:
 {$}
 
 Make minimal changes. Then run tests again and report results.
-EOF
-  )
-} :> $final
+  """ -> prompt()} :> $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
@@ -151,22 +141,20 @@ args: file: string
 prompt("Read and summarize {$file}") :> $summary
 
 # Security check
-prompt(<<EOF
+"""
 Evaluate for SECURITY issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-EOF
-) :> $security
+""" -> prompt() :> $security
 
 # Performance check
-prompt(<<EOF
+"""
 Evaluate for PERFORMANCE issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-EOF
-) :> $performance
+""" -> prompt() :> $performance
 
 # Check results
 $security -> ?(.contains("FAIL")) {
@@ -196,21 +184,17 @@ $ENV.DEPLOY_ENV -> ?(.empty()) {
 
 # Environment-specific deployment
 ($ENV.DEPLOY_ENV == "production") ? {
-  prompt(<<EOF
+  """
 Deploy {$service} to production.
 - Run full test suite first
 - Enable monitoring
 - Use blue-green deployment
-EOF
-  )
-} ! ($ENV.DEPLOY_ENV == "staging") ? {
-  prompt(<<EOF
+  """ -> prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
+  """
 Deploy {$service} to staging.
 - Run smoke tests
 - Enable debug logging
-EOF
-  )
-} ! {
+  """ -> prompt()} ! {
   prompt("Deploy {$service} to development environment")
 } :> $result
 
@@ -229,13 +213,11 @@ args: operation: string
 
 # Do-while: body runs first, then condition checked
 ^(limit: 5) @ {
-  prompt(<<EOF
+  """
 Perform: {$operation}
 
 Output SUCCESS, RETRY, or FAILED.
-EOF
-  )
-} ? (.contains("RETRY"))
+  """ -> prompt()} ? (.contains("RETRY"))
 
 # Loop exits when result doesn't contain RETRY
 .contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$}"]
@@ -263,14 +245,13 @@ prompt("Analyze this content:\n{$raw}") :> $analysis -> log -> ?(.empty()) {
 }
 
 # Both $raw and $analysis available
-prompt(<<EOF
+"""
 Compare the original:
 {$raw}
 
 With the analysis:
 {$analysis}
-EOF
-)
+""" -> prompt()
 ```
 
 Semantically, `:> $var ->` is `:> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
@@ -326,13 +307,12 @@ prompt("Read {$logfile} and find all ERROR lines") :> $errors
 $errors -> ?(.empty()) {
   "No errors found"
 } ! {
-  prompt(<<EOF
+  """
 Analyze these errors and categorize them:
 {$errors}
 
 For each unique error type, suggest a fix.
-EOF
-  ) :> $analysis
+  """ -> prompt() :> $analysis
 
   "Error analysis complete" -> log
   $analysis
@@ -393,12 +373,10 @@ range(1, $batches + 1) -> each {
   (($batch_num - 1) * 10) :> $start
   ($start + 10) :> $end
 
-  prompt(<<EOF
+  """
 Process batch {$batch_num} of {$batches}
 Items {$start} through {$end}
-EOF
-  )
-}
+  """ -> prompt()}
 
 [0, "Processed all batches"]
 ```
@@ -415,27 +393,24 @@ exceptions:
   - ":::NEEDS_HUMAN:::"
 ---
 
-prompt(<<EOF
+"""
 Work on this task: {$task}
 
 Rules:
 - Output :::BLOCKED::: if you need information you don't have
 - Output :::NEEDS_HUMAN::: if human judgment is required
 - Output :::DONE::: when complete
-EOF
-) :> $result
+""" -> prompt() :> $result
 
 $result -> @(!.contains(":::DONE:::")) {
-  prompt(<<EOF
+  """
 Continue working on: {$task}
 
 Previous progress:
 {$}
 
 Remember the signal rules.
-EOF
-  )
-} :> $final
+  """ -> prompt()} :> $final
 
 "Task complete: {$final}" -> log
 ```
@@ -607,11 +582,10 @@ $response -> parse_xml("answer") -> parse_json :> $answer
 ### Parse Tool Calls
 
 ```rill
-prompt(<<EOF
+"""
 What function should I call?
 Return in format: <tool><name>func</name><args>{...}</args></tool>
-EOF
-) :> $response
+""" -> prompt() :> $response
 
 $response -> parse_xml("tool") :> $tool
 $tool -> parse_xml("name") :> $fn_name

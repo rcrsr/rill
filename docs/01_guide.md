@@ -107,14 +107,14 @@ Use `{{` and `}}` for literal braces:
 "JSON: {{\"key\": \"value\"}}"       # Produces: JSON: {"key": "value"}
 ```
 
-Multiline strings use heredoc syntax (also supports interpolation):
+Multiline strings use triple-quote syntax (also supports interpolation):
 
 ```rill
 "World" :> $name
-<<EOF
+"""
 Hello, {$name}!
 Line two
-EOF
+"""
 ```
 
 ### Lists and Dicts

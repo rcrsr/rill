@@ -18,7 +18,6 @@ import type { CheckConfig } from '../../../src/check/types.js';
 function createConfig(rules: Record<string, 'on' | 'off'> = {}): CheckConfig {
   return {
     rules: {
-      USE_HEREDOC: 'on',
       USE_EMPTY_METHOD: 'on',
       ...rules,
     },
@@ -54,69 +53,11 @@ function getCodes(source: string, config?: CheckConfig): string[] {
 }
 
 // ============================================================
-// USE_HEREDOC TESTS
-// ============================================================
-
-describe('USE_HEREDOC', () => {
-  const config = createConfig({ USE_EMPTY_METHOD: 'off' });
-
-  it('accepts single-line strings', () => {
-    expect(hasViolations('"hello world"', config)).toBe(false);
-  });
-
-  it('accepts heredoc strings', () => {
-    const source = `
-      <<EOF
-      Line 1
-      Line 2
-      EOF
-    `;
-    expect(hasViolations(source, config)).toBe(false);
-  });
-
-  it('recommends heredoc for multiline escape sequences', () => {
-    const source = '"Line 1\\nLine 2\\nLine 3"';
-
-    const messages = getDiagnostics(source, config);
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('Use heredoc');
-    expect(messages[0]).toContain('<<EOF');
-  });
-
-  it('accepts strings with single newline', () => {
-    // Single newline is borderline, but we only warn on multiple
-    const source = '"Line 1\\nLine 2"';
-    const messages = getDiagnostics(source, config);
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('heredoc');
-  });
-
-  it('has correct severity and code', () => {
-    const source = '"Line 1\\nLine 2\\nLine 3"';
-    const ast = parse(source);
-    const diagnostics = validateScript(ast, source, config);
-
-    expect(diagnostics.length).toBeGreaterThan(0);
-    expect(diagnostics[0]?.code).toBe('USE_HEREDOC');
-    expect(diagnostics[0]?.severity).toBe('info');
-  });
-
-  it('does not provide auto-fix', () => {
-    const source = '"Line 1\\nLine 2"';
-    const ast = parse(source);
-    const diagnostics = validateScript(ast, source, config);
-
-    expect(diagnostics.length).toBeGreaterThan(0);
-    expect(diagnostics[0]?.fix).toBeNull();
-  });
-});
-
-// ============================================================
 // USE_EMPTY_METHOD TESTS
 // ============================================================
 
 describe('USE_EMPTY_METHOD', () => {
-  const config = createConfig({ USE_HEREDOC: 'off' });
+  const config = createConfig();
 
   it('accepts .empty method usage', () => {
     expect(hasViolations('$str -> .empty', config)).toBe(false);

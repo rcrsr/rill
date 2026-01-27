@@ -101,6 +101,13 @@ function createMockFunctions(): Record<
       fn: () => 'success',
     },
     'app::pause': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    'app::call': {
+      params: [
+        { name: 'fn_name', type: 'string' },
+        { name: 'args', type: 'dict' },
+      ],
+      fn: () => 'called',
+    },
 
     // IO namespace
     'io::read': {
@@ -369,11 +376,6 @@ function shouldSkipBlock(code: string): string | null {
   // Skip blocks with "..." continuation markers (but not in strings or spread)
   if (/(?<!\[)\.\.\.[^$\]]/.test(code) && !/"\.\.\."/.test(code)) {
     return 'contains ellipsis placeholder';
-  }
-
-  // Skip blocks with heredocs as function arguments (not yet supported)
-  if (/\w+\s*\(\s*<<\w+/.test(code)) {
-    return 'heredoc as function argument (not supported)';
   }
 
   // Skip blocks demonstrating expected errors

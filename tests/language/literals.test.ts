@@ -159,4 +159,18 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('[x: [y: 1]] :> $d\n$d.x.y')).toBe(1);
     });
   });
+
+  describe('Lexer Errors', () => {
+    it('throws LexerError for unexpected character (EC-3)', async () => {
+      await expect(run('`')).rejects.toThrow('Unexpected character: `');
+    });
+
+    it('throws error for heredoc syntax with helpful hint (removed feature)', async () => {
+      // Heredoc syntax (<<EOF) was removed in favor of triple-quote strings
+      // The lexer tokenizes < as LT, but parser detects << pattern and provides helpful hint
+      await expect(run('<<EOF\ntest\nEOF')).rejects.toThrow(
+        'Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead'
+      );
+    });
+  });
 });

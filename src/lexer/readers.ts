@@ -10,7 +10,6 @@ import {
   isDigit,
   isIdentifierChar,
   isIdentifierStart,
-  isWhitespace,
   makeToken,
 } from './helpers.js';
 import { KEYWORDS } from './operators.js';
@@ -20,7 +19,6 @@ import {
   isAtEnd,
   type LexerState,
   peek,
-  peekString,
 } from './state.js';
 
 /** Process escape sequence and return the unescaped character */
@@ -83,49 +81,88 @@ export function readString(state: LexerState): Token {
   return makeToken(TOKEN_TYPES.STRING, value, start, currentLocation(state));
 }
 
-export function readHeredoc(state: LexerState): Token {
+export function readTripleQuoteString(state: LexerState): Token {
   const start = currentLocation(state);
-  advance(state); // consume first <
-  advance(state); // consume second <
+  advance(state); // consume first "
+  advance(state); // consume second "
+  advance(state); // consume third "
 
-  // Read delimiter
-  let delimiter = '';
-  while (!isAtEnd(state) && isIdentifierChar(peek(state))) {
-    delimiter += advance(state);
+  // Skip opening newline if present (Python-style)
+  if (peek(state) === '\n') {
+    advance(state);
   }
 
-  if (!delimiter) {
-    throw new LexerError('Expected heredoc delimiter', currentLocation(state));
-  }
-
-  // Skip to newline
-  while (!isAtEnd(state) && peek(state) !== '\n') {
-    if (!isWhitespace(peek(state))) {
-      throw new LexerError(
-        'Unexpected characters after heredoc delimiter',
+  let value = '';
+  while (!isAtEnd(state)) {
+    // Check for closing triple-quote
+    if (
+      peek(state) === '"' &&
+      peek(state, 1) === '"' &&
+      peek(state, 2) === '"'
+    ) {
+      advance(state); // consume first "
+      advance(state); // consume second "
+      advance(state); // consume third "
+      return makeToken(
+        TOKEN_TYPES.STRING,
+        value,
+        start,
         currentLocation(state)
       );
     }
-    advance(state);
-  }
-  if (peek(state) === '\n') advance(state);
 
-  // Read body until delimiter appears alone on a line
-  let body = '';
-  while (!isAtEnd(state)) {
-    // Check if current line starts with delimiter
-    if (peekString(state, delimiter.length) === delimiter) {
-      const afterDelim = peek(state, delimiter.length);
-      if (afterDelim === '\n' || afterDelim === '' || afterDelim === '\r') {
-        // Found end delimiter - advance past it
-        for (let i = 0; i < delimiter.length; i++) advance(state);
-        break;
+    if (peek(state) === '{') {
+      // Check for brace escaping ({{ or }})
+      if (peek(state, 1) === '{') {
+        value += advance(state); // consume first {
+        value += advance(state); // consume second {
+        continue;
       }
+
+      // Interpolation: include {expr} literally, parser handles expression parsing
+      value += advance(state); // consume {
+      let braceDepth = 1;
+      while (!isAtEnd(state) && braceDepth > 0) {
+        // Check for """ inside interpolation
+        if (
+          peek(state) === '"' &&
+          peek(state, 1) === '"' &&
+          peek(state, 2) === '"'
+        ) {
+          throw new LexerError(
+            'Triple-quotes not allowed in interpolation',
+            currentLocation(state)
+          );
+        }
+
+        // Check for brace escaping inside interpolation
+        if (peek(state) === '{' && peek(state, 1) === '{') {
+          value += advance(state); // consume first {
+          value += advance(state); // consume second {
+          continue;
+        }
+        if (peek(state) === '}' && peek(state, 1) === '}') {
+          value += advance(state); // consume first }
+          value += advance(state); // consume second }
+          continue;
+        }
+
+        const ch = advance(state);
+        value += ch;
+        if (ch === '{') braceDepth++;
+        if (ch === '}') braceDepth--;
+      }
+    } else if (peek(state) === '}' && peek(state, 1) === '}') {
+      // Handle }} escaping outside interpolation
+      value += advance(state); // consume first }
+      value += advance(state); // consume second }
+    } else {
+      value += advance(state);
     }
-    body += advance(state);
   }
 
-  return makeToken(TOKEN_TYPES.STRING, body, start, currentLocation(state));
+  // If we reach here, EOF was reached before closing """
+  throw new LexerError('Unterminated string', start);
 }
 
 export function readNumber(state: LexerState): Token {

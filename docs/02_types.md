@@ -53,21 +53,19 @@ true :> $ok
 "upper: {$name -> .upper}"           # Method chain
 ```
 
-### Heredocs
+### Multiline Strings
 
-Multiline strings use heredoc syntax:
+Multiline strings use triple-quote syntax:
 
 ```rill
-prompt(<<EOF
-Review this code:
-{$code}
-
-Check for security issues.
-EOF
-)
+"World" :> $name
+"""
+Hello, {$name}!
+Line two
+"""
 ```
 
-The delimiter (e.g., `EOF`) must not appear on its own line within the content.
+Triple-quote strings support interpolation like regular strings.
 
 See [Strings](09_strings.md) for string methods.
 
