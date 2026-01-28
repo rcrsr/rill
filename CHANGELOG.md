@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **USE_DEFAULT_OPERATOR False Positives** — Rule no longer flags negated pipe conditionals (`-> ! { }`)
+  - Before: `value -> ! { error_handler() }` triggered "Use ?? for defaults" suggestion
+  - After: Only flags explicit `.?field` existence checks with else branches
+- **VALIDATE_EXTERNAL False Positives** — Rule no longer flags host calls already wrapped in type assertions
+  - Before: `parse_json($input):dict` and `ccr::read($path):string` still triggered "validate external" warnings
+  - After: Skips host calls that have an immediate `:type` assertion
+
 ## [0.2.3] - 2026-01-27
 
 ### Fixed

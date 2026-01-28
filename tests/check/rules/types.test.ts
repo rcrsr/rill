@@ -211,4 +211,46 @@ describe('VALIDATE_EXTERNAL', () => {
     expect(diagnostics.length).toBeGreaterThan(0);
     expect(diagnostics[0]?.fix).toBeNull();
   });
+
+  it('does not warn when already type-asserted (simple case)', () => {
+    const source = 'parse_json($input):dict';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(false);
+  });
+
+  it('does not warn when already type-asserted (with property access)', () => {
+    const source = 'ccr::read_frontmatter($path, [status: ""]):dict.status';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(false);
+  });
+
+  it('does not warn when already type-asserted (namespaced function)', () => {
+    const source = 'io::read_file($path):string';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(false);
+  });
+
+  it('warns when not type-asserted (namespaced function)', () => {
+    const source = 'ccr::read_frontmatter($path)';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(true);
+  });
+
+  it('does not warn when parse_ function is type-asserted', () => {
+    const source = 'parse_auto($text):dict';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(false);
+  });
+
+  it('warns when parse_ function is not type-asserted', () => {
+    const source = 'parse_auto($text)';
+
+    const violations = hasViolations(source, config);
+    expect(violations).toBe(true);
+  });
 });

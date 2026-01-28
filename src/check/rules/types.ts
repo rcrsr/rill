@@ -187,9 +187,10 @@ export const VALIDATE_EXTERNAL: ValidationRule = {
       return [];
     }
 
-    // Check if the result is immediately asserted
-    // This would require checking the parent node context
-    // For now, we'll provide a general recommendation
+    // Skip if this HostCall is already wrapped in a TypeAssertion
+    if (context.assertedHostCalls.has(node)) {
+      return [];
+    }
 
     return [
       {

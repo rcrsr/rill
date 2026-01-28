@@ -16,22 +16,51 @@ import { extractContextLine } from './helpers.js';
 // ============================================================
 
 /**
+ * Check if a node tree contains an existence check (.?field).
+ */
+function hasExistenceCheck(node: ASTNode): boolean {
+  if (!node || typeof node !== 'object') return false;
+
+  // Check if this node is a Variable with existenceCheck
+  if (
+    node.type === 'Variable' &&
+    'existenceCheck' in node &&
+    node.existenceCheck !== null
+  ) {
+    return true;
+  }
+
+  // Recursively check child nodes
+  for (const key of Object.keys(node)) {
+    const value = (node as unknown as Record<string, unknown>)[key];
+    if (value && typeof value === 'object') {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (hasExistenceCheck(item as ASTNode)) return true;
+        }
+      } else {
+        if (hasExistenceCheck(value as ASTNode)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Check if a conditional is using the ?? pattern with .? check.
  * Pattern: $dict.?field ? $dict.field ! "default"
  * This should be simplified to: $dict.field ?? "default"
  */
 function isVerboseDefaultPattern(node: ConditionalNode): boolean {
-  // Check if condition is an existence check (.?field)
-  if (!node.condition) return false;
-
-  // Simple heuristic: check if condition contains existence check
-  const conditionStr = JSON.stringify(node.condition);
-  if (!conditionStr.includes('"existenceCheck"')) {
-    return false;
-  }
-
   // Check if there's an else branch (required for default pattern)
   if (!node.elseBranch) return false;
+
+  // Must have an explicit condition (not a piped truthy check)
+  if (!node.condition) return false;
+
+  // Check if condition contains an existence check (.?field)
+  if (!hasExistenceCheck(node.condition)) return false;
 
   return true;
 }

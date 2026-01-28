@@ -83,6 +83,18 @@ describe('USE_DEFAULT_OPERATOR', () => {
     expect(hasViolations('$data.?field ? "exists"', config)).toBe(false);
   });
 
+  it('accepts negated conditionals without existence check', () => {
+    // Pattern: value -> ! { body } is a negated conditional, not a default pattern
+    expect(
+      hasViolations(
+        'ccr::file_exists($path) -> ! { ccr::error("...") }',
+        config
+      )
+    ).toBe(false);
+    expect(hasViolations('true -> ! { "not true" }', config)).toBe(false);
+    expect(hasViolations('$ready -> ! { "not ready" }', config)).toBe(false);
+  });
+
   it('has correct severity and code', () => {
     const source = '$data.?field ? $data.field ! "default"';
     const ast = parse(source);

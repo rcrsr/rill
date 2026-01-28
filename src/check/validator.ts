@@ -3,7 +3,7 @@
  * Orchestrates validation by traversing AST and invoking enabled rules.
  */
 
-import type { ScriptNode, ASTNode } from '../types.js';
+import type { ScriptNode, ASTNode, TypeAssertionNode } from '../types.js';
 import type { CheckConfig, Diagnostic, ValidationContext } from './types.js';
 import { visitNode, type RuleVisitor } from './visitor.js';
 import { VALIDATION_RULES } from './rules/index.js';
@@ -34,11 +34,20 @@ export function validateScript(
     config,
     diagnostics: [],
     variables: new Map(),
+    assertedHostCalls: new Set(),
   };
 
   // Create visitor that invokes enabled rules
   const visitor: RuleVisitor = {
     enter(node: ASTNode, ctx: ValidationContext): void {
+      // Track HostCall nodes wrapped in TypeAssertion BEFORE rules check
+      if (node.type === 'TypeAssertion') {
+        const operand = (node as TypeAssertionNode).operand;
+        if (operand?.primary.type === 'HostCall') {
+          ctx.assertedHostCalls.add(operand.primary);
+        }
+      }
+
       // For each enabled rule that applies to this node type
       for (const rule of VALIDATION_RULES) {
         // Skip if rule not enabled

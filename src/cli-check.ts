@@ -381,6 +381,7 @@ Options:
         config,
         diagnostics: [],
         variables: new Map(),
+        assertedHostCalls: new Set(),
       });
 
       // Write fixed source back to file

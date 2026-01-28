@@ -93,6 +93,8 @@ export interface ValidationContext {
   readonly diagnostics: Diagnostic[];
   /** Variable definitions for collision detection */
   readonly variables: Map<string, SourceLocation>;
+  /** HostCall nodes that are wrapped in type assertions */
+  readonly assertedHostCalls: Set<ASTNode>;
 }
 
 /**
