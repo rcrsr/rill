@@ -6,10 +6,13 @@
 import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
+  AssertNode,
   BlockNode,
   ConditionalNode,
   DoWhileLoopNode,
+  ErrorNode,
   ExpressionNode,
+  StringLiteralNode,
   WhileLoopNode,
   BodyNode,
   StatementNode,
@@ -39,6 +42,8 @@ declare module './parser.js' {
     ): WhileLoopNode | DoWhileLoopNode;
     parseLoopWithInput(condition: BodyNode): WhileLoopNode | DoWhileLoopNode;
     parseBlock(): BlockNode;
+    parseAssert(): AssertNode;
+    parseError(requireMessage?: boolean): ErrorNode;
   }
 }
 
@@ -192,6 +197,114 @@ Parser.prototype.parseBlock = function (this: Parser): BlockNode {
   return {
     type: 'Block',
     statements,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// ASSERT
+// ============================================================
+
+Parser.prototype.parseAssert = function (this: Parser): AssertNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.ASSERT, 'Expected assert');
+
+  // Parse condition as a body (block, grouped expr, or pipe chain)
+  // For grouped expressions, this stops at the closing paren
+  // For other expressions, parse the full pipe chain
+  let condition: ExpressionNode;
+  if (
+    check(this.state, TOKEN_TYPES.LPAREN) ||
+    check(this.state, TOKEN_TYPES.LBRACE)
+  ) {
+    // For grouped expr or block, parseBody stops at the delimiter
+    const body = this.parseBody();
+    if (body.type === 'PipeChain') {
+      condition = body;
+    } else if (body.type === 'PostfixExpr') {
+      // Already a PostfixExpr, wrap in PipeChain
+      condition = {
+        type: 'PipeChain',
+        head: body,
+        pipes: [],
+        terminator: null,
+        span: body.span,
+      };
+    } else {
+      // Wrap Block/GroupedExpr in a PipeChain
+      condition = {
+        type: 'PipeChain',
+        head: {
+          type: 'PostfixExpr',
+          primary: body,
+          methods: [],
+          span: body.span,
+        },
+        pipes: [],
+        terminator: null,
+        span: body.span,
+      };
+    }
+  } else {
+    // For non-delimited expressions, parse the full expression
+    condition = this.parseExpression();
+  }
+
+  let message: StringLiteralNode | null = null;
+  if (check(this.state, TOKEN_TYPES.STRING)) {
+    message = this.parseString();
+  }
+
+  return {
+    type: 'Assert',
+    condition,
+    message,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// ERROR
+// ============================================================
+
+Parser.prototype.parseError = function (
+  this: Parser,
+  requireMessage = false
+): ErrorNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.ERROR, 'Expected error');
+
+  // Message is optional when used as pipe target: "msg" -> error
+  // Required when used as direct statement: error "msg"
+  let message: StringLiteralNode | null = null;
+
+  if (check(this.state, TOKEN_TYPES.STRING)) {
+    // String literal provided - parse it
+    message = this.parseString();
+  } else {
+    // No string literal after error keyword
+    const atBoundary =
+      isAtEnd(this.state) ||
+      check(this.state, TOKEN_TYPES.NEWLINE) ||
+      check(this.state, TOKEN_TYPES.RBRACE) ||
+      check(this.state, TOKEN_TYPES.RPAREN);
+
+    if (!atBoundary) {
+      // Non-string, non-delimiter token after error - invalid token type
+      throw new ParseError(
+        'error statement requires string message',
+        current(this.state).span.start
+      );
+    } else if (requireMessage) {
+      // At boundary but message required (statement form, not pipe target)
+      throw new ParseError('Unexpected end of input, expected string', start);
+    }
+    // else: at statement boundary without message (valid pipe target form)
+  }
+
+  return {
+    type: 'Error',
+    message,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

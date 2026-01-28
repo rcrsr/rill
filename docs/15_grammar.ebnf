@@ -88,7 +88,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    [1,2,3] -> each { break }     -- break terminates (exits loop)
    "result" -> return            -- return terminates (exits function) *)
 
-statement     = [ annotation ] , pipe-chain ;
+statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
               (* pipe-chain includes optional terminator: capture | "break" | "return" *)
 
 (* Annotations: ^(key: value, ...) prefix modifying statement behavior.
@@ -133,6 +133,13 @@ comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
 chain-terminator = "break" | "return" ;
               (* Note: capture can appear mid-chain or at end; handled in pipe-chain *)
+
+assert-statement = "assert" , expression , [ string ] ;
+              (* Assert statement: validates boolean expression, halts on false.
+                 Optional string provides custom error message.
+                 Constraint: expression must evaluate to boolean, else RUNTIME_TYPE_ERROR. *)
+
+error-statement = "error" , string ;
 
 postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } ;
 

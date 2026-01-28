@@ -7,7 +7,7 @@
 
 import type {
   AnnotatedStatementNode,
-  ErrorNode,
+  RecoveryErrorNode,
   ScriptNode,
   StatementNode,
 } from '../../types.js';
@@ -115,11 +115,11 @@ export function createStepper(
       let captured: { name: string; value: RillValue } | undefined;
 
       try {
-        // Check for ErrorNode from recovery mode parsing
-        if (isErrorNode(stmt)) {
+        // Check for RecoveryErrorNode from recovery mode parsing
+        if (isRecoveryErrorNode(stmt)) {
           throw RuntimeError.fromNode(
             RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
-            `Cannot execute ErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
+            `Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
             stmt
           );
         }
@@ -212,13 +212,13 @@ export function createStepper(
 }
 
 /**
- * Type guard to check if a statement is an ErrorNode from recovery mode parsing.
+ * Type guard to check if a statement is an RecoveryErrorNode from recovery mode parsing.
  * @internal
  */
-function isErrorNode(
-  stmt: StatementNode | AnnotatedStatementNode | ErrorNode
-): stmt is ErrorNode {
-  return stmt.type === 'Error';
+function isRecoveryErrorNode(
+  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode
+): stmt is RecoveryErrorNode {
+  return stmt.type === 'RecoveryError';
 }
 
 /**

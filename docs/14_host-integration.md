@@ -712,6 +712,8 @@ try {
 | `RUNTIME_ABORTED` | Execution cancelled |
 | `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
 | `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
+| `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
+| `RUNTIME_ERROR_RAISED` | Error statement executed |
 
 ## Complete Example
 

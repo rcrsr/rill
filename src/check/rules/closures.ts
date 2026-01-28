@@ -10,7 +10,17 @@ import type {
 } from '../types.js';
 import type {
   ASTNode,
+  BinaryExprNode,
+  BlockNode,
   ClosureNode,
+  ConditionalNode,
+  GroupedExprNode,
+  InterpolationNode,
+  PipeChainNode,
+  PostfixExprNode,
+  StatementNode,
+  StringLiteralNode,
+  UnaryExprNode,
   VariableNode,
   EachExprNode,
 } from '../../types.js';
@@ -92,7 +102,7 @@ function containsBareReference(node: ASTNode): boolean {
   // Recursively check child nodes based on node type
   switch (node.type) {
     case 'Block': {
-      const blockNode = node as any;
+      const blockNode = node as BlockNode;
       for (const stmt of blockNode.statements) {
         if (containsBareReference(stmt)) return true;
       }
@@ -100,14 +110,14 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'Statement': {
-      const stmtNode = node as any;
+      const stmtNode = node as StatementNode;
       if (stmtNode.expression && containsBareReference(stmtNode.expression))
         return true;
       break;
     }
 
     case 'PipeChain': {
-      const pipeNode = node as any;
+      const pipeNode = node as PipeChainNode;
       if (pipeNode.head && containsBareReference(pipeNode.head)) return true;
       if (pipeNode.pipes) {
         for (const pipe of pipeNode.pipes) {
@@ -118,7 +128,7 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as any;
+      const postfixNode = node as PostfixExprNode;
       if (postfixNode.primary && containsBareReference(postfixNode.primary))
         return true;
       if (postfixNode.methods) {
@@ -130,7 +140,7 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'BinaryExpr': {
-      const binaryNode = node as any;
+      const binaryNode = node as BinaryExprNode;
       if (binaryNode.left && containsBareReference(binaryNode.left))
         return true;
       if (binaryNode.right && containsBareReference(binaryNode.right))
@@ -139,14 +149,14 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'UnaryExpr': {
-      const unaryNode = node as any;
+      const unaryNode = node as UnaryExprNode;
       if (unaryNode.operand && containsBareReference(unaryNode.operand))
         return true;
       break;
     }
 
     case 'GroupedExpr': {
-      const groupedNode = node as any;
+      const groupedNode = node as GroupedExprNode;
       if (
         groupedNode.expression &&
         containsBareReference(groupedNode.expression)
@@ -156,8 +166,8 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'StringLiteral': {
-      const stringNode = node as any;
-      if (stringNode.parts && Array.isArray(stringNode.parts)) {
+      const stringNode = node as StringLiteralNode;
+      if (stringNode.parts) {
         for (const part of stringNode.parts) {
           if (typeof part === 'object' && containsBareReference(part))
             return true;
@@ -167,14 +177,14 @@ function containsBareReference(node: ASTNode): boolean {
     }
 
     case 'Interpolation': {
-      const interpNode = node as any;
+      const interpNode = node as InterpolationNode;
       if (interpNode.expression && containsBareReference(interpNode.expression))
         return true;
       break;
     }
 
     case 'Conditional': {
-      const condNode = node as any;
+      const condNode = node as ConditionalNode;
       if (condNode.condition && containsBareReference(condNode.condition))
         return true;
       if (condNode.thenBranch && containsBareReference(condNode.thenBranch))
@@ -188,8 +198,8 @@ function containsBareReference(node: ASTNode): boolean {
     case 'HostCall':
     case 'ClosureCall':
     case 'Invoke': {
-      const callNode = node as any;
-      if (callNode.args && Array.isArray(callNode.args)) {
+      const callNode = node as { args: ASTNode[] };
+      if (callNode.args) {
         for (const arg of callNode.args) {
           if (containsBareReference(arg)) return true;
         }
@@ -237,11 +247,11 @@ export const CLOSURE_BRACES: ValidationRule = {
 
     // Check if body is GroupedExpr containing complex content
     if (body.type === 'GroupedExpr') {
-      const grouped = body as any;
+      const grouped = body as GroupedExprNode;
       const innerExpr = grouped.expression;
 
       // Navigate through PipeChain to find the actual content
-      let content = innerExpr;
+      let content: ASTNode = innerExpr;
       if (innerExpr && innerExpr.type === 'PipeChain') {
         const head = innerExpr.head;
         // Check if head is PostfixExpr
@@ -354,7 +364,7 @@ function containsClosureCreation(node: ASTNode): boolean {
   // Recursively check child nodes
   switch (node.type) {
     case 'Block': {
-      const blockNode = node as any;
+      const blockNode = node as BlockNode;
       for (const stmt of blockNode.statements) {
         if (containsClosureCreation(stmt)) return true;
       }
@@ -362,14 +372,14 @@ function containsClosureCreation(node: ASTNode): boolean {
     }
 
     case 'Statement': {
-      const stmtNode = node as any;
+      const stmtNode = node as StatementNode;
       if (stmtNode.expression && containsClosureCreation(stmtNode.expression))
         return true;
       break;
     }
 
     case 'PipeChain': {
-      const pipeNode = node as any;
+      const pipeNode = node as PipeChainNode;
       if (pipeNode.head && containsClosureCreation(pipeNode.head)) return true;
       if (pipeNode.pipes) {
         for (const pipe of pipeNode.pipes) {
@@ -380,7 +390,7 @@ function containsClosureCreation(node: ASTNode): boolean {
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as any;
+      const postfixNode = node as PostfixExprNode;
       if (postfixNode.primary && containsClosureCreation(postfixNode.primary))
         return true;
       break;
@@ -398,12 +408,8 @@ function containsExplicitCapture(node: ASTNode): boolean {
     return false;
   }
 
-  const blockNode = node as any;
+  const blockNode = node as BlockNode;
   const statements = blockNode.statements;
-
-  if (!Array.isArray(statements)) {
-    return false;
-  }
 
   // Look for capture of $ into a named variable
   for (const stmt of statements) {
@@ -421,7 +427,7 @@ function containsExplicitCapture(node: ASTNode): boolean {
             // Check if the head is bare $
             const head = chain.head;
             if (head && head.type === 'PostfixExpr') {
-              const postfix = head as any;
+              const postfix = head as PostfixExprNode;
               if (postfix.primary && postfix.primary.type === 'Variable') {
                 const varNode = postfix.primary as VariableNode;
                 if (varNode.isPipeVar) {

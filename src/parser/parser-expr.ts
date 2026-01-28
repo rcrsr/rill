@@ -27,7 +27,15 @@ import type {
   VariableNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan, peek } from './state.js';
+import {
+  check,
+  advance,
+  expect,
+  current,
+  makeSpan,
+  peek,
+  skipNewlines,
+} from './state.js';
 import {
   isHostCall,
   isClosureCall,
@@ -513,6 +521,16 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
 // ============================================================
 
 Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
+  // Assert: -> assert
+  if (check(this.state, TOKEN_TYPES.ASSERT)) {
+    return this.parseAssert();
+  }
+
+  // Error: -> error
+  if (check(this.state, TOKEN_TYPES.ERROR)) {
+    return this.parseError();
+  }
+
   // Type operations: -> :type or -> :?type
   if (check(this.state, TOKEN_TYPES.COLON)) {
     return this.parseTypeOperation();
@@ -621,6 +639,47 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // String literal
   if (check(this.state, TOKEN_TYPES.STRING)) {
     return this.parseString();
+  }
+
+  // Dict literal for dispatch
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume [
+    skipNewlines(this.state);
+    // Handle empty dict: []
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      advance(this.state); // consume ]
+
+      // Check for ?? default value
+      let defaultValue = null;
+      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+        advance(this.state);
+        defaultValue = this.parseDefaultValue();
+      }
+
+      return {
+        type: 'Dict',
+        entries: [],
+        defaultValue,
+        span: makeSpan(start, current(this.state).span.end),
+      };
+    }
+
+    const dict = this.parseDict(start);
+
+    // Check for ?? default value after non-empty dict
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      const defaultValue = this.parseDefaultValue();
+
+      // Return new dict with defaultValue
+      return {
+        ...dict,
+        defaultValue,
+      };
+    }
+
+    return dict;
   }
 
   // Function call with parens

@@ -661,4 +661,106 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     }
     return [];
   },
+
+  // === List membership methods ===
+
+  /** Check if list contains value (deep equality) */
+  has: (receiver, args, _ctx, location) => {
+    if (!Array.isArray(receiver)) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has() requires list receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    if (args.length !== 1) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has() expects 1 argument, got ${args.length}`,
+        location
+      );
+    }
+    const searchValue = args[0] ?? null;
+    for (const item of receiver) {
+      if (deepEquals(item, searchValue)) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  /** Check if list contains any value from candidates (deep equality) */
+  has_any: (receiver, args, _ctx, location) => {
+    if (!Array.isArray(receiver)) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_any() requires list receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    if (args.length !== 1) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_any() expects 1 argument, got ${args.length}`,
+        location
+      );
+    }
+    const candidates = args[0] ?? null;
+    if (!Array.isArray(candidates)) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_any() expects list argument, got ${inferType(candidates)}`,
+        location
+      );
+    }
+    // Short-circuit on first match
+    for (const candidate of candidates) {
+      for (const item of receiver) {
+        if (deepEquals(item, candidate)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  /** Check if list contains all values from candidates (deep equality) */
+  has_all: (receiver, args, _ctx, location) => {
+    if (!Array.isArray(receiver)) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_all() requires list receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    if (args.length !== 1) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_all() expects 1 argument, got ${args.length}`,
+        location
+      );
+    }
+    const candidates = args[0] ?? null;
+    if (!Array.isArray(candidates)) {
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `has_all() expects list argument, got ${inferType(candidates)}`,
+        location
+      );
+    }
+    // Short-circuit on first mismatch
+    for (const candidate of candidates) {
+      let found = false;
+      for (const item of receiver) {
+        if (deepEquals(item, candidate)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  },
 };

@@ -295,14 +295,28 @@ export function visitNode(
       }
       break;
 
+    case 'Assert':
+      visitNode(node.condition, context, visitor);
+      if (node.message) {
+        visitNode(node.message, context, visitor);
+      }
+      break;
+
     case 'Capture':
     case 'Break':
     case 'Return':
       // Leaf nodes - no children
       break;
 
+    case 'RecoveryError':
+      // Recovery error node - no children to visit
+      break;
+
     case 'Error':
-      // Error recovery node - no children to visit
+      // Error statement node - visit message if present
+      if (node.message) {
+        visitNode(node.message, context, visitor);
+      }
       break;
 
     default: {

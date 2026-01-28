@@ -175,7 +175,7 @@ $input -> .trim -> .lower -> .eq("yes")
 ### Extract and Validate
 
 ```rill
-$email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! error("Invalid email")
+$email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email" }
 ```
 
 ### Format Output

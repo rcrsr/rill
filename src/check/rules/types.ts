@@ -10,7 +10,7 @@ import type {
   ValidationContext,
   FixContext,
 } from '../types.js';
-import type { ASTNode, TypeAssertionNode } from '../../types.js';
+import type { ASTNode, HostCallNode, TypeAssertionNode } from '../../types.js';
 import { extractContextLine } from './helpers.js';
 
 // ============================================================
@@ -173,7 +173,7 @@ export const VALIDATE_EXTERNAL: ValidationRule = {
   nodeTypes: ['HostCall'],
 
   validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
-    const hostCallNode = node as any;
+    const hostCallNode = node as HostCallNode;
     const functionName = hostCallNode.name;
 
     // Check if this is a parsing or external data function

@@ -159,9 +159,9 @@ describe('AnnotationsMixin', () => {
     it('propagates errors during loop execution within annotation', async () => {
       // Error during loop should propagate through annotation
       await expect(
-        run('^(limit: 10) [1, 2, 3] -> each { error("boom") }', {
+        run('^(limit: 10) [1, 2, 3] -> each { fail("boom") }', {
           functions: {
-            error: {
+            fail: {
               params: [{ name: 'msg', type: 'string' }],
               fn: (args) => {
                 throw new RuntimeError(

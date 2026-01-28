@@ -14,6 +14,8 @@ rill provides singular control flow—no exceptions, no try/catch. Errors halt e
 | `@ body ? cond` | Do-while (body first) |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block |
+| `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
+| `error "msg"` / `$val -> error` | Halt execution with error message |
 
 ---
 
@@ -305,6 +307,261 @@ $value -> return         # exit with value
 
 ---
 
+## Assert
+
+Validate conditions during execution. Halts the script with a clear error if the assertion fails.
+
+### Syntax
+
+```text
+assert condition
+assert condition "error message"
+$value -> assert condition
+```
+
+### Basic Usage
+
+Assert halts execution when the condition evaluates to `false`. If the condition is `true`, the piped value passes through unchanged.
+
+```rill
+5 -> assert ($ > 0)              # Returns 5 (condition true)
+-1 -> assert ($ > 0)             # Error: Assertion failed
+```
+
+### Custom Error Messages
+
+Provide a descriptive message as the second argument:
+
+```rill
+"" -> assert !.empty "Empty input not allowed"
+# Error: Empty input not allowed
+
+[1, 2, 3] -> assert (.len > 0) "List cannot be empty"
+# Returns [1, 2, 3] (assertion passes)
+```
+
+### Type Assertions
+
+Combine with type checks to validate input:
+
+```rill
+"hello" -> assert $:?string      # Returns "hello" (type check passes)
+42 -> assert $:?string           # Error: Assertion failed
+```
+
+### In Loops
+
+Assert validates each iteration. The loop halts on the first failing assertion:
+
+```rill
+[1, 2, 3] -> each {
+  assert ($ > 0) "Must be positive"
+}
+# Returns [1, 2, 3] (all elements valid)
+
+[1, 0, 3] -> each {
+  assert ($ > 0) "Must be positive"
+}
+# Error: Must be positive
+```
+
+### Pipe Passthrough
+
+When the assertion passes, the piped value flows through unchanged:
+
+```rill
+"data" :> $input
+$input
+  -> assert !.empty "Input required"
+  -> .upper
+  -> assert (.len > 0) "Processed value required"
+# Returns "DATA"
+```
+
+### Error Behavior
+
+Assert throws `RuntimeError` when:
+
+| Condition | Error Code | Message |
+|-----------|-----------|---------|
+| Condition is `false` | `RUNTIME_ASSERTION_FAILED` | Custom message or "Assertion failed" |
+| Condition is not boolean | `RUNTIME_TYPE_ERROR` | "assert requires boolean condition, got {type}" |
+
+```rill
+# Non-boolean condition
+"test" -> assert $               # Error: assert requires boolean condition, got string
+
+# Failed assertion with location
+-1 -> assert ($ > 0)             # Error: Assertion failed
+```
+
+### Validation Patterns
+
+Guard clauses at function start:
+
+```text
+|data| {
+  assert $data:?list "Expected list"
+  assert !$data.empty "List cannot be empty"
+  $data -> each { $ * 2 }
+} :> $process
+```
+
+Multi-step validation:
+
+```text
+$input
+  -> assert $:?string "Input must be string"
+  -> .trim
+  -> assert !.empty "Trimmed input cannot be empty"
+  -> assert (.len >= 5) "Input too short (min 5 chars)"
+  -> app::process()
+```
+
+---
+
+## Error
+
+Halt execution immediately with a custom error message. Unlike `assert`, which validates a condition, `error` always halts.
+
+### Syntax
+
+```text
+error "message"              # Direct form
+$value -> error              # Piped form
+```
+
+### Basic Usage
+
+Use `error` with a string literal to halt with a message:
+
+```text
+error "Something went wrong"
+# Halts execution with: Something went wrong
+```
+
+The message argument accepts string literals or piped string values (see Piped Form below).
+
+### Piped Form
+
+Pipe a string value to `error` to use dynamic error messages:
+
+```text
+"Operation failed" -> error
+# Halts with: Operation failed
+```
+
+The piped value must be a string:
+
+```text
+"Error occurred" :> $msg
+$msg -> error
+# Halts with: Error occurred
+
+"Status: " :> $prefix
+404 :> $code
+"{$prefix}{$code}" -> error
+# Halts with: Status: 404
+```
+
+Piping non-string values throws a type error:
+
+```text
+42 -> error                      # Error: error requires string, got number
+```
+
+### String Interpolation
+
+Use interpolation for dynamic error messages:
+
+```text
+404 :> $code
+error "Unexpected status: {$code}"
+# Halts with: Unexpected status: 404
+```
+
+```text
+3 :> $step
+"timeout" :> $reason
+error "Failed at step {$step}: {$reason}"
+# Halts with: Failed at step 3: timeout
+```
+
+### Conditional Usage
+
+Combine `error` with conditionals for guard clauses:
+
+```rill
+5 :> $x
+($x < 0) ? { error "Number must be non-negative" } ! $x
+# Returns 5 (condition false, proceeds with else branch)
+```
+
+```text
+$data -> .empty ? { error "Data cannot be empty" } ! $data
+# Proceeds with $data if not empty
+```
+
+### In Blocks
+
+Use `error` in blocks for multi-step validation:
+
+```text
+|age| {
+  ($age < 0) ? { error "Age cannot be negative: {$age}" }
+  ($age > 150) ? { error "Age out of range: {$age}" }
+  "Valid age: {$age}"
+} :> $validate_age
+```
+
+### Error Behavior
+
+Error throws `RuntimeError` with code `RUNTIME_ERROR_RAISED`:
+
+| Pattern | Halts With | Message Source |
+|---------|-----------|----------------|
+| `error "msg"` | RUNTIME_ERROR_RAISED | String literal |
+| `$val -> error` | RUNTIME_ERROR_RAISED | Piped value (must be string) |
+| `error ""` | RUNTIME_ERROR_RAISED | Empty message |
+| `error 123` | Parse error | PARSE_INVALID_SYNTAX |
+
+All error responses include the source location from the error statement.
+
+### Multiline Messages
+
+Use triple-quoted strings for formatted error messages:
+
+```text
+error """
+Error occurred:
+- Line 1
+- Line 2
+"""
+```
+
+### Comparison with Assert
+
+| Statement | Condition | Behavior |
+|-----------|-----------|----------|
+| `assert cond "msg"` | Validates condition | Halts if condition is false, passes through if true |
+| `error "msg"` | None | Always halts with message |
+
+Use `assert` when you need to validate a condition. Use `error` when you've already determined that execution cannot continue.
+
+### In Loops
+
+Error halts the loop immediately:
+
+```text
+[1, 2, 3] -> each {
+  ($ == 2) ? { error "Halted at 2" }
+  $ * 2
+}
+# Halts on second iteration with: Halted at 2
+```
+
+---
+
 ## Control Flow Summary
 
 | Statement | Scope | Effect |
@@ -313,8 +570,10 @@ $value -> return         # exit with value
 | `$val -> break` | Loop | Exit loop with value |
 | `return` | Block/Script | Exit block or script with current `$` |
 | `$val -> return` | Block/Script | Exit block or script with value |
-
-> **Note:** Script-level exit functions like `error()` or `stop()` must be provided by the host application. See [Host Integration](14_host-integration.md).
+| `assert cond` | Any | Halt if condition false, pass through on success |
+| `assert cond "msg"` | Any | Halt with custom message if condition false |
+| `error "msg"` | Any | Always halt with error message |
+| `$val -> error` | Any | Always halt with piped error message (must be string) |
 
 ---
 

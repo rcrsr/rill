@@ -2,13 +2,13 @@
 
 Examples demonstrating core language features for workflow orchestration.
 
-> **Note:** These examples assume the host provides `prompt()`, `error()`, and other domain functions. rill is a vanilla language—all integrations come from the host runtime. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
+> **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `parse_json`, `range`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 
 ## Feature Implementation Workflow
 
 Validates requirements, creates spec, iterates on review, then implements.
 
-```rill
+```text
 ---
 timeout: 00:10:00
 args: requirements: string
@@ -19,17 +19,17 @@ args: requirements: string
 Review the requirements document at {$requirements}.
 Check for completeness and clarity.
 Output READY if complete, or list missing elements.
-""" -> prompt() :> $validation
+""" -> app::prompt() :> $validation
 
-$validation -> ?(!.contains("READY")) {
-  error("Requirements incomplete: {$validation}")
+$validation -> .contains("READY") -> !$ ? {
+  error "Requirements incomplete: {$validation}"
 }
 
 # Phase 2: Create specification
 """
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
-""" -> prompt() :> $spec
+""" -> app::prompt() :> $spec
 
 "Specification created" -> log
 
@@ -40,7 +40,7 @@ Review this specification for issues:
 {$}
 
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
-  """ -> prompt() :> $review
+  """ -> app::prompt() :> $review
 
   $review -> ?(.contains("APPROVED")) { break }
 
@@ -51,7 +51,7 @@ Update the specification based on this feedback:
 
 Original spec:
 {$}
-  """ -> prompt()} :> $approved_spec
+  """ -> app::prompt()} :> $approved_spec
 
 # Phase 4: Implementation
 """
@@ -59,10 +59,10 @@ Implement the approved specification:
 {$approved_spec}
 
 Create the necessary files and tests.
-""" -> prompt() :> $implementation
+""" -> app::prompt() :> $implementation
 
 # Phase 5: Verify
-prompt("Run tests and verify implementation") :> $verification
+app::prompt("Run tests and verify implementation") :> $verification
 
 $verification -> ?(.contains("PASS")) {
   [0, "Workflow complete"]
@@ -81,10 +81,10 @@ args: plan: string
 ---
 
 # Initial check
-prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
+app::prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
 
 # Work loop
-$status -> @(!.contains("ALL COMPLETE")) {
+(!$status -> .contains("ALL COMPLETE")) @ {
   """
 Based on this status:
 {$}
@@ -93,7 +93,8 @@ Based on this status:
 2. Mark it complete in {$plan}
 3. Check if any unchecked items remain
 4. Output ALL COMPLETE if done, or describe next item
-  """ -> prompt()} :> $final
+  """ -> app::prompt()
+} :> $final
 
 "Plan complete: {$final}" -> log
 ```
@@ -108,7 +109,7 @@ args: target: string
 ---
 
 # Run tests
-prompt("Run tests for {$target} and report results") :> $result
+app::prompt("Run tests for {$target} and report results") :> $result
 
 # Fix loop
 $result -> @(.contains("FAIL")) {
@@ -119,12 +120,12 @@ Fix these test failures:
 {$}
 
 Make minimal changes. Then run tests again and report results.
-  """ -> prompt()} :> $final
+  """ -> app::prompt()} :> $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
 } ! {
-  error("Could not fix all tests")
+  error "Could not fix all tests"
 }
 ```
 
@@ -138,7 +139,7 @@ args: file: string
 ---
 
 # Get file summary
-prompt("Read and summarize {$file}") :> $summary
+app::prompt("Read and summarize {$file}") :> $summary
 
 # Security check
 """
@@ -146,7 +147,7 @@ Evaluate for SECURITY issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> prompt() :> $security
+""" -> app::prompt() :> $security
 
 # Performance check
 """
@@ -154,15 +155,15 @@ Evaluate for PERFORMANCE issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> prompt() :> $performance
+""" -> app::prompt() :> $performance
 
 # Check results
-$security -> ?(.contains("FAIL")) {
-  error("Security review failed: {$security}")
+$security -> .contains("FAIL") -> ? {
+  error "Security review failed: {$security}"
 }
 
-$performance -> ?(.contains("FAIL")) {
-  error("Performance review failed: {$performance}")
+$performance -> .contains("FAIL") -> ? {
+  error "Performance review failed: {$performance}"
 }
 
 "Code review passed"
@@ -172,14 +173,14 @@ $performance -> ?(.contains("FAIL")) {
 
 Deploys based on environment configuration.
 
-```rill
+```text
 ---
 args: service: string
 ---
 
 # Validate environment
 $ENV.DEPLOY_ENV -> ?(.empty()) {
-  error("DEPLOY_ENV not set")
+  error "DEPLOY_ENV not set"
 }
 
 # Environment-specific deployment
@@ -189,13 +190,13 @@ Deploy {$service} to production.
 - Run full test suite first
 - Enable monitoring
 - Use blue-green deployment
-  """ -> prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
+  """ -> app::prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
   """
 Deploy {$service} to staging.
 - Run smoke tests
 - Enable debug logging
-  """ -> prompt()} ! {
-  prompt("Deploy {$service} to development environment")
+  """ -> app::prompt()} ! {
+  app::prompt("Deploy {$service} to development environment")
 } :> $result
 
 "Deployment complete" -> log
@@ -217,10 +218,11 @@ args: operation: string
 Perform: {$operation}
 
 Output SUCCESS, RETRY, or FAILED.
-  """ -> prompt()} ? (.contains("RETRY"))
+  """ -> app::prompt()
+} ? (.contains("RETRY")) :> $result
 
 # Loop exits when result doesn't contain RETRY
-.contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$}"]
+$result -> .contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$result}"]
 ```
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.
@@ -235,13 +237,13 @@ args: file: string
 ---
 
 # Inline capture: value flows through $raw to log to conditional
-prompt("Read {$file}") :> $raw -> log -> ?(.contains("ERROR")) {
-  error("Failed to read: {$raw}")
+app::prompt("Read {$file}") :> $raw -> log -> .contains("ERROR") -> ? {
+  error "Failed to read: {$raw}"
 }
 
 # Continue with $raw available for later use
-prompt("Analyze this content:\n{$raw}") :> $analysis -> log -> ?(.empty()) {
-  error("Analysis produced no output")
+app::prompt("Analyze this content:\n{$raw}") :> $analysis -> log -> .empty -> ? {
+  error "Analysis produced no output"
 }
 
 # Both $raw and $analysis available
@@ -251,7 +253,7 @@ Compare the original:
 
 With the analysis:
 {$analysis}
-""" -> prompt()
+""" -> app::prompt()
 ```
 
 Semantically, `:> $var ->` is `:> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
@@ -267,7 +269,7 @@ args: file: string
 
 # Define a typed helper closure
 |input: string| {
-  prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
+  app::prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
 } :> $validate:closure
 
 # Capture with explicit type locks the variable
@@ -279,15 +281,15 @@ args: file: string
 # "oops" :> $validate                  # ERROR: cannot assign string to closure
 
 # Inline type annotation in pipe chain
-prompt("Check {$file}") :> $result:string -> log -> ?(.contains("ERROR")) {
-  error($result)
+app::prompt("Check {$file}") :> $result:string -> log -> ?(.contains("ERROR")) {
+  error $result
 }
 
 # Type annotations catch mistakes early
-prompt("Analyze {$file}") :> $analysis:string
+app::prompt("Analyze {$file}") :> $analysis:string
 
 ?(.contains("FAIL")) {
-  error("Analysis failed: {$analysis}")
+  error "Analysis failed: {$analysis}"
 }
 
 [0, "Processing complete"]
@@ -302,9 +304,9 @@ Extracts specific information from responses.
 args: logfile: string
 ---
 
-prompt("Read {$logfile} and find all ERROR lines") :> $errors
+app::prompt("Read {$logfile} and find all ERROR lines") :> $errors
 
-$errors -> ?(.empty()) {
+$errors -> .empty -> ? {
   "No errors found"
 } ! {
   """
@@ -312,7 +314,7 @@ Analyze these errors and categorize them:
 {$errors}
 
 For each unique error type, suggest a fix.
-  """ -> prompt() :> $analysis
+  """ -> app::prompt() :> $analysis
 
   "Error analysis complete" -> log
   $analysis
@@ -348,16 +350,16 @@ $analysis -> .contains("FAIL") ? {
 
 Uses bar-delimited arithmetic for calculations within workflow logic.
 
-```rill
+```text
 ---
 args: items: string
 ---
 
 # Count items and calculate batch sizes
-prompt("Count items in {$items}") -> .match("(\\d+) items") :> $m
+app::prompt("Count items in {$items}") -> .match("(\\d+) items") :> $m
 
-$m -> ?(.empty()) {
-  error("Could not parse item count")
+$m -> .empty -> ? {
+  error "Could not parse item count"
 }
 
 $m.groups[0] -> .num :> $count
@@ -376,7 +378,7 @@ range(1, $batches + 1) -> each {
   """
 Process batch {$batch_num} of {$batches}
 Items {$start} through {$end}
-  """ -> prompt()}
+  """ -> app::prompt()}
 
 [0, "Processed all batches"]
 ```
@@ -400,9 +402,9 @@ Rules:
 - Output :::BLOCKED::: if you need information you don't have
 - Output :::NEEDS_HUMAN::: if human judgment is required
 - Output :::DONE::: when complete
-""" -> prompt() :> $result
+""" -> app::prompt() :> $result
 
-$result -> @(!.contains(":::DONE:::")) {
+(!$result -> .contains(":::DONE:::")) @ {
   """
 Continue working on: {$task}
 
@@ -410,7 +412,8 @@ Previous progress:
 {$}
 
 Remember the signal rules.
-  """ -> prompt()} :> $final
+  """ -> app::prompt()
+} :> $final
 
 "Task complete: {$final}" -> log
 ```
@@ -452,7 +455,7 @@ $code -> .gt(0) ? {
 # ...
 # enumerate($tasks) -> each {
 #   "[{$.index + 1}/{$tasks.len}] Processing: {$.value}" -> log()
-#   prompt("Complete task: {$.value}")
+#   app::prompt("Complete task: {$.value}")
 # }
 ```
 
@@ -559,7 +562,7 @@ For XML content, use `parse_xml` for more precise extraction:
 
 ```rill
 # LLM returns: "Here's the config:\n```json\n{...}\n```"
-prompt("Generate JSON config") -> parse_fence("json") -> parse_json :> $config
+app::prompt("Generate JSON config") -> parse_fence("json") -> parse_json :> $config
 
 # Access parsed data
 $config.host -> log
@@ -570,7 +573,7 @@ $config.port -> log
 
 ```rill
 # LLM returns: "<thinking>...</thinking><answer>...</answer>"
-prompt("Analyze step by step") :> $response
+app::prompt("Analyze step by step") :> $response
 
 # Extract thinking for logging
 $response -> parse_xml("thinking") -> log
@@ -585,7 +588,7 @@ $response -> parse_xml("answer") -> parse_json :> $answer
 """
 What function should I call?
 Return in format: <tool><name>func</name><args>{...}</args></tool>
-""" -> prompt() :> $response
+""" -> app::prompt() :> $response
 
 $response -> parse_xml("tool") :> $tool
 $tool -> parse_xml("name") :> $fn_name

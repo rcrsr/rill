@@ -40,6 +40,8 @@ export const RILL_ERROR_CODES = {
   RUNTIME_ABORTED: 'RUNTIME_ABORTED',
   RUNTIME_PROPERTY_NOT_FOUND: 'RUNTIME_PROPERTY_NOT_FOUND',
   RUNTIME_LIMIT_EXCEEDED: 'RUNTIME_LIMIT_EXCEEDED',
+  RUNTIME_ASSERTION_FAILED: 'RUNTIME_ASSERTION_FAILED',
+  RUNTIME_ERROR_RAISED: 'RUNTIME_ERROR_RAISED',
 
   // Check errors
   CHECK_FILE_NOT_FOUND: 'CHECK_FILE_NOT_FOUND',
@@ -262,6 +264,8 @@ export const TOKEN_TYPES = {
   // Keywords
   BREAK: 'BREAK',
   RETURN: 'RETURN',
+  ASSERT: 'ASSERT',
+  ERROR: 'ERROR',
   EACH: 'EACH',
   MAP: 'MAP',
   FOLD: 'FOLD',
@@ -316,6 +320,7 @@ export type NodeType =
   | 'DictEntry'
   | 'Break'
   | 'Return'
+  | 'Assert'
   | 'BinaryExpr'
   | 'UnaryExpr'
   | 'InnerExpr'
@@ -335,6 +340,7 @@ export type NodeType =
   | 'MapExpr'
   | 'FoldExpr'
   | 'FilterExpr'
+  | 'RecoveryError'
   | 'Error';
 
 interface BaseNode {
@@ -348,8 +354,12 @@ interface BaseNode {
 export interface ScriptNode extends BaseNode {
   readonly type: 'Script';
   readonly frontmatter: FrontmatterNode | null;
-  /** Statements in the script. May include ErrorNode when parsed with recoveryMode. */
-  readonly statements: (StatementNode | AnnotatedStatementNode | ErrorNode)[];
+  /** Statements in the script. May include RecoveryErrorNode when parsed with recoveryMode. */
+  readonly statements: (
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+  )[];
 }
 
 export interface FrontmatterNode extends BaseNode {
@@ -400,12 +410,12 @@ export interface StatementNode extends BaseNode {
 }
 
 /**
- * Error node for recovery mode parsing.
+ * Recovery error node for parse error recovery mode.
  * Represents unparseable content that was skipped during error recovery.
  * Only appears in ASTs when parsing with `recoveryMode: true`.
  */
-export interface ErrorNode extends BaseNode {
-  readonly type: 'Error';
+export interface RecoveryErrorNode extends BaseNode {
+  readonly type: 'RecoveryError';
   /** The error message describing what went wrong */
   readonly message: string;
   /** The raw source text that could not be parsed */
@@ -492,6 +502,27 @@ export interface ReturnNode extends BaseNode {
   readonly type: 'Return';
 }
 
+/**
+ * Assert: halt execution if condition is false.
+ * Syntax: assert condition
+ * Or: assert condition "custom error message"
+ */
+export interface AssertNode extends BaseNode {
+  readonly type: 'Assert';
+  readonly condition: ExpressionNode;
+  readonly message: StringLiteralNode | null;
+}
+
+/**
+ * Error: explicitly raise an error with a message.
+ * Syntax: error "message"
+ * Or: error "interpolated {$var} message"
+ */
+export interface ErrorNode extends BaseNode {
+  readonly type: 'Error';
+  readonly message: StringLiteralNode | null;
+}
+
 // ============================================================
 // EXPRESSIONS
 // ============================================================
@@ -537,6 +568,8 @@ export type PrimaryNode =
   | WhileLoopNode
   | DoWhileLoopNode
   | BlockNode
+  | AssertNode
+  | ErrorNode
   | GroupedExprNode
   | SpreadNode
   | TypeAssertionNode
@@ -552,6 +585,7 @@ export type PipeTargetNode =
   | DoWhileLoopNode
   | BlockNode
   | StringLiteralNode
+  | DictNode
   | GroupedExprNode
   | ClosureChainNode
   | DestructureNode
@@ -564,7 +598,9 @@ export type PipeTargetNode =
   | FoldExprNode
   | FilterExprNode
   | PostfixExprNode
-  | VariableNode; // -> $fn invokes closure // -> $fn invokes closure
+  | VariableNode
+  | AssertNode
+  | ErrorNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -613,11 +649,12 @@ export interface TupleNode extends BaseNode {
 export interface DictNode extends BaseNode {
   readonly type: 'Dict';
   readonly entries: DictEntryNode[];
+  readonly defaultValue: BodyNode | null;
 }
 
 export interface DictEntryNode extends BaseNode {
   readonly type: 'DictEntry';
-  readonly key: string;
+  readonly key: string | TupleNode;
   readonly value: ExpressionNode;
 }
 
@@ -1141,6 +1178,7 @@ export type ASTNode =
   | CaptureNode
   | BreakNode
   | ReturnNode
+  | AssertNode
   | PipeChainNode
   | PostfixExprNode
   | MethodCallNode
@@ -1177,6 +1215,7 @@ export type ASTNode =
   | MapExprNode
   | FoldExprNode
   | FilterExprNode
+  | RecoveryErrorNode
   | ErrorNode;
 
 // ============================================================
@@ -1190,7 +1229,7 @@ export interface ParseOptions {
   /**
    * Enable recovery mode for IDE/tooling scenarios.
    * When true, the parser attempts to recover from errors and
-   * returns a partial AST with ErrorNode entries instead of throwing.
+   * returns a partial AST with RecoveryErrorNode entries instead of throwing.
    * Default: false (throws on first error).
    */
   readonly recoveryMode?: boolean;
@@ -1198,10 +1237,10 @@ export interface ParseOptions {
 
 /**
  * Result of parsing with recovery mode enabled.
- * Contains the AST (which may include ErrorNode entries) and collected errors.
+ * Contains the AST (which may include RecoveryErrorNode entries) and collected errors.
  */
 export interface ParseResult {
-  /** The parsed AST (may contain ErrorNode entries in statements) */
+  /** The parsed AST (may contain RecoveryErrorNode entries in statements) */
   readonly ast: ScriptNode;
   /** Parse errors collected during recovery (empty if no errors) */
   readonly errors: ParseError[];

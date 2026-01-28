@@ -239,6 +239,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateSpread(primary);
 
+        case 'Assert':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateAssert(primary);
+
+        case 'Error':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateError(primary);
+
         case 'TypeAssertion': {
           // Postfix type assertion: the operand is already evaluated
           if (!primary.operand) {
@@ -325,6 +333,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateString(target);
 
+        case 'Dict':
+          // Dict dispatch: lookup key matching piped value
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateDictDispatch(target, input);
+
         case 'GroupedExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateGroupedExpr(target);
@@ -393,6 +406,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
           return value;
         }
+
+        case 'Assert':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateAssert(target, input);
+
+        case 'Error':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateError(target, input);
 
         default:
           throw new RuntimeError(

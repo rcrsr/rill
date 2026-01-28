@@ -108,6 +108,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * All callables in the dict are bound to the containing dict via boundDict property.
      *
      * Reserved method names (keys, values, entries) cannot be used as dict keys.
+     * Multi-key entries (tuple keys) are not supported in dict literals, only in dispatch.
      * Errors from value evaluation propagate to caller.
      */
     protected async evaluateDict(
@@ -115,6 +116,16 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
       for (const entry of node.entries) {
+        // Multi-key entries (tuple keys) only valid in dict dispatch, not dict literals
+        if (typeof entry.key !== 'string') {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'Dict literal keys must be identifiers, not lists',
+            entry.span.start,
+            { entry }
+          );
+        }
+
         if (isReservedMethod(entry.key)) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
@@ -150,6 +161,113 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       return result;
+    }
+
+    /**
+     * Evaluate dict as dispatch table when piped [IR-5].
+     *
+     * Searches dict entries for key matching piped value using deep equality.
+     * Returns matched value. Auto-invokes if matched value is closure.
+     *
+     * Multi-key support: [["k1", "k2"]: value] syntax allows multiple keys
+     * to map to the same value. Key tuple is evaluated to get list of candidates.
+     * Validates multi-key entries per EC-13: tuple must evaluate to list.
+     *
+     * @param node - DictNode representing dispatch table
+     * @param input - Piped value to use as lookup key
+     * @returns Matched value (auto-invoked if closure)
+     * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if multi-key is not list (EC-13)
+     */
+    protected async evaluateDictDispatch(
+      node: DictNode,
+      input: RillValue
+    ): Promise<RillValue> {
+      // Import deepEquals for key matching
+      const { deepEquals } = await import('../../values.js');
+
+      // Search entries for matching key
+      for (const entry of node.entries) {
+        let matchFound = false;
+
+        if (typeof entry.key === 'string') {
+          // Single string key - compare directly
+          matchFound = deepEquals(input, entry.key);
+        } else {
+          // Tuple key - evaluate to get list of candidates
+          const keyValue = await this.evaluateTuple(entry.key);
+
+          // Multi-key must evaluate to a list (EC-13)
+          if (!Array.isArray(keyValue)) {
+            throw new RuntimeError(
+              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              `Dict dispatch: multi-key must be list, got ${typeof keyValue === 'object' && keyValue !== null ? 'dict' : typeof keyValue}`,
+              entry.span.start,
+              { keyValue, expectedType: 'list' }
+            );
+          }
+
+          // Check if input matches any element in the list
+          for (const candidate of keyValue) {
+            if (deepEquals(input, candidate)) {
+              matchFound = true;
+              break;
+            }
+          }
+        }
+
+        if (matchFound) {
+          // Found match - evaluate and return the value
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const matchedValue = await (this as any).evaluateExpression(
+            entry.value
+          );
+          return this.resolveDispatchValue(matchedValue, input, node);
+        }
+      }
+
+      // No match found - check for default value
+      if (node.defaultValue) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (this as any).evaluateExpression(node.defaultValue);
+      }
+
+      // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND
+      const location = node.span?.start;
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
+        `Dict dispatch: key '${formatValue(input)}' not found at line ${location?.line ?? '?'}:${location?.column ?? '?'}`,
+        location,
+        { key: input }
+      );
+    }
+
+    /**
+     * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
+     * When auto-invoking, $ is bound to the piped value.
+     */
+    private async resolveDispatchValue(
+      value: RillValue,
+      input: RillValue,
+      node: DictNode
+    ): Promise<RillValue> {
+      if (isCallable(value)) {
+        // Auto-invoke closure with $ bound to input
+        const savedPipeValue = this.ctx.pipeValue;
+        this.ctx.pipeValue = input;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await (this as any).invokeCallable(
+            value,
+            [],
+            node.span?.start
+          );
+          return result;
+        } finally {
+          this.ctx.pipeValue = savedPipeValue;
+        }
+      }
+      return value;
     }
 
     /**

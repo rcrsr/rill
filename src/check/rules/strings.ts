@@ -55,8 +55,7 @@ export const USE_EMPTY_METHOD: ValidationRule = {
     }
 
     // left and right are PostfixExpr - check their primaries
-    const left = binaryNode.left as any;
-    const right = binaryNode.right as any;
+    const { left, right } = binaryNode;
 
     const leftIsEmpty =
       left.type === 'PostfixExpr' && isEmptyStringLiteral(left.primary);

@@ -3,7 +3,12 @@
  * Orchestrates validation by traversing AST and invoking enabled rules.
  */
 
-import type { ScriptNode, ASTNode, TypeAssertionNode } from '../types.js';
+import type {
+  ScriptNode,
+  ASTNode,
+  CaptureNode,
+  TypeAssertionNode,
+} from '../types.js';
 import type { CheckConfig, Diagnostic, ValidationContext } from './types.js';
 import { visitNode, type RuleVisitor } from './visitor.js';
 import { VALIDATION_RULES } from './rules/index.js';
@@ -67,7 +72,7 @@ export function validateScript(
 
       // Track variable captures AFTER rules check (for reassignment detection)
       if (node.type === 'Capture') {
-        const captureNode = node as any;
+        const captureNode = node as CaptureNode;
         if (!ctx.variables.has(captureNode.name)) {
           ctx.variables.set(captureNode.name, node.span.start);
         }

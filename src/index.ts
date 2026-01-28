@@ -5,7 +5,7 @@
 
 export { LexerError, tokenize } from './lexer/index.js';
 export { parse, parseWithRecovery } from './parser/index.js';
-export type { ParseResult, ErrorNode } from './types.js';
+export type { ParseResult, RecoveryErrorNode, ErrorNode } from './types.js';
 export {
   type ApplicationCallable,
   BreakSignal,

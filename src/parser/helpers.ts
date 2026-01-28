@@ -6,7 +6,7 @@
 
 import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { type ParserState, check, peek, expect } from './state.js';
+import { type ParserState, check, peek, expect, current } from './state.js';
 
 // ============================================================
 // VALID TYPE NAMES
@@ -31,12 +31,35 @@ export const FUNC_PARAM_TYPES = ['string', 'number', 'bool'] as const;
 // ============================================================
 
 /**
+ * Check if token can be used as an identifier in function names
+ * (identifiers or keywords)
+ * @internal
+ */
+function isIdentifierOrKeyword(token: { type: string }): boolean {
+  return (
+    token.type === TOKEN_TYPES.IDENTIFIER ||
+    token.type === TOKEN_TYPES.TRUE ||
+    token.type === TOKEN_TYPES.FALSE ||
+    token.type === TOKEN_TYPES.BREAK ||
+    token.type === TOKEN_TYPES.RETURN ||
+    token.type === TOKEN_TYPES.ASSERT ||
+    token.type === TOKEN_TYPES.ERROR ||
+    token.type === TOKEN_TYPES.EACH ||
+    token.type === TOKEN_TYPES.MAP ||
+    token.type === TOKEN_TYPES.FOLD ||
+    token.type === TOKEN_TYPES.FILTER
+  );
+}
+
+/**
  * Check for function call: identifier( or namespace::func(
  * Supports: func(), ns::func(), ns::sub::func()
+ * Keywords can be used as function names when followed by parentheses.
  * @internal
  */
 export function isHostCall(state: ParserState): boolean {
-  if (!check(state, TOKEN_TYPES.IDENTIFIER)) {
+  const currentToken = state.tokens[state.pos];
+  if (!currentToken || !isIdentifierOrKeyword(currentToken)) {
     return false;
   }
 
@@ -50,10 +73,11 @@ export function isHostCall(state: ParserState): boolean {
   let offset = 1;
   while (peek(state, offset).type === TOKEN_TYPES.DOUBLE_COLON) {
     offset++; // skip ::
-    if (peek(state, offset).type !== TOKEN_TYPES.IDENTIFIER) {
-      return false; // :: must be followed by identifier
+    const nextToken = peek(state, offset);
+    if (!isIdentifierOrKeyword(nextToken)) {
+      return false; // :: must be followed by identifier or keyword
     }
-    offset++; // skip identifier
+    offset++; // skip identifier/keyword
   }
 
   // If we consumed at least one ::, check for (
@@ -139,14 +163,42 @@ export function isNegativeNumber(state: ParserState): boolean {
 }
 
 /**
- * Check for dict start: identifier followed by colon
+ * Check for dict start: identifier followed by colon OR list literal followed by colon
  * @internal
  */
 export function isDictStart(state: ParserState): boolean {
-  return (
+  // Dict can start with identifier followed by colon: [key: value]
+  if (
     check(state, TOKEN_TYPES.IDENTIFIER) &&
     peek(state, 1).type === TOKEN_TYPES.COLON
-  );
+  ) {
+    return true;
+  }
+
+  // Dict can also start with list literal (multi-key): [["a", "b"]: value]
+  // Look for pattern: [ [ ... ] : value
+  if (check(state, TOKEN_TYPES.LBRACKET)) {
+    // Scan ahead to find matching closing bracket
+    let depth = 0;
+    let pos = state.pos;
+
+    while (pos < state.tokens.length) {
+      const token = state.tokens[pos];
+      if (token?.type === TOKEN_TYPES.LBRACKET) {
+        depth++;
+      } else if (token?.type === TOKEN_TYPES.RBRACKET) {
+        depth--;
+        if (depth === 0) {
+          // Found matching closing bracket, check next token
+          const nextToken = state.tokens[pos + 1];
+          return nextToken?.type === TOKEN_TYPES.COLON;
+        }
+      }
+      pos++;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -284,12 +336,19 @@ export function parseBareHostCall(state: ParserState): HostCallNode {
   // Collect namespaced name: ident::ident::...
   while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
     state.pos++; // consume ::
-    const next = expect(
-      state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected identifier after ::'
-    );
-    name += '::' + next.value;
+
+    // After ::, accept identifier or keyword
+    const token = current(state);
+
+    if (!isIdentifierOrKeyword(token)) {
+      throw new ParseError(
+        'Expected identifier or keyword after ::',
+        token.span.start
+      );
+    }
+
+    name += '::' + token.value;
+    state.pos++; // consume the identifier or keyword
   }
 
   return {

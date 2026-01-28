@@ -296,6 +296,7 @@ Parser.prototype.parseTupleOrDict = function (
     return {
       type: 'Dict',
       entries: [],
+      defaultValue: null,
       span: makeSpan(start, current(this.state).span.end),
     };
   }
@@ -351,19 +352,38 @@ Parser.prototype.parseDict = function (
   return {
     type: 'Dict',
     entries,
+    defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
 
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
-  const keyToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, 'Expected key');
+
+  // Check if key is a list literal (multi-key)
+  let key: string | TupleNode;
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    // Parse list literal as key (tuple for multi-key)
+    const literal = this.parseTupleOrDict();
+    if (literal.type !== 'Tuple') {
+      throw new ParseError(
+        'Dict entry key must be identifier or list, not dict',
+        literal.span.start
+      );
+    }
+    key = literal;
+  } else {
+    // Parse identifier as string key
+    const keyToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, 'Expected key');
+    key = keyToken.value;
+  }
+
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
   const value = this.parseExpression();
 
   return {
     type: 'DictEntry',
-    key: keyToken.value,
+    key,
     value,
     span: makeSpan(start, current(this.state).span.end),
   };

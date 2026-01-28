@@ -53,6 +53,8 @@ See [Operators](04_operators.md) for detailed documentation.
 | `@ body ? cond` | Do-while |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
+| `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
+| `error "msg"` / `$val -> error` | Halt execution with error message |
 
 See [Control Flow](05_control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
@@ -130,6 +132,22 @@ See [Variables](03_variables.md) for detailed documentation.
 | `$data.field ?? default` | Default if missing |
 | `$data.?field` | Existence check |
 
+### Dict Dispatch
+
+Pipe a value to a dict to match keys and return associated values:
+
+| Syntax | Description |
+|--------|-------------|
+| `$val -> [k1: v1, k2: v2]` | Returns value for matching key |
+| `$val -> [k1: v1, k2: v2] ?? default` | Returns matched value or default |
+| `$val -> [["k1", "k2"]: shared]` | Multi-key dispatch (same value) |
+
+```text
+$value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
+$value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
+$method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
+```
+
 ### Parsing Functions
 
 | Function | Description |
@@ -168,6 +186,9 @@ See [Parsing](10_parsing.md) for detailed documentation.
 | `.match(regex)` | String | Dict | First match info |
 | `.is_match(regex)` | String | Bool | Regex matches |
 | `.empty` | Any | Bool | Is empty |
+| `.has(value)` | List | Bool | Check if list contains value (deep equality) |
+| `.has_any([values])` | List | Bool | Check if list contains any value from candidates |
+| `.has_all([values])` | List | Bool | Check if list contains all values from candidates |
 | `.keys` | Dict | List | All keys |
 | `.values` | Dict | List | All values |
 | `.entries` | Dict | List | Key-value pairs |
@@ -331,6 +352,30 @@ Single-line comments start with `#`:
 ## Grammar
 
 The complete formal grammar is in [grammar.ebnf](15_grammar.ebnf).
+
+---
+
+## Error Codes
+
+Runtime and parse errors include structured error codes for programmatic handling.
+
+| Code | Description |
+|------|-------------|
+| `PARSE_UNEXPECTED_TOKEN` | Unexpected token in source |
+| `PARSE_INVALID_SYNTAX` | Invalid syntax |
+| `PARSE_INVALID_TYPE` | Invalid type annotation |
+| `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
+| `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
+| `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
+| `RUNTIME_TYPE_ERROR` | Type mismatch |
+| `RUNTIME_TIMEOUT` | Operation timed out |
+| `RUNTIME_ABORTED` | Execution cancelled |
+| `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
+| `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
+| `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
+| `RUNTIME_ERROR_RAISED` | Error statement executed |
+
+See [Host Integration](14_host-integration.md) for error handling details.
 
 ---
 

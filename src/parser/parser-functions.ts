@@ -15,7 +15,7 @@ import type {
   TypeAssertionNode,
   TypeCheckNode,
 } from '../types.js';
-import { TOKEN_TYPES } from '../types.js';
+import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 
@@ -59,15 +59,36 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   const start = current(this.state).span.start;
 
   // Collect namespaced name: ident or ident::ident::...
+  // Accept keywords as identifiers (e.g., error(...) for custom functions)
   let name = advance(this.state).value;
   while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
     advance(this.state); // consume ::
-    const next = expect(
-      this.state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected identifier after ::'
-    );
-    name += '::' + next.value;
+
+    // After ::, accept identifier or keyword
+    const token = current(this.state);
+
+    const isValidIdent =
+      token.type === TOKEN_TYPES.IDENTIFIER ||
+      token.type === TOKEN_TYPES.TRUE ||
+      token.type === TOKEN_TYPES.FALSE ||
+      token.type === TOKEN_TYPES.BREAK ||
+      token.type === TOKEN_TYPES.RETURN ||
+      token.type === TOKEN_TYPES.ASSERT ||
+      token.type === TOKEN_TYPES.ERROR ||
+      token.type === TOKEN_TYPES.EACH ||
+      token.type === TOKEN_TYPES.MAP ||
+      token.type === TOKEN_TYPES.FOLD ||
+      token.type === TOKEN_TYPES.FILTER;
+
+    if (!isValidIdent) {
+      throw new ParseError(
+        'Expected identifier or keyword after ::',
+        token.span.start
+      );
+    }
+
+    name += '::' + token.value;
+    advance(this.state); // consume the identifier or keyword
   }
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');

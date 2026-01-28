@@ -402,11 +402,19 @@ function dictEquals(a: DictNode, b: DictNode): boolean {
   for (let i = 0; i < a.entries.length; i++) {
     if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
   }
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
   return true;
 }
 
 function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
-  if (a.key !== b.key) return false;
+  // Handle both string keys and TupleNode keys
+  if (typeof a.key === 'string' && typeof b.key === 'string') {
+    if (a.key !== b.key) return false;
+  } else if (typeof a.key !== 'string' && typeof b.key !== 'string') {
+    if (!tupleEquals(a.key, b.key)) return false;
+  } else {
+    return false; // One string, one tuple - not equal
+  }
   return expressionEquals(a.value, b.value);
 }
 

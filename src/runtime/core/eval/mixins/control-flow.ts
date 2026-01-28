@@ -30,6 +30,8 @@ import type {
   DoWhileLoopNode,
   BlockNode,
   BodyNode,
+  AssertNode,
+  ErrorNode,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -385,6 +387,126 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         throw e;
       }
+    }
+
+    /**
+     * Evaluate assert statement.
+     *
+     * Evaluates condition expression, halts with RuntimeError if false.
+     * Returns piped value unchanged on success.
+     *
+     * @param node - AssertNode to evaluate
+     * @param input - Input value (for pipe targets) or undefined (for statements)
+     * @returns Original pipe value on successful assertion
+     * @throws RuntimeError with RUNTIME_ASSERTION_FAILED on false condition
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR on non-boolean condition
+     */
+    protected async evaluateAssert(
+      node: AssertNode,
+      input?: RillValue
+    ): Promise<RillValue> {
+      // Use input if provided (pipe target), otherwise use current pipe value (statement)
+      const valueToReturn = input !== undefined ? input : this.ctx.pipeValue;
+
+      // Save the current pipe value to restore after condition evaluation
+      const savedPipeValue = this.ctx.pipeValue;
+
+      // Evaluate the condition
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const conditionResult = await (this as any).evaluateExpression(
+        node.condition
+      );
+
+      // Restore the pipe value (condition evaluation may have changed it)
+      this.ctx.pipeValue = savedPipeValue;
+
+      // Condition must be boolean
+      if (typeof conditionResult !== 'boolean') {
+        throw RuntimeError.fromNode(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `assert requires boolean condition, got ${inferType(conditionResult)}`,
+          node
+        );
+      }
+
+      // If condition is false, throw assertion error
+      if (!conditionResult) {
+        // Use custom message if provided, otherwise use default
+        let errorMessage: string;
+        if (node.message) {
+          // Evaluate the message string literal
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const messageValue = await (this as any).evaluateString(node.message);
+          errorMessage = String(messageValue);
+        } else {
+          errorMessage = 'Assertion failed';
+        }
+
+        throw RuntimeError.fromNode(
+          RILL_ERROR_CODES.RUNTIME_ASSERTION_FAILED,
+          errorMessage,
+          node
+        );
+      }
+
+      // Assertion passed, return original pipe value unchanged
+      return valueToReturn;
+    }
+
+    /**
+     * Evaluate error statement.
+     *
+     * Evaluates message string literal and halts execution with RuntimeError.
+     * Never returns normally (always throws).
+     *
+     * Forms:
+     * - Direct: error "message" - Uses literal message
+     * - Piped: "message" -> error - Uses piped input as message
+     *
+     * @param node - ErrorNode to evaluate
+     * @param input - Input value (for pipe targets) or undefined (for statements)
+     * @returns Never returns (always throws)
+     * @throws RuntimeError with RUNTIME_ERROR_RAISED using evaluated message
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if message is not string
+     */
+    protected async evaluateError(
+      node: ErrorNode,
+      input?: RillValue
+    ): Promise<never> {
+      let messageValue: RillValue;
+
+      if (node.message) {
+        // Direct form: error "message"
+        // Evaluate the message string literal (handles interpolation)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messageValue = await (this as any).evaluateString(node.message);
+      } else if (input !== undefined) {
+        // Piped form: "message" -> error
+        messageValue = input;
+      } else {
+        // No message and no input - should not happen if parser is correct
+        throw RuntimeError.fromNode(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'error statement requires string message',
+          node
+        );
+      }
+
+      // Message must be string
+      if (typeof messageValue !== 'string') {
+        throw RuntimeError.fromNode(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `error statement requires string message, got ${inferType(messageValue)}`,
+          node
+        );
+      }
+
+      // Always throw with user-provided message
+      throw RuntimeError.fromNode(
+        RILL_ERROR_CODES.RUNTIME_ERROR_RAISED,
+        messageValue,
+        node
+      );
     }
 
     /**

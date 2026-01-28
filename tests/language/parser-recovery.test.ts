@@ -17,7 +17,7 @@ describe('Parser Recovery', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.errors[0]?.message).toMatch(/Unexpected character|'/);
       expect(result.ast.statements.length).toBeGreaterThan(0);
-      expect(result.ast.statements[0]?.type).toBe('Error');
+      expect(result.ast.statements[0]?.type).toBe('RecoveryError');
     });
 
     it('recovers from multiple LexerErrors in interpolations', () => {
@@ -28,8 +28,8 @@ describe('Parser Recovery', () => {
       expect(result.success).toBe(false);
       expect(result.errors.length).toBe(2);
       expect(result.ast.statements.length).toBe(2);
-      expect(result.ast.statements[0]?.type).toBe('Error');
-      expect(result.ast.statements[1]?.type).toBe('Error');
+      expect(result.ast.statements[0]?.type).toBe('RecoveryError');
+      expect(result.ast.statements[1]?.type).toBe('RecoveryError');
     });
 
     it('recovers from LexerError in triple-quote interpolation', () => {
@@ -39,7 +39,7 @@ describe('Parser Recovery', () => {
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.ast.statements.length).toBeGreaterThan(0);
-      expect(result.ast.statements[0]?.type).toBe('Error');
+      expect(result.ast.statements[0]?.type).toBe('RecoveryError');
     });
 
     it('recovers from nested triple-quotes in interpolation', () => {
@@ -89,8 +89,8 @@ describe('Parser Recovery', () => {
       expect(result.errors.length).toBe(2);
       expect(result.ast.statements.length).toBe(3);
       // First two are errors, third is valid
-      expect(result.ast.statements[0]?.type).toBe('Error');
-      expect(result.ast.statements[1]?.type).toBe('Error');
+      expect(result.ast.statements[0]?.type).toBe('RecoveryError');
+      expect(result.ast.statements[1]?.type).toBe('RecoveryError');
       expect(result.ast.statements[2]?.type).toBe('Statement');
     });
 
@@ -103,7 +103,7 @@ describe('Parser Recovery', () => {
       expect(result.success).toBe(false);
       expect(result.ast.statements.length).toBe(3);
       expect(result.ast.statements[0]?.type).toBe('Statement');
-      expect(result.ast.statements[1]?.type).toBe('Error');
+      expect(result.ast.statements[1]?.type).toBe('RecoveryError');
       expect(result.ast.statements[2]?.type).toBe('Statement');
     });
   });
@@ -127,7 +127,7 @@ describe('Parser Recovery', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.ast.statements.length).toBe(2);
       expect(result.ast.statements[0]?.type).toBe('Statement');
-      expect(result.ast.statements[1]?.type).toBe('Error');
+      expect(result.ast.statements[1]?.type).toBe('RecoveryError');
     });
 
     it('handles multiple errors on same line', () => {

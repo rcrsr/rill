@@ -7,7 +7,7 @@ import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
   AnnotationArg,
-  ErrorNode,
+  RecoveryErrorNode,
   FrontmatterNode,
   NamedArgNode,
   ScriptNode,
@@ -38,7 +38,7 @@ declare module './parser.js' {
     recoverToNextStatement(
       startLocation: { line: number; column: number; offset: number },
       message: string
-    ): ErrorNode;
+    ): RecoveryErrorNode;
   }
 }
 
@@ -58,13 +58,17 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
   skipNewlines(this.state);
 
   // Statements
-  const statements: (StatementNode | AnnotatedStatementNode | ErrorNode)[] = [];
+  const statements: (
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+  )[] = [];
   while (!isAtEnd(this.state)) {
     skipNewlines(this.state);
     if (isAtEnd(this.state)) break;
 
     if (this.state.recoveryMode) {
-      // Recovery mode: catch errors and create ErrorNode
+      // Recovery mode: catch errors and create RecoveryErrorNode
       const stmtStart = current(this.state).span.start;
       try {
         statements.push(this.parseStatement());
@@ -79,7 +83,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
                   err.location
                 );
           this.state.errors.push(parseError);
-          // Create ErrorNode and skip to next statement boundary
+          // Create RecoveryErrorNode and skip to next statement boundary
           const errorNode = this.recoverToNextStatement(
             stmtStart,
             parseError.message
@@ -108,7 +112,7 @@ Parser.prototype.recoverToNextStatement = function (
   this: Parser,
   startLocation: { line: number; column: number; offset: number },
   message: string
-): ErrorNode {
+): RecoveryErrorNode {
   const startOffset = startLocation.offset;
   let endOffset = startOffset;
 
@@ -122,7 +126,7 @@ Parser.prototype.recoverToNextStatement = function (
   const text = this.state.source.slice(startOffset, endOffset);
 
   return {
-    type: 'Error',
+    type: 'RecoveryError',
     message,
     text,
     span: makeSpan(startLocation, current(this.state).span.start),
@@ -177,6 +181,48 @@ Parser.prototype.parseStatement = function (
   // Check for annotation prefix: ^(...)
   if (check(this.state, TOKEN_TYPES.CARET)) {
     return this.parseAnnotatedStatement();
+  }
+
+  // Check for assert statement: assert expression [string-literal]
+  if (check(this.state, TOKEN_TYPES.ASSERT)) {
+    const assertNode = this.parseAssert();
+    return {
+      type: 'Statement',
+      expression: {
+        type: 'PipeChain',
+        head: {
+          type: 'PostfixExpr',
+          primary: assertNode,
+          methods: [],
+          span: assertNode.span,
+        },
+        pipes: [],
+        terminator: null,
+        span: assertNode.span,
+      },
+      span: assertNode.span,
+    };
+  }
+
+  // Check for error statement: error string-literal
+  if (check(this.state, TOKEN_TYPES.ERROR)) {
+    const errorNode = this.parseError(true); // Require message for statement form
+    return {
+      type: 'Statement',
+      expression: {
+        type: 'PipeChain',
+        head: {
+          type: 'PostfixExpr',
+          primary: errorNode,
+          methods: [],
+          span: errorNode.span,
+        },
+        pipes: [],
+        terminator: null,
+        span: errorNode.span,
+      },
+      span: errorNode.span,
+    };
   }
 
   const expression = this.parseExpression();

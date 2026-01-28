@@ -48,6 +48,7 @@ The formal EBNF grammar is in [grammar.ebnf](15_grammar.ebnf).
 | Topic | Description |
 |-------|-------------|
 | [Conventions](16_conventions.md) | Naming, idioms, best practices |
+| [Design Principles](18_design-principles.md) | What "rillistic" means and mainstream habits to unlearn |
 
 ## Learning Path
 

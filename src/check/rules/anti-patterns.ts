@@ -10,6 +10,7 @@ import type {
 } from '../types.js';
 import type {
   ASTNode,
+  BinaryExprNode,
   CaptureNode,
   ConditionalNode,
   GroupedExprNode,
@@ -17,6 +18,9 @@ import type {
   MapExprNode,
   FilterExprNode,
   FoldExprNode,
+  PipeChainNode,
+  PostfixExprNode,
+  UnaryExprNode,
   WhileLoopNode,
   DoWhileLoopNode,
 } from '../../types.js';
@@ -149,7 +153,7 @@ function countBooleanOperators(node: ASTNode): number {
   let count = 0;
 
   if (node.type === 'BinaryExpr') {
-    const binaryNode = node as any;
+    const binaryNode = node as BinaryExprNode;
     if (binaryNode.op === '&&' || binaryNode.op === '||') {
       count = 1;
     }
@@ -161,19 +165,19 @@ function countBooleanOperators(node: ASTNode): number {
   // Traverse other node types that might contain expressions
   switch (node.type) {
     case 'UnaryExpr': {
-      const unaryNode = node as any;
+      const unaryNode = node as UnaryExprNode;
       count += countBooleanOperators(unaryNode.operand);
       break;
     }
 
     case 'GroupedExpr': {
-      const groupedNode = node as any;
+      const groupedNode = node as GroupedExprNode;
       count += countBooleanOperators(groupedNode.expression);
       break;
     }
 
     case 'PipeChain': {
-      const pipeNode = node as any;
+      const pipeNode = node as PipeChainNode;
       if (pipeNode.head) count += countBooleanOperators(pipeNode.head);
       if (pipeNode.pipes) {
         for (const pipe of pipeNode.pipes) {
@@ -184,7 +188,7 @@ function countBooleanOperators(node: ASTNode): number {
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as any;
+      const postfixNode = node as PostfixExprNode;
       if (postfixNode.primary)
         count += countBooleanOperators(postfixNode.primary);
       break;
@@ -201,7 +205,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
   let maxDepth = currentDepth;
 
   if (node.type === 'BinaryExpr') {
-    const binaryNode = node as any;
+    const binaryNode = node as BinaryExprNode;
     const depth =
       binaryNode.op === '&&' || binaryNode.op === '||'
         ? currentDepth + 1
@@ -216,7 +220,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
   // Traverse other node types
   switch (node.type) {
     case 'UnaryExpr': {
-      const unaryNode = node as any;
+      const unaryNode = node as UnaryExprNode;
       maxDepth = Math.max(
         maxDepth,
         getBooleanNestingDepth(unaryNode.operand, currentDepth)
@@ -225,7 +229,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
     }
 
     case 'GroupedExpr': {
-      const groupedNode = node as any;
+      const groupedNode = node as GroupedExprNode;
       maxDepth = Math.max(
         maxDepth,
         getBooleanNestingDepth(groupedNode.expression, currentDepth)
@@ -234,7 +238,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
     }
 
     case 'PipeChain': {
-      const pipeNode = node as any;
+      const pipeNode = node as PipeChainNode;
       if (pipeNode.head) {
         maxDepth = Math.max(
           maxDepth,
@@ -253,7 +257,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as any;
+      const postfixNode = node as PostfixExprNode;
       if (postfixNode.primary) {
         maxDepth = Math.max(
           maxDepth,
@@ -443,15 +447,13 @@ function getParenNestingDepth(node: ASTNode): number {
 
   function traverse(n: ASTNode, consecutiveDepth: number): void {
     if (n.type === 'GroupedExpr') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const groupedNode = n as any;
+      const groupedNode = n as GroupedExprNode;
       const newDepth = consecutiveDepth + 1;
       maxDepth = Math.max(maxDepth, newDepth);
       traverse(groupedNode.expression, newDepth);
     } else if (n.type === 'PipeChain') {
       // Treat simple PipeChain (head only) as transparent for nesting
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pipeNode = n as any;
+      const pipeNode = n as PipeChainNode;
       if (pipeNode.head && (!pipeNode.pipes || pipeNode.pipes.length === 0)) {
         // Transparent: pass through consecutive depth
         traverse(pipeNode.head, consecutiveDepth);
@@ -466,11 +468,10 @@ function getParenNestingDepth(node: ASTNode): number {
       }
     } else if (n.type === 'PostfixExpr') {
       // Treat simple PostfixExpr (primary only) as transparent for nesting
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const postfixNode = n as any;
+      const postfixNode = n as PostfixExprNode;
       if (
         postfixNode.primary &&
-        (!postfixNode.accessChain || postfixNode.accessChain.length === 0)
+        (!postfixNode.methods || postfixNode.methods.length === 0)
       ) {
         // Transparent: pass through consecutive depth
         traverse(postfixNode.primary, consecutiveDepth);
@@ -482,13 +483,11 @@ function getParenNestingDepth(node: ASTNode): number {
       // Reset consecutive depth when we hit a structural node
       // but continue traversing children
       if (n.type === 'BinaryExpr') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const binaryNode = n as any;
+        const binaryNode = n as BinaryExprNode;
         traverse(binaryNode.left, 0);
         traverse(binaryNode.right, 0);
       } else if (n.type === 'UnaryExpr') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const unaryNode = n as any;
+        const unaryNode = n as UnaryExprNode;
         traverse(unaryNode.operand, 0);
       }
     }

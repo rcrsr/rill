@@ -5,7 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.4] - 2026-01-28
+
+### Breaking
+
+- **`ErrorNode` Renamed to `RecoveryErrorNode`** — Parse recovery error node type changed
+  - Before: `stmt.type === 'Error'` for recovery-mode parse errors
+  - After: `stmt.type === 'RecoveryError'`
+  - `ErrorNode` now refers to the new `error` statement node
+  - Migration: Update any code matching on `'Error'` node type to `'RecoveryError'`
+
+- **`DictEntryNode.key` Type Widened** — Dict entry keys accept tuple nodes for multi-key dispatch
+  - Before: `DictEntryNode.key` was always `string`
+  - After: `DictEntryNode.key` is `string | TupleNode`
+  - Affects code that reads dict entry keys directly
+
+### Added
+
+- **Assert Statement** — Validate conditions with `assert`
+  - `assert $count > 0` halts with `RUNTIME_ASSERTION_FAILED` if false
+  - `assert $valid "custom message"` includes message in error
+  - Pipe form: `$value -> assert .len > 0` passes value through unchanged
+  - Condition must be boolean (no truthiness)
+
+- **Error Statement** — Halt execution with `error`
+  - `error "something went wrong"` halts with `RUNTIME_ERROR_RAISED`
+  - Pipe form: `$msg -> error` uses piped string as message
+  - Interpolation: `error "failed at step {$step}"`
+  - Conditional: `($count == 0) ? { error "empty input" }`
+
+- **Dict Dispatch** — Pipe a value to a dict to match keys
+  - `$val -> [apple: "fruit", carrot: "vegetable"]` returns matched value
+  - Default: `$val -> [a: 1, b: 2] ?? "unknown"` returns default on no match
+  - Multi-key: `$method -> [["GET", "HEAD"]: "safe", ["POST"]: "unsafe"]`
+  - Matched closures auto-invoke
+  - Throws `RUNTIME_PROPERTY_NOT_FOUND` if no match and no default
+
+- **List Membership Methods** — 3 methods for checking list contents
+  - `.has(value)` — deep equality check for single value
+  - `.has_any([candidates])` — true if list contains any candidate
+  - `.has_all([candidates])` — true if list contains all candidates
+
+- **Design Principles Doc** — `docs/18_design-principles.md` covers rillistic idioms
+  - 6 core principles that break mainstream habits
+  - Patterns for pipes, sealed scopes, value semantics
 
 ### Fixed
 
@@ -15,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VALIDATE_EXTERNAL False Positives** — Rule no longer flags host calls already wrapped in type assertions
   - Before: `parse_json($input):dict` and `ccr::read($path):string` still triggered "validate external" warnings
   - After: Skips host calls that have an immediate `:type` assertion
+- **Type Safety in Check Rules** — Replaced `as any` casts with proper AST node types across 6 files
 
 ## [0.2.3] - 2026-01-27
 
@@ -432,7 +476,9 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/rcrsr/rill/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/rcrsr/rill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/rcrsr/rill/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/rcrsr/rill/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rcrsr/rill/compare/v0.1.0...v0.2.0

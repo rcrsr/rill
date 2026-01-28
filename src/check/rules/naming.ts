@@ -140,6 +140,11 @@ export const NAMING_SNAKE_CASE: ValidationRule = {
         const entryNode = node as DictEntryNode;
         const key = entryNode.key;
 
+        // Skip multi-key entries (tuple keys) - only validate string keys
+        if (typeof key !== 'string') {
+          return [];
+        }
+
         if (!isSnakeCase(key)) {
           const fix = this.fix?.(node, context) ?? null;
           return [
@@ -193,8 +198,11 @@ export const NAMING_SNAKE_CASE: ValidationRule = {
 
       case 'DictEntry': {
         const entryNode = node as DictEntryNode;
-        name = entryNode.key;
-        // For dict entries, replace only the key portion before the colon
+        // Skip multi-key entries (tuple keys) - only fix string keys
+        if (typeof entryNode.key === 'string') {
+          name = entryNode.key;
+          // For dict entries, replace only the key portion before the colon
+        }
         break;
       }
 
