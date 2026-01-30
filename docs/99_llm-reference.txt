@@ -80,7 +80,14 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
 
 6. NO EXCEPTIONS
    Errors halt execution. No try/catch. Use conditionals for error handling.
-   Script-level exit functions (error, stop) must be host-provided.
+   Built-in: assert (validate condition), error (halt with message).
+
+7. VALUE SEMANTICS (no references)
+   All copies are deep. All comparisons are by value. No object identity.
+   [1, 2, 3] == [1, 2, 3]   # true (content equality)
+   [1, 2] :> $a
+   $a :> $b                  # $b is an independent deep copy
+   Mainstream habit to avoid: expecting two variables to share the same object.
 
 SYNTAX QUICK REFERENCE
 ----------------------
@@ -94,6 +101,7 @@ Lists:         [1, 2, 3]
 Dicts:         [name: "alice", age: 30]
 Tuples:        *[1, 2, 3]              # for argument unpacking
 Closures:      |x|($x + 1)             # like lambda/arrow functions
+Type annot:    "hi" :> $x:string       # lock type on capture
 Comments:      # single line only
 
 PIPES AND $ BINDING
@@ -137,6 +145,17 @@ Break (exits loop, returns collected results before break):
 Return (exits block or script with value):
   { 5 :> $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
   "done" -> return                                     # exits script with "done"
+
+Assert (validate condition, halt if false, pass through if true):
+  5 -> assert ($ > 0)                   # returns 5
+  -1 -> assert ($ > 0)                  # ERROR: Assertion failed
+  "" -> assert !.empty "Input required" # ERROR: Input required
+  $val -> assert $:?list "Expected list" # type validation
+
+Error (halt execution immediately with message):
+  error "Something went wrong"           # halt with message
+  "Operation failed" -> error            # piped form (must be string)
+  error "Status: {$code}"               # interpolation works
 
 LOOP STATE PATTERNS (CRITICAL)
 ------------------------------
@@ -187,6 +206,23 @@ $@ is the accumulator in each(init) and fold(init).
 Method shorthand in collection operators:
   ["a", "b"] -> map .upper            # ["A", "B"]
   ["", "x"] -> filter (!.empty)       # ["x"]
+  ["a", "b"] -> map .pad_start(3, "0") # ["00a", "00b"] (with args)
+  ["  HI  "] -> map .trim.lower       # ["hi"] (chained methods)
+
+Body forms (all operators accept these):
+  -> each { $ * 2 }                   # block ($ is current element)
+  -> each ($ + 10)                    # grouped expression
+  -> each |x| ($x * 2)               # inline closure
+  -> each $double                     # variable closure
+  -> each .upper                      # method shorthand
+
+Dict iteration ($ contains key and value fields):
+  [a: 1, b: 2] -> each { "{$.key}={$.value}" }   # ["a=1", "b=2"]
+  [a: 1, b: 5] -> filter { $.value > 2 }          # entries where value > 2
+
+String iteration (iterates over characters):
+  "abc" -> each { "{$}!" }            # ["a!", "b!", "c!"]
+  "hello" -> filter { $ != "l" }      # ["h", "e", "o"]
 
 CLOSURES
 --------
@@ -204,6 +240,11 @@ Invocation:
 
 LATE BINDING: closures capture scope, not values. Variables resolve at call time.
 
+$ vs named params:
+  Use $ in inline pipes and loops:     "hello" -> { .upper }
+  Use named params in stored closures: |x| ($x * 2) :> $double
+  $ is undefined when a stored closure is called later — always use params.
+
 Dict closures (methods):
   [count: 3, double: ||{ $.count * 2 }] :> $obj
   $obj.double                         # 6 ($ is bound to dict)
@@ -220,6 +261,14 @@ $data.field ?? "default"              # default if missing
 $data.?field                          # existence check (boolean)
 $data.?field&string                   # existence AND type check
 
+DICT DISPATCH
+-------------
+
+Pipe a value to a dict to match keys and return associated values:
+  $val -> [apple: "fruit", carrot: "veg"]        # returns "fruit" if $val is "apple"
+  $val -> [apple: "fruit"] ?? "not found"         # default if no match
+  $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # multi-key
+
 TYPE OPERATIONS
 ---------------
 
@@ -227,6 +276,34 @@ TYPE OPERATIONS
 :?type  - check type (boolean): 42:?number is true; "x":?number is false
 
 Types: string, number, boolean, list, dict, tuple, closure
+
+COMPARISON METHODS
+------------------
+
+Methods for readable comparisons in conditionals:
+  .eq(val)   ==          $v -> .eq("A") ? "match"
+  .ne(val)   !=          $v -> .ne("") ? "has value"
+  .lt(val)   <           $v -> .lt(10) ? "small"
+  .gt(val)   >           5 -> .gt(3) ? "big"
+  .le(val)   <=          10 -> .le(10) ? "ok"
+  .ge(val)   >=          $age -> .ge(18) ? "adult"
+
+OPERATOR PRECEDENCE (highest to lowest)
+---------------------------------------
+
+1.  Member access:   .field, [index]
+2.  Type operators:  :type, :?type
+3.  Unary:           -, !
+4.  Multiplicative:  *, /, %
+5.  Additive:        +, -
+6.  Comparison:      ==, !=, <, >, <=, >=
+7.  Logical AND:     &&
+8.  Logical OR:      ||
+9.  Default:         ??
+10. Pipe:            ->
+11. Capture:         :>
+
+Use parentheses to override: (2 + 3) * 4
 
 EXTRACTION OPERATORS
 --------------------
@@ -275,6 +352,12 @@ STRING METHODS
 .head           first character
 .tail           last character
 .at(i)          character at index
+.index_of(s)    position of first match (-1 if none)
+.repeat(n)      repeat string n times: "ab" -> .repeat(3)  # "ababab"
+.pad_start(n,f) pad start to length: "42" -> .pad_start(5, "0")  # "00042"
+.pad_end(n,f)   pad end to length: "42" -> .pad_end(5, "0")  # "42000"
+.str            convert any value to string: 42 -> .str  # "42"
+.num            parse string to number: "42" -> .num  # 42
 
 LIST/DICT METHODS
 -----------------
@@ -284,6 +367,9 @@ LIST/DICT METHODS
 .head           first element
 .tail           last element
 .at(i)          element at index
+.has(val)       check if list contains value (deep equality)
+.has_any(list)  check if list contains any value from candidates
+.has_all(list)  check if list contains all values from candidates
 .keys           dict keys as list
 .values         dict values as list
 .entries        dict as list of [key: k, value: v]
@@ -310,6 +396,25 @@ range(start, end, step?)  number sequence
 repeat(val, count)        repeat value n times
 enumerate(coll)           add index to elements
 
+ITERATORS
+---------
+
+Lazy sequence generation. Collection operators auto-expand iterators.
+
+Built-in iterators:
+  range(0, 5) -> each { $ * 2 }        # [0, 2, 4, 6, 8]
+  repeat("x", 3) -> each { $ }         # ["x", "x", "x"]
+
+.first() method (returns iterator for any collection):
+  [1, 2, 3] -> .first()                # iterator at 1
+  "abc" -> .first()                     # iterator at "a"
+  [] -> .first()                        # [done: true, ...]
+
+Iterator protocol (dict with value, done, next):
+  $it.done                              # bool: is exhausted?
+  $it.value                             # current element
+  $it.next()                            # returns new iterator at next position
+
 ITERATION LIMITS
 ----------------
 
@@ -318,6 +423,9 @@ Override: ^(limit: N) statement
 
 Example:
   ^(limit: 100) 0 -> ($ < 50) @ { $ + 1 }
+
+Concurrency limit for map (controls parallel concurrency):
+  ^(limit: 3) $items -> map { slow_process($) }
 
 COMMON MISTAKES
 ---------------
@@ -339,3 +447,17 @@ true / non-empty string -> exit code 0
 false / empty string    -> exit code 1
 [0, "message"]          -> exit code 0 with message
 [1, "message"]          -> exit code 1 with message
+
+MAINSTREAM TO RILL TRANSLATION
+------------------------------
+
+| Mainstream               | Rill                                      |
+|--------------------------|-----------------------------------------  |
+| x = value                | value :> $x                               |
+| null / undefined         | ?? default, .? existence check             |
+| if "" (truthiness)       | .empty, == 0, :?type                      |
+| try { } catch { }        | assert, conditionals, error                |
+| for (i = 0; ...)         | each, map, filter, fold                   |
+| count += 1 in loop       | fold(0) { $@ + 1 } or $ accumulator      |
+| a === b (reference)      | == always compares by value               |
+| a = b (shared ref)       | :> always deep-copies                     |
