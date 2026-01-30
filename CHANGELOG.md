@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-30
+
+### Breaking
+
+- **Block Expressions Create Closures** — `{ body }` in expression position now produces `ScriptCallable`
+  - Before: `{ 5 + 1 } :> $x` stored `6` (eager evaluation)
+  - After: `{ 5 + 1 } :> $x` stores a closure; `$x()` returns `6`
+  - Before: `[key: { $ + 1 }]` stored the result of `$ + 1`
+  - After: `[key: { $ + 1 }]` stores a closure that accepts `$` as argument
+  - Before: `type({ "hello" })` returned `"string"`
+  - After: `type({ "hello" })` returns `"closure"`
+  - Migration: Use `( expr )` for eager evaluation where `{ }` was used before
+    - `{ expr } :> $x` → `( expr ) :> $x`
+    - `[key: { expr }]` → `[key: ( expr )]`
+  - Pipe targets unchanged: `5 -> { $ + 1 }` still returns `6` (creates closure, invokes immediately)
+
+- **Block-Closures Have Implicit `$` Parameter** — Block-closures require exactly one argument
+  - `{ $ + 1 } :> $fn` then `$fn()` throws `Missing argument for parameter '$'`
+  - `{ $ + 1 } :> $fn` then `$fn(1, 2)` throws `Function expects 1 arguments, got 2`
+  - Use `||{ body }` for zero-parameter closures (property-style)
+
+- **Strict Arity Enforcement for All Closures** — Excess arguments now error
+  - Before: `||{ 42 } :> $fn` then `$fn(1, 2, 3)` silently ignored extra args
+  - After: Same code throws `Function expects 0 arguments, got 3`
+  - Applies to all closure forms: `{ }`, `||{ }`, `|x|{ }`, `|x, y|{ }`
+
+### Added
+
+- **Block-Closure Syntax** — `{ body }` creates closure with implicit `$` parameter
+  - `{ $ + 1 } :> $increment` then `5 -> $increment` returns `6`
+  - `$increment(7)` also works (direct call)
+  - Dict values: `[double: { $ * 2 }] :> $obj` then `5 -> $obj.double` returns `10`
+  - Collection ops: `[1, 2, 3] -> map { $ * 2 }` returns `[2, 4, 6]`
+
+- **Expression Delimiter Distinction** — Deterministic `{ }` vs `( )` semantics
+  - `{ body }` — Deferred execution, produces `ScriptCallable`
+  - `( expr )` — Eager evaluation, produces result value
+  - Pipe target `-> { }` creates and invokes (same observable result as `-> ( )`)
+
+### Changed
+
+- **Documentation Updates** — Comprehensive closure semantics documentation
+  - `docs/06_closures.md`: Added "Expression Delimiters" and "Block-Closures" sections
+  - `docs/11_reference.md`: Added expression delimiters table to Quick Reference
+  - `docs/15_grammar.ebnf`: Added block expression semantics comments
+  - `docs/99_llm-reference.txt`: Added block-closure vs explicit closure section
+
 ## [0.2.4] - 2026-01-28
 
 ### Breaking
@@ -476,7 +523,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/rcrsr/rill/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/rcrsr/rill/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/rcrsr/rill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/rcrsr/rill/compare/v0.2.1...v0.2.2

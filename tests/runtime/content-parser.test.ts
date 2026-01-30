@@ -522,8 +522,8 @@ describe('Content Parsing: Runtime Integration', () => {
 
   describe('parse_fence()', () => {
     it('extracts first fenced block without language', async () => {
-      // Triple-quote strings can't be directly piped; wrap in block
-      const result = await run(`{
+      // Triple-quote strings can't be directly piped; wrap in block and invoke
+      const result = await run(`"" -> {
 """
 \`\`\`
 code here
@@ -535,7 +535,7 @@ $input -> parse_fence`);
     });
 
     it('extracts fenced block by language', async () => {
-      const result = await run(`{
+      const result = await run(`"" -> {
 """
 \`\`\`python
 print("hi")
@@ -552,7 +552,7 @@ $input -> parse_fence("python")`);
     });
 
     it('returns empty string when language not found', async () => {
-      const result = await run(`{
+      const result = await run(`"" -> {
 """
 \`\`\`js
 code
@@ -566,7 +566,7 @@ $input -> parse_fence("python")`);
 
   describe('parse_fences()', () => {
     it('extracts all fenced blocks', async () => {
-      const result = (await run(`{
+      const result = (await run(`"" -> {
 """
 \`\`\`js
 a
@@ -590,7 +590,7 @@ $input -> parse_fences`)) as Array<{ lang: string; content: string }>;
 
   describe('parse_frontmatter()', () => {
     it('parses frontmatter and body', async () => {
-      const result = (await run(`{
+      const result = (await run(`"" -> {
 """
 ---
 title: Test
@@ -620,7 +620,7 @@ $input -> parse_frontmatter`)) as {
 
   describe('parse_checklist()', () => {
     it('parses checklist items as [checked, text] tuples', async () => {
-      const result = await run(`{
+      const result = await run(`"" -> {
 """
 - [ ] Todo
 - [x] Done

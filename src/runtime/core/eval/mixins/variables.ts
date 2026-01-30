@@ -540,10 +540,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (dictValue !== undefined && dictValue !== null) {
           // Property-style callable: auto-invoke when accessed
           if (isCallable(dictValue) && dictValue.isProperty) {
+            // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
+            // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
+            const args = dictValue.kind === 'script' ? [] : [value];
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return await (this as any).invokeCallable(
               dictValue,
-              [value],
+              args,
               this.getNodeLocation(node)
             );
           }

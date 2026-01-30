@@ -30,6 +30,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
+import { isCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -229,7 +230,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         case 'Block':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateBlockExpression(primary);
+          return (this as any).createBlockClosure(primary);
 
         case 'GroupedExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -325,9 +326,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateDoWhileLoop(target);
 
-        case 'Block':
+        case 'Block': {
+          // Create block-closure then invoke with input as $
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateBlockExpression(target);
+          const closure = (this as any).createBlockClosure(target);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).invokeCallable(
+            closure,
+            [input],
+            this.getNodeLocation(target)
+          );
+        }
 
         case 'StringLiteral':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -382,7 +391,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateFilter(target, input);
 
-        case 'Variable':
+        case 'Variable': {
           // $.field is property access on pipe value, not closure invocation
           if (
             target.isPipeVar &&
@@ -392,9 +401,20 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (this as any).evaluatePipePropertyAccess(target, input);
           }
-          // Variable in pipe chain: evaluate normally (preserves original error codes)
+          // Variable in pipe chain: evaluate and invoke if callable
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVariableAsync(target);
+          const value = await (this as any).evaluateVariableAsync(target);
+          // If value is callable, invoke it with the pipe input
+          if (isCallable(value)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (this as any).invokeCallable(
+              value,
+              [input],
+              this.getNodeLocation(target)
+            );
+          }
+          return value;
+        }
 
         case 'PostfixExpr': {
           // Chained methods on pipe value: -> .a.b.c

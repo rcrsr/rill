@@ -63,7 +63,7 @@ describe('Rill Runtime: Variables', () => {
       expect(
         await run(`
           "outer" :> $x
-          {
+          "" -> {
             $x -> .upper
           }
         `)

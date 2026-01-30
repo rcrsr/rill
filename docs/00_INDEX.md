@@ -2,7 +2,7 @@
 
 *Pipe-based scripting for workflow orchestration*
 
-> **Experimental (v0.1.0).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.3.0).** Active development. Breaking changes until v1.0.
 
 ## Quick Links
 

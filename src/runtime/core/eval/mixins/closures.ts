@@ -255,6 +255,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const callableCtx = this.createCallableContext(callable);
 
+      // Validate excess arguments (EC-8)
+      if (args.length > callable.params.length) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Function expects ${callable.params.length} arguments, got ${args.length}`,
+          callLocation
+        );
+      }
+
       for (let i = 0; i < callable.params.length; i++) {
         const param = callable.params[i]!;
         let value: RillValue;
@@ -274,6 +283,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         this.validateParamType(param, value, callLocation);
         callableCtx.variables.set(param.name, value);
+        // Block-closures have param named '$': sync with pipeValue for bare $ references
+        if (param.name === '$') {
+          callableCtx.pipeValue = value;
+        }
       }
 
       // Switch context to callable context
@@ -351,6 +364,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const param = closure.params.find((p) => p.name === name)!;
           this.validateParamType(param, value, callLocation);
           closureCtx.variables.set(name, value);
+          // Block-closures have param named '$': sync with pipeValue for bare $ references
+          if (name === '$') {
+            closureCtx.pipeValue = value;
+          }
           boundParams.add(name);
         }
       }
@@ -359,6 +376,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (!boundParams.has(param.name)) {
           if (param.defaultValue !== null) {
             closureCtx.variables.set(param.name, param.defaultValue);
+            // Block-closures have param named '$': sync with pipeValue for bare $ references
+            if (param.name === '$') {
+              closureCtx.pipeValue = param.defaultValue;
+            }
           } else {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,

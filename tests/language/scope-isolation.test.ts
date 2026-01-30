@@ -81,7 +81,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('nested standalone block sees outer $', async () => {
       const result = await run(`
         "hello" -> {
-          {
+          $ -> {
             $
           }
         }
@@ -92,8 +92,8 @@ describe('Phase 0: Scope Isolation', () => {
     it('deeply nested standalone blocks inherit correctly', async () => {
       const result = await run(`
         "level0" -> {
-          {
-            {
+          $ -> {
+            $ -> {
               $
             }
           }
@@ -132,7 +132,7 @@ describe('Phase 0: Scope Isolation', () => {
       await expect(
         run(`
         "outer" :> $x
-        {
+        "" -> {
           "inner" :> $x
         }
       `)
@@ -142,7 +142,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('child can read outer variable', async () => {
       const result = await run(`
         "hello" :> $x
-        {
+        "" -> {
           $x -> .upper
         }
       `);
@@ -153,7 +153,7 @@ describe('Phase 0: Scope Isolation', () => {
       // Variable not found throws an error
       await expect(
         run(`
-        {
+        "" -> {
           "local" :> $x
         }
         $x

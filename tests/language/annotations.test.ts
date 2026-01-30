@@ -157,7 +157,7 @@ describe('Rill Runtime: Annotations', () => {
       // Inner limit of 2 should take precedence
       // Uses $ as accumulator
       const script = `
-        ^(limit: 100) {
+        ^(limit: 100) "" -> {
           ^(limit: 2) 0 -> ($ < 10) @ { $ + 1 }
         }
       `;
@@ -168,7 +168,7 @@ describe('Rill Runtime: Annotations', () => {
       // This test verifies that limit applies in nested scopes
       // Uses $ as accumulator
       const script = `
-        ^(limit: 3) {
+        ^(limit: 3) "" -> {
           0 -> ($ < 10) @ { $ + 1 }
         }
       `;
@@ -179,7 +179,7 @@ describe('Rill Runtime: Annotations', () => {
       // After the annotated block, default limit should apply
       // Uses $ as accumulator
       const script = `
-        ^(limit: 1000) {
+        ^(limit: 1000) "" -> {
           0 -> ($ < 5) @ { $ + 1 }
         }
         0 -> ($ < 100) @ { $ + 1 }
@@ -206,7 +206,7 @@ describe('Rill Runtime: Annotations', () => {
 
     it('works with blocks', async () => {
       const script = `
-        ^(limit: 5) {
+        ^(limit: 5) "" -> {
           1 :> $a
           2 :> $b
           $a + $b

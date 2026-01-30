@@ -227,15 +227,43 @@ String iteration (iterates over characters):
 CLOSURES
 --------
 
-Definition:
-  |x|($x + 1) :> $inc                 # single param
-  |a, b|($a + $b) :> $add             # multiple params
-  |x = 0|($x + 1) :> $inc_or_one      # default value
-  |x: number|($x + 1) :> $typed       # type annotation
+BLOCK-CLOSURES vs EXPLICIT CLOSURES:
 
-Invocation:
+Two ways to create closures:
+
+1. Block-closures: { body } in expression position
+   { $ + 1 } :> $inc                  # implicit $ parameter
+   $inc(5)                            # 6
+   5 -> $inc                          # 6 (pipe invocation)
+   [x: { $ * 2 }]                     # dict value is closure
+   type({ "hi" })                     # "closure"
+
+2. Explicit closures: |params| body
+   |x|($x + 1) :> $inc                # named parameter
+   |a, b|($a + $b) :> $add            # multiple params
+   |x = 0|($x + 1) :> $inc_or_one     # default value
+   |x: number|($x + 1) :> $typed      # type annotation
+
+CRITICAL: { } vs ( ) distinction
+
+| Syntax       | Semantics              | Example                    |
+|--------------|------------------------|----------------------------|
+| { body }     | Deferred (closure)     | { $ + 1 } :> $fn  # closure |
+| ( expr )     | Eager (immediate eval) | ( 5 + 1 ) :> $x  # 6        |
+
+When to use:
+  { body } :> $fn     # store closure for later use
+  ( expr ) :> $x      # store result value immediately
+
+PIPE TARGET: { } creates closure then immediately invokes it:
+  5 -> { $ + 1 }      # 6 (create closure, invoke with 5)
+  5 -> ($ + 1)        # 6 (evaluate expression with $=5)
+  Same observable result, different mechanism. Error messages differ.
+
+Block-closure invocation:
+  { $ + 1 } :> $inc
   $inc(5)                             # direct call: 6
-  5 -> $inc()                         # piped call: 6
+  5 -> $inc                           # pipe call: 6
   [1,2,3] -> map $inc                 # in collection op
 
 LATE BINDING: closures capture scope, not values. Variables resolve at call time.
@@ -245,7 +273,7 @@ $ vs named params:
   Use named params in stored closures: |x| ($x * 2) :> $double
   $ is undefined when a stored closure is called later — always use params.
 
-Dict closures (methods):
+Zero-param dict closures (methods):
   [count: 3, double: ||{ $.count * 2 }] :> $obj
   $obj.double                         # 6 ($ is bound to dict)
 

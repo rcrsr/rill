@@ -34,7 +34,7 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('arithmetic in block without parens', async () => {
-      expect(await run('{ 5 + 3 }')).toBe(8);
+      expect(await run('"" -> { 5 + 3 }')).toBe(8);
     });
   });
 

@@ -2,10 +2,58 @@
 
 Closures are first-class values that capture their defining scope. This document covers closure semantics, binding behavior, and common patterns.
 
+## Expression Delimiters
+
+rill has two expression delimiters with deterministic behavior:
+
+| Delimiter | Semantics | Produces |
+|-----------|-----------|----------|
+| `{ body }` | Deferred (closure creation) | `ScriptCallable` |
+| `( expr )` | Eager (immediate evaluation) | Result value |
+
+**Key distinction:**
+- **Parentheses `( )`** evaluate immediately and return the result
+- **Braces `{ }`** create a closure for later invocation (deferred execution)
+
+### Pipe Target Exception
+
+When `{ }` appears as a pipe target, it creates a closure and **immediately invokes** it:
+
+```rill
+5 -> { $ + 1 }    # 6 (same observable result as eager evaluation)
+```
+
+This is conceptually two steps happening in sequence:
+
+```text
+5 -> { $ + 1 }
+     ↓
+Step 1: Create closure with implicit $ parameter
+Step 2: Invoke closure with piped value (5) as argument
+     ↓
+Result: 6
+```
+
+The observable result matches eager evaluation, but the mechanism differs. This matters when understanding error messages or debugging—the closure exists momentarily before invocation.
+
+**Comparison:**
+
+| Expression | Mechanism | Result |
+|------------|-----------|--------|
+| `5 -> { $ + 1 }` | Create closure, invoke with 5 | 6 |
+| `5 -> ($ + 1)` | Evaluate expression with $ = 5 | 6 |
+| `{ $ + 1 } :> $fn` | Create closure, store it | closure |
+| `($ + 1) :> $x` | Error: $ undefined outside pipe | — |
+
+The last row shows the key difference: `( )` requires `$` to already be defined, while `{ }` captures `$` as a parameter for later binding.
+
 ## Closure Syntax
 
 ```text
-# No parameters (property-style)
+# Block-closure (implicit $ parameter)
+{ body }
+
+# Zero-parameter closure (property-style, no parameters)
 || { body }
 ||body           # shorthand for simple expressions
 
@@ -18,9 +66,107 @@ Closures are first-class values that capture their defining scope. This document
 |x: string = "hi"| { body }    # default with explicit type
 ```
 
-**Key distinction:**
-- **Blocks `{ }`** execute immediately
-- **Closures `||{ }` or `|params|{ }`** are stored for later invocation
+## Block-Closures
+
+Block syntax `{ body }` creates a closure with an implicit `$` parameter. This enables deferred execution and reusable transformations.
+
+### Basic Block-Closure
+
+```rill
+{ $ + 1 } :> $increment
+
+5 -> $increment       # 6
+10 -> $increment      # 11
+$increment(7)         # 8 (direct call also works)
+```
+
+The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argument.
+
+### Block-Closures vs Zero-Param Closures
+
+| Form | Params | `isProperty` | Behavior |
+|------|--------|-------------|----------|
+| `{ body }` (block-closure) | `[{ name: "$" }]` | `false` | Requires argument |
+| `\|\|{ body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
+
+```rill
+{ $ * 2 } :> $double
+|| { 42 } :> $constant
+
+5 -> $double          # 10 (requires argument)
+$constant()           # 42 (no argument needed)
+
+# In dicts
+[
+  double: { $ * 2 },
+  constant: || { 42 }
+] :> $obj
+
+$obj.double(5)        # 10 (explicit call required)
+$obj.constant         # 42 (auto-invoked on access)
+```
+
+Block-closures require an argument; zero-param closures do not.
+
+### Type Checking
+
+Block-closures check type at runtime:
+
+```rill
+{ $ + 1 } :> $fn
+
+type($fn)             # "closure"
+$fn(5)                # 6
+$fn("text")           # Error: Cannot add string and number
+```
+
+### Multi-Statement Block-Closures
+
+Block-closures can contain multiple statements:
+
+```rill
+{
+  ($ * 2) :> $doubled
+  "{$}: doubled is {$doubled}"
+} :> $describe
+
+5 -> $describe        # "5: doubled is 10"
+```
+
+### Collection Operations
+
+Block-closures integrate with collection operators:
+
+```rill
+[1, 2, 3] -> map { $ * 2 }                    # [2, 4, 6]
+[1, 2, 3] -> filter { $ > 1 }                 # [2, 3]
+[1, 2, 3] -> fold(0) { $@ + $ }               # 6 ($@ is accumulator)
+```
+
+### Eager vs Deferred Evaluation
+
+The choice between `( )` and `{ }` determines when code executes:
+
+```rill
+# Eager: parentheses evaluate immediately
+5 -> ($ + 1) :> $result
+$result                # 6 (number, already computed)
+
+# Deferred: braces create closure
+{ $ + 1 } :> $addOne
+type($addOne)          # "closure"
+5 -> $addOne           # 6
+10 -> $addOne          # 11 (invoked later with different value)
+
+# Practical difference
+(5 + 1) :> $six        # 6 (immediate)
+{ $ + 1 } :> $fn       # closure (deferred)
+
+$six                   # 6
+10 -> $fn              # 11
+```
+
+Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
 
 ## Late Binding
 
@@ -265,6 +411,9 @@ $fn()    # 20 (late binding sees updated $x)
 ```rill
 |x| { $x + 1 } :> $inc
 $inc(5)    # 6
+
+{ $ + 1 } :> $inc
+$inc(5)    # 6 (block-closure)
 ```
 
 ### Pipe Call
@@ -272,7 +421,12 @@ $inc(5)    # 6
 ```rill
 |x| { $x + 1 } :> $inc
 5 -> $inc()    # 6
+
+{ $ + 1 } :> $inc
+5 -> $inc      # 6 (block-closure, no parens needed)
 ```
+
+Block-closures work seamlessly with pipe syntax since `$` receives the piped value.
 
 ### Postfix Invocation
 
@@ -281,6 +435,9 @@ Call closures from bracket access or expressions:
 ```rill
 [|x| { $x * 2 }] :> $fns
 $fns[0](5)    # 10
+
+[{ $ * 2 }] :> $fns
+$fns[0](5)    # 10 (block-closure)
 
 || { |n| { $n * 2 } } :> $factory
 $factory()(5)    # 10 (chained invocation)

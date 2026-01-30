@@ -55,11 +55,10 @@ describe('Rill Runtime: Closure Equality', () => {
     });
 
     it('closures with different captured values are not equal', async () => {
+      // With new block-closure semantics, use explicit default parameter literals
       const code = `
-        "hello" :> $x
-        { $x } :> $a
-        "world" :> $x
-        { $x } :> $b
+        |x = "hello"|{ $x } :> $a
+        |x = "world"|{ $x } :> $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);

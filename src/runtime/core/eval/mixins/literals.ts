@@ -6,12 +6,14 @@
  * - Tuple literals
  * - Dict literals with callable binding
  * - Closure creation with late binding
+ * - Block-closure creation for expression-position blocks
  *
  * Interface requirements (from spec):
  * - evaluateString(node) -> Promise<string>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
+ * - createBlockClosure(node) -> ScriptCallable
  *
  * Error Handling:
  * - String interpolation errors propagate from evaluateExpression() [EC-6]
@@ -25,6 +27,7 @@ import type {
   TupleNode,
   DictNode,
   ClosureNode,
+  BlockNode,
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
@@ -57,6 +60,7 @@ import type { EvaluatorBase } from '../base.js';
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
+ * - createBlockClosure(node) -> ScriptCallable
  */
 function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class LiteralsEvaluator extends Base {
@@ -135,7 +139,13 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
-        if (this.isClosureExpr(entry.value)) {
+        if (this.isBlockExpr(entry.value)) {
+          // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
+          const head = entry.value.head as PostfixExprNode;
+          const blockNode = head.primary as BlockNode;
+          const closure = this.createBlockClosure(blockNode);
+          result[entry.key] = closure;
+        } else if (this.isClosureExpr(entry.value)) {
           // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
           const head = entry.value.head as PostfixExprNode;
           const fnLit = head.primary as ClosureNode;
@@ -244,7 +254,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
-     * When auto-invoking, $ is bound to the piped value.
+     * Block-closures (with params) are invoked with args = [input].
+     * Zero-param closures (no params) are invoked with args = [] and pipeValue = input.
      */
     private async resolveDispatchValue(
       value: RillValue,
@@ -252,19 +263,36 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: DictNode
     ): Promise<RillValue> {
       if (isCallable(value)) {
-        // Auto-invoke closure with $ bound to input
-        const savedPipeValue = this.ctx.pipeValue;
-        this.ctx.pipeValue = input;
-        try {
+        // Check if callable has params to determine invocation style
+        const hasParams =
+          (value.kind === 'script' && value.params.length > 0) ||
+          (value.kind === 'application' &&
+            value.params !== undefined &&
+            value.params.length > 0);
+
+        if (hasParams) {
+          // Block-closure: invoke with input as argument
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await (this as any).invokeCallable(
+          return await (this as any).invokeCallable(
             value,
-            [],
+            [input],
             node.span?.start
           );
-          return result;
-        } finally {
-          this.ctx.pipeValue = savedPipeValue;
+        } else {
+          // Zero-param closure: invoke with args = [] and pipeValue = input
+          const savedPipeValue = this.ctx.pipeValue;
+          this.ctx.pipeValue = input;
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = await (this as any).invokeCallable(
+              value,
+              [],
+              node.span?.start
+            );
+            return result;
+          } finally {
+            this.ctx.pipeValue = savedPipeValue;
+          }
         }
       }
       return value;
@@ -310,6 +338,36 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
+     * Create a script callable from a block node in expression position.
+     * Block-closures have a single implicit $ parameter representing the piped value.
+     *
+     * No default parameter evaluation since the implicit $ has no default.
+     * isProperty is always false (block-closures require $).
+     */
+    protected createBlockClosure(node: BlockNode): ScriptCallable {
+      // Store reference to the defining scope for late-bound variable resolution
+      const definingScope = this.ctx;
+
+      // Block-closures have exactly one parameter: $
+      const params: CallableParam[] = [
+        {
+          name: '$',
+          typeName: null,
+          defaultValue: null,
+        },
+      ];
+
+      return {
+        __type: 'callable',
+        kind: 'script',
+        params,
+        body: node,
+        definingScope,
+        isProperty: false,
+      };
+    }
+
+    /**
      * Helper: Check if expression is a bare closure (no pipes, no methods).
      * Used to detect dict entries that should be treated as closures.
      */
@@ -321,6 +379,20 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const head = chain.head as PostfixExprNode;
       if (head.methods.length > 0) return false;
       return head.primary.type === 'Closure';
+    }
+
+    /**
+     * Helper: Check if expression is a bare block (no pipes, no methods).
+     * Used to detect dict entries that should be treated as block closures.
+     */
+    private isBlockExpr(expr: ExpressionNode): boolean {
+      if (expr.type !== 'PipeChain') return false;
+      const chain = expr as PipeChainNode;
+      if (chain.pipes.length > 0) return false;
+      if (chain.head.type !== 'PostfixExpr') return false;
+      const head = chain.head as PostfixExprNode;
+      if (head.methods.length > 0) return false;
+      return head.primary.type === 'Block';
     }
   };
 }

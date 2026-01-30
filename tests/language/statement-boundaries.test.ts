@@ -84,7 +84,7 @@ true`;
     describe('Control Flow Start', () => {
       it('block starts new statement', async () => {
         const script = `"ignored" :> $a
-{ "block result" }`;
+"" -> { "block result" }`;
         expect(await run(script)).toBe('block result');
       });
     });

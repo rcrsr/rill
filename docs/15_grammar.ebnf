@@ -1,4 +1,4 @@
-(* rill v0.1.0 Grammar - EBNF Notation *)
+(* rill v0.3.0 Grammar - EBNF Notation *)
 (* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
@@ -620,7 +620,30 @@ filter-expr   = "filter" , iterator-body ;
                  $users -> filter |u| ($u.active)      -- active users (must be bool) *)
 
 block         = "{" , statement , { statement } , "}" ;
-              (* Empty blocks not allowed. Blocks return their last expression's value,
+              (* Block expression semantics depend on context:
+
+                 EXPRESSION POSITION (creates closure):
+                 - { body } :> $fn                  -- stored as closure
+                 - [key: { body }]                  -- dict value is closure
+                 - type({ body })                   -- arg is closure
+                 Block creates ScriptCallable with implicit $ parameter.
+
+                 PIPE TARGET (creates then invokes):
+                 - value -> { body }                -- creates closure, invokes with value
+                 Observable result identical to eager evaluation.
+
+                 SYNTACTIC BODY (eager evaluation):
+                 - each { }                         -- loop body
+                 - cond ? { } ! { }                 -- conditional branches
+                 - |x| { }                          -- closure body
+                 These use BlockNode as grammar body, not expression.
+
+                 VS GROUPED EXPRESSION:
+                 - ( expr )                         -- eager evaluation
+                 - ( expr ) :> $x                   -- stores result value
+                 Parentheses always evaluate immediately.
+
+                 Empty blocks not allowed. Blocks return their last expression's value,
                  enabling use in boolean contexts and as pipe sources. *)
 
 (* ============================================================ *)

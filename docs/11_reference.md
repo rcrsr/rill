@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.1.0
+# rill Core Language Specification v0.3.0
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.1.0).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.3.0).** Active development. Breaking changes until v1.0.
 
 ## Overview
 
@@ -23,6 +23,13 @@ rill is an imperative scripting language that is dynamically typed and type-safe
 ---
 
 ## Quick Reference Tables
+
+### Expression Delimiters
+
+| Delimiter | Semantics | Produces |
+|-----------|-----------|----------|
+| `{ body }` | Deferred (closure creation) | `ScriptCallable` |
+| `( expr )` | Eager (immediate evaluation) | Result value |
 
 ### Operators
 
@@ -72,15 +79,16 @@ See [Collections](07_collections.md) for detailed documentation.
 
 ### Types
 
-| Type | Syntax | Example |
-|------|--------|---------|
-| String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` |
-| Number | `123`, `0.5` | `42`, `0.9` |
-| Bool | `true`, `false` | `true` |
-| List | `[a, b]` | `["file.ts", 42]` |
-| Dict | `[k: v]` | `[output: "text", code: 0]` |
-| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` |
-| Closure | `\|\|{ }` | `\|x\|($x * 2)` |
+| Type | Syntax | Example | Produces |
+|------|--------|---------|----------|
+| String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` | String value |
+| Number | `123`, `0.5` | `42`, `0.9` | Number value |
+| Bool | `true`, `false` | `true` | Boolean value |
+| List | `[a, b]` | `["file.ts", 42]` | List value |
+| Dict | `[k: v]` | `[output: "text", code: 0]` | Dict value |
+| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
+| Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
+| Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
 See [Types](02_types.md) for detailed documentation.
 

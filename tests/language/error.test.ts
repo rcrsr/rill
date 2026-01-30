@@ -116,7 +116,9 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('throws from nested blocks (AC-BOUND-3)', async () => {
-      await expect(run('{ { error "deep" } }')).rejects.toThrow('deep');
+      await expect(run('"" -> { "" -> { error "deep" } }')).rejects.toThrow(
+        'deep'
+      );
     });
 
     it('throws on first iteration in each loop (AC-BOUND-4)', async () => {
@@ -166,8 +168,8 @@ describe('Rill Language: Error Statement', () => {
 
     it('includes location for nested block error (AC-LOC-2)', async () => {
       const script = `
-        {
-          {
+        "" -> {
+          "" -> {
             error "nested error"
           }
         }

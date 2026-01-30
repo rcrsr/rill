@@ -205,7 +205,7 @@ describe('AnnotationsMixin', () => {
     it('propagates errors from nested annotated statements', async () => {
       // Nested annotations with error
       await expect(
-        run('^(limit: 100) { ^(limit: 50) $missing }')
+        run('^(limit: 100) "" -> { ^(limit: 50) $missing }')
       ).rejects.toThrow(/Undefined variable/);
     });
 
@@ -224,10 +224,13 @@ describe('AnnotationsMixin', () => {
     it('cleans up annotation stack on error', async () => {
       // After an error in annotated statement, stack should be cleaned up
       try {
-        await run('^(limit: 50) { throw_error() }', {
+        await run('^(limit: 50) "" -> { throw_error() }', {
           functions: {
-            throw_error: () => {
-              throw new Error('Test error');
+            throw_error: {
+              params: [],
+              fn: () => {
+                throw new Error('Test error');
+              },
             },
           },
         });

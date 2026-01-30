@@ -336,7 +336,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('evaluates blocks with return', async () => {
       const result = await run(`
-        {
+        "" -> {
           "first" :> $x
           ($x == "first") ? ("early" -> return)
           "should not reach"

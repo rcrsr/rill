@@ -257,7 +257,7 @@ describe('CoreMixin Error Contracts', () => {
     });
 
     it('evaluatePipeChain handles return terminator', async () => {
-      const result = await run('{ "a" -> return\n"b" }');
+      const result = await run('"" -> { "a" -> return\n"b" }');
       expect(result).toBe('a');
     });
 

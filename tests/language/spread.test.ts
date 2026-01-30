@@ -381,12 +381,13 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
   });
 
   describe('Blocks vs closures', () => {
-    it('naked block { } executes immediately in dict', async () => {
+    it('grouped expression ( ) evaluates immediately in dict', async () => {
+      // Note: After closure-semantics change, { expr } creates closure, ( expr ) is eager
       const result = await run(`
         "computed" :> $val
         [
           name: "test",
-          immediate: { $val }
+          immediate: ( $val )
         ] :> $obj
         $obj.immediate
       `);

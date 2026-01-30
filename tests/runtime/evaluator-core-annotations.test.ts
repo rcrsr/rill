@@ -141,7 +141,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       const controller = new AbortController();
 
       await expect(
-        run('{ slow() -> slow() -> slow() }', {
+        run('"" -> { slow() -> slow() -> slow() }', {
           functions: {
             slow: {
               params: [],
@@ -211,7 +211,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
 
     it('propagates RuntimeError with correct error code from inner statement', async () => {
       try {
-        await run('^(limit: 5) { $missing }');
+        await run('^(limit: 5) "" -> { $missing }');
         expect.fail('Should have thrown RuntimeError');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -231,8 +231,8 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
 
     it('propagates errors from nested annotated statements', async () => {
       const script = `
-        ^(limit: 100) {
-          ^(limit: 50) {
+        ^(limit: 100) "" -> {
+          ^(limit: 50) "" -> {
             $nonexistent
           }
         }
@@ -397,7 +397,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
     it('restores annotation stack to correct state after nested error', async () => {
       const ctx = createRuntimeContext();
       const script = `
-        ^(limit: 100) {
+        ^(limit: 100) "" -> {
           ^(limit: 10) $undefined
         }
       `;
