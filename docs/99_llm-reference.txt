@@ -10,6 +10,26 @@ Use snake_case for all identifiers:
   $double_value, $cleanup_text         # closures
   [first_name: "x", last_name: "y"]    # dict keys
 
+WHY VARIABLES USE $ PREFIX
+--------------------------
+The $ prefix enables single-pass parsing without a symbol table:
+
+  name()    -> host function call
+  $name()   -> closure invocation
+  $name     -> variable reference
+  name      -> dict key literal
+
+Without $, "process(data)" is ambiguous: is process a host function or stored
+closure? Is data a variable or key? This would require tracking all declarations.
+
+Additional disambiguation:
+  - Capture: :> $x requires $ for lookahead (avoids conflict with slice /<1:>)
+  - Destructure: *<$a, $b> marks variables vs skip patterns
+  - Dynamic access: $data.$key distinguishes variable-key from literal field
+  - Visual clarity: $total is always a variable, no context needed
+
+This follows rill's "no magic" principle: syntax communicates intent explicitly.
+
 SPACING RULES
 -------------
 Operators:    space both sides       5 + 3, $x -> .upper, "a" :> $b

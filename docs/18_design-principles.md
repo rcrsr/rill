@@ -124,6 +124,43 @@ $a :> $b                   # $b is an independent deep copy
 
 **Mainstream habit to break:** Expecting two variables to point at the same object. In rill, every binding holds its own copy.
 
+### 7. Variables Have `$` Prefix
+
+All variables start with `$`: `$name`, `$result`, `$config`. This is a deliberate design choice, not syntactic sugar.
+
+**Why `$` exists:**
+
+The `$` prefix enables **single-pass, unambiguous parsing** without a symbol table. The parser can distinguish constructs at tokenization:
+
+| Syntax | Meaning |
+|--------|---------|
+| `name()` | Host function call |
+| `$name()` | Closure invocation |
+| `$name` | Variable reference |
+| `name` in dict | Key literal |
+
+Without `$`, `process(data)` is ambiguous: is `process` a host function or a stored closure? Is `data` a variable or a key? Resolving this requires tracking all declarations—turning a simple parser into a multi-pass compiler.
+
+**Additional disambiguation:**
+
+- **Capture syntax:** `:> $x` requires `$` for lookahead. Without it, slice syntax `/<1:>` becomes ambiguous.
+- **Destructuring:** `*<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
+- **Dynamic field access:** `$data.$key` distinguishes variable-as-key from literal field.
+- **Visual clarity:** Code is readable without context. `$total` is always a variable.
+
+**Alternatives considered:**
+
+| Approach | Problem |
+|----------|---------|
+| Different prefix (`@name`) | Same complexity, no improvement |
+| Type annotations required | Doubles verbosity, needs type registry at parse |
+| `var` keyword | Still can't distinguish `fn()` (host) from `$fn()` (closure) |
+| Context-aware parsing | 3-5x slower, requires symbol table |
+
+The `$` prefix follows rill's "no magic" principle: syntax communicates intent without requiring context or implicit rules.
+
+**Mainstream habit to break:** Expecting bare identifiers for variables. In rill, `$` makes the distinction between variables, functions, and dict keys explicit and unambiguous.
+
 ---
 
 ## Rillistic Idioms

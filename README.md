@@ -170,6 +170,12 @@ Return: PASS or FAIL
 - **Immutable types.** Variables lock type on first assignment.
 - **Transparently async.** No async/await. Parallel execution automatic.
 
+## FAQ
+
+**Why do variables use `$` prefix?**
+
+The `$` enables single-pass parsing without a symbol table. It disambiguates `name()` (host function) from `$name()` (closure call), and `name` (dict key) from `$name` (variable). See [Design Principles](docs/18_design-principles.md#7-variables-have--prefix) for the full rationale.
+
 ## Use Cases
 
 - **User-defined workflows.** Let power users script automation in your app.
