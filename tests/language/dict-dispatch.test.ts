@@ -95,9 +95,9 @@ describe('Rill Runtime: Dict Dispatch', () => {
     });
 
     it('throws RUNTIME_PROPERTY_NOT_FOUND for empty dict (AC-33)', async () => {
-      // AC-33: Empty dict, no keys
+      // AC-33: Dict with no matching keys
       // Should throw because there are no keys to match against
-      await expect(run('"a" -> []')).rejects.toThrow(
+      await expect(run('"a" -> [b: 1]')).rejects.toThrow(
         /Dict dispatch.*not found/i
       );
     });

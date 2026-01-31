@@ -30,7 +30,8 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { isCallable } from '../../callable.js';
+import { isTuple } from '../../values.js';
+import { isCallable, isDict } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -347,6 +348,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateDictDispatch(target, input);
 
+        case 'Tuple':
+          // Tuple dispatch: index lookup matching piped value
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateListDispatch(target, input);
+
         case 'GroupedExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateGroupedExpr(target);
@@ -405,15 +411,76 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const value = await (this as any).evaluateVariableAsync(target);
           // If value is callable, invoke it with the pipe input
+          // Per closure-semantics spec: check params.length to determine invocation style
           if (isCallable(value)) {
+            // Check if callable has params to determine invocation style
+            const hasParams =
+              (value.kind === 'script' && value.params.length > 0) ||
+              (value.kind === 'application' &&
+                value.params !== undefined &&
+                value.params.length > 0);
+
+            if (hasParams) {
+              // Block-closure: invoke with input as argument
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return (this as any).invokeCallable(
+                value,
+                [input],
+                this.getNodeLocation(target)
+              );
+            } else {
+              // Zero-param closure: invoke with args = [] and pipeValue = input
+              const savedPipeValue = this.ctx.pipeValue;
+              this.ctx.pipeValue = input;
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const result = await (this as any).invokeCallable(
+                  value,
+                  [],
+                  this.getNodeLocation(target)
+                );
+                return result;
+              } finally {
+                this.ctx.pipeValue = savedPipeValue;
+              }
+            }
+          }
+
+          // Variable dispatch: if value is dict or list, dispatch into it
+          if (Array.isArray(value) && !isTuple(value)) {
+            // List dispatch
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).invokeCallable(
+            return await (this as any).dispatchToList(
               value,
-              [input],
-              this.getNodeLocation(target)
+              input,
+              target.defaultValue,
+              target
             );
           }
-          return value;
+
+          if (isDict(value)) {
+            // Dict dispatch
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await (this as any).dispatchToDict(
+              value,
+              input,
+              target.defaultValue,
+              target
+            );
+          }
+
+          // Non-dispatchable type in pipe context - error
+          const valueType =
+            typeof value === 'object' && value !== null
+              ? Array.isArray(value)
+                ? 'tuple'
+                : 'dict'
+              : typeof value;
+          throw RuntimeError.fromNode(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Cannot dispatch to ${valueType}`,
+            target
+          );
         }
 
         case 'PostfixExpr': {

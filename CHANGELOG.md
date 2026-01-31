@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Unified Dispatch** — Pipe to list literals and variable collections
+  - List literal dispatch: `0 -> ["a", "b", "c"]` returns `"a"`
+  - Negative indices: `-1 -> ["a", "b", "c"]` returns `"c"` (last element)
+  - Variable dispatch to dict: `[x: 1, y: 2] :> $d` then `"x" -> $d` returns `1`
+  - Variable dispatch to list: `["a", "b"] :> $list` then `0 -> $list` returns `"a"`
+  - Default values: `99 -> ["a"] ?? "fallback"` returns `"fallback"`
+  - Closure auto-invoke: `[fn: ||{ "result" }] :> $d` then `"fn" -> $d` returns `"result"`
+  - Error on type mismatch: `"key" -> [1, 2]` throws `List dispatch requires number index`
+  - Error on missing key/index: `5 -> ["a"]` throws `List dispatch: index '5' not found`
+
 ## [0.3.0] - 2026-01-30
 
 ### Breaking

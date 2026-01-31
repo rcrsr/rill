@@ -185,9 +185,12 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-15: nested blocks', async () => {
+      // Fixed: Originally piped "outer" -> $a, but unified dispatch would
+      // try to find key "outer" in dict, throwing RUNTIME_PROPERTY_NOT_FOUND.
+      // Test intent is to verify dict contains block-closure, not test dispatch.
       const script = `
         [y: { "inner" }] :> $a
-        "outer" -> $a
+        $a
       `;
       const result = await run(script);
       expect(result).toHaveProperty('y');

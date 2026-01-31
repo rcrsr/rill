@@ -283,6 +283,7 @@ Parser.prototype.parseTupleOrDict = function (
     return {
       type: 'Tuple',
       elements: [],
+      defaultValue: null,
       span: makeSpan(start, current(this.state).span.end),
     };
   }
@@ -328,6 +329,7 @@ Parser.prototype.parseTuple = function (
   return {
     type: 'Tuple',
     elements,
+    defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

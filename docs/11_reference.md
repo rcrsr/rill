@@ -140,9 +140,11 @@ See [Variables](03_variables.md) for detailed documentation.
 | `$data.field ?? default` | Default if missing |
 | `$data.?field` | Existence check |
 
-### Dict Dispatch
+### Dispatch
 
-Pipe a value to a dict to match keys and return associated values:
+Pipe a value to a collection (dict or list) to retrieve the corresponding element.
+
+**Dict Dispatch:** Match keys and return associated values.
 
 | Syntax | Description |
 |--------|-------------|
@@ -155,6 +157,39 @@ $value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is 
 $value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
 $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
+
+**List Dispatch:** Index into a list using a number.
+
+| Syntax | Description |
+|--------|-------------|
+| `$idx -> [a, b, c]` | Returns element at index (0-based) |
+| `$idx -> [a, b, c] ?? default` | Returns element or default if out of bounds |
+
+```text
+0 -> ["first", "second", "third"]     # "first"
+1 -> ["first", "second", "third"]     # "second"
+-1 -> ["first", "second", "third"]    # "third" (last element)
+5 -> ["a", "b"] ?? "not found"        # "not found" (out of bounds)
+```
+
+**Variable Dispatch:** Use stored collections.
+
+```rill
+[apple: "fruit", carrot: "vegetable"] :> $lookup
+"apple" -> $lookup                    # "fruit"
+
+["a", "b", "c"] :> $items
+1 -> $items                           # "b"
+```
+
+**Error Messages:**
+
+| Scenario | Error |
+|----------|-------|
+| Dict dispatch key not found | `Dict dispatch: key '{key}' not found` |
+| List dispatch index not found | `List dispatch: index '{index}' not found` |
+| List dispatch with non-number | `List dispatch requires number index, got {type}` |
+| Dispatch to non-collection | `Cannot dispatch to {type}` |
 
 ### Parsing Functions
 

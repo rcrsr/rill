@@ -48,6 +48,7 @@ import {
   isClosureStart,
   makeBoolLiteralBlock,
   parseBareHostCall,
+  isDictStart,
   VALID_TYPE_NAMES,
   parseTypeName,
 } from './helpers.js';
@@ -641,13 +642,38 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseString();
   }
 
-  // Dict literal for dispatch
+  // Dict or list literal for dispatch
   if (check(this.state, TOKEN_TYPES.LBRACKET)) {
     const start = current(this.state).span.start;
     advance(this.state); // consume [
     skipNewlines(this.state);
-    // Handle empty dict: []
+
+    // Handle empty brackets: [] or [:]
     if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      advance(this.state); // consume ]
+
+      // Check for ?? default value
+      let defaultValue = null;
+      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+        advance(this.state);
+        defaultValue = this.parseDefaultValue();
+      }
+
+      // Empty brackets [] = empty tuple
+      return {
+        type: 'Tuple',
+        elements: [],
+        defaultValue,
+        span: makeSpan(start, current(this.state).span.end),
+      };
+    }
+
+    // Handle empty dict: [:]
+    if (
+      check(this.state, TOKEN_TYPES.COLON) &&
+      this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
+    ) {
+      advance(this.state); // consume :
       advance(this.state); // consume ]
 
       // Check for ?? default value
@@ -665,21 +691,39 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
       };
     }
 
-    const dict = this.parseDict(start);
+    // Distinguish dict from tuple using isDictStart helper
+    if (isDictStart(this.state)) {
+      const dict = this.parseDict(start);
 
-    // Check for ?? default value after non-empty dict
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      const defaultValue = this.parseDefaultValue();
+      // Check for ?? default value after dict
+      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+        advance(this.state);
+        const defaultValue = this.parseDefaultValue();
 
-      // Return new dict with defaultValue
-      return {
-        ...dict,
-        defaultValue,
-      };
+        return {
+          ...dict,
+          defaultValue,
+        };
+      }
+
+      return dict;
+    } else {
+      // Parse as tuple (list literal)
+      const tuple = this.parseTuple(start);
+
+      // Check for ?? default value after tuple
+      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+        advance(this.state);
+        const defaultValue = this.parseDefaultValue();
+
+        return {
+          ...tuple,
+          defaultValue,
+        };
+      }
+
+      return tuple;
     }
-
-    return dict;
   }
 
   // Function call with parens

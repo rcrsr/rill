@@ -586,6 +586,7 @@ export type PipeTargetNode =
   | BlockNode
   | StringLiteralNode
   | DictNode
+  | TupleNode
   | GroupedExprNode
   | ClosureChainNode
   | DestructureNode
@@ -644,6 +645,7 @@ export interface BoolLiteralNode extends BaseNode {
 export interface TupleNode extends BaseNode {
   readonly type: 'Tuple';
   readonly elements: ExpressionNode[];
+  readonly defaultValue: BodyNode | null;
 }
 
 export interface DictNode extends BaseNode {

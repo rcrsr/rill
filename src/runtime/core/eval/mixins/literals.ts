@@ -31,6 +31,7 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
+  SourceLocation,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -253,6 +254,61 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
+     * Evaluate list literal as dispatch table when piped.
+     *
+     * Takes numeric index and returns element at that position.
+     * Supports negative indices and default values.
+     *
+     * @param node - TupleNode representing list literal
+     * @param input - Piped value to use as index (must be number)
+     * @returns Element at index
+     * @throws RuntimeError if input not number or index out of bounds
+     */
+    protected async evaluateListDispatch(
+      node: TupleNode,
+      input: RillValue
+    ): Promise<RillValue> {
+      // Validate input is number
+      if (typeof input !== 'number') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `List dispatch requires number index, got ${typeof input}`,
+          node.span?.start,
+          { input, expectedType: 'number' }
+        );
+      }
+
+      // Evaluate all elements to get the list
+      const elements = await this.evaluateTuple(node);
+
+      // Truncate decimal to integer
+      const index = Math.trunc(input);
+
+      // Normalize negative indices
+      const normalizedIndex = index < 0 ? elements.length + index : index;
+
+      // Check bounds
+      if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
+        // Check for default value
+        if (node.defaultValue) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (this as any).evaluateExpression(node.defaultValue);
+        }
+
+        // No match and no default - throw error
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
+          `List dispatch: index '${index}' not found`,
+          node.span?.start,
+          { index, listLength: elements.length }
+        );
+      }
+
+      // Return element at normalized index
+      return elements[normalizedIndex]!;
+    }
+
+    /**
      * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
      * Block-closures (with params) are invoked with args = [input].
      * Zero-param closures (no params) are invoked with args = [] and pipeValue = input.
@@ -288,6 +344,154 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               value,
               [],
               node.span?.start
+            );
+            return result;
+          } finally {
+            this.ctx.pipeValue = savedPipeValue;
+          }
+        }
+      }
+      return value;
+    }
+
+    /**
+     * Runtime dict dispatch for variables: search dict for matching key.
+     * Supports multi-key entries, auto-invokes closures, handles default values.
+     *
+     * @param dict - Runtime dict value
+     * @param input - Key to search for
+     * @param defaultValue - Optional default value expression node
+     * @param location - Source location for error reporting
+     * @returns Matched value or default
+     */
+    protected async dispatchToDict(
+      dict: Record<string, RillValue>,
+      input: RillValue,
+      defaultValue: ExpressionNode | null,
+      location: {
+        span?: { start: SourceLocation; end: SourceLocation };
+      }
+    ): Promise<RillValue> {
+      const { deepEquals } = await import('../../values.js');
+
+      // Search dict entries for matching key
+      for (const [key, value] of Object.entries(dict)) {
+        // Simple key match using deep equality
+        if (deepEquals(input, key)) {
+          // Auto-invoke closures if needed
+          return this.resolveDispatchValueRuntime(value, input, location);
+        }
+      }
+
+      // No match found - check for default value
+      if (defaultValue) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (this as any).evaluateExpression(defaultValue);
+      }
+
+      // No match and no default - throw error
+      const loc = location.span?.start;
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
+        `Dict dispatch: key '${formatValue(input)}' not found at line ${loc?.line ?? '?'}:${loc?.column ?? '?'}`,
+        loc,
+        { key: input }
+      );
+    }
+
+    /**
+     * Runtime list dispatch for variables: return element at numeric index.
+     * Supports negative indices, auto-invokes closures, handles default values.
+     *
+     * @param list - Runtime list value
+     * @param input - Index value (must be number)
+     * @param defaultValue - Optional default value expression node
+     * @param location - Source location for error reporting
+     * @returns Element at index or default
+     */
+    protected async dispatchToList(
+      list: RillValue[],
+      input: RillValue,
+      defaultValue: ExpressionNode | null,
+      location: {
+        span?: { start: SourceLocation; end: SourceLocation };
+      }
+    ): Promise<RillValue> {
+      // Validate input is number
+      if (typeof input !== 'number') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `List dispatch requires number index, got ${typeof input}`,
+          location.span?.start,
+          { input, expectedType: 'number' }
+        );
+      }
+
+      // Truncate decimal to integer
+      const index = Math.trunc(input);
+
+      // Normalize negative indices
+      const normalizedIndex = index < 0 ? list.length + index : index;
+
+      // Check bounds
+      if (normalizedIndex < 0 || normalizedIndex >= list.length) {
+        // Check for default value
+        if (defaultValue) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (this as any).evaluateExpression(defaultValue);
+        }
+
+        // No default - throw error
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
+          `List dispatch: index '${index}' not found`,
+          location.span?.start,
+          { index, listLength: list.length }
+        );
+      }
+
+      // Return element at normalized index (auto-invoke closures if needed)
+      const element = list[normalizedIndex]!;
+      return this.resolveDispatchValueRuntime(element, input, location);
+    }
+
+    /**
+     * Resolve dispatch value for runtime values: auto-invoke if closure.
+     * Similar to resolveDispatchValue but works with runtime values.
+     */
+    private async resolveDispatchValueRuntime(
+      value: RillValue,
+      input: RillValue,
+      location: {
+        span?: { start: SourceLocation; end: SourceLocation };
+      }
+    ): Promise<RillValue> {
+      if (isCallable(value)) {
+        // Check if callable has params to determine invocation style
+        const hasParams =
+          (value.kind === 'script' && value.params.length > 0) ||
+          (value.kind === 'application' &&
+            value.params !== undefined &&
+            value.params.length > 0);
+
+        if (hasParams) {
+          // Block-closure: invoke with input as argument
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (this as any).invokeCallable(
+            value,
+            [input],
+            location.span?.start
+          );
+        } else {
+          // Zero-param closure: invoke with args = [] and pipeValue = input
+          const savedPipeValue = this.ctx.pipeValue;
+          this.ctx.pipeValue = input;
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = await (this as any).invokeCallable(
+              value,
+              [],
+              location.span?.start
             );
             return result;
           } finally {
