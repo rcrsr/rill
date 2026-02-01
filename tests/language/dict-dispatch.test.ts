@@ -257,14 +257,5 @@ describe('Rill Runtime: Dict Dispatch', () => {
       // Rationale: Parser throws "Expected key" for boolean literals
       // Limitation: Dict keys must be identifiers (strings) in rill syntax
     });
-
-    it.skip('multi-key not list error (AC-31, EC-13) - parser prevents', async () => {
-      // SKIP: Parser throws error before runtime can validate
-      // Expected: '"x" -> [[a: "dict"]: "val"]' throws RUNTIME_TYPE_ERROR
-      // Actual: Parser throws "Dict entry key must be identifier or list, not dict"
-      // Rationale: Parser validates key type at parse time (parser-literals.ts:368-372)
-      // Note: Runtime defensive check at literals.ts:201-208 is unreachable because
-      // evaluateTuple() always returns an array, and parser prevents dict keys
-    });
   });
 });

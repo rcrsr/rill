@@ -206,17 +206,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           matchFound = deepEquals(input, entry.key);
         } else {
           // Tuple key - evaluate to get list of candidates
+          // Parser ensures entry.key is TupleNode, evaluateTuple always returns array
           const keyValue = await this.evaluateTuple(entry.key);
-
-          // Multi-key must evaluate to a list (EC-13)
-          if (!Array.isArray(keyValue)) {
-            throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Dict dispatch: multi-key must be list, got ${typeof keyValue === 'object' && keyValue !== null ? 'dict' : typeof keyValue}`,
-              entry.span.start,
-              { keyValue, expectedType: 'list' }
-            );
-          }
 
           // Check if input matches any element in the list
           for (const candidate of keyValue) {
