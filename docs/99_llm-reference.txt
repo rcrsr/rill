@@ -309,13 +309,32 @@ $data.field ?? "default"              # default if missing
 $data.?field                          # existence check (boolean)
 $data.?field&string                   # existence AND type check
 
-DICT DISPATCH
--------------
+DISPATCH OPERATORS
+------------------
 
+DICT DISPATCH (single key):
 Pipe a value to a dict to match keys and return associated values:
   $val -> [apple: "fruit", carrot: "veg"]        # returns "fruit" if $val is "apple"
   $val -> [apple: "fruit"] ?? "not found"         # default if no match
   $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # multi-key
+
+LIST DISPATCH (index):
+Pipe a number to a list to get element at index:
+  0 -> ["first", "second"]                        # "first"
+  -1 -> ["first", "second"]                       # "second" (last)
+  5 -> ["a", "b"] ?? "not found"                  # default if out of bounds
+
+HIERARCHICAL DISPATCH (path navigation):
+Pipe a list of keys/indexes to navigate nested structures:
+  ["name", "first"] -> [name: [first: "Alice"]]   # "Alice" (dict path)
+  [0, 1] -> [[1, 2, 3], [4, 5, 6]]                 # 2 (list path)
+  ["users", 0, "name"] -> [users: [[name: "Alice"]]] # "Alice" (mixed)
+  [] -> [a: 1]                                    # [a: 1] (empty path = unchanged)
+  ["a", "missing"] -> [a: [x: 1]] ?? "default"    # "default" (missing key)
+
+Path elements: strings for dict keys, numbers for list indexes (negative supported).
+Terminal closures receive $ bound to final path key:
+  ["req", "draft"] -> [req: [draft: { "key={$}" }]]  # "key=draft"
 
 TYPE OPERATIONS
 ---------------

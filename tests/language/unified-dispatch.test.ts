@@ -385,13 +385,9 @@ describe('Unified Dispatch', () => {
       expect(result).toBe(1);
     });
 
-    it.skip('propagates closure body runtime error during dispatch (EC-9) - runtime limitation', async () => {
+    it('propagates closure body runtime error during dispatch (EC-9)', async () => {
       // EC-9: Closure body runtime error should propagate with original error code
-      // SKIP: Zero-param closure throws RUNTIME_TYPE_ERROR before body executes
-      // Expected: Closure body executes and throws RUNTIME_UNDEFINED_VARIABLE for $undefined
-      // Actual: Runtime throws "Function expects 0 arguments, got 1" before body runs
-      // Limitation: Same as AC-16 - resolveVariableDispatch passes [input] to zero-param closures
-      // Fix needed: After fixing AC-16, this test will verify error propagation from closure body
+      // Zero-param closures receive $ binding and execute their body correctly
       try {
         await run(`
           [||{ $undefined }] :> $list

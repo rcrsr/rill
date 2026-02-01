@@ -5,9 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-01-31
 
 ### Added
+
+- **Hierarchical Dispatch** — Navigate nested structures with path lists
+  - Dict path: `["name", "first"] -> [name: [first: "Alice"]]` returns `"Alice"`
+  - List path: `[0, 1] -> [[1, 2, 3], [4, 5, 6]]` returns `2`
+  - Mixed path: `["users", 0, "name"] -> [users: [[name: "Alice"]]]` returns `"Alice"`
+  - Empty path: `[] -> [a: 1]` returns target unchanged
+  - Negative indices: `[0, -1] -> [[1, 2, 3]]` returns `3`
+  - Default values: `["a", "missing"] -> [a: [x: 1]] ?? "default"` returns `"default"`
+  - Intermediate closure auto-invoke: `["get", "name"] -> [get: ||([name: "Alice"])]` returns `"Alice"`
+  - Terminal closure binding: `["req", "draft"] -> [req: [draft: { "key={$}" }]]` returns `"key=draft"`
 
 - **Unified Dispatch** — Pipe to list literals and variable collections
   - List literal dispatch: `0 -> ["a", "b", "c"]` returns `"a"`
@@ -18,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Closure auto-invoke: `[fn: ||{ "result" }] :> $d` then `"fn" -> $d` returns `"result"`
   - Error on type mismatch: `"key" -> [1, 2]` throws `List dispatch requires number index`
   - Error on missing key/index: `5 -> ["a"]` throws `List dispatch: index '5' not found`
+
+### Changed
+
+- **Documentation** — Added hierarchical dispatch to all reference docs
+  - `docs/04_operators.md`: Full hierarchical dispatch section with examples
+  - `docs/11_reference.md`: Hierarchical dispatch in quick reference tables
+  - `docs/15_grammar.ebnf`: Dispatch semantics comment after pipe-target section
+  - `docs/99_llm-reference.txt`: Complete dispatch operators section (dict, list, hierarchical)
 
 ## [0.3.0] - 2026-01-30
 
@@ -537,7 +555,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/rcrsr/rill/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rcrsr/rill/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/rcrsr/rill/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/rcrsr/rill/compare/v0.2.2...v0.2.3

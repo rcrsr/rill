@@ -1,4 +1,4 @@
-(* rill v0.3.0 Grammar - EBNF Notation *)
+(* rill v0.4.0 Grammar - EBNF Notation *)
 (* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
@@ -401,6 +401,24 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
    The target must be a closure or list of closures. *)
 
 closure-chain = "@" , ( variable | list ) ;  (* @$var or @[closures] *)
+
+(* Dispatch semantics (runtime behavior, not grammar):
+   When piping to a dict or list literal, dispatch rules apply:
+
+   1. Scalar -> dict: key lookup
+      "apple" -> [apple: "fruit", carrot: "veg"]   -- "fruit"
+
+   2. Number -> list: index access
+      0 -> ["first", "second"]                     -- "first"
+
+   3. List -> dict/list: hierarchical navigation (path dispatch)
+      ["name", "first"] -> [name: [first: "Alice"]]  -- "Alice"
+      [0, 1] -> [[1, 2], [3, 4]]                      -- 4
+      ["users", 0, "name"] -> [users: [[name: "X"]]] -- "X"
+
+   Path elements: strings for dict keys, numbers for list indexes.
+   Negative indexes supported. Terminal closures receive $ = final key.
+   See docs/04_operators.md for complete dispatch documentation. *)
 
 (* ============================================================ *)
 (* EXTRACTION OPERATORS                                         *)

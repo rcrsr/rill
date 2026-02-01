@@ -310,8 +310,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
-     * Block-closures (with params) are invoked with args = [input].
-     * Zero-param closures (no params) are invoked with args = [] and pipeValue = input.
+     * Zero-param closures (block-closures) are invoked with args = [] and pipeValue = input.
+     * Parameterized closures (1+ params) throw error.
      */
     private async resolveDispatchValue(
       value: RillValue,
@@ -319,6 +319,21 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: DictNode
     ): Promise<RillValue> {
       if (isCallable(value)) {
+        // Check for parameterized closure (explicit user-defined params)
+        // Note: Block-closures have exactly 1 param named '$'
+        // Parameterized closures have 1+ params with user-defined names
+        if (value.kind === 'script' && value.params.length >= 1) {
+          // Check if first param is '$' (block-closure) or user-defined (parameterized)
+          if (value.params[0]!.name !== '$') {
+            // Parameterized closure at terminal position: error
+            throw new RuntimeError(
+              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              'Dispatch does not provide arguments for parameterized closure',
+              node.span?.start
+            );
+          }
+        }
+
         // Check if callable has params to determine invocation style
         const hasParams =
           (value.kind === 'script' && value.params.length > 0) ||
@@ -327,7 +342,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             value.params.length > 0);
 
         if (hasParams) {
-          // Block-closure: invoke with input as argument
+          // Application callable with params: invoke with input as argument
+          // Note: Script callables with params already threw error above
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return await (this as any).invokeCallable(
             value,
@@ -370,7 +386,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       defaultValue: ExpressionNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
-      }
+      },
+      skipClosureResolution = false
     ): Promise<RillValue> {
       const { deepEquals } = await import('../../values.js');
 
@@ -378,6 +395,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const [key, value] of Object.entries(dict)) {
         // Simple key match using deep equality
         if (deepEquals(input, key)) {
+          // Skip closure resolution for hierarchical dispatch (caller handles it)
+          if (skipClosureResolution) {
+            return value;
+          }
           // Auto-invoke closures if needed
           return this.resolveDispatchValueRuntime(value, input, location);
         }
@@ -415,7 +436,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       defaultValue: ExpressionNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
-      }
+      },
+      skipClosureResolution = false
     ): Promise<RillValue> {
       // Validate input is number
       if (typeof input !== 'number') {
@@ -450,8 +472,13 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Return element at normalized index (auto-invoke closures if needed)
+      // Return element at normalized index
       const element = list[normalizedIndex]!;
+      // Skip closure resolution for hierarchical dispatch (caller handles it)
+      if (skipClosureResolution) {
+        return element;
+      }
+      // Auto-invoke closures if needed
       return this.resolveDispatchValueRuntime(element, input, location);
     }
 

@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.3.0
+# rill Core Language Specification v0.4.0
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.3.0).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.4.0).** Active development. Breaking changes until v1.0.
 
 ## Overview
 
@@ -156,6 +156,27 @@ Pipe a value to a collection (dict or list) to retrieve the corresponding elemen
 $value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
 $value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
 $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
+```
+
+**Hierarchical Dispatch:** Navigate nested structures using a path list.
+
+| Syntax | Description |
+|--------|-------------|
+| `[path] -> $target` | Navigate nested dict/list using path of keys/indexes |
+| `[] -> $target` | Empty path returns target unchanged |
+| `[k1, k2, ...] -> $dict` | Sequential navigation through nested dicts |
+| `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
+| `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
+
+Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). Type mismatch throws `RUNTIME_TYPE_ERROR`.
+
+Terminal closures receive `$` bound to the final path key.
+
+```text
+["name", "first"] -> [name: [first: "Alice"]]              # "Alice" (dict path)
+[0, 1] -> [[1, 2, 3], [4, 5, 6]]                           # 2 (list path)
+["users", 0, "name"] -> [users: [[name: "Alice"]]]         # "Alice" (mixed path)
+["req", "draft"] -> [req: [draft: { "key={$}" }]]          # "key=draft" (terminal closure)
 ```
 
 **List Dispatch:** Index into a list using a number.

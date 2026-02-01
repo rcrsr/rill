@@ -16,6 +16,7 @@
 | Extraction | `*<>` (destructure), `/<>` (slice) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
+| Hierarchical Dispatch | `[path] -> target` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?field&type` |
 
@@ -445,6 +446,62 @@ Try keys left-to-right:
 [nickname: "Al"] :> $user
 $user.(name || nickname)         # "Al"
 ```
+
+---
+
+## Hierarchical Dispatch
+
+Navigate nested data structures using a list of keys/indexes as a path:
+
+```rill
+["name", "first"] -> [name: [first: "Alice", last: "Smith"]]
+# Result: "Alice"
+```
+
+### Path Syntax
+
+Pipe a list path to a target structure. Path elements are applied sequentially:
+
+- **Strings** navigate dict fields
+- **Numbers** index into lists
+- **Empty path** returns target unchanged
+
+### Dict Path
+
+```rill
+["address", "city"] -> [address: [street: "Main", city: "Boston"]]
+# Result: "Boston"
+```
+
+### List Path
+
+```rill
+[0, 1] -> [[1, 2, 3], [4, 5, 6]]
+# Result: 2 (first list, second element)
+```
+
+### Mixed Path
+
+```rill
+["users", 0, "name"] -> [users: [[name: "Alice"], [name: "Bob"]]]
+# Result: "Alice"
+```
+
+### Empty Path
+
+```rill
+[] -> [name: "test"]
+# Result: [name: "test"] (unchanged)
+```
+
+### Error Handling
+
+```text
+["missing"] -> [name: "test"]    # Error: key 'missing' not found
+[5] -> [1, 2, 3]                 # Error: index 5 out of bounds
+```
+
+See [Reference](11_reference.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
 
 ---
 

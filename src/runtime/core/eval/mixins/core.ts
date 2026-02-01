@@ -27,6 +27,7 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   PipeTargetNode,
+  SourceLocation,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -343,15 +344,43 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateString(target);
 
-        case 'Dict':
+        case 'Dict': {
+          // Hierarchical dispatch: detect list input (not tuple)
+          if (Array.isArray(input) && !isTuple(input)) {
+            // Evaluate dict literal first, then dispatch through path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const dictValue = await (this as any).evaluateDict(target);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await (this as any).evaluateHierarchicalDispatch(
+              dictValue,
+              input,
+              target.defaultValue,
+              this.getNodeLocation(target)
+            );
+          }
           // Dict dispatch: lookup key matching piped value
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateDictDispatch(target, input);
+        }
 
-        case 'Tuple':
+        case 'Tuple': {
+          // Hierarchical dispatch: detect list input (not tuple)
+          if (Array.isArray(input) && !isTuple(input)) {
+            // Evaluate list literal first, then dispatch through path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const listValue = await (this as any).evaluateTuple(target);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await (this as any).evaluateHierarchicalDispatch(
+              listValue,
+              input,
+              target.defaultValue,
+              this.getNodeLocation(target)
+            );
+          }
           // Tuple dispatch: index lookup matching piped value
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateListDispatch(target, input);
+        }
 
         case 'GroupedExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -447,6 +476,19 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
 
           // Variable dispatch: if value is dict or list, dispatch into it
+          // Hierarchical dispatch: detect list input (not tuple) for path navigation
+          if (Array.isArray(input) && !isTuple(input)) {
+            if (isDict(value) || (Array.isArray(value) && !isTuple(value))) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return await (this as any).evaluateHierarchicalDispatch(
+                value,
+                input,
+                target.defaultValue,
+                this.getNodeLocation(target)
+              );
+            }
+          }
+
           if (Array.isArray(value) && !isTuple(value)) {
             // List dispatch
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -525,6 +567,295 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       this.ctx.pipeValue = savedPipeValue;
       return args;
+    }
+
+    /**
+     * Navigate nested data structure using list of keys/indexes [IR-1].
+     *
+     * Traverses through nested dicts and lists using a path of keys/indexes.
+     * Empty path returns target unchanged. Each path element dispatches to
+     * current value. Terminal closures receive $ = final path key.
+     *
+     * @param target - Already-evaluated dict/list to navigate
+     * @param path - List of keys/indexes to traverse
+     * @param defaultExpr - Optional default value if path not found
+     * @param location - Source location for error reporting
+     * @returns Final value at path
+     */
+    async evaluateHierarchicalDispatch(
+      target: RillValue,
+      path: RillValue[],
+      defaultExpr?: ExpressionNode,
+      location?: SourceLocation
+    ): Promise<RillValue> {
+      // Target is already evaluated
+      const targetValue = target;
+
+      // Empty path returns target unchanged
+      if (path.length === 0) {
+        return targetValue;
+      }
+
+      try {
+        // Navigate through path elements
+        let current = targetValue;
+        let lastKey: RillValue | undefined;
+
+        // Traverse all elements except the last
+        for (let i = 0; i < path.length - 1; i++) {
+          const key = path[i];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          current = await (this as any).traversePathStep(
+            current,
+            key,
+            false,
+            location
+          );
+        }
+
+        // Handle last element separately for terminal closure support
+        lastKey = path[path.length - 1];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (this as any).traversePathStep(
+          current,
+          lastKey,
+          true,
+          location
+        );
+
+        // Resolve terminal value (handles terminal closures with $ = lastKey)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (this as any).resolveTerminalValue(
+          result,
+          lastKey,
+          location
+        );
+      } catch (error) {
+        // Handle missing key/index errors with default value
+        if (
+          error instanceof RuntimeError &&
+          error.code === RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND
+        ) {
+          if (defaultExpr) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return await (this as any).evaluateExpression(defaultExpr);
+          }
+          // No default - re-throw original error
+          throw error;
+        }
+        // Type errors and other errors always propagate
+        throw error;
+      }
+    }
+
+    /**
+     * Execute single path step: dispatch key to current value [IR-2].
+     *
+     * Handles type-specific dispatch:
+     * - Dict + string key -> dispatchToDict
+     * - List + number key -> dispatchToList
+     * - Other combinations -> type error
+     *
+     * For non-terminal steps, closures are resolved via resolveIntermediateClosure.
+     * Terminal closures are handled by caller with $ = key.
+     *
+     * @param current - Current value in traversal
+     * @param key - Key/index to dispatch
+     * @param isTerminal - Whether this is the final path element
+     * @param location - Source location for error reporting
+     * @returns Value at key/index
+     */
+    async traversePathStep(
+      current: RillValue,
+      key: RillValue,
+      isTerminal: boolean,
+      location?: SourceLocation
+    ): Promise<RillValue> {
+      // Dict + string key: dispatch to dict
+      if (isDict(current) && typeof key === 'string') {
+        // Create location-like object for dispatchToDict signature
+        const locObj = {
+          span: location ? { start: location, end: location } : undefined,
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (this as any).dispatchToDict(
+          current,
+          key,
+          null, // No default value for intermediate steps
+          locObj,
+          true // Skip closure resolution - we handle it here
+        );
+
+        // Non-terminal closures must be resolved via resolveIntermediateClosure
+        if (!isTerminal && isCallable(result)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (this as any).resolveIntermediateClosure(
+            result,
+            location
+          );
+        }
+
+        // Terminal closures will be handled by evaluateHierarchicalDispatch
+        return result;
+      }
+
+      // List + number key: dispatch to list
+      if (
+        Array.isArray(current) &&
+        !isTuple(current) &&
+        typeof key === 'number'
+      ) {
+        // Create location-like object for dispatchToList signature
+        const locObj = {
+          span: location ? { start: location, end: location } : undefined,
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (this as any).dispatchToList(
+          current,
+          key,
+          null, // No default value for intermediate steps
+          locObj,
+          true // Skip closure resolution - we handle it here
+        );
+
+        // Non-terminal closures must be resolved via resolveIntermediateClosure
+        if (!isTerminal && isCallable(result)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (this as any).resolveIntermediateClosure(
+            result,
+            location
+          );
+        }
+
+        // Terminal closures will be handled by evaluateHierarchicalDispatch
+        return result;
+      }
+
+      // Type mismatch: throw error
+      const currentType = Array.isArray(current)
+        ? isTuple(current)
+          ? 'tuple'
+          : 'list'
+        : isDict(current)
+          ? 'dict'
+          : typeof current;
+      const keyType = typeof key;
+
+      throw new RuntimeError(
+        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
+        location,
+        { currentType, keyType, key }
+      );
+    }
+
+    /**
+     * Resolve closure encountered at non-terminal path position.
+     *
+     * Auto-invokes zero-param closures with args = [].
+     * Throws error for parameterized closures (no args available at intermediate position).
+     * Returns non-callable values unchanged.
+     *
+     * @param value - Value to resolve (may be callable or regular value)
+     * @param location - Source location for error reporting
+     * @returns Resolved value (invoked result or original value)
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
+     */
+    async resolveIntermediateClosure(
+      value: RillValue,
+      location?: SourceLocation
+    ): Promise<RillValue> {
+      if (!isCallable(value)) {
+        return value;
+      }
+
+      // Check for parameterized closure (explicit user-defined params)
+      // Note: Block-closures have exactly 1 param named '$'
+      // Parameterized closures have 1+ params with user-defined names
+      if (value.kind === 'script' && value.params.length >= 1) {
+        // Check if first param is '$' (block-closure) or user-defined (parameterized)
+        if (value.params[0]!.name !== '$') {
+          // Parameterized closure at intermediate position: error per EC-8
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'Cannot invoke parameterized closure at intermediate path position',
+            location
+          );
+        }
+      }
+
+      // Zero-param closure or block-closure: auto-invoke with args = []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (this as any).invokeCallable(value, [], location);
+    }
+
+    /**
+     * Resolve terminal value in hierarchical dispatch: auto-invoke closures with finalKey.
+     * Used when navigating to a final path element.
+     *
+     * Behavior per IR-4:
+     * - Block-closures (params.length > 0, first param is '$'): invoke with args = [finalKey]
+     * - Zero-param closures: invoke with pipeValue = finalKey
+     * - Parameterized closures: throw error (dispatch does not provide args)
+     * - Non-callable: return unchanged
+     *
+     * @param value - Value at terminal path position
+     * @param finalKey - Final key from path (becomes $ or first arg)
+     * @param location - Source location for error reporting
+     * @returns Resolved value (invoked or unchanged)
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
+     */
+    async resolveTerminalValue(
+      value: RillValue,
+      finalKey: RillValue,
+      location?: SourceLocation
+    ): Promise<RillValue> {
+      if (!isCallable(value)) {
+        return value;
+      }
+
+      // Check for parameterized closure (explicit user-defined params)
+      // Note: Block-closures have exactly 1 param named '$'
+      // Parameterized closures have 1+ params with user-defined names
+      if (value.kind === 'script' && value.params.length >= 1) {
+        // Check if first param is '$' (block-closure) or user-defined (parameterized)
+        if (value.params[0]!.name !== '$') {
+          // Parameterized closure at terminal position: error per EC-9
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'Dispatch does not provide arguments for parameterized closure',
+            location
+          );
+        }
+      }
+
+      // Check if callable has params to determine invocation style
+      const hasParams =
+        (value.kind === 'script' && value.params.length > 0) ||
+        (value.kind === 'application' &&
+          value.params !== undefined &&
+          value.params.length > 0);
+
+      if (hasParams) {
+        // Block-closure or application callable with params: invoke with finalKey as argument
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (this as any).invokeCallable(value, [finalKey], location);
+      } else {
+        // Zero-param closure: invoke with pipeValue = finalKey
+        const savedPipeValue = this.ctx.pipeValue;
+        this.ctx.pipeValue = finalKey;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await (this as any).invokeCallable(
+            value,
+            [],
+            location
+          );
+          return result;
+        } finally {
+          this.ctx.pipeValue = savedPipeValue;
+        }
+      }
     }
   };
 }
