@@ -767,6 +767,96 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
     }
+
+    /**
+     * Evaluate annotation reflection access: .^key
+     * Resolves annotation metadata from ScriptCallable values.
+     *
+     * Only ScriptCallable values support annotation reflection.
+     * Throws RUNTIME_TYPE_ERROR for non-closure targets.
+     * Throws RUNTIME_UNDEFINED_ANNOTATION for missing annotations.
+     */
+    protected async evaluateAnnotationAccess(
+      value: RillValue,
+      key: string,
+      location: SourceLocation
+    ): Promise<RillValue> {
+      // Only ScriptCallable supports annotation reflection
+      if (!isScriptCallable(value)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Cannot access annotation on ${inferType(value)}`,
+          location,
+          { actualType: inferType(value) }
+        );
+      }
+
+      // Access annotation from ScriptCallable
+      const annotationValue = value.annotations[key];
+
+      // Throw if annotation not found (caller handles ?? coalescing)
+      if (annotationValue === undefined) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION,
+          `Annotation '${key}' not found`,
+          location,
+          { annotationKey: key }
+        );
+      }
+
+      return annotationValue;
+    }
+
+    /**
+     * Evaluate .params property access on closures.
+     * Builds dict from closure parameter metadata.
+     *
+     * Returns dict keyed by parameter name, where each entry is a dict with:
+     * - type: string (if param has type annotation)
+     * - __annotations: dict (if param has parameter-level annotations)
+     *
+     * Empty params closure returns empty dict [].
+     * Throws RUNTIME_TYPE_ERROR for non-closure targets.
+     */
+    protected async evaluateParamsProperty(
+      callable: RillValue,
+      location: SourceLocation
+    ): Promise<Record<string, RillValue>> {
+      // Only ScriptCallable supports .params reflection
+      if (!isScriptCallable(callable)) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Cannot access .params on ${inferType(callable)}`,
+          location,
+          { actualType: inferType(callable) }
+        );
+      }
+
+      // Build params dict from ScriptCallable.params and paramAnnotations
+      const paramsDict: Record<string, RillValue> = {};
+
+      for (const param of callable.params) {
+        const paramEntry: Record<string, RillValue> = {};
+
+        // Add type field if param has type annotation
+        if (param.typeName !== null) {
+          paramEntry['type'] = param.typeName;
+        }
+
+        // Add __annotations field if param has parameter-level annotations
+        const paramAnnotations = callable.paramAnnotations[param.name];
+        if (
+          paramAnnotations !== undefined &&
+          Object.keys(paramAnnotations).length > 0
+        ) {
+          paramEntry['__annotations'] = paramAnnotations;
+        }
+
+        paramsDict[param.name] = paramEntry;
+      }
+
+      return paramsDict;
+    }
   };
 }
 

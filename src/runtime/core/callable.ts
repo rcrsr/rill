@@ -49,11 +49,18 @@ export type CallableFn = (
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
 
-/** Parameter definition for script closures */
+/**
+ * Parameter definition for script closures.
+ *
+ * Annotations are captured at closure creation time and stored as evaluated values.
+ * Empty object ({}) when no annotations present.
+ */
 export interface CallableParam {
   readonly name: string;
   readonly typeName: 'string' | 'number' | 'bool' | 'list' | 'dict' | null;
   readonly defaultValue: RillValue | null;
+  /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
+  readonly annotations: Record<string, RillValue>;
 }
 
 /**
@@ -99,13 +106,22 @@ interface CallableBase {
   boundDict?: Record<string, RillValue>;
 }
 
-/** Script callable - parsed from Rill source code */
+/**
+ * Script callable - parsed from Rill source code.
+ *
+ * Carries closure-level and parameter-level annotations captured at creation time.
+ * Both annotation fields default to empty objects ({}) when no annotations present.
+ */
 export interface ScriptCallable extends CallableBase {
   readonly kind: 'script';
   readonly params: CallableParam[];
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
   readonly definingScope: RuntimeContextLike;
+  /** Evaluated closure-level annotations (e.g., ^(timeout: 30)) */
+  readonly annotations: Record<string, RillValue>;
+  /** Evaluated parameter annotations keyed by parameter name */
+  readonly paramAnnotations: Record<string, Record<string, RillValue>>;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */
@@ -194,13 +210,37 @@ export function formatCallable(callable: RillCallable): string {
 }
 
 /**
+ * Compare two annotation records for equality.
+ * Returns true if both records have the same keys and values.
+ */
+function annotationsEqual(
+  a: Record<string, RillValue>,
+  b: Record<string, RillValue>,
+  valueEquals: (a: RillValue, b: RillValue) => boolean
+): boolean {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (!(key in b)) return false;
+    if (!valueEquals(a[key] as RillValue, b[key] as RillValue)) return false;
+  }
+
+  return true;
+}
+
+/**
  * Deep equality for script callables.
- * Compares params, body AST structure, and defining scope.
+ * Compares params, body AST structure, defining scope, and annotations.
  *
  * Two closures are equal if:
- * 1. Same parameter names, types, and default values
+ * 1. Same parameter names, types, default values, and annotations
  * 2. Structurally identical body AST (ignoring source locations)
  * 3. Same defining scope (reference equality)
+ * 4. Same closure-level annotations
+ * 5. Same parameter-level annotations
  */
 export function callableEquals(
   a: ScriptCallable,
@@ -208,7 +248,7 @@ export function callableEquals(
   valueEquals: (a: RillValue, b: RillValue) => boolean = (x, y) =>
     formatValue(x) === formatValue(y)
 ): boolean {
-  // Compare params (name, type, default)
+  // Compare params (name, type, default, annotations)
   if (a.params.length !== b.params.length) return false;
   for (let i = 0; i < a.params.length; i++) {
     const ap = a.params[i];
@@ -217,6 +257,9 @@ export function callableEquals(
     if (ap.name !== bp.name) return false;
     if (ap.typeName !== bp.typeName) return false;
     if (!valueEquals(ap.defaultValue ?? null, bp.defaultValue ?? null)) {
+      return false;
+    }
+    if (!annotationsEqual(ap.annotations, bp.annotations, valueEquals)) {
       return false;
     }
   }
@@ -228,6 +271,26 @@ export function callableEquals(
 
   // Compare defining scope by reference (same scope = same closure context)
   if (a.definingScope !== b.definingScope) return false;
+
+  // Compare closure-level annotations
+  if (!annotationsEqual(a.annotations, b.annotations, valueEquals)) {
+    return false;
+  }
+
+  // Compare parameter-level annotations
+  const paramNamesA = Object.keys(a.paramAnnotations);
+  const paramNamesB = Object.keys(b.paramAnnotations);
+  if (paramNamesA.length !== paramNamesB.length) return false;
+
+  for (const paramName of paramNamesA) {
+    if (!(paramName in b.paramAnnotations)) return false;
+    const annotsA = a.paramAnnotations[paramName];
+    const annotsB = b.paramAnnotations[paramName];
+    if (annotsA === undefined || annotsB === undefined) return false;
+    if (!annotationsEqual(annotsA, annotsB, valueEquals)) {
+      return false;
+    }
+  }
 
   return true;
 }

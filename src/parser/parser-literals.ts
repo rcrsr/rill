@@ -5,6 +5,7 @@
 
 import { Parser } from './parser.js';
 import type {
+  AnnotationArg,
   ClosureNode,
   ClosureParamNode,
   DictEntryNode,
@@ -461,10 +462,19 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
 
   let typeName: 'string' | 'number' | 'bool' | null = null;
   let defaultValue: LiteralNode | null = null;
+  let annotations: AnnotationArg[] | undefined = undefined;
 
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     typeName = parseTypeName(this.state, FUNC_PARAM_TYPES);
+  }
+
+  // Parse parameter annotations (after type, before default)
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
   }
 
   if (check(this.state, TOKEN_TYPES.ASSIGN)) {
@@ -477,6 +487,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     name: nameToken.value,
     typeName,
     defaultValue,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

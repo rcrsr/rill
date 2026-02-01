@@ -33,6 +33,7 @@ export const RILL_ERROR_CODES = {
   RUNTIME_UNDEFINED_VARIABLE: 'RUNTIME_UNDEFINED_VARIABLE',
   RUNTIME_UNDEFINED_FUNCTION: 'RUNTIME_UNDEFINED_FUNCTION',
   RUNTIME_UNDEFINED_METHOD: 'RUNTIME_UNDEFINED_METHOD',
+  RUNTIME_UNDEFINED_ANNOTATION: 'RUNTIME_UNDEFINED_ANNOTATION',
   RUNTIME_TYPE_ERROR: 'RUNTIME_TYPE_ERROR',
   RUNTIME_TIMEOUT: 'RUNTIME_TIMEOUT',
   RUNTIME_INVALID_PATTERN: 'RUNTIME_INVALID_PATTERN',
@@ -388,12 +389,14 @@ export interface ClosureNode extends BaseNode {
  * - (x) { }           -- untyped
  * - (x: string) { }   -- typed
  * - (x: string = "hi") { }  -- typed with default
+ * - ^(key: value) (x) { }  -- with parameter annotations
  */
 export interface ClosureParamNode extends BaseNode {
   readonly type: 'ClosureParam';
   readonly name: string;
   readonly typeName: 'string' | 'number' | 'bool' | null; // null = untyped
   readonly defaultValue: LiteralNode | null;
+  readonly annotations?: AnnotationArg[] | undefined; // Parameter-level annotations (default: empty array)
 }
 
 // ============================================================
@@ -787,7 +790,8 @@ export type FieldAccess =
   | FieldAccessVariable
   | FieldAccessComputed
   | FieldAccessBlock
-  | FieldAccessAlternatives;
+  | FieldAccessAlternatives
+  | FieldAccessAnnotation;
 
 /** Literal field access: .identifier */
 export interface FieldAccessLiteral {
@@ -817,6 +821,12 @@ export interface FieldAccessBlock {
 export interface FieldAccessAlternatives {
   readonly kind: 'alternatives';
   readonly alternatives: string[];
+}
+
+/** Annotation reflection: .^key */
+export interface FieldAccessAnnotation {
+  readonly kind: 'annotation';
+  readonly key: string;
 }
 
 /**

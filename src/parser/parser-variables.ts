@@ -178,6 +178,16 @@ Parser.prototype.parseFieldAccessElement = function (
     return { kind: 'variable', variableName: nameToken.value };
   }
 
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state);
+    const keyToken = expect(
+      this.state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected annotation key after .^'
+    );
+    return { kind: 'annotation', key: keyToken.value };
+  }
+
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     return this.parseComputedOrAlternatives();
   }

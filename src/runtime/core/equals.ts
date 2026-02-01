@@ -288,6 +288,8 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
           (alt, i) => alt === (b as typeof a).alternatives[i]
         )
       );
+    case 'annotation':
+      return a.key === (b as typeof a).key;
   }
 }
 

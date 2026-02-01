@@ -457,6 +457,283 @@ $list[0] -> .upper    # "HELLO"
 
 Note: `$list[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
 
+## Parameter Metadata
+
+Closures expose parameter metadata via the `.params` property. This enables runtime introspection of function signatures.
+
+### Basic Usage
+
+```rill
+|x, y| { $x + $y } :> $add
+$add.params
+# [
+#   x: [type: ""],
+#   y: [type: ""]
+# ]
+```
+
+### Typed Parameters
+
+```rill
+|name: string, age: number| { "{$name}: {$age}" } :> $format
+$format.params
+# [
+#   name: [type: "string"],
+#   age: [type: "number"]
+# ]
+```
+
+### Block-Closures
+
+Block-closures have an implicit `$` parameter:
+
+```rill
+{ $ * 2 } :> $double
+$double.params
+# [
+#   $: [type: ""]
+# ]
+```
+
+### Zero-Parameter Closures
+
+```rill
+|| { 42 } :> $constant
+$constant.params
+# []
+```
+
+### Practical Use Cases
+
+**Generic Function Wrapper:**
+
+```rill
+|fn| {
+  $fn.params -> .keys -> .len :> $count
+  "Function has {$count} parameter(s)"
+} :> $describe
+
+|x, y| { $x + $y } :> $add
+$describe($add)    # "Function has 2 parameter(s)"
+```
+
+**Validation:**
+
+```text
+|fn| {
+  $fn.params -> .entries -> each {
+    $[1].type -> .empty ? "Missing type annotation: {$[0]}" ! ""
+  } -> filter { !$ -> .empty }
+} :> $checkTypes
+
+|x, y: number| { $x + $y } :> $partial
+$checkTypes($partial)    # ["Missing type annotation: x"]
+```
+
+## Parameter Annotations
+
+Parameters can have their own annotations using `^(key: value)` syntax after the parameter name. These attach metadata to individual parameters for validation, configuration, or documentation purposes.
+
+### Syntax and Ordering
+
+Parameter annotations appear in a specific order:
+
+```text
+|paramName: type ^(annotations) = default| body
+```
+
+**Ordering rules:**
+1. Parameter name (required)
+2. Type annotation with `:` (optional)
+3. Parameter annotations with `^()` (optional)
+4. Default value with `=` (optional)
+
+```rill
+|x: number ^(min: 0, max: 100)|($x) :> $validate
+|name: string ^(required: true) = "guest"|($name) :> $greet
+|count ^(cache: true) = 0|($count) :> $process
+```
+
+### Access Pattern
+
+Parameter annotations are accessed via `.params.paramName.__annotations.key`:
+
+```rill
+|x: number ^(min: 0, max: 100), y: string|($x + $y) :> $fn
+
+$fn.params
+# Returns:
+# [
+#   x: [type: "number", __annotations: [min: 0, max: 100]],
+#   y: [type: "string"]
+# ]
+
+$fn.params.x.__annotations.min  # 0
+$fn.params.x.__annotations.max  # 100
+$fn.params.y.?__annotations     # false (no annotations on y)
+```
+
+### Validation Metadata
+
+Use parameter annotations to specify constraints:
+
+```rill
+|value: number ^(min: 0, max: 100)|($value) :> $bounded
+
+$bounded.params.value.__annotations.min  # 0
+$bounded.params.value.__annotations.max  # 100
+```
+
+**Generic validator pattern:**
+
+```text
+|fn, arg| {
+  $fn.params -> .entries -> .head -> *<$name, $meta>
+  $meta.?__annotations ? {
+    ($arg < $meta.__annotations.min) ? "Value {$arg} below min {$meta.__annotations.min}" !
+    ($arg > $meta.__annotations.max) ? "Value {$arg} above max {$meta.__annotations.max}" !
+    ""
+  } ! ""
+} :> $validate
+
+|x: number ^(min: 0, max: 10)|($x) :> $ranged
+$validate($ranged, 15)  # "Value 15 above max 10"
+```
+
+### Caching Hints
+
+Mark parameters that should trigger caching behavior:
+
+```rill
+|key: string ^(cache: true)|($key) :> $fetch
+
+$fetch.params.key.__annotations.cache  # true
+```
+
+### Format Specifications
+
+Attach formatting metadata to parameters:
+
+```rill
+|timestamp: string ^(format: "ISO8601")|($timestamp) :> $formatDate
+
+$formatDate.params.timestamp.__annotations.format  # "ISO8601"
+```
+
+### Multiple Annotations
+
+Parameters can have multiple annotations:
+
+```rill
+|email: string ^(required: true, pattern: ".*@.*", maxLength: 100)|($email) :> $validateEmail
+
+$validateEmail.params.email.__annotations.required    # true
+$validateEmail.params.email.__annotations.pattern     # ".*@.*"
+$validateEmail.params.email.__annotations.maxLength   # 100
+```
+
+### Annotation-Driven Logic
+
+Use parameter annotations to drive runtime behavior:
+
+```text
+|processor| {
+  $processor.params -> .entries -> each {
+    $[1].?__annotations ? {
+      $[1].__annotations.?required ? "Parameter {$[0]} is required" ! ""
+    } ! ""
+  } -> filter { !$ -> .empty }
+} :> $getRequiredParams
+
+|x, y: string ^(required: true), z|($x) :> $fn
+$getRequiredParams($fn)  # ["Parameter y is required"]
+```
+
+### Checking for Annotations
+
+Use existence check `.?__annotations` to determine if a parameter has annotations:
+
+```rill
+|x: number ^(min: 0), y: string|($x + $y) :> $fn
+
+$fn.params.x.?__annotations  # true
+$fn.params.y.?__annotations  # false
+```
+
+## Annotation Reflection
+
+Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
+
+**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on primitives throws `RUNTIME_TYPE_ERROR`.
+
+### Basic Annotation Access
+
+```rill
+^(min: 0, max: 100) |x|($x) :> $fn
+
+$fn.^min     # 0
+$fn.^max     # 100
+```
+
+### Complex Annotation Values
+
+Annotations can hold any value type:
+
+```rill
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) :> $fn
+
+$fn.^config.timeout      # 30
+$fn.^config.endpoints[0] # "a"
+```
+
+### Default Value Coalescing
+
+Use the default value operator for optional annotations:
+
+```rill
+|x|($x) :> $fn
+$fn.^timeout ?? 30  # 30 (uses default when annotation missing)
+
+^(timeout: 60) |x|($x) :> $withTimeout
+$withTimeout.^timeout ?? 30  # 60 (uses annotated value)
+```
+
+### Annotation-Driven Logic
+
+```rill
+^(enabled: true) |x|($x) :> $processor
+
+$processor.^enabled ? "processing" ! "disabled"  # "processing"
+```
+
+### Dynamic Annotations
+
+Annotation values are evaluated at closure creation:
+
+```rill
+10 :> $base
+^(limit: $base * 10) |x|($x) :> $fn
+$fn.^limit  # 100
+```
+
+### Error Cases
+
+**Undefined Annotation Key:**
+
+```rill
+|x|($x) :> $fn
+$fn.^missing   # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+**Non-Closure Type:**
+
+```text
+"hello" :> $str
+$str.^key      # Error: RUNTIME_TYPE_ERROR
+```
+
+All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`.
+
 ## Error Behavior
 
 ### Undefined Variables

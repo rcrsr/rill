@@ -295,7 +295,28 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Must be a FieldAccess
         if (access.kind === 'literal') {
           const field = access.field;
-          if (isDict(value)) {
+          // Handle .params property on closures
+          if (field === 'params') {
+            if (isCallable(value)) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value = await (this as any).evaluateParamsProperty(
+                value,
+                this.getNodeLocation(node)
+              );
+            } else {
+              // .params on non-callable: throw or return null based on default value
+              if (node.defaultValue !== null) {
+                value = null;
+              } else {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  `Cannot access .params on ${inferType(value)}`,
+                  this.getNodeLocation(node),
+                  { actualType: inferType(value) }
+                );
+              }
+            }
+          } else if (isDict(value)) {
             // Allow missing fields if there's a default value
             const allowMissing = node.defaultValue !== null;
             value = await this.accessDictField(
@@ -317,6 +338,30 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             value,
             node
           );
+        } else if (access.kind === 'annotation') {
+          // Annotation reflection: .^key
+          // Delegates to evaluateAnnotationAccess from ClosuresMixin
+          // Convert RUNTIME_UNDEFINED_ANNOTATION to null ONLY if defaultValue exists (for ?? coalescing)
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateAnnotationAccess(
+              value,
+              access.key,
+              this.getNodeLocation(node)
+            );
+          } catch (e) {
+            if (
+              e instanceof RuntimeError &&
+              e.code === RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION &&
+              node.defaultValue !== null
+            ) {
+              // Convert missing annotation to null for ?? coalescing
+              value = null;
+            } else {
+              // No default value: re-throw RUNTIME_UNDEFINED_ANNOTATION
+              throw e;
+            }
+          }
         } else {
           // Other field access types (block)
           throw new RuntimeError(

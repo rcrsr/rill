@@ -77,6 +77,7 @@ export function createRuntimeContext(
         name: p.name,
         typeName: p.type ?? null,
         defaultValue: p.defaultValue ?? null,
+        annotations: {}, // Host functions have no parameter annotations
       }));
 
       // Create ApplicationCallable with params field populated

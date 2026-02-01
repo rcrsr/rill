@@ -98,6 +98,7 @@ See [Types](02_types.md) for detailed documentation.
 |--------|-------------|
 | `\|p: type\|{ } :> $fn` | Define and capture function |
 | `\|p = default\|{ }` | Parameter with default |
+| `\|p ^(min: 0)\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
 | `arg -> $fn()` | Call function with pipe value |
 | `arg -> $fn` | Pipe-style invoke |
@@ -139,6 +140,7 @@ See [Variables](03_variables.md) for detailed documentation.
 | `$data.(a \|\| b)` | Alternative keys |
 | `$data.field ?? default` | Default if missing |
 | `$data.?field` | Existence check |
+| `$data.^key` | Annotation reflection |
 
 ### Dispatch
 
@@ -256,6 +258,7 @@ See [Parsing](10_parsing.md) for detailed documentation.
 | `.keys` | Dict | List | All keys |
 | `.values` | Dict | List | All values |
 | `.entries` | Dict | List | Key-value pairs |
+| `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
 
 See [Strings](09_strings.md) for detailed string method documentation.
 
@@ -313,6 +316,126 @@ Extract portions using Python-style `start:stop:step`:
 ```
 
 See [Operators](04_operators.md) for detailed extraction operator documentation.
+
+---
+
+## Annotation Reflection
+
+Access annotation values on closures using `.^key` syntax.
+
+**Type Restriction:** Annotations attach to closures only. Accessing `.^key` on primitives (string, number, boolean, list, dict) throws `RUNTIME_TYPE_ERROR`.
+
+```rill
+^(min: 0, max: 100) |x|($x) :> $fn
+
+$fn.^min     # 0
+$fn.^max     # 100
+$fn.^missing # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+Annotations are metadata attached to closures during creation. They enable runtime configuration and introspection.
+
+### Common Use Cases
+
+**Function Metadata:**
+
+```rill
+^(doc: "validates user input", version: 2) |input|($input) :> $validate
+
+$validate.^doc      # "validates user input"
+$validate.^version  # 2
+```
+
+**Configuration Annotations:**
+
+```rill
+^(timeout: 30000, retry: 3) |url|($url) :> $fetch
+
+$fetch.^timeout  # 30000
+$fetch.^retry    # 3
+```
+
+**Complex Annotation Values:**
+
+```rill
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) :> $fn
+
+$fn.^config.timeout      # 30
+$fn.^config.endpoints[0] # "a"
+```
+
+### Error Handling
+
+Accessing undefined annotation keys throws `RUNTIME_UNDEFINED_ANNOTATION`:
+
+```rill
+|x|($x) :> $fn
+$fn.^missing   # Error: Annotation 'missing' not defined
+```
+
+Use default value operator for optional annotations:
+
+```rill
+|x|($x) :> $fn
+$fn.^timeout ?? 30  # 30 (uses default since annotation missing)
+```
+
+Accessing `.^key` on non-closure values throws `RUNTIME_TYPE_ERROR`:
+
+```text
+"hello" :> $str
+$str.^key        # Error: Cannot access annotation on string
+```
+
+### Parameter Annotations
+
+Parameters can have their own annotations using `^(key: value)` syntax. These attach metadata to individual parameters.
+
+**Syntax:** `|paramName ^(annotation: value)| body`
+
+**Order:** Parameter annotations appear after the type annotation (if present) and before the default value (if present).
+
+```rill
+|x: number ^(min: 0, max: 100)|($x) :> $validate
+|name: string ^(required: true) = "guest"|($name) :> $greet
+|count ^(cache: true) = 0|($count) :> $process
+```
+
+**Access via `.params`:**
+
+The `.params` property returns a dict keyed by parameter name. Each entry is a dict containing:
+
+- `type` — Type annotation (string) if present
+- `__annotations` — Dict of parameter-level annotations if present
+
+```rill
+|x: number ^(min: 0, max: 100), y: string|($x + $y) :> $fn
+
+$fn.params
+# Returns:
+# [
+#   x: [type: "number", __annotations: [min: 0, max: 100]],
+#   y: [type: "string"]
+# ]
+
+$fn.params.x.__annotations.min  # 0
+$fn.params.y.?__annotations     # false (no annotations on y)
+```
+
+**Use Cases:**
+
+```rill
+# Validation metadata
+|value ^(min: 0, max: 100)|($value) :> $bounded
+
+# Caching hints
+|key ^(cache: true)|($key) :> $fetch
+
+# Format specifications
+|timestamp ^(format: "ISO8601")|($timestamp) :> $formatDate
+```
+
+See [Closures](06_closures.md) for parameter annotation examples and patterns.
 
 ---
 
@@ -431,6 +554,7 @@ Runtime and parse errors include structured error codes for programmatic handlin
 | `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
 | `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
 | `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
+| `RUNTIME_UNDEFINED_ANNOTATION` | Annotation key not defined |
 | `RUNTIME_TYPE_ERROR` | Type mismatch |
 | `RUNTIME_TIMEOUT` | Operation timed out |
 | `RUNTIME_ABORTED` | Execution cancelled |

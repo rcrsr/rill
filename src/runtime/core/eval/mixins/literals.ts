@@ -32,6 +32,9 @@ import type {
   PostfixExprNode,
   ExpressionNode,
   SourceLocation,
+  AnnotationArg,
+  NamedArgNode,
+  SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -43,6 +46,107 @@ import {
 } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { RuntimeContext } from '../../types.js';
+
+/**
+ * Capture annotation context at closure creation time.
+ *
+ * Evaluates annotation expressions in current context and returns structured object
+ * with closure-level and parameter-level annotations.
+ *
+ * Closure-level annotations are captured from the annotation stack (statement-level
+ * annotations like `^(doc: "test")` that precede the closure definition).
+ *
+ * @param ctx - Runtime context with annotation stack
+ * @param closureNode - Closure AST node with parameter annotations
+ * @param evaluateExpression - Expression evaluator function
+ * @returns Object with annotations and paramAnnotations as evaluated values
+ *
+ * @internal
+ */
+async function captureClosureAnnotations(
+  ctx: RuntimeContext,
+  closureNode: ClosureNode,
+  evaluateExpression: (expr: ExpressionNode) => Promise<RillValue>
+): Promise<{
+  annotations: Record<string, RillValue>;
+  paramAnnotations: Record<string, Record<string, RillValue>>;
+}> {
+  // Capture closure-level annotations from annotation stack
+  // When a closure is created within an annotated statement like:
+  // ^(doc: "test") |x|($x * 2) :> $fn
+  // The annotation stack contains the evaluated annotations from the statement
+  const annotations: Record<string, RillValue> =
+    ctx.annotationStack.at(-1) ?? {};
+
+  // Capture parameter-level annotations
+  const paramAnnotations: Record<string, Record<string, RillValue>> = {};
+
+  for (const param of closureNode.params) {
+    if (param.annotations && param.annotations.length > 0) {
+      const paramAnnots = await evaluateAnnotations(
+        param.annotations,
+        evaluateExpression
+      );
+      paramAnnotations[param.name] = paramAnnots;
+    }
+  }
+
+  return { annotations, paramAnnotations };
+}
+
+/**
+ * Evaluate annotation arguments to a dict of key-value pairs.
+ * Handles both named arguments and spread arguments.
+ *
+ * @param annotations - Annotation arguments from AST
+ * @param evaluateExpression - Expression evaluator function
+ * @returns Record of annotation key-value pairs
+ *
+ * @internal
+ */
+async function evaluateAnnotations(
+  annotations: AnnotationArg[],
+  evaluateExpression: (expr: ExpressionNode) => Promise<RillValue>
+): Promise<Record<string, RillValue>> {
+  const result: Record<string, RillValue> = {};
+
+  for (const arg of annotations) {
+    if (arg.type === 'NamedArg') {
+      const namedArg = arg as NamedArgNode;
+      result[namedArg.name] = await evaluateExpression(namedArg.value);
+    } else {
+      // SpreadArg: spread tuple/dict keys as annotations
+      const spreadArg = arg as SpreadArgNode;
+      const spreadValue = await evaluateExpression(spreadArg.expression);
+
+      if (
+        typeof spreadValue === 'object' &&
+        spreadValue !== null &&
+        !Array.isArray(spreadValue) &&
+        !isCallable(spreadValue)
+      ) {
+        // Dict: spread all key-value pairs
+        Object.assign(result, spreadValue);
+      } else if (Array.isArray(spreadValue)) {
+        // Tuple/list: not valid for annotations (need named keys)
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'Annotation spread requires dict with named keys, got list',
+          spreadArg.span.start
+        );
+      } else {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Annotation spread requires dict, got ${typeof spreadValue}`,
+          spreadArg.span.start
+        );
+      }
+    }
+  }
+
+  return result;
+}
 
 /**
  * LiteralsMixin implementation.
@@ -531,6 +635,15 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Store reference to the defining scope for late-bound variable resolution
       const definingScope = this.ctx;
 
+      // Capture annotations at closure creation time
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { annotations, paramAnnotations } = await captureClosureAnnotations(
+        this.ctx,
+        node,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).evaluateExpression.bind(this)
+      );
+
       const params: CallableParam[] = [];
       for (const param of node.params) {
         let defaultValue: RillValue | null = null;
@@ -544,6 +657,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           name: param.name,
           typeName: param.typeName,
           defaultValue,
+          annotations: paramAnnotations[param.name] ?? {},
         });
       }
 
@@ -556,6 +670,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         body: node.body,
         definingScope,
         isProperty,
+        annotations,
+        paramAnnotations,
       };
     }
 
@@ -576,6 +692,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           name: '$',
           typeName: null,
           defaultValue: null,
+          annotations: {}, // Block closures have no parameter annotations
         },
       ];
 
@@ -586,6 +703,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         body: node,
         definingScope,
         isProperty: false,
+        annotations: {}, // Block closures: no annotation support (expression-position blocks)
+        paramAnnotations: {}, // Block closures have no parameter annotations
       };
     }
 
