@@ -149,16 +149,32 @@ See [Collections](07_collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with string keys:
+Key-value mappings with identifier, number, or boolean keys:
 
 ```rill
+# Identifier keys
 [name: "alice", age: 30] :> $person
 $person.name               # "alice"
 $person.age                # 30
 ```
 
+```text
+# Number keys
+[1: "one", 2: "two", 3: "three"] :> $numbers
+1 -> $numbers              # "one"
+
+# Boolean keys
+[true: "yes", false: "no"] :> $yesno
+true -> $yesno             # "yes"
+
+# Multi-key syntax (same value for multiple keys)
+[["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] :> $methods
+"GET" -> $methods          # "safe"
+"POST" -> $methods         # "unsafe"
+```
+
 **Access patterns:**
-- `.field` — Literal field access
+- `.field` — Literal field access (identifier keys only)
 - `.$key` — Variable as key
 - `.($i + 1)` — Computed expression as key
 - `.(a || b)` — Alternatives (try keys left-to-right)
@@ -166,12 +182,32 @@ $person.age                # 30
 - `.?field` — Existence check (returns bool)
 - `.?field&type` — Existence + type check
 
+**Note:** Number and boolean keys require dispatch syntax (`value -> dict`) or bracket access. Dot notation (`.1`, `.true`) is not valid syntax.
+
 **Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
 [:] :> $d
 $d.missing ?? ""           # "" (safe default)
 ```
+
+### Type-Aware Dispatch
+
+Dict dispatch uses type-aware matching. Keys are matched by both value and type:
+
+```text
+# Number vs string discrimination
+[1: "number one", "1": "string one"] :> $mixed
+1 -> $mixed                # "number one" (number key)
+"1" -> $mixed              # "string one" (string key)
+
+# Boolean vs string discrimination
+[true: "bool true", "true": "string true"] :> $flags
+true -> $flags             # "bool true" (boolean key)
+"true" -> $flags           # "string true" (string key)
+```
+
+This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`) triggers different behavior based on type.
 
 ### Dict Methods
 

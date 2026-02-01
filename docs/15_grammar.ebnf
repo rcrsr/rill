@@ -214,8 +214,11 @@ list          = "[" , "]"
 
 dict          = "[" , ":" , "]"
               | "[" , dict-entry , { "," , dict-entry } , "]" ;
-dict-entry    = identifier , ":" , expression ;  (* intentional: keys are static identifiers *)
-              (* Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
+dict-key      = identifier | number | bool ;
+dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , ":" , expression ;
+              (* Keys can be identifiers, numbers, booleans, or multi-key lists.
+                 Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
+                 Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
                  Semantic: closure values become "dict closures" where $ is late-bound
                  to the containing dict at invocation time (like "this" in other languages). *)
 

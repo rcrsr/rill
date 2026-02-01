@@ -226,7 +226,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const result: Record<string, RillValue> = {};
       for (const entry of node.entries) {
         // Multi-key entries (tuple keys) only valid in dict dispatch, not dict literals
-        if (typeof entry.key !== 'string') {
+        if (typeof entry.key === 'object') {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
             'Dict literal keys must be identifiers, not lists',
@@ -235,12 +235,18 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
-        if (isReservedMethod(entry.key)) {
+        // Convert number and boolean keys to strings per IR-3
+        // String keys: use directly as object property
+        // Number keys: convert to string via String(key)
+        // Boolean keys: convert to string via String(key)
+        const stringKey = String(entry.key);
+
+        if (isReservedMethod(stringKey)) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot use reserved method name '${entry.key}' as dict key`,
+            `Cannot use reserved method name '${stringKey}' as dict key`,
             entry.span.start,
-            { key: entry.key, reservedMethods: ['keys', 'values', 'entries'] }
+            { key: stringKey, reservedMethods: ['keys', 'values', 'entries'] }
           );
         }
 
@@ -249,16 +255,16 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const head = entry.value.head as PostfixExprNode;
           const blockNode = head.primary as BlockNode;
           const closure = this.createBlockClosure(blockNode);
-          result[entry.key] = closure;
+          result[stringKey] = closure;
         } else if (this.isClosureExpr(entry.value)) {
           // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
           const head = entry.value.head as PostfixExprNode;
           const fnLit = head.primary as ClosureNode;
           const closure = await this.createClosure(fnLit);
-          result[entry.key] = closure;
+          result[stringKey] = closure;
         } else {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          result[entry.key] = await (this as any).evaluateExpression(
+          result[stringKey] = await (this as any).evaluateExpression(
             entry.value
           );
         }
@@ -279,47 +285,50 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate dict as dispatch table when piped [IR-5].
+     * Evaluate dict as dispatch table when piped [IR-2].
      *
-     * Searches dict entries for key matching piped value using deep equality.
+     * Searches dict entries for key matching piped value using type-aware deep equality.
      * Returns matched value. Auto-invokes if matched value is closure.
+     *
+     * Type-aware matching ensures:
+     * - Number key 1 matches only number input 1, not string "1"
+     * - Boolean key true matches only boolean input true, not string "true"
      *
      * Multi-key support: [["k1", "k2"]: value] syntax allows multiple keys
      * to map to the same value. Key tuple is evaluated to get list of candidates.
-     * Validates multi-key entries per EC-13: tuple must evaluate to list.
      *
      * @param node - DictNode representing dispatch table
      * @param input - Piped value to use as lookup key
      * @returns Matched value (auto-invoked if closure)
-     * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if multi-key is not list (EC-13)
+     * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default [EC-4]
      */
     protected async evaluateDictDispatch(
       node: DictNode,
       input: RillValue
     ): Promise<RillValue> {
-      // Import deepEquals for key matching
+      // Import deepEquals for type-aware key matching
       const { deepEquals } = await import('../../values.js');
 
-      // Search entries for matching key
+      // Search entries for matching key (process in order, return first match)
       for (const entry of node.entries) {
         let matchFound = false;
 
-        if (typeof entry.key === 'string') {
-          // Single string key - compare directly
-          matchFound = deepEquals(input, entry.key);
-        } else {
+        if (typeof entry.key === 'object') {
           // Tuple key - evaluate to get list of candidates
           // Parser ensures entry.key is TupleNode, evaluateTuple always returns array
           const keyValue = await this.evaluateTuple(entry.key);
 
-          // Check if input matches any element in the list
+          // Check if input matches any element in the list (type-aware)
           for (const candidate of keyValue) {
             if (deepEquals(input, candidate)) {
               matchFound = true;
               break;
             }
           }
+        } else {
+          // Primitive key (string, number, or boolean) - type-aware comparison
+          // deepEquals ensures number 1 != string "1", boolean true != string "true"
+          matchFound = deepEquals(input, entry.key);
         }
 
         if (matchFound) {
@@ -338,11 +347,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return await (this as any).evaluateExpression(node.defaultValue);
       }
 
-      // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND
+      // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
       const location = node.span?.start;
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
-        `Dict dispatch: key '${formatValue(input)}' not found at line ${location?.line ?? '?'}:${location?.column ?? '?'}`,
+        `Dict dispatch: key '${formatValue(input)}' not found`,
         location,
         { key: input }
       );
@@ -509,7 +518,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const loc = location.span?.start;
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
-        `Dict dispatch: key '${formatValue(input)}' not found at line ${loc?.line ?? '?'}:${loc?.column ?? '?'}`,
+        `Dict dispatch: key '${formatValue(input)}' not found`,
         loc,
         { key: input }
       );
@@ -636,7 +645,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const definingScope = this.ctx;
 
       // Capture annotations at closure creation time
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { annotations, paramAnnotations } = await captureClosureAnnotations(
         this.ctx,
         node,

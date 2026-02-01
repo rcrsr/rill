@@ -243,19 +243,170 @@ describe('Rill Runtime: Dict Dispatch', () => {
     });
   });
 
-  describe('Skipped Tests (Parser Limitations)', () => {
-    it.skip('number literal keys - parser limitation', async () => {
-      // SKIP: Parser requires identifier keys, not number literals
-      // Expected: '1 -> [1: "one", 2: "two"]' returns "one"
-      // Rationale: Parser throws "Expected key" for number literals
-      // Limitation: Dict keys must be identifiers (strings) in rill syntax
+  describe('Number and Boolean Literal Keys', () => {
+    it('dispatches with number literal key (AC-3)', async () => {
+      const result = await run('1 -> [1: "one", 2: "two"]');
+      expect(result).toBe('one');
     });
 
-    it.skip('boolean literal keys - parser limitation', async () => {
-      // SKIP: Parser requires identifier keys, not boolean literals
-      // Expected: 'true -> [true: "yes", false: "no"]' returns "yes"
-      // Rationale: Parser throws "Expected key" for boolean literals
-      // Limitation: Dict keys must be identifiers (strings) in rill syntax
+    it('dispatches with second number literal key', async () => {
+      const result = await run('2 -> [1: "one", 2: "two"]');
+      expect(result).toBe('two');
+    });
+
+    it.skip('dispatches with negative number literal key (AC-9) - requires parser support for expressions in key position', async () => {
+      // SKIP: Parser limitation - dict keys only accept NUMBER tokens, not expressions
+      // Negative numbers (-1) are parsed as unary minus + number, not a single NUMBER token
+      const result = await run('(-1) -> [(-1): "negative", 1: "positive"]');
+      expect(result).toBe('negative');
+    });
+
+    it('dispatches with decimal number literal key (AC-10)', async () => {
+      const result = await run('3.14 -> [3.14: "pi", 2.71: "e"]');
+      expect(result).toBe('pi');
+    });
+
+    it('dispatches with boolean literal key true (AC-4)', async () => {
+      const result = await run('true -> [true: "yes", false: "no"]');
+      expect(result).toBe('yes');
+    });
+
+    it('dispatches with boolean literal key false (AC-4)', async () => {
+      const result = await run('false -> [true: "yes", false: "no"]');
+      expect(result).toBe('no');
+    });
+
+    it('throws when number key not found', async () => {
+      await expect(run('3 -> [1: "one", 2: "two"]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+
+    it('throws when boolean key not found', async () => {
+      await expect(run('true -> [false: "no"]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+
+    it('uses default with number literal keys', async () => {
+      const result = await run('3 -> [1: "one", 2: "two"] ?? "other"');
+      expect(result).toBe('other');
+    });
+
+    it('uses default with boolean literal keys', async () => {
+      const result = await run('false -> [true: "yes"] ?? "no"');
+      expect(result).toBe('no');
+    });
+  });
+
+  describe('Type Discrimination', () => {
+    it('distinguishes number from string identifier key (AC-11, AC-14)', async () => {
+      // AC-14: Number 1 matches number key 1, not identifier key "one"
+      const result = await run('1 -> [1: "number", one: "identifier"]');
+      expect(result).toBe('number');
+    });
+
+    it('distinguishes string from number key (AC-11, AC-15)', async () => {
+      // AC-15: String "1" does not match number 1
+      await expect(run('"1" -> [1: "n"]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+
+    it('distinguishes boolean from string identifier key (AC-16)', async () => {
+      // AC-16: Boolean true matches boolean key, not identifier "true"
+      const result = await run('true -> [true: "bool", truthy: "identifier"]');
+      expect(result).toBe('bool');
+    });
+
+    it('distinguishes identifier from boolean key', async () => {
+      const result = await run('"truthy" -> [true: "b", truthy: "s"]');
+      expect(result).toBe('s');
+    });
+
+    it('throws when number does not match identifier keys', async () => {
+      await expect(run('1 -> [one: "s", two: "s"]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+
+    it('throws when string does not match number keys', async () => {
+      await expect(run('"1" -> [1: "n", 2: "n"]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+  });
+
+  describe('Boundary Conditions', () => {
+    it('works with empty dict (AC-12)', async () => {
+      // AC-12: Empty dict should work (though no keys to match)
+      await expect(run('"a" -> [:]')).rejects.toThrow(
+        /Dict dispatch.*not found/i
+      );
+    });
+
+    it('works with single-entry number key dict (AC-13)', async () => {
+      // AC-13: Single-entry dicts work for all key types
+      const result = await run('42 -> [42: "answer"]');
+      expect(result).toBe('answer');
+    });
+
+    it('works with single-entry boolean key dict (AC-13)', async () => {
+      const result = await run('true -> [true: "yes"]');
+      expect(result).toBe('yes');
+    });
+
+    it('works with single-entry identifier key dict (AC-13)', async () => {
+      const result = await run('"key" -> [key: "value"]');
+      expect(result).toBe('value');
+    });
+
+    it('duplicate number keys return first match (AC-6)', async () => {
+      // AC-6: Duplicate keys produce first match (existing behavior)
+      const result = await run('1 -> [1: "a", 1: "b"]');
+      expect(result).toBe('a');
+    });
+
+    it('duplicate boolean keys return first match', async () => {
+      const result = await run('true -> [true: "a", true: "b"]');
+      expect(result).toBe('a');
+    });
+  });
+
+  describe('Error Contracts', () => {
+    it('throws RUNTIME_PROPERTY_NOT_FOUND when no match and no default (EC-4)', async () => {
+      // EC-4: No matching key, no default → RuntimeError
+      await expect(run('"z" -> [a: 1, b: 2]')).rejects.toThrow(
+        /Dict dispatch.*key 'z' not found/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR for tuple key in dict literal (EC-5)', async () => {
+      // EC-5: Tuple key in dict literal → RuntimeError
+      // AC-7: [[1,2]: "list key"] throws RUNTIME_TYPE_ERROR
+      // Note: Multi-key syntax uses list literal [1, 2] in dict, which becomes a tuple
+      await expect(run('[[1, 2]: "tuple"]')).rejects.toThrow(
+        /Dict literal keys must be identifiers, not lists/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR for reserved method name "keys" as dict key (EC-6)', async () => {
+      // EC-6: Reserved method name as key → RuntimeError
+      await expect(run('[keys: 1]')).rejects.toThrow(
+        /Cannot use reserved method name 'keys' as dict key/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR for reserved method name "values" as dict key', async () => {
+      await expect(run('[values: 1]')).rejects.toThrow(
+        /Cannot use reserved method name 'values' as dict key/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR for reserved method name "entries" as dict key', async () => {
+      await expect(run('[entries: 1]')).rejects.toThrow(
+        /Cannot use reserved method name 'entries' as dict key/i
+      );
     });
   });
 });

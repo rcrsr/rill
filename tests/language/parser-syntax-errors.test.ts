@@ -5,11 +5,126 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '../../src/index.js';
+import type { ScriptNode, DictNode } from '../../src/types.js';
 
 describe('Parser Syntax Errors', () => {
-  describe('Dict literal key validation', () => {
+  describe('Dict literal key validation - Success Cases', () => {
+    it('parses dict with number key to DictNode (AC-1)', () => {
+      const source = '[1: "one"]';
+      const ast = parse(source) as ScriptNode;
+      expect(ast.type).toBe('Script');
+
+      // Navigate to Dict node through AST structure
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(1);
+      expect(typeof dictNode.entries[0].key).toBe('number');
+      expect(dictNode.entries[0].key).toBe(1);
+    });
+
+    it('parses dict with boolean keys to DictNode (AC-2)', () => {
+      const source = '[true: "yes", false: "no"]';
+      const ast = parse(source) as ScriptNode;
+
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(2);
+      expect(typeof dictNode.entries[0].key).toBe('boolean');
+      expect(dictNode.entries[0].key).toBe(true);
+      expect(typeof dictNode.entries[1].key).toBe('boolean');
+      expect(dictNode.entries[1].key).toBe(false);
+    });
+
+    it('parses dict with identifier key (AC-5, backward compatibility)', () => {
+      const source = '[name: "alice"]';
+      const ast = parse(source) as ScriptNode;
+
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(1);
+      expect(typeof dictNode.entries[0].key).toBe('string');
+      expect(dictNode.entries[0].key).toBe('name');
+    });
+
+    it('parses dict with positive integer number key', () => {
+      const source = '[42: "answer"]';
+      const ast = parse(source) as ScriptNode;
+
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(1);
+      expect(typeof dictNode.entries[0].key).toBe('number');
+      expect(dictNode.entries[0].key).toBe(42);
+    });
+
+    it('parses dict with decimal number key (AC-10)', () => {
+      const source = '[3.14: "pi"]';
+      const ast = parse(source) as ScriptNode;
+
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(1);
+      expect(typeof dictNode.entries[0].key).toBe('number');
+      expect(dictNode.entries[0].key).toBe(3.14);
+    });
+
+    it('parses dict with mixed key types', () => {
+      const source = '[name: "alice", 1: "one", true: "yes"]';
+      const ast = parse(source) as ScriptNode;
+
+      const statement = ast.statements[0];
+      const pipeChain = statement.expression;
+      const postfixExpr = pipeChain.head;
+      const dictNode = postfixExpr.primary as DictNode;
+
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(3);
+      expect(dictNode.entries[0].key).toBe('name');
+      expect(dictNode.entries[1].key).toBe(1);
+      expect(dictNode.entries[2].key).toBe(true);
+    });
+
+    it('rejects negative number as dict key (IC-1 - known parser limitation)', () => {
+      // IC-1: Negative numbers in dict keys parsed as type assertion
+      // Parser interprets `-1:` as type assertion syntax
+      // Workaround: Use positive numbers or store negative in variable
+      const source = '[-1: "negative"]';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        // Parser treats `-1:` as type operation, expects type name after `:`
+        expect(parseErr.message).toContain('Expected type name');
+      }
+    });
+  });
+
+  describe('Dict literal key validation - Error Cases', () => {
     it('rejects dict as multi-key', () => {
-      // AC-31, EC-13: Multi-key must be a list, not a dict
+      // EC-2: Multi-key must be a list, not a dict
       const source = '"x" -> [[a: "dict"]: "val"]';
 
       try {
@@ -53,6 +168,40 @@ describe('Parser Syntax Errors', () => {
       const source = '[a: "val"]';
       const ast = parse(source);
       expect(ast.type).toBe('Script');
+    });
+
+    it('rejects invalid token at key position (EC-1)', () => {
+      // EC-1: After a valid dict entry, subsequent entries must also be valid keys
+      // Using a closure as a key should fail
+      const source = '[a: 1, ||($): "val"]';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain(
+          'Dict key must be identifier, number, or boolean'
+        );
+      }
+    });
+
+    it('rejects missing colon after key (EC-3)', () => {
+      // EC-3: Colon is required after dict key
+      // First entry establishes this is a dict, second entry missing colon
+      const source = '[a: 1, b "val"]';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain('Expected :');
+      }
     });
   });
 });

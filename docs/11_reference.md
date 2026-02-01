@@ -160,6 +160,19 @@ $value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no mat
 $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
 
+**Type-Aware Dispatch:** Keys match by both value and type.
+
+| Input | Dict | Result |
+|-------|------|--------|
+| `1` | `[1: "one", 2: "two"]` | `"one"` |
+| `"1"` | `[1: "one", "1": "string"]` | `"string"` |
+| `true` | `[true: "yes", false: "no"]` | `"yes"` |
+| `"true"` | `[true: "bool", "true": "string"]` | `"string"` |
+| `1` | `[[1, "one"]: "match"]` | `"match"` |
+| `"one"` | `[[1, "one"]: "match"]` | `"match"` |
+
+Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: value` maps multiple keys to the same value.
+
 **Hierarchical Dispatch:** Navigate nested structures using a path list.
 
 | Syntax | Description |

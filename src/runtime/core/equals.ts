@@ -409,13 +409,22 @@ function dictEquals(a: DictNode, b: DictNode): boolean {
 }
 
 function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
-  // Handle both string keys and TupleNode keys
+  // Compare keys based on type
   if (typeof a.key === 'string' && typeof b.key === 'string') {
+    // String keys: compare with ===
     if (a.key !== b.key) return false;
-  } else if (typeof a.key !== 'string' && typeof b.key !== 'string') {
+  } else if (typeof a.key === 'number' && typeof b.key === 'number') {
+    // Number keys: compare with ===
+    if (a.key !== b.key) return false;
+  } else if (typeof a.key === 'boolean' && typeof b.key === 'boolean') {
+    // Boolean keys: compare with ===
+    if (a.key !== b.key) return false;
+  } else if (typeof a.key === 'object' && typeof b.key === 'object') {
+    // TupleNode keys: compare with tupleEquals()
     if (!tupleEquals(a.key, b.key)) return false;
   } else {
-    return false; // One string, one tuple - not equal
+    // Different key types are not equal
+    return false;
   }
   return expressionEquals(a.value, b.value);
 }

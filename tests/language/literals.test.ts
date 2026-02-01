@@ -160,6 +160,9 @@ describe('Rill Runtime: Literals', () => {
     });
   });
 
+  // Note: Runtime evaluation tests for literal keys will be added in Phase 2
+  // Parser verification is in tests/language/parser-syntax-errors.test.ts
+
   describe('Lexer Errors', () => {
     it('throws LexerError for unexpected character (EC-3)', async () => {
       await expect(run('`')).rejects.toThrow('Unexpected character: `');

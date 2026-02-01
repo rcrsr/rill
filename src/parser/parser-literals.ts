@@ -363,8 +363,9 @@ Parser.prototype.parseDict = function (
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
 
-  // Check if key is a list literal (multi-key)
-  let key: string | TupleNode;
+  // Parse key: identifier, number, boolean, or list literal (multi-key)
+  let key: string | number | boolean | TupleNode;
+
   if (check(this.state, TOKEN_TYPES.LBRACKET)) {
     // Parse list literal as key (tuple for multi-key)
     const literal = this.parseTupleOrDict();
@@ -375,10 +376,28 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       );
     }
     key = literal;
-  } else {
+  } else if (check(this.state, TOKEN_TYPES.NUMBER)) {
+    // Parse number as key
+    const keyToken = advance(this.state);
+    key = Number(keyToken.value);
+  } else if (check(this.state, TOKEN_TYPES.TRUE)) {
+    // Parse boolean true as key
+    advance(this.state);
+    key = true;
+  } else if (check(this.state, TOKEN_TYPES.FALSE)) {
+    // Parse boolean false as key
+    advance(this.state);
+    key = false;
+  } else if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     // Parse identifier as string key
-    const keyToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, 'Expected key');
+    const keyToken = advance(this.state);
     key = keyToken.value;
+  } else {
+    // Invalid token at key position
+    throw new ParseError(
+      'Dict key must be identifier, number, or boolean',
+      current(this.state).span.start
+    );
   }
 
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');

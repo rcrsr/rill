@@ -659,7 +659,7 @@ export interface DictNode extends BaseNode {
 
 export interface DictEntryNode extends BaseNode {
   readonly type: 'DictEntry';
-  readonly key: string | TupleNode;
+  readonly key: string | number | boolean | TupleNode;
   readonly value: ExpressionNode;
 }
 
