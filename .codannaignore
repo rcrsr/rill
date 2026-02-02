@@ -65,6 +65,8 @@ __pycache__/
 .svn/
 .hg/
 
+**/transcripts/
+
 # Example of including specific files from ignored directories:
 # !target/doc/
 # !vendor/specific-file.rs

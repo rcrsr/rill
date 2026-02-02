@@ -35,6 +35,7 @@ import type {
   AnnotationArg,
   NamedArgNode,
   SpreadArgNode,
+  ListSpreadNode,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -200,16 +201,137 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Evaluate tuple literal.
      * Elements are evaluated in order and collected into an array.
+     * ListSpreadNode elements are flattened inline.
      *
      * Errors from element evaluation propagate to caller.
      */
     protected async evaluateTuple(node: TupleNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        elements.push(await (this as any).evaluateExpression(elem));
+        if (elem.type === 'ListSpread') {
+          // ListSpreadNode: evaluate expression and flatten
+          const spreadResult = await this.evaluateTupleElement(elem);
+          // Spread result should be an array - flatten it
+          if (Array.isArray(spreadResult)) {
+            elements.push(...spreadResult);
+          } else {
+            // Single value returned - should not happen for ListSpread
+            elements.push(spreadResult);
+          }
+        } else {
+          // Regular element: evaluate and add
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          elements.push(await (this as any).evaluateExpression(elem));
+        }
       }
       return elements;
+    }
+
+    /**
+     * Evaluate single tuple element.
+     * Returns spread-able array when element is ListSpreadNode, single value otherwise.
+     *
+     * @param elem - Element to evaluate (ExpressionNode or ListSpreadNode)
+     * @returns Flattened array for spread, single value otherwise
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if spread on non-list [EC-3]
+     */
+    protected async evaluateTupleElement(
+      elem: ExpressionNode | ListSpreadNode
+    ): Promise<RillValue | RillValue[]> {
+      if (elem.type === 'ListSpread') {
+        // Evaluate spread expression
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const spreadValue = await (this as any).evaluateExpression(
+          elem.expression
+        );
+
+        // Verify it's a list
+        if (!Array.isArray(spreadValue)) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Spread in list literal requires list, got ${typeof spreadValue}`,
+            elem.span?.start,
+            { got: typeof spreadValue }
+          );
+        }
+
+        return spreadValue;
+      } else {
+        // Regular expression: evaluate and return single value
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (this as any).evaluateExpression(elem);
+      }
+    }
+
+    /**
+     * Evaluate multi-key dict entry.
+     * Expands `[["k1", "k2"]: value]` to array of key-value pairs.
+     * Evaluates value once, creates entry for each key.
+     *
+     * @param keyTuple - TupleNode containing list of keys
+     * @param value - Value expression to associate with all keys
+     * @returns Array of [key, value] pairs
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if tuple empty [EC-4]
+     * @throws RuntimeError with RUNTIME_TYPE_ERROR if key element non-primitive [EC-5]
+     */
+    protected async evaluateDictMultiKey(
+      keyTuple: TupleNode,
+      value: ExpressionNode
+    ): Promise<Array<[string, RillValue]>> {
+      // Evaluate key tuple to get list of keys
+      const keys = await this.evaluateTuple(keyTuple);
+
+      // Validate non-empty [EC-4]
+      if (keys.length === 0) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'Multi-key dict entry requires non-empty list',
+          keyTuple.span?.start
+        );
+      }
+
+      // Validate all keys are primitives [EC-5]
+      for (const key of keys) {
+        const keyType = typeof key;
+        if (
+          keyType !== 'string' &&
+          keyType !== 'number' &&
+          keyType !== 'boolean'
+        ) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Dict key must be string, number, or boolean, got ${keyType}`,
+            keyTuple.span?.start,
+            { got: keyType }
+          );
+        }
+      }
+
+      // Evaluate value once
+      let evaluatedValue: RillValue;
+      if (this.isBlockExpr(value)) {
+        // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
+        const head = value.head as PostfixExprNode;
+        const blockNode = head.primary as BlockNode;
+        evaluatedValue = this.createBlockClosure(blockNode);
+      } else if (this.isClosureExpr(value)) {
+        // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
+        const head = value.head as PostfixExprNode;
+        const fnLit = head.primary as ClosureNode;
+        evaluatedValue = await this.createClosure(fnLit);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        evaluatedValue = await (this as any).evaluateExpression(value);
+      }
+
+      // Create entry for each key
+      const entries: Array<[string, RillValue]> = [];
+      for (const key of keys) {
+        const stringKey = String(key);
+        entries.push([stringKey, evaluatedValue]);
+      }
+
+      return entries;
     }
 
     /**
@@ -217,7 +339,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * All callables in the dict are bound to the containing dict via boundDict property.
      *
      * Reserved method names (keys, values, entries) cannot be used as dict keys.
-     * Multi-key entries (tuple keys) are not supported in dict literals, only in dispatch.
+     * Multi-key entries (tuple keys) expand to multiple entries with shared value.
      * Errors from value evaluation propagate to caller.
      */
     protected async evaluateDict(
@@ -225,14 +347,25 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
       for (const entry of node.entries) {
-        // Multi-key entries (tuple keys) only valid in dict dispatch, not dict literals
+        // Multi-key entries: expand to multiple key-value pairs
         if (typeof entry.key === 'object') {
-          throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Dict literal keys must be identifiers, not lists',
-            entry.span.start,
-            { entry }
-          );
+          const pairs = await this.evaluateDictMultiKey(entry.key, entry.value);
+          for (const [stringKey, value] of pairs) {
+            if (isReservedMethod(stringKey)) {
+              throw new RuntimeError(
+                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                `Cannot use reserved method name '${stringKey}' as dict key`,
+                entry.span.start,
+                {
+                  key: stringKey,
+                  reservedMethods: ['keys', 'values', 'entries'],
+                }
+              );
+            }
+            // Apply last-write-wins semantics
+            result[stringKey] = value;
+          }
+          continue;
         }
 
         // Convert number and boolean keys to strings per IR-3

@@ -84,8 +84,8 @@ See [Collections](07_collections.md) for detailed documentation.
 | String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` | String value |
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
-| List | `[a, b]` | `["file.ts", 42]` | List value |
-| Dict | `[k: v]` | `[output: "text", code: 0]` | Dict value |
+| List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
+| Dict | `[k: v]`, `[[k1, k2]: v]` | `[output: "text"]`, `[["a", "b"]: 1]` | Dict value |
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |

@@ -87,7 +87,8 @@ $events -> fold("idle") {
 
 Track state history with `each`:
 
-```rill
+```text
+# Conceptual - uses dynamic existence check .?($) not yet supported
 [
   idle: [start: "running"],
   running: [pause: "paused", stop: "idle"],
@@ -96,7 +97,6 @@ Track state history with `each`:
 
 ["start", "pause", "resume"] :> $events
 
-# Accumulate state, collecting history
 $events -> fold([current: "idle", history: []]) {
   $machine.($@.current).?($) ? {
     $machine.($@.current).($) :> $next
@@ -110,8 +110,8 @@ $events -> fold([current: "idle", history: []]) {
 
 Use closures as guards to conditionally allow transitions:
 
-```rill
-# Turnstile with coin counting
+```text
+# Turnstile with coin counting (conceptual - dict spread not implemented)
 [
   locked: [
     coin: [
@@ -202,8 +202,8 @@ $path -> fold($machine) { $@.$  }
 
 Route values through different processors based on type or content:
 
-```rill
-# Route by content type
+```text
+# Conceptual - string keys with special chars require dispatch syntax
 [
   "application/json": |body|{ $body -> parse_json },
   "text/plain": |body|{ $body -> .trim },
@@ -222,11 +222,11 @@ $contentType -> $parsers -> |parser|{ $parser($body) }
 Map multiple inputs to the same handler:
 
 ```rill
-# HTTP method routing
+# HTTP method routing - correct multi-key syntax
 [
-  [["GET", "HEAD"]]: [handler: "read", safe: true],
-  [["POST", "PUT", "PATCH"]]: [handler: "write", safe: false],
-  [["DELETE"]]: [handler: "delete", safe: false]
+  ["GET", "HEAD"]: [handler: "read", safe: true],
+  ["POST", "PUT", "PATCH"]: [handler: "write", safe: false],
+  ["DELETE"]: [handler: "delete", safe: false]
 ] :> $routes
 
 "POST" -> $routes
@@ -259,7 +259,8 @@ $response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
 
 Calculate statistics in a single pass:
 
-```rill
+```text
+# Conceptual - dict spread [...$dict, key: val] not implemented
 [23, 45, 12, 67, 34, 89, 56] :> $values
 
 $values -> fold([sum: 0, count: 0, min: 999999, max: -999999]) {
@@ -279,7 +280,8 @@ $values -> fold([sum: 0, count: 0, min: 999999, max: -999999]) {
 
 Group items by a computed key:
 
-```rill
+```text
+# Conceptual - uses dict spread and $$ syntax not implemented
 [
   [name: "Alice", dept: "Engineering"],
   [name: "Bob", dept: "Sales"],
@@ -325,7 +327,8 @@ $items -> fold([seen: [], result: []]) {
 
 Validate multiple conditions and exit on first failure:
 
-```rill
+```text
+# Conceptual - multiline conditional syntax
 [username: "", email: "test@", age: 15] :> $input
 
 {
@@ -350,7 +353,8 @@ Validate multiple conditions and exit on first failure:
 
 Retry an operation with exponential backoff:
 
-```rill
+```text
+# Conceptual - uses computed dict keys
 # Simulate flaky operation (host would provide real implementation)
 |attempt|{
   ($attempt < 3) ? [ok: false, error: "Network error"] ! [ok: true, data: "Success"]
@@ -374,7 +378,8 @@ $final.?ok ? $final ! [ok: false, error: "Max retries exceeded"]
 
 Process steps that can fail at any point:
 
-```rill
+```text
+# Conceptual - uses computed dict keys
 |input|{
   [ok: true, value: $input -> .trim]
 } :> $step1
@@ -444,7 +449,8 @@ range(0, $matrix[0] -> .len) -> map |col|{
 
 Combine parallel lists into tuples:
 
-```rill
+```text
+# Conceptual - uses closure type annotations and dict spread
 ["a", "b", "c"] :> $keys
 [1, 2, 3] :> $values
 
@@ -468,7 +474,8 @@ range(0, $keys -> .len) -> fold([]) |i|{
 
 Simple template with variable substitution:
 
-```rill
+```text
+# Conceptual - uses triple-brace interpolation syntax
 "Hello {{name}}, your order {{orderId}} ships on {{date}}." :> $template
 
 [name: "Alice", orderId: "12345", date: "2024-03-15"] :> $vars
@@ -483,7 +490,8 @@ $vars.entries -> fold($template) {
 
 Extract structured data from formatted text:
 
-```rill
+```text
+# Conceptual - uses dict spread with computed keys
 "name=Alice;age=30;city=Seattle" :> $input
 
 $input
@@ -499,7 +507,8 @@ $input
 
 Count word occurrences:
 
-```rill
+```text
+# Conceptual - uses dynamic existence check and dict spread
 "the quick brown fox jumps over the lazy dog the fox" :> $text
 
 $text
@@ -581,7 +590,8 @@ $compose($double, $increment) :> $doubleThenIncrement
 
 Validate dict structure against rules:
 
-```rill
+```text
+# Conceptual - uses dynamic existence checks and dict spread
 [
   name: [type: "string", required: true, minLen: 1],
   age: [type: "number", required: true, min: 0, max: 150],

@@ -122,6 +122,31 @@ $nums[-1]                  # 3 (last element)
 $nums -> .len              # 3
 ```
 
+### List Spread
+
+Inline elements from another list using `...` spread syntax:
+
+```rill
+[1, 2] :> $a
+[...$a, 3]                 # [1, 2, 3]
+[...$a, ...$a]             # [1, 2, 1, 2] (concatenation)
+[...[], 1]                 # [1] (empty spread contributes nothing)
+```
+
+Spread expressions evaluate before inlining:
+
+```rill
+[1, 2, 3] :> $nums
+[...($nums -> map {$ * 2})]  # [2, 4, 6]
+```
+
+Spreading a non-list throws an error:
+
+```text
+"hello" :> $str
+[...$str]                  # Error: Spread in list literal requires list, got string
+```
+
 **Access methods:**
 - `[0]`, `[1]` — Index access (0-based)
 - `[-1]`, `[-2]` — Negative index (from end)
@@ -169,9 +194,22 @@ $person.age                # 30
 true -> $yesno             # "yes"
 
 # Multi-key syntax (same value for multiple keys)
+[["a", "b"]: 1]            # [a: 1, b: 1]
+[[1, "1"]: "x"]            # [1: "x", "1": "x"] (mixed types)
+[a: 0, ["b", "c"]: 1]      # [a: 0, b: 1, c: 1] (mixed entries)
+[a: 0, ["a", "b"]: 1]      # [a: 1, b: 1] (last-write-wins)
+
+# Multi-key dispatch
 [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] :> $methods
 "GET" -> $methods          # "safe"
 "POST" -> $methods         # "unsafe"
+```
+
+Multi-key errors:
+
+```text
+[[]: 1]                    # Error: Multi-key dict entry requires non-empty list
+[[[1, 2], "a"]: 1]         # Error: Dict key must be string, number, or boolean, got list
 ```
 
 **Access patterns:**

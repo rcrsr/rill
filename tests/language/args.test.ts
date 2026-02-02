@@ -29,6 +29,15 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
         const result = await run('[a: 1] :> $d\ntype(*$d)');
         expect(result).toBe('tuple');
       });
+
+      it('creates tuple with spread elements (AC-10)', async () => {
+        const result = await run(`
+          [1, 2] :> $list
+          |a, b, c| { ($a + $b + $c) } :> $fn
+          *[...$list, 3] -> $fn()
+        `);
+        expect(result).toBe(6); // 1 + 2 + 3
+      });
     });
 
     describe('Pipe target form: -> *', () => {

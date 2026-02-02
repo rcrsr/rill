@@ -40,6 +40,7 @@ import type {
   StatementNode,
   StringLiteralNode,
   TupleNode,
+  ListSpreadNode,
   UnaryExprNode,
   ClosureCallNode,
   VariableNode,
@@ -118,6 +119,9 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'Tuple':
       return tupleEquals(a, b as TupleNode);
+
+    case 'ListSpread':
+      return listSpreadEquals(a, b as ListSpreadNode);
 
     case 'Dict':
       return dictEquals(a, b as DictNode);
@@ -396,7 +400,17 @@ function groupedExprEquals(a: GroupedExprNode, b: GroupedExprNode): boolean {
 }
 
 function tupleEquals(a: TupleNode, b: TupleNode): boolean {
-  return argsListEquals(a.elements, b.elements);
+  if (a.elements.length !== b.elements.length) return false;
+  for (let i = 0; i < a.elements.length; i++) {
+    const elemA = a.elements[i]!;
+    const elemB = b.elements[i]!;
+    if (!astEquals(elemA, elemB)) return false;
+  }
+  return true;
+}
+
+function listSpreadEquals(a: ListSpreadNode, b: ListSpreadNode): boolean {
+  return expressionEquals(a.expression, b.expression);
 }
 
 function dictEquals(a: DictNode, b: DictNode): boolean {

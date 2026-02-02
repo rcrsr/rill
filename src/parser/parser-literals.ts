@@ -13,6 +13,7 @@ import type {
   ExpressionNode,
   InterpolationNode,
   LiteralNode,
+  ListSpreadNode,
   BodyNode,
   SourceLocation,
   StringLiteralNode,
@@ -52,6 +53,7 @@ declare module './parser.js' {
     unescapeBraces(s: string): string;
     parseTupleOrDict(): TupleNode | DictNode;
     parseTuple(start: SourceLocation): TupleNode;
+    parseTupleElement(): ExpressionNode | ListSpreadNode;
     parseDict(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
     parseClosure(): ClosureNode;
@@ -319,15 +321,15 @@ Parser.prototype.parseTuple = function (
   this: Parser,
   start: SourceLocation
 ): TupleNode {
-  const elements: ExpressionNode[] = [];
-  elements.push(this.parseExpression());
+  const elements: (ExpressionNode | ListSpreadNode)[] = [];
+  elements.push(this.parseTupleElement());
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
     advance(this.state);
     skipNewlines(this.state);
     if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
-    elements.push(this.parseExpression());
+    elements.push(this.parseTupleElement());
     skipNewlines(this.state);
   }
 
@@ -338,6 +340,39 @@ Parser.prototype.parseTuple = function (
     defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
+};
+
+Parser.prototype.parseTupleElement = function (
+  this: Parser
+): ExpressionNode | ListSpreadNode {
+  // Check for spread operator (ELLIPSIS token: ...)
+  if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume ELLIPSIS
+
+    // ELLIPSIS must be followed by an expression
+    if (
+      check(this.state, TOKEN_TYPES.COMMA) ||
+      check(this.state, TOKEN_TYPES.RBRACKET) ||
+      check(this.state, TOKEN_TYPES.EOF)
+    ) {
+      throw new ParseError(
+        "Expected expression after '...'",
+        current(this.state).span.start
+      );
+    }
+
+    const expression = this.parseExpression();
+
+    return {
+      type: 'ListSpread',
+      expression,
+      span: makeSpan(start, expression.span.end),
+    };
+  }
+
+  // Normal expression element
+  return this.parseExpression();
 };
 
 Parser.prototype.parseDict = function (

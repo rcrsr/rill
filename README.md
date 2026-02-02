@@ -9,13 +9,13 @@
 
 ## The Problem
 
-Give an LLM a general-purpose language and you get unpredictable execution — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways generated code can go wrong.
+Give an LLM a general-purpose language and you get unpredictable edge cases — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways generated code can go wrong. LLMs don't benefit from expressiveness the way humans do. A human might prefer Python's flexibility. An LLM just needs unambiguous rules and guardrails that make wrong code unrepresentable.
 
-rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary developer is meant to be an agent.
+Rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary developer is meant to be an agent.
 
-rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic — except the "user" is increasingly an LLM.
+Rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic — except the "user" is increasingly an LLM.
 
-## Why rill?
+## Why Rill?
 
 - **Embeddable.** Zero dependencies. [Integration](docs/14_host-integration.md) takes a few lines of code, browser or backend.
 - **Sandboxed.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
@@ -26,13 +26,11 @@ rill solves for AI platforms what Lua solves for game engines and Liquid solves 
 
 ## Who Is This For?
 
-**Platform builders** who want safe, LLM-authored workflows inside their apps.
+**Agentic or Workflow Platform builders** who want safe, LLM-authored workflows inside their apps.
 
-Your users script workflows. Your platform controls what's possible. You review what the LLM wrote. Humans aren't the primary authors — they're the auditors.
+Rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
 
-rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
-
-rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
+Rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
 
 ## Quick Start
 
@@ -173,19 +171,13 @@ These aren't arbitrary constraints — they're guardrails for reliable codegen.
 
 ## What Our Target Users Say
 
-We asked LLMs to review rill. They had opinions.
+We asked LLMs to review Rill. They had opinions.
 
 > "Disciplined to the point of stubbornness, but in a good way. It trades familiarity for predictability."
 > — ChatGPT
 
-> "This isn't a language *for humans that LLMs can also use* — it's a language **for LLMs that humans can learn**."
-> — ChatGPT
-
 > "You've basically banned the most common footguns in scripting languages."
 > — Gemini
-
-> "Parsing helpers are a giveaway — those aren't 'language basics,' they're guardrails for consuming model output."
-> — Claude
 
 > "It's possibly the first language I've seen where humans are the secondary audience."
 > — Claude
@@ -224,7 +216,7 @@ See [docs/00_INDEX.md](docs/00_INDEX.md) for full navigation.
 | [Reference](docs/11_reference.md) | Language specification |
 | [Examples](docs/12_examples.md) | Workflow patterns |
 | [Host Integration](docs/14_host-integration.md) | Embedding API |
-| [Design Principles](docs/18_design-principles.md) | Why rill works the way it does |
+| [Design Principles](docs/18_design-principles.md) | Why Rill works the way it does |
 
 ## License
 

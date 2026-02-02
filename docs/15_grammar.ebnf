@@ -210,7 +210,13 @@ number        = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
 bool          = "true" | "false" ;
 
 list          = "[" , "]"
-              | "[" , expression , { "," , expression } , "]" ;
+              | "[" , list-element , { "," , list-element } , "]" ;
+list-element  = "..." , expression           (* spread: inline list elements *)
+              | expression ;                 (* regular element *)
+              (* List spread syntax: [1, ...$list, 2] inlines $list elements.
+                 The spread expression must evaluate to a list at runtime.
+                 Example: [1, 2] :> $a; [...$a, 3] yields [1, 2, 3]
+                 Error: spreading non-list throws RUNTIME_TYPE_ERROR *)
 
 dict          = "[" , ":" , "]"
               | "[" , dict-entry , { "," , dict-entry } , "]" ;

@@ -163,6 +163,89 @@ describe('Rill Runtime: Literals', () => {
   // Note: Runtime evaluation tests for literal keys will be added in Phase 2
   // Parser verification is in tests/language/parser-syntax-errors.test.ts
 
+  describe('List Spread', () => {
+    it('spreads variable into list literal with additional element (AC-1)', async () => {
+      const script = '[1, 2] :> $a\n[...$a, 3]';
+      expect(await run(script)).toEqual([1, 2, 3]);
+    });
+
+    it('concatenates lists with multiple spreads (AC-2)', async () => {
+      const script = '[1, 2] :> $a\n[3, 4] :> $b\n[...$a, ...$b]';
+      expect(await run(script)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('spreads empty list resulting in empty contribution (AC-3)', async () => {
+      const script = '[...[], 1]';
+      expect(await run(script)).toEqual([1]);
+    });
+
+    it('spreads result of piped expression (AC-4)', async () => {
+      const script = '[1, 2, 3] :> $nums\n[...($nums -> map {$ * 2})]';
+      expect(await run(script)).toEqual([2, 4, 6]);
+    });
+
+    it('spreads list accessed via property/index (AC-5)', async () => {
+      const script = '[[1, 2], [3, 4]] :> $nested\n[...$nested[0]]';
+      expect(await run(script)).toEqual([1, 2]);
+    });
+
+    describe('Boundary Conditions', () => {
+      it('spreads empty list yielding empty list (AC-15)', async () => {
+        expect(await run('[...[]]')).toEqual([]);
+      });
+
+      it('spreads single element list (AC-16)', async () => {
+        expect(await run('[...[5]]')).toEqual([5]);
+      });
+
+      it('spreads 10,000 elements under 100ms (AC-18)', async () => {
+        // Build list programmatically to avoid iteration limit
+        const largeList = Array.from({ length: 10000 }, (_, i) => i);
+        const script = '[...$large]';
+        const start = Date.now();
+        const result = await run(script, {
+          variables: { large: largeList },
+        });
+        const duration = Date.now() - start;
+
+        expect(result).toHaveLength(10000);
+        expect(result[0]).toBe(0);
+        expect(result[9999]).toBe(9999);
+        expect(duration).toBeLessThan(100);
+      });
+    });
+
+    describe('Error Cases', () => {
+      it('throws runtime error when spreading string value (AC-11)', async () => {
+        const script = '"hello" :> $str\n[...$str]';
+        await expect(run(script)).rejects.toThrow(
+          'Spread in list literal requires list, got string'
+        );
+      });
+
+      it('throws runtime error when spreading number value (AC-12)', async () => {
+        const script = '42 :> $num\n[...$num]';
+        await expect(run(script)).rejects.toThrow(
+          'Spread in list literal requires list, got number'
+        );
+      });
+
+      it('throws parse error when ... not followed by expression (EC-1)', async () => {
+        const script = '[...]';
+        await expect(run(script)).rejects.toThrow(
+          "Expected expression after '...'"
+        );
+      });
+
+      it('throws runtime type error for non-list spread (EC-3)', async () => {
+        const script = 'true :> $bool\n[...$bool]';
+        await expect(run(script)).rejects.toThrow(
+          'Spread in list literal requires list, got boolean'
+        );
+      });
+    });
+  });
+
   describe('Lexer Errors', () => {
     it('throws LexerError for unexpected character (EC-3)', async () => {
       await expect(run('`')).rejects.toThrow('Unexpected character: `');

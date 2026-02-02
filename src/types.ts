@@ -246,6 +246,9 @@ export const TOKEN_TYPES = {
   SLASH_LT: 'SLASH_LT', // /< (slice)
   UNDERSCORE: 'UNDERSCORE', // _ (skip in destructure)
 
+  // Spread operator
+  ELLIPSIS: 'ELLIPSIS', // ... (list spread)
+
   // Arithmetic operators
   PIPE_BAR: 'PIPE_BAR', // |
   PLUS: 'PLUS', // +
@@ -317,6 +320,7 @@ export type NodeType =
   | 'NumberLiteral'
   | 'BoolLiteral'
   | 'Tuple'
+  | 'ListSpread'
   | 'Dict'
   | 'DictEntry'
   | 'Break'
@@ -647,8 +651,13 @@ export interface BoolLiteralNode extends BaseNode {
 
 export interface TupleNode extends BaseNode {
   readonly type: 'Tuple';
-  readonly elements: ExpressionNode[];
+  readonly elements: (ExpressionNode | ListSpreadNode)[];
   readonly defaultValue: BodyNode | null;
+}
+
+export interface ListSpreadNode extends BaseNode {
+  readonly type: 'ListSpread';
+  readonly expression: ExpressionNode;
 }
 
 export interface DictNode extends BaseNode {
@@ -1208,6 +1217,7 @@ export type ASTNode =
   | NumberLiteralNode
   | BoolLiteralNode
   | TupleNode
+  | ListSpreadNode
   | DictNode
   | DictEntryNode
   | BinaryExprNode

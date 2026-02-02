@@ -379,15 +379,6 @@ describe('Rill Runtime: Dict Dispatch', () => {
       );
     });
 
-    it('throws RUNTIME_TYPE_ERROR for tuple key in dict literal (EC-5)', async () => {
-      // EC-5: Tuple key in dict literal → RuntimeError
-      // AC-7: [[1,2]: "list key"] throws RUNTIME_TYPE_ERROR
-      // Note: Multi-key syntax uses list literal [1, 2] in dict, which becomes a tuple
-      await expect(run('[[1, 2]: "tuple"]')).rejects.toThrow(
-        /Dict literal keys must be identifiers, not lists/i
-      );
-    });
-
     it('throws RUNTIME_TYPE_ERROR for reserved method name "keys" as dict key (EC-6)', async () => {
       // EC-6: Reserved method name as key → RuntimeError
       await expect(run('[keys: 1]')).rejects.toThrow(
@@ -405,6 +396,139 @@ describe('Rill Runtime: Dict Dispatch', () => {
       await expect(run('[entries: 1]')).rejects.toThrow(
         /Cannot use reserved method name 'entries' as dict key/i
       );
+    });
+  });
+
+  describe('Multi-Key Dict Error Cases', () => {
+    it('throws RUNTIME_TYPE_ERROR for empty multi-key list (AC-13, EC-4)', async () => {
+      // AC-13: Empty multi-key -> error message contains "Multi-key dict entry requires non-empty list"
+      // EC-4: Runtime error for empty key tuple
+      // Empty list [] as dict key is treated as multi-key, evaluates at runtime
+      await expect(run('[[]: 1]')).rejects.toThrow(
+        /Multi-key dict entry requires non-empty list/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR when multi-key contains list (AC-14, EC-5)', async () => {
+      // AC-14: Dict key non-primitive -> error message contains "Dict key must be string, number, or boolean, got object"
+      // EC-5: Runtime error for non-primitive key
+      // Note: Arrays in JavaScript have typeof "object", not "list"
+      await expect(run('[[[1, 2], "valid"]: "value"]')).rejects.toThrow(
+        /Dict key must be string, number, or boolean, got object/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR when multi-key contains dict (EC-5)', async () => {
+      // EC-5: Runtime error for non-primitive key element
+      await expect(run('[[[a: 1], "valid"]: "value"]')).rejects.toThrow(
+        /Dict key must be string, number, or boolean, got object/i
+      );
+    });
+
+    it('throws RUNTIME_TYPE_ERROR when multi-key contains closure (EC-5)', async () => {
+      // EC-5: Runtime error for non-primitive key element
+      await expect(run('[[||{1}, "valid"]: "value"]')).rejects.toThrow(
+        /Dict key must be string, number, or boolean, got object/i
+      );
+    });
+
+    it('throws when all keys in multi-key are non-primitives', async () => {
+      // All elements are lists (arrays), so first one triggers the error
+      await expect(run('[[[1, 2], [3, 4]]: "value"]')).rejects.toThrow(
+        /Dict key must be string, number, or boolean, got object/i
+      );
+    });
+  });
+
+  describe('Multi-Key Dict Literals', () => {
+    it('expands multi-key to multiple entries with same value (AC-6)', async () => {
+      // AC-6: Basic multi-key - [["a", "b"]: 1] yields [a: 1, b: 1]
+      const result = await run(`
+        [["a", "b"]: 1] :> $dict
+        [$dict.a, $dict.b]
+      `);
+      expect(result).toEqual([1, 1]);
+    });
+
+    it('expands multi-key with mixed types (AC-7)', async () => {
+      // AC-7: Mixed types - [[1, "1"]: "x"] yields [1: "x", "1": "x"]
+      // Note: Number keys are stored as strings in dicts
+      const result = await run(`
+        [[1, "1"]: "x"] :> $dict
+        [$dict.("1"), $dict.("1")]
+      `);
+      expect(result).toEqual(['x', 'x']);
+    });
+
+    it('mixes multi-key entries with single-key entries (AC-8)', async () => {
+      // AC-8: Mixed entries - [a: 0, ["b", "c"]: 1] yields [a: 0, b: 1, c: 1]
+      const result = await run(`
+        [a: 0, ["b", "c"]: 1] :> $dict
+        [$dict.a, $dict.b, $dict.c]
+      `);
+      expect(result).toEqual([0, 1, 1]);
+    });
+
+    it('applies last-write-wins when multi-key overwrites existing key (AC-9)', async () => {
+      // AC-9: Last-write-wins - [a: 0, ["a", "b"]: 1] yields [a: 1, b: 1]
+      const result = await run(`
+        [a: 0, ["a", "b"]: 1] :> $dict
+        [$dict.a, $dict.b]
+      `);
+      expect(result).toEqual([1, 1]);
+    });
+
+    it('applies last-write-wins with multiple overwrites (AC-17)', async () => {
+      // AC-17: Duplicate keys follow last-write-wins per entry order
+      const result = await run(`
+        [a: 0, ["a", "b"]: 1, a: 2] :> $dict
+        [$dict.a, $dict.b]
+      `);
+      expect(result).toEqual([2, 1]);
+    });
+
+    it('expands multi-key with three elements', async () => {
+      const result = await run(`
+        [["a", "b", "c"]: 5] :> $dict
+        [$dict.a, $dict.b, $dict.c]
+      `);
+      expect(result).toEqual([5, 5, 5]);
+    });
+
+    it('handles multiple multi-key entries', async () => {
+      const result = await run(`
+        [["a", "b"]: 1, ["c", "d"]: 2] :> $dict
+        [$dict.a, $dict.b, $dict.c, $dict.d]
+      `);
+      expect(result).toEqual([1, 1, 2, 2]);
+    });
+
+    it('expands multi-key with boolean and number keys', async () => {
+      // Note: Boolean and number keys are stored as strings in dicts
+      const result = await run(`
+        [[true, false]: "bool", [1, 2]: "num"] :> $dict
+        [$dict.("true"), $dict.("false"), $dict.("1"), $dict.("2")]
+      `);
+      expect(result).toEqual(['bool', 'bool', 'num', 'num']);
+    });
+
+    it('expands multi-key with complex values', async () => {
+      const result = await run(`
+        [["x", "y"]: [1, 2, 3]] :> $dict
+        [$dict.x, $dict.y]
+      `);
+      expect(result).toEqual([
+        [1, 2, 3],
+        [1, 2, 3],
+      ]);
+    });
+
+    it('preserves value reference for multi-key entries', async () => {
+      const result = await run(`
+        [["a", "b"]: [name: "test"]] :> $dict
+        $dict.a.name == $dict.b.name
+      `);
+      expect(result).toBe(true);
     });
   });
 });

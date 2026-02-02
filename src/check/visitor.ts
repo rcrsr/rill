@@ -136,6 +136,10 @@ export function visitNode(
       }
       break;
 
+    case 'ListSpread':
+      visitNode(node.expression, context, visitor);
+      break;
+
     case 'Dict':
       for (const entry of node.entries) {
         visitNode(entry, context, visitor);

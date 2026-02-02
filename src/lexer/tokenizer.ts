@@ -118,6 +118,9 @@ export function nextToken(state: LexerState): Token {
 
   // Three-character operators
   const threeChar = peekString(state, 3);
+  if (threeChar === '...') {
+    return advanceAndMakeToken(state, 3, TOKEN_TYPES.ELLIPSIS, '...', start);
+  }
   if (threeChar === '---') {
     const token = advanceAndMakeToken(
       state,
