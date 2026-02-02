@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '../../src/index.js';
-import type { ScriptNode, DictNode } from '../../src/types.js';
+import type { ScriptNode, DictNode, StatementNode } from '../../src/types.js';
 
 describe('Parser Syntax Errors', () => {
   describe('Dict literal key validation - Success Cases', () => {
@@ -15,7 +15,7 @@ describe('Parser Syntax Errors', () => {
       expect(ast.type).toBe('Script');
 
       // Navigate to Dict node through AST structure
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -30,7 +30,7 @@ describe('Parser Syntax Errors', () => {
       const source = '[true: "yes", false: "no"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -47,7 +47,7 @@ describe('Parser Syntax Errors', () => {
       const source = '[name: "alice"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -62,7 +62,7 @@ describe('Parser Syntax Errors', () => {
       const source = '[42: "answer"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -77,7 +77,7 @@ describe('Parser Syntax Errors', () => {
       const source = '[3.14: "pi"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -92,7 +92,7 @@ describe('Parser Syntax Errors', () => {
       const source = '[name: "alice", 1: "one", true: "yes"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0];
+      const statement = ast.statements[0] as StatementNode;
       const pipeChain = statement.expression;
       const postfixExpr = pipeChain.head;
       const dictNode = postfixExpr.primary as DictNode;
@@ -200,6 +200,62 @@ describe('Parser Syntax Errors', () => {
 
         expect(parseErr.message).toContain('Expected :');
       }
+    });
+  });
+
+  describe('Negation operator without operand', () => {
+    it('rejects bare negation operator with helpful message', () => {
+      const source = '"hello" -> !';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain(
+          'Negation operator requires an operand'
+        );
+        expect(parseErr.message).toContain(
+          'Use prefix syntax: !expr or (!expr)'
+        );
+      }
+    });
+
+    it('rejects bare negation in grouping with helpful message', () => {
+      const source = '($value -> !) @ { $ }';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain(
+          'Negation operator requires an operand'
+        );
+      }
+    });
+
+    it('accepts negation with operand', () => {
+      // Valid: negation with operand
+      const source1 = '!true';
+      const ast1 = parse(source1);
+      expect(ast1.type).toBe('Script');
+
+      const source2 = '(!true)';
+      const ast2 = parse(source2);
+      expect(ast2.type).toBe('Script');
+
+      const source3 = 'true -> !false';
+      const ast3 = parse(source3);
+      expect(ast3.type).toBe('Script');
+
+      const source4 = 'true -> ! { $ }';
+      const ast4 = parse(source4);
+      expect(ast4.type).toBe('Script');
     });
   });
 });

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Inline Closures as Pipe Targets** — Pipe values directly into closure definitions
+
+### Improved
+
+- **Helpful Error for `-> !` Misuse** — Clear guidance when negation used incorrectly as pipe target
+  - Error: "Negation operator requires an operand. Use prefix syntax: !expr or (!expr)"
   - `5 -> |x| { $x + 1 }` pipes value as first argument (returns 6)
   - `7 -> || { $ * 3 }` zero-param closure uses `$` for pipe value (returns 21)
   - Chaining works: `5 -> |x| { $x * 2 } -> |y| { $y + 1 }` (returns 11)

@@ -110,6 +110,22 @@ Parser.prototype.parseCommonConstruct = function (
   if (check(this.state, TOKEN_TYPES.BANG)) {
     const start = current(this.state).span.start;
     advance(this.state); // consume !
+
+    // Check for bare negation without operand (EOF, newline, or closing paren)
+    if (
+      check(
+        this.state,
+        TOKEN_TYPES.EOF,
+        TOKEN_TYPES.NEWLINE,
+        TOKEN_TYPES.RPAREN
+      )
+    ) {
+      throw new ParseError(
+        'Negation operator requires an operand. Use prefix syntax: !expr or (!expr)',
+        start
+      );
+    }
+
     const operand = this.parsePostfixExprBase();
     const span = makeSpan(start, operand.span.end);
 
