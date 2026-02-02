@@ -118,7 +118,9 @@ Strings:       "hello {$var}"          # interpolation with {}
 Numbers:       42, 3.14, -7
 Booleans:      true, false
 Lists:         [1, 2, 3]
-Dicts:         [name: "alice", age: 30]
+Dicts:         [name: "alice", age: 30]    # identifier keys
+               [1: "one", 2: "two"]        # number keys (incl. negative: [-1: "neg"])
+               [true: "yes", false: "no"]  # boolean keys
 Tuples:        *[1, 2, 3]              # for argument unpacking
 Closures:      |x|($x + 1)             # like lambda/arrow functions
 Type annot:    "hi" :> $x:string       # lock type on capture
@@ -317,6 +319,11 @@ Pipe a value to a dict to match keys and return associated values:
   $val -> [apple: "fruit", carrot: "veg"]        # returns "fruit" if $val is "apple"
   $val -> [apple: "fruit"] ?? "not found"         # default if no match
   $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # multi-key
+
+Type-aware matching (keys matched by value AND type):
+  1 -> [1: "number", "1": "string"]              # "number" (number key matches)
+  "1" -> [1: "number", "1": "string"]            # "string" (string key matches)
+  true -> [true: "bool", "true": "str"]          # "bool" (boolean key matches)
 
 LIST DISPATCH (index):
 Pipe a number to a list to get element at index:

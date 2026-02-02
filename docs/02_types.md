@@ -159,9 +159,10 @@ $person.age                # 30
 ```
 
 ```text
-# Number keys
-[1: "one", 2: "two", 3: "three"] :> $numbers
+# Number keys (including negative)
+[1: "one", 2: "two", -1: "minus one"] :> $numbers
 1 -> $numbers              # "one"
+(-1) -> $numbers           # "minus one"
 
 # Boolean keys
 [true: "yes", false: "no"] :> $yesno
