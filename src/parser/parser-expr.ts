@@ -448,12 +448,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
 
   return {
     type: 'Invoke',
     args,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rparen.span.end),
   };
 };
 
@@ -807,11 +807,11 @@ Parser.prototype.parseGrouped = function (this: Parser): GroupedExprNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const expression = this.parsePipeChain();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
   return {
     type: 'GroupedExpr',
     expression,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rparen.span.end),
   };
 };
 

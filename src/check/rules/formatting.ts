@@ -182,16 +182,14 @@ export const SPACING_BRACES: ValidationRule = {
     const span = node.span;
     const lines = context.source.split('\n');
 
-    // For multi-line blocks, only inspect the brace lines themselves
-    // to avoid false positives from string interpolation braces like {$var}
-    const isMultiLine = span.start.line !== span.end.line;
     const openLine = lines[span.start.line - 1] ?? '';
     const closeLine = lines[span.end.line - 1] ?? '';
 
     // Check for opening brace without space after
     // Only examine the opening line (from the { onward)
+    // Use ^ anchor to only check the block's opening brace, not string interpolation
     const openFrom = openLine.substring(span.start.column - 1);
-    if (/\{[^\s]/.test(openFrom) && !openFrom.includes('{\n')) {
+    if (/^\{[^\s\n]/.test(openFrom)) {
       diagnostics.push({
         location: span.start,
         severity: 'info',
@@ -203,11 +201,14 @@ export const SPACING_BRACES: ValidationRule = {
     }
 
     // Check for closing brace without space before
-    // Only examine the closing line (up to and including the })
-    const closeUpTo = isMultiLine
-      ? closeLine.substring(0, span.end.column - 1)
-      : openFrom;
-    if (/[^\s]\}/.test(closeUpTo) && !/\n\s*\}/.test(closeUpTo)) {
+    // span.end.column is 1-indexed and points AFTER the }, so:
+    // - } is at 0-index: span.end.column - 2
+    // - Character before } is at 0-index: span.end.column - 3
+    const charBeforeClose = closeLine[span.end.column - 3];
+    const isCloseOnOwnLine = /^\s*$/.test(
+      closeLine.substring(0, span.end.column - 2)
+    );
+    if (charBeforeClose && !/\s/.test(charBeforeClose) && !isCloseOnOwnLine) {
       diagnostics.push({
         location: span.end,
         severity: 'info',

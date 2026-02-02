@@ -333,12 +333,12 @@ Parser.prototype.parseTuple = function (
     skipNewlines(this.state);
   }
 
-  expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  const rbracket = expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
   return {
     type: 'Tuple',
     elements,
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rbracket.span.end),
   };
 };
 
@@ -391,12 +391,12 @@ Parser.prototype.parseDict = function (
     skipNewlines(this.state);
   }
 
-  expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  const rbracket = expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
   return {
     type: 'Dict',
     entries,
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rbracket.span.end),
   };
 };
 

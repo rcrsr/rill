@@ -22,9 +22,11 @@ describe('.params property access', () => {
   });
 
   it('throws for non-closure target', async () => {
-    await expect(run(`
+    await expect(
+      run(`
       "hello" :> $str
       $str.params
-    `)).rejects.toThrow('Cannot access .params on string');
+    `)
+    ).rejects.toThrow('Cannot access .params on string');
   });
 });

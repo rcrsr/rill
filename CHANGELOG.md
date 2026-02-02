@@ -24,7 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **VALIDATE_EXTERNAL Rule** — Skip namespaced functions (`ns::func`) as trusted host APIs
   - Functions like `ccr::read_frontmatter` no longer trigger external input validation warnings
-  - Supports type annotations: `42 -> |x: number| { $x * 2 }`
+
+### Fixed
+
+- **SPACING_BRACES Rule** — No longer triggers false positives for string interpolation
+  - Fixed index math for closing brace check
+  - Only checks the block's opening/closing braces, not `{$var}` inside strings
 
 ## [0.4.3] - 2026-02-01
 

@@ -192,12 +192,12 @@ Parser.prototype.parseBlock = function (this: Parser): BlockNode {
     throw new ParseError('Empty blocks are not allowed', start);
   }
 
-  expect(this.state, TOKEN_TYPES.RBRACE, 'Expected }');
+  const rbrace = expect(this.state, TOKEN_TYPES.RBRACE, 'Expected }');
 
   return {
     type: 'Block',
     statements,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rbrace.span.end),
   };
 };
 

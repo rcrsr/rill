@@ -93,13 +93,13 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
 
   return {
     type: 'HostCall',
     name,
     args,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rparen.span.end),
   };
 };
 
@@ -124,14 +124,14 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
 
   return {
     type: 'ClosureCall',
     name: nameToken.value,
     accessChain,
     args,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rparen.span.end),
   };
 };
 
@@ -140,12 +140,12 @@ Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
   expect(this.state, TOKEN_TYPES.PIPE_VAR, 'Expected $');
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
 
   return {
     type: 'PipeInvoke',
     args,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, rparen.span.end),
   };
 };
 
@@ -166,10 +166,12 @@ Parser.prototype.parseMethodCall = function (
   );
 
   let args: ExpressionNode[] = [];
+  let endLoc = current(this.state).span.end;
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     advance(this.state);
     args = this.parseArgumentList();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+    const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+    endLoc = rparen.span.end;
   }
 
   return {
@@ -177,7 +179,7 @@ Parser.prototype.parseMethodCall = function (
     name: nameToken.value,
     args,
     receiverSpan: receiverSpan ?? null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, endLoc),
   };
 };
 
