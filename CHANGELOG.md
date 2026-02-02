@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-02-01
+
+### Fixed
+
+- **String Literal Dict Keys** — String literals now parse correctly as dict keys
+  - `["blocked": value, "error": value]` parses as dict with string keys
+  - Previously misinterpreted as type assertions, causing parse errors
+  - Supports all string forms: simple, escaped, multiline
+
+### Changed
+
+- **Documentation** — Updated grammar version to 0.4.2 and refined index links
+
 ## [0.4.2] - 2026-02-01
 
 ### Added
