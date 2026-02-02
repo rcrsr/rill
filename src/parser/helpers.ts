@@ -175,6 +175,14 @@ export function isDictStart(state: ParserState): boolean {
     return true;
   }
 
+  // Dict can start with string literal followed by colon: ["key": value]
+  if (
+    check(state, TOKEN_TYPES.STRING) &&
+    peek(state, 1).type === TOKEN_TYPES.COLON
+  ) {
+    return true;
+  }
+
   // Dict can start with number followed by colon: [42: value]
   if (
     check(state, TOKEN_TYPES.NUMBER) &&

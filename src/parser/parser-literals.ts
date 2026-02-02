@@ -403,7 +403,7 @@ Parser.prototype.parseDict = function (
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
 
-  // Parse key: identifier, number, boolean, or list literal (multi-key)
+  // Parse key: identifier, string, number, boolean, or list literal (multi-key)
   let key: string | number | boolean | TupleNode;
 
   if (check(this.state, TOKEN_TYPES.LBRACKET)) {
@@ -416,6 +416,10 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       );
     }
     key = literal;
+  } else if (check(this.state, TOKEN_TYPES.STRING)) {
+    // Parse string literal as key
+    const keyToken = advance(this.state);
+    key = keyToken.value;
   } else if (isNegativeNumber(this.state)) {
     // Parse negative number as key: -NUMBER
     advance(this.state); // consume MINUS
@@ -440,7 +444,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else {
     // Invalid token at key position
     throw new ParseError(
-      'Dict key must be identifier, number, or boolean',
+      'Dict key must be identifier, string, number, or boolean',
       current(this.state).span.start
     );
   }
