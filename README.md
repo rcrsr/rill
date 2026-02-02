@@ -81,16 +81,18 @@ app::prompt("analyze code")
 
 ### Bounded Loops
 
-Retry with limits. Prevents runaway execution.
+`^(limit: N)` annotations prevent runaway execution. The host stays in control.
 
 ```rill
-# While loop: condition @ body
-0 -> ($ < 3) @ { $ + 1 }  # Result: 3
+# Retry until non-empty, bail after 5 attempts
+^(limit: 5) "" -> ($ == "") @ {
+  app::prompt("Generate a summary")
+}
 ```
 
 ```rill
-# Iteration with each
-["a.txt", "b.txt"] -> each { "Processing: {$}" -> log }
+# Bounded iteration
+^(limit: 100) $items -> each { "Processing: {$}" -> log }
 ```
 
 ### Closures
