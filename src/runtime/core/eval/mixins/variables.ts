@@ -317,8 +317,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               }
             }
           } else if (isDict(value)) {
-            // Allow missing fields if there's a default value
-            const allowMissing = node.defaultValue !== null;
+            // Allow missing fields if there's a default value or existence check
+            const allowMissing =
+              node.defaultValue !== null || node.existenceCheck !== null;
             value = await this.accessDictField(
               value,
               field,
@@ -370,6 +371,33 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             this.getNodeLocation(node)
           );
         }
+      }
+
+      // Handle existence check (.?field): return boolean instead of value
+      if (node.existenceCheck) {
+        // value now contains the result of the access chain (without the final field)
+        // Check if the final field exists in value
+        const finalAccess = node.existenceCheck.finalAccess;
+
+        if (finalAccess.kind === 'literal') {
+          // Check if literal field exists in dict
+          if (isDict(value)) {
+            const fieldValue = (value as Record<string, RillValue>)[
+              finalAccess.field
+            ];
+            return fieldValue !== undefined && fieldValue !== null;
+          }
+          return false;
+        }
+
+        // For other access kinds (variable, computed, alternatives), evaluate them
+        // and check existence
+        // TODO: Implement for other access kinds if needed
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `Existence check not yet supported for ${finalAccess.kind} access`,
+          this.getNodeLocation(node)
+        );
       }
 
       // Apply default value if final result is null

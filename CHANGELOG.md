@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Existence Check in Access Chains** — `.?field` now works correctly in chained property access
+  - Before: `$data.user.?name` failed when accessing through intermediate dicts
+  - After: Access chain completes and returns boolean indicating field existence
+  - Properly handles existence check as terminal operation in access chains
+
 ## [0.4.4] - 2026-02-02
 
 ### Added
