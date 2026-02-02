@@ -204,6 +204,64 @@ $fn("x", "y")`;
     });
   });
 
+  describe('Inline Closures as Pipe Targets', () => {
+    it('pipes to inline closure with single param', async () => {
+      expect(await run('5 -> |x| { $x + 1 }')).toBe(6);
+    });
+
+    it('pipes to inline closure with block body', async () => {
+      expect(await run('"hello" -> |s| { $s -> .upper }')).toBe('HELLO');
+    });
+
+    it('pipes to inline closure with default param', async () => {
+      expect(await run('5 -> |a, b = 10| { $a + $b }')).toBe(15);
+    });
+
+    it('chains multiple inline closures', async () => {
+      expect(await run('5 -> |x| { $x * 2 } -> |y| { $y + 1 }')).toBe(11);
+    });
+
+    it('pipes to inline closure outside of dict context', async () => {
+      const script = `"test" -> |r| { $r -> .upper }`;
+      expect(await run(script)).toBe('TEST');
+    });
+
+    it('pipes to inline closure with multiple params uses defaults', async () => {
+      expect(await run('3 -> |a, b = 10| { [$a, $b] }')).toEqual([3, 10]);
+    });
+
+    it('inline closure with type annotations', async () => {
+      expect(await run('42 -> |x: number| { $x * 2 }')).toBe(84);
+    });
+
+    it('inline closure mixed with method calls', async () => {
+      expect(await run('"hello" -> |s| { $s -> .upper } -> .len')).toBe(5);
+    });
+
+    it('inline closure in each loop', async () => {
+      expect(await run('[1, 2, 3] -> each { $ -> |x| { $x * 2 } }')).toEqual([
+        2, 4, 6,
+      ]);
+    });
+
+    it('inline closure with complex expression body', async () => {
+      const script = `10 -> |n| {
+  ($n > 5) ? "large" ! "small"
+}`;
+      expect(await run(script)).toBe('large');
+    });
+
+    it('inline closure preserves pipe value semantics', async () => {
+      const script = `"test" :> $val
+$val -> |x| { $x -> .len }`;
+      expect(await run(script)).toBe(4);
+    });
+
+    it('inline closure with zero params uses pipe value via $', async () => {
+      expect(await run('7 -> || { $ * 3 }')).toBe(21);
+    });
+  });
+
   describe('Complex Pipe Chains', () => {
     it('chains methods, functions, and blocks', async () => {
       const script = `"hello world" -> .split(" ") -> .head -> .len`;

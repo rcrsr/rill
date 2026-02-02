@@ -564,6 +564,11 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseFilterExpr();
   }
 
+  // Inline closure: -> |x| { body }
+  if (isClosureStart(this.state)) {
+    return this.parseClosure();
+  }
+
   // Method call (possibly chained: .a.b.c)
   if (check(this.state, TOKEN_TYPES.DOT)) {
     const methods: MethodCallNode[] = [];

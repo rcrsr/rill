@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Inline Closures as Pipe Targets** — Pipe values directly into closure definitions
+  - `5 -> |x| { $x + 1 }` pipes value as first argument (returns 6)
+  - `7 -> || { $ * 3 }` zero-param closure uses `$` for pipe value (returns 21)
+  - Chaining works: `5 -> |x| { $x * 2 } -> |y| { $y + 1 }` (returns 11)
+  - Supports type annotations: `42 -> |x: number| { $x * 2 }`
+
 ## [0.4.3] - 2026-02-01
 
 ### Fixed

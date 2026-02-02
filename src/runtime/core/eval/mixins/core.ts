@@ -340,6 +340,37 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
+        case 'Closure': {
+          // Inline closure: create and invoke
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const closure = await (this as any).createClosure(target);
+
+          // Per closure-semantics spec: check params.length to determine invocation style
+          if (closure.params.length > 0) {
+            // Has params: invoke with input as first argument
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (this as any).invokeCallable(
+              closure,
+              [input],
+              this.getNodeLocation(target)
+            );
+          } else {
+            // Zero-param closure: invoke with args = [] and pipeValue = input
+            const savedPipeValue = this.ctx.pipeValue;
+            this.ctx.pipeValue = input;
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return await (this as any).invokeCallable(
+                closure,
+                [],
+                this.getNodeLocation(target)
+              );
+            } finally {
+              this.ctx.pipeValue = savedPipeValue;
+            }
+          }
+        }
+
         case 'StringLiteral':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateString(target);

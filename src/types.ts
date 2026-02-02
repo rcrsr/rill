@@ -591,6 +591,7 @@ export type PipeTargetNode =
   | WhileLoopNode
   | DoWhileLoopNode
   | BlockNode
+  | ClosureNode
   | StringLiteralNode
   | DictNode
   | TupleNode
