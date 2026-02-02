@@ -667,9 +667,25 @@ export interface DictNode extends BaseNode {
   readonly defaultValue: BodyNode | null;
 }
 
+export interface DictKeyVariable {
+  readonly kind: 'variable';
+  readonly variableName: string;
+}
+
+export interface DictKeyComputed {
+  readonly kind: 'computed';
+  readonly expression: ExpressionNode;
+}
+
 export interface DictEntryNode extends BaseNode {
   readonly type: 'DictEntry';
-  readonly key: string | number | boolean | TupleNode;
+  readonly key:
+    | string
+    | number
+    | boolean
+    | TupleNode
+    | DictKeyVariable
+    | DictKeyComputed;
   readonly value: ExpressionNode;
 }
 
@@ -809,10 +825,10 @@ export interface FieldAccessLiteral {
   readonly field: string;
 }
 
-/** Variable as key: .$var */
+/** Variable as key: .$var or .$ (pipe variable) */
 export interface FieldAccessVariable {
   readonly kind: 'variable';
-  readonly variableName: string;
+  readonly variableName: string | null; // null for pipe variable ($)
 }
 
 /** Computed expression: .(expr) */

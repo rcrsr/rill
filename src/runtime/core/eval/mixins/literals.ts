@@ -36,6 +36,8 @@ import type {
   NamedArgNode,
   SpreadArgNode,
   ListSpreadNode,
+  DictKeyVariable,
+  DictKeyComputed,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -48,6 +50,7 @@ import {
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { RuntimeContext } from '../../types.js';
+import { getVariable } from '../../context.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -349,7 +352,125 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const entry of node.entries) {
         // Multi-key entries: expand to multiple key-value pairs
         if (typeof entry.key === 'object') {
-          const pairs = await this.evaluateDictMultiKey(entry.key, entry.value);
+          // Check for new key types (variable/computed keys)
+          if ('kind' in entry.key) {
+            const keyObj = entry.key as DictKeyVariable | DictKeyComputed;
+
+            // Handle DictKeyVariable: resolve variable and validate string type
+            if (keyObj.kind === 'variable') {
+              const varValue = getVariable(this.ctx, keyObj.variableName);
+
+              // EC-6: Variable undefined
+              if (varValue === undefined) {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+                  `Variable '${keyObj.variableName}' is undefined`,
+                  entry.span.start
+                );
+              }
+
+              // EC-7: Variable non-string
+              if (typeof varValue !== 'string') {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  `Dict key must be string, got ${typeof varValue}`,
+                  entry.span.start
+                );
+              }
+
+              // Use resolved string as dict key
+              const stringKey = varValue;
+
+              if (isReservedMethod(stringKey)) {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  `Cannot use reserved method name '${stringKey}' as dict key`,
+                  entry.span.start,
+                  {
+                    key: stringKey,
+                    reservedMethods: ['keys', 'values', 'entries'],
+                  }
+                );
+              }
+
+              // Evaluate value and store with resolved key
+              if (this.isBlockExpr(entry.value)) {
+                const head = entry.value.head as PostfixExprNode;
+                const blockNode = head.primary as BlockNode;
+                const closure = this.createBlockClosure(blockNode);
+                result[stringKey] = closure;
+              } else if (this.isClosureExpr(entry.value)) {
+                const head = entry.value.head as PostfixExprNode;
+                const fnLit = head.primary as ClosureNode;
+                const closure = await this.createClosure(fnLit);
+                result[stringKey] = closure;
+              } else {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                result[stringKey] = await (this as any).evaluateExpression(
+                  entry.value
+                );
+              }
+
+              continue;
+            }
+
+            // Handle DictKeyComputed: evaluate expression and validate string type
+            if (keyObj.kind === 'computed') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const computedValue = await (this as any).evaluatePipeChain(
+                keyObj.expression
+              );
+
+              // EC-8: Computed key must evaluate to string
+              if (typeof computedValue !== 'string') {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  `Dict key evaluated to ${typeof computedValue}, expected string`,
+                  entry.span.start
+                );
+              }
+
+              // Use resolved string as dict key
+              const stringKey = computedValue;
+
+              if (isReservedMethod(stringKey)) {
+                throw new RuntimeError(
+                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  `Cannot use reserved method name '${stringKey}' as dict key`,
+                  entry.span.start,
+                  {
+                    key: stringKey,
+                    reservedMethods: ['keys', 'values', 'entries'],
+                  }
+                );
+              }
+
+              // Evaluate value and store with resolved key
+              if (this.isBlockExpr(entry.value)) {
+                const head = entry.value.head as PostfixExprNode;
+                const blockNode = head.primary as BlockNode;
+                const closure = this.createBlockClosure(blockNode);
+                result[stringKey] = closure;
+              } else if (this.isClosureExpr(entry.value)) {
+                const head = entry.value.head as PostfixExprNode;
+                const fnLit = head.primary as ClosureNode;
+                const closure = await this.createClosure(fnLit);
+                result[stringKey] = closure;
+              } else {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                result[stringKey] = await (this as any).evaluateExpression(
+                  entry.value
+                );
+              }
+
+              continue;
+            }
+          }
+          // At this point, entry.key must be TupleNode (multi-key entry)
+          const pairs = await this.evaluateDictMultiKey(
+            entry.key as TupleNode,
+            entry.value
+          );
           for (const [stringKey, value] of pairs) {
             if (isReservedMethod(stringKey)) {
               throw new RuntimeError(
@@ -447,6 +568,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let matchFound = false;
 
         if (typeof entry.key === 'object') {
+          // Check for new key types (variable/computed keys)
+          if ('kind' in entry.key) {
+            throw new RuntimeError(
+              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              `Variable and computed dict keys not yet supported`,
+              entry.span.start
+            );
+          }
           // Tuple key - evaluate to get list of candidates
           // Parser ensures entry.key is TupleNode, evaluateTuple always returns array
           const keyValue = await this.evaluateTuple(entry.key);

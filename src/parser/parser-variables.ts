@@ -33,8 +33,8 @@ declare module './parser.js' {
       accessChain: PropertyAccess[];
       existenceCheck: ExistenceCheck | null;
     };
-    parseFieldAccessElement(): FieldAccess | null;
-    parseComputedOrAlternatives(): FieldAccess;
+    parseFieldAccessElement(isExistenceCheck?: boolean): FieldAccess | null;
+    parseComputedOrAlternatives(isExistenceCheck?: boolean): FieldAccess;
     tryParseAlternatives(): string[] | null;
     parseDefaultValue(): BodyNode;
   }
@@ -138,7 +138,7 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 
     if (check(this.state, TOKEN_TYPES.DOT_QUESTION)) {
       advance(this.state);
-      const finalAccess = this.parseFieldAccessElement();
+      const finalAccess = this.parseFieldAccessElement(true);
       if (!finalAccess) {
         break;
       }
@@ -166,16 +166,23 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 };
 
 Parser.prototype.parseFieldAccessElement = function (
-  this: Parser
+  this: Parser,
+  isExistenceCheck = false
 ): FieldAccess | null {
+  // Handle .$variable (variable key access)
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state);
-    const nameToken = expect(
-      this.state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected variable name after .$'
-    );
+    const errorMsg = isExistenceCheck
+      ? 'Expected variable name after .?$'
+      : 'Expected variable name after .$';
+    const nameToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, errorMsg);
     return { kind: 'variable', variableName: nameToken.value };
+  }
+
+  // Handle .$ (pipe variable as key)
+  if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
+    advance(this.state);
+    return { kind: 'variable', variableName: null };
   }
 
   if (check(this.state, TOKEN_TYPES.CARET)) {
@@ -189,7 +196,7 @@ Parser.prototype.parseFieldAccessElement = function (
   }
 
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    return this.parseComputedOrAlternatives();
+    return this.parseComputedOrAlternatives(isExistenceCheck);
   }
 
   if (check(this.state, TOKEN_TYPES.LBRACE)) {
@@ -205,14 +212,18 @@ Parser.prototype.parseFieldAccessElement = function (
 };
 
 Parser.prototype.parseComputedOrAlternatives = function (
-  this: Parser
+  this: Parser,
+  isExistenceCheck = false
 ): FieldAccess {
   advance(this.state);
 
-  const alternatives = this.tryParseAlternatives();
-  if (alternatives) {
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected ) after alternatives');
-    return { kind: 'alternatives', alternatives };
+  // For existence checks, only parse computed expressions, not alternatives
+  if (!isExistenceCheck) {
+    const alternatives = this.tryParseAlternatives();
+    if (alternatives) {
+      expect(this.state, TOKEN_TYPES.RPAREN, 'Expected ) after alternatives');
+      return { kind: 'alternatives', alternatives };
+    }
   }
 
   const expression = this.parsePipeChain();

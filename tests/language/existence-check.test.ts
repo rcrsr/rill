@@ -82,4 +82,44 @@ describe('Existence Check', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('Existence Check with Variable Key', () => {
+    it('checks existence using named variable as key', async () => {
+      const result = await run(`
+        [name: "test", age: 30] :> $data
+        "name" :> $key
+        $data.?$key
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when named variable key does not exist', async () => {
+      const result = await run(`
+        [name: "test"] :> $data
+        "age" :> $key
+        $data.?$key
+      `);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Error Contracts', () => {
+    it('EC-4: throws error when $ is not followed by variable name', async () => {
+      await expect(
+        run(`
+          [x: 1] :> $data
+          $data.?$true
+        `)
+      ).rejects.toThrow('Expected variable name after .?$');
+    });
+
+    it('EC-5, AC-11: throws error for invalid type in .?field&type', async () => {
+      await expect(
+        run(`
+          [name: "test"] :> $data
+          $data.?name&invalid
+        `)
+      ).rejects.toThrow('Invalid type: invalid');
+    });
+  });
 });

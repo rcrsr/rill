@@ -9,6 +9,8 @@ import type {
   ClosureNode,
   ClosureParamNode,
   DictEntryNode,
+  DictKeyComputed,
+  DictKeyVariable,
   DictNode,
   ExpressionNode,
   InterpolationNode,
@@ -403,10 +405,51 @@ Parser.prototype.parseDict = function (
 Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   const start = current(this.state).span.start;
 
-  // Parse key: identifier, string, number, boolean, or list literal (multi-key)
-  let key: string | number | boolean | TupleNode;
+  // Parse key: identifier, string, number, boolean, variable, computed, or list literal (multi-key)
+  let key:
+    | string
+    | number
+    | boolean
+    | TupleNode
+    | DictKeyVariable
+    | DictKeyComputed;
 
-  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+  if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+    // Parse variable key: $variableName
+    advance(this.state); // consume $
+    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+      throw new ParseError(
+        'Expected variable name after $',
+        current(this.state).span.start
+      );
+    }
+    const varToken = advance(this.state);
+    key = {
+      kind: 'variable',
+      variableName: varToken.value,
+    };
+  } else if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
+    // Standalone $ without identifier - error
+    throw new ParseError(
+      'Expected variable name after $',
+      current(this.state).span.start
+    );
+  } else if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    // Parse computed key: (expression)
+    advance(this.state); // consume (
+    const expression = this.parsePipeChain();
+    if (!check(this.state, TOKEN_TYPES.RPAREN)) {
+      throw new ParseError(
+        'Expected ) after computed key expression',
+        current(this.state).span.start
+      );
+    }
+    advance(this.state); // consume )
+    key = {
+      kind: 'computed',
+      expression,
+    };
+  } else if (check(this.state, TOKEN_TYPES.LBRACKET)) {
     // Parse list literal as key (tuple for multi-key)
     const literal = this.parseTupleOrDict();
     if (literal.type !== 'Tuple') {
@@ -444,7 +487,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else {
     // Invalid token at key position
     throw new ParseError(
-      'Dict key must be identifier, string, number, or boolean',
+      'Dict key must be identifier, string, number, boolean, variable, or expression',
       current(this.state).span.start
     );
   }

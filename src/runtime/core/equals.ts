@@ -434,6 +434,11 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
     // Boolean keys: compare with ===
     if (a.key !== b.key) return false;
   } else if (typeof a.key === 'object' && typeof b.key === 'object') {
+    // Check for DictKeyVariable or DictKeyComputed
+    if ('kind' in a.key || 'kind' in b.key) {
+      // Variable/computed keys not supported in equals yet
+      return false;
+    }
     // TupleNode keys: compare with tupleEquals()
     if (!tupleEquals(a.key, b.key)) return false;
   } else {

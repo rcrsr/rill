@@ -181,7 +181,7 @@ describe('Parser Syntax Errors', () => {
         const parseErr = err as ParseError;
 
         expect(parseErr.message).toContain(
-          'Dict key must be identifier, string, number, or boolean'
+          'Dict key must be identifier, string, number, boolean, variable, or expression'
         );
       }
     });

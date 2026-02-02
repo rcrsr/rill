@@ -378,6 +378,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // value now contains the result of the access chain (without the final field)
         // Check if the final field exists in value
         const finalAccess = node.existenceCheck.finalAccess;
+        const typeName = node.existenceCheck.typeName;
 
         if (finalAccess.kind === 'literal') {
           // Check if literal field exists in dict
@@ -385,14 +386,103 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const fieldValue = (value as Record<string, RillValue>)[
               finalAccess.field
             ];
-            return fieldValue !== undefined && fieldValue !== null;
+            const exists = fieldValue !== undefined && fieldValue !== null;
+
+            // If type-qualified check, verify type matches
+            if (exists && typeName !== null) {
+              return inferType(fieldValue) === typeName;
+            }
+
+            return exists;
           }
           return false;
         }
 
-        // For other access kinds (variable, computed, alternatives), evaluate them
-        // and check existence
-        // TODO: Implement for other access kinds if needed
+        if (finalAccess.kind === 'variable') {
+          // Resolve variable to get key (EC-9)
+          let keyValue: RillValue | undefined;
+          if (finalAccess.variableName === null) {
+            keyValue = this.ctx.pipeValue ?? undefined;
+          } else {
+            keyValue = getVariable(this.ctx, finalAccess.variableName);
+          }
+
+          // EC-9: Variable undefined
+          if (keyValue === undefined) {
+            const varName = finalAccess.variableName ?? '$';
+            throw new RuntimeError(
+              RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+              `Variable '${varName}' is undefined`,
+              this.getNodeLocation(node)
+            );
+          }
+
+          // Check if key exists in dict or list
+          if (isDict(value)) {
+            // EC-10: Key variable non-string
+            if (typeof keyValue !== 'string') {
+              throw new RuntimeError(
+                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                `Existence check key must be string, got ${inferType(keyValue)}`,
+                this.getNodeLocation(node)
+              );
+            }
+
+            const fieldValue = (value as Record<string, RillValue>)[keyValue];
+            const exists = fieldValue !== undefined && fieldValue !== null;
+
+            // If type-qualified check, verify type matches
+            if (exists && typeName !== null) {
+              return inferType(fieldValue) === typeName;
+            }
+
+            return exists;
+          }
+
+          if (Array.isArray(value)) {
+            if (typeof keyValue === 'number') {
+              const index = keyValue < 0 ? value.length + keyValue : keyValue;
+              return index >= 0 && index < value.length;
+            }
+            return false;
+          }
+
+          return false;
+        }
+
+        if (finalAccess.kind === 'computed') {
+          // Evaluate the computed expression (EC-11)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const keyValue = await (this as any).evaluatePipeChain(
+            finalAccess.expression
+          );
+
+          // EC-11: Computed key non-string
+          if (typeof keyValue !== 'string') {
+            throw new RuntimeError(
+              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              `Existence check key evaluated to ${inferType(keyValue)}, expected string`,
+              this.getNodeLocation(node)
+            );
+          }
+
+          // Check if computed key exists in dict
+          if (isDict(value)) {
+            const fieldValue = (value as Record<string, RillValue>)[keyValue];
+            const exists = fieldValue !== undefined && fieldValue !== null;
+
+            // If type-qualified check, verify type matches
+            if (exists && typeName !== null) {
+              return inferType(fieldValue) === typeName;
+            }
+
+            return exists;
+          }
+
+          return false;
+        }
+
+        // For other access kinds (block, alternatives, annotation), not supported
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
           `Existence check not yet supported for ${finalAccess.kind} access`,
@@ -420,18 +510,35 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @throws RuntimeError if variable undefined or wrong type (EC-1, EC-2, EC-3)
      */
     protected async evaluateFieldAccessVariable(
-      access: { readonly kind: 'variable'; readonly variableName: string },
+      access: {
+        readonly kind: 'variable';
+        readonly variableName: string | null;
+      },
       value: RillValue,
       node: VariableNode
     ): Promise<RillValue> {
       // Resolve the variable (EC-1)
-      const keyValue = getVariable(this.ctx, access.variableName);
-      if (keyValue === undefined) {
-        throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-          `Variable '${access.variableName}' is undefined`,
-          this.getNodeLocation(node)
-        );
+      let keyValue: RillValue | undefined;
+      if (access.variableName === null) {
+        // .$ (pipe variable as key)
+        keyValue = this.ctx.pipeValue ?? undefined;
+        if (keyValue === undefined) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            `Pipe variable '$' is undefined`,
+            this.getNodeLocation(node)
+          );
+        }
+      } else {
+        // .$variable (named variable as key)
+        keyValue = getVariable(this.ctx, access.variableName);
+        if (keyValue === undefined) {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            `Variable '${access.variableName}' is undefined`,
+            this.getNodeLocation(node)
+          );
+        }
       }
 
       // Validate key type (EC-2, EC-3)
