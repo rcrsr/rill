@@ -171,6 +171,25 @@ These aren't arbitrary constraints — they're guardrails for reliable codegen.
 | **Linear error handling** | No try/catch, no unwinding. `assert` and `error` are terminal — easy for models to place correctly |
 | **Loops as expressions** | `fold`, `each`, `(cond) @ {}` return state instead of mutating it. Aligns with step-by-step LLM reasoning |
 
+## What Our Target Users Say
+
+We asked LLMs to review rill. They had opinions.
+
+> "Disciplined to the point of stubbornness, but in a good way. It trades familiarity for predictability."
+> — ChatGPT
+
+> "This isn't a language *for humans that LLMs can also use* — it's a language **for LLMs that humans can learn**. That's actually the most interesting thing about it."
+> — ChatGPT
+
+> "You've basically banned two of the most common footguns in scripting languages."
+> — Gemini
+
+> "Parsing helpers are a giveaway — those aren't 'language basics,' they're guardrails for consuming model output."
+> — Claude
+
+> "It's possibly the first language I've seen where humans are the secondary audience."
+> — Claude
+
 ## Core Syntax
 
 | Syntax | Description |
