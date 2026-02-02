@@ -101,3 +101,11 @@ export { createRuntimeContext } from './core/context.js';
 // ============================================================
 
 export { createStepper, execute } from './core/execute.js';
+
+// ============================================================
+// INTROSPECTION API
+// ============================================================
+
+export type { FunctionMetadata, ParamMetadata } from './core/introspection.js';
+
+export { getFunctions, getLanguageReference } from './core/introspection.js';

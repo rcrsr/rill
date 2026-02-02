@@ -32,7 +32,8 @@
     "access": "public"
   },
   "scripts": {
-    "prebuild": "rm -f tsconfig.tsbuildinfo",
+    "generate-docs": "npx tsx scripts/generate-docs-bundle.ts",
+    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-docs",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",

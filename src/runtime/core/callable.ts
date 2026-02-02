@@ -61,6 +61,8 @@ export interface CallableParam {
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
+  /** Human-readable parameter description (optional, from host functions) */
+  readonly description?: string;
 }
 
 /**
@@ -78,6 +80,9 @@ export interface HostFunctionParam {
 
   /** Default value if argument omitted. Makes parameter optional. */
   readonly defaultValue?: RillValue;
+
+  /** Human-readable parameter description (optional) */
+  readonly description?: string;
 }
 
 /**
@@ -91,6 +96,9 @@ export interface HostFunctionDefinition {
 
   /** Function implementation (receives validated args) */
   readonly fn: CallableFn;
+
+  /** Human-readable function description (optional) */
+  readonly description?: string;
 }
 
 /** Common fields for all callable types */
@@ -135,6 +143,8 @@ export interface ApplicationCallable extends CallableBase {
   readonly kind: 'application';
   readonly params: CallableParam[] | undefined;
   readonly fn: CallableFn;
+  /** Human-readable function description (optional, from host functions) */
+  readonly description?: string;
 }
 
 /** Union of all callable types */

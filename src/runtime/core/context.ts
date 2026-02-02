@@ -65,7 +65,7 @@ export function createRuntimeContext(
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
       // All functions must be HostFunctionDefinition with params
-      const { params, fn } = definition;
+      const { params, fn, description } = definition;
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {
@@ -73,12 +73,18 @@ export function createRuntimeContext(
       }
 
       // Convert HostFunctionParam[] to CallableParam[]
-      const callableParams: CallableParam[] = params.map((p) => ({
-        name: p.name,
-        typeName: p.type ?? null,
-        defaultValue: p.defaultValue ?? null,
-        annotations: {}, // Host functions have no parameter annotations
-      }));
+      const callableParams: CallableParam[] = params.map((p) => {
+        const param: CallableParam = {
+          name: p.name,
+          typeName: p.type ?? null,
+          defaultValue: p.defaultValue ?? null,
+          annotations: {}, // Host functions have no parameter annotations
+        };
+        if (p.description !== undefined) {
+          (param as { description?: string }).description = p.description;
+        }
+        return param;
+      });
 
       // Create ApplicationCallable with params field populated
       const appCallable = callable(fn, false);
@@ -86,6 +92,9 @@ export function createRuntimeContext(
         ...appCallable,
         params: callableParams,
       };
+      if (description !== undefined) {
+        (typedCallable as { description?: string }).description = description;
+      }
 
       // Store ApplicationCallable for runtime validation
       functions.set(name, typedCallable);
