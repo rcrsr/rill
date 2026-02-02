@@ -10,14 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Inline Closures as Pipe Targets** — Pipe values directly into closure definitions
+  - `5 -> |x| { $x + 1 }` pipes value as first argument (returns 6)
+  - `7 -> || { $ * 3 }` zero-param closure uses `$` for pipe value (returns 21)
+  - Chaining works: `5 -> |x| { $x * 2 } -> |y| { $y + 1 }` (returns 11)
+  - Supports type annotations: `42 -> |x: number| { $x * 2 }`
 
 ### Improved
 
 - **Helpful Error for `-> !` Misuse** — Clear guidance when negation used incorrectly as pipe target
   - Error: "Negation operator requires an operand. Use prefix syntax: !expr or (!expr)"
-  - `5 -> |x| { $x + 1 }` pipes value as first argument (returns 6)
-  - `7 -> || { $ * 3 }` zero-param closure uses `$` for pipe value (returns 21)
-  - Chaining works: `5 -> |x| { $x * 2 } -> |y| { $y + 1 }` (returns 11)
+
+### Changed
+
+- **VALIDATE_EXTERNAL Rule** — Skip namespaced functions (`ns::func`) as trusted host APIs
+  - Functions like `ccr::read_frontmatter` no longer trigger external input validation warnings
   - Supports type annotations: `42 -> |x: number| { $x * 2 }`
 
 ## [0.4.3] - 2026-02-01

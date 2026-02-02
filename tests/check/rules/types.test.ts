@@ -233,11 +233,12 @@ describe('VALIDATE_EXTERNAL', () => {
     expect(violations).toBe(false);
   });
 
-  it('warns when not type-asserted (namespaced function)', () => {
+  it('does not warn for namespaced functions (trusted host APIs)', () => {
+    // Namespaced functions like ccr::read_frontmatter are trusted host APIs
     const source = 'ccr::read_frontmatter($path)';
 
     const violations = hasViolations(source, config);
-    expect(violations).toBe(true);
+    expect(violations).toBe(false);
   });
 
   it('does not warn when parse_ function is type-asserted', () => {
