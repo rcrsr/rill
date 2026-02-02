@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Introspection API** — Runtime functions for discovering available functions and language reference
+  - `getFunctions(ctx)` returns metadata for all registered functions (name, description, params)
+  - `getLanguageReference()` returns bundled language reference text for LLM prompt context
+  - New types exported: `FunctionMetadata`, `ParamMetadata`
+  - Host functions include parameter types and descriptions when registered with metadata
+
 ### Fixed
 
 - **Closure PipeValue Isolation** — Explicit-param closures no longer inherit caller's `$`
