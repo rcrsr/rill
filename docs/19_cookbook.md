@@ -85,10 +85,9 @@ $events -> fold("idle") {
 # Result: "idle"
 ```
 
-Track state history with `each`:
+Track state history with `fold`:
 
-```text
-# Conceptual - uses dynamic existence check .?($) not yet supported
+```rill
 [
   idle: [start: "running"],
   running: [pause: "paused", stop: "idle"],
@@ -98,8 +97,10 @@ Track state history with `each`:
 ["start", "pause", "resume"] :> $events
 
 $events -> fold([current: "idle", history: []]) {
-  $machine.($@.current).?($) ? {
-    $machine.($@.current).($) :> $next
+  $ :> $event
+  $machine.($@.current) :> $stateConfig
+  $stateConfig -> .keys -> .has($event) ? {
+    $stateConfig.($event) :> $next
     [current: $next, history: [...$@.history, $next]]
   } ! $@
 }
@@ -327,50 +328,37 @@ $items -> fold([seen: [], result: []]) {
 
 Validate multiple conditions and exit on first failure:
 
-```text
-# Conceptual - multiline conditional syntax
-[username: "", email: "test@", age: 15] :> $input
+```rill
+[username: "", email: "test@", age: 15] :> $formData
 
-{
-  ($input.username -> .empty) ? (
-    [valid: false, error: "Username required"] -> return
-  )
-
-  ($input.email -> .contains("@") -> !) ? (
-    [valid: false, error: "Invalid email"] -> return
-  )
-
-  ($input.age < 18) ? (
-    [valid: false, error: "Must be 18+"] -> return
-  )
-
-  [valid: true, data: $input]
+$formData -> {
+  $.username -> .empty ? ([valid: false, err: "Username required"] -> return)
+  $.email -> .contains("@") -> ! ? ([valid: false, err: "Invalid email"] -> return)
+  ($.age < 18) ? ([valid: false, err: "Must be 18+"] -> return)
+  [valid: true, data: $]
 }
-# Result: [valid: false, error: "Username required"]
+# Result: [valid: false, err: "Username required"]
 ```
 
 ### Retry with Backoff
 
 Retry an operation with exponential backoff:
 
-```text
-# Conceptual - uses computed dict keys
+```rill
 # Simulate flaky operation (host would provide real implementation)
 |attempt|{
-  ($attempt < 3) ? [ok: false, error: "Network error"] ! [ok: true, data: "Success"]
+  ($attempt < 3) ? [ok: false, err: "Network error"] ! [ok: true, data: "Success"]
 } :> $operation
 
 # Retry loop with backoff
 1 -> ($ <= 5) @ {
   $operation($) :> $result
-
   $result.ok ? ($result -> return)
-
-  log("Attempt {$} failed: {$result.error}")
+  log("Attempt {$} failed: {$result.err}")
   $ + 1
 } :> $final
 
-$final.?ok ? $final ! [ok: false, error: "Max retries exceeded"]
+$final.?ok ? $final ! [ok: false, err: "Max retries exceeded"]
 # Result: [ok: true, data: "Success"]
 ```
 
@@ -378,37 +366,34 @@ $final.?ok ? $final ! [ok: false, error: "Max retries exceeded"]
 
 Process steps that can fail at any point:
 
-```text
-# Conceptual - uses computed dict keys
+```rill
 |input|{
   [ok: true, value: $input -> .trim]
 } :> $step1
 
 |input|{
-  ($input -> .len) < 3
-    ? [ok: false, error: "Too short"]
-    ! [ok: true, value: $input -> .upper]
+  $input -> .len :> $len
+  ($len < 3) ? [ok: false, err: "Too short"] ! [ok: true, value: $input -> .upper]
 } :> $step2
 
 |input|{
-  $input -> .contains("TEST")
-    ? [ok: true, value: $input]
-    ! [ok: false, error: "Must contain TEST"]
+  $input -> .contains("HELLO") :> $hasHello
+  $hasHello ? [ok: true, value: $input] ! [ok: false, err: "Must contain HELLO"]
 } :> $step3
 
 # Chain steps with early exit
-"  test input  " :> $data
-{
-  $step1($data) :> $r1
-  $r1.ok ? ! ($r1 -> return)
+"  test input  " :> $pipelineInput
+$pipelineInput -> {
+  $step1($) :> $r1
+  ($r1.ok == false) ? ($r1 -> return)
 
   $step2($r1.value) :> $r2
-  $r2.ok ? ! ($r2 -> return)
+  ($r2.ok == false) ? ($r2 -> return)
 
   $step3($r2.value) :> $r3
   $r3
 }
-# Result: [ok: false, error: "Must contain TEST"]
+# Result: [ok: false, err: "Must contain HELLO"]
 ```
 
 ---
@@ -449,19 +434,22 @@ range(0, $matrix[0] -> .len) -> map |col|{
 
 Combine parallel lists into tuples:
 
-```text
-# Conceptual - uses closure type annotations and dict spread
-["a", "b", "c"] :> $keys
-[1, 2, 3] :> $values
+```rill
+["a", "b", "c"] :> $zipKeys
+[1, 2, 3] :> $zipValues
 
-range(0, $keys -> .len) -> map |i|{
-  [$keys[$i], $values[$i]]
+range(0, $zipKeys -> .len) -> map |i|{
+  [$zipKeys[$i], $zipValues[$i]]
 }
 # Result: [["a", 1], ["b", 2], ["c", 3]]
+```
 
-# As dict
-range(0, $keys -> .len) -> fold([]) |i|{
-  [...$@, ($keys[$i]): $values[$i]]
+Converting to a dict requires dict spread (not yet implemented):
+
+```text
+# Conceptual - dict spread [...$@, (key): val] not implemented
+range(0, $zipKeys -> .len) -> fold([]) |i|{
+  [...$@, ($zipKeys[$i]): $zipValues[$i]]
 }
 # Result: [a: 1, b: 2, c: 3]
 ```
@@ -472,16 +460,15 @@ range(0, $keys -> .len) -> fold([]) |i|{
 
 ### Template Expansion
 
-Simple template with variable substitution:
+Simple template with variable substitution (using angle brackets as delimiters):
 
-```text
-# Conceptual - uses triple-brace interpolation syntax
-"Hello {{name}}, your order {{orderId}} ships on {{date}}." :> $template
+```rill
+"Hello <name>, your order <orderId> ships on <date>." :> $template
 
-[name: "Alice", orderId: "12345", date: "2024-03-15"] :> $vars
+[name: "Alice", orderId: "12345", date: "2024-03-15"] :> $templateVars
 
-$vars.entries -> fold($template) {
-  $@.replace_all("{{{$[0]}}}", $[1] -> .str)
+$templateVars -> .entries -> fold($template) {
+  $@.replace_all("<{$[0]}>", $[1] -> .str)
 }
 # Result: "Hello Alice, your order 12345 ships on 2024-03-15."
 ```

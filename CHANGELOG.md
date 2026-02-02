@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-02-01
+
+### Added
+
+- **List Spread Operator** — `...` syntax for inline list expansion
+  - `[...$list]` spreads list elements inline
+  - `[1, ...$middle, 3]` spreads at any position
+  - `[...$a, ...$b]` concatenates multiple lists
+  - Validates spread target is a list; throws `RUNTIME_TYPE_ERROR` otherwise
+  - Works in tuples: `*[...$args]` for argument unpacking
+
+- **Multi-Key Dict Literals** — `[[k1, k2]: value]` syntax in dict definitions
+  - `[["get", "head"]: "safe"]` creates entries for both keys with shared value
+  - Value evaluated once, assigned to all keys
+  - Validates keys are primitives (string, number, boolean)
+  - Previously only worked in dispatch; now works in literals
+
+### Changed
+
+- **Documentation** — Added rill cookbook with workflow orchestration patterns
+  - `docs/19_cookbook.md`: Advanced patterns for multi-step workflows
+  - Updated README with refined LLM feedback quotes
+
 ## [0.4.1] - 2026-02-01
 
 ### Added
@@ -578,7 +601,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/rcrsr/rill/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/rcrsr/rill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/rcrsr/rill/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rcrsr/rill/compare/v0.2.4...v0.3.0
