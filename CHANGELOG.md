@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-02-02
+
+### Added
+
+- **Variable Dict Keys** — Use variables as dict keys with `$` prefix
+  - `[$keyName: value]` uses variable value as key
+  - Key must evaluate to string; throws `RUNTIME_TYPE_ERROR` otherwise
+  - Combines with static keys: `[name: "Alice", $dynamicKey: 42]`
+
+- **Computed Dict Keys** — Use expressions as dict keys with parentheses
+  - `[($expr): value]` evaluates expression as key
+  - Full pipe chains supported: `[($prefix -> "{$}_suffix"): value]`
+  - Key must evaluate to string; throws `RUNTIME_TYPE_ERROR` otherwise
+
+- **Variable Existence Checks** — Check field existence using variable key
+  - `$dict.?$keyName` checks if field exists using variable value
+  - Returns boolean without accessing the value
+  - Combines with type check: `$dict.?$keyName&string`
+
+- **Computed Existence Checks** — Check field existence using expression
+  - `$dict.?($expr)` evaluates expression and checks existence
+  - Full pipe chains supported: `$dict.?($a -> "{$}_b")`
+  - Combines with type check: `$dict.?($expr)&number`
+
+- **Type-Qualified Existence Checks** — Verify both existence and type
+  - `$dict.?field&string` returns true only if field exists AND is string type
+  - Supported types: `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
+  - Works with all existence check forms: literal, variable, and computed
+
 ### Fixed
 
-- **Existence Check in Access Chains** — `.?field` now works correctly in chained property access
+- **Existence Check in Access Chains** — `.?field` works correctly in chained property access
   - Before: `$data.user.?name` failed when accessing through intermediate dicts
   - After: Access chain completes and returns boolean indicating field existence
   - Properly handles existence check as terminal operation in access chains
@@ -651,7 +680,10 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.5...HEAD
+[0.4.5]: https://github.com/rcrsr/rill/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/rcrsr/rill/compare/v0.4.3...v0.4.4
+[0.4.3]: https://github.com/rcrsr/rill/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/rcrsr/rill/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/rcrsr/rill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/rcrsr/rill/compare/v0.3.0...v0.4.0
