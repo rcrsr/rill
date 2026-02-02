@@ -2,26 +2,33 @@
   <img src="docs/assets/logo.png" alt="rill logo" width="280">
 </p>
 
-*Embeddable workflow language for LLM orchestration*
+*The workflow language designed for LLMs*
 
 > [!WARNING]
 > **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
 
+## The Problem
+
+Give an LLM a general-purpose language and you get unpredictable execution — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways an agent can go wrong.
+
+rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary author is meant to be an agent.
+
+rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic — except the "user" is increasingly an LLM.
+
 ## Why rill?
 
-rill enables platform builders to make their apps scriptable without exposing arbitrary code execution.
+- **Embeddable.** Zero dependencies. [Integration](docs/14_host-integration.md) takes a few lines of code, browser or backend.
+- **Sandboxed.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
+- **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
+- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/15_grammar.ebnf) and [LLM reference](docs/99_llm-reference.txt). No ambiguity for codegen — one way to do each thing.
+- **Intentionally constrained.** No null, no truthiness, sealed scopes, locked types. Removes the degrees of freedom where LLMs misgenerate.
+- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) and parse JSON, XML, YAML, checklists from model responses.
 
-rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic.
+## Who Is This For?
 
-- **Embeddable.** Zero dependencies. Runs in browser or backend. [Integration](docs/14_host-integration.md) only requires a few lines of code.
-- **Sandboxed.** No filesystem, no network, no `eval()`. Host controls all side effects via function bindings.
-- **Bounded execution.** Retry limits prevent exhausting LLM usage limits because of runaway loops.
-- **Consistent, clean syntax.** Ships with [EBNF grammar](docs/15_grammar.ebnf). LLMs can write rill scripts for your users.
-- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) and parse JSON, XML, YAML, checklists.
+**Platform builders** who want safe, LLM-authored workflows inside their apps.
 
-## Who is this for?
-
-**Application and Platform builders** who want to enable their power users to define custom automation workflows and logic.
+Your users script workflows. Your platform controls what's possible. You review what the LLM wrote. Humans aren't the primary authors — they're the auditors.
 
 rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
 
@@ -147,6 +154,21 @@ Return: PASS or FAIL
 """
 ```
 
+## Designed for LLM Codegen
+
+These aren't arbitrary constraints — they're guardrails for reliable codegen.
+
+| Design choice | Codegen rationale |
+|---------------|-------------------|
+| **No null/undefined** | Eliminates the edge cases LLMs most frequently hallucinate |
+| **No truthiness** | Forces explicit boolean checks — no silent type coercion bugs |
+| **Value semantics** | Deep copy, deterministic equality. Safe for serialization, caching, replay |
+| **Immutable scoping** | Parent variables are read-only in child scopes. Prevents state drift across iterations |
+| **`$` prefix on variables** | Single-pass parsing, no symbol table. `name()` is a host function, `$name` is a variable — zero ambiguity |
+| **Type locking** | Variables lock type on first assignment. Catches type hallucinations at the assignment site |
+| **Linear error handling** | No try/catch, no unwinding. `assert` and `error` are terminal — easy for models to place correctly |
+| **Loops as expressions** | `fold`, `each`, `(cond) @ {}` return state instead of mutating it. Aligns with step-by-step LLM reasoning |
+
 ## Core Syntax
 
 | Syntax | Description |
@@ -162,26 +184,12 @@ Return: PASS or FAIL
 | `fold(init)` | Reduction |
 | `\|args\| { }` | Closure |
 
-## Language Characteristics
-
-- **Value-based.** No references. Deep copy, value comparison.
-- **No null/undefined.** Empty values valid, "no value" doesn't exist.
-- **No exceptions.** Singular control flow. Explicit error handling.
-- **Immutable types.** Variables lock type on first assignment.
-- **Transparently async.** No async/await. Parallel execution automatic.
-
-## FAQ
-
-**Why do variables use `$` prefix?**
-
-The `$` enables single-pass parsing without a symbol table. It disambiguates `name()` (host function) from `$name()` (closure call), and `name` (dict key) from `$name` (variable). See [Design Principles](docs/18_design-principles.md#7-variables-have--prefix) for the full rationale.
-
 ## Use Cases
 
-- **User-defined workflows.** Let power users script automation in your app.
-- **Multi-phase pipelines.** Chain steps with review gates.
-- **Parallel agent fan-out.** Launch specialists concurrently.
-- **Edit-Review loops.** Iterate until approval or max attempts.
+- **User-defined workflows.** Let power users script automation without exposing arbitrary code execution.
+- **Multi-phase pipelines.** Chain LLM calls with review gates between each step.
+- **Parallel agent fan-out.** Launch specialist agents concurrently, collect structured results.
+- **Edit-review loops.** Iterate until approval or `^(limit: N)` max attempts.
 
 See [Examples](docs/12_examples.md) for complete workflow patterns.
 
@@ -195,6 +203,7 @@ See [docs/00_INDEX.md](docs/00_INDEX.md) for full navigation.
 | [Reference](docs/11_reference.md) | Language specification |
 | [Examples](docs/12_examples.md) | Workflow patterns |
 | [Host Integration](docs/14_host-integration.md) | Embedding API |
+| [Design Principles](docs/18_design-principles.md) | Why rill works the way it does |
 
 ## License
 
