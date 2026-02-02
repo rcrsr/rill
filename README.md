@@ -9,9 +9,9 @@
 
 ## The Problem
 
-Give an LLM a general-purpose language and you get unpredictable execution — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways an agent can go wrong.
+Give an LLM a general-purpose language and you get unpredictable execution — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways generated code can go wrong.
 
-rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary author is meant to be an agent.
+rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary developer is meant to be an agent.
 
 rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic — except the "user" is increasingly an LLM.
 
