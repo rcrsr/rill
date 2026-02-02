@@ -2,8 +2,6 @@
 
 *Pipe-based scripting for workflow orchestration*
 
-> **Experimental (v0.4.0).** Active development. Breaking changes until v1.0.
-
 ## Quick Links
 
 | Document | Description |
@@ -11,6 +9,7 @@
 | [Guide](01_guide.md) | Beginner-friendly introduction to rill |
 | [Reference](11_reference.md) | Core language specification |
 | [Examples](12_examples.md) | Workflow patterns and use cases |
+| [Cookbook](19_cookbook.md) | Advanced workflow orchestration patterns |
 
 ## Language Topics
 
@@ -54,8 +53,9 @@ The formal EBNF grammar is in [grammar.ebnf](15_grammar.ebnf).
 
 1. **New to rill?** Start with the [Guide](01_guide.md) for core concepts
 2. **Building workflows?** See [Examples](12_examples.md) for patterns
-3. **Need specifics?** Check the [Reference](11_reference.md) for syntax details
-4. **Embedding rill?** Read [Host Integration](14_host-integration.md)
+3. **Advanced patterns?** Check the [Cookbook](19_cookbook.md) for orchestration techniques
+4. **Need specifics?** Check the [Reference](11_reference.md) for syntax details
+5. **Embedding rill?** Read [Host Integration](14_host-integration.md)
 
 ## Design Principles
 
