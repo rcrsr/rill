@@ -186,11 +186,20 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected createCallableContext(callable: ScriptCallable): RuntimeContext {
       // Create a child context with the defining scope as parent
       // This enables late-bound variable resolution through the scope chain
+
+      // Determine initial pipeValue:
+      // - Zero-param closures (||{ ... }): inherit from caller (for dict dispatch)
+      // - Explicit-param closures (|a,b|{ ... }): clear to prevent leakage
+      // - boundDict always overrides
+      const hasExplicitParams =
+        callable.params.length > 0 && callable.params[0]!.name !== '$';
+
       const callableCtx: RuntimeContext = {
         ...this.ctx,
         parent: callable.definingScope as RuntimeContext,
         variables: new Map(),
         variableTypes: new Map(),
+        pipeValue: hasExplicitParams ? null : this.ctx.pipeValue,
       };
 
       if (callable.boundDict) {

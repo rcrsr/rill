@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Closure PipeValue Isolation** — Explicit-param closures no longer inherit caller's `$`
+  - Before: `|a, b| { $ }` could access caller's pipe value, causing unintended leakage
+  - After: Explicit-param closures see `$` as undefined; must use declared parameters
+  - Zero-param closures (`|| { $ }`) still inherit pipe value for dict dispatch compatibility
+
 ## [0.4.5] - 2026-02-02
 
 ### Added

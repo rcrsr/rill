@@ -163,6 +163,17 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Explicit arg (5) used, pipe value (999) ignored
       expect(await run(script)).toBe(6);
     });
+
+    it('explicit param closure does not inherit caller pipeValue', async () => {
+      // Closure with explicit params should NOT see caller's $
+      // Using $c param instead, showing explicit params work but $ doesn't leak
+      await expect(
+        run(`
+        |a, b, c| { $c + $ } :> $fn
+        "caller-pipe-value" -> $fn(1, 2, 3)
+      `)
+      ).rejects.toThrow('Undefined variable: $');
+    });
   });
 
   describe('Boundary Conditions', () => {
