@@ -1,4 +1,4 @@
-(* rill v0.4.2 Grammar - EBNF Notation *)
+(* rill v0.4.5 Grammar - EBNF Notation *)
 (* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
@@ -220,9 +220,13 @@ list-element  = "..." , expression           (* spread: inline list elements *)
 
 dict          = "[" , ":" , "]"
               | "[" , dict-entry , { "," , dict-entry } , "]" ;
-dict-key      = identifier | number | bool ;
+dict-key      = identifier | number | bool
+              | "$" , identifier                      (* variable key: [$keyName: value] *)
+              | "(" , pipe-chain , ")" ;              (* computed key: [($expr): value] *)
 dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , ":" , expression ;
-              (* Keys can be identifiers, numbers, booleans, or multi-key lists.
+              (* Keys can be identifiers, numbers, booleans, variables, computed expressions, or multi-key lists.
+                 Variable key: [$varName: value] uses variable value as key (must be string).
+                 Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
                  Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
                  Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
                  Semantic: closure values become "dict closures" where $ is late-bound
@@ -269,8 +273,13 @@ default-value = "??" , body ;
 (* Existence check: $data.user.?email returns bool
    Type narrowing uses & (not :) because the expression returns bool.
    Using :type would suggest type assertion on a non-bool value.
-   $data.?field&string means "does field exist and is it a string?" -> bool *)
-existence-check = ".?" , ( identifier | "$" , identifier ) , [ "&" , type-name ] ;
+   $data.?field&string means "does field exist and is it a string?" -> bool
+   Variable existence: $data.?$keyName checks existence using variable value.
+   Computed existence: $data.?($expr) checks existence using expression result. *)
+existence-check = ".?" , ( identifier
+                         | "$" , identifier              (* variable key *)
+                         | "(" , pipe-chain , ")" )      (* computed expression *)
+                , [ "&" , type-name ] ;
 
 digits        = digit , { digit } ;
 

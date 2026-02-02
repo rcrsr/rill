@@ -146,6 +146,8 @@ Dicts:         [name: "alice", age: 30]    # identifier keys
                [1: "one", 2: "two"]        # number keys (incl. negative: [-1: "neg"])
                [true: "yes", false: "no"]  # boolean keys
                [["a", "b"]: 1]             # multi-key: [a: 1, b: 1]
+               [$keyVar: value]            # variable key (must eval to string)
+               [($expr): value]            # computed key (must eval to string)
 Tuples:        *[1, 2, 3]              # for argument unpacking
 Closures:      |x|($x + 1)             # like lambda/arrow functions
 Type annot:    "hi" :> $x:string       # lock type on capture
@@ -334,7 +336,11 @@ $data.($i + 1)                        # computed key
 $data.(a || b)                        # try keys left-to-right
 $data.field ?? "default"              # default if missing
 $data.?field                          # existence check (boolean)
+$data.?$keyVar                        # variable existence check
+$data.?($expr)                        # computed existence check
 $data.?field&string                   # existence AND type check
+$data.?$key&number                    # variable existence + type check
+$data.?($a -> "{$}_b")&list           # computed existence + type check
 
 DISPATCH OPERATORS
 ------------------

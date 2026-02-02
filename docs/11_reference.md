@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.4.0
+# rill Core Language Specification v0.4.5
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.4.0).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.4.5).** Active development. Breaking changes until v1.0.
 
 ## Overview
 
@@ -46,7 +46,7 @@ rill is an imperative scripting language that is dynamically typed and type-safe
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
-| Existence | `.?field`, `.?field&type` |
+| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type` |
 
 See [Operators](04_operators.md) for detailed documentation.
 
@@ -85,7 +85,7 @@ See [Collections](07_collections.md) for detailed documentation.
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
 | List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
-| Dict | `[k: v]`, `[[k1, k2]: v]` | `[output: "text"]`, `[["a", "b"]: 1]` | Dict value |
+| Dict | `[k: v]`, `[$k: v]`, `[($e): v]` | `[output: "text"]`, `[$key: 1]` | Dict value |
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
@@ -139,7 +139,10 @@ See [Variables](03_variables.md) for detailed documentation.
 | `$data.($i + 1)` | Computed key |
 | `$data.(a \|\| b)` | Alternative keys |
 | `$data.field ?? default` | Default if missing |
-| `$data.?field` | Existence check |
+| `$data.?field` | Existence check (literal) |
+| `$data.?$key` | Existence check (variable) |
+| `$data.?($expr)` | Existence check (computed) |
+| `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
 ### Dispatch

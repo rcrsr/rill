@@ -174,7 +174,7 @@ See [Collections](07_collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with identifier, number, or boolean keys:
+Key-value mappings with identifier, number, boolean, variable, or computed keys:
 
 ```rill
 # Identifier keys
@@ -192,6 +192,14 @@ $person.age                # 30
 # Boolean keys
 [true: "yes", false: "no"] :> $yesno
 true -> $yesno             # "yes"
+
+# Variable keys (key value from variable, must be string)
+"status" :> $key
+[$key: "active"]           # [status: "active"]
+
+# Computed keys (key from expression, must be string)
+"user" :> $prefix
+[($prefix -> "{$}_name"): "alice"]  # [user_name: "alice"]
 
 # Multi-key syntax (same value for multiple keys)
 [["a", "b"]: 1]            # [a: 1, b: 1]
@@ -218,8 +226,10 @@ Multi-key errors:
 - `.($i + 1)` — Computed expression as key
 - `.(a || b)` — Alternatives (try keys left-to-right)
 - `.field ?? default` — Default value if missing
-- `.?field` — Existence check (returns bool)
-- `.?field&type` — Existence + type check
+- `.?field` — Existence check, literal key (returns bool)
+- `.?$key` — Existence check, variable key
+- `.?($expr)` — Existence check, computed key
+- `.?field&type` — Existence + type check (all forms support `&type`)
 
 **Note:** Number and boolean keys require dispatch syntax (`value -> dict`) or bracket access. Dot notation (`.1`, `.true`) is not valid syntax.
 
