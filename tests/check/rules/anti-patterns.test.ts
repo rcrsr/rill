@@ -132,6 +132,56 @@ describe('AVOID_REASSIGNMENT', () => {
     const diagnostics = getDiagnostics(source, config);
     expect(diagnostics.length).toBe(2); // Two reassignments (second and third)
   });
+
+  it('does not warn for variables in sibling closures', () => {
+    // Variables captured in different sibling closures are independent
+    // and should not be considered reassignments
+    const source = `
+      |skill_name| {
+        "output" :> $result
+        $result
+      } :> $run_skill
+
+      |doc_path| {
+        "output" :> $result
+        $result
+      } :> $review_loop
+    `;
+
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('does warn for variables in same closure', () => {
+    // Variables reassigned within the same closure should trigger warning
+    const source = `
+      |param| {
+        "first" :> $result
+        "second" :> $result
+        $result
+      } :> $fn
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('AVOID_REASSIGNMENT');
+  });
+
+  it('does warn for variables in parent scope', () => {
+    // Variables defined in outer scope and reassigned in nested closure
+    // should trigger warning
+    const source = `
+      "outer" :> $result
+
+      |param| {
+        "inner" :> $result
+        $result
+      } :> $fn
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('AVOID_REASSIGNMENT');
+  });
 });
 
 // ============================================================
@@ -372,6 +422,42 @@ describe('LOOP_OUTER_CAPTURE', () => {
         $extraSum + 1 :> $extraSum
         $@ + $ + $extraSum
       }
+    `;
+
+    expect(hasViolations(source, config)).toBe(true);
+    const codes = getCodes(source, config);
+    expect(codes).toContain('LOOP_OUTER_CAPTURE');
+  });
+
+  it('does not warn for variables in sibling closures', () => {
+    // Variables captured in different sibling closures should not be
+    // considered "outer" to each other
+    const source = `
+      |skill_name| {
+        "output" :> $result
+        $result
+      } :> $run_skill
+
+      |doc_path| {
+        ^(limit: 5) 0 -> ($ < 3) @ {
+          "output" :> $result
+          $ + 1
+        }
+      } :> $review_loop
+    `;
+
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('does warn for variables in parent closure captured in nested loop', () => {
+    // Variable in parent closure should trigger warning when captured in nested loop
+    const source = `
+      |outer_param| {
+        0 :> $count
+        [1, 2, 3] -> each {
+          $count + 1 :> $count
+        }
+      } :> $fn
     `;
 
     expect(hasViolations(source, config)).toBe(true);

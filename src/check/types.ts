@@ -95,6 +95,10 @@ export interface ValidationContext {
   readonly variables: Map<string, SourceLocation>;
   /** HostCall nodes that are wrapped in type assertions */
   readonly assertedHostCalls: Set<ASTNode>;
+  /** Closure scope IDs for variables (maps variable name to closure AST node) */
+  readonly variableScopes: Map<string, ASTNode | null>;
+  /** Current closure scope stack during traversal */
+  readonly scopeStack: ASTNode[];
 }
 
 /**

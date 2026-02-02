@@ -40,11 +40,18 @@ export function validateScript(
     diagnostics: [],
     variables: new Map(),
     assertedHostCalls: new Set(),
+    variableScopes: new Map(),
+    scopeStack: [],
   };
 
   // Create visitor that invokes enabled rules
   const visitor: RuleVisitor = {
     enter(node: ASTNode, ctx: ValidationContext): void {
+      // Track closure scope entry
+      if (node.type === 'Closure') {
+        ctx.scopeStack.push(node);
+      }
+
       // Track HostCall nodes wrapped in TypeAssertion BEFORE rules check
       if (node.type === 'TypeAssertion') {
         const operand = (node as TypeAssertionNode).operand;
@@ -75,12 +82,21 @@ export function validateScript(
         const captureNode = node as CaptureNode;
         if (!ctx.variables.has(captureNode.name)) {
           ctx.variables.set(captureNode.name, node.span.start);
+          // Track which closure scope this variable belongs to
+          const currentScope =
+            ctx.scopeStack.length > 0
+              ? ctx.scopeStack[ctx.scopeStack.length - 1]
+              : null;
+          ctx.variableScopes.set(captureNode.name, currentScope ?? null);
         }
       }
     },
 
-    exit(_node: ASTNode, _ctx: ValidationContext): void {
-      // No post-order validation needed currently
+    exit(node: ASTNode, ctx: ValidationContext): void {
+      // Track closure scope exit
+      if (node.type === 'Closure') {
+        ctx.scopeStack.pop();
+      }
     },
   };
 

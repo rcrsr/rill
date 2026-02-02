@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed index math for closing brace check
   - Only checks the block's opening/closing braces, not `{$var}` inside strings
 
+- **Scope Tracking for Lint Rules** — Rules no longer report false positives for sibling closures
+  - LOOP_OUTER_CAPTURE and AVOID_REASSIGNMENT now properly track closure scope boundaries
+  - Variables in sibling closures are correctly identified as independent locals
+
 ## [0.4.3] - 2026-02-01
 
 ### Fixed

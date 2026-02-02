@@ -59,20 +59,37 @@ export const AVOID_REASSIGNMENT: ValidationRule = {
     // Check if this variable was already captured before
     if (context.variables.has(varName)) {
       const firstLocation = context.variables.get(varName)!;
+      const variableScope = context.variableScopes.get(varName) ?? null;
 
-      return [
-        {
-          location: captureNode.span.start,
-          severity: 'warning',
-          code: 'AVOID_REASSIGNMENT',
-          message: `Variable reassignment detected: '$${varName}' first defined at line ${firstLocation.line}. Prefer new variable or functional style.`,
-          context: extractContextLine(
-            captureNode.span.start.line,
-            context.source
-          ),
-          fix: null, // Cannot auto-fix without understanding intent
-        },
-      ];
+      // Get the current closure scope (if we're inside a closure)
+      const currentClosureScope =
+        context.scopeStack.length > 0
+          ? context.scopeStack[context.scopeStack.length - 1]!
+          : null;
+
+      // Only warn if the variable is truly in the same scope or a parent scope
+      // Variables in sibling closures are independent and should not trigger warnings
+      const isInSameOrParentScope = isVariableInParentScope(
+        variableScope,
+        currentClosureScope,
+        context.scopeStack
+      );
+
+      if (isInSameOrParentScope) {
+        return [
+          {
+            location: captureNode.span.start,
+            severity: 'warning',
+            code: 'AVOID_REASSIGNMENT',
+            message: `Variable reassignment detected: '$${varName}' first defined at line ${firstLocation.line}. Prefer new variable or functional style.`,
+            context: extractContextLine(
+              captureNode.span.start.line,
+              context.source
+            ),
+            fix: null, // Cannot auto-fix without understanding intent
+          },
+        ];
+      }
     }
 
     return [];
@@ -343,28 +360,98 @@ export const LOOP_OUTER_CAPTURE: ValidationRule = {
     // Find all captures in the body
     const captures = findCapturesInBody(body);
 
+    // Get the current closure scope (if we're inside a closure)
+    const currentClosureScope =
+      context.scopeStack.length > 0
+        ? context.scopeStack[context.scopeStack.length - 1]!
+        : null;
+
     // Check if any capture targets an outer-scope variable
     for (const capture of captures) {
       if (context.variables.has(capture.name)) {
         const outerLocation = context.variables.get(capture.name)!;
-        diagnostics.push({
-          location: capture.span.start,
-          severity: 'warning',
-          code: 'LOOP_OUTER_CAPTURE',
-          message:
-            `Cannot modify outer variable '$${capture.name}' from inside loop. ` +
-            `Captures inside loops create LOCAL variables. ` +
-            `Use fold(init) with $@ accumulator, or pack state into $ as a dict. ` +
-            `(Outer '$${capture.name}' defined at line ${outerLocation.line})`,
-          context: extractContextLine(capture.span.start.line, context.source),
-          fix: null,
-        });
+        const variableScope = context.variableScopes.get(capture.name) ?? null;
+
+        // Only flag if the variable is in a parent scope, not a sibling closure
+        // Variable is "outer" if:
+        // 1. It was defined in script scope (variableScope === null), OR
+        // 2. It was defined in a parent closure that contains the current closure
+        const isOuterScope = isVariableInParentScope(
+          variableScope,
+          currentClosureScope,
+          context.scopeStack
+        );
+
+        if (isOuterScope) {
+          diagnostics.push({
+            location: capture.span.start,
+            severity: 'warning',
+            code: 'LOOP_OUTER_CAPTURE',
+            message:
+              `Cannot modify outer variable '$${capture.name}' from inside loop. ` +
+              `Captures inside loops create LOCAL variables. ` +
+              `Use fold(init) with $@ accumulator, or pack state into $ as a dict. ` +
+              `(Outer '$${capture.name}' defined at line ${outerLocation.line})`,
+            context: extractContextLine(
+              capture.span.start.line,
+              context.source
+            ),
+            fix: null,
+          });
+        }
       }
     }
 
     return diagnostics;
   },
 };
+
+/**
+ * Check if a variable's scope is in the parent scope chain.
+ * Returns true if the variable is accessible from the current scope.
+ *
+ * A variable is "outer" (parent scope) if:
+ * - It was defined at script level (variableScope === null), OR
+ * - It was defined in the SAME closure as the loop (same scope), OR
+ * - It was defined in a closure that is an ancestor of the current closure
+ *
+ * A variable is NOT outer (sibling scope) if:
+ * - It was defined in a different closure that is not an ancestor
+ */
+function isVariableInParentScope(
+  variableScope: ASTNode | null,
+  currentClosureScope: ASTNode | null,
+  scopeStack: ASTNode[]
+): boolean {
+  // Variable defined at script level is always outer
+  if (variableScope === null) {
+    return true;
+  }
+
+  // If we're not in a closure, variable can't be outer to us
+  if (currentClosureScope === null) {
+    return variableScope === null;
+  }
+
+  // Variable is outer if its scope is the same as current closure
+  // (loop body creates new scope within the closure)
+  if (variableScope === currentClosureScope) {
+    return true;
+  }
+
+  // Variable is outer if its scope is in our parent chain
+  // Check if variableScope appears in scopeStack before currentClosureScope
+  const currentIndex = scopeStack.indexOf(currentClosureScope);
+  const variableIndex = scopeStack.indexOf(variableScope);
+
+  // If variable scope is not in stack, it's not accessible
+  if (variableIndex === -1) {
+    return false;
+  }
+
+  // Variable is outer if it appears before current scope in stack (ancestor)
+  return variableIndex < currentIndex;
+}
 
 /**
  * Recursively find all Capture nodes in a loop body.

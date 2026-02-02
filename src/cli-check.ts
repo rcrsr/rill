@@ -382,6 +382,8 @@ Options:
         diagnostics: [],
         variables: new Map(),
         assertedHostCalls: new Set(),
+        variableScopes: new Map(),
+        scopeStack: [],
       });
 
       // Write fixed source back to file
