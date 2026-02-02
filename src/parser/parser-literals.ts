@@ -28,7 +28,12 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import { isDictStart, FUNC_PARAM_TYPES, parseTypeName } from './helpers.js';
+import {
+  isDictStart,
+  FUNC_PARAM_TYPES,
+  parseTypeName,
+  isNegativeNumber,
+} from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -376,6 +381,11 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       );
     }
     key = literal;
+  } else if (isNegativeNumber(this.state)) {
+    // Parse negative number as key: -NUMBER
+    advance(this.state); // consume MINUS
+    const numToken = advance(this.state); // consume NUMBER
+    key = -Number(numToken.value);
   } else if (check(this.state, TOKEN_TYPES.NUMBER)) {
     // Parse number as key
     const keyToken = advance(this.state);

@@ -254,10 +254,8 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toBe('two');
     });
 
-    it.skip('dispatches with negative number literal key (AC-9) - requires parser support for expressions in key position', async () => {
-      // SKIP: Parser limitation - dict keys only accept NUMBER tokens, not expressions
-      // Negative numbers (-1) are parsed as unary minus + number, not a single NUMBER token
-      const result = await run('(-1) -> [(-1): "negative", 1: "positive"]');
+    it('dispatches with negative number literal key (AC-9)', async () => {
+      const result = await run('(-1) -> [-1: "negative", 1: "positive"]');
       expect(result).toBe('negative');
     });
 

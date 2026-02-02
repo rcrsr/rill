@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-01
+
+### Added
+
+- **Literal Dict Keys** — Number and boolean literals as dict keys
+  - Number keys: `[1: "one", 2: "two"]` parses with numeric keys
+  - Boolean keys: `[true: "yes", false: "no"]` parses with boolean keys
+  - Type-aware dispatch: `1 -> [1: "one", "1": "string"]` returns `"one"` (number match)
+  - String input matches string key: `"1" -> [1: "one", "1": "string"]` returns `"string"`
+  - Boolean dispatch: `true -> [true: "yes", false: "no"]` returns `"yes"`
+  - Negative number keys: `[-1: "neg"]` parsed as MINUS + NUMBER tokens
+  - Float keys: `[3.14: "pi"]` supported
+  - Backward compatible: identifier keys remain strings
+
 ### Changed
 
 - **Code Cleanup** — Removed unreachable multi-key validation code
@@ -564,7 +578,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/rcrsr/rill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/rcrsr/rill/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rcrsr/rill/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/rcrsr/rill/compare/v0.2.3...v0.2.4

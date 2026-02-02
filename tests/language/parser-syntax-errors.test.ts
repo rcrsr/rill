@@ -104,21 +104,19 @@ describe('Parser Syntax Errors', () => {
       expect(dictNode.entries[2].key).toBe(true);
     });
 
-    it('rejects negative number as dict key (IC-1 - known parser limitation)', () => {
-      // IC-1: Negative numbers in dict keys parsed as type assertion
-      // Parser interprets `-1:` as type assertion syntax
-      // Workaround: Use positive numbers or store negative in variable
-      const source = '[-1: "negative"]';
-
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-        // Parser treats `-1:` as type operation, expects type name after `:`
-        expect(parseErr.message).toContain('Expected type name');
-      }
+    it('parses dict with negative number key', () => {
+      // Negative numbers are now supported as dict keys
+      const source = '[-1: "negative", 0: "zero", 1: "positive"]';
+      const ast = parse(source);
+      expect(ast.type).toBe('Script');
+      const stmt = ast.statements[0];
+      expect(stmt.type).toBe('Statement');
+      const dictNode = stmt.expression.head.primary as DictNode;
+      expect(dictNode.type).toBe('Dict');
+      expect(dictNode.entries).toHaveLength(3);
+      expect(dictNode.entries[0].key).toBe(-1);
+      expect(dictNode.entries[1].key).toBe(0);
+      expect(dictNode.entries[2].key).toBe(1);
     });
   });
 
