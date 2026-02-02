@@ -593,6 +593,80 @@ interface ExecutionResult {
 }
 ```
 
+## Introspection
+
+Discover available functions and access language documentation at runtime.
+
+### getFunctions()
+
+Enumerate all callable functions registered in the runtime context:
+
+```typescript
+import { createRuntimeContext, getFunctions } from '@rcrsr/rill';
+
+const ctx = createRuntimeContext({
+  functions: {
+    greet: {
+      params: [
+        { name: 'name', type: 'string', description: 'Person to greet' },
+      ],
+      description: 'Generate a greeting message',
+      fn: (args) => `Hello, ${args[0]}!`,
+    },
+  },
+});
+
+const functions = getFunctions(ctx);
+// [
+//   {
+//     name: 'greet',
+//     description: 'Generate a greeting message',
+//     params: [{ name: 'name', type: 'string', description: 'Person to greet', defaultValue: undefined }]
+//   },
+//   ... built-in functions
+// ]
+```
+
+Returns `FunctionMetadata[]` combining:
+1. Host functions (with full parameter metadata)
+2. Built-in functions
+3. Script closures (reads `^(doc: "...")` annotation for description)
+
+### getLanguageReference()
+
+Access the bundled rill language reference for LLM prompt context:
+
+```typescript
+import { getLanguageReference } from '@rcrsr/rill';
+
+const reference = getLanguageReference();
+// Returns complete language reference text (syntax, operators, types, etc.)
+
+// Use in LLM system prompts:
+const systemPrompt = `You are a rill script assistant.
+
+${reference}
+
+Help the user write rill scripts.`;
+```
+
+### Introspection Types
+
+```typescript
+interface FunctionMetadata {
+  readonly name: string;        // Function name (e.g., "math::add")
+  readonly description: string; // Human-readable description
+  readonly params: readonly ParamMetadata[];
+}
+
+interface ParamMetadata {
+  readonly name: string;                    // Parameter name
+  readonly type: string;                    // Type constraint (e.g., "string")
+  readonly description: string;             // Parameter description
+  readonly defaultValue: RillValue | undefined; // Default if optional
+}
+```
+
 ## I/O Callbacks
 
 Handle script I/O through callbacks:
@@ -812,6 +886,10 @@ export { validateHostFunctionArgs };
 
 // Value types
 export type { RillValue, RillArgs };
+
+// Introspection
+export { getFunctions, getLanguageReference };
+export type { FunctionMetadata, ParamMetadata };
 
 // Callbacks
 export type { RuntimeCallbacks, ObservabilityCallbacks };
