@@ -353,7 +353,7 @@ export function validateHostFunctionArgs(
   if (args.length > params.length) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      `RILL-R001: Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
       location,
       {
         functionName,
@@ -380,7 +380,7 @@ export function validateHostFunctionArgs(
         // Missing required argument
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Missing required argument '${param.name}' for function '${functionName}'`,
+          `RILL-R001: Missing required argument '${param.name}' for function '${functionName}'`,
           location,
           {
             functionName,
@@ -397,7 +397,7 @@ export function validateHostFunctionArgs(
     if (actualType !== expectedType) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+        `RILL-R001: Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
         location,
         {
           functionName,
@@ -432,7 +432,7 @@ export function validateCallableArgs(
   if (args.length > params.length) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      `RILL-R001: Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
       location,
       {
         functionName,
@@ -459,7 +459,7 @@ export function validateCallableArgs(
         // Missing required argument
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Missing required argument '${param.name}' for function '${functionName}'`,
+          `RILL-R001: Missing required argument '${param.name}' for function '${functionName}'`,
           location,
           {
             functionName,
@@ -477,7 +477,7 @@ export function validateCallableArgs(
       if (actualType !== expectedType) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+          `RILL-R001: Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
           location,
           {
             functionName,

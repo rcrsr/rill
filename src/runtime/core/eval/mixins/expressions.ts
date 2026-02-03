@@ -102,7 +102,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (right === 0) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Division by zero',
+              'RILL-R002: Division by zero',
               node.span.start
             );
           }
@@ -111,7 +111,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (right === 0) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Modulo by zero',
+              'RILL-R002: Modulo by zero',
               node.span.start
             );
           }
@@ -159,7 +159,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot compare ${inferType(left)} with ${inferType(right)} using ${op}`,
+            `RILL-R002: Cannot compare ${inferType(left)} with ${inferType(right)} using ${op}`,
             node.span.start
           );
       }
@@ -181,7 +181,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof inner !== 'number') {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Unary minus requires number, got ${inferType(inner)}`,
+            `RILL-R002: Unary minus requires number, got ${inferType(inner)}`,
             node.span.start
           );
         }
@@ -216,7 +216,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (typeof value !== 'number') {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Arithmetic requires number, got ${inferType(value)}`,
+          `RILL-R002: Arithmetic requires number, got ${inferType(value)}`,
           node.span.start
         );
       }

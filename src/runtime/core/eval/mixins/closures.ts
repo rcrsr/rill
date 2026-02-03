@@ -236,7 +236,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (valueType !== expectedType) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${valueType}`,
+            `RILL-R001: Parameter type mismatch: ${param.name} expects ${expectedType}, got ${valueType}`,
             callLocation,
             { paramName: param.name, expectedType, actualType: valueType }
           );
@@ -268,7 +268,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (args.length > callable.params.length) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Function expects ${callable.params.length} arguments, got ${args.length}`,
+          `RILL-R001: Function expects ${callable.params.length} arguments, got ${args.length}`,
           callLocation
         );
       }
@@ -284,7 +284,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Missing argument for parameter '${param.name}' at position ${i}`,
+            `RILL-R001: Missing argument for parameter '${param.name}' at position ${i}`,
             callLocation,
             { paramName: param.name, position: i }
           );
@@ -330,7 +330,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (hasNumericKeys && hasStringKeys) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Tuple cannot mix positional (numeric) and named (string) keys',
+          'RILL-R001: Tuple cannot mix positional (numeric) and named (string) keys',
           callLocation
         );
       }
@@ -345,7 +345,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (param === undefined) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Extra argument at position ${position} (closure has ${closure.params.length} params)`,
+              `RILL-R001: Extra argument at position ${position} (closure has ${closure.params.length} params)`,
               callLocation,
               { position, paramCount: closure.params.length }
             );
@@ -364,7 +364,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!paramNames.has(name)) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Unknown argument '${name}' (valid params: ${[...paramNames].join(', ')})`,
+              `RILL-R001: Unknown argument '${name}' (valid params: ${[...paramNames].join(', ')})`,
               callLocation,
               { argName: name, validParams: [...paramNames] }
             );
@@ -392,7 +392,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Missing argument '${param.name}' (no default value)`,
+              `RILL-R001: Missing argument '${param.name}' (no default value)`,
               callLocation,
               { paramName: param.name }
             );
@@ -422,7 +422,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!fn) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_UNDEFINED_FUNCTION,
-          `Unknown function: ${node.name}`,
+          `RILL-R006: Unknown function: ${node.name}`,
           this.getNodeLocation(node),
           { functionName: node.name }
         );
@@ -501,7 +501,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (value === undefined || value === null) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-          `Unknown variable: $${node.name}`,
+          `RILL-R005: Unknown variable: $${node.name}`,
           this.getNodeLocation(node),
           { variableName: node.name }
         );
@@ -513,7 +513,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (value === null) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot access property '${prop}' on null`,
+            `RILL-R009: Cannot access property '${prop}' on null`,
             this.getNodeLocation(node)
           );
         }
@@ -522,14 +522,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (value === undefined || value === null) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Dict has no field '${prop}'`,
+              `RILL-R009: Dict has no field '${prop}'`,
               this.getNodeLocation(node)
             );
           }
         } else {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot access property on non-dict value at '${fullPath}'`,
+            `RILL-R002: Cannot access property on non-dict value at '${fullPath}'`,
             this.getNodeLocation(node)
           );
         }
@@ -538,7 +538,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!isCallable(value)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `'${fullPath}' is not callable`,
+          `RILL-R002: '${fullPath}' is not callable`,
           this.getNodeLocation(node),
           { path: fullPath, actualType: inferType(value) }
         );
@@ -569,7 +569,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (value === null) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot access property on null`,
+            `RILL-R009: Cannot access property on null`,
             this.getNodeLocation(node)
           );
         }
@@ -580,7 +580,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // (Not in scope for this mixin - will be handled by VariablesMixin)
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Bracket access not supported in this context',
+            'RILL-R002: Bracket access not supported in this context',
             this.getNodeLocation(node)
           );
         }
@@ -599,7 +599,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // are handled by VariablesMixin
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Field access kind '${access.kind}' not supported in this context`,
+            `RILL-R002: Field access kind '${access.kind}' not supported in this context`,
             this.getNodeLocation(node)
           );
         }
@@ -628,7 +628,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // This stub satisfies the spec interface but delegates to correct implementation.
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin',
+        'RILL-R002: evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin',
         this.getNodeLocation(node)
       );
     }
@@ -644,7 +644,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!isScriptCallable(input)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Cannot invoke non-closure value (got ${typeof input})`,
+          `RILL-R002: Cannot invoke non-closure value (got ${typeof input})`,
           this.getNodeLocation(node)
         );
       }
@@ -672,7 +672,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (isCallable(receiver)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Method .${node.name} not available on callable (invoke with -> $() first)`,
+          `RILL-R003: Method .${node.name} not available on callable (invoke with -> $() first)`,
           this.getNodeLocation(node),
           { methodName: node.name, receiverType: 'callable' }
         );
@@ -699,7 +699,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD,
-          `Unknown method: ${node.name}`,
+          `RILL-R007: Unknown method: ${node.name}`,
           this.getNodeLocation(node),
           { methodName: node.name }
         );
@@ -725,7 +725,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!isCallable(receiver)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Cannot invoke non-callable value (got ${inferType(receiver)})`,
+          `RILL-R002: Cannot invoke non-callable value (got ${inferType(receiver)})`,
           this.getNodeLocation(node),
           { actualType: inferType(receiver) }
         );
@@ -754,7 +754,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!isCallable(closure)) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Closure chain element must be callable, got ${inferType(closure)}`,
+              `RILL-R002: Closure chain element must be callable, got ${inferType(closure)}`,
               this.getNodeLocation(node)
             );
           }
@@ -771,7 +771,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Closure chain requires callable or list of callables, got ${inferType(target)}`,
+          `RILL-R002: Closure chain requires callable or list of callables, got ${inferType(target)}`,
           this.getNodeLocation(node)
         );
       }
@@ -794,7 +794,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!isScriptCallable(value)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Cannot access annotation on ${inferType(value)}`,
+          `RILL-R003: Cannot access annotation on ${inferType(value)}`,
           location,
           { actualType: inferType(value) }
         );
@@ -807,7 +807,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (annotationValue === undefined) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION,
-          `Annotation '${key}' not found`,
+          `RILL-R008: Annotation '${key}' not found`,
           location,
           { annotationKey: key }
         );
@@ -835,7 +835,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!isScriptCallable(callable)) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Cannot access .params on ${inferType(callable)}`,
+          `RILL-R003: Cannot access .params on ${inferType(callable)}`,
           location,
           { actualType: inferType(callable) }
         );

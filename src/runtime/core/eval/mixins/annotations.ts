@@ -142,13 +142,13 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // Tuple/list: not valid for annotations (need named keys)
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Annotation spread requires dict with named keys, got list',
+              'RILL-R002: Annotation spread requires dict with named keys, got list',
               spreadArg.span.start
             );
           } else {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Annotation spread requires dict, got ${typeof spreadValue}`,
+              `RILL-R002: Annotation spread requires dict, got ${typeof spreadValue}`,
               spreadArg.span.start
             );
           }

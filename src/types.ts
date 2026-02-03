@@ -54,9 +54,501 @@ export const RILL_ERROR_CODES = {
 export type RillErrorCode =
   (typeof RILL_ERROR_CODES)[keyof typeof RILL_ERROR_CODES];
 
+/** Error category determining error ID prefix */
+export type ErrorCategory = 'lexer' | 'parse' | 'runtime' | 'check';
+
+/** Error severity level */
+export type ErrorSeverity = 'error' | 'warning';
+
+/** Error registry entry containing all metadata for a single error condition */
+export interface ErrorDefinition {
+  /** Format: RILL-{category}{3-digit} (e.g., RILL-R001) */
+  readonly errorId: string;
+  /** Legacy error code from RILL_ERROR_CODES */
+  readonly legacyCode: RillErrorCode;
+  /** Error category (determines ID prefix) */
+  readonly category: ErrorCategory;
+  /** Severity level (defaults to 'error' when omitted) */
+  readonly severity?: ErrorSeverity | undefined;
+  /** Human-readable description (max 50 characters) */
+  readonly description: string;
+  /** Message template with {placeholder} syntax */
+  readonly messageTemplate: string;
+}
+
+// ============================================================
+// ERROR REGISTRY
+// ============================================================
+
+/**
+ * Central registry for all error definitions with O(1) lookup.
+ * Immutable after initialization.
+ */
+export interface ErrorRegistry {
+  get(errorId: string): ErrorDefinition | undefined;
+  getByLegacyCode(code: RillErrorCode): readonly ErrorDefinition[];
+  has(errorId: string): boolean;
+  readonly size: number;
+  entries(): IterableIterator<[string, ErrorDefinition]>;
+}
+
+class ErrorRegistryImpl implements ErrorRegistry {
+  private readonly byId: ReadonlyMap<string, ErrorDefinition>;
+  private readonly byLegacyCode: ReadonlyMap<
+    RillErrorCode,
+    readonly ErrorDefinition[]
+  >;
+
+  constructor(definitions: ErrorDefinition[]) {
+    const idMap = new Map<string, ErrorDefinition>();
+    const codeMap = new Map<RillErrorCode, ErrorDefinition[]>();
+
+    for (const def of definitions) {
+      idMap.set(def.errorId, def);
+
+      const existing = codeMap.get(def.legacyCode) ?? [];
+      codeMap.set(def.legacyCode, [...existing, def]);
+    }
+
+    this.byId = idMap;
+    this.byLegacyCode = codeMap;
+  }
+
+  get(errorId: string): ErrorDefinition | undefined {
+    return this.byId.get(errorId);
+  }
+
+  getByLegacyCode(code: RillErrorCode): readonly ErrorDefinition[] {
+    return this.byLegacyCode.get(code) ?? [];
+  }
+
+  has(errorId: string): boolean {
+    return this.byId.has(errorId);
+  }
+
+  get size(): number {
+    return this.byId.size;
+  }
+
+  entries(): IterableIterator<[string, ErrorDefinition]> {
+    return this.byId.entries();
+  }
+}
+
+/** All error definitions indexed by error ID */
+const ERROR_DEFINITIONS: ErrorDefinition[] = [
+  // Lexer Errors (RILL-L0xx)
+  {
+    errorId: 'RILL-L001',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'lexer',
+    description: 'Unterminated string literal',
+    messageTemplate: 'Unterminated string literal at {location}',
+  },
+  {
+    errorId: 'RILL-L002',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'lexer',
+    description: 'Invalid character',
+    messageTemplate: 'Invalid character {char} at {location}',
+  },
+  {
+    errorId: 'RILL-L003',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'lexer',
+    description: 'Invalid number format',
+    messageTemplate: 'Invalid number format: {value}',
+  },
+  {
+    errorId: 'RILL-L004',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'lexer',
+    description: 'Unterminated multiline string',
+    messageTemplate: 'Unterminated multiline string starting at {location}',
+  },
+  {
+    errorId: 'RILL-L005',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'lexer',
+    description: 'Invalid escape sequence',
+    messageTemplate: 'Invalid escape sequence {sequence} at {location}',
+  },
+
+  // Parse Errors (RILL-P0xx)
+  {
+    errorId: 'RILL-P001',
+    legacyCode: RILL_ERROR_CODES.PARSE_UNEXPECTED_TOKEN,
+    category: 'parse',
+    description: 'Unexpected token',
+    messageTemplate: 'Unexpected token {token}, expected {expected}',
+  },
+  {
+    errorId: 'RILL-P002',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'parse',
+    description: 'Unexpected end of input',
+    messageTemplate: 'Unexpected end of input, expected {expected}',
+  },
+  {
+    errorId: 'RILL-P003',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_TYPE,
+    category: 'parse',
+    description: 'Invalid type annotation',
+    messageTemplate: 'Invalid type annotation: {type}',
+  },
+  {
+    errorId: 'RILL-P004',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'parse',
+    description: 'Invalid expression',
+    messageTemplate: 'Invalid expression: {details}',
+  },
+  {
+    errorId: 'RILL-P005',
+    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+    category: 'parse',
+    description: 'Missing delimiter',
+    messageTemplate: 'Missing {delimiter}, found {found}',
+  },
+
+  // Runtime Errors (RILL-R0xx)
+  {
+    errorId: 'RILL-R001',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+    category: 'runtime',
+    description: 'Parameter type mismatch',
+    messageTemplate:
+      'Function {function} expects parameter {param} (position {position}) to be {expected}, got {actual}',
+  },
+  {
+    errorId: 'RILL-R002',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+    category: 'runtime',
+    description: 'Operator type mismatch',
+    messageTemplate:
+      'Operator {operator} cannot be applied to {leftType} and {rightType}',
+  },
+  {
+    errorId: 'RILL-R003',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+    category: 'runtime',
+    description: 'Method receiver type mismatch',
+    messageTemplate: 'Method {method} cannot be called on {type}',
+  },
+  {
+    errorId: 'RILL-R004',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+    category: 'runtime',
+    description: 'Type conversion failure',
+    messageTemplate: 'Cannot convert {value} to {targetType}',
+  },
+  {
+    errorId: 'RILL-R005',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+    category: 'runtime',
+    description: 'Undefined variable',
+    messageTemplate: 'Variable {name} is not defined',
+  },
+  {
+    errorId: 'RILL-R006',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_FUNCTION,
+    category: 'runtime',
+    description: 'Undefined function',
+    messageTemplate: 'Function {name} is not defined',
+  },
+  {
+    errorId: 'RILL-R007',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD,
+    category: 'runtime',
+    description: 'Undefined method',
+    messageTemplate: 'Method {method} is not defined on {type}',
+  },
+  {
+    errorId: 'RILL-R008',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION,
+    category: 'runtime',
+    description: 'Undefined annotation',
+    messageTemplate: 'Annotation {key} is not defined',
+  },
+  {
+    errorId: 'RILL-R009',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
+    category: 'runtime',
+    description: 'Property not found',
+    messageTemplate: 'Property {property} not found on {type}',
+  },
+  {
+    errorId: 'RILL-R010',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_LIMIT_EXCEEDED,
+    category: 'runtime',
+    description: 'Iteration limit exceeded',
+    messageTemplate: 'Iteration limit of {limit} exceeded',
+  },
+  {
+    errorId: 'RILL-R011',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_INVALID_PATTERN,
+    category: 'runtime',
+    description: 'Invalid regex pattern',
+    messageTemplate: 'Invalid regex pattern: {pattern}',
+  },
+  {
+    errorId: 'RILL-R012',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_TIMEOUT,
+    category: 'runtime',
+    description: 'Operation timeout',
+    messageTemplate: 'Operation timed out after {timeout}ms',
+  },
+  {
+    errorId: 'RILL-R013',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_ABORTED,
+    category: 'runtime',
+    description: 'Execution aborted',
+    messageTemplate: 'Execution aborted by signal',
+  },
+  {
+    errorId: 'RILL-R014',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_AUTO_EXCEPTION,
+    category: 'runtime',
+    description: 'Auto-exception triggered',
+    messageTemplate: 'Auto-exception triggered: pattern {pattern} matched',
+  },
+  {
+    errorId: 'RILL-R015',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_ASSERTION_FAILED,
+    category: 'runtime',
+    description: 'Assertion failed',
+    messageTemplate: 'Assertion failed: {condition}',
+  },
+  {
+    errorId: 'RILL-R016',
+    legacyCode: RILL_ERROR_CODES.RUNTIME_ERROR_RAISED,
+    category: 'runtime',
+    description: 'Error statement executed',
+    messageTemplate: 'Error raised: {message}',
+  },
+
+  // Check Errors (RILL-C0xx)
+  {
+    errorId: 'RILL-C001',
+    legacyCode: RILL_ERROR_CODES.CHECK_FILE_NOT_FOUND,
+    category: 'check',
+    description: 'File not found',
+    messageTemplate: 'File not found: {path}',
+  },
+  {
+    errorId: 'RILL-C002',
+    legacyCode: RILL_ERROR_CODES.CHECK_FILE_UNREADABLE,
+    category: 'check',
+    description: 'File unreadable',
+    messageTemplate: 'File unreadable: {path}',
+  },
+  {
+    errorId: 'RILL-C003',
+    legacyCode: RILL_ERROR_CODES.CHECK_INVALID_CONFIG,
+    category: 'check',
+    description: 'Invalid configuration',
+    messageTemplate: 'Invalid configuration: {details}',
+  },
+  {
+    errorId: 'RILL-C004',
+    legacyCode: RILL_ERROR_CODES.CHECK_FIX_COLLISION,
+    category: 'check',
+    description: 'Fix collision detected',
+    messageTemplate: 'Fix collision detected for {location}',
+  },
+];
+
+/**
+ * Global error registry instance.
+ * Read-only singleton initialized at module load.
+ */
+export const ERROR_REGISTRY: ErrorRegistry = new ErrorRegistryImpl(
+  ERROR_DEFINITIONS
+);
+
+// ============================================================
+// TEMPLATE RENDERING
+// ============================================================
+
+/**
+ * Renders a message template by replacing placeholders with context values.
+ *
+ * Placeholder format: {varName}
+ * Missing context values render as empty string.
+ * Non-string values are coerced via String().
+ * Invalid templates (unclosed braces) return template unchanged.
+ *
+ * @param template - Template string with {placeholder} syntax
+ * @param context - Key-value pairs for placeholder replacement
+ * @returns Rendered message with placeholders replaced
+ *
+ * @example
+ * renderMessage("Expected {expected}, got {actual}", {expected: "string", actual: "number"})
+ * // Returns: "Expected string, got number"
+ *
+ * @example
+ * renderMessage("Hello {name}", {})
+ * // Returns: "Hello "
+ */
+export function renderMessage(
+  template: string,
+  context: Record<string, unknown>
+): string {
+  let result = '';
+  let i = 0;
+
+  while (i < template.length) {
+    const char = template[i]!;
+
+    if (char === '{') {
+      // Check if this is the start of a placeholder
+      const nextChar = template[i + 1];
+      if (nextChar !== '{') {
+        // Find the closing brace
+        let j = i + 1;
+        while (j < template.length && template[j] !== '}') {
+          j++;
+        }
+
+        // Check if we found a closing brace
+        if (j >= template.length) {
+          // Unclosed brace - return template unchanged
+          return template;
+        }
+
+        // Extract placeholder name and render value
+        const placeholderName = template.slice(i + 1, j);
+        const value = context[placeholderName];
+
+        // Render value: missing = empty string, non-string coerced via String()
+        if (value === undefined) {
+          result += '';
+        } else {
+          try {
+            result += String(value);
+          } catch {
+            // String() coercion failed - use default toString behavior
+            result += Object.prototype.toString.call(value);
+          }
+        }
+
+        // Move past closing brace. Each character is visited once (O(n) performance).
+        i = j + 1;
+        continue;
+      }
+    }
+
+    // Regular character - append to result
+    result += char;
+    i++;
+  }
+
+  return result;
+}
+
+/**
+ * Generates documentation URL for an error ID.
+ *
+ * Format: https://github.com/rcrsr/rill/blob/v{version}/docs/88_errors.md#{errorId}
+ * Error ID is lowercased in anchor.
+ *
+ * @param errorId - Error identifier (format: RILL-{category}{3-digit}, e.g., RILL-R001)
+ * @param version - Semver version (format: X.Y.Z)
+ * @returns Documentation URL, or empty string if inputs are invalid
+ *
+ * @example
+ * getHelpUrl("RILL-R001", "0.4.1")
+ * // Returns: "https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-r001"
+ *
+ * @example
+ * getHelpUrl("invalid", "0.4.1")
+ * // Returns: ""
+ */
+export function getHelpUrl(errorId: string, version: string): string {
+  // Validate errorId format: RILL-{category}{3-digit}
+  // Category is single letter (L=lexer, P=parse, R=runtime, C=check)
+  const errorIdPattern = /^RILL-[LPRC]\d{3}$/;
+  if (!errorIdPattern.test(errorId)) {
+    return '';
+  }
+
+  // Validate version format: X.Y.Z (semver)
+  const versionPattern = /^\d+\.\d+\.\d+$/;
+  if (!versionPattern.test(version)) {
+    return '';
+  }
+
+  // Build URL with lowercased errorId in anchor
+  const anchor = errorId.toLowerCase();
+  return `https://github.com/rcrsr/rill/blob/v${version}/docs/88_errors.md#${anchor}`;
+}
+
+// ============================================================
+// ERROR FACTORY
+// ============================================================
+
+/**
+ * Factory function for creating errors from registry.
+ *
+ * Looks up error definition from registry, renders message template with context,
+ * and creates RillError with structured metadata.
+ *
+ * @param errorId - Error identifier (format: RILL-{category}{3-digit})
+ * @param context - Key-value pairs for template placeholder replacement
+ * @param location - Source location where error occurred (optional)
+ * @returns RillError instance with rendered message
+ * @throws TypeError if errorId is not found in registry
+ *
+ * @example
+ * createError("RILL-R005", { name: "foo" }, location)
+ * // Creates RuntimeError: "Variable foo is not defined at 1:5"
+ *
+ * @example
+ * createError("RILL-X999", {})
+ * // Throws: TypeError("Unknown error ID: RILL-X999")
+ */
+export function createError(
+  errorId: string,
+  context: Record<string, unknown>,
+  location?: SourceLocation | undefined
+): RillError {
+  // Lookup error definition from registry (O(1))
+  const definition = ERROR_REGISTRY.get(errorId);
+
+  // EC-9: Unknown errorId -> Throws TypeError
+  if (!definition) {
+    throw new TypeError(`Unknown error ID: ${errorId}`);
+  }
+
+  // Render message from template + context (O(n) where n = template length)
+  // EC-10: Context value fails String() coercion -> Uses fallback "[object Object]"
+  // This is handled inside renderMessage via try-catch
+  const message = renderMessage(definition.messageTemplate, context);
+
+  // EC-11: Malformed location (missing line/column) -> Error created without location metadata
+  // We accept the location as-is; if it's malformed, the error won't have proper location data
+  // This is acceptable per spec - the error is still created, just without complete location info
+
+  // Compute helpUrl from errorId (hardcoded version for now)
+  // TODO: In future, read version from package.json or environment
+  const helpUrl = getHelpUrl(errorId, '0.4.5');
+
+  // Create RillError with errorId, helpUrl, legacy code, and rendered message
+  return new RillError({
+    code: definition.legacyCode,
+    errorId,
+    helpUrl: helpUrl || undefined, // Convert empty string to undefined
+    message,
+    location,
+    context,
+  });
+}
+
 /** Structured error data for host applications */
 export interface RillErrorData {
   readonly code: RillErrorCode;
+  readonly errorId?: string | undefined;
+  readonly helpUrl?: string | undefined;
   readonly message: string;
   readonly location?: SourceLocation | undefined;
   readonly context?: Record<string, unknown> | undefined;
@@ -68,6 +560,8 @@ export interface RillErrorData {
  */
 export class RillError extends Error {
   readonly code: RillErrorCode;
+  readonly errorId: string | undefined;
+  readonly helpUrl: string | undefined;
   readonly location?: SourceLocation | undefined;
   readonly context?: Record<string, unknown> | undefined;
 
@@ -78,6 +572,8 @@ export class RillError extends Error {
     super(`${data.message}${locationStr}`);
     this.name = 'RillError';
     this.code = data.code;
+    this.errorId = data.errorId;
+    this.helpUrl = data.helpUrl;
     this.location = data.location;
     this.context = data.context;
   }
@@ -86,6 +582,8 @@ export class RillError extends Error {
   toData(): RillErrorData {
     return {
       code: this.code,
+      errorId: this.errorId,
+      helpUrl: this.helpUrl,
       message: this.message.replace(/ at \d+:\d+$/, ''), // Strip location suffix
       location: this.location,
       context: this.context,
@@ -104,14 +602,31 @@ export class ParseError extends RillError {
   constructor(
     message: string,
     location: SourceLocation,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
+    errorId?: string
   ) {
-    super({
-      code: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
-      message,
-      location,
-      context,
-    });
+    // When errorId provided, look up definition and derive legacyCode
+    if (errorId) {
+      const definition = ERROR_REGISTRY.get(errorId);
+      if (!definition) {
+        throw new TypeError(`Unknown error ID: ${errorId}`);
+      }
+      super({
+        code: definition.legacyCode,
+        errorId,
+        message,
+        location,
+        context,
+      });
+    } else {
+      // Backward compatible: use default PARSE_INVALID_SYNTAX code
+      super({
+        code: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
+        message,
+        location,
+        context,
+      });
+    }
     this.name = 'ParseError';
   }
 }
@@ -122,9 +637,26 @@ export class RuntimeError extends RillError {
     code: RillErrorCode,
     message: string,
     location?: SourceLocation,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
+    errorId?: string
   ) {
-    super({ code, message, location, context });
+    // When errorId provided, look up definition and derive legacyCode
+    if (errorId) {
+      const definition = ERROR_REGISTRY.get(errorId);
+      if (!definition) {
+        throw new TypeError(`Unknown error ID: ${errorId}`);
+      }
+      super({
+        code: definition.legacyCode,
+        errorId,
+        message,
+        location,
+        context,
+      });
+    } else {
+      // Backward compatible: use provided code directly
+      super({ code, message, location, context });
+    }
     this.name = 'RuntimeError';
   }
 
@@ -133,9 +665,10 @@ export class RuntimeError extends RillError {
     code: RillErrorCode,
     message: string,
     node?: { span: SourceSpan },
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
+    errorId?: string
   ): RuntimeError {
-    return new RuntimeError(code, message, node?.span.start, context);
+    return new RuntimeError(code, message, node?.span.start, context, errorId);
   }
 }
 

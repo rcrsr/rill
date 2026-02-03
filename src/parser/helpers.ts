@@ -312,7 +312,9 @@ export function parseTypeName<T extends string>(
   if (!validTypes.includes(typeToken.value as T)) {
     throw new ParseError(
       `Invalid type: ${typeToken.value} (expected: ${validTypes.join(', ')})`,
-      typeToken.span.start
+      typeToken.span.start,
+      undefined,
+      'RILL-P003'
     );
   }
   return typeToken.value as T;
@@ -376,7 +378,9 @@ export function parseBareHostCall(state: ParserState): HostCallNode {
     if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
         'Expected identifier or keyword after ::',
-        token.span.start
+        token.span.start,
+        undefined,
+        'RILL-P005'
       );
     }
 

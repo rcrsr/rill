@@ -296,14 +296,14 @@ Options:
 
       // Check if file exists
       if (!fs.existsSync(args.file)) {
-        console.error(`Error: File not found: ${args.file}`);
+        console.error(`Error [RILL-C001]: File not found: ${args.file}`);
         process.exit(2);
       }
 
       // Check if path is a directory
       const stats = fs.statSync(args.file);
       if (stats.isDirectory()) {
-        console.error(`Error: Path is a directory: ${args.file}`);
+        console.error(`Error [RILL-C002]: Path is a directory: ${args.file}`);
         process.exit(2);
       }
 
@@ -318,14 +318,14 @@ Options:
       ) {
         const code = (err as { code: string }).code;
         if (code === 'ENOENT') {
-          console.error(`Error: File not found: ${args.file}`);
+          console.error(`Error [RILL-C001]: File not found: ${args.file}`);
         } else if (code === 'EISDIR') {
-          console.error(`Error: Path is a directory: ${args.file}`);
+          console.error(`Error [RILL-C002]: Path is a directory: ${args.file}`);
         } else {
-          console.error(`Error: Cannot read file: ${args.file}`);
+          console.error(`Error [RILL-C002]: Cannot read file: ${args.file}`);
         }
       } else {
-        console.error(`Error: Cannot read file: ${args.file}`);
+        console.error(`Error [RILL-C002]: Cannot read file: ${args.file}`);
       }
       process.exit(2);
     }

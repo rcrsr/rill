@@ -54,4 +54,18 @@ export {
   type StepStartEvent,
   validateHostFunctionArgs,
 } from './runtime/index.js';
+
+// ============================================================
+// ERROR TAXONOMY
+// ============================================================
+export {
+  type ErrorCategory,
+  type ErrorDefinition,
+  type ErrorSeverity,
+  ERROR_REGISTRY,
+  renderMessage,
+  getHelpUrl,
+  createError,
+} from './types.js';
+
 export * from './types.js';

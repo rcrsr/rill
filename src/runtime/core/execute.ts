@@ -119,7 +119,7 @@ export function createStepper(
         if (isRecoveryErrorNode(stmt)) {
           throw RuntimeError.fromNode(
             RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
-            `Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
+            `RILL-P002: Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
             stmt
           );
         }
@@ -193,7 +193,7 @@ export function createStepper(
         if (context.pipeValue === null) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-            'Undefined variable: $',
+            'RILL-R005: Undefined variable: $',
             undefined,
             { variable: '$' }
           );

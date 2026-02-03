@@ -115,7 +115,7 @@ export function createRuntimeContext(
       } catch {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_INVALID_PATTERN,
-          `Invalid autoException pattern: ${pattern}`,
+          `RILL-R011: Invalid autoException pattern: ${pattern}`,
           undefined,
           { pattern }
         );

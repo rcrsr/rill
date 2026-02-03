@@ -83,7 +83,9 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
     if (!isValidIdent) {
       throw new ParseError(
         'Expected identifier or keyword after ::',
-        token.span.start
+        token.span.start,
+        undefined,
+        'RILL-P005'
       );
     }
 

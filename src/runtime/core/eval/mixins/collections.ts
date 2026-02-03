@@ -100,7 +100,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `Collection operators require list, string, dict, or iterator, got ${inferType(input)}`,
+        `RILL-R002: Collection operators require list, string, dict, or iterator, got ${inferType(input)}`,
         node.span.start
       );
     }
@@ -131,7 +131,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (nextClosure === undefined || !isCallable(nextClosure)) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Iterator .next must be a closure',
+            'RILL-R002: Iterator .next must be a closure',
             node.span.start
           );
         }
@@ -145,7 +145,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof nextIterator !== 'object' || nextIterator === null) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Iterator .next must return iterator',
+            'RILL-R002: Iterator .next must return iterator',
             node.span.start
           );
         }
@@ -155,7 +155,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (count >= limit) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_LIMIT_EXCEEDED,
-          `Iterator expansion exceeded ${limit} iterations`,
+          `RILL-R010: Iterator expansion exceeded ${limit} iterations`,
           node.span.start,
           { limit, iterations: count }
         );
@@ -245,14 +245,14 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!varValue) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-              `Undefined variable: $${body.name}`,
+              `RILL-R005: Undefined variable: $${body.name}`,
               body.span.start
             );
           }
           if (!isCallable(varValue)) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Collection body variable must be callable, got ${inferType(varValue)}`,
+              `RILL-R002: Collection body variable must be callable, got ${inferType(varValue)}`,
               body.span.start
             );
           }
@@ -301,7 +301,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Spread requires list or dict, got ${inferType(element)}`,
+            `RILL-R002: Spread requires list or dict, got ${inferType(element)}`,
             body.span.start
           );
         }
@@ -312,7 +312,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!fn) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_UNDEFINED_FUNCTION,
-              `Unknown function: ${body.name}`,
+              `RILL-R006: Unknown function: ${body.name}`,
               body.span.start,
               { functionName: body.name }
             );
@@ -334,7 +334,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           };
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Unsupported iterator body type: ${unknownBody.type}`,
+            `RILL-R002: Unsupported iterator body type: ${unknownBody.type}`,
             unknownBody.span.start
           );
         }
@@ -519,7 +519,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Fold requires accumulator: use |x, acc = init| or fold(init) { }',
+            'RILL-R002: Fold requires accumulator: use |x, acc = init| or fold(init) { }',
             node.span.start
           );
         }
@@ -529,7 +529,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (!varValue || !isCallable(varValue) || varValue.kind !== 'script') {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Fold variable must be a script closure with accumulator parameter',
+            'RILL-R002: Fold variable must be a script closure with accumulator parameter',
             node.span.start
           );
         }
@@ -539,7 +539,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Fold closure must have accumulator parameter with default value',
+            'RILL-R002: Fold closure must have accumulator parameter with default value',
             node.span.start
           );
         }
@@ -619,7 +619,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof result !== 'boolean') {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Filter predicate must return boolean, got ${inferType(result)}`,
+            `RILL-R002: Filter predicate must return boolean, got ${inferType(result)}`,
             node.span.start
           );
         }

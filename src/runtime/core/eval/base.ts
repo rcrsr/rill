@@ -133,7 +133,7 @@ export class EvaluatorBase {
     if (!isDict(value)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `Cannot access field '${field}' on non-dict`,
+        `RILL-R003: Cannot access field '${field}' on non-dict`,
         location
       );
     }
@@ -147,7 +147,7 @@ export class EvaluatorBase {
       }
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `Dict has no field '${field}'`,
+        `RILL-R009: Dict has no field '${field}'`,
         location
       );
     }

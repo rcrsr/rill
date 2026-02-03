@@ -165,7 +165,7 @@ export function nextToken(state: LexerState): Token {
     return advanceAndMakeToken(state, 1, singleCharType, ch, start);
   }
 
-  throw new LexerError(`Unexpected character: ${ch}`, start);
+  throw new LexerError('RILL-L002', `Unexpected character: ${ch}`, start);
 }
 
 export function tokenize(

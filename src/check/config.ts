@@ -62,7 +62,7 @@ function validateConfig(data: unknown): asserts data is {
   severity?: Record<string, unknown>;
 } {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-    throw new Error('Invalid configuration: must be an object');
+    throw new Error('[RILL-C003] Invalid configuration: must be an object');
   }
 
   const config = data as Record<string, unknown>;
@@ -74,14 +74,16 @@ function validateConfig(data: unknown): asserts data is {
       config['rules'] === null ||
       Array.isArray(config['rules'])
     ) {
-      throw new Error('Invalid configuration: rules must be an object');
+      throw new Error(
+        '[RILL-C003] Invalid configuration: rules must be an object'
+      );
     }
 
     const rules = config['rules'] as Record<string, unknown>;
     for (const [code, state] of Object.entries(rules)) {
       if (!isRuleState(state)) {
         throw new Error(
-          `Invalid configuration: rule ${code} has invalid state "${state}" (must be 'on', 'off', or 'warn')`
+          `[RILL-C003] Invalid configuration: rule ${code} has invalid state "${state}" (must be 'on', 'off', or 'warn')`
         );
       }
     }
@@ -94,14 +96,16 @@ function validateConfig(data: unknown): asserts data is {
       config['severity'] === null ||
       Array.isArray(config['severity'])
     ) {
-      throw new Error('Invalid configuration: severity must be an object');
+      throw new Error(
+        '[RILL-C003] Invalid configuration: severity must be an object'
+      );
     }
 
     const severity = config['severity'] as Record<string, unknown>;
     for (const [code, sev] of Object.entries(severity)) {
       if (!isSeverity(sev)) {
         throw new Error(
-          `Invalid configuration: rule ${code} has invalid severity "${sev}" (must be 'error', 'warning', or 'info')`
+          `[RILL-C003] Invalid configuration: rule ${code} has invalid severity "${sev}" (must be 'error', 'warning', or 'info')`
         );
       }
     }
@@ -118,14 +122,18 @@ function validateRuleCodes(config: CheckConfig): void {
   // Check rules field
   for (const code of Object.keys(config.rules)) {
     if (!knownRules.has(code)) {
-      throw new Error(`Invalid configuration: unknown rule ${code}`);
+      throw new Error(
+        `[RILL-C003] Invalid configuration: unknown rule ${code}`
+      );
     }
   }
 
   // Check severity field
   for (const code of Object.keys(config.severity)) {
     if (!knownRules.has(code)) {
-      throw new Error(`Invalid configuration: unknown rule ${code}`);
+      throw new Error(
+        `[RILL-C003] Invalid configuration: unknown rule ${code}`
+      );
     }
   }
 }
@@ -155,7 +163,7 @@ export function loadConfig(cwd: string): CheckConfig | null {
     fileContent = readFileSync(configPath, 'utf-8');
   } catch (err) {
     throw new Error(
-      `Invalid configuration: failed to read file (${err instanceof Error ? err.message : String(err)})`
+      `[RILL-C003] Invalid configuration: failed to read file (${err instanceof Error ? err.message : String(err)})`
     );
   }
 
@@ -165,7 +173,7 @@ export function loadConfig(cwd: string): CheckConfig | null {
     parsedData = JSON.parse(fileContent);
   } catch (err) {
     throw new Error(
-      `Invalid configuration: invalid JSON (${err instanceof Error ? err.message : String(err)})`
+      `[RILL-C003] Invalid configuration: invalid JSON (${err instanceof Error ? err.message : String(err)})`
     );
   }
 

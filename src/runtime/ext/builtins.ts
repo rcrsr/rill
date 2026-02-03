@@ -135,7 +135,7 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
     if (isCallable(value)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        'Cannot serialize closure to JSON',
+        'RILL-R004: Cannot serialize closure to JSON',
         location
       );
     }
@@ -255,7 +255,7 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
     if (step === 0) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        'range step cannot be zero',
+        'RILL-R001: range step cannot be zero',
         location
       );
     }
@@ -289,7 +289,7 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
     if (count < 0) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        'repeat count cannot be negative',
+        'RILL-R001: repeat count cannot be negative',
         location
       );
     }
@@ -367,7 +367,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (receiver.length === 0) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Cannot get head of empty list',
+          'RILL-R002: Cannot get head of empty list',
           location
         );
       }
@@ -377,7 +377,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (receiver.length === 0) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Cannot get head of empty string',
+          'RILL-R002: Cannot get head of empty string',
           location
         );
       }
@@ -385,7 +385,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `head requires list or string, got ${inferType(receiver)}`,
+      `RILL-R003: head requires list or string, got ${inferType(receiver)}`,
       location
     );
   },
@@ -396,7 +396,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (receiver.length === 0) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Cannot get tail of empty list',
+          'RILL-R002: Cannot get tail of empty list',
           location
         );
       }
@@ -406,7 +406,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (receiver.length === 0) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Cannot get tail of empty string',
+          'RILL-R002: Cannot get tail of empty string',
           location
         );
       }
@@ -414,7 +414,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `tail requires list or string, got ${inferType(receiver)}`,
+      `RILL-R003: tail requires list or string, got ${inferType(receiver)}`,
       location
     );
   },
@@ -439,7 +439,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
+      `RILL-R003: first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
       location
     );
   },
@@ -451,7 +451,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (idx < 0 || idx >= receiver.length) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `List index out of bounds: ${idx}`,
+          `RILL-R002: List index out of bounds: ${idx}`,
           location
         );
       }
@@ -461,7 +461,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       if (idx < 0 || idx >= receiver.length) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `String index out of bounds: ${idx}`,
+          `RILL-R002: String index out of bounds: ${idx}`,
           location
         );
       }
@@ -469,7 +469,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     }
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Cannot call .at() on ${typeof receiver}`,
+      `RILL-R003: Cannot call .at() on ${typeof receiver}`,
       location
     );
   },
@@ -669,14 +669,14 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     if (!Array.isArray(receiver)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has() requires list receiver, got ${inferType(receiver)}`,
+        `RILL-R003: has() requires list receiver, got ${inferType(receiver)}`,
         location
       );
     }
     if (args.length !== 1) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has() expects 1 argument, got ${args.length}`,
+        `RILL-R001: has() expects 1 argument, got ${args.length}`,
         location
       );
     }
@@ -694,14 +694,14 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     if (!Array.isArray(receiver)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_any() requires list receiver, got ${inferType(receiver)}`,
+        `RILL-R003: has_any() requires list receiver, got ${inferType(receiver)}`,
         location
       );
     }
     if (args.length !== 1) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_any() expects 1 argument, got ${args.length}`,
+        `RILL-R001: has_any() expects 1 argument, got ${args.length}`,
         location
       );
     }
@@ -709,7 +709,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     if (!Array.isArray(candidates)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_any() expects list argument, got ${inferType(candidates)}`,
+        `RILL-R001: has_any() expects list argument, got ${inferType(candidates)}`,
         location
       );
     }
@@ -729,14 +729,14 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     if (!Array.isArray(receiver)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_all() requires list receiver, got ${inferType(receiver)}`,
+        `RILL-R003: has_all() requires list receiver, got ${inferType(receiver)}`,
         location
       );
     }
     if (args.length !== 1) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_all() expects 1 argument, got ${args.length}`,
+        `RILL-R001: has_all() expects 1 argument, got ${args.length}`,
         location
       );
     }
@@ -744,7 +744,7 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     if (!Array.isArray(candidates)) {
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `has_all() expects list argument, got ${inferType(candidates)}`,
+        `RILL-R001: has_all() expects list argument, got ${inferType(candidates)}`,
         location
       );
     }

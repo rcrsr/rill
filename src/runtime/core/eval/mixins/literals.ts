@@ -136,13 +136,13 @@ async function evaluateAnnotations(
         // Tuple/list: not valid for annotations (need named keys)
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Annotation spread requires dict with named keys, got list',
+          'RILL-R002: Annotation spread requires dict with named keys, got list',
           spreadArg.span.start
         );
       } else {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `Annotation spread requires dict, got ${typeof spreadValue}`,
+          `RILL-R002: Annotation spread requires dict, got ${typeof spreadValue}`,
           spreadArg.span.start
         );
       }
@@ -252,7 +252,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (!Array.isArray(spreadValue)) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Spread in list literal requires list, got ${typeof spreadValue}`,
+            `RILL-R002: Spread in list literal requires list, got ${typeof spreadValue}`,
             elem.span?.start,
             { got: typeof spreadValue }
           );
@@ -288,7 +288,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (keys.length === 0) {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'Multi-key dict entry requires non-empty list',
+          'RILL-R002: Multi-key dict entry requires non-empty list',
           keyTuple.span?.start
         );
       }
@@ -303,7 +303,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         ) {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Dict key must be string, number, or boolean, got ${keyType}`,
+            `RILL-R002: Dict key must be string, number, or boolean, got ${keyType}`,
             keyTuple.span?.start,
             { got: keyType }
           );
@@ -364,7 +364,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (varValue === undefined) {
                 throw new RuntimeError(
                   RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-                  `Variable '${keyObj.variableName}' is undefined`,
+                  `RILL-R005: Variable '${keyObj.variableName}' is undefined`,
                   entry.span.start
                 );
               }
@@ -373,7 +373,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (typeof varValue !== 'string') {
                 throw new RuntimeError(
                   RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  `Dict key must be string, got ${typeof varValue}`,
+                  `RILL-R002: Dict key must be string, got ${typeof varValue}`,
                   entry.span.start
                 );
               }
@@ -384,7 +384,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (isReservedMethod(stringKey)) {
                 throw new RuntimeError(
                   RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  `Cannot use reserved method name '${stringKey}' as dict key`,
+                  `RILL-R002: Cannot use reserved method name '${stringKey}' as dict key`,
                   entry.span.start,
                   {
                     key: stringKey,
@@ -425,7 +425,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (typeof computedValue !== 'string') {
                 throw new RuntimeError(
                   RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  `Dict key evaluated to ${typeof computedValue}, expected string`,
+                  `RILL-R002: Dict key evaluated to ${typeof computedValue}, expected string`,
                   entry.span.start
                 );
               }
@@ -436,7 +436,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (isReservedMethod(stringKey)) {
                 throw new RuntimeError(
                   RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  `Cannot use reserved method name '${stringKey}' as dict key`,
+                  `RILL-R002: Cannot use reserved method name '${stringKey}' as dict key`,
                   entry.span.start,
                   {
                     key: stringKey,
@@ -572,7 +572,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if ('kind' in entry.key) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `Variable and computed dict keys not yet supported`,
+              `RILL-R004: Variable and computed dict keys not yet supported`,
               entry.span.start
             );
           }
@@ -613,7 +613,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const location = node.span?.start;
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
-        `Dict dispatch: key '${formatValue(input)}' not found`,
+        `RILL-R009: Dict dispatch: key '${formatValue(input)}' not found`,
         location,
         { key: input }
       );
@@ -638,7 +638,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (typeof input !== 'number') {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `List dispatch requires number index, got ${typeof input}`,
+          `RILL-R002: List dispatch requires number index, got ${typeof input}`,
           node.span?.start,
           { input, expectedType: 'number' }
         );
@@ -664,7 +664,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // No match and no default - throw error
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
-          `List dispatch: index '${index}' not found`,
+          `RILL-R009: List dispatch: index '${index}' not found`,
           node.span?.start,
           { index, listLength: elements.length }
         );
@@ -694,7 +694,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // Parameterized closure at terminal position: error
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Dispatch does not provide arguments for parameterized closure',
+              'RILL-R002: Dispatch does not provide arguments for parameterized closure',
               node.span?.start
             );
           }
@@ -809,7 +809,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (typeof input !== 'number') {
         throw new RuntimeError(
           RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `List dispatch requires number index, got ${typeof input}`,
+          `RILL-R002: List dispatch requires number index, got ${typeof input}`,
           location.span?.start,
           { input, expectedType: 'number' }
         );

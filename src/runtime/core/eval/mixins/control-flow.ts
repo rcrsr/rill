@@ -210,7 +210,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (iterCount > maxIter) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_LIMIT_EXCEEDED,
-              `While loop exceeded ${maxIter} iterations`,
+              `RILL-R010: While loop exceeded ${maxIter} iterations`,
               this.getNodeLocation(node),
               { limit: maxIter, iterations: iterCount }
             );

@@ -210,7 +210,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (this.ctx.pipeValue === null) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-              'Undefined variable: $',
+              'RILL-R005: Undefined variable: $',
               primary.span?.start,
               { variable: '$' }
             );
@@ -255,7 +255,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!primary.operand) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Postfix type assertion requires operand',
+              'RILL-R004: Postfix type assertion requires operand',
               primary.span.start
             );
           }
@@ -269,7 +269,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!primary.operand) {
             throw new RuntimeError(
               RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'Postfix type check requires operand',
+              'RILL-R004: Postfix type check requires operand',
               primary.span.start
             );
           }
@@ -281,7 +281,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         default:
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Unsupported expression type: ${(primary as { type: string }).type}`,
+            `RILL-R004: Unsupported expression type: ${(primary as { type: string }).type}`,
             this.getNodeLocation(primary)
           );
       }
@@ -551,7 +551,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               : typeof value;
           throw RuntimeError.fromNode(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Cannot dispatch to ${valueType}`,
+            `RILL-R002: Cannot dispatch to ${valueType}`,
             target
           );
         }
@@ -578,7 +578,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         default:
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `Unsupported pipe target type: ${(target as { type: string }).type}`,
+            `RILL-R004: Unsupported pipe target type: ${(target as { type: string }).type}`,
             this.getNodeLocation(target)
           );
       }
@@ -774,7 +774,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       throw new RuntimeError(
         RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
+        `RILL-R002: Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
         location,
         { currentType, keyType, key }
       );
@@ -809,7 +809,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Parameterized closure at intermediate position: error per EC-8
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Cannot invoke parameterized closure at intermediate path position',
+            'RILL-R002: Cannot invoke parameterized closure at intermediate path position',
             location
           );
         }
@@ -854,7 +854,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Parameterized closure at terminal position: error per EC-9
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'Dispatch does not provide arguments for parameterized closure',
+            'RILL-R002: Dispatch does not provide arguments for parameterized closure',
             location
           );
         }

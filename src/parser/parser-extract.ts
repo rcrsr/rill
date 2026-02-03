@@ -257,7 +257,9 @@ Parser.prototype.parseSliceBound = function (this: Parser): SliceBoundNode {
 
   throw new ParseError(
     `Expected slice bound (number, variable, or grouped expression), got: ${current(this.state).value}`,
-    current(this.state).span.start
+    current(this.state).span.start,
+    undefined,
+    'RILL-P001'
   );
 };
 

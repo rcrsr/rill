@@ -42,7 +42,7 @@ export function prefixFunctions(
   if (!NAMESPACE_PATTERN.test(namespace)) {
     throw new RuntimeError(
       RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`
+      `RILL-R004: Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`
     );
   }
 

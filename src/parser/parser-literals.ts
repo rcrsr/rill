@@ -105,7 +105,9 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
   }
   throw new ParseError(
     `Expected literal, got: ${token.value}${hint}`,
-    token.span.start
+    token.span.start,
+    undefined,
+    'RILL-P001'
   );
 };
 
@@ -170,12 +172,22 @@ Parser.prototype.parseStringParts = function (
       }
 
       if (depth !== 0) {
-        throw new ParseError('Unterminated string interpolation', baseLocation);
+        throw new ParseError(
+          'Unterminated string interpolation',
+          baseLocation,
+          undefined,
+          'RILL-P005'
+        );
       }
 
       const exprSource = raw.slice(exprStart, i - 1);
       if (!exprSource.trim()) {
-        throw new ParseError('Empty string interpolation', baseLocation);
+        throw new ParseError(
+          'Empty string interpolation',
+          baseLocation,
+          undefined,
+          'RILL-P004'
+        );
       }
 
       // Calculate the actual position of the interpolation in the source
@@ -257,7 +269,12 @@ Parser.prototype.parseInterpolationExpr = function (
   );
 
   if (filtered.length === 0 || filtered[0]?.type === TOKEN_TYPES.EOF) {
-    throw new ParseError('Empty string interpolation', baseLocation);
+    throw new ParseError(
+      'Empty string interpolation',
+      baseLocation,
+      undefined,
+      'RILL-P004'
+    );
   }
 
   const subParser = new Parser(filtered);
@@ -266,7 +283,9 @@ Parser.prototype.parseInterpolationExpr = function (
   if (subParser.state.tokens[subParser.state.pos]?.type !== TOKEN_TYPES.EOF) {
     throw new ParseError(
       `Unexpected token in interpolation: ${subParser.state.tokens[subParser.state.pos]?.value}`,
-      baseLocation
+      baseLocation,
+      undefined,
+      'RILL-P001'
     );
   }
 
@@ -360,7 +379,9 @@ Parser.prototype.parseTupleElement = function (
     ) {
       throw new ParseError(
         "Expected expression after '...'",
-        current(this.state).span.start
+        current(this.state).span.start,
+        undefined,
+        'RILL-P004'
       );
     }
 
@@ -420,7 +441,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
         'Expected variable name after $',
-        current(this.state).span.start
+        current(this.state).span.start,
+        undefined,
+        'RILL-P005'
       );
     }
     const varToken = advance(this.state);
@@ -432,7 +455,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     // Standalone $ without identifier - error
     throw new ParseError(
       'Expected variable name after $',
-      current(this.state).span.start
+      current(this.state).span.start,
+      undefined,
+      'RILL-P005'
     );
   } else if (check(this.state, TOKEN_TYPES.LPAREN)) {
     // Parse computed key: (expression)
@@ -441,7 +466,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     if (!check(this.state, TOKEN_TYPES.RPAREN)) {
       throw new ParseError(
         'Expected ) after computed key expression',
-        current(this.state).span.start
+        current(this.state).span.start,
+        undefined,
+        'RILL-P005'
       );
     }
     advance(this.state); // consume )
@@ -455,7 +482,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     if (literal.type !== 'Tuple') {
       throw new ParseError(
         'Dict entry key must be identifier or list, not dict',
-        literal.span.start
+        literal.span.start,
+        undefined,
+        'RILL-P004'
       );
     }
     key = literal;
@@ -488,7 +517,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     // Invalid token at key position
     throw new ParseError(
       'Dict key must be identifier, string, number, boolean, variable, or expression',
-      current(this.state).span.start
+      current(this.state).span.start,
+      undefined,
+      'RILL-P001'
     );
   }
 
