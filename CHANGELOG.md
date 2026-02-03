@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Runtime Version API** — Programmatic access to rill version information
+  - `VERSION` constant: Semver string from package.json (e.g., `"0.4.5"`)
+  - `VERSION_INFO` constant: Structured object with `major`, `minor`, `patch`, `prerelease` fields
+  - Use for logging, diagnostics, or compatibility checks in host applications
+  - Generated at build time via `scripts/generate-version.ts`
+
+- **Error Taxonomy** — Structured error system with documentation links
+  - `ERROR_REGISTRY`: Categorized definitions for all error codes with severity and messages
+  - `getHelpUrl(code)`: Returns documentation URL for any error code
+  - `renderMessage(error)`: Enhanced error messages with help links and context
+  - `createError(code, context)`: Structured error creation with template interpolation
+  - New types: `ErrorCategory`, `ErrorSeverity`, `ErrorDefinition`
+  - Error reference documentation at `docs/88_errors.md`
+
 - **Introspection API** — Runtime functions for discovering available functions and language reference
   - `getFunctions(ctx)` returns metadata for all registered functions (name, description, params)
   - `getLanguageReference()` returns bundled language reference text for LLM prompt context
