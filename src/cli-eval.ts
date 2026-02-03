@@ -14,7 +14,7 @@ import {
   parse,
   type ExecutionResult,
 } from './index.js';
-import { formatOutput, determineExitCode, readVersion } from './cli-shared.js';
+import { formatOutput, determineExitCode, VERSION } from './cli-shared.js';
 
 /**
  * Parse command-line arguments into structured command
@@ -91,9 +91,8 @@ Examples:
 /**
  * Display version information
  */
-async function showVersion(): Promise<void> {
-  const version = await readVersion();
-  console.log(`rill-eval ${version}`);
+function showVersion(): void {
+  console.log(`rill-eval ${VERSION}`);
 }
 
 /**
@@ -110,7 +109,7 @@ async function main(): Promise<void> {
     }
 
     if (command.mode === 'version') {
-      await showVersion();
+      showVersion();
       return;
     }
 

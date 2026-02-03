@@ -3,6 +3,8 @@
  * Based on docs/grammar.ebnf
  */
 
+import { VERSION } from './runtime/core/version-data.js';
+
 // ============================================================
 // SOURCE LOCATION
 // ============================================================
@@ -529,9 +531,8 @@ export function createError(
   // We accept the location as-is; if it's malformed, the error won't have proper location data
   // This is acceptable per spec - the error is still created, just without complete location info
 
-  // Compute helpUrl from errorId (hardcoded version for now)
-  // TODO: In future, read version from package.json or environment
-  const helpUrl = getHelpUrl(errorId, '0.4.5');
+  // Compute helpUrl from errorId using VERSION constant
+  const helpUrl = getHelpUrl(errorId, VERSION);
 
   // Create RillError with errorId, helpUrl, legacy code, and rendered message
   return new RillError({

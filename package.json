@@ -33,7 +33,8 @@
   },
   "scripts": {
     "generate-docs": "npx tsx scripts/generate-docs-bundle.ts",
-    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-docs",
+    "generate-version": "npx tsx scripts/generate-version.ts",
+    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-version && npm run generate-docs",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",

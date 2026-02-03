@@ -53,6 +53,9 @@ export {
   type StepResult,
   type StepStartEvent,
   validateHostFunctionArgs,
+  VERSION,
+  VERSION_INFO,
+  type VersionInfo,
 } from './runtime/index.js';
 
 // ============================================================

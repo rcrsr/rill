@@ -16,7 +16,7 @@ import {
   formatOutput,
   formatError,
   determineExitCode,
-  readVersion,
+  VERSION,
 } from './cli-shared.js';
 import { loadModule } from './cli-module-loader.js';
 
@@ -177,8 +177,7 @@ Examples:
         return;
 
       case 'version': {
-        const version = await readVersion();
-        console.log(version);
+        console.log(VERSION);
         return;
       }
 

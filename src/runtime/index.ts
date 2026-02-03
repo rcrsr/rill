@@ -109,3 +109,7 @@ export { createStepper, execute } from './core/execute.js';
 export type { FunctionMetadata, ParamMetadata } from './core/introspection.js';
 
 export { getFunctions, getLanguageReference } from './core/introspection.js';
+
+export type { VersionInfo } from './core/version-data.js';
+
+export { VERSION, VERSION_INFO } from './core/version-data.js';

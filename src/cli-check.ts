@@ -15,7 +15,7 @@ import {
   applyFixes,
 } from './check/index.js';
 import { parseWithRecovery } from './parser/index.js';
-import { readVersion } from './cli-shared.js';
+import { VERSION } from './cli-shared.js';
 
 /**
  * Parsed command-line arguments for rill-check
@@ -275,8 +275,7 @@ Options:
 
     // Handle version mode
     if (args.mode === 'version') {
-      const version = await readVersion();
-      console.log(version);
+      console.log(VERSION);
       process.exit(0);
     }
 

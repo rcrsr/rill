@@ -3,7 +3,7 @@
  * Common formatting functions for CLI tools
  */
 
-import { isCallable } from './runtime/index.js';
+import { isCallable, VERSION } from './runtime/index.js';
 import type { RillValue } from './runtime/index.js';
 import { ParseError, RuntimeError } from './types.js';
 
@@ -115,15 +115,9 @@ export function determineExitCode(value: RillValue): {
 }
 
 /**
- * Read version from package.json
+ * Package version string (re-exported from version-data.ts)
  *
- * @returns Package version string
+ * This replaces the previous async readVersion() function with a synchronous constant.
+ * The version is now generated at build time by scripts/generate-version.ts.
  */
-export async function readVersion(): Promise<string> {
-  const { readFile } = await import('fs/promises');
-  const packageJsonPath = new URL('../package.json', import.meta.url);
-  const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8')) as {
-    version: string;
-  };
-  return packageJson.version;
-}
+export { VERSION };

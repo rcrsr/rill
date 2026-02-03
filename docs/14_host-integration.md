@@ -595,7 +595,7 @@ interface ExecutionResult {
 
 ## Introspection
 
-Discover available functions and access language documentation at runtime.
+Discover available functions, access language documentation, and check runtime version at runtime.
 
 ### getFunctions()
 
@@ -650,6 +650,69 @@ ${reference}
 Help the user write rill scripts.`;
 ```
 
+### VERSION and VERSION_INFO
+
+Access runtime version information for logging, diagnostics, or version checks:
+
+```typescript
+import { VERSION, VERSION_INFO } from '@rcrsr/rill';
+
+// VERSION: Semver string for display
+console.log(`Running rill ${VERSION}`);  // "Running rill 0.4.5"
+
+// VERSION_INFO: Structured components for programmatic comparison
+if (VERSION_INFO.major === 0 && VERSION_INFO.minor < 4) {
+  console.warn('Rill version too old, upgrade required');
+}
+
+// Log full version info
+console.log('Runtime:', {
+  version: VERSION,
+  major: VERSION_INFO.major,
+  minor: VERSION_INFO.minor,
+  patch: VERSION_INFO.patch,
+  prerelease: VERSION_INFO.prerelease,
+});
+```
+
+**VERSION Constant:**
+- Type: `string`
+- Format: Semver (e.g., `"0.4.5"`, `"1.0.0-beta.1"`)
+- Use: Display in logs, error messages, diagnostics
+
+**VERSION_INFO Constant:**
+- Type: `VersionInfo`
+- Fields:
+  - `major: number` - Major version (breaking changes)
+  - `minor: number` - Minor version (new features)
+  - `patch: number` - Patch version (bug fixes)
+  - `prerelease?: string` - Prerelease tag if present
+- Use: Programmatic version comparison, compatibility checks
+
+**Version Comparison Example:**
+
+```typescript
+import { VERSION_INFO } from '@rcrsr/rill';
+
+function checkCompatibility(): boolean {
+  const required = { major: 0, minor: 4, patch: 0 };
+
+  if (VERSION_INFO.major !== required.major) {
+    return false; // Breaking change
+  }
+
+  if (VERSION_INFO.minor < required.minor) {
+    return false; // Missing features
+  }
+
+  return true;
+}
+
+if (!checkCompatibility()) {
+  throw new Error(`Requires rill >= 0.4.0, found ${VERSION}`);
+}
+```
+
 ### Introspection Types
 
 ```typescript
@@ -664,6 +727,13 @@ interface ParamMetadata {
   readonly type: string;                    // Type constraint (e.g., "string")
   readonly description: string;             // Parameter description
   readonly defaultValue: RillValue | undefined; // Default if optional
+}
+
+interface VersionInfo {
+  readonly major: number;        // Major version (breaking changes)
+  readonly minor: number;        // Minor version (new features)
+  readonly patch: number;        // Patch version (bug fixes)
+  readonly prerelease?: string;  // Prerelease tag if present
 }
 ```
 
@@ -890,6 +960,10 @@ export type { RillValue, RillArgs };
 // Introspection
 export { getFunctions, getLanguageReference };
 export type { FunctionMetadata, ParamMetadata };
+
+// Version information
+export { VERSION, VERSION_INFO };
+export type { VersionInfo };
 
 // Callbacks
 export type { RuntimeCallbacks, ObservabilityCallbacks };
