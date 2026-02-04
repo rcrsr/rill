@@ -12,8 +12,8 @@ import type {
   SourceLocation,
   VariableNode,
 } from '../types.js';
-import { TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, makeSpan } from './state.js';
+import { TOKEN_TYPES, ParseError } from '../types.js';
+import { check, advance, expect, makeSpan, current } from './state.js';
 import {
   isMethodCallWithArgs,
   VALID_TYPE_NAMES,
@@ -85,7 +85,16 @@ Parser.prototype.makeVariableWithAccess = function (
   const { accessChain, existenceCheck } = this.parseAccessChain();
 
   let defaultValue: BodyNode | null = null;
-  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE) && !existenceCheck) {
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    if (existenceCheck) {
+      const token = current(this.state);
+      throw new ParseError(
+        'Cannot combine existence check (.?field) with default value operator (??). Use one or the other.',
+        token.span.start,
+        undefined,
+        'RILL-P003'
+      );
+    }
     advance(this.state);
     defaultValue = this.parseDefaultValue();
   }

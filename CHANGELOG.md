@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `!"string"` throws `RUNTIME_TYPE_ERROR` (no truthy/falsy coercion)
   - Consistent with strict boolean enforcement in conditionals and loops
 
+- **Existence Check Validation** — Parser rejects combining `.?field` with `??`
+  - `$data.?field ?? "default"` now throws clear parse error
+  - Use `.?field` for boolean existence check OR `??` for default value, not both
+
 ### Fixed
 
 - **Closure PipeValue Isolation** — Explicit-param closures no longer inherit caller's `$`

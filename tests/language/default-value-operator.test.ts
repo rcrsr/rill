@@ -327,15 +327,14 @@ describe('Default Value Operator (??)', () => {
       await expect(run('?? "orphan"')).rejects.toThrow();
     });
 
-    it.skip('throws when combining existence check with default value', async () => {
+    it('throws when combining existence check with default value', async () => {
       // AC-5: Parser should reject .?field ?? pattern
-      // This documents expected behavior - implementation pending
       await expect(
         run(`
           [name: "test"] :> $data
           $data.?field ?? "default"
         `)
-      ).rejects.toThrow(/Unexpected token/);
+      ).rejects.toThrow(/Cannot combine existence check/);
     });
   });
 });
