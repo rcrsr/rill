@@ -562,6 +562,67 @@ Error halts the loop immediately:
 
 ---
 
+## Pass
+
+The `pass` keyword returns the current pipe value (`$`) unchanged. Use it for explicit identity pass-through in conditional branches and dict values.
+
+### In Conditionals
+
+Use `pass` when one branch should preserve the piped value:
+
+```rill
+"input" -> .contains("in") ? pass ! "fallback"
+# Returns "input" (condition true, pass preserves $)
+```
+
+```rill
+"data" -> .empty ? { error "Empty input" } ! pass
+# Returns "data" (condition false, pass preserves $)
+```
+
+### In Dict Values
+
+Use `pass` to include the piped value in dict construction:
+
+```rill
+"success" -> { [status: pass, code: 0] }
+# Returns [status: "success", code: 0]
+```
+
+### In Collection Operators
+
+Preserve elements conditionally:
+
+```rill
+[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }
+# Returns [1, 0, 3, 0]
+```
+
+### Why Use Pass?
+
+The `pass` keyword provides clearer intent than bare `$`:
+
+```text
+# Less clear - what does $ mean here?
+$cond ? do_something() ! $
+
+# More explicit - reader knows this is intentional no-op
+$cond ? do_something() ! pass
+```
+
+### Pass Behavior
+
+| Pattern | Returns | Context |
+|---------|---------|---------|
+| `cond ? pass ! alt` | `$` if true, `alt` if false | Conditional branch |
+| `cond ? alt ! pass` | `alt` if true, `$` if false | Conditional branch |
+| `[key: pass]` | Dict with `$` as value | Dict construction |
+| `-> { pass }` | `$` | Block body |
+
+**Note:** `pass` requires pipe context. Using `pass` without `$` bound throws an error.
+
+---
+
 ## Control Flow Summary
 
 | Statement | Scope | Effect |
@@ -570,6 +631,7 @@ Error halts the loop immediately:
 | `$val -> break` | Loop | Exit loop with value |
 | `return` | Block/Script | Exit block or script with current `$` |
 | `$val -> return` | Block/Script | Exit block or script with value |
+| `pass` | Any | Returns current `$` unchanged |
 | `assert cond` | Any | Halt if condition false, pass through on success |
 | `assert cond "msg"` | Any | Halt with custom message if condition false |
 | `error "msg"` | Any | Always halt with error message |

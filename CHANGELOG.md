@@ -5,12 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-02-03
 
 ### Added
 
 - **Runtime Version API** — Programmatic access to rill version information
-  - `VERSION` constant: Semver string from package.json (e.g., `"0.4.5"`)
+  - `VERSION` constant: Semver string from package.json (e.g., `"0.5.0"`)
   - `VERSION_INFO` constant: Structured object with `major`, `minor`, `patch`, `prerelease` fields
   - Use for logging, diagnostics, or compatibility checks in host applications
   - Generated at build time via `scripts/generate-version.ts`
@@ -28,6 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getLanguageReference()` returns bundled language reference text for LLM prompt context
   - New types exported: `FunctionMetadata`, `ParamMetadata`
   - Host functions include parameter types and descriptions when registered with metadata
+
+- **Default Operator on Method Calls** — `??` now works after method invocations in member access chains
+  - `$dict.method() ?? "default"` returns default if method throws or returns missing
+  - `$obj.transform().value ?? 0` handles missing fields after method calls
+  - Applies to both dict closures and application callables
+
+- **Pass Statement** — No-op keyword for explicit identity pass-through
+  - `pass` returns `$` unchanged; useful in conditional branches
+  - Pipe form: `$value -> pass` equivalent to `$value`
+  - Conditional: `$cond ? do_something() ! pass` — else branch does nothing
+  - Clearer intent than `$` alone in conditional contexts
+
+- **Type-Safe Boolean Negation** — `!` operator enforces boolean operand
+  - `!true` returns `false`; `!false` returns `true`
+  - `!"string"` throws `RUNTIME_TYPE_ERROR` (no truthy/falsy coercion)
+  - Consistent with strict boolean enforcement in conditionals and loops
 
 ### Fixed
 
@@ -709,7 +725,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rcrsr/rill/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/rcrsr/rill/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/rcrsr/rill/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/rcrsr/rill/compare/v0.4.2...v0.4.3

@@ -875,7 +875,7 @@ Each error message includes a help URL linking to this documentation:
 
 ```
 Error: Variable foo is not defined
-Help: https://github.com/rcrsr/rill/blob/v0.4.5/docs/88_errors.md#rill-r005
+Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/88_errors.md#rill-r005
 ```
 
 The URL format is:
@@ -885,7 +885,7 @@ https://github.com/rcrsr/rill/blob/v{version}/docs/88_errors.md#{error-id}
 ```
 
 Where:
-- `{version}` is the rill package version (e.g., `v0.4.5`)
+- `{version}` is the rill package version (e.g., `v0.5.0`)
 - `{error-id}` is the lowercase error ID (e.g., `rill-r005`)
 
 ---

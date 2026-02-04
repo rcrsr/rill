@@ -128,6 +128,10 @@ comparison    = additive , [ comparison-op , additive ] ;
 additive      = multiplicative , { ( "+" | "-" ) , multiplicative } ;
 multiplicative = unary , { ( "*" | "/" | "%" ) , unary } ;
 unary         = [ "-" | "!" ] , postfix-expr ;
+              (* Semantic: "!" requires boolean operand. No truthiness coercion.
+                 !true -> false, !false -> true
+                 !"string" -> RUNTIME_TYPE_ERROR (Negation requires boolean, got string)
+                 !0 -> RUNTIME_TYPE_ERROR (Negation requires boolean, got number) *)
 
 comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
@@ -151,7 +155,21 @@ primary       = literal
               | loop
               | block
               | grouped-expr
-              | spread ;           (* *expr - convert list/dict to tuple *)
+              | spread              (* *expr - convert list/dict to tuple *)
+              | pass ;
+
+(* Pass: returns current pipe value ($) unchanged.
+   Used for explicit identity pass-through in conditionals and dict values.
+
+   Examples:
+     cond ? pass ! "fallback"      -- preserve $ when condition true
+     cond ? "value" ! pass         -- preserve $ when condition false
+     [key: pass]                   -- include $ as dict value
+     -> { pass }                   -- block returns $
+
+   Semantic: pass requires pipe context. Using pass without $ bound
+   throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
+pass          = "pass" ;
 
 (* implicit-primary: used in contexts where implicit $ is available (body, pipe targets).
    Includes method-call because .method() expands to $ -> .method().

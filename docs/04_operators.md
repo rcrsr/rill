@@ -507,7 +507,7 @@ See [Reference](11_reference.md) for full dispatch semantics including dict disp
 
 ## Default Operator `??`
 
-Provide a default value if field is missing or function call returns undefined:
+Provide a default value if field is missing or access fails:
 
 ```rill
 [:] :> $empty
@@ -520,14 +520,24 @@ $user.age ?? 0                   # 0
 
 ### With Function Calls
 
-The default operator works with any expression, including function calls:
+The default operator works with any expression, including function and method calls:
 
 ```text
 get_data().status ?? "default"   # "default" if status field missing
 fetch_value() ?? "fallback"      # "fallback" if fetch_value returns undefined
 ```
 
-Function calls evaluate fully before the default operator applies.
+### With Method Calls
+
+The `??` operator applies after method invocations in access chains:
+
+```text
+$dict.transform() ?? "default"   # default if method throws or result missing
+$obj.compute().value ?? 0        # default if value field missing after method
+$config.get_setting() ?? [:]     # default if method returns undefined
+```
+
+Method calls evaluate fully before the default operator applies.
 
 ---
 

@@ -658,7 +658,7 @@ Access runtime version information for logging, diagnostics, or version checks:
 import { VERSION, VERSION_INFO } from '@rcrsr/rill';
 
 // VERSION: Semver string for display
-console.log(`Running rill ${VERSION}`);  // "Running rill 0.4.5"
+console.log(`Running rill ${VERSION}`);  // "Running rill 0.5.0"
 
 // VERSION_INFO: Structured components for programmatic comparison
 if (VERSION_INFO.major === 0 && VERSION_INFO.minor < 4) {
@@ -677,7 +677,7 @@ console.log('Runtime:', {
 
 **VERSION Constant:**
 - Type: `string`
-- Format: Semver (e.g., `"0.4.5"`, `"1.0.0-beta.1"`)
+- Format: Semver (e.g., `"0.5.0"`, `"1.0.0-beta.1"`)
 - Use: Display in logs, error messages, diagnostics
 
 **VERSION_INFO Constant:**

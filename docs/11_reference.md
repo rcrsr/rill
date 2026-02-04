@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.4.5
+# rill Core Language Specification v0.5.0
 
 *From prompts to workflows*
 
 rill is a pipe-based scripting language for orchestrating workflows.
 
-> **Experimental (v0.4.5).** Active development. Breaking changes until v1.0.
+> **Experimental (v0.5.0).** Active development. Breaking changes until v1.0.
 
 ## Overview
 
@@ -60,7 +60,7 @@ See [Operators](04_operators.md) for detailed documentation.
 | `@ body ? cond` | Do-while |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
-| `pass` / `$val -> pass` | No-op, returns pipe value unchanged |
+| `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 

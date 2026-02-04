@@ -106,6 +106,12 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
    Wrong: 0 ? "yes" ! "no"
    Right: (0 == 0) ? "yes" ! "no"
 
+   Negation (!) also requires boolean:
+   Right: !true                          # false
+   Right: "hello" -> .empty -> (!$)      # true (negates boolean from .empty)
+   Wrong: !"hello"                       # ERROR: Negation requires boolean, got string
+   Wrong: !0                             # ERROR: Negation requires boolean, got number
+
 4. VARIABLES LOCK TO FIRST TYPE
    "hello" :> $x
    42 :> $x        # ERROR: cannot assign number to string variable
@@ -205,6 +211,13 @@ Error (halt execution immediately with message):
   error "Something went wrong"           # halt with message
   "Operation failed" -> error            # piped form (must be string)
   error "Status: {$code}"               # interpolation works
+
+Pass (returns $ unchanged, explicit no-op):
+  cond ? pass ! "fallback"               # preserve $ when condition true
+  cond ? "value" ! pass                  # preserve $ when condition false
+  "data" -> { [status: pass] }           # include $ in dict: [status: "data"]
+  [1, -2, 3] -> map { ($ > 0) ? pass ! 0 }  # [1, 0, 3]
+  Note: pass requires pipe context. Using pass without $ throws error.
 
 LOOP STATE PATTERNS (CRITICAL)
 ------------------------------
