@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After: Explicit-param closures see `$` as undefined; must use declared parameters
   - Zero-param closures (`|| { $ }`) still inherit pipe value for dict dispatch compatibility
 
+### Changed
+
+- **Generated Files Location** — Build-time generated files moved to `src/generated/`
+  - `version-data.ts` and `introspection-data.ts` now in dedicated directory
+  - Directory excluded from version control via `.gitignore`
+  - Generator scripts updated to write to new location
+
 ## [0.4.5] - 2026-02-02
 
 ### Added

@@ -3,7 +3,7 @@
  * Based on docs/grammar.ebnf
  */
 
-import { VERSION } from './runtime/core/version-data.js';
+import { VERSION } from './generated/version-data.js';
 
 // ============================================================
 // SOURCE LOCATION

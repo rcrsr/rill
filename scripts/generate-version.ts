@@ -3,7 +3,7 @@
  * Generate version data from package.json for runtime introspection
  *
  * Reads package.json version field, parses semver, and generates
- * src/runtime/core/version-data.ts with VERSION and VERSION_INFO constants.
+ * src/generated/version-data.ts with VERSION and VERSION_INFO constants.
  *
  * Usage:
  *   npx tsx scripts/generate-version.ts
@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const PACKAGE_JSON = 'package.json';
-const OUTPUT_FILE = 'src/runtime/core/version-data.ts';
+const OUTPUT_FILE = 'src/generated/version-data.ts';
 
 interface VersionInfo {
   readonly major: number;

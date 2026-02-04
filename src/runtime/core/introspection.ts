@@ -8,7 +8,7 @@
 import type { RuntimeContext } from './types.js';
 import type { RillValue } from './values.js';
 import { isApplicationCallable, isScriptCallable } from './callable.js';
-import { LANGUAGE_REFERENCE } from './introspection-data.js';
+import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 
 /**
  * Metadata describing a function's signature and documentation.

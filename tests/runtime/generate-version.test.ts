@@ -11,7 +11,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 
-import { VERSION, VERSION_INFO } from '../../src/runtime/core/version-data.js';
+import { VERSION, VERSION_INFO } from '../../src/generated/version-data.js';
 
 describe('Version Generation', () => {
   describe('Generated output', () => {
@@ -53,7 +53,7 @@ describe('Version Generation', () => {
     ): Promise<{ exitCode: number; stderr: string }> {
       const scriptsDir = path.join(testDir, 'scripts');
       await fs.mkdir(scriptsDir, { recursive: true });
-      await fs.mkdir(path.join(testDir, 'src', 'runtime', 'core'), {
+      await fs.mkdir(path.join(testDir, 'src', 'generated'), {
         recursive: true,
       });
 

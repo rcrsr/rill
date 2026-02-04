@@ -40,11 +40,6 @@ describe('Rill Runtime: Version API', () => {
       const semverPattern = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/;
       expect(VERSION).toMatch(semverPattern);
     });
-
-    it('returns current version 0.4.5', () => {
-      // AC-S1: Given package.json version "0.4.5", VERSION equals "0.4.5"
-      expect(VERSION).toBe('0.4.5');
-    });
   });
 
   describe('AC-2: VERSION_INFO components match semver parse', () => {
@@ -74,13 +69,6 @@ describe('Rill Runtime: Version API', () => {
       expect(VERSION_INFO.minor).toBe(expectedMinor);
       expect(VERSION_INFO.patch).toBe(expectedPatch);
     });
-
-    it('returns current version components {major: 0, minor: 4, patch: 5}', () => {
-      // AC-S2: Given package.json version "0.4.5", VERSION_INFO equals {major:0, minor:4, patch:5}
-      expect(VERSION_INFO.major).toBe(0);
-      expect(VERSION_INFO.minor).toBe(4);
-      expect(VERSION_INFO.patch).toBe(5);
-    });
   });
 
   describe('AC-4: VERSION_INFO.prerelease undefined for stable versions', () => {
@@ -95,11 +83,6 @@ describe('Rill Runtime: Version API', () => {
         // Prerelease versions should have string value
         expect(typeof VERSION_INFO.prerelease).toBe('string');
       }
-    });
-
-    it('returns undefined prerelease for current stable version 0.4.5', () => {
-      // AC-S4: Given stable version (no hyphen), prerelease returns undefined
-      expect(VERSION_INFO.prerelease).toBeUndefined();
     });
   });
 

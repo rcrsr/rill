@@ -32,12 +32,12 @@ export default [
     },
   },
   {
-    files: ['src/runtime/core/introspection-data.ts'],
+    files: ['src/generated/introspection-data.ts'],
     rules: {
       'no-useless-escape': 'off', // Auto-generated docs with literal $ characters
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: ['dist/**', 'node_modules/**', 'src/generated/**'],
   },
 ];
