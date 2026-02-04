@@ -38,11 +38,7 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 
 ## Documentation
 
-Start at @docs/00_INDEX.md for full navigation. Key docs:
-
-- @docs/01_guide.md — Beginner introduction
-- @docs/11_reference.md — Language specification
-- @docs/14_host-integration.md — Embedding API
+Start at @docs/00_INDEX.md for full navigation.
 
 ## Documentation Examples
 
