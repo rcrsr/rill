@@ -60,6 +60,7 @@ See [Operators](04_operators.md) for detailed documentation.
 | `@ body ? cond` | Do-while |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
+| `pass` / `$val -> pass` | No-op, returns pipe value unchanged |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 

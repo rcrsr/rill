@@ -8,6 +8,7 @@ import type {
   ArithHead,
   BinaryOp,
   BlockNode,
+  BodyNode,
   CaptureNode,
   ChainTerminator,
   ConditionalNode,
@@ -229,6 +230,7 @@ Parser.prototype.implicitPipeVar = function (
     type: 'PostfixExpr',
     primary: varNode,
     methods: [],
+    defaultValue: null,
     span,
   };
 };
@@ -429,10 +431,18 @@ Parser.prototype.parsePostfixExprBase = function (
     }
   }
 
+  // Check for default value operator: ?? expr
+  let defaultValue: BodyNode | null = null;
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    advance(this.state);
+    defaultValue = this.parseDefaultValue();
+  }
+
   return {
     type: 'PostfixExpr',
     primary,
     methods,
+    defaultValue,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -464,6 +474,15 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
 // ============================================================
 
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
+  // Pass keyword: pass
+  if (check(this.state, TOKEN_TYPES.PASS)) {
+    const token = advance(this.state);
+    return {
+      type: 'Pass',
+      span: token.span,
+    };
+  }
+
   // Spread operator: *expr
   if (check(this.state, TOKEN_TYPES.STAR)) {
     return this.parseSpread();
@@ -617,6 +636,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
           span: methods[0]!.span,
         },
         methods,
+        defaultValue: null,
         span: makeSpan(start, current(this.state).span.end),
       };
       return this.parseConditionalWithCondition(postfixExpr);
@@ -640,6 +660,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
         span: methods[0]!.span,
       },
       methods,
+      defaultValue: null,
       span: makeSpan(start, current(this.state).span.end),
     } as PostfixExprNode;
   }
@@ -871,6 +892,7 @@ Parser.prototype.wrapConditionalInPostfixExpr = function (
     type: 'PostfixExpr',
     primary: conditional,
     methods: [],
+    defaultValue: null,
     span,
   };
 };
@@ -884,6 +906,7 @@ Parser.prototype.wrapLoopInPostfixExpr = function (
     type: 'PostfixExpr',
     primary: loop,
     methods: [],
+    defaultValue: null,
     span,
   };
 };

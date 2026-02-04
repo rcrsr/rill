@@ -1,7 +1,8 @@
 /**
- * LiteralsMixin: String, Tuple, Dict, and Closure Evaluation
+ * LiteralsMixin: String, Tuple, Dict, Closure, and Pass Evaluation
  *
  * Handles evaluation of literal values including:
+ * - Pass keyword (returns current pipe value)
  * - String literals with interpolation
  * - Tuple literals
  * - Dict literals with callable binding
@@ -9,6 +10,7 @@
  * - Block-closure creation for expression-position blocks
  *
  * Interface requirements (from spec):
+ * - evaluatePass(node) -> Promise<RillValue> [IR-4]
  * - evaluateString(node) -> Promise<string>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
@@ -16,6 +18,7 @@
  * - createBlockClosure(node) -> ScriptCallable
  *
  * Error Handling:
+ * - Pass throws RUNTIME_UNDEFINED_VARIABLE if $ not bound [EC-5]
  * - String interpolation errors propagate from evaluateExpression() [EC-6]
  * - Dict/tuple evaluation errors propagate from nested expressions [EC-7]
  *
@@ -38,6 +41,7 @@ import type {
   ListSpreadNode,
   DictKeyVariable,
   DictKeyComputed,
+  PassNode,
 } from '../../../../types.js';
 import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -155,9 +159,9 @@ async function evaluateAnnotations(
 /**
  * LiteralsMixin implementation.
  *
- * Provides evaluation of literal values. String literals support interpolation,
- * closures are created with late binding, and dict callables are automatically
- * bound to their containing dict.
+ * Provides evaluation of literal values. Pass returns the current pipe value,
+ * string literals support interpolation, closures are created with late binding,
+ * and dict callables are automatically bound to their containing dict.
  *
  * Depends on:
  * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
@@ -165,6 +169,7 @@ async function evaluateAnnotations(
  * - evaluatePrimary() (from future CoreMixin composition)
  *
  * Methods added:
+ * - evaluatePass(node) -> Promise<RillValue>
  * - evaluateString(node) -> Promise<string>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
@@ -173,6 +178,28 @@ async function evaluateAnnotations(
  */
 function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class LiteralsEvaluator extends Base {
+    /**
+     * Evaluate pass node - returns current pipe value unchanged [IR-4].
+     *
+     * Pass returns ctx.pipeValue. If $ not bound (pipeValue is null),
+     * throws RUNTIME_UNDEFINED_VARIABLE error [EC-5].
+     *
+     * @param node - PassNode from AST
+     * @returns Current pipe value
+     * @throws RuntimeError with RUNTIME_UNDEFINED_VARIABLE if $ not bound
+     */
+    protected async evaluatePass(node: PassNode): Promise<RillValue> {
+      if (this.ctx.pipeValue === null) {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+          "RILL-R005: Variable '$' not defined",
+          node.span?.start,
+          { variable: '$' }
+        );
+      }
+      return this.ctx.pipeValue;
+    }
+
     /**
      * Evaluate string literal with interpolation.
      * Interpolation expressions are evaluated with the current pipe value preserved.

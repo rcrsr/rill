@@ -240,4 +240,36 @@ describe('Rill Runtime: Boolean Expressions', () => {
       ).toBe(3);
     });
   });
+
+  describe('Type Safety: Negation Operator', () => {
+    it('rejects string operand', async () => {
+      await expect(run('! "text"')).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got string'
+      );
+    });
+
+    it('rejects number operand', async () => {
+      await expect(run('! 42')).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got number'
+      );
+    });
+
+    it('rejects list operand', async () => {
+      await expect(run('! [1, 2]')).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got list'
+      );
+    });
+
+    it('rejects empty string', async () => {
+      await expect(run('! ""')).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got string'
+      );
+    });
+
+    it('rejects zero', async () => {
+      await expect(run('! 0')).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got number'
+      );
+    });
+  });
 });

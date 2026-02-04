@@ -148,16 +148,37 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Example: obj.method1().method2().method3()
      * Evaluates primary, then applies each method in sequence.
+     *
+     * Default value handling:
+     * - If method chain throws RUNTIME_UNDEFINED_METHOD and expr.defaultValue exists,
+     *   evaluates and returns defaultValue instead of propagating error.
+     * - RUNTIME_UNDEFINED_METHOD is thrown when accessing a missing field via .field syntax.
+     * - All other errors propagate normally.
      */
     async evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue> {
-      let value = await this.evaluatePrimary(expr.primary);
+      try {
+        let value = await this.evaluatePrimary(expr.primary);
 
-      for (const method of expr.methods) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value = await (this as any).evaluateMethod(method, value);
+        for (const method of expr.methods) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          value = await (this as any).evaluateMethod(method, value);
+        }
+
+        return value;
+      } catch (error) {
+        // If method chain throws RUNTIME_UNDEFINED_METHOD and defaultValue exists,
+        // evaluate and return the default value
+        if (
+          error instanceof RuntimeError &&
+          error.code === RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD &&
+          expr.defaultValue !== null
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateBody(expr.defaultValue);
+        }
+        // All other errors propagate
+        throw error;
       }
-
-      return value;
     }
 
     /**
@@ -249,6 +270,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'Error':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateError(primary);
+
+        case 'Pass':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluatePass(primary);
 
         case 'TypeAssertion': {
           // Postfix type assertion: the operand is already evaluated

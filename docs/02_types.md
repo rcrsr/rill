@@ -109,6 +109,28 @@ false ? "yes" ! "no"       # "no"
 0 -> ($ == 0) ? "zero" ! "nonzero"         # Use comparison
 ```
 
+### Type-Safe Negation
+
+The negation operator (`!`) requires a boolean operand. There is no truthiness coercion:
+
+```rill
+!true                      # false
+!false                     # true
+"hello" -> .empty -> (!$)  # true (negates boolean from .empty)
+```
+
+```text
+!"hello"                   # ERROR: Negation requires boolean, got string
+!0                         # ERROR: Negation requires boolean, got number
+```
+
+Use explicit boolean checks when needed:
+
+```rill
+"" -> .empty -> (!$) ? "has content" ! "empty"    # Negate boolean result
+[1,2,3] -> .empty -> (!$) ? "has items" ! "none"  # Check non-empty
+```
+
 ---
 
 ## Lists

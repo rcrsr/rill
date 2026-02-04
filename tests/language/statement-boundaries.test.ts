@@ -219,8 +219,11 @@ $parts -> each { "{$}!" }`;
       // So this parses as two statements: conditional (returns false) and negation of block
       const script = `false -> ? { "yes" }
 ! { "no" }`;
-      // The block { "no" } evaluates to "no", then ! negates it to false
-      expect(await run(script)).toBe(false);
+      // The block { "no" } is a closure, and ! tries to negate it
+      // This throws because negation requires boolean operand
+      await expect(run(script)).rejects.toThrow(
+        'Negation operator (!) requires boolean operand, got closure'
+      );
     });
   });
 });

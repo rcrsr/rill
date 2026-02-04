@@ -239,6 +239,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
     type: 'PostfixExpr' as const,
     primary,
     methods: [],
+    defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
 

@@ -507,7 +507,7 @@ See [Reference](11_reference.md) for full dispatch semantics including dict disp
 
 ## Default Operator `??`
 
-Provide a default value if field is missing:
+Provide a default value if field is missing or function call returns undefined:
 
 ```rill
 [:] :> $empty
@@ -517,6 +517,17 @@ $empty.name ?? "unknown"         # "unknown"
 $user.name ?? "unknown"          # "alice"
 $user.age ?? 0                   # 0
 ```
+
+### With Function Calls
+
+The default operator works with any expression, including function calls:
+
+```text
+get_data().status ?? "default"   # "default" if status field missing
+fetch_value() ?? "fallback"      # "fallback" if fetch_value returns undefined
+```
+
+Function calls evaluate fully before the default operator applies.
 
 ---
 

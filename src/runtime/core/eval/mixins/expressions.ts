@@ -8,10 +8,12 @@
  * - evaluateBinaryExpr(node) -> Promise<RillValue>
  * - evaluateUnaryExpr(node) -> Promise<RillValue>
  * - evaluateGroupedExpr(node) -> Promise<RillValue>
+ * - resolveExpressionValue(value) -> Promise<RillValue>
  *
  * Error Handling:
  * - Type mismatches in operators throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-22]
  * - Nested expression evaluation errors are propagated [EC-23]
+ * - Closure auto-invoke errors are propagated [EC-4, EC-6]
  *
  * @internal
  */
@@ -26,6 +28,7 @@ import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType, isTruthy, deepEquals } from '../../values.js';
 import { createChildContext } from '../../context.js';
+import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -40,36 +43,80 @@ import type { EvaluatorBase } from '../base.js';
  * - evaluateExprHead() (internal helper, defined in this mixin)
  * - evaluatePostfixExpr() (from future CoreMixin composition)
  * - evaluatePipeChain() (from future CoreMixin composition)
+ * - invokeCallable() (from ClosuresMixin)
  *
  * Methods added:
  * - evaluateBinaryExpr(node) -> Promise<RillValue>
  * - evaluateUnaryExpr(node) -> Promise<RillValue>
  * - evaluateGroupedExpr(node) -> Promise<RillValue>
+ * - resolveExpressionValue(value) -> Promise<RillValue>
  * - evaluateExprHead(node) -> Promise<RillValue> (helper)
- * - evaluateExprHeadNumber(node) -> Promise<number> (helper)
  * - evaluateBinaryComparison(left, right, op, node) -> boolean (helper)
  */
 function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ExpressionsEvaluator extends Base {
     /**
+     * Resolve expression value, auto-invoking closures when $ is bound.
+     *
+     * Auto-invokes closures only when ctx.pipeValue is set:
+     * - Zero-param closures: invoke with pipeValue = $
+     * - Parameterized closures: invoke with args = [$]
+     * - Non-callable values: returned unchanged
+     *
+     * Expression contexts that call resolveExpressionValue:
+     * - Unary operand (e.g., `! $closure`)
+     * - Binary operands (e.g., `$a && $b`, `$x + $y`)
+     *
+     * Excluded contexts (no auto-invoke):
+     * - Capture target (`:> $var`)
+     * - Direct pipe target (`-> $fn`)
+     * - Function call arguments (`func($closure)`)
+     *
+     * Reference: variables.ts:720-733 (property-style auto-invoke)
+     */
+    protected async resolveExpressionValue(
+      value: RillValue
+    ): Promise<RillValue> {
+      // Auto-invoke only when $ is bound (pipeValue set)
+      if (!isCallable(value) || this.ctx.pipeValue === null) {
+        return value;
+      }
+
+      // Callable and $ is bound: auto-invoke
+      // Zero-param closures: invoke with pipeValue = $
+      // Parameterized closures: invoke with args = [$]
+      const args =
+        value.kind === 'script' && value.params.length === 0
+          ? []
+          : [this.ctx.pipeValue];
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (this as any).invokeCallable(value, args, undefined);
+    }
+    /**
      * Evaluate binary expression: left op right.
      * Handles arithmetic, comparison, and logical operators.
+     * Auto-invokes closures when $ is bound.
      */
     async evaluateBinaryExpr(node: BinaryExprNode): Promise<RillValue> {
       const { op } = node;
 
       // Logical operators with short-circuit evaluation
       if (op === '||') {
-        const left = await this.evaluateExprHead(node.left);
+        const rawLeft = await this.evaluateExprHead(node.left);
+        const left = await this.resolveExpressionValue(rawLeft);
         if (isTruthy(left)) return true;
-        const right = await this.evaluateExprHead(node.right);
+        const rawRight = await this.evaluateExprHead(node.right);
+        const right = await this.resolveExpressionValue(rawRight);
         return isTruthy(right);
       }
 
       if (op === '&&') {
-        const left = await this.evaluateExprHead(node.left);
+        const rawLeft = await this.evaluateExprHead(node.left);
+        const left = await this.resolveExpressionValue(rawLeft);
         if (!isTruthy(left)) return false;
-        const right = await this.evaluateExprHead(node.right);
+        const rawRight = await this.evaluateExprHead(node.right);
+        const right = await this.resolveExpressionValue(rawRight);
         return isTruthy(right);
       }
 
@@ -82,14 +129,36 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         op === '<=' ||
         op === '>='
       ) {
-        const left = await this.evaluateExprHead(node.left);
-        const right = await this.evaluateExprHead(node.right);
+        const rawLeft = await this.evaluateExprHead(node.left);
+        const left = await this.resolveExpressionValue(rawLeft);
+        const rawRight = await this.evaluateExprHead(node.right);
+        const right = await this.resolveExpressionValue(rawRight);
         return this.evaluateBinaryComparison(left, right, op, node);
       }
 
       // Arithmetic operators - require numbers
-      const left = await this.evaluateExprHeadNumber(node.left);
-      const right = await this.evaluateExprHeadNumber(node.right);
+      // Auto-invoke closures before checking type
+      const rawLeft = await this.evaluateExprHead(node.left);
+      const resolvedLeft = await this.resolveExpressionValue(rawLeft);
+      if (typeof resolvedLeft !== 'number') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `RILL-R002: Arithmetic requires number, got ${inferType(resolvedLeft)}`,
+          node.left.span.start
+        );
+      }
+      const left = resolvedLeft;
+
+      const rawRight = await this.evaluateExprHead(node.right);
+      const resolvedRight = await this.resolveExpressionValue(rawRight);
+      if (typeof resolvedRight !== 'number') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `RILL-R002: Arithmetic requires number, got ${inferType(resolvedRight)}`,
+          node.right.span.start
+        );
+      }
+      const right = resolvedRight;
 
       switch (op) {
         case '+':
@@ -167,11 +236,20 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Evaluate unary expression: -operand or !operand.
+     * Auto-invokes closures when $ is bound.
      */
     async evaluateUnaryExpr(node: UnaryExprNode): Promise<RillValue> {
       if (node.op === '!') {
-        const value = await this.evaluateExprHead(node.operand);
-        return !isTruthy(value);
+        const rawValue = await this.evaluateExprHead(node.operand);
+        const value = await this.resolveExpressionValue(rawValue);
+        if (typeof value !== 'boolean') {
+          throw new RuntimeError(
+            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            `Negation operator (!) requires boolean operand, got ${inferType(value)}`,
+            node.span.start
+          );
+        }
+        return !value;
       }
 
       // Unary minus
@@ -181,13 +259,21 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof inner !== 'number') {
           throw new RuntimeError(
             RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Unary minus requires number, got ${inferType(inner)}`,
+            `RILL-R002: Arithmetic requires number, got ${inferType(inner)}`,
             node.span.start
           );
         }
         return -inner;
       }
-      const value = await this.evaluateExprHeadNumber(operand);
+      const rawValue = await this.evaluateExprHead(operand);
+      const value = await this.resolveExpressionValue(rawValue);
+      if (typeof value !== 'number') {
+        throw new RuntimeError(
+          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          `RILL-R002: Arithmetic requires number, got ${inferType(value)}`,
+          node.span.start
+        );
+      }
       return -value;
     }
 
@@ -205,22 +291,6 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluatePostfixExpr(node);
       }
-    }
-
-    /**
-     * Evaluate expression head, requiring a number result.
-     * Helper for arithmetic operators.
-     */
-    protected async evaluateExprHeadNumber(node: ArithHead): Promise<number> {
-      const value = await this.evaluateExprHead(node);
-      if (typeof value !== 'number') {
-        throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Arithmetic requires number, got ${inferType(value)}`,
-          node.span.start
-        );
-      }
-      return value;
     }
 
     /**

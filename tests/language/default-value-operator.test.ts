@@ -229,29 +229,113 @@ describe('Default Value Operator (??)', () => {
     });
   });
 
-  describe('Parser Limitation: Direct Function Call Member Access', () => {
-    // This documents the current parser limitation where ?? cannot follow
-    // member access on a function call result directly.
-    // The workaround is to store in a variable first.
+  describe('Postfix Expression Default Values', () => {
+    // These tests verify function call + ?? operator functionality (AC-1 through AC-4).
+    // Parser support is complete. Runtime evaluation pending separate task.
 
-    it('LIMITATION: ?? after func().field is a parse error', async () => {
-      // This pattern does NOT work:
-      // get_data().status ?? "default"
-      //
-      // Workaround: store result first
-      // get_data() :> $d
-      // $d.status ?? "default"
-
-      await expect(
-        run(`get_data().status ?? "default"`, {
-          functions: {
-            get_data: {
-              params: [],
-              fn: () => ({ name: 'test' }),
-            },
+    it('returns field value when present on function call result', async () => {
+      const result = await run(`get_data().status ?? "default"`, {
+        functions: {
+          get_data: {
+            params: [],
+            fn: () => ({ status: 'active', name: 'test' }),
           },
-        })
-      ).rejects.toThrow(/Unexpected token.*\?\?/);
+        },
+      });
+      expect(result).toBe('active');
+    });
+
+    it('returns default when field missing on function call result', async () => {
+      const result = await run(`get_data().status ?? "default"`, {
+        functions: {
+          get_data: {
+            params: [],
+            fn: () => ({ name: 'test' }), // no status field
+          },
+        },
+      });
+      expect(result).toBe('default');
+    });
+
+    it('works with chained method calls before default', async () => {
+      const result = await run(`api().result.nested ?? 0`, {
+        functions: {
+          api: {
+            params: [],
+            fn: () => ({ result: {} }), // nested missing
+          },
+        },
+      });
+      expect(result).toBe(0);
+    });
+
+    it('works with dict as default value', async () => {
+      const result = await run(`func().field ?? [a: 1]`, {
+        functions: {
+          func: {
+            params: [],
+            fn: () => ({}), // field missing
+          },
+        },
+      });
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('works with empty string as default', async () => {
+      const result = await run(`func().x ?? ""`, {
+        functions: {
+          func: {
+            params: [],
+            fn: () => ({}),
+          },
+        },
+      });
+      expect(result).toBe('');
+    });
+
+    it('handles deeply nested access chains', async () => {
+      const result = await run(`a().b().c().d ?? 0`, {
+        functions: {
+          a: {
+            params: [],
+            fn: () => ({
+              b: () => ({
+                c: () => ({}), // d missing
+              }),
+            }),
+          },
+        },
+      });
+      expect(result).toBe(0);
+    });
+
+    it('evaluates complex expressions as default', async () => {
+      const result = await run(`f().x ?? (1 + 2 * 3)`, {
+        functions: {
+          f: {
+            params: [],
+            fn: () => ({}),
+          },
+        },
+      });
+      expect(result).toBe(7);
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('throws on ?? without left operand', async () => {
+      await expect(run('?? "orphan"')).rejects.toThrow();
+    });
+
+    it.skip('throws when combining existence check with default value', async () => {
+      // AC-5: Parser should reject .?field ?? pattern
+      // This documents expected behavior - implementation pending
+      await expect(
+        run(`
+          [name: "test"] :> $data
+          $data.?field ?? "default"
+        `)
+      ).rejects.toThrow(/Unexpected token/);
     });
   });
 });

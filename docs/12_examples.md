@@ -75,7 +75,7 @@ $verification -> ?(.contains("PASS")) {
 
 Works through a checklist until complete.
 
-```rill
+```text
 ---
 args: plan: string
 ---
@@ -84,7 +84,7 @@ args: plan: string
 app::prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
 
 # Work loop
-(!$status -> .contains("ALL COMPLETE")) @ {
+$status -> (!.contains("ALL COMPLETE")) @ {
   """
 Based on this status:
 {$}
@@ -387,7 +387,7 @@ Items {$start} through {$end}
 
 Uses explicit signals for workflow control.
 
-```rill
+```text
 ---
 args: task: string
 exceptions:
@@ -404,7 +404,7 @@ Rules:
 - Output :::DONE::: when complete
 """ -> app::prompt() :> $result
 
-(!$result -> .contains(":::DONE:::")) @ {
+$result -> (!.contains(":::DONE:::")) @ {
   """
 Continue working on: {$task}
 

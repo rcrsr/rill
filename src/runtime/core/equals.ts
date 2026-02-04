@@ -167,7 +167,8 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'Break':
     case 'Return':
-      return true; // Break and Return nodes have no value property
+    case 'Pass':
+      return true; // Break, Return, and Pass nodes have no value property
 
     case 'Interpolation':
       return expressionEquals(

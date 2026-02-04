@@ -47,7 +47,8 @@ function isIdentifierOrKeyword(token: { type: string }): boolean {
     token.type === TOKEN_TYPES.EACH ||
     token.type === TOKEN_TYPES.MAP ||
     token.type === TOKEN_TYPES.FOLD ||
-    token.type === TOKEN_TYPES.FILTER
+    token.type === TOKEN_TYPES.FILTER ||
+    token.type === TOKEN_TYPES.PASS
   );
 }
 
@@ -339,6 +340,7 @@ export function makeBoolLiteralBlock(
             type: 'PostfixExpr',
             primary: { type: 'BoolLiteral', value, span },
             methods: [],
+            defaultValue: null,
             span,
           },
           pipes: [],

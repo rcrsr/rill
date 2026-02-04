@@ -802,6 +802,7 @@ export const TOKEN_TYPES = {
   // Keywords
   BREAK: 'BREAK',
   RETURN: 'RETURN',
+  PASS: 'PASS',
   ASSERT: 'ASSERT',
   ERROR: 'ERROR',
   EACH: 'EACH',
@@ -859,6 +860,7 @@ export type NodeType =
   | 'DictEntry'
   | 'Break'
   | 'Return'
+  | 'Pass'
   | 'Assert'
   | 'BinaryExpr'
   | 'UnaryExpr'
@@ -1044,6 +1046,15 @@ export interface ReturnNode extends BaseNode {
 }
 
 /**
+ * Pass: pass through pipe value unchanged.
+ * Used as chain terminator: $x -> pass
+ * Or bare: pass (implicit $ -> pass)
+ */
+export interface PassNode extends BaseNode {
+  readonly type: 'Pass';
+}
+
+/**
  * Assert: halt execution if condition is false.
  * Syntax: assert condition
  * Or: assert condition "custom error message"
@@ -1097,6 +1108,7 @@ export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;
   readonly methods: (MethodCallNode | InvokeNode)[];
+  readonly defaultValue: BodyNode | null;
 }
 
 export type PrimaryNode =
@@ -1111,6 +1123,7 @@ export type PrimaryNode =
   | BlockNode
   | AssertNode
   | ErrorNode
+  | PassNode
   | GroupedExprNode
   | SpreadNode
   | TypeAssertionNode
@@ -1750,6 +1763,7 @@ export type ASTNode =
   | CaptureNode
   | BreakNode
   | ReturnNode
+  | PassNode
   | AssertNode
   | PipeChainNode
   | PostfixExprNode
