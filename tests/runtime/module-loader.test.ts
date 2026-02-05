@@ -140,7 +140,7 @@ describe('loadModule', () => {
 
       try {
         const modulePath = path.join(tmpDir, 'no-exports.rill');
-        const content = ['---', '---', '', '42 :> $value'].join('\n');
+        const content = ['---', '---', '', '42 => $value'].join('\n');
         await fs.writeFile(modulePath, content);
 
         const cache = new Map();
@@ -334,7 +334,7 @@ describe('loadModule', () => {
 
       try {
         const modulePath = path.join(tmpDir, 'vars.rill');
-        const content = ['---', '---', '', '42 :> $x', '100 :> $y'].join('\n');
+        const content = ['---', '---', '', '42 => $x', '100 => $y'].join('\n');
         await fs.writeFile(modulePath, content);
 
         const cache = new Map();

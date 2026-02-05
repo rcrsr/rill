@@ -129,7 +129,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from closure when invoked with condition (AC-BOUND-5)', async () => {
       const script = `
-        |x|{ ($x < 0) ? { error "negative" } ! $x } :> $check
+        |x|{ ($x < 0) ? { error "negative" } ! $x } => $check
         -5 -> $check()
       `;
       await expect(run(script)).rejects.toThrow('negative');
@@ -137,7 +137,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('does not throw from closure when condition false', async () => {
       const script = `
-        |x|{ ($x < 0) ? { error "negative" } ! $x } :> $check
+        |x|{ ($x < 0) ? { error "negative" } ! $x } => $check
         5 -> $check()
       `;
       expect(await run(script)).toBe(5);
@@ -201,8 +201,8 @@ describe('Rill Language: Error Statement', () => {
   describe('Error Contract Validation', () => {
     it('handles error with interpolated variables', async () => {
       const script = `
-        404 :> $code
-        "Not Found" :> $msg
+        404 => $code
+        "Not Found" => $msg
         error "Error {$code}: {$msg}"
       `;
       await expect(run(script)).rejects.toThrow('Error 404: Not Found');
@@ -280,19 +280,19 @@ describe('Rill Language: Error Statement', () => {
   describe('Integration with Other Features', () => {
     it('works with conditional ternary operator', async () => {
       await expect(
-        run('5 :> $x\n($x > 10) ? { error "too large" } ! $x')
+        run('5 => $x\n($x > 10) ? { error "too large" } ! $x')
       ).resolves.toBe(5);
     });
 
     it('throws when condition is true', async () => {
       await expect(
-        run('15 :> $x\n($x > 10) ? { error "too large" } ! $x')
+        run('15 => $x\n($x > 10) ? { error "too large" } ! $x')
       ).rejects.toThrow('too large');
     });
 
     it('works with type checks in message', async () => {
       const script = `
-        42 :> $val
+        42 => $val
         error "Value {$val} is {type($val)}"
       `;
       await expect(run(script)).rejects.toThrow('Value 42 is number');
@@ -300,7 +300,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with method calls in interpolation', async () => {
       const script = `
-        "hello world" :> $text
+        "hello world" => $text
         error "Length: {$text -> .len}"
       `;
       await expect(run(script)).rejects.toThrow('Length: 11');
@@ -308,7 +308,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with default operator in message', async () => {
       const script = `
-        [name: "test"] :> $obj
+        [name: "test"] => $obj
         error "Value: {$obj.missing ?? "not found"}"
       `;
       await expect(run(script)).rejects.toThrow('Value: not found');
@@ -316,9 +316,9 @@ describe('Rill Language: Error Statement', () => {
 
     it('halts execution immediately (does not continue)', async () => {
       const script = `
-        "step 1" :> $step1
+        "step 1" => $step1
         error "halted"
-        "step 2" :> $step2
+        "step 2" => $step2
       `;
       try {
         await run(script);
@@ -332,7 +332,7 @@ describe('Rill Language: Error Statement', () => {
   describe('Edge Cases', () => {
     it('works with dict message values via interpolation', async () => {
       const script = `
-        [code: 500, msg: "Server Error"] :> $err
+        [code: 500, msg: "Server Error"] => $err
         error "{$err.code}: {$err.msg}"
       `;
       await expect(run(script)).rejects.toThrow('500: Server Error');
@@ -340,7 +340,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with list message values via interpolation', async () => {
       const script = `
-        [1, 2, 3] :> $items
+        [1, 2, 3] => $items
         error "Items: {$items}"
       `;
       await expect(run(script)).rejects.toThrow('Items: [1,2,3]');
@@ -348,8 +348,8 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with arithmetic in interpolation', async () => {
       const script = `
-        5 :> $a
-        3 :> $b
+        5 => $a
+        3 => $b
         error "Sum: {$a + $b}"
       `;
       await expect(run(script)).rejects.toThrow('Sum: 8');
@@ -357,7 +357,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with comparison in interpolation', async () => {
       const script = `
-        5 :> $val
+        5 => $val
         error "Valid: {$val > 0}"
       `;
       await expect(run(script)).rejects.toThrow('Valid: true');
@@ -410,7 +410,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('rejects error with variable instead of literal', async () => {
       try {
-        await run('"test" :> $msg\nerror $msg');
+        await run('"test" => $msg\nerror $msg');
         expect.fail('Should have thrown');
       } catch (err: any) {
         expect(err.errorId).toBe('RILL-P004');

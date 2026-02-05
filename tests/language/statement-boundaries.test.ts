@@ -30,20 +30,20 @@ describe('Rill Runtime: Statement Boundaries', () => {
     });
 
     it('pipe to capture on same line', async () => {
-      expect(await run('"value" :> $x\n$x')).toBe('value');
+      expect(await run('"value" => $x\n$x')).toBe('value');
     });
   });
 
   describe('Statement Boundaries at Newlines', () => {
     describe('Variable Start ($)', () => {
       it('variable starts new statement after newline', async () => {
-        const script = `"a" :> $x
+        const script = `"a" => $x
 $x`;
         expect(await run(script)).toBe('a');
       });
 
       it('variable call starts new statement', async () => {
-        const script = `|x| { $x } :> $fn
+        const script = `|x| { $x } => $fn
 $fn("test")`;
         expect(await run(script)).toBe('test');
       });
@@ -51,31 +51,31 @@ $fn("test")`;
 
     describe('Literal Start', () => {
       it('string starts new statement', async () => {
-        const script = `"first" :> $a
+        const script = `"first" => $a
 "second"`;
         expect(await run(script)).toBe('second');
       });
 
       it('number starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 42`;
         expect(await run(script)).toBe(42);
       });
 
       it('bool starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 true`;
         expect(await run(script)).toBe(true);
       });
 
       it('tuple starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 [1, 2, 3]`;
         expect(await run(script)).toEqual([1, 2, 3]);
       });
 
       it('dict starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 [x: 1]`;
         expect(await run(script)).toEqual({ x: 1 });
       });
@@ -83,7 +83,7 @@ true`;
 
     describe('Control Flow Start', () => {
       it('block starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 "" -> { "block result" }`;
         expect(await run(script)).toBe('block result');
       });
@@ -91,7 +91,7 @@ true`;
 
     describe('Function Call Start', () => {
       it('function call starts new statement', async () => {
-        const script = `"ignored" :> $a
+        const script = `"ignored" => $a
 identity("explicit")`;
         expect(await run(script)).toBe('explicit');
       });
@@ -124,14 +124,14 @@ identity("explicit")`;
     });
 
     it('ignores blank lines between statements', async () => {
-      const script = `"a" :> $x
+      const script = `"a" => $x
 
 $x`;
       expect(await run(script)).toBe('a');
     });
 
     it('ignores multiple blank lines', async () => {
-      const script = `"a" :> $x
+      const script = `"a" => $x
 
 
 
@@ -147,14 +147,14 @@ $x`;
 
   describe('Complex Multi-Statement Scripts', () => {
     it('multiple capture statements', async () => {
-      const script = `"hello" :> $greeting
-5 :> $count
+      const script = `"hello" => $greeting
+5 => $count
 [$greeting, $count]`;
       expect(await run(script)).toEqual(['hello', 5]);
     });
 
     it('capture then use in expression', async () => {
-      const script = `"hello" -> .len :> $length
+      const script = `"hello" -> .len => $length
 $length -> ($ * 2)`;
       expect(await run(script)).toBe(10);
     });
@@ -165,7 +165,7 @@ $length -> ($ * 2)`;
     });
 
     it('capture, transform, and loop', async () => {
-      const script = `"a,b,c".split(",") :> $parts
+      const script = `"a,b,c".split(",") => $parts
 $parts -> each { "{$}!" }`;
       expect(await run(script)).toEqual(['a!', 'b!', 'c!']);
     });
@@ -192,7 +192,7 @@ $parts -> each { "{$}!" }`;
     });
 
     it('handles CRLF line endings', async () => {
-      const script = '"a" :> $x\r\n"b" :> $y\r\n[$x, $y]';
+      const script = '"a" => $x\r\n"b" => $y\r\n[$x, $y]';
       expect(await run(script)).toEqual(['a', 'b']);
     });
 

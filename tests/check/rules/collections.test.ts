@@ -309,7 +309,7 @@ describe('METHOD_SHORTHAND', () => {
   it('allows blocks with multiple statements', () => {
     const source = `
       [1, 2, 3] -> map {
-        $ * 2 :> $doubled
+        $ * 2 => $doubled
         $doubled + 1
       }
     `;

@@ -26,7 +26,7 @@ describe('Rill Runtime: Boolean Expressions', () => {
     });
 
     it('negation of variable', async () => {
-      expect(await run('true :> $x\n!$x')).toBe(false);
+      expect(await run('true => $x\n!$x')).toBe(false);
     });
   });
 

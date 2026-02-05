@@ -260,7 +260,7 @@ describe('Rill Runtime: Iterators', () => {
           value: $start,
           done: ($start > 2),
           next: || { $countdown($.value + 1) }
-        ] :> $countdown
+        ] => $countdown
         $countdown(0) -> each { $ }
       `;
       expect(await run(script)).toEqual([0, 1, 2]);
@@ -272,7 +272,7 @@ describe('Rill Runtime: Iterators', () => {
           value: $start,
           done: ($start > 2),
           next: || { $counter($.value + 1) }
-        ] :> $counter
+        ] => $counter
         $counter(0) -> map { $ * 10 }
       `;
       expect(await run(script)).toEqual([0, 10, 20]);
@@ -284,7 +284,7 @@ describe('Rill Runtime: Iterators', () => {
           value: $start,
           done: ($start > 3),
           next: || { $counter($.value + 1) }
-        ] :> $counter
+        ] => $counter
         $counter(1) -> fold(0) { $@ + $ }
       `;
       expect(await run(script)).toBe(6); // 1 + 2 + 3 = 6
@@ -294,12 +294,12 @@ describe('Rill Runtime: Iterators', () => {
   describe('iterator manual traversal', () => {
     it('can manually traverse iterator', async () => {
       const script = `
-        [1, 2, 3] -> .first() :> $it
-        $it.value :> $v1
-        $it.next() :> $it
-        $it.value :> $v2
-        $it.next() :> $it
-        $it.value :> $v3
+        [1, 2, 3] -> .first() => $it
+        $it.value => $v1
+        $it.next() => $it
+        $it.value => $v2
+        $it.next() => $it
+        $it.value => $v3
         [$v1, $v2, $v3]
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
@@ -307,10 +307,10 @@ describe('Rill Runtime: Iterators', () => {
 
     it('can check done state', async () => {
       const script = `
-        [1] -> .first() :> $it
-        $it.done :> $d1
-        $it.next() :> $it
-        $it.done :> $d2
+        [1] -> .first() => $it
+        $it.done => $d1
+        $it.next() => $it
+        $it.done => $d2
         [$d1, $d2]
       `;
       expect(await run(script)).toEqual([false, true]);
@@ -318,11 +318,11 @@ describe('Rill Runtime: Iterators', () => {
 
     it('traversing past done returns done iterator', async () => {
       const script = `
-        [1] -> .first() :> $it
-        $it.next() :> $it
-        $it.done :> $d1
-        $it.next() :> $it
-        $it.done :> $d2
+        [1] -> .first() => $it
+        $it.next() => $it
+        $it.done => $d1
+        $it.next() => $it
+        $it.done => $d2
         [$d1, $d2]
       `;
       expect(await run(script)).toEqual([true, true]);
@@ -336,7 +336,7 @@ describe('Rill Runtime: Iterators', () => {
           value: $start,
           done: ($start > 5),
           next: || { $counter($.value + 1) }
-        ] :> $counter
+        ] => $counter
         $counter(0) -> filter { ($ % 2) == 0 }
       `;
       expect(await run(script)).toEqual([0, 2, 4]);
@@ -370,7 +370,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('empty done iterator works with each', async () => {
       const script = `
-        |n| [done: true, next: ||{ $emptyIter(0) }] :> $emptyIter
+        |n| [done: true, next: ||{ $emptyIter(0) }] => $emptyIter
         $emptyIter(0) -> each { $ }
       `;
       expect(await run(script)).toEqual([]);
@@ -378,7 +378,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('empty done iterator works with fold', async () => {
       const script = `
-        |n| [done: true, next: ||{ $emptyIter(0) }] :> $emptyIter
+        |n| [done: true, next: ||{ $emptyIter(0) }] => $emptyIter
         $emptyIter(0) -> fold(42) { $@ + $ }
       `;
       expect(await run(script)).toBe(42);

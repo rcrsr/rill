@@ -109,19 +109,19 @@ describe('Rill Language: String Literal Dict Keys', () => {
 
   describe('Field Access with String Keys', () => {
     it('accesses field defined with string key using dot notation', async () => {
-      const result = await run('["name": "alice"] :> $d\n$d.name');
+      const result = await run('["name": "alice"] => $d\n$d.name');
       expect(result).toBe('alice');
     });
 
     it('accesses nested fields defined with string keys', async () => {
       const result = await run(
-        '["outer": ["inner": 42]] :> $d\n$d.outer.inner'
+        '["outer": ["inner": 42]] => $d\n$d.outer.inner'
       );
       expect(result).toBe(42);
     });
 
     it('accesses field with string key containing special chars using dynamic access', async () => {
-      const result = await run('["foo-bar": 42] :> $d\n$d.("foo-bar")');
+      const result = await run('["foo-bar": 42] => $d\n$d.("foo-bar")');
       expect(result).toBe(42);
     });
   });
@@ -129,7 +129,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
   describe('Original Bug Scenario', () => {
     it('parses conditional with string literal dict keys in block', async () => {
       const script = `
-        "blocked" :> $type
+        "blocked" => $type
         $type -> [
           "blocked": "blocked result",
           "error": "error result"
@@ -141,7 +141,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
 
     it('parses conditional with string keys and closures', async () => {
       const script = `
-        "error" :> $type
+        "error" => $type
         $type -> [
           "blocked": ||{ "blocked" -> .upper },
           "error": ||{ "error" -> .len }
@@ -187,7 +187,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
     });
 
     it('parses type assertion on variable', async () => {
-      const result = await run('"test" :> $x\n$x:string');
+      const result = await run('"test" => $x\n$x:string');
       expect(result).toBe('test');
     });
 

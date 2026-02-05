@@ -14,16 +14,16 @@ Use **snake_case** for all identifiers in rill:
 
 ```rill
 # variables
-"hello" :> $user_name
-[1, 2, 3] :> $item_list
-true :> $is_valid
+"hello" => $user_name
+[1, 2, 3] => $item_list
+true => $is_valid
 
 # closures
-|x|($x * 2) :> $double_value
-|s|($s -> .trim) :> $cleanup_text
+|x|($x * 2) => $double_value
+|s|($s -> .trim) => $cleanup_text
 
 # dict keys
-[first_name: "Alice", last_name: "Smith", is_active: true] :> $user
+[first_name: "Alice", last_name: "Smith", is_active: true] => $user
 ```
 
 ### Variables
@@ -31,8 +31,8 @@ true :> $is_valid
 Use descriptive snake_case names with `$` prefix:
 
 ```rill
-"hello" :> $greeting           # good: descriptive
-"hello" :> $g                  # avoid: too terse
+"hello" => $greeting           # good: descriptive
+"hello" => $g                  # avoid: too terse
 ```
 
 For loop variables, short names are acceptable when scope is small:
@@ -46,9 +46,9 @@ For loop variables, short names are acceptable when scope is small:
 Name closures for their action:
 
 ```rill
-|x|($x * 2) :> $double            # verb describing transformation
-|s|($s -> .trim) :> $cleanup      # verb describing action
-||{ $.count * $.price } :> $total # noun for computed value
+|x|($x * 2) => $double            # verb describing transformation
+|s|($s -> .trim) => $cleanup      # verb describing action
+||{ $.count * $.price } => $total # noun for computed value
 ```
 
 ---
@@ -57,16 +57,16 @@ Name closures for their action:
 
 ### Prefer inline capture when continuing the chain
 
-Capture mid-chain with `:>` to store and continue:
+Capture mid-chain with `=>` to store and continue:
 
 ```text
 # good: capture and continue
-prompt("Read file") :> $raw -> log -> .contains("ERROR") ? {
+prompt("Read file") => $raw -> log -> .contains("ERROR") ? {
   error("Failed: {$raw}")
 }
 
 # less clear: separate statements
-prompt("Read file") :> $raw
+prompt("Read file") => $raw
 $raw -> log
 $raw -> .contains("ERROR") ? { error("Failed: {$raw}") }
 ```
@@ -77,7 +77,7 @@ Capture values before conditionals when you need them in multiple branches:
 
 ```text
 # good: $result available in both branches
-checkStatus() :> $result
+checkStatus() => $result
 $result -> .contains("OK") ? {
   "Success: {$result}"
 } ! {
@@ -159,7 +159,7 @@ Method chains work too:
 
 # avoid: named variables don't persist across iterations
 0 -> ($ < 5) @ {
-  $ :> $x        # $x exists only in this iteration
+  $ => $x        # $x exists only in this iteration
   $x + 1
 }
 ```
@@ -175,7 +175,7 @@ Do-while runs body at least once, eliminating duplicate first-attempt code:
 } ? (.contains("RETRY"))
 
 # less clean: separate first attempt
-attemptOperation() :> $result
+attemptOperation() => $result
 $result -> .contains("RETRY") @ {
   attemptOperation()
 }
@@ -240,12 +240,12 @@ $dict.?field ? $dict.field ! "default"
 
 ```rill
 # simple: parentheses ok
-|x|($x * 2) :> $double
+|x|($x * 2) => $double
 
 # complex: braces required
 |n| {
   ($n < 1) ? 1 ! ($n * $factorial($n - 1))
-} :> $factorial
+} => $factorial
 ```
 
 ### Capture loop variable explicitly for deferred closures
@@ -253,9 +253,9 @@ $dict.?field ? $dict.field ! "default"
 ```rill
 # good: explicit capture per iteration
 [1, 2, 3] -> each {
-  $ :> $item
+  $ => $item
   || { $item }
-} :> $closures
+} => $closures
 
 # result: closures return [1, 2, 3] when called
 ```
@@ -268,7 +268,7 @@ Zero-arg closures auto-invoke when accessed:
 [
   items: [1, 2, 3],
   count: ||{ $.items -> .len }
-] :> $data
+] => $data
 
 $data.count    # 3 (auto-invokes)
 ```
@@ -279,7 +279,7 @@ Parameterized closures work as methods:
 [
   name: "test",
   greet: |x|{ "{$.name}: {$x}" }
-] :> $obj
+] => $obj
 
 $obj.greet("hello")    # "test: hello"
 ```
@@ -293,13 +293,13 @@ $obj.greet("hello")    # "test: hello"
 ```rill
 |name: string, count: number| {
   "{$name}: {$count}"
-} :> $format
+} => $format
 ```
 
 ### Capture with type annotation for documentation
 
 ```rill
-"processing" :> $status:string
+"processing" => $status:string
 ```
 
 ### Use type assertions sparingly
@@ -308,10 +308,10 @@ Type assertions (`:type`) are for validation, not conversion:
 
 ```text
 # good: validate external input
-parseJson($input):dict :> $data
+parseJson($input):dict => $data
 
 # unnecessary: type is already known
-5:number :> $n
+5:number => $n
 ```
 
 ---
@@ -365,7 +365,7 @@ process($input)
 ### Use explicit signals for workflow control
 
 ```text
-prompt("...") :> $result
+prompt("...") => $result
 
 $result -> .contains(":::ERROR:::") ? {
   error("Operation failed: {$result}")
@@ -384,13 +384,13 @@ $result -> .contains(":::DONE:::") ? {
 
 ```text
 # extract JSON from code fence
-$response -> parseFence("json") -> parseJson :> $data
+$response -> parseFence("json") -> parseJson => $data
 ```
 
 ### Use parseAuto for unknown formats
 
 ```text
-$response -> parseAuto :> $parsed
+$response -> parseAuto => $parsed
 ($parsed.type == "json") ? {
   $parsed.data
 } ! {
@@ -402,7 +402,7 @@ $response -> parseAuto :> $parsed
 
 ```text
 $response -> parseXml("thinking") -> log
-$response -> parseXml("answer") :> $answer
+$response -> parseXml("answer") => $answer
 ```
 
 ---
@@ -415,21 +415,21 @@ Variables lock to their first type. Reassigning suggests misuse:
 
 ```text
 # avoid: confusing reassignment
-"initial" :> $x
-"updated" :> $x    # works but unclear
+"initial" => $x
+"updated" => $x    # works but unclear
 
 # prefer: new variable or functional style
-"initial" -> transform() :> $result
+"initial" -> transform() => $result
 ```
 
 ### Avoid bare $ in stored closures
 
 ```rill
 # confusing: what is $?
-|| { $ + 1 } :> $fn    # $ is undefined when called
+|| { $ + 1 } => $fn    # $ is undefined when called
 
 # clear: explicit parameter
-|x| { $x + 1 } :> $fn
+|x| { $x + 1 } => $fn
 ```
 
 ### Avoid break in parallel operators
@@ -454,8 +454,8 @@ Break is not supported in `map` or `filter` (they run in parallel):
 (($x > 5) && (($y < 10) || ($z == 0))) ? { ... }
 
 # clearer: extract to named check
-($x > 5) :> $big_enough
-(($y < 10) || ($z == 0)) :> $valid_range
+($x > 5) => $big_enough
+(($y < 10) || ($z == 0)) => $valid_range
 ($big_enough && $valid_range) ? { ... }
 ```
 
@@ -471,13 +471,13 @@ Break is not supported in `map` or `filter` (they run in parallel):
 # good
 5 + 3
 $x -> .upper
-"hello" :> $greeting
+"hello" => $greeting
 ($a == $b) ? "yes" ! "no"
 
 # avoid
 5+3
 $x->.upper
-"hello":>$greeting
+"hello"=>$greeting
 ```
 
 **Parentheses**: no inner spaces
@@ -511,7 +511,7 @@ $x->.upper
 ```text
 # good
 [1, 2, 3] -> each {
-  $ :> $item
+  $ => $item
   $item * 2
 }
 
@@ -571,16 +571,16 @@ $str .upper()
 $list.join (", ")
 ```
 
-**Pipes**: space on both sides of `->` and `:>`
+**Pipes**: space on both sides of `->` and `=>`
 
 ```text
 # good
 "hello" -> .upper -> .len
-"value" :> $x -> log
+"value" => $x -> log
 
 # avoid
 "hello"->.upper->.len
-"value":>$x->log
+"value"=>$x->log
 ```
 
 **Implicit `$` shorthand**: prefer sugared forms
@@ -606,7 +606,7 @@ $list.join (", ")
 
 # closures: $fn($) -> $fn
 # good
-|x| ($x * 2) :> $double
+|x| ($x * 2) => $double
 5 -> $double
 
 # avoid
@@ -617,8 +617,8 @@ $list.join (", ")
 
 ```text
 # avoid: unnecessary intermediate variables
-"hello" :> $x
-$x -> .upper :> $y
+"hello" => $x
+$x -> .upper => $y
 $y -> .len
 
 # good: use line continuation instead
@@ -627,8 +627,8 @@ $y -> .len
   -> .len
 
 # good: capture only when reused later
-"hello" :> $input
-$input -> .upper :> $upper
+"hello" => $input
+$input -> .upper => $upper
 "{$input} became {$upper}"    # both variables referenced
 ```
 
@@ -650,7 +650,7 @@ $data
 
 # good: capture mid-chain
 prompt("analyze {$file}")
-  :> $result
+  => $result
   -> log
   -> .contains("ERROR") ? { error($result) }
 
@@ -664,8 +664,8 @@ $data
 
 ```text
 # good: clear structure
-$input -> validate() :> $valid
-$valid -> process() :> $result
+$input -> validate() => $valid
+$valid -> process() => $result
 $result -> format()
 
 # acceptable for simple chains
@@ -676,8 +676,8 @@ $input -> .trim -> .lower -> .split(" ")
 
 ```rill
 {
-  "first" :> $a
-  "second" :> $b
+  "first" => $a
+  "second" => $b
   "{$a} {$b}"
 }
 ```
@@ -685,9 +685,9 @@ $input -> .trim -> .lower -> .split(" ")
 ### Align related captures
 
 ```text
-prompt("Get name") :> $name
-prompt("Get age")  :> $age
-prompt("Get role") :> $role
+prompt("Get name") => $name
+prompt("Get age")  => $age
+prompt("Get role") => $role
 ```
 
 ---

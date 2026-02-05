@@ -240,12 +240,12 @@ describe('CoreMixin Error Contracts', () => {
 
     it('evaluatePipeChain isolates pipe value', async () => {
       // Pipe chains don't leak $ to parent scope
-      const result = await run('"outer" :> $x\n"inner" -> .upper\n$x');
+      const result = await run('"outer" => $x\n"inner" -> .upper\n$x');
       expect(result).toBe('outer');
     });
 
     it('evaluatePipeChain handles capture terminator', async () => {
-      const result = await run('"value" :> $x\n$x');
+      const result = await run('"value" => $x\n$x');
       expect(result).toBe('value');
     });
 

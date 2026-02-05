@@ -19,16 +19,16 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('invokes closure variable with pipe-style', async () => {
-      expect(await run('|x| { $x } :> $fn\n"test" -> $fn()')).toBe('test');
+      expect(await run('|x| { $x } => $fn\n"test" -> $fn()')).toBe('test');
     });
 
     it('invokes zero-param closure from variable', async () => {
-      expect(await run('|| { "result" } :> $fn\n$fn -> $()')).toBe('result');
+      expect(await run('|| { "result" } => $fn\n$fn -> $()')).toBe('result');
     });
 
     it('chains multiple invoke targets', async () => {
-      const script = `|x| { "{$x}!" } :> $exclaim
-|x| { $x } :> $identity
+      const script = `|x| { "{$x}!" } => $exclaim
+|x| { $x } => $identity
 "hi" -> $identity() -> $exclaim()`;
       expect(await run(script)).toBe('hi!');
     });
@@ -122,24 +122,24 @@ describe('Rill Runtime: Pipe Targets', () => {
 
   describe('Variable Calls in Pipe (-> $fn())', () => {
     it('calls closure variable with piped value', async () => {
-      expect(await run('|x| { "{$x}!" } :> $fn\n"hi" -> $fn()')).toBe('hi!');
+      expect(await run('|x| { "{$x}!" } => $fn\n"hi" -> $fn()')).toBe('hi!');
     });
 
     it('calls closure with explicit args', async () => {
-      const script = `|a, b| { [$a, $b] } :> $fn
+      const script = `|a, b| { [$a, $b] } => $fn
 $fn("x", "y")`;
       expect(await run(script)).toEqual(['x', 'y']);
     });
 
     it('calls closure in for loop', async () => {
-      const script = `|x| { ($x * 2) } :> $double
+      const script = `|x| { ($x * 2) } => $double
 [1, 2, 3] -> each { $double() }`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
     it('calls closure with explicit args replaces pipe value', async () => {
       // When explicit args are provided, they replace the pipe value
-      const script = `|a| { $a } :> $fn
+      const script = `|a| { $a } => $fn
 "ignored" -> $fn("used")`;
       expect(await run(script)).toBe('used');
     });
@@ -184,22 +184,22 @@ $fn("x", "y")`;
 
   describe('Inline Capture in Pipe Chain', () => {
     it('captures and passes through value', async () => {
-      expect(await run('"x" :> $a -> .len')).toBe(1);
+      expect(await run('"x" => $a -> .len')).toBe(1);
     });
 
     it('captures intermediate result', async () => {
-      const script = `"hello" -> .len :> $length -> ($ * 2)`;
+      const script = `"hello" -> .len => $length -> ($ * 2)`;
       expect(await run(script)).toBe(10);
     });
 
     it('multiple inline captures', async () => {
-      const script = `"a" :> $x -> "b" :> $y
+      const script = `"a" => $x -> "b" => $y
 [$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
     it('inline capture preserves value for chaining', async () => {
-      const script = `"test" :> $captured -> .contains("e")`;
+      const script = `"test" => $captured -> .contains("e")`;
       expect(await run(script)).toBe(true);
     });
   });
@@ -252,7 +252,7 @@ $fn("x", "y")`;
     });
 
     it('inline closure preserves pipe value semantics', async () => {
-      const script = `"test" :> $val
+      const script = `"test" => $val
 $val -> |x| { $x -> .len }`;
       expect(await run(script)).toBe(4);
     });

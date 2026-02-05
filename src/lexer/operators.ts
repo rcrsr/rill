@@ -8,7 +8,7 @@ import { TOKEN_TYPES } from '../types.js';
 /** Two-character operator lookup table */
 export const TWO_CHAR_OPERATORS: Record<string, TokenType> = {
   '->': TOKEN_TYPES.ARROW,
-  ':>': TOKEN_TYPES.CAPTURE_ARROW,
+  '=>': TOKEN_TYPES.CAPTURE_ARROW,
   '*<': TOKEN_TYPES.STAR_LT,
   '/<': TOKEN_TYPES.SLASH_LT,
   '&&': TOKEN_TYPES.AND,

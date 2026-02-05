@@ -308,7 +308,7 @@ describe('Rill Runtime: Host Integration', () => {
     });
 
     it('application callable can be invoked after capture', async () => {
-      const result = await run('getGreeter() :> $greet -> $greet("World")', {
+      const result = await run('getGreeter() => $greet -> $greet("World")', {
         functions: {
           getGreeter: {
             params: [],

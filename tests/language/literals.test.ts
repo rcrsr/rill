@@ -38,7 +38,7 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('interpolates variable', async () => {
-      expect(await run('"x" :> $v\n"val:{$v}"')).toBe('val:x');
+      expect(await run('"x" => $v\n"val:{$v}"')).toBe('val:x');
     });
 
     it('interpolates pipe variable in block', async () => {
@@ -47,7 +47,7 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('interpolates field access', async () => {
-      expect(await run('[a: "b"] :> $d\n"{$d.a}"')).toBe('b');
+      expect(await run('[a: "b"] => $d\n"{$d.a}"')).toBe('b');
     });
   });
 
@@ -108,21 +108,21 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('accesses first element by index', async () => {
-      expect(await run('["a", "b"] :> $t\n$t[0]')).toBe('a');
+      expect(await run('["a", "b"] => $t\n$t[0]')).toBe('a');
     });
 
     it('accesses second element by index', async () => {
-      expect(await run('["a", "b"] :> $t\n$t[1]')).toBe('b');
+      expect(await run('["a", "b"] => $t\n$t[1]')).toBe('b');
     });
 
     it('errors for out of bounds index', async () => {
-      await expect(run('["a"] :> $t\n$t[5]')).rejects.toThrow(
+      await expect(run('["a"] => $t\n$t[5]')).rejects.toThrow(
         'List index out of bounds'
       );
     });
 
     it('errors for index on empty list', async () => {
-      await expect(run('[] :> $t\n$t[0]')).rejects.toThrow(
+      await expect(run('[] => $t\n$t[0]')).rejects.toThrow(
         'List index out of bounds'
       );
     });
@@ -146,17 +146,17 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('accesses field', async () => {
-      expect(await run('[a: 1, b: 2] :> $d\n$d.a')).toBe(1);
+      expect(await run('[a: 1, b: 2] => $d\n$d.a')).toBe(1);
     });
 
     it('errors for missing field', async () => {
-      await expect(run('[a: 1] :> $d\n$d.missing')).rejects.toThrow(
+      await expect(run('[a: 1] => $d\n$d.missing')).rejects.toThrow(
         "Dict has no field 'missing'"
       );
     });
 
     it('accesses nested dict field', async () => {
-      expect(await run('[x: [y: 1]] :> $d\n$d.x.y')).toBe(1);
+      expect(await run('[x: [y: 1]] => $d\n$d.x.y')).toBe(1);
     });
   });
 
@@ -165,12 +165,12 @@ describe('Rill Runtime: Literals', () => {
 
   describe('List Spread', () => {
     it('spreads variable into list literal with additional element (AC-1)', async () => {
-      const script = '[1, 2] :> $a\n[...$a, 3]';
+      const script = '[1, 2] => $a\n[...$a, 3]';
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
     it('concatenates lists with multiple spreads (AC-2)', async () => {
-      const script = '[1, 2] :> $a\n[3, 4] :> $b\n[...$a, ...$b]';
+      const script = '[1, 2] => $a\n[3, 4] => $b\n[...$a, ...$b]';
       expect(await run(script)).toEqual([1, 2, 3, 4]);
     });
 
@@ -180,12 +180,12 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('spreads result of piped expression (AC-4)', async () => {
-      const script = '[1, 2, 3] :> $nums\n[...($nums -> map {$ * 2})]';
+      const script = '[1, 2, 3] => $nums\n[...($nums -> map {$ * 2})]';
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
     it('spreads list accessed via property/index (AC-5)', async () => {
-      const script = '[[1, 2], [3, 4]] :> $nested\n[...$nested[0]]';
+      const script = '[[1, 2], [3, 4]] => $nested\n[...$nested[0]]';
       expect(await run(script)).toEqual([1, 2]);
     });
 
@@ -217,14 +217,14 @@ describe('Rill Runtime: Literals', () => {
 
     describe('Error Cases', () => {
       it('throws runtime error when spreading string value (AC-11)', async () => {
-        const script = '"hello" :> $str\n[...$str]';
+        const script = '"hello" => $str\n[...$str]';
         await expect(run(script)).rejects.toThrow(
           'Spread in list literal requires list, got string'
         );
       });
 
       it('throws runtime error when spreading number value (AC-12)', async () => {
-        const script = '42 :> $num\n[...$num]';
+        const script = '42 => $num\n[...$num]';
         await expect(run(script)).rejects.toThrow(
           'Spread in list literal requires list, got number'
         );
@@ -238,7 +238,7 @@ describe('Rill Runtime: Literals', () => {
       });
 
       it('throws runtime type error for non-list spread (EC-3)', async () => {
-        const script = 'true :> $bool\n[...$bool]';
+        const script = 'true => $bool\n[...$bool]';
         await expect(run(script)).rejects.toThrow(
           'Spread in list literal requires list, got boolean'
         );

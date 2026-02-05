@@ -65,11 +65,11 @@ describe('CLOSURE_BARE_DOLLAR', () => {
   });
 
   it('accepts closures with parameters', () => {
-    expect(hasViolations('|x|($x * 2) :> $fn', config)).toBe(false);
+    expect(hasViolations('|x|($x * 2) => $fn', config)).toBe(false);
   });
 
   it('accepts closures without $ reference', () => {
-    expect(hasViolations('||{ 42 } :> $fn', config)).toBe(false);
+    expect(hasViolations('||{ 42 } => $fn', config)).toBe(false);
   });
 
   it('accepts inline blocks with bare $', () => {
@@ -78,7 +78,7 @@ describe('CLOSURE_BARE_DOLLAR', () => {
   });
 
   it('warns on bare $ in zero-param stored closure', () => {
-    const source = '||{ $ * 2 } :> $fn';
+    const source = '||{ $ * 2 } => $fn';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -87,15 +87,15 @@ describe('CLOSURE_BARE_DOLLAR', () => {
   });
 
   it('suggests explicit capture', () => {
-    const source = '||{ $ + 5 } :> $fn';
+    const source = '||{ $ + 5 } => $fn';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('$ :> $item');
+    expect(messages[0]).toContain('$ => $item');
   });
 
   it('has correct severity and code', () => {
-    const source = '||{ $ } :> $fn';
+    const source = '||{ $ } => $fn';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -116,20 +116,20 @@ describe('CLOSURE_BRACES', () => {
   });
 
   it('accepts simple closure with parentheses', () => {
-    expect(hasViolations('|x|($x * 2) :> $fn', config)).toBe(false);
+    expect(hasViolations('|x|($x * 2) => $fn', config)).toBe(false);
   });
 
   it('accepts complex closure with braces', () => {
     const source = `
       |n| {
         ($n < 1) ? 1 ! ($n * 2)
-      } :> $fn
+      } => $fn
     `;
     expect(hasViolations(source, config)).toBe(false);
   });
 
   it('recommends braces for conditional in closure body', () => {
-    const source = '|n|(($n < 1) ? 1 ! ($n * 2)) :> $fn';
+    const source = '|n|(($n < 1) ? 1 ! ($n * 2)) => $fn';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -137,7 +137,7 @@ describe('CLOSURE_BRACES', () => {
   });
 
   it('has correct severity and code', () => {
-    const source = '|x|(($x > 0) ? "pos" ! "neg") :> $fn';
+    const source = '|x|(($x > 0) ? "pos" ! "neg") => $fn';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -164,7 +164,7 @@ describe('CLOSURE_LATE_BINDING', () => {
   it('accepts closures with explicit capture', () => {
     const source = `
       [1, 2, 3] -> each {
-        $ :> $item
+        $ => $item
         ||{ $item }
       }
     `;
@@ -177,7 +177,7 @@ describe('CLOSURE_LATE_BINDING', () => {
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
     expect(messages[0]).toContain('Capture loop variable explicitly');
-    expect(messages[0]).toContain('$ :> $item');
+    expect(messages[0]).toContain('$ => $item');
   });
 
   it('has correct severity and code', () => {

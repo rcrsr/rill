@@ -19,7 +19,7 @@ args: requirements: string
 Review the requirements document at {$requirements}.
 Check for completeness and clarity.
 Output READY if complete, or list missing elements.
-""" -> app::prompt() :> $validation
+""" -> app::prompt() => $validation
 
 $validation -> .contains("READY") -> !$ ? {
   error "Requirements incomplete: {$validation}"
@@ -29,7 +29,7 @@ $validation -> .contains("READY") -> !$ ? {
 """
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
-""" -> app::prompt() :> $spec
+""" -> app::prompt() => $spec
 
 "Specification created" -> log
 
@@ -40,7 +40,7 @@ Review this specification for issues:
 {$}
 
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
-  """ -> app::prompt() :> $review
+  """ -> app::prompt() => $review
 
   $review -> ?(.contains("APPROVED")) { break }
 
@@ -51,7 +51,7 @@ Update the specification based on this feedback:
 
 Original spec:
 {$}
-  """ -> app::prompt()} :> $approved_spec
+  """ -> app::prompt()} => $approved_spec
 
 # Phase 4: Implementation
 """
@@ -59,10 +59,10 @@ Implement the approved specification:
 {$approved_spec}
 
 Create the necessary files and tests.
-""" -> app::prompt() :> $implementation
+""" -> app::prompt() => $implementation
 
 # Phase 5: Verify
-app::prompt("Run tests and verify implementation") :> $verification
+app::prompt("Run tests and verify implementation") => $verification
 
 $verification -> ?(.contains("PASS")) {
   [0, "Workflow complete"]
@@ -81,7 +81,7 @@ args: plan: string
 ---
 
 # Initial check
-app::prompt("Read {$plan} and find the first unchecked item (- [ ])") :> $status
+app::prompt("Read {$plan} and find the first unchecked item (- [ ])") => $status
 
 # Work loop
 $status -> (!.contains("ALL COMPLETE")) @ {
@@ -94,7 +94,7 @@ Based on this status:
 3. Check if any unchecked items remain
 4. Output ALL COMPLETE if done, or describe next item
   """ -> app::prompt()
-} :> $final
+} => $final
 
 "Plan complete: {$final}" -> log
 ```
@@ -109,7 +109,7 @@ args: target: string
 ---
 
 # Run tests
-app::prompt("Run tests for {$target} and report results") :> $result
+app::prompt("Run tests for {$target} and report results") => $result
 
 # Fix loop
 $result -> @(.contains("FAIL")) {
@@ -120,7 +120,7 @@ Fix these test failures:
 {$}
 
 Make minimal changes. Then run tests again and report results.
-  """ -> app::prompt()} :> $final
+  """ -> app::prompt()} => $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
@@ -139,7 +139,7 @@ args: file: string
 ---
 
 # Get file summary
-app::prompt("Read and summarize {$file}") :> $summary
+app::prompt("Read and summarize {$file}") => $summary
 
 # Security check
 """
@@ -147,7 +147,7 @@ Evaluate for SECURITY issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> app::prompt() :> $security
+""" -> app::prompt() => $security
 
 # Performance check
 """
@@ -155,7 +155,7 @@ Evaluate for PERFORMANCE issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> app::prompt() :> $performance
+""" -> app::prompt() => $performance
 
 # Check results
 $security -> .contains("FAIL") -> ? {
@@ -197,7 +197,7 @@ Deploy {$service} to staging.
 - Enable debug logging
   """ -> app::prompt()} ! {
   app::prompt("Deploy {$service} to development environment")
-} :> $result
+} => $result
 
 "Deployment complete" -> log
 [0, "Deployed {$service} to {$ENV.DEPLOY_ENV}"]
@@ -219,7 +219,7 @@ Perform: {$operation}
 
 Output SUCCESS, RETRY, or FAILED.
   """ -> app::prompt()
-} ? (.contains("RETRY")) :> $result
+} ? (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
 $result -> .contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$result}"]
@@ -237,12 +237,12 @@ args: file: string
 ---
 
 # Inline capture: value flows through $raw to log to conditional
-app::prompt("Read {$file}") :> $raw -> log -> .contains("ERROR") -> ? {
+app::prompt("Read {$file}") => $raw -> log -> .contains("ERROR") -> ? {
   error "Failed to read: {$raw}"
 }
 
 # Continue with $raw available for later use
-app::prompt("Analyze this content:\n{$raw}") :> $analysis -> log -> .empty -> ? {
+app::prompt("Analyze this content:\n{$raw}") => $analysis -> log -> .empty -> ? {
   error "Analysis produced no output"
 }
 
@@ -256,7 +256,7 @@ With the analysis:
 """ -> app::prompt()
 ```
 
-Semantically, `:> $var ->` is `:> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
+Semantically, `=> $var ->` is `=> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
 
 ## Type-Safe Variables
 
@@ -270,23 +270,23 @@ args: file: string
 # Define a typed helper closure
 |input: string| {
   app::prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
-} :> $validate:closure
+} => $validate:closure
 
 # Capture with explicit type locks the variable
-"processing" :> $status:string
-"checking {$file}" :> $status          # OK: same type
-# 42 :> $status                        # ERROR: cannot assign number to string
+"processing" => $status:string
+"checking {$file}" => $status          # OK: same type
+# 42 => $status                        # ERROR: cannot assign number to string
 
 # Closures are type-locked too
-# "oops" :> $validate                  # ERROR: cannot assign string to closure
+# "oops" => $validate                  # ERROR: cannot assign string to closure
 
 # Inline type annotation in pipe chain
-app::prompt("Check {$file}") :> $result:string -> log -> ?(.contains("ERROR")) {
+app::prompt("Check {$file}") => $result:string -> log -> ?(.contains("ERROR")) {
   error $result
 }
 
 # Type annotations catch mistakes early
-app::prompt("Analyze {$file}") :> $analysis:string
+app::prompt("Analyze {$file}") => $analysis:string
 
 ?(.contains("FAIL")) {
   error "Analysis failed: {$analysis}"
@@ -304,7 +304,7 @@ Extracts specific information from responses.
 args: logfile: string
 ---
 
-app::prompt("Read {$logfile} and find all ERROR lines") :> $errors
+app::prompt("Read {$logfile} and find all ERROR lines") => $errors
 
 $errors -> .empty -> ? {
   "No errors found"
@@ -314,7 +314,7 @@ Analyze these errors and categorize them:
 {$errors}
 
 For each unique error type, suggest a fix.
-  """ -> app::prompt() :> $analysis
+  """ -> app::prompt() => $analysis
 
   "Error analysis complete" -> log
   $analysis
@@ -331,13 +331,13 @@ args: file: string
 ---
 
 # Multi-phase pipeline with early exit on errors
-"content of {$file}" :> $content
+"content of {$file}" => $content
 
 $content -> .contains("ERROR") ? {
   "Read failed" -> return
 }
 
-"analyzed: {$content}" :> $analysis
+"analyzed: {$content}" => $analysis
 
 $analysis -> .contains("FAIL") ? {
   "Analysis failed" -> return
@@ -356,24 +356,24 @@ args: items: string
 ---
 
 # Count items and calculate batch sizes
-app::prompt("Count items in {$items}") -> .match("(\\d+) items") :> $m
+app::prompt("Count items in {$items}") -> .match("(\\d+) items") => $m
 
 $m -> .empty -> ? {
   error "Could not parse item count"
 }
 
-$m.groups[0] -> .num :> $count
+$m.groups[0] -> .num => $count
 
 # Calculate batches: ceil(count / 10)
-(($count + 9) / 10) :> $batches
+(($count + 9) / 10) => $batches
 
 "Processing {$count} items in {$batches} batches" -> log
 
 # Process each batch using range
 range(1, $batches + 1) -> each {
-  $ :> $batch_num
-  (($batch_num - 1) * 10) :> $start
-  ($start + 10) :> $end
+  $ => $batch_num
+  (($batch_num - 1) * 10) => $start
+  ($start + 10) => $end
 
   """
 Process batch {$batch_num} of {$batches}
@@ -402,7 +402,7 @@ Rules:
 - Output :::BLOCKED::: if you need information you don't have
 - Output :::NEEDS_HUMAN::: if human judgment is required
 - Output :::DONE::: when complete
-""" -> app::prompt() :> $result
+""" -> app::prompt() => $result
 
 $result -> (!.contains(":::DONE:::")) @ {
   """
@@ -413,7 +413,7 @@ Previous progress:
 
 Remember the signal rules.
   """ -> app::prompt()
-} :> $final
+} => $final
 
 "Task complete: {$final}" -> log
 ```
@@ -490,13 +490,13 @@ Explicit argument unpacking with validation.
 
 ```rill
 # Define a function
-|a, b, c| { "{$a}-{$b}-{$c}" } :> $fmt
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
 # Create args from tuple and invoke
 *[1, 2, 3] -> $fmt()    # "1-2-3"
 
 # Store args for later use
-*[1, 2, 3] :> $myArgs
+*[1, 2, 3] => $myArgs
 $myArgs -> $fmt()       # "1-2-3"
 ```
 
@@ -504,7 +504,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ```rill
 # Named args match by parameter name, order doesn't matter
-|width, height|($width * $height) :> $area
+|width, height|($width * $height) => $area
 
 *[height: 20, width: 10] -> $area()  # 200
 ```
@@ -513,7 +513,7 @@ $myArgs -> $fmt()       # "1-2-3"
 
 ```rill
 # Defaults provide opt-in leniency
-|x, y = 10, z = 20|($x + $y + $z) :> $fn
+|x, y = 10, z = 20|($x + $y + $z) => $fn
 
 *[5] -> $fn()                 # 35 (5 + 10 + 20)
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
@@ -545,7 +545,7 @@ Built-in functions for extracting structured data from LLM responses.
 
 ```rill
 # parse_auto detects and extracts structured content
-"{{\"status\": \"ok\", \"count\": 42}}" -> parse_auto :> $result
+"{{\"status\": \"ok\", \"count\": 42}}" -> parse_auto => $result
 
 $result.type -> log        # "json"
 $result.data.status -> log # "ok"
@@ -562,7 +562,7 @@ For XML content, use `parse_xml` for more precise extraction:
 
 ```rill
 # LLM returns: "Here's the config:\n```json\n{...}\n```"
-app::prompt("Generate JSON config") -> parse_fence("json") -> parse_json :> $config
+app::prompt("Generate JSON config") -> parse_fence("json") -> parse_json => $config
 
 # Access parsed data
 $config.host -> log
@@ -573,13 +573,13 @@ $config.port -> log
 
 ```rill
 # LLM returns: "<thinking>...</thinking><answer>...</answer>"
-app::prompt("Analyze step by step") :> $response
+app::prompt("Analyze step by step") => $response
 
 # Extract thinking for logging
 $response -> parse_xml("thinking") -> log
 
 # Extract and parse answer
-$response -> parse_xml("answer") -> parse_json :> $answer
+$response -> parse_xml("answer") -> parse_json => $answer
 ```
 
 ### Parse Tool Calls
@@ -588,11 +588,11 @@ $response -> parse_xml("answer") -> parse_json :> $answer
 """
 What function should I call?
 Return in format: <tool><name>func</name><args>{...}</args></tool>
-""" -> app::prompt() :> $response
+""" -> app::prompt() => $response
 
-$response -> parse_xml("tool") :> $tool
-$tool -> parse_xml("name") :> $fn_name
-$tool -> parse_xml("args") -> parse_json :> $fn_args
+$response -> parse_xml("tool") => $tool
+$tool -> parse_xml("name") => $fn_name
+$tool -> parse_xml("args") -> parse_json => $fn_args
 
 # Call the function
 call($fn_name, $fn_args)
@@ -602,7 +602,7 @@ call($fn_name, $fn_args)
 
 ```rill
 # parse_checklist extracts checkbox items as [done, text] pairs
-"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist :> $tasks
+"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist => $tasks
 
 # Filter incomplete tasks
 $tasks -> filter |task| { !$task.at(0) } -> each |task| {
@@ -615,7 +615,7 @@ $tasks -> filter |task| { !$task.at(0) } -> each |task| {
 
 ```rill
 # parse_frontmatter extracts YAML header and body
-"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter :> $doc
+"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter => $doc
 
 $doc.meta.title -> log    # "Guide"
 $doc.body -> log          # "Content here"
@@ -635,7 +635,7 @@ $doc.body -> log          # "Content here"
 
 ```rill
 # Validate parsed content before use
-"{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto :> $result
+"{{\"status\": \"ok\", \"items\": [1, 2, 3]}}" -> parse_auto => $result
 
 ($result.type != "json") ? {
   "Expected JSON" -> log
@@ -653,7 +653,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ```rill
 # Define closure first, then use it
-|x| { $x * 2 } :> $double
+|x| { $x * 2 } => $double
 [1, 2, 3, 4, 5] -> map $double
 # [2, 4, 6, 8, 10]
 
@@ -670,7 +670,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # [3, 4, 5]
 
 # Filter with closure predicate
-|x| { $x % 2 == 0 } :> $even
+|x| { $x % 2 == 0 } => $even
 [1, 2, 3, 4, 5, 6] -> filter $even
 # [2, 4, 6]
 
@@ -679,7 +679,7 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # ["hello", "world"]
 
 # Chain filter and map
-|x| { $x * 2 } :> $dbl
+|x| { $x * 2 } => $dbl
 [1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
 # [6, 8, 10]
 
@@ -696,16 +696,16 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ```rill
 # Chain transformations
-|s|"{$s} -> validated" :> $validate
-|s|"{$s} -> processed" :> $process
-|s|"{$s} -> complete" :> $complete
+|s|"{$s} -> validated" => $validate
+|s|"{$s} -> processed" => $process
+|s|"{$s} -> complete" => $complete
 
 "input" -> @[$validate, $process, $complete]
 # "input -> validated -> processed -> complete"
 
 # Numeric reduction
-|x|($x + 10) :> $add10
-|x|($x * 2) :> $double
+|x|($x + 10) => $add10
+|x|($x * 2) => $double
 
 5 -> @[$add10, $double, $add10]
 # ((5 + 10) * 2) + 10 = 40
@@ -717,13 +717,13 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # Find first element matching condition
 [1, 2, 3, 4, 5] -> each {
   .gt(3) ? { $ -> break }
-} :> $found
+} => $found
 # 4
 
 # Find with default
 [1, 2, 3] -> each {
   .gt(10) ? { $ -> break }
-} :> $result
+} => $result
 $result -> .empty ? { "not found" } ! { "found: {$result}" }
 ```
 
@@ -735,7 +735,7 @@ $result -> .empty ? { "not found" } ! { "found: {$result}" }
 # 100
 
 # Count matching elements using filter
-$items -> filter { .contains("error") } -> .len :> $count
+$items -> filter { .contains("error") } -> .len => $count
 "Found {$count} errors" -> log
 ```
 

@@ -46,7 +46,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
 
    Continuation tokens (extend current statement):
      "->"  pipe operator (to pipe-target or capture)
-     ":>"  capture operator (captures value and continues chain)
+     "=>"  capture operator (captures value and continues chain)
      "."   method chain
      "?"   conditional operator (expr ? then ! else)
      "!"   else clause (after conditional then-branch)
@@ -62,10 +62,10 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    After any complete expression, if the next token is not a continuation,
    it must begin a new statement. No lookahead beyond one token is needed.
 
-   Line continuation: -> or :> at the beginning of a line continues the
+   Line continuation: -> or => at the beginning of a line continues the
    previous line's pipe chain. This allows readable multi-line chains:
      "hello"
-       :> $greeting
+       => $greeting
        -> .upper *)
 
 (* Parsing note: "->" capture vs "->" pipe-target is unambiguous because
@@ -73,18 +73,18 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    should greedily consume pipe-chain, then check for trailing "-> $id". *)
 
 (* Capture operators:
-   - ":>" (capture-arrow) captures value and continues chain
+   - "=>" (capture-arrow) captures value and continues chain
    - "->" to "$var" (terminal) captures value and ends chain
 
-   ":>" is preferred for most captures because it's clearer:
-   "hello" :> $x -> .upper       -- capture "hello", chain continues, result is "HELLO"
-   "hello" :> $x                 -- capture and emit (result is "hello")
+   "=>" is preferred for most captures because it's clearer:
+   "hello" => $x -> .upper       -- capture "hello", chain continues, result is "HELLO"
+   "hello" => $x                 -- capture and emit (result is "hello")
 
    Chain terminators: break and return terminate pipe chains.
 
    "hello" -> $x                 -- terminal capture (ends chain)
    "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
-   "hello" :> $x -> .len         -- capture arrow (clearer, same effect)
+   "hello" => $x -> .len         -- capture arrow (clearer, same effect)
    [1,2,3] -> each { break }     -- break terminates (exits loop)
    "result" -> return            -- return terminates (exits function) *)
 
@@ -106,7 +106,7 @@ annotation-arg = identifier , ":" , literal ;
 expression    = pipe-chain ;
 
 pipe-chain    = value-expr , [ "?" , body , [ "!" , body ] ]
-              , { ( "->" , ( pipe-target | capture ) ) | ( ":>" , capture ) }
+              , { ( "->" , ( pipe-target | capture ) ) | ( "=>" , capture ) }
               , [ "->" , chain-terminator ] ;
               (* Expression head can include arithmetic, comparisons, and logical ops.
                  5 + 3                    -- standalone arithmetic
@@ -233,7 +233,7 @@ list-element  = "..." , expression           (* spread: inline list elements *)
               | expression ;                 (* regular element *)
               (* List spread syntax: [1, ...$list, 2] inlines $list elements.
                  The spread expression must evaluate to a list at runtime.
-                 Example: [1, 2] :> $a; [...$a, 3] yields [1, 2, 3]
+                 Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
                  Error: spreading non-list throws RUNTIME_TYPE_ERROR *)
 
 dict          = "[" , ":" , "]"
@@ -304,18 +304,18 @@ digits        = digit , { digit } ;
 (* Capture with optional type annotation.
    Variables are type-locked after first assignment.
 
-   Capture arrow (:>) captures value into variable:
-   "hello" :> $name           -- capture, chain continues with "hello"
-   "hello" :> $name -> .upper -- capture, then transform (result: "HELLO")
-   "hello" :> $name:string    -- explicit type (validated on assignment)
+   Capture arrow (=>) captures value into variable:
+   "hello" => $name           -- capture, chain continues with "hello"
+   "hello" => $name -> .upper -- capture, then transform (result: "HELLO")
+   "hello" => $name:string    -- explicit type (validated on assignment)
 
    Pipe arrow (-> $var) invokes closure stored in $var:
    "hello" -> $fn             -- invoke $fn("hello") if $fn is closure
    "hello" -> $fn -> .len     -- invoke, then continue chain
 
    Type locking:
-   "hello" :> $name           -- $name is now type-locked to string
-   5 :> $name                 -- ERROR: $name was previously string *)
+   "hello" => $name           -- $name is now type-locked to string
+   5 => $name                 -- ERROR: $name was previously string *)
 capture       = "$" , identifier , [ ":" , capture-type ] ;
 capture-type  = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
 
@@ -579,7 +579,7 @@ else-clause   = conditional | body ;
    See docs/collections.md for collection operators.
 
    Examples:
-     ($x < 10) @ { ($x + 1) :> $x }     -- while loop (condition is bool)
+     ($x < 10) @ { ($x + 1) => $x }     -- while loop (condition is bool)
      @ { $ } ? ($x < 10)                -- do-while (body, then check)
      [1, 2, 3] -> each { $ * 2 }        -- for-each (use each operator)
      "abc" -> each { $ }                -- iterate over string chars
@@ -677,7 +677,7 @@ block         = "{" , statement , { statement } , "}" ;
               (* Block expression semantics depend on context:
 
                  EXPRESSION POSITION (creates closure):
-                 - { body } :> $fn                  -- stored as closure
+                 - { body } => $fn                  -- stored as closure
                  - [key: { body }]                  -- dict value is closure
                  - type({ body })                   -- arg is closure
                  Block creates ScriptCallable with implicit $ parameter.
@@ -694,7 +694,7 @@ block         = "{" , statement , { statement } , "}" ;
 
                  VS GROUPED EXPRESSION:
                  - ( expr )                         -- eager evaluation
-                 - ( expr ) :> $x                   -- stores result value
+                 - ( expr ) => $x                   -- stores result value
                  Parentheses always evaluate immediately.
 
                  Empty blocks not allowed. Blocks return their last expression's value,

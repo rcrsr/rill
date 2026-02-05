@@ -332,8 +332,8 @@ describe('validateScript', () => {
   describe('complex scripts', () => {
     it('validates script with multiple statements', () => {
       const source = `
-        "hello" :> $greeting
-        $greeting -> .upper :> $shouted
+        "hello" => $greeting
+        $greeting -> .upper => $shouted
         $shouted
       `;
       const ast = parse(source);

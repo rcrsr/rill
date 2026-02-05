@@ -546,8 +546,8 @@ describe('rill-check CLI', () => {
     it('fix idempotency: second run applies zero fixes [AC-B3]', async () => {
       // Create file with multiple naming violations
       const content = `
-"userName" :> $userName
-"itemList" :> $itemList
+"userName" => $userName
+"itemList" => $itemList
 $userName -> .len
 $itemList -> .len
 `;
@@ -575,7 +575,7 @@ $itemList -> .len
       // Generate 1000 lines of valid rill code
       const lines: string[] = [];
       for (let i = 0; i < 1000; i++) {
-        lines.push(`"line_${i}" :> $line_${i}`);
+        lines.push(`"line_${i}" => $line_${i}`);
       }
       const content = lines.join('\n');
       const script = await writeFile('perf-1000.rill', content);
@@ -616,8 +616,8 @@ $itemList -> .len
       // Note: Fix collision handling (EC-5) is tested in tests/check/fixer.test.ts
       // This test verifies that non-colliding fixes are successfully applied
       const content = `
-[userName: "test"] :> $data1
-[itemList: [1, 2, 3]] :> $data2
+[userName: "test"] => $data1
+[itemList: [1, 2, 3]] => $data2
 `;
       const script = await writeFile('collision.rill', content);
 

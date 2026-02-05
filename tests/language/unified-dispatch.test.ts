@@ -44,7 +44,7 @@ describe('Unified Dispatch', () => {
     it('returns value for string key piped to dict variable (AC-4)', async () => {
       // AC-4: String key "x" returns value 1 from dict
       const result = await run(`
-        [x: 1, y: 2] :> $dict
+        [x: 1, y: 2] => $dict
         "x" -> $dict
       `);
       expect(result).toBe(1);
@@ -55,7 +55,7 @@ describe('Unified Dispatch', () => {
     it('returns first element when piped 0 to list variable (AC-5)', async () => {
       // AC-5: Index 0 returns first element from list variable
       const result = await run(`
-        ["a", "b", "c"] :> $list
+        ["a", "b", "c"] => $list
         0 -> $list
       `);
       expect(result).toBe('a');
@@ -64,7 +64,7 @@ describe('Unified Dispatch', () => {
     it('returns last element when piped -1 to list variable (AC-6)', async () => {
       // AC-6: Negative index -1 returns last element from list variable
       const result = await run(`
-        ["a", "b", "c"] :> $list
+        ["a", "b", "c"] => $list
         -1 -> $list
       `);
       expect(result).toBe('c');
@@ -76,7 +76,7 @@ describe('Unified Dispatch', () => {
       // AC-9: Closure value is auto-invoked when dispatched
       // Zero-param closure invoked with args=[], pipeValue="fn", returns "result"
       const result = await run(`
-        [fn: ||{ "result" }] :> $dict
+        [fn: ||{ "result" }] => $dict
         "fn" -> $dict
       `);
       expect(result).toBe('result');
@@ -86,7 +86,7 @@ describe('Unified Dispatch', () => {
       // AC-10: Closure value is auto-invoked when indexed
       // Zero-param closure invoked with args=[], pipeValue=0
       const result = await run(`
-        [||{ "first" }] :> $list
+        [||{ "first" }] => $list
         0 -> $list
       `);
       expect(result).toBe('first');
@@ -101,7 +101,7 @@ describe('Unified Dispatch', () => {
 
     it('chains method call after dict variable dispatch', async () => {
       const result = await run(`
-        [x: "test"] :> $dict
+        [x: "test"] => $dict
         "x" -> $dict -> .upper
       `);
       expect(result).toBe('TEST');
@@ -109,7 +109,7 @@ describe('Unified Dispatch', () => {
 
     it('chains method call after list variable dispatch', async () => {
       const result = await run(`
-        ["hello", "world"] :> $list
+        ["hello", "world"] => $list
         1 -> $list -> .upper
       `);
       expect(result).toBe('WORLD');
@@ -119,7 +119,7 @@ describe('Unified Dispatch', () => {
   describe('Variable Context', () => {
     it('uses variable as dispatch index for list literal', async () => {
       const result = await run(`
-        1 :> $idx
+        1 => $idx
         $idx -> ["a", "b", "c"]
       `);
       expect(result).toBe('b');
@@ -127,8 +127,8 @@ describe('Unified Dispatch', () => {
 
     it('uses variable as dispatch key for dict', async () => {
       const result = await run(`
-        [x: 10, y: 20] :> $dict
-        "y" :> $key
+        [x: 10, y: 20] => $dict
+        "y" => $key
         $key -> $dict
       `);
       expect(result).toBe(20);
@@ -136,7 +136,7 @@ describe('Unified Dispatch', () => {
 
     it('captures dispatch result from list literal', async () => {
       const result = await run(`
-        0 -> ["test"] :> $val
+        0 -> ["test"] => $val
         $val -> .len
       `);
       expect(result).toBe(4);
@@ -144,7 +144,7 @@ describe('Unified Dispatch', () => {
 
     it('captures dispatch result from dict', async () => {
       const result = await run(`
-        "x" -> [x: 42] :> $val
+        "x" -> [x: 42] => $val
         $val + 10
       `);
       expect(result).toBe(52);
@@ -158,7 +158,7 @@ describe('Unified Dispatch', () => {
         // EC-7: List dispatch requires number index, got {type}
         try {
           await run(`
-            ["a", "b", "c"] :> $list
+            ["a", "b", "c"] => $list
             "invalid" -> $list
           `);
           expect.fail('Should have thrown');
@@ -174,7 +174,7 @@ describe('Unified Dispatch', () => {
         // EC-1/EC-7: Error message includes actual type received
         try {
           await run(`
-            ["a", "b"] :> $list
+            ["a", "b"] => $list
             "test" -> $list
           `);
           expect.fail('Should have thrown');
@@ -193,7 +193,7 @@ describe('Unified Dispatch', () => {
         // EC-2: List dispatch: index '{index}' not found
         try {
           await run(`
-            ["a", "b"] :> $list
+            ["a", "b"] => $list
             99 -> $list
           `);
           expect.fail('Should have thrown');
@@ -208,7 +208,7 @@ describe('Unified Dispatch', () => {
         // EC-2/EC-8: Index out of bounds, no default
         try {
           await run(`
-            [] :> $list
+            [] => $list
             0 -> $list
           `);
           expect.fail('Should have thrown');
@@ -222,7 +222,7 @@ describe('Unified Dispatch', () => {
         // EC-2/EC-8: Error message includes the index that was not found
         try {
           await run(`
-            ["x"] :> $list
+            ["x"] => $list
             5 -> $list
           `);
           expect.fail('Should have thrown');
@@ -236,7 +236,7 @@ describe('Unified Dispatch', () => {
         // EC-5/EC-8: Negative index out of bounds via variable
         try {
           await run(`
-            ["a"] :> $list
+            ["a"] => $list
             -5 -> $list
           `);
           expect.fail('Should have thrown');
@@ -253,7 +253,7 @@ describe('Unified Dispatch', () => {
         // EC-4: Dict dispatch: key '{key}' not found
         try {
           await run(`
-            [a: 1, b: 2] :> $dict
+            [a: 1, b: 2] => $dict
             "missing" -> $dict
           `);
           expect.fail('Should have thrown');
@@ -267,7 +267,7 @@ describe('Unified Dispatch', () => {
         // EC-4/EC-6: Error message includes the key that was not found
         try {
           await run(`
-            [x: 1] :> $dict
+            [x: 1] => $dict
             "notfound" -> $dict
           `);
           expect.fail('Should have thrown');
@@ -284,7 +284,7 @@ describe('Unified Dispatch', () => {
         // EC-3: Cannot dispatch to {type}
         try {
           await run(`
-            "text" :> $val
+            "text" => $val
             "key" -> $val
           `);
           expect.fail('Should have thrown');
@@ -301,7 +301,7 @@ describe('Unified Dispatch', () => {
         // EC-3: Cannot dispatch to {type}
         try {
           await run(`
-            42 :> $val
+            42 => $val
             0 -> $val
           `);
           expect.fail('Should have thrown');
@@ -318,7 +318,7 @@ describe('Unified Dispatch', () => {
         // EC-3: Cannot dispatch to {type}
         try {
           await run(`
-            true :> $val
+            true => $val
             "key" -> $val
           `);
           expect.fail('Should have thrown');
@@ -334,7 +334,7 @@ describe('Unified Dispatch', () => {
         // EC-3: Error message includes actual type
         try {
           await run(`
-            123 :> $num
+            123 => $num
             "x" -> $num
           `);
           expect.fail('Should have thrown');
@@ -353,7 +353,7 @@ describe('Unified Dispatch', () => {
       // AC-16: Zero-param closure auto-invoked with args=[], pipeValue=input
       // Zero-param closure invoked with args=[], pipeValue=5, returns 10
       const result = await run(`
-        [||{ $ * 2 }] :> $list
+        [||{ $ * 2 }] => $list
         5 -> $list[0]
       `);
       expect(result).toBe(10);
@@ -364,7 +364,7 @@ describe('Unified Dispatch', () => {
       // Dispatch with index 5 retrieves closure, auto-invokes with args=[5]
       // Block-closure { $ + 1 } receives args=[5], returns 6
       const result = await run(`
-        [{ $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }] :> $list
+        [{ $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }, { $ + 1 }] => $list
         5 -> $list
       `);
       expect(result).toBe(6);
@@ -373,7 +373,7 @@ describe('Unified Dispatch', () => {
     it('negative index wraps correctly in list dispatch (AC-18)', async () => {
       // AC-18: Negative index -3 wraps to index 0 in 3-element list
       const result = await run(`
-        ["a", "b", "c"] :> $list
+        ["a", "b", "c"] => $list
         -3 -> $list
       `);
       expect(result).toBe('a');
@@ -382,7 +382,7 @@ describe('Unified Dispatch', () => {
     it('empty list with default returns default (AC-19)', async () => {
       // AC-19: Empty list dispatch with default returns default value
       const result = await run(`
-        [] :> $empty
+        [] => $empty
         0 -> $empty ?? "default"
       `);
       expect(result).toBe('default');
@@ -391,7 +391,7 @@ describe('Unified Dispatch', () => {
     it('match takes precedence over default in dict dispatch (AC-20)', async () => {
       // AC-20: When key matches, return value (not default)
       const result = await run(`
-        [x: 1] :> $d
+        [x: 1] => $d
         "x" -> $d ?? 0
       `);
       expect(result).toBe(1);
@@ -402,7 +402,7 @@ describe('Unified Dispatch', () => {
       // Zero-param closures receive $ binding and execute their body correctly
       try {
         await run(`
-          [||{ $undefined }] :> $list
+          [||{ $undefined }] => $list
           0 -> $list
         `);
         expect.fail('Should have thrown');
@@ -418,7 +418,7 @@ describe('Unified Dispatch', () => {
       // Uses block-closure (params.length > 0) which works with current dispatch
       try {
         await run(`
-          [|x|{ $undefined }] :> $list
+          [|x|{ $undefined }] => $list
           0 -> $list
         `);
         expect.fail('Should have thrown');

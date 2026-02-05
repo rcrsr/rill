@@ -166,7 +166,7 @@ describe('Rill Runtime: Observability', () => {
   describe('onCapture', () => {
     it('fires when variable is captured', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('"value" :> $myVar', { observability: callbacks });
+      await run('"value" => $myVar', { observability: callbacks });
 
       expect(events.capture).toHaveLength(1);
       expect(events.capture[0]).toEqual({ name: 'myVar', value: 'value' });
@@ -174,7 +174,7 @@ describe('Rill Runtime: Observability', () => {
 
     it('fires for each capture', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('"a" :> $x\n"b" :> $y\n"c" :> $z', {
+      await run('"a" => $x\n"b" => $y\n"c" => $z', {
         observability: callbacks,
       });
 
@@ -184,7 +184,7 @@ describe('Rill Runtime: Observability', () => {
 
     it('fires for captures in nested blocks', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('true -> ? { "inner" :> $nested }', {
+      await run('true -> ? { "inner" => $nested }', {
         observability: callbacks,
       });
 
@@ -264,7 +264,7 @@ describe('Rill Runtime: Observability', () => {
   describe('Combined Events', () => {
     it('fires events in correct order for complex script', async () => {
       const order: string[] = [];
-      await run('"start" :> $x\n"end" -> identity', {
+      await run('"start" => $x\n"end" -> identity', {
         observability: {
           onStepStart: (e) => order.push(`stepStart:${e.index}`),
           onStepEnd: (e) => order.push(`stepEnd:${e.index}`),

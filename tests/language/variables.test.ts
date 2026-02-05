@@ -9,60 +9,60 @@ import { run, runFull } from '../helpers/runtime.js';
 import { parse, type VariableNode } from '../../src/index.js';
 
 describe('Rill Runtime: Variables', () => {
-  describe(':> Capture Operator', () => {
-    it(':> captures and continues chain', async () => {
-      expect(await run('"hello" :> $x -> .upper')).toBe('HELLO');
+  describe('=> Capture Operator', () => {
+    it('=> captures and continues chain', async () => {
+      expect(await run('"hello" => $x -> .upper')).toBe('HELLO');
     });
 
-    it(':> captured value equals original', async () => {
-      const result = await runFull('"hello" :> $x -> .upper');
+    it('=> captured value equals original', async () => {
+      const result = await runFull('"hello" => $x -> .upper');
       expect(result.variables['x']).toBe('hello');
     });
 
-    it(':> at end of chain emits value', async () => {
-      expect(await run('"hello" :> $x')).toBe('hello');
+    it('=> at end of chain emits value', async () => {
+      expect(await run('"hello" => $x')).toBe('hello');
     });
 
-    it('multiple :> in chain', async () => {
-      expect(await run('"a" :> $first -> "{$}b" :> $second -> "{$}c"')).toBe(
+    it('multiple => in chain', async () => {
+      expect(await run('"a" => $first -> "{$}b" => $second -> "{$}c"')).toBe(
         'abc'
       );
     });
 
-    it(':> then -> continues with same value', async () => {
-      expect(await run('"hello" :> $orig -> .upper :> $upper -> .len')).toBe(5);
+    it('=> then -> continues with same value', async () => {
+      expect(await run('"hello" => $orig -> .upper => $upper -> .len')).toBe(5);
     });
 
     it('$ inside chain is current pipe value', async () => {
-      expect(await run('"hello" :> $x -> "{$} world" :> $y -> { $ }')).toBe(
+      expect(await run('"hello" => $x -> "{$} world" => $y -> { $ }')).toBe(
         'hello world'
       );
     });
 
-    it(':> at start of line continues chain', async () => {
+    it('=> at start of line continues chain', async () => {
       const code = `"hello"
-        :> $greeting
+        => $greeting
         -> .upper`;
       expect(await run(code)).toBe('HELLO');
     });
 
-    it('mixed -> and :> across lines', async () => {
+    it('mixed -> and => across lines', async () => {
       const code = `"start"
-        :> $a
+        => $a
         -> "{$}-middle"
-        :> $b
+        => $b
         -> "{$}-end"`;
       expect(await run(code)).toBe('start-middle-end');
     });
 
     it('captured var visible to siblings', async () => {
-      expect(await run('"hello" :> $x\n$x -> .upper')).toBe('HELLO');
+      expect(await run('"hello" => $x\n$x -> .upper')).toBe('HELLO');
     });
 
     it('captured var visible in nested blocks', async () => {
       expect(
         await run(`
-          "outer" :> $x
+          "outer" => $x
           "" -> {
             $x -> .upper
           }
@@ -70,32 +70,32 @@ describe('Rill Runtime: Variables', () => {
       ).toBe('OUTER');
     });
 
-    it(':> with type annotation', async () => {
-      expect(await run('"hello" :> $x:string -> .upper')).toBe('HELLO');
+    it('=> with type annotation', async () => {
+      expect(await run('"hello" => $x:string -> .upper')).toBe('HELLO');
     });
 
-    it(':> type mismatch errors', async () => {
-      await expect(run('42 :> $x:string')).rejects.toThrow();
+    it('=> type mismatch errors', async () => {
+      await expect(run('42 => $x:string')).rejects.toThrow();
     });
 
-    it(':> in loop body is per-iteration', async () => {
+    it('=> in loop body is per-iteration', async () => {
       expect(
-        await run('[1, 2, 3] -> each { $ :> $curr -> { $curr * 2 } }')
+        await run('[1, 2, 3] -> each { $ => $curr -> { $curr * 2 } }')
       ).toEqual([2, 4, 6]);
     });
   });
 
   describe('Named Variables', () => {
     it('captures and reads variable', async () => {
-      expect(await run('"x" :> $v\n$v')).toBe('x');
+      expect(await run('"x" => $v\n$v')).toBe('x');
     });
 
     it('overwrites variable', async () => {
-      expect(await run('"a" :> $v\n"b" :> $v\n$v')).toBe('b');
+      expect(await run('"a" => $v\n"b" => $v\n$v')).toBe('b');
     });
 
     it('supports multiple variables', async () => {
-      expect(await run('"a" :> $x\n"b" :> $y\n[$x, $y]')).toEqual(['a', 'b']);
+      expect(await run('"a" => $x\n"b" => $y\n[$x, $y]')).toEqual(['a', 'b']);
     });
 
     it('errors for undefined variable', async () => {
@@ -103,12 +103,12 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('captures in execution result', async () => {
-      const result = await runFull('"hello" :> $msg\n$msg');
+      const result = await runFull('"hello" => $msg\n$msg');
       expect(result.variables['msg']).toBe('hello');
     });
 
     it('captures multiple variables in result', async () => {
-      const result = await runFull('"a" :> $x\n"b" :> $y\n[$x, $y]');
+      const result = await runFull('"a" => $x\n"b" => $y\n[$x, $y]');
       expect(result.variables['x']).toBe('a');
       expect(result.variables['y']).toBe('b');
     });
@@ -153,15 +153,15 @@ describe('Rill Runtime: Variables', () => {
 
   describe('Field Access', () => {
     it('accesses tuple index via variable', async () => {
-      expect(await run('[1, 2] :> $t\n$t[0]')).toBe(1);
+      expect(await run('[1, 2] => $t\n$t[0]')).toBe(1);
     });
 
     it('accesses dict field via variable', async () => {
-      expect(await run('[x: "y"] :> $d\n$d.x')).toBe('y');
+      expect(await run('[x: "y"] => $d\n$d.x')).toBe('y');
     });
 
     it('chains field access', async () => {
-      expect(await run('[a: [b: 1]] :> $d\n$d.a.b')).toBe(1);
+      expect(await run('[a: [b: 1]] => $d\n$d.a.b')).toBe(1);
     });
 
     it('accesses field on $ in block', async () => {
@@ -170,11 +170,11 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('accesses nested tuple in dict', async () => {
-      expect(await run('[items: [1, 2, 3]] :> $d\n$d.items[1]')).toBe(2);
+      expect(await run('[items: [1, 2, 3]] => $d\n$d.items[1]')).toBe(2);
     });
 
     it('accesses dict in tuple', async () => {
-      expect(await run('[[a: 1], [a: 2]] :> $t\n$t[1].a')).toBe(2);
+      expect(await run('[[a: 1], [a: 2]] => $t\n$t[1].a')).toBe(2);
     });
   });
 
@@ -197,7 +197,7 @@ describe('Rill Runtime: Variables', () => {
 
     it('can overwrite pre-set variable', async () => {
       expect(
-        await run('"new" :> $name\n$name', { variables: { name: 'old' } })
+        await run('"new" => $name\n$name', { variables: { name: 'old' } })
       ).toBe('new');
     });
   });

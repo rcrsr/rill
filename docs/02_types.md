@@ -42,10 +42,10 @@ Escape sequences: `\n`, `\t`, `\\`, `\"`, `{{` (literal `{`), `}}` (literal `}`)
 Any valid expression works inside `{...}`:
 
 ```rill
-"alice" :> $name
-3 :> $a
-5 :> $b
-true :> $ok
+"alice" => $name
+3 => $a
+5 => $b
+true => $ok
 "Hello, {$name}!"                    # Variable
 "sum: {$a + $b}"                     # Arithmetic
 "valid: {$a > 0}"                    # Comparison
@@ -58,7 +58,7 @@ true :> $ok
 Multiline strings use triple-quote syntax:
 
 ```rill
-"World" :> $name
+"World" => $name
 """
 Hello, {$name}!
 Line two
@@ -138,7 +138,7 @@ Use explicit boolean checks when needed:
 Ordered sequences of values:
 
 ```rill
-[1, 2, 3] :> $nums
+[1, 2, 3] => $nums
 $nums[0]                   # 1
 $nums[-1]                  # 3 (last element)
 $nums -> .len              # 3
@@ -149,7 +149,7 @@ $nums -> .len              # 3
 Inline elements from another list using `...` spread syntax:
 
 ```rill
-[1, 2] :> $a
+[1, 2] => $a
 [...$a, 3]                 # [1, 2, 3]
 [...$a, ...$a]             # [1, 2, 1, 2] (concatenation)
 [...[], 1]                 # [1] (empty spread contributes nothing)
@@ -158,14 +158,14 @@ Inline elements from another list using `...` spread syntax:
 Spread expressions evaluate before inlining:
 
 ```rill
-[1, 2, 3] :> $nums
+[1, 2, 3] => $nums
 [...($nums -> map {$ * 2})]  # [2, 4, 6]
 ```
 
 Spreading a non-list throws an error:
 
 ```text
-"hello" :> $str
+"hello" => $str
 [...$str]                  # Error: Spread in list literal requires list, got string
 ```
 
@@ -186,7 +186,7 @@ Spreading a non-list throws an error:
 Use `??` for safe access with default:
 
 ```rill
-["a"] :> $list
+["a"] => $list
 $list[0] ?? "default"  # "a"
 ```
 
@@ -200,27 +200,27 @@ Key-value mappings with identifier, number, boolean, variable, or computed keys:
 
 ```rill
 # Identifier keys
-[name: "alice", age: 30] :> $person
+[name: "alice", age: 30] => $person
 $person.name               # "alice"
 $person.age                # 30
 ```
 
 ```text
 # Number keys (including negative)
-[1: "one", 2: "two", -1: "minus one"] :> $numbers
+[1: "one", 2: "two", -1: "minus one"] => $numbers
 1 -> $numbers              # "one"
 (-1) -> $numbers           # "minus one"
 
 # Boolean keys
-[true: "yes", false: "no"] :> $yesno
+[true: "yes", false: "no"] => $yesno
 true -> $yesno             # "yes"
 
 # Variable keys (key value from variable, must be string)
-"status" :> $key
+"status" => $key
 [$key: "active"]           # [status: "active"]
 
 # Computed keys (key from expression, must be string)
-"user" :> $prefix
+"user" => $prefix
 [($prefix -> "{$}_name"): "alice"]  # [user_name: "alice"]
 
 # Multi-key syntax (same value for multiple keys)
@@ -230,7 +230,7 @@ true -> $yesno             # "yes"
 [a: 0, ["a", "b"]: 1]      # [a: 1, b: 1] (last-write-wins)
 
 # Multi-key dispatch
-[["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] :> $methods
+[["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] => $methods
 "GET" -> $methods          # "safe"
 "POST" -> $methods         # "unsafe"
 ```
@@ -258,7 +258,7 @@ Multi-key errors:
 **Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
-[:] :> $d
+[:] => $d
 $d.missing ?? ""           # "" (safe default)
 ```
 
@@ -268,12 +268,12 @@ Dict dispatch uses type-aware matching. Keys are matched by both value and type:
 
 ```text
 # Number vs string discrimination
-[1: "number one", "1": "string one"] :> $mixed
+[1: "number one", "1": "string one"] => $mixed
 1 -> $mixed                # "number one" (number key)
 "1" -> $mixed              # "string one" (string key)
 
 # Boolean vs string discrimination
-[true: "bool true", "true": "string true"] :> $flags
+[true: "bool true", "true": "string true"] => $flags
 true -> $flags             # "bool true" (boolean key)
 "true" -> $flags           # "string true" (string key)
 ```
@@ -305,7 +305,7 @@ Closures in dicts have `$` late-bound to the containing dict. See [Closures](06_
   name: "toolkit",
   count: 3,
   str: ||"{$.name}: {$.count} items"
-] :> $obj
+] => $obj
 
 $obj.str    # "toolkit: 3 items" (auto-invoked)
 ```
@@ -318,19 +318,19 @@ Tuples package values for explicit argument unpacking at closure invocation. Cre
 
 ```rill
 # From list (positional)
-*[1, 2, 3] :> $t              # tuple with positional values
+*[1, 2, 3] => $t              # tuple with positional values
 
 # From dict (named)
-*[x: 1, y: 2] :> $t           # tuple with named values
+*[x: 1, y: 2] => $t           # tuple with named values
 
 # Via pipe target
-[1, 2, 3] -> * :> $t          # convert list to tuple
+[1, 2, 3] -> * => $t          # convert list to tuple
 ```
 
 ### Using Tuples at Invocation
 
 ```rill
-|a, b, c| { "{$a}-{$b}-{$c}" } :> $fmt
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
 # Positional unpacking
 *[1, 2, 3] -> $fmt()          # "1-2-3"
@@ -344,7 +344,7 @@ Tuples package values for explicit argument unpacking at closure invocation. Cre
 When invoking with tuples, missing required parameters error, and extra arguments error:
 
 ```rill
-|x, y|($x + $y) :> $fn
+|x, y|($x + $y) => $fn
 *[1] -> $fn()                 # Error: missing argument 'y'
 *[1, 2, 3] -> $fn()           # Error: extra positional argument
 *[x: 1, z: 3] -> $fn()        # Error: unknown argument 'z'
@@ -353,7 +353,7 @@ When invoking with tuples, missing required parameters error, and extra argument
 ### Parameter Defaults with Tuples
 
 ```rill
-|x, y = 10, z = 20|($x + $y + $z) :> $fn
+|x, y = 10, z = 20|($x + $y + $z) => $fn
 *[5] -> $fn()                 # 35 (5 + 10 + 20)
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
 ```
@@ -430,12 +430,12 @@ $val -> :?list ? process() ! skip()   # branch on type
 |data| {
   $data -> :list              # assert input is list
   $data -> each { $ * 2 }
-} :> $process_items
+} => $process_items
 
 # Type-safe branching
 |val| {
   $val -> :?number ? ($val * 2) ! ($val -> .len)
-} :> $process
+} => $process
 $process(5)        # 10
 $process("hello")  # 5
 ```
@@ -447,25 +447,25 @@ $process("hello")  # 5
 Variables lock type on first assignment. The type is inferred from the value or declared explicitly:
 
 ```rill
-"hello" :> $name              # implicit: locked as string
-"world" :> $name              # OK: same type
-5 :> $name                    # ERROR: cannot assign number to string
+"hello" => $name              # implicit: locked as string
+"world" => $name              # OK: same type
+5 => $name                    # ERROR: cannot assign number to string
 
-"hello" :> $name:string       # explicit: declare and lock as string
-42 :> $count:number           # explicit: declare and lock as number
+"hello" => $name:string       # explicit: declare and lock as string
+42 => $count:number           # explicit: declare and lock as number
 ```
 
 ### Inline Capture with Type
 
 ```rill
-"hello" :> $x:string -> .len  # type annotation in mid-chain
+"hello" => $x:string -> .len  # type annotation in mid-chain
 ```
 
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-|x|$x :> $fn                  # locked as closure
-"text" :> $fn                 # ERROR: cannot assign string to closure
+|x|$x => $fn                  # locked as closure
+"text" => $fn                 # ERROR: cannot assign string to closure
 ```
 
 ---

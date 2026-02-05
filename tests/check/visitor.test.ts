@@ -49,7 +49,7 @@ describe('visitNode', () => {
 
   it('visits all node types in a complex expression', () => {
     const source = `
-      "hello" :> $greeting
+      "hello" => $greeting
       $greeting -> .upper
     `;
     const context = createTestContext(source);

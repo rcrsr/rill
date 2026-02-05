@@ -4,10 +4,10 @@
 
 ## Overview
 
-rill uses capture (`:>`) instead of assignment. Variables are type-locked after first assignment and follow strict scoping rules.
+rill uses capture (`=>`) instead of assignment. Variables are type-locked after first assignment and follow strict scoping rules.
 
 **Key principles:**
-- **Capture, not assign**: Use `:>` to capture values into variables
+- **Capture, not assign**: Use `=>` to capture values into variables
 - **Type-locked**: Variables lock type on first assignment
 - **No shadowing**: Cannot redeclare a variable name from outer scope
 - **No leakage**: Variables created inside blocks don't exist outside
@@ -16,23 +16,23 @@ rill uses capture (`:>`) instead of assignment. Variables are type-locked after 
 
 ## Variable Declaration
 
-Variables are declared via capture (`:>`), not assignment:
+Variables are declared via capture (`=>`), not assignment:
 
 ```rill
-"hello" :> $greeting
-42 :> $count
-[1, 2, 3] :> $items
+"hello" => $greeting
+42 => $count
+[1, 2, 3] => $items
 ```
 
 ### Capture and Continue
 
-The `:>` operator captures the value AND continues the chain:
+The `=>` operator captures the value AND continues the chain:
 
 ```rill
 "hello"
-    :> $greeting         # capture "hello" into $greeting
+    => $greeting         # capture "hello" into $greeting
     -> "{$} world"       # $ is still "hello"
-    :> $message          # capture "hello world" into $message
+    => $message          # capture "hello world" into $message
     -> .upper            # result: "HELLO WORLD"
 ```
 
@@ -41,7 +41,7 @@ The `:>` operator captures the value AND continues the chain:
 Capture at end of expression stores and ends the chain:
 
 ```rill
-"hello" :> $result       # capture and end chain (result: "hello")
+"hello" => $result       # capture and end chain (result: "hello")
 ```
 
 ---
@@ -88,7 +88,7 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 }
 
 # In each loops, $ is the current item
-|x| { $x * 2 } :> $double
+|x| { $x * 2 } => $double
 [1, 2, 3] -> each { $double() }   # $double receives 1, 2, 3
 ```
 
@@ -96,11 +96,11 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 
 ```rill
 # Explicit args override implied $
-|x| { $x } :> $fn
+|x| { $x } => $fn
 $fn("explicit")           # uses "explicit", not $
 
 # Params with defaults use the default
-|x: string = "default"| { $x } :> $fn2
+|x: string = "default"| { $x } => $fn2
 $fn2()                    # uses "default", not $
 ```
 
@@ -111,12 +111,12 @@ $fn2()                    # uses "default", not $
 Variables lock type after first assignment:
 
 ```rill
-"hello" :> $name              # locked as string
-"world" :> $name              # OK: same type
+"hello" => $name              # locked as string
+"world" => $name              # OK: same type
 ```
 
 ```text
-5 :> $name                    # ERROR: cannot assign number to string
+5 => $name                    # ERROR: cannot assign number to string
 ```
 
 ### Explicit Type Annotations
@@ -124,8 +124,8 @@ Variables lock type after first assignment:
 Declare type explicitly with `:type`:
 
 ```rill
-"hello" :> $name:string       # declare and lock as string
-42 :> $count:number           # declare and lock as number
+"hello" => $name:string       # declare and lock as string
+42 => $count:number           # declare and lock as number
 ```
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
@@ -133,17 +133,17 @@ Declare type explicitly with `:type`:
 ### Inline Capture with Type
 
 ```rill
-"hello" :> $x:string -> .len  # type annotation in mid-chain
+"hello" => $x:string -> .len  # type annotation in mid-chain
 ```
 
 Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
-|x|$x :> $fn:closure          # locked as closure
+|x|$x => $fn:closure          # locked as closure
 ```
 
 ```text
-"text" :> $fn                 # ERROR: cannot assign string to closure
+"text" => $fn                 # ERROR: cannot assign string to closure
 ```
 
 ---
@@ -159,19 +159,19 @@ Blocks, loops, conditionals, and grouped expressions create child scopes.
 3. **No leakage:** Variables created inside don't exist outside
 
 ```rill
-"context" :> $ctx
+"context" => $ctx
 
 "check" -> .contains("c") ? {
   "process with {$ctx}" -> log   # OK: read outer variable
-  "local" :> $temp               # OK: new local variable
+  "local" => $temp               # OK: new local variable
 }
 # $temp not accessible here
 ```
 
 ```text
-"context" :> $ctx
+"context" => $ctx
 "check" -> .contains("c") ? {
-  "new" :> $ctx                  # ERROR: cannot shadow outer $ctx
+  "new" => $ctx                  # ERROR: cannot shadow outer $ctx
 }
 ```
 
@@ -185,7 +185,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 
 # Variables inside loop body are local to each iteration
 0 -> ($ < 3) @ {
-  ($ * 10) :> $temp    # $temp exists only in this iteration
+  ($ * 10) => $temp    # $temp exists only in this iteration
   $ + 1
 }
 # $temp not accessible here
@@ -194,8 +194,8 @@ While loops use `$` as the accumulator since named variables in the body don't p
 > **Common Mistake:** Attempting to modify outer-scope variables from inside loops. This pattern NEVER works:
 >
 > ```text
-> 0 :> $count
-> [1, 2, 3] -> each { $count + 1 :> $count }  # Creates LOCAL $count!
+> 0 => $count
+> [1, 2, 3] -> each { $count + 1 => $count }  # Creates LOCAL $count!
 > $count                                       # Still 0!
 > ```
 >
@@ -204,7 +204,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 ### Reading Outer Variables
 
 ```rill
-10 :> $x
+10 => $x
 [1, 2, 3] -> each {
   $x + $      # Reads outer $x = 10
 }
@@ -261,10 +261,10 @@ process($file, $retries)
 
 ## Inline Capture Pattern
 
-Captures can appear mid-chain for debugging or later reference. Semantically, `:> $a ->` stores the value and returns it unchanged (like `log`):
+Captures can appear mid-chain for debugging or later reference. Semantically, `=> $a ->` stores the value and returns it unchanged (like `log`):
 
 ```rill
-"analyze this" :> $result -> .upper -> .len
+"analyze this" => $result -> .upper -> .len
 # $result is "analyze this", final result is 12
 ```
 
@@ -273,7 +273,7 @@ The value flows: `"analyze this"` → stored in `$result` → uppercased → len
 ### Debugging Pattern
 
 ```rill
-"test" :> $input -> log -> .upper :> $output -> log
+"test" => $input -> log -> .upper => $output -> log
 # logs "test", then logs "TEST"
 # $input is "test", $output is "TEST"
 ```
@@ -287,9 +287,9 @@ The value flows: `"analyze this"` → stored in `$result` → uppercased → len
 Capture when you need the value in multiple places:
 
 ```rill
-"hello" :> $greeting
-"{$greeting} world" :> $message
-"{$greeting} there" :> $alt
+"hello" => $greeting
+"{$greeting} world" => $message
+"{$greeting} there" => $alt
 ```
 
 ### Let Data Flow
@@ -298,7 +298,7 @@ Prefer implied `$` when the value flows directly to the next statement:
 
 ```text
 # Verbose — unnecessary capture
-app::prompt("check status") :> $status
+app::prompt("check status") => $status
 $status -> .empty ? app::error("No status")
 
 # Idiomatic — data flows naturally

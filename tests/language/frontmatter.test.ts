@@ -91,8 +91,8 @@ y: 2
       const script = `---
 description: Capture test
 ---
-"a" :> $x
-"b" :> $y
+"a" => $x
+"b" => $y
 [$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });

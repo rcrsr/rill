@@ -27,6 +27,17 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(definition?.category).toBe('runtime');
     });
 
+    it('RILL-P006 exists in registry with correct fields', () => {
+      const definition = ERROR_REGISTRY.get('RILL-P006');
+      expect(definition).toBeDefined();
+      expect(definition?.errorId).toBe('RILL-P006');
+      expect(definition?.category).toBe('parse');
+      expect(definition?.description).toBe('Deprecated capture arrow syntax');
+      expect(definition?.messageTemplate).toBe(
+        'The capture arrow syntax changed from :> to =>'
+      );
+    });
+
     it('No duplicate errorIds [AC-1, AC-2]', () => {
       const seen = new Set<string>();
       for (const [errorId] of ERROR_REGISTRY.entries()) {

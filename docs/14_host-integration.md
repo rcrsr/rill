@@ -8,7 +8,7 @@ This guide covers embedding Rill in host applications. Rill is a vanilla languag
 import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 
 const source = `
-  "Hello, World!" -> prompt() :> $response
+  "Hello, World!" -> prompt() => $response
   $response
 `;
 
@@ -938,7 +938,7 @@ import {
 } from '@rcrsr/rill';
 
 const script = `
-  $config.greeting -> prompt() :> $response
+  $config.greeting -> prompt() => $response
   $response
 `;
 

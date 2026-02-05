@@ -91,7 +91,7 @@ describe('Rill Runtime: Conditionals', () => {
 
   describe('Implied $', () => {
     it('uses implied $ at statement start', async () => {
-      expect(await run('"x" :> $v\n$v -> { .eq("x") ? "yes" ! "no" }')).toBe(
+      expect(await run('"x" => $v\n$v -> { .eq("x") ? "yes" ! "no" }')).toBe(
         'yes'
       );
     });
@@ -119,19 +119,19 @@ describe('Rill Runtime: Conditionals', () => {
 
   describe('Return Values', () => {
     it('returns then branch value', async () => {
-      expect(await run('true ? "result" ! "other" :> $x\n$x')).toBe('result');
+      expect(await run('true ? "result" ! "other" => $x\n$x')).toBe('result');
     });
 
     it('returns else branch value', async () => {
-      expect(await run('false ? "result" ! "other" :> $x\n$x')).toBe('other');
+      expect(await run('false ? "result" ! "other" => $x\n$x')).toBe('other');
     });
 
     it('returns last expression in multi-statement block', async () => {
       expect(
         await run(`
           true ? {
-            "first" :> $a
-            "second" :> $b
+            "first" => $a
+            "second" => $b
             $b
           } ! "other"
         `)
@@ -171,7 +171,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty function body', async () => {
-      await expect(run('|| { } :> $fn')).rejects.toThrow(
+      await expect(run('|| { } => $fn')).rejects.toThrow(
         'Empty blocks are not allowed'
       );
     });
@@ -183,7 +183,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('parses variable as condition', async () => {
-      expect(await run('true :> $ok\n$ok ? "yes" ! "no"')).toBe('yes');
+      expect(await run('true => $ok\n$ok ? "yes" ! "no"')).toBe('yes');
     });
 
     it('parses grouped comparison as condition', async () => {

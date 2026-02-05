@@ -115,12 +115,12 @@ describe('Rill Language: Pass Keyword', () => {
 
   describe('Pass with Variables', () => {
     it('captures pass result from block', async () => {
-      const result = await run('"test" -> { pass } :> $x\n$x');
+      const result = await run('"test" -> { pass } => $x\n$x');
       expect(result).toBe('test');
     });
 
     it('uses pass in variable assignment chain with block', async () => {
-      const result = await run('"value" :> $a\n$a -> { pass } :> $b\n[$a, $b]');
+      const result = await run('"value" => $a\n$a -> { pass } => $b\n[$a, $b]');
       expect(result).toEqual(['value', 'value']);
     });
   });
@@ -132,13 +132,13 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('returns last pass in block', async () => {
-      const result = await run('"value" -> { "ignored" :> $x\npass }');
+      const result = await run('"value" -> { "ignored" => $x\npass }');
       expect(result).toBe('value');
     });
 
     it('uses pass in multi-statement block', async () => {
       const result = await run(
-        '10 -> { $ :> $original\n($ * 2) :> $doubled\n($ > 5) ? pass ! $doubled }'
+        '10 -> { $ => $original\n($ * 2) => $doubled\n($ > 5) ? pass ! $doubled }'
       );
       expect(result).toBe(10);
     });
@@ -199,7 +199,7 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('handles pass with empty list', async () => {
-      const result = await run('[] :> $list\n$list -> { pass }');
+      const result = await run('[] => $list\n$list -> { pass }');
       expect(result).toEqual([]);
     });
 

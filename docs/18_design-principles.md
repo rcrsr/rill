@@ -29,7 +29,7 @@ Every rill program answers one question: "What happens to this data as it moves 
 
 ### 1. Pipes Replace Assignment
 
-No `=` operator exists. Data moves via `->`, values captured via `:>`.
+No `=` operator exists. Data moves via `->`, values captured via `=>`.
 
 ```rill
 # Data flows through transformations
@@ -37,7 +37,7 @@ No `=` operator exists. Data moves via `->`, values captured via `:>`.
 # Result: ["HELLO", "WORLD"]
 
 # Capture only when a value appears more than once
-app::prompt("analyze") :> $result
+app::prompt("analyze") => $result
 $result -> log
 $result -> .contains("ERROR") ? { error "Analysis failed: {$result}" }
 ```
@@ -49,7 +49,7 @@ $result -> .contains("ERROR") ? { error "Analysis failed: {$result}" }
 No null, undefined, nil, or None. Missing values produce errors. Use `??` for defaults and `.?` for existence checks.
 
 ```rill
-[name: "alice"] :> $user
+[name: "alice"] => $user
 $user.name ?? "anonymous"   # Default if missing
 $user.?email                # Returns true or false
 ```
@@ -96,9 +96,9 @@ $response -> .contains("ERROR") ? error("Failed: {$response}")
 Inner scopes cannot read or modify outer variables created after the scope opens. Loop bodies cannot mutate variables from the enclosing scope.
 
 ```text
-# This does NOT work — inner :> creates a local:
-0 :> $count
-[1, 2, 3] -> each { $count + 1 :> $count }
+# This does NOT work — inner => creates a local:
+0 => $count
+[1, 2, 3] -> each { $count + 1 => $count }
 $count  # Still 0
 
 # Use accumulators instead:
@@ -118,8 +118,8 @@ No references. All copies are deep. All comparisons are by value. Types lock on 
 
 ```rill
 [1, 2, 3] == [1, 2, 3]    # true — content equality
-[1, 2] :> $a
-$a :> $b                   # $b is an independent deep copy
+[1, 2] => $a
+$a => $b                   # $b is an independent deep copy
 ```
 
 **Mainstream habit to break:** Expecting two variables to point at the same object. In rill, every binding holds its own copy.
@@ -143,7 +143,7 @@ Without `$`, `process(data)` is ambiguous: is `process` a host function or a sto
 
 **Additional disambiguation:**
 
-- **Capture syntax:** `:> $x` requires `$` for lookahead. Without it, slice syntax `/<1:>` becomes ambiguous.
+- **Capture syntax:** `=> $x` requires `$` for lookahead. Without it, slice syntax `/<1:>` becomes ambiguous.
 - **Destructuring:** `*<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
 - **Dynamic field access:** `$data.$key` distinguishes variable-as-key from literal field.
 - **Visual clarity:** Code is readable without context. `$total` is always a variable.
@@ -169,9 +169,9 @@ The `$` prefix follows rill's "no magic" principle: syntax communicates intent w
 
 ```text
 # Not rillistic: unnecessary intermediates
-"hello" :> $step1
-$step1 -> .upper :> $step2
-$step2 -> .len :> $step3
+"hello" => $step1
+$step1 -> .upper => $step2
+$step2 -> .len => $step3
 $step3
 
 # Rillistic: let data flow
@@ -202,8 +202,8 @@ $dict.field ?? "default"
 
 ```text
 # Not rillistic: trying to mutate outer scope
-"" :> $result
-["a", "b", "c"] -> each { $result + $ :> $result }
+"" => $result
+["a", "b", "c"] -> each { $result + $ => $result }
 
 # Rillistic: fold produces the value
 ["a", "b", "c"] -> fold("") { $@ + $ }
@@ -212,7 +212,7 @@ $dict.field ?? "default"
 ### Explicit Booleans Over Coercion
 
 ```rill
-"hello" :> $str
+"hello" => $str
 $str -> .empty ? "no" ! "yes"
 ```
 
@@ -225,7 +225,7 @@ $str -> .empty ? "no" ! "yes"
 0 -> ($ < 5) @ { $ + 1 }
 
 # Rillistic: named params in stored closures
-|x| ($x * 2) :> $double
+|x| ($x * 2) => $double
 5 -> $double
 ```
 
@@ -237,11 +237,11 @@ $str -> .empty ? "no" ! "yes"
 
 | Mainstream concept | rill replacement |
 |---|---|
-| `x = value` | `value :> $x` or `value -> transform` |
+| `x = value` | `value => $x` or `value -> transform` |
 | `null` / `undefined` | `??` default, `.?` existence check |
 | Truthiness (`if ""`) | `.empty`, `== 0`, `:?type` |
 | `try { } catch { }` | `assert`, conditionals, `error()` |
 | `for (i = 0; ...)` | `each`, `map`, `filter`, `fold` |
 | `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
-| `a = b` (shared ref) | `:>` always deep-copies |
+| `a = b` (shared ref) | `=>` always deep-copies |

@@ -153,14 +153,14 @@ describe('SPACING_OPERATOR', () => {
   it('accepts properly spaced operators', () => {
     expect(hasViolations('5 + 3', config)).toBe(false);
     expect(hasViolations('$x -> .upper', config)).toBe(false);
-    expect(hasViolations('"hello" :> $greeting', config)).toBe(false);
+    expect(hasViolations('"hello" => $greeting', config)).toBe(false);
   });
 
   it('warns on operators without spaces', () => {
     expect(hasViolations('5+3', config)).toBe(true);
     expect(hasViolations('$x->.upper', config)).toBe(true);
-    // Skip capture spacing - Capture span doesn't include :> operator
-    // expect(hasViolations('"hello":>$greeting', config)).toBe(true);
+    // Skip capture spacing - Capture span doesn't include => operator
+    // expect(hasViolations('"hello"=>$greeting', config)).toBe(true);
   });
 
   it('has correct code for spacing violations', () => {
@@ -214,7 +214,7 @@ describe('SPACING_BRACES', () => {
 
   it('accepts string interpolation braces inside multi-line blocks', () => {
     const source = `{
-      "value: {$var}" :> $result
+      "value: {$var}" => $result
       $result
     }`;
     expect(hasViolations(source, config)).toBe(false);
@@ -463,7 +463,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('accepts implicit dollar closure calls', () => {
     const source = `
-      |x| ($x * 2) :> $double
+      |x| ($x * 2) => $double
       5 -> $double
     `;
     expect(hasViolations(source, config)).toBe(false);
@@ -471,7 +471,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('warns on explicit dollar in closure call (AC-6)', () => {
     const source = `
-      |x| ($x * 2) :> $double
+      |x| ($x * 2) => $double
       $double($)
     `;
     expect(hasViolations(source, config)).toBe(true);
@@ -482,7 +482,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('accepts closures with multiple args (EC-13)', () => {
     const source = `
-      |a, b| ($a + $b) :> $add
+      |a, b| ($a + $b) => $add
       $add($, 1)
     `;
     expect(hasViolations(source, config)).toBe(false);
@@ -490,7 +490,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('accepts closures with zero args (EC-12)', () => {
     const source = `
-      || "hello" :> $greet
+      || "hello" => $greet
       $greet()
     `;
     expect(hasViolations(source, config)).toBe(false);
@@ -498,7 +498,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('accepts closures with non-bare $ arg (EC-14)', () => {
     const source = `
-      |x| ($x * 2) :> $double
+      |x| ($x * 2) => $double
       $double($x)
     `;
     expect(hasViolations(source, config)).toBe(false);
@@ -506,7 +506,7 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
 
   it('has correct code (AC-6)', () => {
     const source = `
-      |x| $x :> $fn
+      |x| $x => $fn
       $fn($)
     `;
     const codes = getCodes(source, config);
@@ -534,8 +534,8 @@ describe('THROWAWAY_CAPTURE', () => {
     // THROWAWAY_CAPTURE is a placeholder - implementation requires
     // full script analysis to track variable usage
     const source = `
-      "hello" :> $x
-      $x -> .upper :> $y
+      "hello" => $x
+      $x -> .upper => $y
       $y -> .len
     `;
     // Should eventually warn, but currently returns no violations

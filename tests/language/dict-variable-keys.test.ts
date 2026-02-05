@@ -158,10 +158,10 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
   describe('Success Cases', () => {
     describe('Variable Keys', () => {
       it('resolves variable key to create dict entry (AC-1)', async () => {
-        // AC-1: "done" :> $k then [$k: 1] produces dict {done: 1}
+        // AC-1: "done" => $k then [$k: 1] produces dict {done: 1}
         // Note: Static key first required to establish dict context
         const code = `
-          "done" :> $k
+          "done" => $k
           [_static: 0, $k: 1]
         `;
         const result = await run(code);
@@ -170,8 +170,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with multiple variable keys', async () => {
         const code = `
-          "name" :> $k1
-          "age" :> $k2
+          "name" => $k1
+          "age" => $k2
           [_static: 0, $k1: "alice", $k2: 30]
         `;
         const result = await run(code);
@@ -181,7 +181,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with mixed static and variable keys', async () => {
         const code = `
-          "dynamic" :> $key
+          "dynamic" => $key
           [static: 1, $key: 2, another: 3]
         `;
         expect(await run(code)).toEqual({
@@ -193,7 +193,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('resolves string from number variable as dict key', async () => {
         const code = `
-          "42" :> $numKey
+          "42" => $numKey
           [_static: 0, $numKey: "numeric-key"]
         `;
         const result = await run(code);
@@ -212,7 +212,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with computed key from arithmetic converted to string', async () => {
         const code = `
-          2 :> $base
+          2 => $base
           [_static: 0, (($base + 3) -> .str): "computed"]
         `;
         const result = await run(code);
@@ -221,7 +221,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with computed key from conditional', async () => {
         const code = `
-          true :> $flag
+          true => $flag
           [_static: 0, ($flag ? "yes" ! "no"): "value"]
         `;
         const result = await run(code);
@@ -239,7 +239,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict mixing static, variable, and computed keys', async () => {
         const code = `
-          "var" :> $k
+          "var" => $k
           [static: 1, $k: 2, ("comp" -> .upper): 3]
         `;
         expect(await run(code)).toEqual({ static: 1, var: 2, COMP: 3 });
@@ -249,7 +249,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
     describe('Complex Expressions', () => {
       it('uses computed key with method chain', async () => {
         const code = `
-          "  key  " :> $raw
+          "  key  " => $raw
           [_static: 0, ($raw -> .trim -> .upper): "cleaned"]
         `;
         const result = await run(code);
@@ -258,8 +258,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('nests dicts with dynamic keys', async () => {
         const code = `
-          "outer" :> $k1
-          "inner" :> $k2
+          "outer" => $k1
+          "inner" => $k2
           [_static: 0, $k1: [_nested: 0, $k2: "nested"]]
         `;
         const result = await run(code);
@@ -269,8 +269,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('uses variable key in value position', async () => {
         const code = `
-          "value" :> $v
-          "key" :> $k
+          "value" => $v
+          "key" => $k
           [_static: 0, $k: $v]
         `;
         const result = await run(code);
@@ -296,11 +296,11 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
     describe('Variable Key Non-String', () => {
       it('throws RUNTIME_TYPE_ERROR when variable key is number (AC-7, EC-7)', async () => {
-        // AC-7: 42 :> $n then [$n: 1] throws RUNTIME_TYPE_ERROR
+        // AC-7: 42 => $n then [$n: 1] throws RUNTIME_TYPE_ERROR
         // EC-7: "Dict key must be string, got number"
         try {
           await run(`
-            42 :> $n
+            42 => $n
             [_static: 0, $n: 1]
           `);
           expect.fail('Should have thrown');
@@ -316,7 +316,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-7: Dict key must be string, got {type}
         try {
           await run(`
-            true :> $bool
+            true => $bool
             [_static: 0, $bool: 1]
           `);
           expect.fail('Should have thrown');
@@ -332,7 +332,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-7: Dict key must be string, got {type}
         try {
           await run(`
-            [1, 2, 3] :> $list
+            [1, 2, 3] => $list
             [_static: 0, $list: 1]
           `);
           expect.fail('Should have thrown');
@@ -348,7 +348,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-7: Dict key must be string, got {type}
         try {
           await run(`
-            [a: 1] :> $dict
+            [a: 1] => $dict
             [_static: 0, $dict: 1]
           `);
           expect.fail('Should have thrown');
@@ -412,7 +412,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-8: Dict key evaluated to {type}, expected string
         try {
           await run(`
-            2 :> $base
+            2 => $base
             [_static: 0, ($base + 3): "value"]
           `);
           expect.fail('Should have thrown');
@@ -431,9 +431,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
   describe('Boundary Conditions', () => {
     describe('Empty and Whitespace Keys', () => {
       it('creates dict with empty string key (AC-12)', async () => {
-        // AC-12: "" :> $k then [$k: 1] produces dict {"": 1}
+        // AC-12: "" => $k then [$k: 1] produces dict {"": 1}
         const code = `
-          "" :> $k
+          "" => $k
           [_static: 0, $k: 1]
         `;
         const result = await run(code);
@@ -441,9 +441,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       });
 
       it('creates dict with whitespace key (AC-13)', async () => {
-        // AC-13: " " :> $k then [$k: 1] produces dict {" ": 1}
+        // AC-13: " " => $k then [$k: 1] produces dict {" ": 1}
         const code = `
-          " " :> $k
+          " " => $k
           [_static: 0, $k: 1]
         `;
         const result = await run(code);
@@ -452,7 +452,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with multiple whitespace key', async () => {
         const code = `
-          "   " :> $k
+          "   " => $k
           [_static: 0, $k: 1]
         `;
         const result = await run(code);
@@ -464,7 +464,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('uses last-write-wins when static key and dynamic key collide (AC-14)', async () => {
         // AC-14: [a: 1, $key: 2] where $key = "a" should produce {a: 2}
         const code = `
-          "a" :> $key
+          "a" => $key
           [a: 1, $key: 2]
         `;
         const result = await run(code);
@@ -473,7 +473,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('uses last-write-wins when dynamic key precedes static key', async () => {
         const code = `
-          "a" :> $key
+          "a" => $key
           [_static: 0, $key: 1, a: 2]
         `;
         const result = await run(code);
@@ -491,8 +491,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('uses last-write-wins when multiple variable keys collide', async () => {
         const code = `
-          "key" :> $k1
-          "key" :> $k2
+          "key" => $k1
+          "key" => $k2
           [_static: 0, $k1: 1, $k2: 2]
         `;
         const result = await run(code);
@@ -501,7 +501,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('uses last-write-wins when computed and variable keys collide', async () => {
         const code = `
-          "a" :> $key
+          "a" => $key
           [_static: 0, $key: 1, ("a"): 2]
         `;
         const result = await run(code);

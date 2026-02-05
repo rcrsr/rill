@@ -16,7 +16,7 @@ describe('formatDiagnostics', () => {
           severity: 'error',
           code: 'NAMING_SNAKE_CASE',
           message: 'Variable names must use snake_case',
-          context: 'badName :> $value',
+          context: 'badName => $value',
           fix: null,
         },
       ];
@@ -35,7 +35,7 @@ describe('formatDiagnostics', () => {
           severity: 'error',
           code: 'NAMING_SNAKE_CASE',
           message: 'Variable names must use snake_case',
-          context: 'badName :> $value',
+          context: 'badName => $value',
           fix: null,
         },
         {
@@ -133,7 +133,7 @@ describe('formatDiagnostics', () => {
           severity: 'error',
           code: 'NAMING_SNAKE_CASE',
           message: 'Variable names must use snake_case',
-          context: 'badName :> $value',
+          context: 'badName => $value',
           fix: null,
         },
       ];
@@ -149,7 +149,7 @@ describe('formatDiagnostics', () => {
             severity: 'error',
             code: 'NAMING_SNAKE_CASE',
             message: 'Variable names must use snake_case',
-            context: 'badName :> $value',
+            context: 'badName => $value',
           },
         ],
         summary: {
@@ -168,7 +168,7 @@ describe('formatDiagnostics', () => {
           severity: 'error',
           code: 'NAMING_SNAKE_CASE',
           message: 'Variable names must use snake_case',
-          context: 'badName :> $value',
+          context: 'badName => $value',
           fix: {
             description: 'Rename to snake_case',
             applicable: true,
@@ -257,7 +257,7 @@ describe('formatDiagnostics', () => {
           severity: 'error',
           code: 'NAMING_SNAKE_CASE',
           message: 'Variable names must use snake_case',
-          context: 'badName :> $value',
+          context: 'badName => $value',
           fix: null,
         },
       ];

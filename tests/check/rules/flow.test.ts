@@ -61,31 +61,31 @@ describe('CAPTURE_INLINE_CHAIN', () => {
   const config = createConfig({ CAPTURE_BEFORE_BRANCH: 'off' });
 
   it('accepts inline capture with continuation', () => {
-    expect(hasViolations('prompt("test") :> $raw -> log', config)).toBe(false);
+    expect(hasViolations('prompt("test") => $raw -> log', config)).toBe(false);
     expect(
-      hasViolations('prompt("test") :> $raw -> .contains("ERROR")', config)
+      hasViolations('prompt("test") => $raw -> .contains("ERROR")', config)
     ).toBe(false);
   });
 
   it('accepts capture without immediate continuation', () => {
-    expect(hasViolations('prompt("test") :> $raw', config)).toBe(false);
+    expect(hasViolations('prompt("test") => $raw', config)).toBe(false);
   });
 
   it('detects separate capture and usage on next line', () => {
     const source = `
-prompt("Read file") :> $raw
+prompt("Read file") => $raw
 $raw -> log
     `.trim();
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
     expect(messages[0]).toContain('inline capture');
-    expect(messages[0]).toContain(':> $raw ->');
+    expect(messages[0]).toContain('=> $raw ->');
   });
 
   it('detects separate capture followed by method chain', () => {
     const source = `
-checkStatus() :> $result
+checkStatus() => $result
 $result -> .contains("OK")
     `.trim();
 
@@ -96,7 +96,7 @@ $result -> .contains("OK")
 
   it('accepts capture with different variable used next', () => {
     const source = `
-prompt("test") :> $raw
+prompt("test") => $raw
 $other -> log
     `.trim();
 
@@ -105,7 +105,7 @@ $other -> log
 
   it('accepts capture when next statement is not a pipe chain', () => {
     const source = `
-prompt("test") :> $raw
+prompt("test") => $raw
 "constant"
     `.trim();
 
@@ -113,13 +113,13 @@ prompt("test") :> $raw
   });
 
   it('accepts capture at end of script', () => {
-    const source = 'prompt("test") :> $raw';
+    const source = 'prompt("test") => $raw';
     expect(hasViolations(source, config)).toBe(false);
   });
 
   it('has info severity', () => {
     const source = `
-prompt("test") :> $raw
+prompt("test") => $raw
 $raw -> log
     `.trim();
 
@@ -138,7 +138,7 @@ describe('CAPTURE_BEFORE_BRANCH', () => {
 
   it('accepts simple variable in conditional input', () => {
     const source = `
-checkStatus() :> $result
+checkStatus() => $result
 $result -> .contains("OK") ? { "Success" } ! { "Failed" }
     `.trim();
 
@@ -221,7 +221,7 @@ checkStatus() -> .contains("OK") ? {
 describe('flow rules combined', () => {
   it('can detect both rules in same source', () => {
     const source = `
-prompt("test") :> $raw
+prompt("test") => $raw
 $raw -> .contains("OK") ? {
   $ -> log
 } ! {
@@ -236,7 +236,7 @@ $raw -> .contains("OK") ? {
 
   it('respects rule configuration', () => {
     const source = `
-prompt("test") :> $raw
+prompt("test") => $raw
 $raw -> log
     `.trim();
 

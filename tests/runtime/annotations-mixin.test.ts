@@ -281,7 +281,7 @@ describe('AnnotationsMixin', () => {
     it('throws error for invalid spread annotation type (list)', async () => {
       // Spreading a list as annotations should fail
       await expect(
-        run('[1, 2, 3] :> $list\n^(*$list) "hello"')
+        run('[1, 2, 3] => $list\n^(*$list) "hello"')
       ).rejects.toThrow(/requires dict/);
     });
 
@@ -324,12 +324,12 @@ describe('AnnotationsMixin', () => {
 
     it('validates spread annotation contains dict', async () => {
       // Create a dict and spread it (should work)
-      const result = await run('[limit: 100] :> $opts\n^(*$opts) "hello"');
+      const result = await run('[limit: 100] => $opts\n^(*$opts) "hello"');
       expect(result).toBe('hello');
 
       // But list spread should fail
       await expect(
-        run('[100, 200] :> $opts\n^(*$opts) "hello"')
+        run('[100, 200] => $opts\n^(*$opts) "hello"')
       ).rejects.toThrow(/requires dict with named keys/);
     });
   });

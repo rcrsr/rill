@@ -263,7 +263,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
 
     it('preserves error location from inner statement', async () => {
       // Multiline script with annotated statement
-      const script = `5 :> $x
+      const script = `5 => $x
 ^(limit: 5) $undefined`;
       try {
         await run(script);
@@ -318,7 +318,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
 
     it('throws error for invalid spread annotation type', async () => {
       try {
-        await run('[1, 2, 3] :> $list\n^(*$list) "test"');
+        await run('[1, 2, 3] => $list\n^(*$list) "test"');
         expect.fail('Should have thrown RuntimeError');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -330,7 +330,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
 
     it('throws error for spread annotation with non-dict string', async () => {
       try {
-        await run('"string" :> $s\n^(*$s) "test"');
+        await run('"string" => $s\n^(*$s) "test"');
         expect.fail('Should have thrown RuntimeError');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);

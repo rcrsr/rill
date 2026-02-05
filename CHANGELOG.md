@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Capture arrow syntax migration to `=>`** — Operator changed from `:>` to `=>` for ligature font support
+  - Lexer now emits `CAPTURE_ARROW` tokens for `=>` via `TWO_CHAR_OPERATORS` table
+  - Deprecated `:>` syntax rejected by parser with migration error `RILL-P006`
+  - New syntax enables ligatures in modern programming fonts: Fira Code, JetBrains Mono, Cascadia Code
+  - Maintains alignment with common programming conventions (JavaScript, Python, other languages)
+  - Updated 1136 occurrences across test files and 596 occurrences in documentation
+  - Backward-incompatible change: existing code using `:>` requires migration to `=>`
+
 - **Error handling coverage** — Unified error system using RILL-XXXX identifiers
   - Removed legacy `code` field from `RillError` class; `errorId` is sole identifier
   - Migrated 161 call sites from dual-field to errorId-only signatures

@@ -36,7 +36,7 @@ import { extractContextLine } from './helpers.js';
  * flow control. Prefer functional style or new variables.
  *
  * Detection:
- * - Capture node (:> $var) where $var already exists in validation context
+ * - Capture node (=> $var) where $var already exists in validation context
  * - Tracks variables seen during validation pass
  *
  * Valid alternatives:
@@ -301,8 +301,8 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
  * constraint, not a style preference.
  *
  * WRONG - this pattern NEVER works:
- *   0 :> $count
- *   [1, 2, 3] -> each { $count + 1 :> $count }  # creates LOCAL $count
+ *   0 => $count
+ *   [1, 2, 3] -> each { $count + 1 => $count }  # creates LOCAL $count
  *   $count                                       # still 0!
  *
  * RIGHT - use accumulators:

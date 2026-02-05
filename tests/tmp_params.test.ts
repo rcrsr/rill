@@ -4,7 +4,7 @@ import { run } from './helpers/runtime.js';
 describe('.params property access', () => {
   it('returns param dict with type annotations', async () => {
     const result = await run(`
-      |a: string, b: number| { $a } :> $fn
+      |a: string, b: number| { $a } => $fn
       $fn.params
     `);
     expect(result).toEqual({
@@ -15,7 +15,7 @@ describe('.params property access', () => {
 
   it('returns empty dict for no-param closure', async () => {
     const result = await run(`
-      || { 42 } :> $fn
+      || { 42 } => $fn
       $fn.params
     `);
     expect(result).toEqual({});
@@ -24,7 +24,7 @@ describe('.params property access', () => {
   it('throws for non-closure target', async () => {
     await expect(
       run(`
-      "hello" :> $str
+      "hello" => $str
       $str.params
     `)
     ).rejects.toThrow('Cannot access .params on string');

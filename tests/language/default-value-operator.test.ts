@@ -10,7 +10,7 @@ describe('Default Value Operator (??)', () => {
   describe('Variable Access Chains', () => {
     it('returns field value when present', async () => {
       const result = await run(`
-        [status: "active"] :> $data
+        [status: "active"] => $data
         $data.status ?? "unknown"
       `);
       expect(result).toBe('active');
@@ -18,7 +18,7 @@ describe('Default Value Operator (??)', () => {
 
     it('returns default when field missing', async () => {
       const result = await run(`
-        [name: "test"] :> $data
+        [name: "test"] => $data
         $data.status ?? "unknown"
       `);
       expect(result).toBe('unknown');
@@ -26,7 +26,7 @@ describe('Default Value Operator (??)', () => {
 
     it('works with nested field access', async () => {
       const result = await run(`
-        [user: [name: "alice"]] :> $data
+        [user: [name: "alice"]] => $data
         $data.user.age ?? 0
       `);
       expect(result).toBe(0);
@@ -41,8 +41,8 @@ describe('Default Value Operator (??)', () => {
 
     it('works with variable key access', async () => {
       const result = await run(`
-        [name: "test"] :> $data
-        "missing" :> $key
+        [name: "test"] => $data
+        "missing" => $key
         $data.$key ?? "not-found"
       `);
       expect(result).toBe('not-found');
@@ -50,8 +50,8 @@ describe('Default Value Operator (??)', () => {
 
     it('works with computed key access', async () => {
       const result = await run(`
-        [field1: "a", field2: "b"] :> $data
-        3 :> $n
+        [field1: "a", field2: "b"] => $data
+        3 => $n
         $data.("field{$n}") ?? "missing"
       `);
       expect(result).toBe('missing');
@@ -62,7 +62,7 @@ describe('Default Value Operator (??)', () => {
     it('works when result stored in variable first', async () => {
       const result = await run(
         `
-        get_data() :> $data
+        get_data() => $data
         $data.status ?? "unknown"
       `,
         {
@@ -80,7 +80,7 @@ describe('Default Value Operator (??)', () => {
     it('works with existence check pattern', async () => {
       const result = await run(
         `
-        get_data() :> $data
+        get_data() => $data
         $data.?status ? $data.status ! "unknown"
       `,
         {
@@ -98,7 +98,7 @@ describe('Default Value Operator (??)', () => {
     it('returns value when field exists using variable pattern', async () => {
       const result = await run(
         `
-        get_data() :> $data
+        get_data() => $data
         $data.status ?? "unknown"
       `,
         {
@@ -119,9 +119,9 @@ describe('Default Value Operator (??)', () => {
       const result = await run(
         `
         |path| {
-          get_frontmatter($path) :> $fm
+          get_frontmatter($path) => $fm
           $fm.status ?? ""
-        } :> $get_status
+        } => $get_status
 
         $get_status("test.md")
       `,
@@ -141,9 +141,9 @@ describe('Default Value Operator (??)', () => {
       const result = await run(
         `
         |path| {
-          get_frontmatter($path) :> $fm
+          get_frontmatter($path) => $fm
           $fm.status ?? ""
-        } :> $get_status
+        } => $get_status
 
         $get_status("test.md")
       `,
@@ -163,7 +163,7 @@ describe('Default Value Operator (??)', () => {
   describe('Default Value Expressions', () => {
     it('default can be a literal', async () => {
       const result = await run(`
-        [a: 1] :> $data
+        [a: 1] => $data
         $data.b ?? 42
       `);
       expect(result).toBe(42);
@@ -171,7 +171,7 @@ describe('Default Value Operator (??)', () => {
 
     it('default can be an expression', async () => {
       const result = await run(`
-        [a: 1] :> $data
+        [a: 1] => $data
         $data.b ?? (10 + 5)
       `);
       expect(result).toBe(15);
@@ -179,8 +179,8 @@ describe('Default Value Operator (??)', () => {
 
     it('default can reference variables', async () => {
       const result = await run(`
-        "fallback" :> $default
-        [a: 1] :> $data
+        "fallback" => $default
+        [a: 1] => $data
         $data.b ?? $default
       `);
       expect(result).toBe('fallback');
@@ -188,7 +188,7 @@ describe('Default Value Operator (??)', () => {
 
     it('default can be a string', async () => {
       const result = await run(`
-        [a: 1] :> $data
+        [a: 1] => $data
         $data.b ?? "not found"
       `);
       expect(result).toBe('not found');
@@ -196,7 +196,7 @@ describe('Default Value Operator (??)', () => {
 
     it('default can be a list', async () => {
       const result = await run(`
-        [a: 1] :> $data
+        [a: 1] => $data
         $data.b ?? [1, 2, 3]
       `);
       expect(result).toEqual([1, 2, 3]);
@@ -204,7 +204,7 @@ describe('Default Value Operator (??)', () => {
 
     it('default can be a dict', async () => {
       const result = await run(`
-        [a: 1] :> $data
+        [a: 1] => $data
         $data.b ?? [x: 1, y: 2]
       `);
       expect(result).toEqual({ x: 1, y: 2 });
@@ -214,7 +214,7 @@ describe('Default Value Operator (??)', () => {
   describe('Chaining After Default', () => {
     it('can chain methods after default value', async () => {
       const result = await run(`
-        [name: "test"] :> $data
+        [name: "test"] => $data
         ($data.status ?? "unknown") -> .upper
       `);
       expect(result).toBe('UNKNOWN');
@@ -222,7 +222,7 @@ describe('Default Value Operator (??)', () => {
 
     it('can pipe default result further', async () => {
       const result = await run(`
-        [name: "test"] :> $data
+        [name: "test"] => $data
         $data.count ?? 0 -> ($ + 10)
       `);
       expect(result).toBe(10);
@@ -331,7 +331,7 @@ describe('Default Value Operator (??)', () => {
       // AC-5: Parser should reject .?field ?? pattern
       await expect(
         run(`
-          [name: "test"] :> $data
+          [name: "test"] => $data
           $data.?field ?? "default"
         `)
       ).rejects.toThrow(/Cannot combine existence check/);

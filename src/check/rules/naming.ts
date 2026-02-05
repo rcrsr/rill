@@ -99,7 +99,7 @@ function createNamingDiagnostic(
  * Validates that variable definitions, parameters, and dict keys use snake_case.
  *
  * Checks definition sites only (not variable usage):
- * - Captures: :> $user_name, :> $item_list, :> $is_valid
+ * - Captures: => $user_name, => $item_list, => $is_valid
  * - Closure params: |user_name, count| { }
  * - Dict keys: [user_name: "Alice", is_active: true]
  *

@@ -36,13 +36,13 @@ describe('Rill Runtime: Performance Regression', () => {
     // - arithmetic expressions
     // - string interpolation
     const testScript = `
-      |x| { $x * 2 } :> $double
+      |x| { $x * 2 } => $double
 
-      [1, 2, 3, 4, 5] -> map $double :> $doubled
-      $doubled -> each { $ + 1 } :> $incremented
-      $incremented -> fold(0) { $@ + $ } :> $total
+      [1, 2, 3, 4, 5] -> map $double => $doubled
+      $doubled -> each { $ + 1 } => $incremented
+      $incremented -> fold(0) { $@ + $ } => $total
 
-      [result: $total, doubled: $doubled] :> $data
+      [result: $total, doubled: $doubled] => $data
       $data.result
     `;
 

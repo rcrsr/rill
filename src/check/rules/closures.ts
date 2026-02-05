@@ -72,7 +72,7 @@ export const CLOSURE_BARE_DOLLAR: ValidationRule = {
           severity: 'warning',
           code: 'CLOSURE_BARE_DOLLAR',
           message:
-            'Bare $ in stored closure has ambiguous binding. Use explicit capture: $ :> $item',
+            'Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item',
           context: extractContextLine(
             closureNode.span.start.line,
             context.source
@@ -230,7 +230,7 @@ function containsBareReference(node: ASTNode): boolean {
  *
  * Complex bodies (braces required):
  * - Conditionals: |n| { ($n < 1) ? 1 ! ($n * $fact($n - 1)) }
- * - Multiple statements: |x| { $x :> $y; $y * 2 }
+ * - Multiple statements: |x| { $x => $y; $y * 2 }
  *
  * References:
  * - docs/16_conventions.md:239-249
@@ -306,7 +306,7 @@ export const CLOSURE_BRACES: ValidationRule = {
  *
  * Solution: Explicit capture per iteration:
  *   [1, 2, 3] -> each {
- *     $ :> $item
+ *     $ => $item
  *     || { $item }
  *   }
  *
@@ -338,7 +338,7 @@ export const CLOSURE_LATE_BINDING: ValidationRule = {
             severity: 'warning',
             code: 'CLOSURE_LATE_BINDING',
             message:
-              'Capture loop variable explicitly for deferred closures: $ :> $item',
+              'Capture loop variable explicitly for deferred closures: $ => $item',
             context: extractContextLine(
               eachNode.span.start.line,
               context.source
@@ -401,7 +401,7 @@ function containsClosureCreation(node: ASTNode): boolean {
 }
 
 /**
- * Check if a Block node contains an explicit capture statement ($ :> $name).
+ * Check if a Block node contains an explicit capture statement ($ => $name).
  */
 function containsExplicitCapture(node: ASTNode): boolean {
   if (node.type !== 'Block') {

@@ -58,7 +58,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('auto-invokes closure that accesses dict', async () => {
       const result = await run(`
-        [name: "test"] :> $d
+        [name: "test"] => $d
         "key" -> [key: ||{ $d.name }]
       `);
       expect(result).toBe('test');
@@ -111,7 +111,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('preserves dict construction without pipe', async () => {
       // AC-35: Construction preserved (not dispatch)
       const result = await run(`
-        [a: 1] :> $d
+        [a: 1] => $d
         $d.a
       `);
       expect(result).toBe(1);
@@ -131,7 +131,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
   describe('Variable Context', () => {
     it('uses variable as dispatch key', async () => {
       const result = await run(`
-        "b" :> $key
+        "b" => $key
         $key -> [a: 1, b: 2]
       `);
       expect(result).toBe(2);
@@ -139,7 +139,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('captures dispatch result', async () => {
       const result = await run(`
-        "a" -> [a: 10, b: 20] :> $val
+        "a" -> [a: 10, b: 20] => $val
         $val + 5
       `);
       expect(result).toBe(15);
@@ -147,8 +147,8 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('chains variable and dispatch', async () => {
       const result = await run(`
-        "key" :> $k
-        $k -> [key: "found", other: "not"] :> $r
+        "key" => $k
+        $k -> [key: "found", other: "not"] => $r
         $r
       `);
       expect(result).toBe('found');
@@ -444,7 +444,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('expands multi-key to multiple entries with same value (AC-6)', async () => {
       // AC-6: Basic multi-key - [["a", "b"]: 1] yields [a: 1, b: 1]
       const result = await run(`
-        [["a", "b"]: 1] :> $dict
+        [["a", "b"]: 1] => $dict
         [$dict.a, $dict.b]
       `);
       expect(result).toEqual([1, 1]);
@@ -454,7 +454,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
       // AC-7: Mixed types - [[1, "1"]: "x"] yields [1: "x", "1": "x"]
       // Note: Number keys are stored as strings in dicts
       const result = await run(`
-        [[1, "1"]: "x"] :> $dict
+        [[1, "1"]: "x"] => $dict
         [$dict.("1"), $dict.("1")]
       `);
       expect(result).toEqual(['x', 'x']);
@@ -463,7 +463,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('mixes multi-key entries with single-key entries (AC-8)', async () => {
       // AC-8: Mixed entries - [a: 0, ["b", "c"]: 1] yields [a: 0, b: 1, c: 1]
       const result = await run(`
-        [a: 0, ["b", "c"]: 1] :> $dict
+        [a: 0, ["b", "c"]: 1] => $dict
         [$dict.a, $dict.b, $dict.c]
       `);
       expect(result).toEqual([0, 1, 1]);
@@ -472,7 +472,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('applies last-write-wins when multi-key overwrites existing key (AC-9)', async () => {
       // AC-9: Last-write-wins - [a: 0, ["a", "b"]: 1] yields [a: 1, b: 1]
       const result = await run(`
-        [a: 0, ["a", "b"]: 1] :> $dict
+        [a: 0, ["a", "b"]: 1] => $dict
         [$dict.a, $dict.b]
       `);
       expect(result).toEqual([1, 1]);
@@ -481,7 +481,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('applies last-write-wins with multiple overwrites (AC-17)', async () => {
       // AC-17: Duplicate keys follow last-write-wins per entry order
       const result = await run(`
-        [a: 0, ["a", "b"]: 1, a: 2] :> $dict
+        [a: 0, ["a", "b"]: 1, a: 2] => $dict
         [$dict.a, $dict.b]
       `);
       expect(result).toEqual([2, 1]);
@@ -489,7 +489,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('expands multi-key with three elements', async () => {
       const result = await run(`
-        [["a", "b", "c"]: 5] :> $dict
+        [["a", "b", "c"]: 5] => $dict
         [$dict.a, $dict.b, $dict.c]
       `);
       expect(result).toEqual([5, 5, 5]);
@@ -497,7 +497,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('handles multiple multi-key entries', async () => {
       const result = await run(`
-        [["a", "b"]: 1, ["c", "d"]: 2] :> $dict
+        [["a", "b"]: 1, ["c", "d"]: 2] => $dict
         [$dict.a, $dict.b, $dict.c, $dict.d]
       `);
       expect(result).toEqual([1, 1, 2, 2]);
@@ -506,7 +506,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
     it('expands multi-key with boolean and number keys', async () => {
       // Note: Boolean and number keys are stored as strings in dicts
       const result = await run(`
-        [[true, false]: "bool", [1, 2]: "num"] :> $dict
+        [[true, false]: "bool", [1, 2]: "num"] => $dict
         [$dict.("true"), $dict.("false"), $dict.("1"), $dict.("2")]
       `);
       expect(result).toEqual(['bool', 'bool', 'num', 'num']);
@@ -514,7 +514,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('expands multi-key with complex values', async () => {
       const result = await run(`
-        [["x", "y"]: [1, 2, 3]] :> $dict
+        [["x", "y"]: [1, 2, 3]] => $dict
         [$dict.x, $dict.y]
       `);
       expect(result).toEqual([
@@ -525,7 +525,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('preserves value reference for multi-key entries', async () => {
       const result = await run(`
-        [["a", "b"]: [name: "test"]] :> $dict
+        [["a", "b"]: [name: "test"]] => $dict
         $dict.a.name == $dict.b.name
       `);
       expect(result).toBe(true);

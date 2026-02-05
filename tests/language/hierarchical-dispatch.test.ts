@@ -149,7 +149,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
   describe('Path with Variable Context', () => {
     it('uses variable as path for navigation', async () => {
       const result = await run(`
-        ["user", "name"] :> $path
+        ["user", "name"] => $path
         $path -> [user: [name: "Alice"]]
       `);
       expect(result).toBe('Alice');
@@ -157,7 +157,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
 
     it('captures hierarchical dispatch result', async () => {
       const result = await run(`
-        ["data", 0] -> [data: [42, 100]] :> $val
+        ["data", 0] -> [data: [42, 100]] => $val
         $val + 8
       `);
       expect(result).toBe(50);
@@ -203,7 +203,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('uses variable as path for navigation (AC-18)', async () => {
       // AC-18: Variable path works
       const result = await run(`
-        ["a", "b"] :> $path
+        ["a", "b"] => $path
         $path -> [a: [b: 1]]
       `);
       expect(result).toBe(1);
@@ -212,8 +212,8 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('uses computed path element in navigation (AC-19)', async () => {
       // AC-19: Computed path element works
       const result = await run(`
-        "draft" :> $action
-        [status: [draft: "pending", published: "live"]] :> $handlers
+        "draft" => $action
+        [status: [draft: "pending", published: "live"]] => $handlers
         ["status", $action] -> $handlers
       `);
       expect(result).toBe('pending');

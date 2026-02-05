@@ -50,7 +50,7 @@ Use braces for multi-statement bodies. `$` refers to the current element.
 
 ```rill
 [1, 2, 3] -> each {
-  $ :> $x
+  $ => $x
   $x * 2
 }
 # Result: [2, 4, 6]
@@ -79,7 +79,7 @@ Define parameters explicitly. The first parameter receives each element.
 Reference a pre-defined closure by variable.
 
 ```rill
-|x| ($x * 2) :> $double
+|x| ($x * 2) => $double
 [1, 2, 3] -> each $double
 # Result: [2, 4, 6]
 ```
@@ -319,7 +319,7 @@ collection -> filter body
 [1, 2, 3, 4, 5] -> filter |x| ($x > 2)
 
 # Variable closure
-|x| ($x > 2) :> $gtTwo
+|x| ($x > 2) => $gtTwo
 [1, 2, 3, 4, 5] -> filter $gtTwo
 ```
 
@@ -452,8 +452,8 @@ Define closures for common reductions.
 
 ```rill
 # Define reusable reducers
-|x, sum = 0| ($sum + $x) :> $summer
-|x, max = 0| (($x > $max) ? $x ! $max) :> $maxer
+|x, sum = 0| ($sum + $x) => $summer
+|x, max = 0| (($x > $max) ? $x ! $max) => $maxer
 
 # Use with different data
 [1, 2, 3] -> fold $summer     # 6
@@ -656,7 +656,7 @@ Process nested structures with nested operators.
 
 # filter - parallel, matching elements
 [1, 2, 3, 4, 5] -> filter { $ > 2 }   # [3, 4, 5]
-|x| { $x % 2 == 0 } :> $isEven
+|x| { $x % 2 == 0 } => $isEven
 [1, 2, 3, 4, 5] -> filter $isEven     # [2, 4]
 
 # fold - sequential, final result only

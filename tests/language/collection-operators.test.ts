@@ -44,7 +44,7 @@ describe('Rill Runtime: Collection Operators', () => {
     it('iterates with variable closure', async () => {
       // Define $fn as a closure first, then use it in each
       const script = `
-        |x| ($x * 2) :> $fn
+        |x| ($x * 2) => $fn
         [1, 2, 3] -> each $fn
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
@@ -188,7 +188,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
     it('reduce with variable closure', async () => {
       const script = `
-        |x, acc = 0| ($acc + $x) :> $sum
+        |x, acc = 0| ($acc + $x) => $sum
         [1, 2, 3] -> fold $sum
       `;
       expect(await run(script)).toBe(6);

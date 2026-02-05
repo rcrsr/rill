@@ -63,11 +63,11 @@ function getFixes(
 describe('NAMING_SNAKE_CASE', () => {
   describe('variables', () => {
     it('accepts valid snake_case variables', () => {
-      expect(hasViolations('"test" :> $user_name')).toBe(false);
-      expect(hasViolations('"test" :> $item_list')).toBe(false);
-      expect(hasViolations('"test" :> $is_valid')).toBe(false);
-      expect(hasViolations('"test" :> $count')).toBe(false);
-      expect(hasViolations('"test" :> $x')).toBe(false);
+      expect(hasViolations('"test" => $user_name')).toBe(false);
+      expect(hasViolations('"test" => $item_list')).toBe(false);
+      expect(hasViolations('"test" => $is_valid')).toBe(false);
+      expect(hasViolations('"test" => $count')).toBe(false);
+      expect(hasViolations('"test" => $x')).toBe(false);
     });
 
     it('accepts pipe variable', () => {
@@ -76,7 +76,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects camelCase variables', () => {
-      const messages = getDiagnostics('"test" :> $userName');
+      const messages = getDiagnostics('"test" => $userName');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'userName' should use snake_case"
@@ -85,7 +85,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects PascalCase variables', () => {
-      const messages = getDiagnostics('"test" :> $UserName');
+      const messages = getDiagnostics('"test" => $UserName');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'UserName' should use snake_case"
@@ -93,16 +93,16 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects kebab-case variables', () => {
-      const messages = getDiagnostics('"test" :> $user_name');
+      const messages = getDiagnostics('"test" => $user_name');
       // This should pass - it's already snake_case
-      expect(hasViolations('"test" :> $user_name')).toBe(false);
+      expect(hasViolations('"test" => $user_name')).toBe(false);
 
       // Test actual kebab-case (with hyphens) - but this would be a parse error
       // so we skip testing invalid syntax
     });
 
     it('rejects variables with consecutive underscores', () => {
-      const messages = getDiagnostics('"test" :> $user__name');
+      const messages = getDiagnostics('"test" => $user__name');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'user__name' should use snake_case"
@@ -110,7 +110,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects variables with trailing underscore', () => {
-      const messages = getDiagnostics('"test" :> $user_name_');
+      const messages = getDiagnostics('"test" => $user_name_');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'user_name_' should use snake_case"
@@ -118,14 +118,14 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('provides fix suggestion for camelCase', () => {
-      const fixes = getFixes('"test" :> $userName');
+      const fixes = getFixes('"test" => $userName');
       expect(fixes).toHaveLength(1);
       expect(fixes[0].description).toBe("Rename 'userName' to 'user_name'");
       expect(fixes[0].replacement).toContain('$user_name');
     });
 
     it('provides fix suggestion for PascalCase', () => {
-      const fixes = getFixes('"test" :> $ItemList');
+      const fixes = getFixes('"test" => $ItemList');
       expect(fixes).toHaveLength(1);
       expect(fixes[0].description).toBe("Rename 'ItemList' to 'item_list'");
       expect(fixes[0].replacement).toContain('$item_list');
@@ -238,13 +238,13 @@ describe('NAMING_SNAKE_CASE', () => {
 
   describe('captured variables', () => {
     it('accepts valid snake_case captures', () => {
-      expect(hasViolations('"test" :> $result_data')).toBe(false);
-      expect(hasViolations('42 :> $item_count')).toBe(false);
-      expect(hasViolations('true :> $is_valid')).toBe(false);
+      expect(hasViolations('"test" => $result_data')).toBe(false);
+      expect(hasViolations('42 => $item_count')).toBe(false);
+      expect(hasViolations('true => $is_valid')).toBe(false);
     });
 
     it('rejects camelCase captures', () => {
-      const messages = getDiagnostics('"test" :> $resultData');
+      const messages = getDiagnostics('"test" => $resultData');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'resultData' should use snake_case"
@@ -252,7 +252,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects PascalCase captures', () => {
-      const messages = getDiagnostics('"test" :> $ResultData');
+      const messages = getDiagnostics('"test" => $ResultData');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Captured variable 'ResultData' should use snake_case"
@@ -260,7 +260,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('provides fix suggestion for camelCase capture', () => {
-      const fixes = getFixes('"test" :> $resultData');
+      const fixes = getFixes('"test" => $resultData');
       expect(fixes).toHaveLength(1);
       expect(fixes[0].description).toBe("Rename 'resultData' to 'result_data'");
       expect(fixes[0].replacement).toContain('result_data');
@@ -269,13 +269,13 @@ describe('NAMING_SNAKE_CASE', () => {
 
   describe('edge cases', () => {
     it('handles numbers in names', () => {
-      expect(hasViolations('"test" :> $item_1')).toBe(false);
-      expect(hasViolations('"test" :> $user_2_name')).toBe(false);
+      expect(hasViolations('"test" => $item_1')).toBe(false);
+      expect(hasViolations('"test" => $user_2_name')).toBe(false);
       expect(hasViolations('[item_1: "test"]')).toBe(false);
     });
 
     it('handles single underscore', () => {
-      expect(hasViolations('"test" :> $_')).toBe(false);
+      expect(hasViolations('"test" => $_')).toBe(false);
     });
 
     it('rejects empty variable name (parser should prevent this)', () => {
@@ -283,24 +283,24 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('handles leading underscore', () => {
-      expect(hasViolations('"test" :> $_private')).toBe(false);
+      expect(hasViolations('"test" => $_private')).toBe(false);
     });
 
     it('converts mixed case correctly', () => {
-      const fixes = getFixes('"test" :> $getUserByID');
+      const fixes = getFixes('"test" => $getUserByID');
       expect(fixes).toHaveLength(1);
       expect(fixes[0].replacement).toContain('$get_user_by_id');
     });
 
     it('handles consecutive uppercase correctly', () => {
-      const fixes = getFixes('"test" :> $XMLParser');
+      const fixes = getFixes('"test" => $XMLParser');
       expect(fixes[0].replacement).toContain('$xml_parser');
     });
 
     it('detects multiple violations in same script', () => {
       const source = `
-        "Alice" :> $userName
-        "Smith" :> $lastName
+        "Alice" => $userName
+        "Smith" => $lastName
         [firstName: $userName, lastName: $lastName]
       `;
       const messages = getDiagnostics(source);
@@ -310,7 +310,7 @@ describe('NAMING_SNAKE_CASE', () => {
 
   describe('rule configuration', () => {
     it('does not report violations when rule is disabled', () => {
-      const source = '"test" :> $userName';
+      const source = '"test" => $userName';
       const ast = parse(source);
       const config: CheckConfig = {
         rules: { NAMING_SNAKE_CASE: 'off' },
@@ -322,7 +322,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('reports violations when rule is set to warn', () => {
-      const source = '"test" :> $userName';
+      const source = '"test" => $userName';
       const ast = parse(source);
       const config: CheckConfig = {
         rules: { NAMING_SNAKE_CASE: 'warn' },

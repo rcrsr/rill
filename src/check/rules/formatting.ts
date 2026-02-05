@@ -32,7 +32,7 @@ import { extractContextLine, isBareReference } from './helpers.js';
 
 /**
  * Enforces space on both sides of operators.
- * Operators like +, -, ->, :>, ==, etc. should have spaces on both sides.
+ * Operators like +, -, ->, =>, ==, etc. should have spaces on both sides.
  *
  * Detection:
  * - Extract operator text from source using source spans
@@ -95,7 +95,7 @@ export const SPACING_OPERATOR: ValidationRule = {
 
     if (node.type === 'Capture') {
       const captureNode = node as CaptureNode;
-      // Check :> operator
+      // Check => operator
       const violation = checkCaptureSpacing(captureNode.span, context.source);
 
       if (violation) {
@@ -103,7 +103,7 @@ export const SPACING_OPERATOR: ValidationRule = {
           location: captureNode.span.start,
           severity: 'info',
           code: 'SPACING_OPERATOR',
-          message: "Capture operator ':>' should have spaces on both sides",
+          message: "Capture operator '=>' should have spaces on both sides",
           context: extractContextLine(
             captureNode.span.start.line,
             context.source
@@ -152,8 +152,8 @@ function checkPipeSpacing(span: SourceSpan, source: string): boolean {
 function checkCaptureSpacing(span: SourceSpan, source: string): boolean {
   const text = extractSpanText(span, source);
 
-  // Check for :> without spaces
-  return /\S:>/.test(text) || /:>\S/.test(text);
+  // Check for => without spaces
+  return /\S=>/.test(text) || /=>\S/.test(text);
 }
 
 // ============================================================

@@ -155,7 +155,7 @@ describe('Rill Runtime: Assert Statement', () => {
     it('interpolates variables in message', async () => {
       await expect(
         run(
-          '5 :> $min\n3 -> assert ($ >= $min) "Value {$} below minimum {$min}"'
+          '5 => $min\n3 -> assert ($ >= $min) "Value {$} below minimum {$min}"'
         )
       ).rejects.toThrow('Value 3 below minimum 5');
     });
@@ -196,7 +196,7 @@ describe('Rill Runtime: Assert Statement', () => {
         |x| {
           $x -> assert ($ > 0) "Must be positive"
           -> assert ($ < 5) "Must be less than 5"
-        } :> $validate
+        } => $validate
         10 -> $validate()
       `;
       await expect(run(script)).rejects.toThrow('Must be less than 5');
@@ -308,7 +308,7 @@ describe('Rill Runtime: Assert Statement', () => {
 
     it('works with default operator in message', async () => {
       const script = `
-        [name: "test"] :> $obj
+        [name: "test"] => $obj
         false -> assert $ "Error: {$obj.missing ?? "no value"}"
       `;
       await expect(run(script)).rejects.toThrow('Error: no value');

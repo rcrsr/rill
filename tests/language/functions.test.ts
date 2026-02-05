@@ -280,29 +280,29 @@ describe('Rill Runtime: Built-in Methods', () => {
 describe('Rill Runtime: Closures', () => {
   describe('Function Literals', () => {
     it('creates and invokes a closure', async () => {
-      expect(await run('|x| { $x } :> $fn\n$fn("hello")')).toBe('hello');
+      expect(await run('|x| { $x } => $fn\n$fn("hello")')).toBe('hello');
     });
 
     it('invokes closure with pipe-style', async () => {
-      expect(await run('|x| { $x } :> $fn\n"hello" -> $fn()')).toBe('hello');
+      expect(await run('|x| { $x } => $fn\n"hello" -> $fn()')).toBe('hello');
     });
 
     it('uses default parameter value', async () => {
-      expect(await run('|x: string = "default"| { $x } :> $fn\n$fn()')).toBe(
+      expect(await run('|x: string = "default"| { $x } => $fn\n$fn()')).toBe(
         'default'
       );
     });
 
     it('overrides default parameter', async () => {
       expect(
-        await run('|x: string = "default"| { $x } :> $fn\n$fn("custom")')
+        await run('|x: string = "default"| { $x } => $fn\n$fn("custom")')
       ).toBe('custom');
     });
 
     it('captures outer scope variables', async () => {
       expect(
         await run(
-          '"outer" :> $ctx\n|x| { "{$ctx}: {$x}" } :> $fn\n$fn("inner")'
+          '"outer" => $ctx\n|x| { "{$ctx}: {$x}" } => $fn\n$fn("inner")'
         )
       ).toBe('outer: inner');
     });
@@ -310,60 +310,60 @@ describe('Rill Runtime: Closures', () => {
 
   describe('Implied $ for Closures', () => {
     it('$fn() receives $ implicitly when closure has params', async () => {
-      expect(await run('|x| { $x } :> $fn\n"hello" -> $fn()')).toBe('hello');
+      expect(await run('|x| { $x } => $fn\n"hello" -> $fn()')).toBe('hello');
     });
 
     it('$fn() in for loop receives loop value', async () => {
       expect(
-        await run('|x| { $x } :> $echo\n[1, 2, 3] -> each { $echo() }')
+        await run('|x| { $x } => $echo\n[1, 2, 3] -> each { $echo() }')
       ).toEqual([1, 2, 3]);
     });
 
     it('$fn() does not receive $ when args are explicit', async () => {
       expect(
-        await run('|x| { $x } :> $fn\n"ignored" -> { $fn("explicit") }')
+        await run('|x| { $x } => $fn\n"ignored" -> { $fn("explicit") }')
       ).toBe('explicit');
     });
   });
 
   describe('Parameter Type Checking', () => {
     it('accepts correct type for string parameter', async () => {
-      expect(await run('|x: string| { $x } :> $fn\n$fn("hello")')).toBe(
+      expect(await run('|x: string| { $x } => $fn\n$fn("hello")')).toBe(
         'hello'
       );
     });
 
     it('accepts correct type for number parameter', async () => {
-      expect(await run('|x: number| { $x } :> $fn\n$fn(42)')).toBe(42);
+      expect(await run('|x: number| { $x } => $fn\n$fn(42)')).toBe(42);
     });
 
     it('accepts correct type for bool parameter', async () => {
-      expect(await run('|x: bool| { $x } :> $fn\n$fn(true)')).toBe(true);
+      expect(await run('|x: bool| { $x } => $fn\n$fn(true)')).toBe(true);
     });
 
     it('rejects number for string parameter', async () => {
-      await expect(run('|x: string| { $x } :> $fn\n$fn(42)')).rejects.toThrow(
+      await expect(run('|x: string| { $x } => $fn\n$fn(42)')).rejects.toThrow(
         'Parameter type mismatch: x expects string, got number'
       );
     });
 
     it('rejects string for number parameter', async () => {
       await expect(
-        run('|x: number| { $x } :> $fn\n$fn("hello")')
+        run('|x: number| { $x } => $fn\n$fn("hello")')
       ).rejects.toThrow(
         'Parameter type mismatch: x expects number, got string'
       );
     });
 
     it('rejects string for bool parameter', async () => {
-      await expect(run('|x: bool| { $x } :> $fn\n$fn("true")')).rejects.toThrow(
+      await expect(run('|x: bool| { $x } => $fn\n$fn("true")')).rejects.toThrow(
         'Parameter type mismatch: x expects bool, got string'
       );
     });
 
     it('rejects number in for loop with string param', async () => {
       await expect(
-        run('|r: string| { $r } :> $fn\n[1, 2, 3] -> each { $fn() }')
+        run('|r: string| { $r } => $fn\n[1, 2, 3] -> each { $fn() }')
       ).rejects.toThrow(
         'Parameter type mismatch: r expects string, got number'
       );
@@ -371,19 +371,19 @@ describe('Rill Runtime: Closures', () => {
 
     it('accepts string in for loop with string param', async () => {
       expect(
-        await run('|r: string| { $r } :> $fn\n["a", "b"] -> each { $fn() }')
+        await run('|r: string| { $r } => $fn\n["a", "b"] -> each { $fn() }')
       ).toEqual(['a', 'b']);
     });
 
     it('validates type with typed default', async () => {
-      expect(await run('|x: string = "default"| { $x } :> $fn\n$fn()')).toBe(
+      expect(await run('|x: string = "default"| { $x } => $fn\n$fn()')).toBe(
         'default'
       );
     });
 
     it('validates type when overriding default', async () => {
       await expect(
-        run('|x: string = "default"| { $x } :> $fn\n$fn(123)')
+        run('|x: string = "default"| { $x } => $fn\n$fn(123)')
       ).rejects.toThrow(
         'Parameter type mismatch: x expects string, got number'
       );

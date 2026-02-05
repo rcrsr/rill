@@ -29,7 +29,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('reports correct total for multi-statement script', () => {
-      const ast = parse('"a" :> $x\n"b" :> $y\n"c"');
+      const ast = parse('"a" => $x\n"b" => $y\n"c"');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
@@ -128,7 +128,7 @@ describe('Rill Runtime: Step Execution', () => {
 
   describe('StepResult.captured', () => {
     it('includes captured variable info', async () => {
-      const ast = parse('"value" :> $myVar');
+      const ast = parse('"value" => $myVar');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
@@ -150,7 +150,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('captures different values per step', async () => {
-      const ast = parse('"first" :> $a\n"second" :> $b');
+      const ast = parse('"first" => $a\n"second" => $b');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
@@ -179,7 +179,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('includes all captured variables', async () => {
-      const ast = parse('"x" :> $first\n"y" :> $second\n[$first, $second]');
+      const ast = parse('"x" => $first\n"y" => $second\n[$first, $second]');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
@@ -193,7 +193,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('can be called before completion', async () => {
-      const ast = parse('"a" :> $x\n"b" :> $y');
+      const ast = parse('"a" => $x\n"b" => $y');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
@@ -223,7 +223,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('variables map updates after captures', async () => {
-      const ast = parse('"val" :> $myVar');
+      const ast = parse('"val" => $myVar');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 

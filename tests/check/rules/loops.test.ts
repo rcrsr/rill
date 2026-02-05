@@ -72,7 +72,7 @@ describe('LOOP_ACCUMULATOR', () => {
   it('accepts captures only used within iteration', () => {
     const source = `
 0 -> ($ < 5) @ {
-  $ :> $x
+  $ => $x
   log($x)
   $x + 1
 }
@@ -84,7 +84,7 @@ describe('LOOP_ACCUMULATOR', () => {
   it('detects captured variable referenced in while loop condition', () => {
     const source = `
 0 -> ($x < 5) @ {
-  $ :> $x
+  $ => $x
   $x + 1
 }
     `.trim();
@@ -100,7 +100,7 @@ describe('LOOP_ACCUMULATOR', () => {
   it('detects captured variable referenced in do-while loop condition', () => {
     const source = `
 @ {
-  $ :> $val
+  $ => $val
   $val + 1
 } ? ($val < 10)
     `.trim();
@@ -126,9 +126,9 @@ describe('LOOP_ACCUMULATOR', () => {
 
   it('accepts captures not referenced in condition', () => {
     const source = `
-0 :> $i
+0 => $i
 ($i < 5) @ {
-  $ :> $temp
+  $ => $temp
   log($temp)
   $ + 1
 }
@@ -140,8 +140,8 @@ describe('LOOP_ACCUMULATOR', () => {
   it('detects multiple captured variables in condition', () => {
     const source = `
 0 -> ($x < $y) @ {
-  $ :> $x
-  $ :> $y
+  $ => $x
+  $ => $y
   $x + $y
 }
     `.trim();
@@ -158,7 +158,7 @@ describe('LOOP_ACCUMULATOR', () => {
   it('has correct severity and code', () => {
     const source = `
 0 -> ($x < 5) @ {
-  $ :> $x
+  $ => $x
   $x + 1
 }
     `.trim();
@@ -245,7 +245,7 @@ describe('USE_EACH', () => {
 
   it('suggests each for while loop with .len check', () => {
     const source = `
-0 :> $i
+0 => $i
 ($i < $items.len) @ {
   $items[$i] -> process()
   $i + 1
@@ -293,9 +293,9 @@ describe('USE_EACH', () => {
 describe('Loop rules integration', () => {
   it('can detect multiple violations in same code', () => {
     const source = `
-0 :> $i
+0 => $i
 ($index < $items.len) @ {
-  $i :> $index
+  $i => $index
   $items[$index]
   $index + 1
 }
@@ -310,7 +310,7 @@ describe('Loop rules integration', () => {
   it('respects rule configuration', () => {
     const source = `
 0 -> ($x < 5) @ {
-  $ :> $x
+  $ => $x
   $x + 1
 }
     `.trim();

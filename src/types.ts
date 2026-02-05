@@ -154,6 +154,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Missing delimiter',
     messageTemplate: 'Missing {delimiter}, found {found}',
   },
+  {
+    errorId: 'RILL-P006',
+    category: 'parse',
+    description: 'Deprecated capture arrow syntax',
+    messageTemplate: 'The capture arrow syntax changed from :> to =>',
+  },
 
   // Runtime Errors (RILL-R0xx)
   {
@@ -665,7 +671,7 @@ export const TOKEN_TYPES = {
 
   // Operators
   ARROW: 'ARROW', // ->
-  CAPTURE_ARROW: 'CAPTURE_ARROW', // :>
+  CAPTURE_ARROW: 'CAPTURE_ARROW', // =>
   DOT: 'DOT', // .
   QUESTION: 'QUESTION', // ?
   AT: 'AT', // @

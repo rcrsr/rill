@@ -7,7 +7,7 @@
 | Category | Operators |
 |----------|-----------|
 | Pipe | `->` |
-| Capture | `:>` |
+| Capture | `=>` |
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison Methods | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` |
@@ -63,21 +63,21 @@ Bare `.method()` implies `$` as receiver:
 
 ---
 
-## Capture Operator `:>`
+## Capture Operator `=>`
 
 Captures a value into a variable:
 
 ```rill
-"hello" :> $greeting           # store in $greeting
-42 :> $count                   # store in $count
+"hello" => $greeting           # store in $greeting
+42 => $count                   # store in $count
 ```
 
 ### Capture and Continue
 
-`:>` captures AND continues the chain:
+`=>` captures AND continues the chain:
 
 ```rill
-"hello" :> $a -> .upper :> $b -> .len
+"hello" => $a -> .upper => $b -> .len
 # $a is "hello", $b is "HELLO", result is 5
 ```
 
@@ -181,7 +181,7 @@ Methods provide readable alternatives in conditionals:
 | `.ge(val)` | `>= val` |
 
 ```rill
-"A" :> $v
+"A" => $v
 $v -> .eq("A") ? "match" ! "no"           # "match"
 5 -> .gt(3) ? "big" ! "small"             # "big"
 10 -> .le(10) ? "ok" ! "over"             # "ok"
@@ -239,10 +239,10 @@ This works naturally with conditionals and captures:
 
 ```rill
 "hello" -> !.empty ? "has content" ! "empty"   # "has content"
-"hello" -> !.empty :> $not_empty               # $not_empty = true
+"hello" -> !.empty => $not_empty               # $not_empty = true
 ```
 
-No grouping needed — `!.empty` is parsed as a unit before `?` or `:>`.
+No grouping needed — `!.empty` is parsed as a unit before `?` or `=>`.
 
 ---
 
@@ -253,9 +253,9 @@ No grouping needed — `!.empty` is parsed as a unit before `?` or `:>`.
 Chain closures where each receives the previous result (fold pattern):
 
 ```rill
-|x|($x + 1) :> $inc
-|x|($x * 2) :> $double
-|x|($x + 10) :> $add10
+|x|($x + 1) => $inc
+|x|($x * 2) => $double
+|x|($x + 10) => $add10
 
 # Chain: (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
 5 -> @[$inc, $double, $add10]    # 22
@@ -264,7 +264,7 @@ Chain closures where each receives the previous result (fold pattern):
 Single closure:
 
 ```rill
-|x|($x * 2) :> $dbl
+|x|($x * 2) => $dbl
 5 -> @$dbl                       # 10
 ```
 
@@ -274,19 +274,19 @@ Create tuples for argument unpacking:
 
 ```rill
 # From list (positional)
-*[1, 2, 3] :> $args
+*[1, 2, 3] => $args
 
 # From dict (named)
-*[x: 1, y: 2] :> $named
+*[x: 1, y: 2] => $named
 
 # Convert list to tuple via pipe
-[1, 2, 3] -> * :> $tuple
+[1, 2, 3] -> * => $tuple
 ```
 
 Using tuples at invocation:
 
 ```rill
-|a, b, c|"{$a}-{$b}-{$c}" :> $fmt
+|a, b, c|"{$a}-{$b}-{$c}" => $fmt
 *[1, 2, 3] -> $fmt()             # "1-2-3"
 *[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named, order doesn't matter)
 ```
@@ -402,7 +402,7 @@ Extract a portion using Python-style `start:stop:step`. Works on lists and strin
 Access dict fields:
 
 ```rill
-[name: "alice", age: 30] :> $person
+[name: "alice", age: 30] => $person
 $person.name                     # "alice"
 $person.age                      # 30
 ```
@@ -412,7 +412,7 @@ $person.age                      # 30
 Access list elements (0-based, negative from end):
 
 ```rill
-["a", "b", "c"] :> $list
+["a", "b", "c"] => $list
 $list[0]                         # "a"
 $list[-1]                        # "c"
 $list[1]                         # "b"
@@ -423,8 +423,8 @@ $list[1]                         # "b"
 Use a variable as key:
 
 ```text
-"name" :> $key
-[name: "alice"] :> $data
+"name" => $key
+[name: "alice"] => $data
 $data.$key                       # "alice"
 ```
 
@@ -433,8 +433,8 @@ $data.$key                       # "alice"
 Use an expression as key:
 
 ```text
-0 :> $i
-["a", "b", "c"] :> $list
+0 => $i
+["a", "b", "c"] => $list
 $list.($i + 1)                   # "b"
 ```
 
@@ -443,7 +443,7 @@ $list.($i + 1)                   # "b"
 Try keys left-to-right:
 
 ```text
-[nickname: "Al"] :> $user
+[nickname: "Al"] => $user
 $user.(name || nickname)         # "Al"
 ```
 
@@ -510,10 +510,10 @@ See [Reference](11_reference.md) for full dispatch semantics including dict disp
 Provide a default value if field is missing or access fails:
 
 ```rill
-[:] :> $empty
+[:] => $empty
 $empty.name ?? "unknown"         # "unknown"
 
-[name: "alice"] :> $user
+[name: "alice"] => $user
 $user.name ?? "unknown"          # "alice"
 $user.age ?? 0                   # 0
 ```
@@ -548,7 +548,7 @@ Method calls evaluate fully before the default operator applies.
 Returns boolean:
 
 ```rill
-[name: "alice"] :> $user
+[name: "alice"] => $user
 $user.?name                      # true
 $user.?age                       # false
 ```
@@ -558,7 +558,7 @@ $user.?age                       # false
 Check existence AND type:
 
 ```rill
-[name: "alice", age: 30] :> $user
+[name: "alice", age: 30] => $user
 $user.?name&string               # true
 $user.?age&number                # true
 $user.?age&string                # false
@@ -609,7 +609,7 @@ From highest to lowest:
 8. Logical OR: `||`
 9. Default: `??`
 10. Pipe: `->`
-11. Capture: `:>`
+11. Capture: `=>`
 
 Use parentheses to override precedence:
 

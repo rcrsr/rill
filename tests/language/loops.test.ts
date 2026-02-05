@@ -111,9 +111,9 @@ describe('Rill Runtime: Loops', () => {
       // (not the previous sibling's result). Use explicit return value instead.
       const script = `
         "" -> {
-          "first" :> $a
+          "first" => $a
           $a -> return
-          "second" :> $b
+          "second" => $b
           $b
         }
       `;
@@ -124,7 +124,7 @@ describe('Rill Runtime: Loops', () => {
     it('exits block with explicit return value', async () => {
       const script = `
         "" -> {
-          "first" :> $a
+          "first" => $a
           "returned" -> return
           "never reached"
         }
@@ -135,7 +135,7 @@ describe('Rill Runtime: Loops', () => {
     it('return in conditional exits containing block', async () => {
       const script = `
         "" -> {
-          "value" :> $v
+          "value" => $v
           $v -> .eq("value") ? ("matched" -> return)
           "not matched"
         }
@@ -246,7 +246,7 @@ describe('Rill Runtime: Loops', () => {
     it('loop advances iterator correctly', async () => {
       // After looping, iterator should be exhausted
       const script = `
-        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) :> $it
+        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) => $it
         $it.done
       `;
       expect(await run(script)).toBe(true);
@@ -283,9 +283,9 @@ describe('Rill Runtime: Loops', () => {
 
     it('stops executing remaining statements', async () => {
       const script = `
-        "first" :> $a
+        "first" => $a
         $a -> return
-        "second" :> $b
+        "second" => $b
         $b
       `;
       expect(await run(script)).toBe('first');
@@ -300,7 +300,7 @@ describe('Rill Runtime: Loops', () => {
 
     it('works with conditional at script level', async () => {
       const script = `
-        "check" :> $val
+        "check" => $val
         $val -> .eq("check") ? ("matched" -> return)
         "not matched"
       `;

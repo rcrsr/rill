@@ -173,7 +173,7 @@ describe('CollectionsMixin', () => {
 
     it('supports variable closure body', async () => {
       const result = await run(
-        '|x|($x * 2) :> $double\n[1, 2, 3] -> each $double'
+        '|x|($x * 2) => $double\n[1, 2, 3] -> each $double'
       );
       expect(result).toEqual([2, 4, 6]);
     });

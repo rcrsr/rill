@@ -200,6 +200,15 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
 
     expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
+    // Detect deprecated capture arrow in slice context
+    if (check(this.state, TOKEN_TYPES.CAPTURE_ARROW)) {
+      throw new ParseError(
+        'RILL-P006',
+        'Capture arrow cannot appear in slice context',
+        current(this.state).span.start
+      );
+    }
+
     if (
       !check(this.state, TOKEN_TYPES.COLON) &&
       !check(this.state, TOKEN_TYPES.GT)

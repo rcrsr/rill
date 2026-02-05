@@ -64,22 +64,22 @@ describe('AVOID_REASSIGNMENT', () => {
   });
 
   it('accepts first variable assignment', () => {
-    expect(hasViolations('"initial" :> $x', config)).toBe(false);
+    expect(hasViolations('"initial" => $x', config)).toBe(false);
   });
 
   it('accepts multiple different variables', () => {
     const source = `
-      "first" :> $x
-      "second" :> $y
-      "third" :> $z
+      "first" => $x
+      "second" => $y
+      "third" => $z
     `;
     expect(hasViolations(source, config)).toBe(false);
   });
 
   it('warns on variable reassignment', () => {
     const source = `
-      "initial" :> $x
-      "updated" :> $x
+      "initial" => $x
+      "updated" => $x
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -90,8 +90,8 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it('includes line number of first definition', () => {
     const source = `
-      "initial" :> $x
-      "updated" :> $x
+      "initial" => $x
+      "updated" => $x
     `;
 
     const messages = getDiagnostics(source, config);
@@ -100,8 +100,8 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it('suggests alternatives in message', () => {
     const source = `
-      "first" :> $x
-      "second" :> $x
+      "first" => $x
+      "second" => $x
     `;
 
     const messages = getDiagnostics(source, config);
@@ -110,8 +110,8 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it('has correct severity and code', () => {
     const source = `
-      "a" :> $x
-      "b" :> $x
+      "a" => $x
+      "b" => $x
     `;
 
     const ast = parse(source);
@@ -124,9 +124,9 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it('detects multiple reassignments', () => {
     const source = `
-      "first" :> $x
-      "second" :> $x
-      "third" :> $x
+      "first" => $x
+      "second" => $x
+      "third" => $x
     `;
 
     const diagnostics = getDiagnostics(source, config);
@@ -138,14 +138,14 @@ describe('AVOID_REASSIGNMENT', () => {
     // and should not be considered reassignments
     const source = `
       |skill_name| {
-        "output" :> $result
+        "output" => $result
         $result
-      } :> $run_skill
+      } => $run_skill
 
       |doc_path| {
-        "output" :> $result
+        "output" => $result
         $result
-      } :> $review_loop
+      } => $review_loop
     `;
 
     expect(hasViolations(source, config)).toBe(false);
@@ -155,10 +155,10 @@ describe('AVOID_REASSIGNMENT', () => {
     // Variables reassigned within the same closure should trigger warning
     const source = `
       |param| {
-        "first" :> $result
-        "second" :> $result
+        "first" => $result
+        "second" => $result
         $result
-      } :> $fn
+      } => $fn
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -170,12 +170,12 @@ describe('AVOID_REASSIGNMENT', () => {
     // Variables defined in outer scope and reassigned in nested closure
     // should trigger warning
     const source = `
-      "outer" :> $result
+      "outer" => $result
 
       |param| {
-        "inner" :> $result
+        "inner" => $result
         $result
-      } :> $fn
+      } => $fn
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -272,7 +272,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
     // This is fine - $temp is new, not modifying outer scope
     const source = `
       [1, 2, 3] -> each {
-        $ * 2 :> $temp
+        $ * 2 => $temp
         $temp
       }
     `;
@@ -291,8 +291,8 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when each body captures outer variable', () => {
     const source = `
-      0 :> $count
-      [1, 2, 3] -> each { $count + 1 :> $count }
+      0 => $count
+      [1, 2, 3] -> each { $count + 1 => $count }
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -302,8 +302,8 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when map body captures outer variable', () => {
     const source = `
-      "" :> $result
-      [1, 2, 3] -> map { $result + $ :> $result }
+      "" => $result
+      [1, 2, 3] -> map { $result + $ => $result }
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -313,9 +313,9 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when while loop body captures outer variable', () => {
     const source = `
-      0 :> $i
+      0 => $i
       0 -> ($ < 3) @ {
-        $i + 1 :> $i
+        $i + 1 => $i
         $ + 1
       }
     `;
@@ -327,9 +327,9 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when filter body captures outer variable', () => {
     const source = `
-      0 :> $count
+      0 => $count
       [1, 2, 3] -> filter {
-        $count + 1 :> $count
+        $count + 1 => $count
         ($ > 1)
       }
     `;
@@ -341,8 +341,8 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('provides helpful message with line reference', () => {
     const source = `
-      0 :> $sum
-      [1, 2, 3] -> each { $sum + $ :> $sum }
+      0 => $sum
+      [1, 2, 3] -> each { $sum + $ => $sum }
     `;
 
     const messages = getDiagnostics(source, config);
@@ -355,8 +355,8 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('has warning severity', () => {
     const source = `
-      0 :> $x
-      [1, 2, 3] -> each { $x + 1 :> $x }
+      0 => $x
+      [1, 2, 3] -> each { $x + 1 => $x }
     `;
 
     const ast = parse(source);
@@ -371,11 +371,11 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('detects multiple outer captures in same loop', () => {
     const source = `
-      0 :> $a
-      0 :> $b
+      0 => $a
+      0 => $b
       [1, 2, 3] -> each {
-        $a + 1 :> $a
-        $b + 1 :> $b
+        $a + 1 => $a
+        $b + 1 => $b
       }
     `;
 
@@ -390,9 +390,9 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when do-while loop body captures outer variable', () => {
     const source = `
-      0 :> $count
+      0 => $count
       0 -> @ {
-        $count + 1 :> $count
+        $count + 1 => $count
         $ + 1
       } ? ($ < 3)
     `;
@@ -405,9 +405,9 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('accepts closures that capture outer variables (different scope)', () => {
     // Closures have their own scope, so captures inside them shouldn't trigger
     const source = `
-      10 :> $multiplier
+      10 => $multiplier
       [1, 2, 3] -> map {
-        |x| ($x * $multiplier) :> $fn
+        |x| ($x * $multiplier) => $fn
         $fn($)
       }
     `;
@@ -417,9 +417,9 @@ describe('LOOP_OUTER_CAPTURE', () => {
 
   it('warns when fold body captures outer variable (distinct from accumulator)', () => {
     const source = `
-      0 :> $extraSum
+      0 => $extraSum
       [1, 2, 3] -> fold(0) {
-        $extraSum + 1 :> $extraSum
+        $extraSum + 1 => $extraSum
         $@ + $ + $extraSum
       }
     `;
@@ -434,16 +434,16 @@ describe('LOOP_OUTER_CAPTURE', () => {
     // considered "outer" to each other
     const source = `
       |skill_name| {
-        "output" :> $result
+        "output" => $result
         $result
-      } :> $run_skill
+      } => $run_skill
 
       |doc_path| {
         ^(limit: 5) 0 -> ($ < 3) @ {
-          "output" :> $result
+          "output" => $result
           $ + 1
         }
-      } :> $review_loop
+      } => $review_loop
     `;
 
     expect(hasViolations(source, config)).toBe(false);
@@ -453,11 +453,11 @@ describe('LOOP_OUTER_CAPTURE', () => {
     // Variable in parent closure should trigger warning when captured in nested loop
     const source = `
       |outer_param| {
-        0 :> $count
+        0 => $count
         [1, 2, 3] -> each {
-          $count + 1 :> $count
+          $count + 1 => $count
         }
-      } :> $fn
+      } => $fn
     `;
 
     expect(hasViolations(source, config)).toBe(true);

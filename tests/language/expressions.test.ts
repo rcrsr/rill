@@ -42,7 +42,7 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('calls method on variable', async () => {
-      expect(await run('"hello" :> $s\n$s -> .contains("x")')).toBe(false);
+      expect(await run('"hello" => $s\n$s -> .contains("x")')).toBe(false);
     });
 
     it('chains methods', async () => {

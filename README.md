@@ -98,7 +98,7 @@ app::prompt("analyze code")
 First-class functions with captured environment.
 
 ```rill
-|x| ($x * 2) :> $double
+|x| ($x * 2) => $double
 [1, 2, 3] -> map $double  # [2, 4, 6]
 5 -> $double              # 10
 ```
@@ -147,7 +147,7 @@ Embed expressions in strings. Triple-quotes for multi-line.
 ```
 
 ```rill
-"x + 1" :> $code
+"x + 1" => $code
 """
 Analyze: {$code}
 Return: PASS or FAIL
@@ -187,7 +187,7 @@ We asked LLMs to review Rill. They had opinions.
 | Syntax | Description |
 |--------|-------------|
 | `->` | Pipe data forward |
-| `:>` | Capture and continue |
+| `=>` | Capture and continue |
 | `$` | Current pipe value |
 | `.field` | Property access on `$` |
 | `cond ? a ! b` | Conditional |

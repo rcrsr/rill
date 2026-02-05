@@ -9,7 +9,7 @@ import { parse } from '../../src/index.js';
 describe('Parser Spans', () => {
   describe('Block spans', () => {
     it('does not include capture operator after block', () => {
-      const source = '{ 42 } :> $x';
+      const source = '{ 42 } => $x';
       const ast = parse(source);
 
       // Find the Block node
@@ -42,12 +42,12 @@ describe('Parser Spans', () => {
       ).span;
       const blockContent = source.substring(span.start.offset, span.end.offset);
 
-      // Block should be exactly "{ 42 }", not including " :> $x"
+      // Block should be exactly "{ 42 }", not including " => $x"
       expect(blockContent).toBe('{ 42 }');
     });
 
     it('does not include whitespace or operators after closing brace', () => {
-      const source = '{ $x + 1 } :> $result';
+      const source = '{ $x + 1 } => $result';
       const ast = parse(source);
 
       function findBlock(node: unknown): unknown | null {
@@ -83,7 +83,7 @@ describe('Parser Spans', () => {
 
   describe('Closure spans', () => {
     it('does not include capture operator after closure', () => {
-      const source = '|x| { $x + 1 } :> $fn';
+      const source = '|x| { $x + 1 } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -116,12 +116,12 @@ describe('Parser Spans', () => {
         span.end.offset
       );
 
-      // Closure should be exactly "|x| { $x + 1 }", not including " :> $fn"
+      // Closure should be exactly "|x| { $x + 1 }", not including " => $fn"
       expect(closureContent).toBe('|x| { $x + 1 }');
     });
 
     it('closure body span ends at closing brace', () => {
-      const source = '|x| { $x } :> $fn';
+      const source = '|x| { $x } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -158,7 +158,7 @@ describe('Parser Spans', () => {
     });
 
     it('||{ } closure spans correctly', () => {
-      const source = '||{ 42 } :> $fn';
+      const source = '||{ 42 } => $fn';
       const ast = parse(source);
 
       function findClosure(node: unknown): unknown | null {
@@ -197,7 +197,7 @@ describe('Parser Spans', () => {
 
   describe('Nested structures', () => {
     it('nested blocks have correct spans', () => {
-      const source = '{ { 1 } :> $x\n$x }';
+      const source = '{ { 1 } => $x\n$x }';
       const ast = parse(source);
 
       function findAllBlocks(node: unknown): unknown[] {
@@ -231,7 +231,7 @@ describe('Parser Spans', () => {
         outerSpan.start.offset,
         outerSpan.end.offset
       );
-      expect(outerContent).toBe('{ { 1 } :> $x\n$x }');
+      expect(outerContent).toBe('{ { 1 } => $x\n$x }');
 
       // Inner block
       const innerSpan = (

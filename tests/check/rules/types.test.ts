@@ -82,7 +82,7 @@ describe('UNNECESSARY_ASSERTION', () => {
   });
 
   it('detects unnecessary number assertion', () => {
-    const source = '5:number :> $n';
+    const source = '5:number => $n';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -91,7 +91,7 @@ describe('UNNECESSARY_ASSERTION', () => {
   });
 
   it('detects unnecessary string assertion', () => {
-    const source = '"hello":string :> $s';
+    const source = '"hello":string => $s';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -100,7 +100,7 @@ describe('UNNECESSARY_ASSERTION', () => {
   });
 
   it('detects unnecessary bool assertion', () => {
-    const source = 'true:bool :> $b';
+    const source = 'true:bool => $b';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -119,7 +119,7 @@ describe('UNNECESSARY_ASSERTION', () => {
   });
 
   it('provides fix to remove assertion', () => {
-    const source = '5:number :> $n';
+    const source = '5:number => $n';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -131,7 +131,7 @@ describe('UNNECESSARY_ASSERTION', () => {
   });
 
   it('fix removes assertion correctly', () => {
-    const source = '5:number :> $n';
+    const source = '5:number => $n';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -139,12 +139,12 @@ describe('UNNECESSARY_ASSERTION', () => {
     const diagnostic = diagnostics[0];
     if (diagnostic?.fix) {
       const fixed = applyFix(source, diagnostic.fix);
-      expect(fixed).toBe('5 :> $n');
+      expect(fixed).toBe('5 => $n');
     }
   });
 
   it('fix handles string assertions', () => {
-    const source = '"test":string :> $s';
+    const source = '"test":string => $s';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -152,7 +152,7 @@ describe('UNNECESSARY_ASSERTION', () => {
     const diagnostic = diagnostics[0];
     if (diagnostic?.fix) {
       const fixed = applyFix(source, diagnostic.fix);
-      expect(fixed).toBe('"test" :> $s');
+      expect(fixed).toBe('"test" => $s');
     }
   });
 });

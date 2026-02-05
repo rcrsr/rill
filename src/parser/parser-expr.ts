@@ -295,21 +295,48 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   const pipes: (PipeTargetNode | CaptureNode)[] = [];
   let terminator: ChainTerminator | null = null;
 
-  // Helper: check for -> or :> possibly after newlines (line continuation)
+  // Helper: check for -> or => possibly after newlines (line continuation)
   const checkChainContinuation = (): boolean => {
+    // Detect deprecated :> syntax (COLON followed by GT)
+    if (check(this.state, TOKEN_TYPES.COLON)) {
+      const nextToken = peek(this.state, 1);
+      if (nextToken.type === TOKEN_TYPES.GT) {
+        throw new ParseError(
+          'RILL-P006',
+          'The capture arrow syntax changed from :> to =>',
+          current(this.state).span.start
+        );
+      }
+    }
+
     if (
       check(this.state, TOKEN_TYPES.ARROW) ||
       check(this.state, TOKEN_TYPES.CAPTURE_ARROW)
     ) {
       return true;
     }
-    // Check for line continuation: newlines followed by -> or :>
+    // Check for line continuation: newlines followed by -> or =>
     if (check(this.state, TOKEN_TYPES.NEWLINE)) {
       let lookahead = 1;
       while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
         lookahead++;
       }
       const nextToken = peek(this.state, lookahead);
+
+      // Detect deprecated :> after newlines
+      if (nextToken.type === TOKEN_TYPES.COLON) {
+        const tokenAfterColon = peek(this.state, lookahead + 1);
+        if (tokenAfterColon.type === TOKEN_TYPES.GT) {
+          // Skip newlines to reach the colon for accurate error location
+          while (check(this.state, TOKEN_TYPES.NEWLINE)) advance(this.state);
+          throw new ParseError(
+            'RILL-P006',
+            'The capture arrow syntax changed from :> to =>',
+            current(this.state).span.start
+          );
+        }
+      }
+
       if (
         nextToken.type === TOKEN_TYPES.ARROW ||
         nextToken.type === TOKEN_TYPES.CAPTURE_ARROW
@@ -327,7 +354,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     advance(this.state);
 
     if (isCapture) {
-      // :> always followed by $name, always inline (continues chain)
+      // => always followed by $name, always inline (continues chain)
       pipes.push(this.parseCapture());
       continue;
     }
@@ -349,7 +376,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     }
 
     // -> always pipes/invokes, never captures
-    // Use :> for captures: "hello" :> $var
+    // Use => for captures: "hello" => $var
     // parsePipeTarget handles all cases including bare $var (closure invoke)
     pipes.push(this.parsePipeTarget());
   }
@@ -404,6 +431,15 @@ Parser.prototype.parsePostfixExprBase = function (
 
   // Check for postfix type assertion: expr:type or expr:?type
   if (check(this.state, TOKEN_TYPES.COLON)) {
+    // Detect deprecated :> syntax before type operation
+    const nextToken = peek(this.state, 1);
+    if (nextToken.type === TOKEN_TYPES.GT) {
+      throw new ParseError(
+        'RILL-P006',
+        'The capture arrow syntax changed from :> to =>',
+        current(this.state).span.start
+      );
+    }
     primary = this.parsePostfixTypeOperation(primary, start);
   }
 

@@ -40,7 +40,7 @@ rill is an imperative scripting language that is dynamically typed and type-safe
 | Comparison | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` methods |
 | Logical | `!` (unary), `&&`, `\|\|` |
 | Pipe | `->` |
-| Capture | `:>` |
+| Capture | `=>` |
 | Spread | `@` (sequential), `*` (tuple) |
 | Extraction | `*<>` (destructure), `/<>` (slice) |
 | Type | `:type` (assert), `:?type` (check) |
@@ -97,7 +97,7 @@ See [Types](02_types.md) for detailed documentation.
 
 | Syntax | Description |
 |--------|-------------|
-| `\|p: type\|{ } :> $fn` | Define and capture function |
+| `\|p: type\|{ } => $fn` | Define and capture function |
 | `\|p = default\|{ }` | Parameter with default |
 | `\|p ^(min: 0)\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
@@ -215,10 +215,10 @@ Terminal closures receive `$` bound to the final path key.
 **Variable Dispatch:** Use stored collections.
 
 ```rill
-[apple: "fruit", carrot: "vegetable"] :> $lookup
+[apple: "fruit", carrot: "vegetable"] => $lookup
 "apple" -> $lookup                    # "fruit"
 
-["a", "b", "c"] :> $items
+["a", "b", "c"] => $items
 1 -> $items                           # "b"
 ```
 
@@ -343,7 +343,7 @@ Access annotation values on closures using `.^key` syntax.
 **Type Restriction:** Annotations attach to closures only. Accessing `.^key` on primitives (string, number, boolean, list, dict) throws `RUNTIME_TYPE_ERROR`.
 
 ```rill
-^(min: 0, max: 100) |x|($x) :> $fn
+^(min: 0, max: 100) |x|($x) => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
@@ -357,7 +357,7 @@ Annotations are metadata attached to closures during creation. They enable runti
 **Function Metadata:**
 
 ```rill
-^(doc: "validates user input", version: 2) |input|($input) :> $validate
+^(doc: "validates user input", version: 2) |input|($input) => $validate
 
 $validate.^doc      # "validates user input"
 $validate.^version  # 2
@@ -366,7 +366,7 @@ $validate.^version  # 2
 **Configuration Annotations:**
 
 ```rill
-^(timeout: 30000, retry: 3) |url|($url) :> $fetch
+^(timeout: 30000, retry: 3) |url|($url) => $fetch
 
 $fetch.^timeout  # 30000
 $fetch.^retry    # 3
@@ -375,7 +375,7 @@ $fetch.^retry    # 3
 **Complex Annotation Values:**
 
 ```rill
-^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) :> $fn
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -386,21 +386,21 @@ $fn.^config.endpoints[0] # "a"
 Accessing undefined annotation keys throws `RUNTIME_UNDEFINED_ANNOTATION`:
 
 ```rill
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^missing   # Error: Annotation 'missing' not defined
 ```
 
 Use default value operator for optional annotations:
 
 ```rill
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^timeout ?? 30  # 30 (uses default since annotation missing)
 ```
 
 Accessing `.^key` on non-closure values throws `RUNTIME_TYPE_ERROR`:
 
 ```text
-"hello" :> $str
+"hello" => $str
 $str.^key        # Error: Cannot access annotation on string
 ```
 
@@ -413,9 +413,9 @@ Parameters can have their own annotations using `^(key: value)` syntax. These at
 **Order:** Parameter annotations appear after the type annotation (if present) and before the default value (if present).
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) :> $validate
-|name: string ^(required: true) = "guest"|($name) :> $greet
-|count ^(cache: true) = 0|($count) :> $process
+|x: number ^(min: 0, max: 100)|($x) => $validate
+|name: string ^(required: true) = "guest"|($name) => $greet
+|count ^(cache: true) = 0|($count) => $process
 ```
 
 **Access via `.params`:**
@@ -426,7 +426,7 @@ The `.params` property returns a dict keyed by parameter name. Each entry is a d
 - `__annotations` — Dict of parameter-level annotations if present
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) :> $fn
+|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -443,13 +443,13 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 
 ```rill
 # Validation metadata
-|value ^(min: 0, max: 100)|($value) :> $bounded
+|value ^(min: 0, max: 100)|($value) => $bounded
 
 # Caching hints
-|key ^(cache: true)|($key) :> $fetch
+|key ^(cache: true)|($key) => $fetch
 
 # Format specifications
-|timestamp ^(format: "ISO8601")|($timestamp) :> $formatDate
+|timestamp ^(format: "ISO8601")|($timestamp) => $formatDate
 ```
 
 See [Closures](06_closures.md) for parameter annotation examples and patterns.
@@ -461,7 +461,7 @@ See [Closures](06_closures.md) for parameter annotation examples and patterns.
 Tuples package values for argument unpacking:
 
 ```rill
-|a, b, c|"{$a}-{$b}-{$c}" :> $fmt
+|a, b, c|"{$a}-{$b}-{$c}" => $fmt
 *[1, 2, 3] -> $fmt()             # "1-2-3"
 *[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named)
 ```

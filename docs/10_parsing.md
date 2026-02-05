@@ -19,7 +19,7 @@ Built-in functions for extracting structured data from text, optimized for LLM o
 Automatically detects format and extracts structured content:
 
 ```rill
-$response -> parse_auto :> $result
+$response -> parse_auto => $result
 
 # $result contains:
 #   type: "json" | "xml" | "yaml" | "frontmatter" | "fence" | "checklist" | "text"
@@ -68,7 +68,7 @@ $response -> parse_auto :> $result
 Use confidence scores to handle ambiguous responses:
 
 ```rill
-prompt("Analyze this data") -> parse_auto :> $parsed
+prompt("Analyze this data") -> parse_auto => $parsed
 
 ($parsed.confidence < 0.8) ? {
   "Low confidence parse: {$parsed.type}" -> log
@@ -100,7 +100,7 @@ Parses JSON with automatic error repair for common LLM formatting issues:
 
 ```rill
 # LLM returns JSON with common errors
-prompt("Return user data as JSON") -> parse_json :> $user
+prompt("Return user data as JSON") -> parse_json => $user
 
 # Safe access with defaults
 $user.name ?? "Unknown"
@@ -140,15 +140,15 @@ Show your reasoning here
 <answer>
 Return your final answer as JSON
 </answer>
-""" :> $prompt_text
+""" => $prompt_text
 
-app::prompt($prompt_text) :> $response
+app::prompt($prompt_text) => $response
 
 # Log reasoning for debugging
 $response -> parse_xml("thinking") -> log
 
 # Parse structured answer
-$response -> parse_xml("answer") -> parse_json :> $result
+$response -> parse_xml("answer") -> parse_json => $result
 ```
 
 ### Tool Calling Pattern
@@ -160,11 +160,11 @@ You have access to tools. To call a tool, use:
   <name>tool_name</name>
   <args>{"param": "value"}</args>
 </tool>
-""" -> app::prompt() :> $response
+""" -> app::prompt() => $response
 
-$response -> parse_xml("tool") :> $tool
-$tool -> parse_xml("name") :> $fn_name
-$tool -> parse_xml("args") -> parse_json :> $fn_args
+$response -> parse_xml("tool") => $tool
+$tool -> parse_xml("name") => $fn_name
+$tool -> parse_xml("args") -> parse_json => $fn_args
 
 # Call the function dynamically (host-provided)
 app::call($fn_name, $fn_args)
@@ -203,7 +203,7 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 ```rill
 # ...
 # Parse fenced JSON from LLM response
-# prompt("Generate JSON") -> parse_fence("json") -> parse_json :> $config
+# prompt("Generate JSON") -> parse_fence("json") -> parse_json => $config
 # $config.host -> log
 ```
 
@@ -214,7 +214,7 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 Parse YAML frontmatter delimited by `---`:
 
 ```rill
-"---\ntitle: Hello\n---\nBody text" :> $doc
+"---\ntitle: Hello\n---\nBody text" => $doc
 $doc -> parse_frontmatter
 # Returns [meta: [title: "Hello"], body: "Body text"]
 ```
@@ -222,7 +222,7 @@ $doc -> parse_frontmatter
 Destructure into variables:
 
 ```rill
-"---\ntitle: Hello\n---\nBody text" :> $doc
+"---\ntitle: Hello\n---\nBody text" => $doc
 $doc -> parse_frontmatter -> *<meta: $m, body: $b>
 $m.title -> log
 ```
@@ -231,7 +231,7 @@ $m.title -> log
 
 ```rill
 # Parse frontmatter from document
-"---\ntitle: My Doc\nstatus: draft\n---\nContent here" -> parse_frontmatter :> $doc
+"---\ntitle: My Doc\nstatus: draft\n---\nContent here" -> parse_frontmatter => $doc
 
 $doc.meta.title -> log
 ($doc.meta.status ?? "") -> .eq("draft") ? { "Document is still a draft" -> log }
@@ -254,7 +254,7 @@ Each item is a tuple: `[completed: bool, text: string]`
 ### Practical Usage
 
 ```rill
-"- [ ] Deploy\n- [x] Test" -> parse_checklist :> $tasks
+"- [ ] Deploy\n- [x] Test" -> parse_checklist => $tasks
 $tasks -> .len
 ```
 
@@ -263,7 +263,7 @@ $tasks -> .len
 ### Type Checking
 
 ```text
-app::prompt("Return JSON with status and items") -> parse_auto :> $result
+app::prompt("Return JSON with status and items") -> parse_auto => $result
 
 ($result.type != "json") ? {
   app::error("Expected JSON response, got {$result.type}")
@@ -275,7 +275,7 @@ $result.data -> app::process()
 ### Required Fields
 
 ```text
-app::prompt("Return user profile as JSON") -> parse_json :> $user
+app::prompt("Return user profile as JSON") -> parse_json => $user
 
 # Validate required fields exist
 ($user.?name && $user.?email) ? {
@@ -293,7 +293,7 @@ app::prompt("Return user profile as JSON") -> parse_json :> $user
 } ? (parse_json($) -> type != "dict")
 
 # Loop exits when valid dict is returned
-parse_json($) :> $profile
+parse_json($) => $profile
 ```
 
 ## Combining Parsers
@@ -303,14 +303,14 @@ Chain parsers for complex extraction:
 ```rill
 # ...
 # Extract JSON from a fenced block
-# $response -> parse_fence("json") -> parse_json :> $data
+# $response -> parse_fence("json") -> parse_json => $data
 
 # Extract XML answer, parse as JSON
-# $response -> parse_xml("answer") -> parse_json :> $result
+# $response -> parse_xml("answer") -> parse_json => $result
 
 # Parse frontmatter, then parse body as checklist
-# $doc -> parse_frontmatter :> $parsed
-# $parsed.body -> parse_checklist :> $tasks
+# $doc -> parse_frontmatter => $parsed
+# $parsed.body -> parse_checklist => $tasks
 ```
 
 ## Best Practices

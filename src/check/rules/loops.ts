@@ -21,7 +21,7 @@ import { extractContextLine } from './helpers.js';
 // ============================================================
 
 /**
- * Collect all variable captures (:> $name) in the given AST node.
+ * Collect all variable captures (=> $name) in the given AST node.
  */
 function collectCaptures(node: ASTNode, names: string[]): void {
   switch (node.type) {
@@ -196,7 +196,7 @@ function callsRetryFunction(node: ASTNode): boolean {
  *
  * Error pattern (captured variable in condition):
  *   0 -> ($x < 5) @ {        # $x is undefined in condition
- *     $ :> $x
+ *     $ => $x
  *     $x + 1
  *   }
  *
@@ -205,7 +205,7 @@ function callsRetryFunction(node: ASTNode): boolean {
  *
  * Also correct (capture only used within iteration):
  *   0 -> ($ < 5) @ {
- *     $ :> $x
+ *     $ => $x
  *     log($x)                # $x only used in body, not condition
  *     $x + 1
  *   }
@@ -271,7 +271,7 @@ export const LOOP_ACCUMULATOR: ValidationRule = {
  *   } ? (.contains("RETRY"))
  *
  * Less clear (while with separate first attempt):
- *   attemptOperation() :> $result
+ *   attemptOperation() => $result
  *   $result -> .contains("RETRY") @ {
  *     attemptOperation()
  *   }
@@ -323,7 +323,7 @@ export const PREFER_DO_WHILE: ValidationRule = {
  *   $items -> each { process($) }
  *
  * Less clear (while loop):
- *   0 :> $i
+ *   0 => $i
  *   ($i < $items.len) @ {
  *     $items[$i] -> process()
  *     $i + 1

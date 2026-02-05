@@ -81,11 +81,11 @@ function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
  * Validates that captures use inline syntax when continuing the chain.
  *
  * Detects separate capture followed by variable usage:
- *   prompt("Read file") :> $raw
+ *   prompt("Read file") => $raw
  *   $raw -> log
  *
  * Suggests inline capture:
- *   prompt("Read file") :> $raw -> log
+ *   prompt("Read file") => $raw -> log
  *
  * This is an informational rule - both patterns work, but inline is clearer.
  *
@@ -154,7 +154,7 @@ export const CAPTURE_INLINE_CHAIN: ValidationRule = {
           location: captureNode.span.start,
           severity: 'info',
           code: 'CAPTURE_INLINE_CHAIN',
-          message: `Consider inline capture: ':> $${capturedVarName} -> ...' instead of separate statements`,
+          message: `Consider inline capture: '=> $${capturedVarName} -> ...' instead of separate statements`,
           context: extractContextLine(
             captureNode.span.start.line,
             context.source
@@ -183,7 +183,7 @@ export const CAPTURE_INLINE_CHAIN: ValidationRule = {
  *   }
  *
  * Suggests capturing before branching:
- *   checkStatus() :> $result
+ *   checkStatus() => $result
  *   $result -> .contains("OK") ? {
  *     "Success: {$result}"
  *   } ! {

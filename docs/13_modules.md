@@ -27,8 +27,8 @@ use:
   - http: "@host/http"
 ---
 
-5 :> $math.double()
-"hello" :> $str.reverse()
+5 => $math.double()
+"hello" => $str.reverse()
 $http.get("https://api.example.com")
 ```
 
@@ -78,9 +78,9 @@ export:
   - constants
 ---
 
-|x|($x * 2) :> $double
-|x|($x * 3) :> $triple
-[pi: 3.14159, e: 2.71828] :> $constants
+|x|($x * 2) => $double
+|x|($x * 3) => $triple
+[pi: 3.14159, e: 2.71828] => $constants
 ```
 
 The host:
@@ -104,14 +104,14 @@ export:
 ---
 
 # Closure exports
-|x|($x * 2) :> $double
-|x|($x * 3) :> $triple
+|x|($x * 2) => $double
+|x|($x * 3) => $triple
 |x, min, max|{
   ($x < $min) ? $min ! ($x > $max) ? $max ! $x
-} :> $clamp
+} => $clamp
 
 # Literal exports (dicts, lists, numbers, strings)
-[pi: 3.14159, e: 2.71828, phi: 1.61803] :> $constants
+[pi: 3.14159, e: 2.71828, phi: 1.61803] => $constants
 ```
 
 Usage:
@@ -310,7 +310,7 @@ Scripts call these directly:
 
 ```rill
 http::get("https://api.example.com") -> parse_json
-fs::read("config.json") -> parse_json :> $config
+fs::read("config.json") -> parse_json => $config
 ```
 
 ### Host Modules (@host/) — Alternative
@@ -376,8 +376,8 @@ export:
   - goodbye
 ---
 
-|name|"Hello, {$name}!" :> $hello
-|name|"Goodbye, {$name}!" :> $goodbye
+|name|"Hello, {$name}!" => $hello
+|name|"Goodbye, {$name}!" => $goodbye
 ```
 
 ### Using a Module
@@ -388,7 +388,7 @@ use:
   - greet: "./greet.rill"
 ---
 
-"World" :> $greet.hello() -> log
+"World" => $greet.hello() -> log
 # Output: Hello, World!
 ```
 
@@ -416,8 +416,8 @@ use:
   - utils: "./utils/index.rill"
 ---
 
-5 :> $utils.math.double()
-"hello" :> $utils.str.reverse()
+5 => $utils.math.double()
+"hello" => $utils.str.reverse()
 ```
 
 ### Private Helpers
@@ -433,12 +433,12 @@ export:
 # Private helper (not exported)
 |item|{
   $item -> .upper -> .trim
-} :> $normalizeItem
+} => $normalizeItem
 
 # Public function using private helper
 |items|{
   $items -> map $normalizeItem
-} :> $processAll
+} => $processAll
 ```
 
 ## Module Loading Phases
@@ -474,7 +474,7 @@ Alternatives considered:
 **Import statements** (`import math from "./math.rill"`)
 - Rejected: Introduces new statement type. Frontmatter keeps imports declarative and separate from executable code.
 
-**Pipe-based imports** (`"./math.rill" -> import :> $math`)
+**Pipe-based imports** (`"./math.rill" -> import => $math`)
 - Rejected: Imports are static metadata, not runtime operations.
 
 **Global registry** (`$modules.math.double(5)`)

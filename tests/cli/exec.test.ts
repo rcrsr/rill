@@ -283,7 +283,7 @@ describe('rill-exec', () => {
               'export: [value]',
               '---',
               '',
-              `"level-${i}" :> $value`,
+              `"level-${i}" => $value`,
             ].join('\n');
           } else {
             // Intermediate modules import the next module and export its value
@@ -295,7 +295,7 @@ describe('rill-exec', () => {
               'export: [value]',
               '---',
               '',
-              `$next.value :> $value`,
+              `$next.value => $value`,
             ].join('\n');
           }
 
@@ -342,7 +342,7 @@ describe('rill-exec', () => {
               'export: [result]',
               '---',
               '',
-              `${i} :> $result`,
+              `${i} => $result`,
             ].join('\n');
           } else {
             // Use inline array format to avoid frontmatter trim() bug
@@ -353,7 +353,7 @@ describe('rill-exec', () => {
               'export: [result]',
               '---',
               '',
-              `$next.result :> $result`,
+              `$next.result => $result`,
             ].join('\n');
           }
 

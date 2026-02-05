@@ -66,7 +66,7 @@ describe('Parser Recovery', () => {
     });
 
     it('recovers from unterminated interpolation', () => {
-      const source = `"x" :> $x
+      const source = `"x" => $x
 "{$x"`;
       const result = parseWithRecovery(source);
 
@@ -155,7 +155,7 @@ describe('Parser Recovery', () => {
     });
 
     it('handles complex valid interpolations', () => {
-      const source = `[x: 42] :> $obj
+      const source = `[x: 42] => $obj
 "value: {$obj.x}"
 """multiline
 with {$obj.x}

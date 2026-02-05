@@ -440,8 +440,8 @@ describe('Rill Runtime: List Membership Methods', () => {
 
     it('works with captured variables', async () => {
       const result = await run(`
-        [1, 2, 3] :> $list
-        2 :> $value
+        [1, 2, 3] => $list
+        2 => $value
         $list -> .has($value)
       `);
       expect(result).toBe(true);

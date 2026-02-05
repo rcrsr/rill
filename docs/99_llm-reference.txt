@@ -46,7 +46,7 @@ Without $, "process(data)" is ambiguous: is process a host function or stored
 closure? Is data a variable or key? This would require tracking all declarations.
 
 Additional disambiguation:
-  - Capture: :> $x requires $ for lookahead (avoids conflict with slice /<1:>)
+  - Capture: => $x requires $ for lookahead (avoids conflict with slice /<1:>)
   - Destructure: *<$a, $b> marks variables vs skip patterns
   - Dynamic access: $data.$key distinguishes variable-key from literal field
   - Visual clarity: $total is always a variable, no context needed
@@ -55,7 +55,7 @@ This follows rill's "no magic" principle: syntax communicates intent explicitly.
 
 SPACING RULES
 -------------
-Operators:    space both sides       5 + 3, $x -> .upper, "a" :> $b
+Operators:    space both sides       5 + 3, $x -> .upper, "a" => $b
 Parentheses:  no inner space         ($x + 1), ($ > 3) ? "yes"
 Braces:       space inside           { $x + 1 }, each { $ * 2 }
 Brackets:     no inner space         $list[0], $dict.items[1]
@@ -77,8 +77,8 @@ NO THROWAWAY CAPTURES
 ---------------------
 Don't capture just to continue - use line continuation instead:
   # avoid                          # good
-  "x" :> $a                        "x"
-  $a -> .upper :> $b                 -> .upper
+  "x" => $a                        "x"
+  $a -> .upper => $b                 -> .upper
   $b -> .len                         -> .len
 
 Only capture when the variable is reused later in the code.
@@ -88,11 +88,11 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
 
 1. NO ASSIGNMENT OPERATOR
    Wrong: x = 5
-   Right: 5 :> $x
+   Right: 5 => $x
 
    Pipe (->): passes value to next operation
-   Capture (:>): stores value AND continues chain
-   Example: "hello" :> $x -> .upper :> $y   # $x="hello", $y="HELLO"
+   Capture (=>): stores value AND continues chain
+   Example: "hello" => $x -> .upper => $y   # $x="hello", $y="HELLO"
 
 2. NO NULL/UNDEFINED
    Empty values ("", [], [:]) exist. "No value" cannot be represented.
@@ -113,16 +113,16 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
    Wrong: !0                             # ERROR: Negation requires boolean, got number
 
 4. VARIABLES LOCK TO FIRST TYPE
-   "hello" :> $x
-   42 :> $x        # ERROR: cannot assign number to string variable
+   "hello" => $x
+   42 => $x        # ERROR: cannot assign number to string variable
 
 5. NO VARIABLE SHADOWING (CRITICAL FOR LOOPS)
    Child scopes can READ parent variables but cannot WRITE or redeclare them.
    Variables created inside blocks/loops do NOT leak out.
 
    WRONG - this pattern NEVER works:
-     0 :> $count
-     [1, 2, 3] -> each { $count + 1 :> $count }  # creates LOCAL $count
+     0 => $count
+     [1, 2, 3] -> each { $count + 1 => $count }  # creates LOCAL $count
      $count                                       # still 0!
 
    RIGHT - use $ or $@ as state carrier (see LOOP STATE PATTERNS below)
@@ -134,8 +134,8 @@ CRITICAL DIFFERENCES FROM MAINSTREAM LANGUAGES
 7. VALUE SEMANTICS (no references)
    All copies are deep. All comparisons are by value. No object identity.
    [1, 2, 3] == [1, 2, 3]   # true (content equality)
-   [1, 2] :> $a
-   $a :> $b                  # $b is an independent deep copy
+   [1, 2] => $a
+   $a => $b                  # $b is an independent deep copy
    Mainstream habit to avoid: expecting two variables to share the same object.
 
 SYNTAX QUICK REFERENCE
@@ -156,7 +156,7 @@ Dicts:         [name: "alice", age: 30]    # identifier keys
                [($expr): value]            # computed key (must eval to string)
 Tuples:        *[1, 2, 3]              # for argument unpacking
 Closures:      |x|($x + 1)             # like lambda/arrow functions
-Type annot:    "hi" :> $x:string       # lock type on capture
+Type annot:    "hi" => $x:string       # lock type on capture
 Comments:      # single line only
 
 PIPES AND $ BINDING
@@ -198,7 +198,7 @@ Break (exits loop, returns collected results before break):
   [1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns [1, 2]
 
 Return (exits block or script with value):
-  { 5 :> $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
+  { 5 => $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
   "done" -> return                                     # exits script with "done"
 
 Assert (validate condition, halt if false, pass through if true):
@@ -224,11 +224,11 @@ LOOP STATE PATTERNS (CRITICAL)
 Rill loops CANNOT modify outer variables. All state must flow through $ or $@.
 
 WRONG - outer variable modification (NEVER works):
-  0 :> $sum
-  [1, 2, 3] -> each { $sum + $ :> $sum }  # $sum unchanged!
+  0 => $sum
+  [1, 2, 3] -> each { $sum + $ => $sum }  # $sum unchanged!
 
 WRONG - "while" keyword does not exist:
-  while ($i < 10) { $i + 1 :> $i }        # SYNTAX ERROR
+  while ($i < 10) { $i + 1 => $i }        # SYNTAX ERROR
 
 RIGHT - use fold for reduction:
   [1, 2, 3] -> fold(0) { $@ + $ }         # 6 ($@ is accumulator)
@@ -239,8 +239,8 @@ RIGHT - use each(init) when you need both results AND accumulator:
 RIGHT - use (cond) @ { } with $ as state dict for multiple values:
   [iter: 0, max: 3, text: $input, done: false]
     -> (!$.done && $.iter < $.max) @ {
-      $.iter + 1 :> $i
-      process($.text) :> $result
+      $.iter + 1 => $i
+      process($.text) => $result
       $result.finished ? [iter: $i, max: $.max, text: $.text, done: true]
                        ! [iter: $i, max: $.max, text: $result.text, done: false]
     }
@@ -294,28 +294,28 @@ BLOCK-CLOSURES vs EXPLICIT CLOSURES:
 Two ways to create closures:
 
 1. Block-closures: { body } in expression position
-   { $ + 1 } :> $inc                  # implicit $ parameter
+   { $ + 1 } => $inc                  # implicit $ parameter
    $inc(5)                            # 6
    5 -> $inc                          # 6 (pipe invocation)
    [x: { $ * 2 }]                     # dict value is closure
    type({ "hi" })                     # "closure"
 
 2. Explicit closures: |params| body
-   |x|($x + 1) :> $inc                # named parameter
-   |a, b|($a + $b) :> $add            # multiple params
-   |x = 0|($x + 1) :> $inc_or_one     # default value
-   |x: number|($x + 1) :> $typed      # type annotation
+   |x|($x + 1) => $inc                # named parameter
+   |a, b|($a + $b) => $add            # multiple params
+   |x = 0|($x + 1) => $inc_or_one     # default value
+   |x: number|($x + 1) => $typed      # type annotation
 
 CRITICAL: { } vs ( ) distinction
 
 | Syntax       | Semantics              | Example                    |
 |--------------|------------------------|----------------------------|
-| { body }     | Deferred (closure)     | { $ + 1 } :> $fn  # closure |
-| ( expr )     | Eager (immediate eval) | ( 5 + 1 ) :> $x  # 6        |
+| { body }     | Deferred (closure)     | { $ + 1 } => $fn  # closure |
+| ( expr )     | Eager (immediate eval) | ( 5 + 1 ) => $x  # 6        |
 
 When to use:
-  { body } :> $fn     # store closure for later use
-  ( expr ) :> $x      # store result value immediately
+  { body } => $fn     # store closure for later use
+  ( expr ) => $x      # store result value immediately
 
 PIPE TARGET: { } creates closure then immediately invokes it:
   5 -> { $ + 1 }      # 6 (create closure, invoke with 5)
@@ -323,7 +323,7 @@ PIPE TARGET: { } creates closure then immediately invokes it:
   Same observable result, different mechanism. Error messages differ.
 
 Block-closure invocation:
-  { $ + 1 } :> $inc
+  { $ + 1 } => $inc
   $inc(5)                             # direct call: 6
   5 -> $inc                           # pipe call: 6
   [1,2,3] -> map $inc                 # in collection op
@@ -332,11 +332,11 @@ LATE BINDING: closures capture scope, not values. Variables resolve at call time
 
 $ vs named params:
   Use $ in inline pipes and loops:     "hello" -> { .upper }
-  Use named params in stored closures: |x| ($x * 2) :> $double
+  Use named params in stored closures: |x| ($x * 2) => $double
   $ is undefined when a stored closure is called later — always use params.
 
 Zero-param dict closures (methods):
-  [count: 3, double: ||{ $.count * 2 }] :> $obj
+  [count: 3, double: ||{ $.count * 2 }] => $obj
   $obj.double                         # 6 ($ is bound to dict)
 
 PROPERTY ACCESS
@@ -423,7 +423,7 @@ OPERATOR PRECEDENCE (highest to lowest)
 8.  Logical OR:      ||
 9.  Default:         ??
 10. Pipe:            ->
-11. Capture:         :>
+11. Capture:         =>
 
 Use parentheses to override: (2 + 3) * 4
 
@@ -445,7 +445,7 @@ LIST SPREAD IN LITERALS
 -----------------------
 
 Inline list elements into a new list using ... (spread operator):
-  [1, 2] :> $a
+  [1, 2] => $a
   [...$a, 3]                          # [1, 2, 3]
   [...$a, ...$b]                      # concatenate lists
   [...[], 1]                          # [1] (empty spread contributes nothing)
@@ -453,7 +453,7 @@ Inline list elements into a new list using ... (spread operator):
   [...$nested[0]]                     # spread from nested access
 
 Error: spreading non-list throws RUNTIME_TYPE_ERROR
-  "hello" :> $s
+  "hello" => $s
   [...$s]                             # ERROR: Spread requires list, got string
 
 MULTI-KEY DICT LITERALS
@@ -581,7 +581,7 @@ Concurrency limit for map (controls parallel concurrency):
 COMMON MISTAKES
 ---------------
 
-1. Using = for assignment          -> use :> instead
+1. Using = for assignment          -> use => instead
 2. Using || for defaults           -> use ?? instead
 3. Assuming truthiness             -> explicit boolean checks required
 4. Breaking from map/filter        -> only works in each/fold
@@ -604,11 +604,11 @@ MAINSTREAM TO RILL TRANSLATION
 
 | Mainstream               | Rill                                      |
 |--------------------------|-----------------------------------------  |
-| x = value                | value :> $x                               |
+| x = value                | value => $x                               |
 | null / undefined         | ?? default, .? existence check             |
 | if "" (truthiness)       | .empty, == 0, :?type                      |
 | try { } catch { }        | assert, conditionals, error                |
 | for (i = 0; ...)         | each, map, filter, fold                   |
 | count += 1 in loop       | fold(0) { $@ + 1 } or $ accumulator      |
 | a === b (reference)      | == always compares by value               |
-| a = b (shared ref)       | :> always deep-copies                     |
+| a = b (shared ref)       | => always deep-copies                     |

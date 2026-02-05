@@ -47,7 +47,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('throws RuntimeError for type mismatch on variable reassignment', async () => {
       try {
-        await run('"hello" :> $x\n42 :> $x');
+        await run('"hello" => $x\n42 => $x');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -255,7 +255,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
 
     it('evaluates variable access', async () => {
-      const result = await run('"test" :> $x\n$x');
+      const result = await run('"test" => $x\n$x');
       expect(result).toBe('test');
     });
 
@@ -295,11 +295,11 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('handles mixed statement types in sequence', async () => {
       const result = await run(`
-        "hello" :> $str
-        42 :> $num
-        true :> $bool
-        [1, 2, 3] :> $list
-        [a: "test"] :> $dict
+        "hello" => $str
+        42 => $num
+        true => $bool
+        [1, 2, 3] => $list
+        [a: "test"] => $dict
         $dict.a
       `);
       expect(result).toBe('test');
@@ -317,8 +317,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('handles closures with captured variables', async () => {
       const result = await run(`
-        10 :> $outer
-        |x| { $x + $outer } :> $addTen
+        10 => $outer
+        |x| { $x + $outer } => $addTen
         5 -> $addTen()
       `);
       expect(result).toBe(15);
@@ -337,7 +337,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('evaluates blocks with return', async () => {
       const result = await run(`
         "" -> {
-          "first" :> $x
+          "first" => $x
           ($x == "first") ? ("early" -> return)
           "should not reach"
         }
@@ -876,7 +876,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-9: Type mismatch on reassignment', () => {
       it('throws RuntimeError with RUNTIME_TYPE_ERROR for type mismatch', async () => {
         try {
-          await run('"hello" :> $x\n42 :> $x');
+          await run('"hello" => $x\n42 => $x');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -887,7 +887,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('error message includes expected and actual types', async () => {
         try {
-          await run('"string" :> $var\n123 :> $var');
+          await run('"string" => $var\n123 => $var');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -900,7 +900,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws when reassigning string to number variable', async () => {
         try {
-          await run('42 :> $num\n"text" :> $num');
+          await run('42 => $num\n"text" => $num');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -912,7 +912,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws when reassigning list to boolean variable', async () => {
         try {
-          await run('true :> $flag\n[1, 2] :> $flag');
+          await run('true => $flag\n[1, 2] => $flag');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -922,13 +922,13 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       });
 
       it('allows reassignment with same type', async () => {
-        const result = await run('"first" :> $x\n"second" :> $x\n$x');
+        const result = await run('"first" => $x\n"second" => $x\n$x');
         expect(result).toBe('second');
       });
 
       it('throws for explicit type annotation mismatch', async () => {
         try {
-          await run('42 :> $x:string');
+          await run('42 => $x:string');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1157,7 +1157,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from complex interpolation expression', async () => {
         try {
-          await run('[a: 1] :> $d\n"field: {$d.missing}"');
+          await run('[a: 1] => $d\n"field: {$d.missing}"');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1350,17 +1350,17 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     describe('Literal evaluation success cases', () => {
       it('evaluates string with multiple interpolations', async () => {
-        const result = await run('1 :> $a\n2 :> $b\n"sum: {$a + $b}"');
+        const result = await run('1 => $a\n2 => $b\n"sum: {$a + $b}"');
         expect(result).toBe('sum: 3');
       });
 
       it('evaluates dict with computed values', async () => {
-        const result = await run('5 :> $x\n[a: $x * 2, b: $x + 1]');
+        const result = await run('5 => $x\n[a: $x * 2, b: $x + 1]');
         expect(result).toEqual({ a: 10, b: 6 });
       });
 
       it('evaluates tuple with expressions', async () => {
-        const result = await run('3 :> $n\n[$n, $n * 2, $n * 3]');
+        const result = await run('3 => $n\n[$n, $n * 2, $n * 3]');
         expect(result).toEqual([3, 6, 9]);
       });
 

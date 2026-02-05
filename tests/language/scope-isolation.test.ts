@@ -131,9 +131,9 @@ describe('Phase 0: Scope Isolation', () => {
     it('child cannot reassign outer variable', async () => {
       await expect(
         run(`
-        "outer" :> $x
+        "outer" => $x
         "" -> {
-          "inner" :> $x
+          "inner" => $x
         }
       `)
       ).rejects.toThrow(/[Cc]annot reassign outer variable/);
@@ -141,7 +141,7 @@ describe('Phase 0: Scope Isolation', () => {
 
     it('child can read outer variable', async () => {
       const result = await run(`
-        "hello" :> $x
+        "hello" => $x
         "" -> {
           $x -> .upper
         }
@@ -154,7 +154,7 @@ describe('Phase 0: Scope Isolation', () => {
       await expect(
         run(`
         "" -> {
-          "local" :> $x
+          "local" => $x
         }
         $x
       `)
@@ -182,7 +182,7 @@ describe('Phase 0: Scope Isolation', () => {
     it('captured var visible to later siblings', async () => {
       const result = await run(`
         "hello" -> {
-          $ :> $captured
+          $ => $captured
           $captured -> .upper
         }
       `);
@@ -192,8 +192,8 @@ describe('Phase 0: Scope Isolation', () => {
     it('multiple captures accumulate', async () => {
       const result = await run(`
         "hello" -> {
-          "a" :> $first
-          "b" :> $second
+          "a" => $first
+          "b" => $second
           "{$first}{$second}"
         }
       `);

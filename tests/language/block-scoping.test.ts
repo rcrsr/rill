@@ -17,8 +17,8 @@ describe('Rill Runtime: Block Scoping', () => {
     it('cannot shadow outer variable in block', async () => {
       // Attempting to assign to outer variable name is an error
       const script = `
-        "outer" :> $x
-        [1, 2, 3] -> each { "inner" :> $x }
+        "outer" => $x
+        [1, 2, 3] -> each { "inner" => $x }
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -30,7 +30,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // Variable created inside block is not visible outside
       // Accessing undefined variable throws an error
       const script = `
-        [1, 2, 3] -> each { "created" :> $y }
+        [1, 2, 3] -> each { "created" => $y }
         $y
       `;
       await expect(run(script)).rejects.toThrow('Undefined variable');
@@ -38,7 +38,7 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('reading outer variable inside block works', async () => {
       const script = `
-        100 :> $x
+        100 => $x
         [1, 2, 3] -> each { $x + $ }
       `;
       expect(await run(script)).toEqual([101, 102, 103]);
@@ -47,9 +47,9 @@ describe('Rill Runtime: Block Scoping', () => {
     it('can create new variables that do not shadow', async () => {
       // New variables with unique names are allowed
       const script = `
-        10 :> $x
+        10 => $x
         [1, 2, 3] -> each {
-          ($x + $) :> $local
+          ($x + $) => $local
           [$x, $local]
         }
       `;
@@ -64,11 +64,11 @@ describe('Rill Runtime: Block Scoping', () => {
     it('nested blocks create nested scopes', async () => {
       // Each level can create new unique variables
       const script = `
-        "outer" :> $x
+        "outer" => $x
         [1, 2] -> each {
-          "level1" :> $a
+          "level1" => $a
           [3, 4] -> each {
-            "level2" :> $b
+            "level2" => $b
             [$x, $a, $b]
           }
         }
@@ -89,8 +89,8 @@ describe('Rill Runtime: Block Scoping', () => {
     it('loop iteration variable $ is block-local', async () => {
       // $ changes per iteration but doesn't leak to outer scope
       const script = `
-        "original" :> $outer
-        [1, 2, 3] -> each { $ * 10 } :> $result
+        "original" => $outer
+        [1, 2, 3] -> each { $ * 10 } => $result
         $result
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
@@ -100,8 +100,8 @@ describe('Rill Runtime: Block Scoping', () => {
   describe('Conditional Blocks', () => {
     it('cannot shadow outer variable in then branch', async () => {
       const script = `
-        "outer" :> $x
-        true ? { "then" :> $x }
+        "outer" => $x
+        true ? { "then" => $x }
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -111,8 +111,8 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('cannot shadow outer variable in else branch', async () => {
       const script = `
-        "outer" :> $x
-        false ? { "then" :> $x } ! { "else" :> $x }
+        "outer" => $x
+        false ? { "then" => $x } ! { "else" => $x }
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -122,7 +122,7 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('conditional can read outer variables', async () => {
       const script = `
-        10 :> $x
+        10 => $x
         true ? { $x + 5 } ! { $x - 5 }
       `;
       expect(await run(script)).toBe(15);
@@ -131,7 +131,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('variables created in conditional do not leak', async () => {
       // Variable created in conditional branch is not visible outside
       const script = `
-        true ? { "created" :> $y }
+        true ? { "created" => $y }
         $y
       `;
       await expect(run(script)).rejects.toThrow('Undefined variable');
@@ -141,8 +141,8 @@ describe('Rill Runtime: Block Scoping', () => {
   describe('Grouped Expressions', () => {
     it('cannot shadow outer variable in grouped expression', async () => {
       const script = `
-        "outer" :> $x
-        ("inner" :> $x)
+        "outer" => $x
+        ("inner" => $x)
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -152,7 +152,7 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('grouped expressions can read outer variables', async () => {
       const script = `
-        10 :> $x
+        10 => $x
         ($x + 5)
       `;
       expect(await run(script)).toBe(15);
@@ -161,7 +161,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('variables created in group do not leak', async () => {
       // Variable created in grouped expression is not visible outside
       const script = `
-        ("created" :> $y)
+        ("created" => $y)
         $y
       `;
       await expect(run(script)).rejects.toThrow('Undefined variable');
@@ -171,8 +171,8 @@ describe('Rill Runtime: Block Scoping', () => {
   describe('Closures', () => {
     it('closures cannot shadow outer variables', async () => {
       const script = `
-        "outer" :> $x
-        ||("closure" :> $x) :> $fn
+        "outer" => $x
+        ||("closure" => $x) => $fn
         $fn()
         $x
       `;
@@ -183,9 +183,9 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('closures resolve variables at call time (late binding)', async () => {
       const script = `
-        10 :> $x
-        ||($x + 5) :> $fn
-        20 :> $x
+        10 => $x
+        ||($x + 5) => $fn
+        20 => $x
         $fn()
       `;
       // Closure resolves $x at call time, so it sees $x=20
@@ -197,9 +197,9 @@ describe('Rill Runtime: Block Scoping', () => {
     it('cannot shadow outer variable even with different type', async () => {
       // Cannot reuse outer variable name in child scope
       const script = `
-        "hello" :> $x
+        "hello" => $x
         [1, 2, 3] -> each {
-          100 :> $x
+          100 => $x
           $x
         }
       `;
@@ -210,7 +210,7 @@ describe('Rill Runtime: Block Scoping', () => {
 
     it('reading outer variable respects its type', async () => {
       const script = `
-        10 :> $x
+        10 => $x
         [1, 2, 3] -> each { $x + $ }
       `;
       expect(await run(script)).toEqual([11, 12, 13]);
@@ -231,7 +231,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // Variable assignment inside while body doesn't leak
       const script = `
         0 -> ($ < 3) @ {
-          ($ * 10) :> $inner
+          ($ * 10) => $inner
           $ + 1
         }
         $inner
@@ -253,7 +253,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // Variable assignment inside do-while body doesn't leak
       const script = `
         0 -> @ {
-          ($ * 10) :> $inner
+          ($ * 10) => $inner
           $ + 1
         } ? ($ < 3)
         $inner

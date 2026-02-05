@@ -18,11 +18,11 @@ Use nested dict dispatch to look up transitions by state and event:
   green: [tick: "yellow", emergency: "red"],
   yellow: [tick: "red", emergency: "red"],
   red: [tick: "green", emergency: "red"]
-] :> $machine
+] => $machine
 
 # Current state and incoming event
-"green" :> $state
-"tick" :> $event
+"green" => $state
+"tick" => $event
 
 # Look up next state
 $machine.$state.$event
@@ -49,13 +49,13 @@ Embed closures in the transition table to execute side effects:
   shipped: [
     deliver: [next: "delivered", action: ||{ log("Order delivered") }]
   ]
-] :> $machine
+] => $machine
 
-"pending" :> $state
-"pay" :> $event
+"pending" => $state
+"pay" => $event
 
 # Get transition
-$machine.$state.$event :> $transition
+$machine.$state.$event => $transition
 
 # Execute action and get next state
 $transition.action()
@@ -73,10 +73,10 @@ Process a sequence of events through the machine:
   idle: [start: "running", stop: "idle"],
   running: [pause: "paused", stop: "idle"],
   paused: [resume: "running", stop: "idle"]
-] :> $machine
+] => $machine
 
 # Event sequence to process
-["start", "pause", "resume", "stop"] :> $events
+["start", "pause", "resume", "stop"] => $events
 
 # Process events, accumulating state history
 $events -> fold("idle") {
@@ -92,15 +92,15 @@ Track state history with `fold`:
   idle: [start: "running"],
   running: [pause: "paused", stop: "idle"],
   paused: [resume: "running"]
-] :> $machine
+] => $machine
 
-["start", "pause", "resume"] :> $events
+["start", "pause", "resume"] => $events
 
 $events -> fold([current: "idle", history: []]) {
-  $ :> $event
-  $machine.($@.current) :> $stateConfig
+  $ => $event
+  $machine.($@.current) => $stateConfig
   $stateConfig -> .keys -> .has($event) ? {
-    $stateConfig.($event) :> $next
+    $stateConfig.($event) => $next
     [current: $next, history: [...$@.history, $next]]
   } ! $@
 }
@@ -128,13 +128,13 @@ Use closures as guards to conditionally allow transitions:
       update: |ctx|([...$ctx, coins: $ctx.coins + 1])
     ]
   ]
-] :> $machine
+] => $machine
 
 # Initial context
-[state: "locked", coins: 2] :> $ctx
+[state: "locked", coins: 2] => $ctx
 
 # Process coin event
-$machine.($ctx.state).coin :> $transition
+$machine.($ctx.state).coin => $transition
 
 # Check guard if present
 $transition.?guard ? {
@@ -184,11 +184,11 @@ Model nested states using path dispatch:
     play: "playing.normal",
     stop: "stopped"
   ]
-] :> $machine
+] => $machine
 
 # Parse hierarchical state
-"playing.normal" :> $state
-$state -> .split(".") :> $path
+"playing.normal" => $state
+$state -> .split(".") => $path
 
 # Navigate to current state config
 $path -> fold($machine) { $@.$  }
@@ -209,10 +209,10 @@ Route values through different processors based on type or content:
   "application/json": |body|{ $body -> parse_json },
   "text/plain": |body|{ $body -> .trim },
   "text/csv": |body|{ $body -> .lines -> map { .split(",") } }
-] :> $parsers
+] => $parsers
 
-"application/json" :> $contentType
-"{\"name\": \"test\"}" :> $body
+"application/json" => $contentType
+"{\"name\": \"test\"}" => $body
 
 $contentType -> $parsers -> |parser|{ $parser($body) }
 # Result: [name: "test"]
@@ -228,7 +228,7 @@ Map multiple inputs to the same handler:
   ["GET", "HEAD"]: [handler: "read", safe: true],
   ["POST", "PUT", "PATCH"]: [handler: "write", safe: false],
   ["DELETE"]: [handler: "delete", safe: false]
-] :> $routes
+] => $routes
 
 "POST" -> $routes
 # Result: [handler: "write", safe: false]
@@ -243,9 +243,9 @@ Combine dispatch with `??` for fallback behavior:
   success: |r|{ "Completed: {$r.data}" },
   error: |r|{ "Failed: {$r.message}" },
   pending: |r|{ "Waiting..." }
-] :> $handlers
+] => $handlers
 
-[status: "unknown", data: "test"] :> $response
+[status: "unknown", data: "test"] => $response
 
 $response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
 -> |handler|{ $handler($response) }
@@ -262,7 +262,7 @@ Calculate statistics in a single pass:
 
 ```text
 # Conceptual - dict spread [...$dict, key: val] not implemented
-[23, 45, 12, 67, 34, 89, 56] :> $values
+[23, 45, 12, 67, 34, 89, 56] => $values
 
 $values -> fold([sum: 0, count: 0, min: 999999, max: -999999]) {
   [
@@ -271,7 +271,7 @@ $values -> fold([sum: 0, count: 0, min: 999999, max: -999999]) {
     min: ($ < $@.min) ? $ ! $@.min,
     max: ($ > $@.max) ? $ ! $@.max
   ]
-} :> $stats
+} => $stats
 
 [...$stats, avg: $stats.sum / $stats.count]
 # Result: [sum: 326, count: 7, min: 12, max: 89, avg: 46.57...]
@@ -288,7 +288,7 @@ Group items by a computed key:
   [name: "Bob", dept: "Sales"],
   [name: "Carol", dept: "Engineering"],
   [name: "Dave", dept: "Sales"]
-] :> $employees
+] => $employees
 
 $employees -> fold([]) {
   $@.?($$.dept) ? {
@@ -307,7 +307,7 @@ $employees -> fold([]) {
 Remove duplicates while preserving order:
 
 ```rill
-["a", "b", "a", "c", "b", "d", "a"] :> $items
+["a", "b", "a", "c", "b", "d", "a"] => $items
 
 $items -> fold([seen: [], result: []]) {
   $@.seen -> .has($) ? $@ ! {
@@ -329,7 +329,7 @@ $items -> fold([seen: [], result: []]) {
 Validate multiple conditions and exit on first failure:
 
 ```rill
-[username: "", email: "test@", age: 15] :> $formData
+[username: "", email: "test@", age: 15] => $formData
 
 $formData -> {
   $.username -> .empty ? ([valid: false, err: "Username required"] -> return)
@@ -348,15 +348,15 @@ Retry an operation with exponential backoff:
 # Simulate flaky operation (host would provide real implementation)
 |attempt|{
   ($attempt < 3) ? [ok: false, err: "Network error"] ! [ok: true, data: "Success"]
-} :> $operation
+} => $operation
 
 # Retry loop with backoff
 1 -> ($ <= 5) @ {
-  $operation($) :> $result
+  $operation($) => $result
   $result.ok ? ($result -> return)
   log("Attempt {$} failed: {$result.err}")
   $ + 1
-} :> $final
+} => $final
 
 $final.?ok ? $final ! [ok: false, err: "Max retries exceeded"]
 # Result: [ok: true, data: "Success"]
@@ -369,28 +369,28 @@ Process steps that can fail at any point:
 ```rill
 |input|{
   [ok: true, value: $input -> .trim]
-} :> $step1
+} => $step1
 
 |input|{
-  $input -> .len :> $len
+  $input -> .len => $len
   ($len < 3) ? [ok: false, err: "Too short"] ! [ok: true, value: $input -> .upper]
-} :> $step2
+} => $step2
 
 |input|{
-  $input -> .contains("HELLO") :> $hasHello
+  $input -> .contains("HELLO") => $hasHello
   $hasHello ? [ok: true, value: $input] ! [ok: false, err: "Must contain HELLO"]
-} :> $step3
+} => $step3
 
 # Chain steps with early exit
-"  test input  " :> $pipelineInput
+"  test input  " => $pipelineInput
 $pipelineInput -> {
-  $step1($) :> $r1
+  $step1($) => $r1
   ($r1.ok == false) ? ($r1 -> return)
 
-  $step2($r1.value) :> $r2
+  $step2($r1.value) => $r2
   ($r2.ok == false) ? ($r2 -> return)
 
-  $step3($r2.value) :> $r3
+  $step3($r2.value) => $r3
   $r3
 }
 # Result: [ok: false, err: "Must contain HELLO"]
@@ -406,7 +406,7 @@ Flatten arbitrarily nested lists:
 
 ```rill
 # For known depth, chain operations
-[[1, 2], [3, [4, 5]], [6]] :> $nested
+[[1, 2], [3, [4, 5]], [6]] => $nested
 
 # Flatten one level
 $nested -> fold([]) { [...$@, ...$] }
@@ -422,7 +422,7 @@ Convert rows to columns:
   [1, 2, 3],
   [4, 5, 6],
   [7, 8, 9]
-] :> $matrix
+] => $matrix
 
 range(0, $matrix[0] -> .len) -> map |col|{
   $matrix -> map |row|{ $row[$col] }
@@ -435,8 +435,8 @@ range(0, $matrix[0] -> .len) -> map |col|{
 Combine parallel lists into tuples:
 
 ```rill
-["a", "b", "c"] :> $zipKeys
-[1, 2, 3] :> $zipValues
+["a", "b", "c"] => $zipKeys
+[1, 2, 3] => $zipValues
 
 range(0, $zipKeys -> .len) -> map |i|{
   [$zipKeys[$i], $zipValues[$i]]
@@ -463,9 +463,9 @@ range(0, $zipKeys -> .len) -> fold([]) |i|{
 Simple template with variable substitution (using angle brackets as delimiters):
 
 ```rill
-"Hello <name>, your order <orderId> ships on <date>." :> $template
+"Hello <name>, your order <orderId> ships on <date>." => $template
 
-[name: "Alice", orderId: "12345", date: "2024-03-15"] :> $templateVars
+[name: "Alice", orderId: "12345", date: "2024-03-15"] => $templateVars
 
 $templateVars -> .entries -> fold($template) {
   $@.replace_all("<{$[0]}>", $[1] -> .str)
@@ -479,7 +479,7 @@ Extract structured data from formatted text:
 
 ```text
 # Conceptual - uses dict spread with computed keys
-"name=Alice;age=30;city=Seattle" :> $input
+"name=Alice;age=30;city=Seattle" => $input
 
 $input
   -> .split(";")
@@ -496,7 +496,7 @@ Count word occurrences:
 
 ```text
 # Conceptual - uses dynamic existence check and dict spread
-"the quick brown fox jumps over the lazy dog the fox" :> $text
+"the quick brown fox jumps over the lazy dog the fox" => $text
 
 $text
   -> .lower
@@ -521,11 +521,11 @@ Create specialized functions from general ones:
 # General formatter
 |prefix, suffix, value|{
   "{$prefix}{$value}{$suffix}"
-} :> $format
+} => $format
 
 # Partial application via closure
-|value|{ $format("[", "]", $value) } :> $bracket
-|value|{ $format("<", ">", $value) } :> $angle
+|value|{ $format("[", "]", $value) } => $bracket
+|value|{ $format("<", ">", $value) } => $angle
 
 $bracket("test")  # "[test]"
 $angle("html")    # "<html>"
@@ -541,7 +541,7 @@ Cache expensive computations:
   $cache.?($n -> .str) ? $cache.($n -> .str) ! {
     # Compute fibonacci
     ($n <= 1) ? $n ! {
-      $n - 1 -> |prev|{ |prev, cache|{ ... }($prev, $cache) } :> $a  # Simplified
+      $n - 1 -> |prev|{ |prev, cache|{ ... }($prev, $cache) } => $a  # Simplified
       # Real memoization requires host support for mutable cache
       $a + $n - 2
     }
@@ -558,12 +558,12 @@ Combine functions into pipelines:
 ```rill
 |f, g|{
   |x|{ $x -> $f() -> $g() }
-} :> $compose
+} => $compose
 
-|x|{ $x * 2 } :> $double
-|x|{ $x + 1 } :> $increment
+|x|{ $x * 2 } => $double
+|x|{ $x + 1 } => $increment
 
-$compose($double, $increment) :> $doubleThenIncrement
+$compose($double, $increment) => $doubleThenIncrement
 
 5 -> $doubleThenIncrement()
 # Result: 11
@@ -583,13 +583,13 @@ Validate dict structure against rules:
   name: [type: "string", required: true, minLen: 1],
   age: [type: "number", required: true, min: 0, max: 150],
   email: [type: "string", required: false]
-] :> $schema
+] => $schema
 
-[name: "Alice", age: 200] :> $data
+[name: "Alice", age: 200] => $data
 
 $schema.entries -> fold([valid: true, errors: []]) {
-  $[0] :> $field
-  $[1] :> $rules
+  $[0] => $field
+  $[1] => $rules
 
   # Check required
   ($rules.required && ($data.?($field) -> !)) ? {
@@ -597,7 +597,7 @@ $schema.entries -> fold([valid: true, errors: []]) {
   } ! {
     # Check type and constraints if field exists
     $data.?($field) ? {
-      $data.($field) :> $value
+      $data.($field) => $value
 
       # Type check
       (type($value) != $rules.type) ? {

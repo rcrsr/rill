@@ -42,8 +42,8 @@ The observable result matches eager evaluation, but the mechanism differs. This 
 |------------|-----------|--------|
 | `5 -> { $ + 1 }` | Create closure, invoke with 5 | 6 |
 | `5 -> ($ + 1)` | Evaluate expression with $ = 5 | 6 |
-| `{ $ + 1 } :> $fn` | Create closure, store it | closure |
-| `($ + 1) :> $x` | Error: $ undefined outside pipe | — |
+| `{ $ + 1 } => $fn` | Create closure, store it | closure |
+| `($ + 1) => $x` | Error: $ undefined outside pipe | — |
 
 The last row shows the key difference: `( )` requires `$` to already be defined, while `{ }` captures `$` as a parameter for later binding.
 
@@ -73,7 +73,7 @@ Block syntax `{ body }` creates a closure with an implicit `$` parameter. This e
 ### Basic Block-Closure
 
 ```rill
-{ $ + 1 } :> $increment
+{ $ + 1 } => $increment
 
 5 -> $increment       # 6
 10 -> $increment      # 11
@@ -90,8 +90,8 @@ The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argu
 | `\|\|{ body }` (zero-param) | `[]` | `true` | Auto-invokes on dict access |
 
 ```rill
-{ $ * 2 } :> $double
-|| { 42 } :> $constant
+{ $ * 2 } => $double
+|| { 42 } => $constant
 
 5 -> $double          # 10 (requires argument)
 $constant()           # 42 (no argument needed)
@@ -100,7 +100,7 @@ $constant()           # 42 (no argument needed)
 [
   double: { $ * 2 },
   constant: || { 42 }
-] :> $obj
+] => $obj
 
 $obj.double(5)        # 10 (explicit call required)
 $obj.constant         # 42 (auto-invoked on access)
@@ -113,7 +113,7 @@ Block-closures require an argument; zero-param closures do not.
 Block-closures check type at runtime:
 
 ```rill
-{ $ + 1 } :> $fn
+{ $ + 1 } => $fn
 
 type($fn)             # "closure"
 $fn(5)                # 6
@@ -126,9 +126,9 @@ Block-closures can contain multiple statements:
 
 ```rill
 {
-  ($ * 2) :> $doubled
+  ($ * 2) => $doubled
   "{$}: doubled is {$doubled}"
-} :> $describe
+} => $describe
 
 5 -> $describe        # "5: doubled is 10"
 ```
@@ -149,18 +149,18 @@ The choice between `( )` and `{ }` determines when code executes:
 
 ```rill
 # Eager: parentheses evaluate immediately
-5 -> ($ + 1) :> $result
+5 -> ($ + 1) => $result
 $result                # 6 (number, already computed)
 
 # Deferred: braces create closure
-{ $ + 1 } :> $addOne
+{ $ + 1 } => $addOne
 type($addOne)          # "closure"
 5 -> $addOne           # 6
 10 -> $addOne          # 11 (invoked later with different value)
 
 # Practical difference
-(5 + 1) :> $six        # 6 (immediate)
-{ $ + 1 } :> $fn       # closure (deferred)
+(5 + 1) => $six        # 6 (immediate)
+{ $ + 1 } => $fn       # closure (deferred)
 
 $six                   # 6
 10 -> $fn              # 11
@@ -175,16 +175,16 @@ Closures resolve captured variables at **call time**, not definition time. This 
 ### Basic Example
 
 ```rill
-10 :> $x
-||($x + 5) :> $fn
-20 :> $x
+10 => $x
+||($x + 5) => $fn
+20 => $x
 $fn()    # 25 (sees current $x=20, not $x=10 at definition)
 ```
 
 ### Recursive Closures
 
 ```rill
-|n| { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } :> $factorial
+|n| { ($n < 1) ? 1 ! ($n * $factorial($n - 1)) } => $factorial
 $factorial(5)    # 120
 ```
 
@@ -193,8 +193,8 @@ The closure references `$factorial` before it exists. Late binding resolves `$fa
 ### Mutual Recursion
 
 ```rill
-|n| { ($n == 0) ? true ! $odd($n - 1) } :> $even
-|n| { ($n == 0) ? false ! $even($n - 1) } :> $odd
+|n| { ($n == 0) ? true ! $odd($n - 1) } => $even
+|n| { ($n == 0) ? false ! $even($n - 1) } => $odd
 $even(4)    # true
 ```
 
@@ -204,9 +204,9 @@ $even(4)    # true
 [
   || { $helper(1) },
   || { $helper(2) }
-] :> $handlers
+] => $handlers
 
-|n| { $n * 10 } :> $helper    # defined after closures
+|n| { $n * 10 } => $helper    # defined after closures
 
 $handlers[0]()    # 10
 $handlers[1]()    # 20
@@ -217,11 +217,11 @@ $handlers[1]()    # 20
 Closures see the current value of captured variables:
 
 ```rill
-0 :> $counter
-|| { $counter } :> $get
-|| { $counter + 1 } :> $getPlus1
+0 => $counter
+|| { $counter } => $get
+|| { $counter + 1 } => $getPlus1
 
-5 :> $counter
+5 => $counter
 
 [$get(), $getPlus1()]    # [5, 6]
 ```
@@ -237,7 +237,7 @@ Closures stored in dicts have `$` late-bound to the containing dict at invocatio
   name: "toolkit",
   count: 3,
   summary: || { "{$.name}: {$.count} items" }
-] :> $obj
+] => $obj
 
 $obj.summary    # "toolkit: 3 items" (auto-invoked on access)
 ```
@@ -249,7 +249,7 @@ $obj.summary    # "toolkit: 3 items" (auto-invoked on access)
   width: 10,
   height: 5,
   area: || { $.width * $.height }
-] :> $rect
+] => $rect
 
 $rect.area    # 50
 ```
@@ -260,7 +260,7 @@ $rect.area    # 50
 [
   name: "tools",
   greet: |x| { "{$.name} says: {$x}" }
-] :> $obj
+] => $obj
 
 $obj.greet("hello")    # "tools says: hello"
 ```
@@ -268,10 +268,10 @@ $obj.greet("hello")    # "tools says: hello"
 ### Reusable Closures Across Dicts
 
 ```rill
-|| { "{$.name}: {$.count} items" } :> $describer
+|| { "{$.name}: {$.count} items" } => $describer
 
-[name: "tools", count: 3, str: $describer] :> $obj1
-[name: "actions", count: 5, str: $describer] :> $obj2
+[name: "tools", count: 3, str: $describer] => $obj1
+[name: "actions", count: 5, str: $describer] => $obj2
 
 $obj1.str    # "tools: 3 items"
 $obj2.str    # "actions: 5 items"
@@ -283,7 +283,7 @@ $obj2.str    # "actions: 5 items"
 [
   double: |n| { $n * 2 },
   quad: |n| { $.double($.double($n)) }
-] :> $math
+] => $math
 
 $math.quad(3)    # 12
 ```
@@ -297,7 +297,7 @@ Closures in lists maintain their defining scope. Invoke via bracket access:
   |x| { $x + 1 },
   |x| { $x * 2 },
   |x| { $x * $x }
-] :> $transforms
+] => $transforms
 
 $transforms[0](5)    # 6
 $transforms[1](5)    # 10
@@ -307,8 +307,8 @@ $transforms[2](5)    # 25
 ### Chaining List Closures
 
 ```rill
-|n| { $n + 1 } :> $inc
-|n| { $n * 2 } :> $double
+|n| { $n + 1 } => $inc
+|n| { $n * 2 } => $double
 
 5 -> @[$inc, $double, $inc]    # 13: (5+1)*2+1
 ```
@@ -329,7 +329,7 @@ Closures can appear inline in expressions:
 
 ```rill
 [1, 2, 3] -> map |x| {
-  ($x * 10) :> $scaled
+  ($x * 10) => $scaled
   "{$x} -> {$scaled}"
 }
 # ["1 -> 10", "2 -> 20", "3 -> 30"]
@@ -340,7 +340,7 @@ Closures can appear inline in expressions:
 Closures can contain closures. Each captures its defining scope:
 
 ```rill
-|n| { || { $n } } :> $makeGetter
+|n| { || { $n } } => $makeGetter
 $makeGetter(42)()    # 42
 ```
 
@@ -349,10 +349,10 @@ $makeGetter(42)()    # 42
 ```rill
 |multiplier| {
   |x| { $x * $multiplier }
-} :> $makeMultiplier
+} => $makeMultiplier
 
-$makeMultiplier(3) :> $triple
-$makeMultiplier(10) :> $tenX
+$makeMultiplier(3) => $triple
+$makeMultiplier(10) => $tenX
 
 $triple(5)    # 15
 $tenX(5)      # 50
@@ -361,9 +361,9 @@ $tenX(5)      # 50
 ### Nested Late Binding
 
 ```rill
-1 :> $x
-|| { || { $x } } :> $outer
-5 :> $x
+1 => $x
+|| { || { $x } } => $outer
+5 => $x
 $outer()()    # 5 (inner closure sees updated $x)
 ```
 
@@ -372,8 +372,8 @@ $outer()()    # 5 (inner closure sees updated $x)
 Closure parameters shadow captured variables of the same name:
 
 ```rill
-100 :> $x
-|x| { $x * 2 } :> $double
+100 => $x
+|x| { $x * 2 } => $double
 $double(5)    # 10 (parameter $x=5 shadows captured $x=100)
 ```
 
@@ -386,9 +386,9 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 ```rill
 # Capture $ into named variable for each iteration
 [1, 2, 3] -> each {
-  $ :> $item
+  $ => $item
   || { $item }
-} :> $closures
+} => $closures
 
 [$closures[0](), $closures[1](), $closures[2]()]    # [1, 2, 3]
 ```
@@ -398,9 +398,9 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 ### Conditional Branch Closures
 
 ```rill
-10 :> $x
-true ? { || { $x } } ! { || { 0 } } :> $fn
-20 :> $x
+10 => $x
+true ? { || { $x } } ! { || { 0 } } => $fn
+20 => $x
 $fn()    # 20 (late binding sees updated $x)
 ```
 
@@ -409,20 +409,20 @@ $fn()    # 20 (late binding sees updated $x)
 ### Direct Call
 
 ```rill
-|x| { $x + 1 } :> $inc
+|x| { $x + 1 } => $inc
 $inc(5)    # 6
 
-{ $ + 1 } :> $inc
+{ $ + 1 } => $inc
 $inc(5)    # 6 (block-closure)
 ```
 
 ### Pipe Call
 
 ```rill
-|x| { $x + 1 } :> $inc
+|x| { $x + 1 } => $inc
 5 -> $inc()    # 6
 
-{ $ + 1 } :> $inc
+{ $ + 1 } => $inc
 5 -> $inc      # 6 (block-closure, no parens needed)
 ```
 
@@ -433,20 +433,20 @@ Block-closures work seamlessly with pipe syntax since `$` receives the piped val
 Call closures from bracket access or expressions:
 
 ```rill
-[|x| { $x * 2 }] :> $fns
+[|x| { $x * 2 }] => $fns
 $fns[0](5)    # 10
 
-[{ $ * 2 }] :> $fns
+[{ $ * 2 }] => $fns
 $fns[0](5)    # 10 (block-closure)
 
-|| { |n| { $n * 2 } } :> $factory
+|| { |n| { $n * 2 } } => $factory
 $factory()(5)    # 10 (chained invocation)
 ```
 
 ### Method Access After Bracket (Requires Grouping)
 
 ```rill
-["hello", "world"] :> $list
+["hello", "world"] => $list
 
 # Use grouping to call method on bracket result
 ($list[0]).upper    # "HELLO"
@@ -464,7 +464,7 @@ Closures expose parameter metadata via the `.params` property. This enables runt
 ### Basic Usage
 
 ```rill
-|x, y| { $x + $y } :> $add
+|x, y| { $x + $y } => $add
 $add.params
 # [
 #   x: [type: ""],
@@ -475,7 +475,7 @@ $add.params
 ### Typed Parameters
 
 ```rill
-|name: string, age: number| { "{$name}: {$age}" } :> $format
+|name: string, age: number| { "{$name}: {$age}" } => $format
 $format.params
 # [
 #   name: [type: "string"],
@@ -488,7 +488,7 @@ $format.params
 Block-closures have an implicit `$` parameter:
 
 ```rill
-{ $ * 2 } :> $double
+{ $ * 2 } => $double
 $double.params
 # [
 #   $: [type: ""]
@@ -498,7 +498,7 @@ $double.params
 ### Zero-Parameter Closures
 
 ```rill
-|| { 42 } :> $constant
+|| { 42 } => $constant
 $constant.params
 # []
 ```
@@ -509,11 +509,11 @@ $constant.params
 
 ```rill
 |fn| {
-  $fn.params -> .keys -> .len :> $count
+  $fn.params -> .keys -> .len => $count
   "Function has {$count} parameter(s)"
-} :> $describe
+} => $describe
 
-|x, y| { $x + $y } :> $add
+|x, y| { $x + $y } => $add
 $describe($add)    # "Function has 2 parameter(s)"
 ```
 
@@ -524,9 +524,9 @@ $describe($add)    # "Function has 2 parameter(s)"
   $fn.params -> .entries -> each {
     $[1].type -> .empty ? "Missing type annotation: {$[0]}" ! ""
   } -> filter { !$ -> .empty }
-} :> $checkTypes
+} => $checkTypes
 
-|x, y: number| { $x + $y } :> $partial
+|x, y: number| { $x + $y } => $partial
 $checkTypes($partial)    # ["Missing type annotation: x"]
 ```
 
@@ -549,9 +549,9 @@ Parameter annotations appear in a specific order:
 4. Default value with `=` (optional)
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) :> $validate
-|name: string ^(required: true) = "guest"|($name) :> $greet
-|count ^(cache: true) = 0|($count) :> $process
+|x: number ^(min: 0, max: 100)|($x) => $validate
+|name: string ^(required: true) = "guest"|($name) => $greet
+|count ^(cache: true) = 0|($count) => $process
 ```
 
 ### Access Pattern
@@ -559,7 +559,7 @@ Parameter annotations appear in a specific order:
 Parameter annotations are accessed via `.params.paramName.__annotations.key`:
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) :> $fn
+|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -578,7 +578,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 Use parameter annotations to specify constraints:
 
 ```rill
-|value: number ^(min: 0, max: 100)|($value) :> $bounded
+|value: number ^(min: 0, max: 100)|($value) => $bounded
 
 $bounded.params.value.__annotations.min  # 0
 $bounded.params.value.__annotations.max  # 100
@@ -594,9 +594,9 @@ $bounded.params.value.__annotations.max  # 100
     ($arg > $meta.__annotations.max) ? "Value {$arg} above max {$meta.__annotations.max}" !
     ""
   } ! ""
-} :> $validate
+} => $validate
 
-|x: number ^(min: 0, max: 10)|($x) :> $ranged
+|x: number ^(min: 0, max: 10)|($x) => $ranged
 $validate($ranged, 15)  # "Value 15 above max 10"
 ```
 
@@ -605,7 +605,7 @@ $validate($ranged, 15)  # "Value 15 above max 10"
 Mark parameters that should trigger caching behavior:
 
 ```rill
-|key: string ^(cache: true)|($key) :> $fetch
+|key: string ^(cache: true)|($key) => $fetch
 
 $fetch.params.key.__annotations.cache  # true
 ```
@@ -615,7 +615,7 @@ $fetch.params.key.__annotations.cache  # true
 Attach formatting metadata to parameters:
 
 ```rill
-|timestamp: string ^(format: "ISO8601")|($timestamp) :> $formatDate
+|timestamp: string ^(format: "ISO8601")|($timestamp) => $formatDate
 
 $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 ```
@@ -625,7 +625,7 @@ $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 Parameters can have multiple annotations:
 
 ```rill
-|email: string ^(required: true, pattern: ".*@.*", maxLength: 100)|($email) :> $validateEmail
+|email: string ^(required: true, pattern: ".*@.*", maxLength: 100)|($email) => $validateEmail
 
 $validateEmail.params.email.__annotations.required    # true
 $validateEmail.params.email.__annotations.pattern     # ".*@.*"
@@ -643,9 +643,9 @@ Use parameter annotations to drive runtime behavior:
       $[1].__annotations.?required ? "Parameter {$[0]} is required" ! ""
     } ! ""
   } -> filter { !$ -> .empty }
-} :> $getRequiredParams
+} => $getRequiredParams
 
-|x, y: string ^(required: true), z|($x) :> $fn
+|x, y: string ^(required: true), z|($x) => $fn
 $getRequiredParams($fn)  # ["Parameter y is required"]
 ```
 
@@ -654,7 +654,7 @@ $getRequiredParams($fn)  # ["Parameter y is required"]
 Use existence check `.?__annotations` to determine if a parameter has annotations:
 
 ```rill
-|x: number ^(min: 0), y: string|($x + $y) :> $fn
+|x: number ^(min: 0), y: string|($x + $y) => $fn
 
 $fn.params.x.?__annotations  # true
 $fn.params.y.?__annotations  # false
@@ -669,7 +669,7 @@ Closures support annotation reflection via `.^key` syntax. Annotations attach me
 ### Basic Annotation Access
 
 ```rill
-^(min: 0, max: 100) |x|($x) :> $fn
+^(min: 0, max: 100) |x|($x) => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
@@ -680,7 +680,7 @@ $fn.^max     # 100
 Annotations can hold any value type:
 
 ```rill
-^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) :> $fn
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -691,17 +691,17 @@ $fn.^config.endpoints[0] # "a"
 Use the default value operator for optional annotations:
 
 ```rill
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^timeout ?? 30  # 30 (uses default when annotation missing)
 
-^(timeout: 60) |x|($x) :> $withTimeout
+^(timeout: 60) |x|($x) => $withTimeout
 $withTimeout.^timeout ?? 30  # 60 (uses annotated value)
 ```
 
 ### Annotation-Driven Logic
 
 ```rill
-^(enabled: true) |x|($x) :> $processor
+^(enabled: true) |x|($x) => $processor
 
 $processor.^enabled ? "processing" ! "disabled"  # "processing"
 ```
@@ -711,8 +711,8 @@ $processor.^enabled ? "processing" ! "disabled"  # "processing"
 Annotation values are evaluated at closure creation:
 
 ```rill
-10 :> $base
-^(limit: $base * 10) |x|($x) :> $fn
+10 => $base
+^(limit: $base * 10) |x|($x) => $fn
 $fn.^limit  # 100
 ```
 
@@ -721,14 +721,14 @@ $fn.^limit  # 100
 **Undefined Annotation Key:**
 
 ```rill
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^missing   # Error: RUNTIME_UNDEFINED_ANNOTATION
 ```
 
 **Non-Closure Type:**
 
 ```text
-"hello" :> $str
+"hello" => $str
 $str.^key      # Error: RUNTIME_TYPE_ERROR
 ```
 
@@ -741,21 +741,21 @@ All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ER
 Undefined variables throw an error at call time (rill has no null):
 
 ```text
-|| { $undefined } :> $fn
+|| { $undefined } => $fn
 $fn()    # Error: Undefined variable: $undefined
 ```
 
 ### Invoking Non-Callable
 
 ```rill
-[1, 2, 3] :> $list
+[1, 2, 3] => $list
 $list[0]()    # Error: Cannot invoke non-callable value (got number)
 ```
 
 ### Type Errors
 
 ```rill
-|x: string| { $x } :> $fn
+|x: string| { $x } => $fn
 $fn(42)    # Error: Parameter type mismatch: x expects string, got number
 ```
 

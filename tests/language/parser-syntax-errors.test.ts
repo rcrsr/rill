@@ -258,4 +258,54 @@ describe('Parser Syntax Errors', () => {
       expect(ast4.type).toBe('Script');
     });
   });
+
+  describe('Capture arrow migration errors', () => {
+    it('rejects :> in expression context with RILL-P006 (EC-3, AC-7)', () => {
+      const source = 'x :> y';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.message).toContain('capture arrow syntax changed');
+        expect(parseErr.message).toContain(':> to =>');
+      }
+    });
+
+    it('rejects => in slice context with RILL-P006 (EC-4, AC-8)', () => {
+      // Slice syntax: /<start:stop:step>
+      // /<:=> is invalid because => (capture arrow) cannot appear in slice after :
+      const source = '"test" -> /<:=>';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.message).toContain('slice context');
+      }
+    });
+
+    it('rejects :> in pipe chain with migration error (AC-9)', () => {
+      const source = 'result :> $val -> .upper';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.message).toContain('capture arrow syntax changed');
+      }
+    });
+  });
 });

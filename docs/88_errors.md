@@ -300,7 +300,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ```rill
 # Error: Function expects string, got number
-|name: string|("Hello, {$name}") :> $greet
+|name: string|("Hello, {$name}") => $greet
 42 -> $greet()
 
 # Fixed: Pass string argument
@@ -406,11 +406,11 @@ repeat("hello", 3)
 $user.name
 
 # Fixed: Assign before use
-[name: "Alice"] :> $user
+[name: "Alice"] => $user
 $user.name
 
 # Error: Misspelled variable
-"test" :> $value
+"test" => $value
 $valu  # typo
 
 # Fixed: Correct spelling
@@ -484,15 +484,15 @@ range(1, 5)
 
 ```rill
 # Error: Annotation 'timeout' not defined
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^timeout
 
 # Fixed: Define annotation on closure
-^(timeout: 30) |x|($x) :> $fn
+^(timeout: 30) |x|($x) => $fn
 $fn.^timeout
 
 # Fixed: Use default for optional annotation
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^timeout ?? 30
 ```
 
@@ -510,7 +510,7 @@ $fn.^timeout ?? 30
 
 ```rill
 # Error: Property 'email' not found
-[name: "Alice", age: 30] :> $user
+[name: "Alice", age: 30] => $user
 $user.email
 
 # Fixed: Use default value operator
@@ -664,18 +664,18 @@ process_data("bad-input") ->
 
 ```rill
 # Error: Assertion failed
-5 :> $x
+5 => $x
 assert ($x > 10)
 
 # Fixed: Satisfy assertion condition
-15 :> $x
+15 => $x
 assert ($x > 10)
 
 # Error: Assertion with message
 assert ($x > 10) "Value must be greater than 10"
 
 # Fixed: Provide valid value
-20 :> $x
+20 => $x
 assert ($x > 10) "Value must be greater than 10"
 ```
 
@@ -819,15 +819,15 @@ Prevent runtime errors with existence and type checks:
 
 ```rill
 # Check variable existence before use
-[apiKey: "secret123"] :> $config
+[apiKey: "secret123"] => $config
 $config.?apiKey ? $config.apiKey ! "default-key"
 
 # Check type before method call
-"test" :> $value
+"test" => $value
 $value :? string ? ($value -> .upper) ! $value
 
 # Validate before conversion
-"42" :> $input
+"42" => $input
 $input -> .is_match("^[0-9]+$") ? (.num) ! 0
 ```
 
@@ -837,15 +837,15 @@ Provide fallbacks for missing properties:
 
 ```rill
 # Field with default
-[name: "Alice", age: 30] :> $user
+[name: "Alice", age: 30] => $user
 $user.email ?? "no-email@example.com"
 
 # Annotation with default
-|x|($x) :> $fn
+|x|($x) => $fn
 $fn.^timeout ?? 30
 
 # Dict dispatch with default
-[a: 1, b: 2, c: 3] :> $lookup
+[a: 1, b: 2, c: 3] => $lookup
 "b" -> $lookup ?? "not found"
 ```
 
@@ -855,15 +855,15 @@ Explicitly verify and convert types:
 
 ```rill
 # Assert type before operation
-"  hello  " :> $input
+"  hello  " => $input
 $input:string -> .trim
 
 # Check type before calling method
-[1, 2, 3] :> $items
+[1, 2, 3] => $items
 $items :? list ? ($items -> .len) ! 0
 
 # Convert with validation
-"42" :> $value
+"42" => $value
 $value -> .str -> .is_match("^[0-9]+$") ? (.num:number) ! 0
 ```
 
