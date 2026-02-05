@@ -164,6 +164,8 @@ export interface RuntimeOptions {
   autoExceptions?: string[];
   /** AbortSignal for cancellation support */
   signal?: AbortSignal;
+  /** Require descriptions for all functions and parameters */
+  requireDescriptions?: boolean;
 }
 
 /** Result of script execution */

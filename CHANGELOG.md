@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Function Metadata Enhancement** — Return type declarations and documentation validation for host functions
+  - `returnType` field on `HostFunctionDefinition`: `'string' | 'number' | 'bool' | 'list' | 'dict' | 'any'`
+  - Defaults to `'any'` when omitted; validated at registration time
+  - Invalid return types throw `Error` with descriptive message
+  - `requireDescriptions` option in `RuntimeOptions` enforces documentation at registration
+  - Missing function description throws: `Function 'name' requires description`
+  - Missing parameter description throws: `Parameter 'x' of function 'name' requires description`
+  - `getDocumentationCoverage(ctx)` returns `{ total, documented, percentage }` metrics
+  - Function documented when: non-empty description AND all params have non-empty descriptions
+  - Empty context returns `{ total: 0, documented: 0, percentage: 100 }`
+  - `FunctionMetadata.returnType` field added to introspection API
+  - New type exported: `RillFunctionReturnType`
+
 ### Changed
 
 - **Error handling coverage** — Unified error system using RILL-XXXX identifiers

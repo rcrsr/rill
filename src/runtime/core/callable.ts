@@ -66,6 +66,18 @@ export interface CallableParam {
 }
 
 /**
+ * Return type declaration for host-provided functions.
+ * Limited to 5 primitive types plus 'any' (default).
+ */
+export type RillFunctionReturnType =
+  | 'string'
+  | 'number'
+  | 'bool'
+  | 'list'
+  | 'dict'
+  | 'any';
+
+/**
  * Parameter metadata for host-provided functions.
  *
  * Parameters without defaultValue are required.
@@ -99,6 +111,9 @@ export interface HostFunctionDefinition {
 
   /** Human-readable function description (optional) */
   readonly description?: string;
+
+  /** Declared return type (default: 'any') */
+  readonly returnType?: RillFunctionReturnType;
 }
 
 /** Common fields for all callable types */
@@ -145,6 +160,8 @@ export interface ApplicationCallable extends CallableBase {
   readonly fn: CallableFn;
   /** Human-readable function description (optional, from host functions) */
   readonly description?: string;
+  /** Return type declaration (optional, from host functions) */
+  readonly returnType?: RillFunctionReturnType;
 }
 
 /** Union of all callable types */
@@ -327,6 +344,36 @@ export function validateDefaultValueType(
   if (actualType !== expectedType) {
     throw new Error(
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
+    );
+  }
+}
+
+/**
+ * Validate returnType is a valid RillFunctionReturnType literal.
+ *
+ * Called at registration time to catch configuration errors early.
+ * Throws Error (not RuntimeError) to indicate registration failure.
+ *
+ * @param returnType - Return type value to validate
+ * @param functionName - Function name for error messages
+ * @throws Error if returnType is not a valid literal
+ */
+export function validateReturnType(
+  returnType: unknown,
+  functionName: string
+): void {
+  const validTypes: readonly RillFunctionReturnType[] = [
+    'string',
+    'number',
+    'bool',
+    'list',
+    'dict',
+    'any',
+  ] as const;
+
+  if (!validTypes.includes(returnType as RillFunctionReturnType)) {
+    throw new Error(
+      `Invalid returnType for function '${functionName}': expected one of string, number, bool, list, dict, any`
     );
   }
 }

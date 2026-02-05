@@ -21,6 +21,8 @@ export interface FunctionMetadata {
   readonly description: string;
   /** Parameter metadata in declaration order */
   readonly params: readonly ParamMetadata[];
+  /** Return type (default: 'any' for unspecified) */
+  readonly returnType: string;
 }
 
 /**
@@ -81,6 +83,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             name,
             description: callable.description ?? '',
             params,
+            returnType: callable.returnType ?? 'any',
           });
         } else {
           // ApplicationCallable without params (untyped)
@@ -88,6 +91,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             name,
             description: callable.description ?? '',
             params: [],
+            returnType: 'any',
           });
         }
       } else {
@@ -96,6 +100,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           name,
           description: '',
           params: [],
+          returnType: 'any',
         });
       }
     } catch {
@@ -129,6 +134,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           name,
           description,
           params,
+          returnType: 'any',
         });
       }
     } catch {
@@ -139,6 +145,71 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 
   // Combine in specified order: host, built-ins, script closures
   return [...hostFunctions, ...builtinFunctions, ...result];
+}
+
+/**
+ * Documentation coverage metrics for runtime context.
+ * Used to assess quality of function documentation.
+ */
+export interface DocumentationCoverageResult {
+  /** Total function count */
+  readonly total: number;
+  /** Functions with complete documentation */
+  readonly documented: number;
+  /** Percentage (0-100), rounded to 2 decimal places */
+  readonly percentage: number;
+}
+
+/**
+ * Analyze documentation coverage of functions in runtime context.
+ *
+ * Counts function as documented when:
+ * - Has non-empty description string (after trim)
+ * - All parameters have non-empty description string (after trim)
+ *
+ * Script closures with `^(doc: "...")` annotation count as having description.
+ * Whitespace-only descriptions count as undocumented.
+ * Empty context returns `{ total: 0, documented: 0, percentage: 100 }`.
+ *
+ * @param ctx Runtime context
+ * @returns Documentation coverage metrics
+ */
+export function getDocumentationCoverage(
+  ctx: RuntimeContext
+): DocumentationCoverageResult {
+  // Get all functions using existing getFunctions helper
+  const functions = getFunctions(ctx);
+
+  // Handle empty context (AC-11)
+  if (functions.length === 0) {
+    return { total: 0, documented: 0, percentage: 100 };
+  }
+
+  // Count documented functions
+  let documented = 0;
+  for (const fn of functions) {
+    // Function is documented when:
+    // 1. Has non-empty description (after trim)
+    // 2. All params have non-empty description (after trim)
+    const hasDescription = fn.description.trim().length > 0;
+    const allParamsDocumented = fn.params.every(
+      (p) => p.description.trim().length > 0
+    );
+
+    // AC-13: Function with 0 params and description counts as documented
+    if (hasDescription && allParamsDocumented) {
+      documented++;
+    }
+  }
+
+  // Calculate percentage with spec formula
+  const percentage = Math.round((documented / functions.length) * 10000) / 100;
+
+  return {
+    total: functions.length,
+    documented,
+    percentage,
+  };
 }
 
 /**

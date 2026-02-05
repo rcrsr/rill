@@ -41,6 +41,7 @@ The `createRuntimeContext()` function accepts these options:
 | `timeout` | `number` | Timeout in ms for async functions |
 | `autoExceptions` | `string[]` | Regex patterns that halt execution |
 | `signal` | `AbortSignal` | Cancellation signal |
+| `requireDescriptions` | `boolean` | Require descriptions for all functions and parameters |
 
 ## Host Function Contract
 
@@ -309,14 +310,41 @@ Error details include:
 interface HostFunctionDefinition {
   params: HostFunctionParam[];
   fn: CallableFn;
+  description?: string;                              // Human-readable function description
+  returnType?: 'string' | 'number' | 'bool' | 'list' | 'dict' | 'any';  // Default: 'any'
 }
 
 interface HostFunctionParam {
   name: string;
   type: 'string' | 'number' | 'bool' | 'list' | 'dict';
   defaultValue?: RillValue;
+  description?: string;                              // Human-readable parameter description
 }
 ```
+
+### Documentation Validation
+
+Enable `requireDescriptions` to enforce documentation at registration time:
+
+```typescript
+const ctx = createRuntimeContext({
+  requireDescriptions: true,
+  functions: {
+    greet: {
+      params: [
+        { name: 'name', type: 'string', description: 'Person to greet' },
+      ],
+      description: 'Generate a greeting message',
+      returnType: 'string',
+      fn: (args) => `Hello, ${args[0]}!`,
+    },
+  },
+});
+```
+
+Missing descriptions throw clear errors:
+- Function: `Function 'name' requires description (requireDescriptions enabled)`
+- Parameter: `Parameter 'x' of function 'name' requires description (requireDescriptions enabled)`
 
 ## Application Callables
 
@@ -713,6 +741,37 @@ if (!checkCompatibility()) {
 }
 ```
 
+### getDocumentationCoverage()
+
+Analyze documentation coverage of functions in a runtime context:
+
+```typescript
+import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
+
+const ctx = createRuntimeContext({
+  functions: {
+    documented: {
+      params: [{ name: 'x', type: 'string', description: 'Input value' }],
+      description: 'A documented function',
+      fn: (args) => args[0],
+    },
+    undocumented: {
+      params: [{ name: 'x', type: 'string' }],
+      fn: (args) => args[0],
+    },
+  },
+});
+
+const result = getDocumentationCoverage(ctx);
+// { total: 2, documented: 1, percentage: 50 }
+```
+
+A function counts as documented when:
+- Has non-empty description (after trim)
+- All parameters have non-empty descriptions (after trim)
+
+Empty context returns `{ total: 0, documented: 0, percentage: 100 }`.
+
 ### Introspection Types
 
 ```typescript
@@ -720,6 +779,7 @@ interface FunctionMetadata {
   readonly name: string;        // Function name (e.g., "math::add")
   readonly description: string; // Human-readable description
   readonly params: readonly ParamMetadata[];
+  readonly returnType: string;  // Return type (default: 'any')
 }
 
 interface ParamMetadata {
@@ -727,6 +787,12 @@ interface ParamMetadata {
   readonly type: string;                    // Type constraint (e.g., "string")
   readonly description: string;             // Parameter description
   readonly defaultValue: RillValue | undefined; // Default if optional
+}
+
+interface DocumentationCoverageResult {
+  readonly total: number;       // Total function count
+  readonly documented: number;  // Functions with complete documentation
+  readonly percentage: number;  // Percentage (0-100), rounded to 2 decimals
 }
 
 interface VersionInfo {
@@ -951,15 +1017,15 @@ export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicatio
 export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
 
 // Host function types
-export type { HostFunctionDefinition, HostFunctionParam };
+export type { HostFunctionDefinition, HostFunctionParam, RillFunctionReturnType };
 export { validateHostFunctionArgs };
 
 // Value types
 export type { RillValue, RillArgs };
 
 // Introspection
-export { getFunctions, getLanguageReference };
-export type { FunctionMetadata, ParamMetadata };
+export { getFunctions, getLanguageReference, getDocumentationCoverage };
+export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult };
 
 // Version information
 export { VERSION, VERSION_INFO };

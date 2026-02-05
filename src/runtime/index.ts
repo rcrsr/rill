@@ -48,6 +48,7 @@ export type {
   HostFunctionDefinition,
   HostFunctionParam,
   RillCallable,
+  RillFunctionReturnType,
   RuntimeCallable,
   ScriptCallable,
 } from './core/callable.js';
@@ -60,6 +61,7 @@ export {
   isRuntimeCallable,
   isScriptCallable,
   validateHostFunctionArgs,
+  validateReturnType,
 } from './core/callable.js';
 
 // ============================================================
@@ -106,9 +108,17 @@ export { createStepper, execute } from './core/execute.js';
 // INTROSPECTION API
 // ============================================================
 
-export type { FunctionMetadata, ParamMetadata } from './core/introspection.js';
+export type {
+  DocumentationCoverageResult,
+  FunctionMetadata,
+  ParamMetadata,
+} from './core/introspection.js';
 
-export { getFunctions, getLanguageReference } from './core/introspection.js';
+export {
+  getDocumentationCoverage,
+  getFunctions,
+  getLanguageReference,
+} from './core/introspection.js';
 
 export type { VersionInfo } from '../generated/version-data.js';
 

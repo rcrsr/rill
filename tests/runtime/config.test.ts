@@ -204,4 +204,616 @@ describe('Rill Runtime: Configuration', () => {
       ).rejects.toThrow(TimeoutError);
     });
   });
+
+  describe('requireDescriptions', () => {
+    it('accepts requireDescriptions in RuntimeOptions', () => {
+      const testFn = {
+        params: [
+          {
+            name: 'input',
+            type: 'string' as const,
+            description: 'Test input',
+          },
+        ],
+        fn: (): string => 'result',
+        description: 'Test function',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+          requireDescriptions: true,
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts requireDescriptions: false', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+          requireDescriptions: false,
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts requireDescriptions: undefined (default)', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    describe('EC-2: Function missing description', () => {
+      it('throws Error when function has no description and requireDescriptions is true', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: 'Test input',
+            },
+          ],
+          fn: (): string => 'result',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { myFunction: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Function 'myFunction' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when function has undefined description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: 'Test input',
+            },
+          ],
+          fn: (): string => 'result',
+          description: undefined,
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Function 'testFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when function has whitespace-only description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: 'Test input',
+            },
+          ],
+          fn: (): string => 'result',
+          description: '   ',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { blankDesc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Function 'blankDesc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when function has empty string description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: 'Test input',
+            },
+          ],
+          fn: (): string => 'result',
+          description: '',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { emptyDesc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Function 'emptyDesc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('allows undocumented function when requireDescriptions is false', () => {
+        const testFn = {
+          params: [{ name: 'input', type: 'string' as const }],
+          fn: (): string => 'result',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFn },
+            requireDescriptions: false,
+          })
+        ).not.toThrow();
+      });
+
+      it('allows undocumented function when requireDescriptions is undefined', () => {
+        const testFn = {
+          params: [{ name: 'input', type: 'string' as const }],
+          fn: (): string => 'result',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFn },
+          })
+        ).not.toThrow();
+      });
+    });
+
+    describe('EC-3: Parameter missing description', () => {
+      it('throws Error when parameter has no description and requireDescriptions is true', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'undocumented',
+              type: 'string' as const,
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { myFunction: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'undocumented' of function 'myFunction' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when parameter has undefined description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'myParam',
+              type: 'string' as const,
+              description: undefined,
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'myParam' of function 'testFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when parameter has whitespace-only description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'blankParam',
+              type: 'string' as const,
+              description: '  \t  ',
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { myFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'blankParam' of function 'myFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error when parameter has empty string description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'emptyParam',
+              type: 'string' as const,
+              description: '',
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'emptyParam' of function 'testFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('throws Error for first undocumented parameter in multi-parameter function', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'documented',
+              type: 'string' as const,
+              description: 'First param',
+            },
+            {
+              name: 'undocumented',
+              type: 'number' as const,
+            },
+            {
+              name: 'alsoDocumented',
+              type: 'bool' as const,
+              description: 'Third param',
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { multiParam: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'undocumented' of function 'multiParam' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('allows undocumented parameters when requireDescriptions is false', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'undocumented',
+              type: 'string' as const,
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFn },
+            requireDescriptions: false,
+          })
+        ).not.toThrow();
+      });
+
+      it('allows undocumented parameters when requireDescriptions is undefined', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'undocumented',
+              type: 'string' as const,
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFn },
+          })
+        ).not.toThrow();
+      });
+    });
+
+    describe('IC-3: Whitespace-only strings count as undocumented', () => {
+      it('rejects function with tab-only description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: 'Valid param description',
+            },
+          ],
+          fn: (): string => 'result',
+          description: '\t\t',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Function 'testFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('rejects parameter with newline-only description', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: '\n\n',
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Valid function description',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).toThrow(
+          "Parameter 'input' of function 'testFunc' requires description (requireDescriptions enabled)"
+        );
+      });
+
+      it('accepts description with content after trimming', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'input',
+              type: 'string' as const,
+              description: '  Valid description  ',
+            },
+          ],
+          fn: (): string => 'result',
+          description: '  Valid function description  ',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { testFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).not.toThrow();
+      });
+    });
+
+    describe('Combined validation', () => {
+      it('validates both function and all parameters when requireDescriptions is true', () => {
+        const testFn = {
+          params: [
+            {
+              name: 'param1',
+              type: 'string' as const,
+              description: 'First parameter',
+            },
+            {
+              name: 'param2',
+              type: 'number' as const,
+              description: 'Second parameter',
+            },
+          ],
+          fn: (): string => 'result',
+          description: 'Test function with documentation',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { validFunc: testFn },
+            requireDescriptions: true,
+          })
+        ).not.toThrow();
+      });
+
+      it('accepts functions with no parameters when requireDescriptions is true', () => {
+        const testFn = {
+          params: [],
+          fn: (): string => 'result',
+          description: 'Function with no parameters',
+        };
+
+        expect(() =>
+          createRuntimeContext({
+            functions: { noParams: testFn },
+            requireDescriptions: true,
+          })
+        ).not.toThrow();
+      });
+    });
+  });
+
+  describe('Return Type Validation (IC-3)', () => {
+    it('accepts valid returnType "string" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+        returnType: 'string' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts valid returnType "number" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): number => 42,
+        returnType: 'number' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts valid returnType "bool" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): boolean => true,
+        returnType: 'bool' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts valid returnType "list" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string[] => [],
+        returnType: 'list' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts valid returnType "dict" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): Record<string, unknown> => ({}),
+        returnType: 'dict' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts valid returnType "any" during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): unknown => 'anything',
+        returnType: 'any' as const,
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('accepts function without returnType (defaults to any)', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).not.toThrow();
+    });
+
+    it('throws Error for invalid returnType during registration', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+        returnType: 'void' as unknown as 'string',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { testFn },
+        })
+      ).toThrow(
+        "Invalid returnType for function 'testFn': expected one of string, number, bool, list, dict, any"
+      );
+    });
+
+    it('throws Error for invalid returnType "object"', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+        returnType: 'object' as unknown as 'string',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { badFn: testFn },
+        })
+      ).toThrow(
+        "Invalid returnType for function 'badFn': expected one of string, number, bool, list, dict, any"
+      );
+    });
+
+    it('validates returnType before storing callable', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+        returnType: 'invalid' as unknown as 'string',
+      };
+
+      let contextCreated = false;
+      try {
+        const ctx = createRuntimeContext({
+          functions: { testFn },
+        });
+        contextCreated = true;
+        expect(ctx.functions.has('testFn')).toBe(false);
+      } catch (err) {
+        expect(contextCreated).toBe(false);
+        expect(err).toBeInstanceOf(Error);
+        expect((err as Error).message).toContain('Invalid returnType');
+      }
+    });
+
+    it('includes function name in error message', () => {
+      const testFn = {
+        params: [{ name: 'input', type: 'string' as const }],
+        fn: (): string => 'result',
+        returnType: 'invalid' as unknown as 'string',
+      };
+
+      expect(() =>
+        createRuntimeContext({
+          functions: { myCustomFunction: testFn },
+        })
+      ).toThrow('myCustomFunction');
+    });
+  });
 });

@@ -18,6 +18,7 @@ import { formatValue, inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
+  validateReturnType,
   type CallableParam,
 } from './callable.js';
 
@@ -65,11 +66,43 @@ export function createRuntimeContext(
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
       // All functions must be HostFunctionDefinition with params
-      const { params, fn, description } = definition;
+      const { params, fn, description, returnType } = definition;
+
+      // Validate return type at registration time (IR-1)
+      if (returnType !== undefined) {
+        validateReturnType(returnType, name);
+      }
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {
         validateDefaultValueType(param, name);
+      }
+
+      // Validate descriptions when requireDescriptions enabled (IR-3)
+      if (options.requireDescriptions === true) {
+        // Check function description (EC-2)
+        if (
+          description === undefined ||
+          typeof description !== 'string' ||
+          description.trim().length === 0
+        ) {
+          throw new Error(
+            `Function '${name}' requires description (requireDescriptions enabled)`
+          );
+        }
+
+        // Check parameter descriptions (EC-3)
+        for (const param of params) {
+          if (
+            param.description === undefined ||
+            typeof param.description !== 'string' ||
+            param.description.trim().length === 0
+          ) {
+            throw new Error(
+              `Parameter '${param.name}' of function '${name}' requires description (requireDescriptions enabled)`
+            );
+          }
+        }
       }
 
       // Convert HostFunctionParam[] to CallableParam[]
@@ -94,6 +127,13 @@ export function createRuntimeContext(
       };
       if (description !== undefined) {
         (typedCallable as { description?: string }).description = description;
+      }
+      if (returnType !== undefined) {
+        (
+          typedCallable as {
+            returnType?: import('./callable.js').RillFunctionReturnType;
+          }
+        ).returnType = returnType;
       }
 
       // Store ApplicationCallable for runtime validation
