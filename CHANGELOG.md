@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Error Reporting Enhancement** — Rich error feedback with call stacks, source snippets, LSP preparation, and contextual suggestions
+  - Call stacks show function names and line numbers for error origin tracking
+  - Source code snippets with caret indicators display problematic expressions
+  - LSP-compatible error data structure for IDE integration (`location`, `range`, `message`)
+  - Contextual suggestions provide actionable guidance for common errors
+  - Error codes map to documentation links via `getHelpUrl(code)`
+  - Two-phase error rendering: machine-readable data then human presentation
+  - Supports embedded line/column tracking for multi-line expressions
+  - Initiative: `error-reporting-enhancement` (phases 1-5 complete)
+
 - **Function Metadata Enhancement** — Return type declarations and documentation validation for host functions
   - `returnType` field on `HostFunctionDefinition`: `'string' | 'number' | 'bool' | 'list' | 'dict' | 'any'`
   - Defaults to `'any'` when omitted; validated at registration time
