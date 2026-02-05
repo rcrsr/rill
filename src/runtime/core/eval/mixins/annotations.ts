@@ -23,7 +23,7 @@ import type {
   NamedArgNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -141,14 +141,14 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else if (Array.isArray(spreadValue)) {
             // Tuple/list: not valid for annotations (need named keys)
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Annotation spread requires dict with named keys, got list',
+              'RILL-R002',
+              'Annotation spread requires dict with named keys, got list',
               spreadArg.span.start
             );
           } else {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R002: Annotation spread requires dict, got ${typeof spreadValue}`,
+              'RILL-R002',
+              `Annotation spread requires dict, got ${typeof spreadValue}`,
               spreadArg.span.start
             );
           }

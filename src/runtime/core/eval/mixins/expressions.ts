@@ -24,7 +24,7 @@ import type {
   GroupedExprNode,
   ArithHead,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType, isTruthy, deepEquals } from '../../values.js';
 import { createChildContext } from '../../context.js';
@@ -142,8 +142,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const resolvedLeft = await this.resolveExpressionValue(rawLeft);
       if (typeof resolvedLeft !== 'number') {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Arithmetic requires number, got ${inferType(resolvedLeft)}`,
+          'RILL-R002',
+          `Arithmetic requires number, got ${inferType(resolvedLeft)}`,
           node.left.span.start
         );
       }
@@ -153,8 +153,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const resolvedRight = await this.resolveExpressionValue(rawRight);
       if (typeof resolvedRight !== 'number') {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Arithmetic requires number, got ${inferType(resolvedRight)}`,
+          'RILL-R002',
+          `Arithmetic requires number, got ${inferType(resolvedRight)}`,
           node.right.span.start
         );
       }
@@ -170,8 +170,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case '/':
           if (right === 0) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Division by zero',
+              'RILL-R002',
+              'Division by zero',
               node.span.start
             );
           }
@@ -179,8 +179,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case '%':
           if (right === 0) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Modulo by zero',
+              'RILL-R002',
+              'Modulo by zero',
               node.span.start
             );
           }
@@ -227,8 +227,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   : left >= right;
           }
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Cannot compare ${inferType(left)} with ${inferType(right)} using ${op}`,
+            'RILL-R002',
+            `Cannot compare ${inferType(left)} with ${inferType(right)} using ${op}`,
             node.span.start
           );
       }
@@ -244,7 +244,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const value = await this.resolveExpressionValue(rawValue);
         if (typeof value !== 'boolean') {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'RILL-R002',
             `Negation operator (!) requires boolean operand, got ${inferType(value)}`,
             node.span.start
           );
@@ -258,8 +258,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const inner = await this.evaluateUnaryExpr(operand);
         if (typeof inner !== 'number') {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Arithmetic requires number, got ${inferType(inner)}`,
+            'RILL-R002',
+            `Arithmetic requires number, got ${inferType(inner)}`,
             node.span.start
           );
         }
@@ -269,8 +269,8 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const value = await this.resolveExpressionValue(rawValue);
       if (typeof value !== 'number') {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Arithmetic requires number, got ${inferType(value)}`,
+          'RILL-R002',
+          `Arithmetic requires number, got ${inferType(value)}`,
           node.span.start
         );
       }

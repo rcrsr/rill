@@ -163,7 +163,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/List dispatch requires number index/i);
         }
       });
@@ -177,7 +179,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/got string/i);
         }
       });
@@ -194,7 +198,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/List dispatch.*index.*not found/i);
         }
       });
@@ -209,7 +213,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/List dispatch.*index.*not found/i);
         }
       });
@@ -223,7 +227,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/5/);
         }
       });
@@ -237,7 +241,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/List dispatch.*index.*not found/i);
         }
       });
@@ -254,7 +258,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/Dict dispatch.*key.*not found/i);
         }
       });
@@ -268,7 +272,7 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_PROPERTY_NOT_FOUND');
+          expect(err).toHaveProperty('errorId', 'RILL-R009');
           expect(err.message).toMatch(/notfound/i);
         }
       });
@@ -285,7 +289,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Cannot dispatch to/i);
         }
       });
@@ -300,7 +306,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Cannot dispatch to/i);
         }
       });
@@ -315,7 +323,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Cannot dispatch to/i);
         }
       });
@@ -329,7 +339,9 @@ describe('Unified Dispatch', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/number/i);
         }
       });
@@ -396,7 +408,7 @@ describe('Unified Dispatch', () => {
         expect.fail('Should have thrown');
       } catch (err) {
         // Error from closure body should propagate (RUNTIME_UNDEFINED_VARIABLE)
-        expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+        expect(err).toHaveProperty('errorId', 'RILL-R005');
         expect(err.message).toMatch(/undefined/i);
       }
     });
@@ -412,7 +424,7 @@ describe('Unified Dispatch', () => {
         expect.fail('Should have thrown');
       } catch (err) {
         // Error from closure body should propagate (RUNTIME_UNDEFINED_VARIABLE)
-        expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+        expect(err).toHaveProperty('errorId', 'RILL-R005');
         expect(err.message).toMatch(/undefined/i);
       }
     });

@@ -132,10 +132,9 @@ Parser.prototype.parseLoop = function (
   // While loop: cond @ body - condition is required
   if (!condition) {
     throw new ParseError(
+      'RILL-P004',
       "Bare '@' requires trailing condition: @ body ? cond (do-while)",
-      start,
-      undefined,
-      'RILL-P004'
+      start
     );
   }
 
@@ -192,12 +191,7 @@ Parser.prototype.parseBlock = function (this: Parser): BlockNode {
   }
 
   if (statements.length === 0) {
-    throw new ParseError(
-      'Empty blocks are not allowed',
-      start,
-      undefined,
-      'RILL-P004'
-    );
+    throw new ParseError('RILL-P004', 'Empty blocks are not allowed', start);
   }
 
   const rbrace = expect(this.state, TOKEN_TYPES.RBRACE, 'Expected }');
@@ -301,18 +295,16 @@ Parser.prototype.parseError = function (
     if (!atBoundary) {
       // Non-string, non-delimiter token after error - invalid token type
       throw new ParseError(
+        'RILL-P004',
         'error statement requires string message',
-        current(this.state).span.start,
-        undefined,
-        'RILL-P004'
+        current(this.state).span.start
       );
     } else if (requireMessage) {
       // At boundary but message required (statement form, not pipe target)
       throw new ParseError(
+        'RILL-P002',
         'Unexpected end of input, expected string',
-        start,
-        undefined,
-        'RILL-P002'
+        start
       );
     }
     // else: at statement boundary without message (valid pipe target form)

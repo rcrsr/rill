@@ -6,6 +6,7 @@
 import { isCallable, VERSION } from './runtime/index.js';
 import type { RillValue } from './runtime/index.js';
 import { ParseError, RuntimeError } from './types.js';
+import { LexerError } from './lexer/errors.js';
 
 /**
  * Convert execution result to human-readable string
@@ -30,6 +31,11 @@ export function formatOutput(value: RillValue): string {
  * @returns Formatted error message
  */
 export function formatError(err: Error): string {
+  if (err instanceof LexerError) {
+    const location = err.location;
+    return `Lexer error at line ${location.line}: ${err.message.replace(/ at \d+:\d+$/, '')}`;
+  }
+
   if (err instanceof ParseError) {
     const location = err.location;
     if (location) {
@@ -42,9 +48,9 @@ export function formatError(err: Error): string {
     const location = err.location;
     const baseMessage = err.message.replace(/ at \d+:\d+$/, '');
     if (location) {
-      return `Runtime error at line ${location.line}: ${baseMessage} (${err.code})`;
+      return `Runtime error at line ${location.line}: ${baseMessage}`;
     }
-    return `Runtime error: ${baseMessage} (${err.code})`;
+    return `Runtime error: ${baseMessage}`;
   }
 
   // Handle file not found errors (ENOENT)

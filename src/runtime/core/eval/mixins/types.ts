@@ -23,7 +23,7 @@ import type {
   RillTypeName,
   SourceLocation,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType, checkType } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -62,8 +62,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const actual = inferType(value);
       if (actual !== expected) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R004: Type assertion failed: expected ${expected}, got ${actual}`,
+          'RILL-R004',
+          `Type assertion failed: expected ${expected}, got ${actual}`,
           location,
           { expectedType: expected, actualType: actual }
         );
@@ -116,8 +116,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       if (!node.operand) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'RILL-R004: Postfix type assertion requires operand',
+          'RILL-R004',
+          'Postfix type assertion requires operand',
           node.span.start
         );
       }
@@ -133,8 +133,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     async evaluateTypeCheckPrimary(node: TypeCheckNode): Promise<boolean> {
       if (!node.operand) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'RILL-R004: Postfix type check requires operand',
+          'RILL-R004',
+          'Postfix type check requires operand',
           node.span.start
         );
       }

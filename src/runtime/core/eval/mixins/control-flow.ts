@@ -33,7 +33,7 @@ import type {
   AssertNode,
   ErrorNode,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType } from '../../values.js';
 import { createChildContext } from '../../context.js';
@@ -110,7 +110,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Condition must be boolean
         if (typeof conditionValue !== 'boolean') {
           throw RuntimeError.fromNode(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'RILL-R002',
             `Conditional expression must be boolean, got ${inferType(conditionValue)}`,
             node
           );
@@ -121,7 +121,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // The pipe value must be boolean
         if (typeof this.ctx.pipeValue !== 'boolean') {
           throw RuntimeError.fromNode(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+            'RILL-R002',
             `Piped conditional requires boolean, got ${inferType(this.ctx.pipeValue)}`,
             node
           );
@@ -193,7 +193,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Condition must be boolean
       if (typeof conditionValue !== 'boolean') {
         throw RuntimeError.fromNode(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R002',
           `While loop condition must be boolean, got ${typeof conditionValue}`,
           node
         );
@@ -209,8 +209,8 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           iterCount++;
           if (iterCount > maxIter) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_LIMIT_EXCEEDED,
-              `RILL-R010: While loop exceeded ${maxIter} iterations`,
+              'RILL-R010',
+              `While loop exceeded ${maxIter} iterations`,
               this.getNodeLocation(node),
               { limit: maxIter, iterations: iterCount }
             );
@@ -237,7 +237,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
           if (typeof nextCondition !== 'boolean') {
             throw RuntimeError.fromNode(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              'RILL-R002',
               `While loop condition must be boolean, got ${typeof nextCondition}`,
               node
             );
@@ -298,7 +298,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Condition must be boolean
           if (typeof conditionValue !== 'boolean') {
             throw RuntimeError.fromNode(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+              'RILL-R002',
               `Do-while condition must be boolean, got ${inferType(conditionValue)}`,
               node
             );
@@ -423,7 +423,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Condition must be boolean
       if (typeof conditionResult !== 'boolean') {
         throw RuntimeError.fromNode(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R002',
           `assert requires boolean condition, got ${inferType(conditionResult)}`,
           node
         );
@@ -442,11 +442,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           errorMessage = 'Assertion failed';
         }
 
-        throw RuntimeError.fromNode(
-          RILL_ERROR_CODES.RUNTIME_ASSERTION_FAILED,
-          errorMessage,
-          node
-        );
+        throw RuntimeError.fromNode('RILL-R015', errorMessage, node);
       }
 
       // Assertion passed, return original pipe value unchanged
@@ -486,7 +482,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else {
         // No message and no input - should not happen if parser is correct
         throw RuntimeError.fromNode(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R002',
           'error statement requires string message',
           node
         );
@@ -495,18 +491,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Message must be string
       if (typeof messageValue !== 'string') {
         throw RuntimeError.fromNode(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R002',
           `error statement requires string message, got ${inferType(messageValue)}`,
           node
         );
       }
 
       // Always throw with user-provided message
-      throw RuntimeError.fromNode(
-        RILL_ERROR_CODES.RUNTIME_ERROR_RAISED,
-        messageValue,
-        node
-      );
+      throw RuntimeError.fromNode('RILL-R016', messageValue, node);
     }
 
     /**

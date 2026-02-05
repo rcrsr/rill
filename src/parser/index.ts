@@ -76,6 +76,7 @@ export function parseWithRecovery(source: string): ParseResult {
         offset: 0,
       };
       const parseError = new ParseError(
+        'RILL-P001',
         err.message.replace(/ at line \d+, column \d+$/, ''),
         location
       );

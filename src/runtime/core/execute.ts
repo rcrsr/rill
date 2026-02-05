@@ -11,7 +11,7 @@ import type {
   ScriptNode,
   StatementNode,
 } from '../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../types.js';
+import { RuntimeError } from '../../types.js';
 import {
   executeStatement,
   checkAutoExceptions,
@@ -118,8 +118,8 @@ export function createStepper(
         // Check for RecoveryErrorNode from recovery mode parsing
         if (isRecoveryErrorNode(stmt)) {
           throw RuntimeError.fromNode(
-            RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
-            `RILL-P002: Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
+            'RILL-P002',
+            `Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
             stmt
           );
         }
@@ -192,8 +192,8 @@ export function createStepper(
       if (total === 0) {
         if (context.pipeValue === null) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-            'RILL-R005: Undefined variable: $',
+            'RILL-R005',
+            'Undefined variable: $',
             undefined,
             { variable: '$' }
           );

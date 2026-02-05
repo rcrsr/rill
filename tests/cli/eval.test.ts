@@ -71,7 +71,7 @@ describe('rill-eval', () => {
         await evaluateExpression('$missing');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
-        expect((err as RuntimeError).code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+        expect((err as RuntimeError).errorId).toBe('RILL-R005');
         expect((err as RuntimeError).location?.line).toBe(1);
       }
     });

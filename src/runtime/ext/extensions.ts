@@ -1,7 +1,6 @@
 import type { HostFunctionDefinition } from '../core/callable.js';
 import type { RuntimeContext, ExtensionEvent } from '../core/types.js';
 import { RuntimeError } from '../../types.js';
-import { RILL_ERROR_CODES } from '../../types.js';
 
 /**
  * Result object returned by extension factories.
@@ -41,8 +40,8 @@ export function prefixFunctions(
 
   if (!NAMESPACE_PATTERN.test(namespace)) {
     throw new RuntimeError(
-      RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-      `RILL-R004: Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`
+      'RILL-R004',
+      `Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`
     );
   }
 

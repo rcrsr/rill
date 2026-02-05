@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { EvaluatorBase } from '../../src/runtime/core/eval/base.js';
 import { AnnotationsMixin } from '../../src/runtime/core/eval/mixins/annotations.js';
 import { createRuntimeContext } from '../../src/runtime/index.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../src/types.js';
+import { RuntimeError } from '../../src/types.js';
 import type { StatementNode, AnnotatedStatementNode } from '../../src/types.js';
 import { run } from '../helpers/runtime.js';
 
@@ -164,11 +164,11 @@ describe('AnnotationsMixin', () => {
             fail: {
               params: [{ name: 'msg', type: 'string' }],
               fn: (args) => {
-                throw new RuntimeError(
-                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  String(args[0]),
-                  { line: 1, column: 1, offset: 0 }
-                );
+                throw new RuntimeError('RILL-R004', String(args[0]), {
+                  line: 1,
+                  column: 1,
+                  offset: 0,
+                });
               },
             },
           },
@@ -190,11 +190,11 @@ describe('AnnotationsMixin', () => {
             fail: {
               params: [],
               fn: () => {
-                throw new RuntimeError(
-                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  'Function failed',
-                  { line: 1, column: 1, offset: 0 }
-                );
+                throw new RuntimeError('RILL-R004', 'Function failed', {
+                  line: 1,
+                  column: 1,
+                  offset: 0,
+                });
               },
             },
           },
@@ -216,7 +216,7 @@ describe('AnnotationsMixin', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+        expect(runtimeErr.errorId).toBe('RILL-R006');
         expect(runtimeErr.location).toBeDefined();
       }
     });
@@ -267,7 +267,7 @@ describe('AnnotationsMixin', () => {
               params: [],
               fn: () => {
                 throw new RuntimeError(
-                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                  'RILL-R004',
                   'Annotation function failed',
                   { line: 1, column: 1, offset: 0 }
                 );
@@ -310,7 +310,7 @@ describe('AnnotationsMixin', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+        expect(runtimeErr.errorId).toBe('RILL-R006');
         expect(runtimeErr.location).toBeDefined();
       }
     });

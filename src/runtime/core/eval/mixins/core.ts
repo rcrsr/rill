@@ -29,7 +29,7 @@ import type {
   PipeTargetNode,
   SourceLocation,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { isTuple } from '../../values.js';
 import { isCallable, isDict } from '../../callable.js';
@@ -170,7 +170,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // evaluate and return the default value
         if (
           error instanceof RuntimeError &&
-          error.code === RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD &&
+          error.errorId === 'RILL-R007' &&
           expr.defaultValue !== null
         ) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,8 +230,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'MethodCall':
           if (this.ctx.pipeValue === null) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
-              'RILL-R005: Undefined variable: $',
+              'RILL-R005',
+              'Undefined variable: $',
               primary.span?.start,
               { variable: '$' }
             );
@@ -279,8 +279,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Postfix type assertion: the operand is already evaluated
           if (!primary.operand) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R004: Postfix type assertion requires operand',
+              'RILL-R004',
+              'Postfix type assertion requires operand',
               primary.span.start
             );
           }
@@ -293,8 +293,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Postfix type check: the operand is already evaluated
           if (!primary.operand) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R004: Postfix type check requires operand',
+              'RILL-R004',
+              'Postfix type check requires operand',
               primary.span.start
             );
           }
@@ -305,8 +305,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         default:
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R004: Unsupported expression type: ${(primary as { type: string }).type}`,
+            'RILL-R004',
+            `Unsupported expression type: ${(primary as { type: string }).type}`,
             this.getNodeLocation(primary)
           );
       }
@@ -575,8 +575,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 : 'dict'
               : typeof value;
           throw RuntimeError.fromNode(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Cannot dispatch to ${valueType}`,
+            'RILL-R002',
+            `Cannot dispatch to ${valueType}`,
             target
           );
         }
@@ -602,8 +602,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         default:
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R004: Unsupported pipe target type: ${(target as { type: string }).type}`,
+            'RILL-R004',
+            `Unsupported pipe target type: ${(target as { type: string }).type}`,
             this.getNodeLocation(target)
           );
       }
@@ -688,10 +688,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       } catch (error) {
         // Handle missing key/index errors with default value
-        if (
-          error instanceof RuntimeError &&
-          error.code === RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND
-        ) {
+        if (error instanceof RuntimeError && error.errorId === 'RILL-R009') {
           if (defaultExpr) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return await (this as any).evaluateExpression(defaultExpr);
@@ -798,8 +795,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const keyType = typeof key;
 
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R002: Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
+        'RILL-R002',
+        `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
         location,
         { currentType, keyType, key }
       );
@@ -833,8 +830,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (value.params[0]!.name !== '$') {
           // Parameterized closure at intermediate position: error per EC-8
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'RILL-R002: Cannot invoke parameterized closure at intermediate path position',
+            'RILL-R002',
+            'Cannot invoke parameterized closure at intermediate path position',
             location
           );
         }
@@ -878,8 +875,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (value.params[0]!.name !== '$') {
           // Parameterized closure at terminal position: error per EC-9
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            'RILL-R002: Dispatch does not provide arguments for parameterized closure',
+            'RILL-R002',
+            'Dispatch does not provide arguments for parameterized closure',
             location
           );
         }

@@ -89,10 +89,9 @@ Parser.prototype.makeVariableWithAccess = function (
     if (existenceCheck) {
       const token = current(this.state);
       throw new ParseError(
+        'RILL-P003',
         'Cannot combine existence check (.?field) with default value operator (??). Use one or the other.',
-        token.span.start,
-        undefined,
-        'RILL-P003'
+        token.span.start
       );
     }
     advance(this.state);

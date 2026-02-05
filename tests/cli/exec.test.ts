@@ -10,6 +10,7 @@ import {
   determineExitCode,
 } from '../../src/cli-shared.js';
 import { ParseError, RuntimeError, callable } from '../../src/index.js';
+import { LexerError } from '../../src/lexer/errors.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -132,23 +133,100 @@ describe('rill-exec', () => {
   });
 
   describe('formatError', () => {
+    it('formats lexer error with location', () => {
+      const err = new LexerError('RILL-L001', 'Unterminated string', {
+        line: 2,
+        column: 15,
+        offset: 30,
+      });
+      const formatted = formatError(err);
+      expect(formatted).toBe('Lexer error at line 2: Unterminated string');
+      expect(formatted).not.toContain('RILL-L001');
+    });
+
     it('formats parse error with location', () => {
-      const err = new ParseError('Unexpected', {
+      const err = new ParseError('RILL-P001', 'Unexpected token', {
         line: 5,
         column: 10,
         offset: 50,
       });
-      expect(formatError(err)).toContain('line 5');
+      const formatted = formatError(err);
+      expect(formatted).toBe('Parse error at line 5: Unexpected token');
+      expect(formatted).not.toContain('RILL-P001');
     });
 
-    it('formats runtime error with code', () => {
-      const err = new RuntimeError('RUNTIME_TYPE_ERROR', 'Type mismatch', {
+    it('formats parse error without location', () => {
+      const err = new ParseError('RILL-P001', 'Unexpected token', {
+        line: 1,
+        column: 1,
+        offset: 0,
+      });
+      // ParseError constructor always requires location, so we simulate missing location
+      // by checking the format handles location gracefully
+      const formatted = formatError(err);
+      expect(formatted).toContain('Parse error');
+    });
+
+    it('formats runtime error with location', () => {
+      const err = new RuntimeError('RILL-R001', 'Type mismatch', {
         line: 3,
         column: 5,
         offset: 20,
       });
-      expect(formatError(err)).toContain('RUNTIME_TYPE_ERROR');
-      expect(formatError(err)).toContain('line 3');
+      const formatted = formatError(err);
+      expect(formatted).toBe('Runtime error at line 3: Type mismatch');
+      expect(formatted).not.toContain('RILL-R001');
+    });
+
+    it('formats runtime error without location', () => {
+      const err = new RuntimeError('RILL-R001', 'Type mismatch');
+      const formatted = formatError(err);
+      expect(formatted).toBe('Runtime error: Type mismatch');
+      expect(formatted).not.toContain('RILL-R001');
+    });
+
+    it('removes location suffix from message', () => {
+      const err = new RuntimeError('RILL-R001', 'Type mismatch', {
+        line: 3,
+        column: 5,
+        offset: 20,
+      });
+      // Simulate error message with location suffix (like error thrown at runtime might have)
+      Object.defineProperty(err, 'message', {
+        value: 'Type mismatch at 3:5',
+        writable: false,
+      });
+      const formatted = formatError(err);
+      expect(formatted).toBe('Runtime error at line 3: Type mismatch');
+    });
+
+    it('formats ENOENT error', () => {
+      const err = Object.assign(new Error(), {
+        code: 'ENOENT',
+        path: '/path/to/file.rill',
+      });
+      const formatted = formatError(err);
+      expect(formatted).toBe('File not found: /path/to/file.rill');
+    });
+
+    it('formats module error', () => {
+      const err = new Error("Cannot find module './missing.js'");
+      const formatted = formatError(err);
+      expect(formatted).toBe("Module error: Cannot find module './missing.js'");
+    });
+
+    it('formats generic error', () => {
+      const err = new Error('Something went wrong');
+      const formatted = formatError(err);
+      expect(formatted).toBe('Something went wrong');
+    });
+
+    it('never includes stack trace', () => {
+      const err = new Error('Test error');
+      err.stack = 'Error: Test error\n    at foo (bar.js:10:5)';
+      const formatted = formatError(err);
+      expect(formatted).not.toContain('at foo');
+      expect(formatted).not.toContain('bar.js');
     });
   });
 

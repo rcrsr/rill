@@ -811,7 +811,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Type mismatch in greet: parameter 'name' expects string, got number/
           ),
@@ -831,7 +831,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Type mismatch in first: parameter 'items' expects list, got string/
           ),
@@ -851,7 +851,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Type mismatch in getValue: parameter 'data' expects dict, got list/
           ),
@@ -871,7 +871,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Function 'double' expects 1 arguments, got 2/
           ),
@@ -891,7 +891,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Missing required argument 'name' for function 'greet'/
           ),
@@ -1011,7 +1011,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Function 'noArgs' expects 0 arguments, got 1/
           ),
@@ -1119,7 +1119,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(/parameter 'p10' expects number/),
         });
       });
@@ -1195,7 +1195,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(results[0]).toBe(42);
         expect(results[1]).toBe(100);
         expect(results[2]).toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
         });
       });
 
@@ -1248,7 +1248,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(results[0]).toBe(15);
         expect(results[1]).toBe(25);
         expect(results[2]).toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(/expects 2 arguments, got 3/),
         });
       });
@@ -1287,7 +1287,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
         });
       });
 
@@ -1338,7 +1338,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(/expects number, got bool/),
         });
       });

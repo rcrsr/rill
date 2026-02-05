@@ -170,7 +170,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/requires boolean operand, got number/)
@@ -187,7 +189,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/requires boolean operand, got string/)
@@ -206,7 +210,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/requires boolean operand, got closure/)
@@ -224,7 +230,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown arity error');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Missing argument/)
@@ -241,7 +249,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Arithmetic requires number/)
@@ -258,7 +268,9 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Cannot compare string with number/)
@@ -275,7 +287,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         await run(script);
         expect.fail('Should have thrown RUNTIME_UNDEFINED_VARIABLE');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+        expect(err).toHaveProperty('errorId', 'RILL-R005');
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/undefined/i)

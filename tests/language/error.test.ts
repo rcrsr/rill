@@ -13,12 +13,12 @@ describe('Rill Language: Error Statement', () => {
       await expect(run('error "test"')).rejects.toThrow('test');
     });
 
-    it('throws with RuntimeError code RUNTIME_ERROR_RAISED (AC-1)', async () => {
+    it('throws with RuntimeError code RILL-R016 (AC-1)', async () => {
       try {
         await run('error "test"');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_ERROR_RAISED');
+        expect(err.errorId).toBe('RILL-R016');
         // Note: Error message includes location " at 1:1"
         expect(err.message).toContain('test');
       }
@@ -41,49 +41,49 @@ describe('Rill Language: Error Statement', () => {
         await run('"failed" -> error');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_ERROR_RAISED');
+        expect(err.errorId).toBe('RILL-R016');
         expect(err.message).toContain('failed');
       }
     });
   });
 
   describe('Error Cases - Type Validation', () => {
-    it('throws PARSE_INVALID_SYNTAX for number message (AC-ERR-1)', async () => {
+    it('throws RILL-P004 for number message (AC-ERR-1)', async () => {
       try {
         await run('error 123');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        expect(err.errorId).toBe('RILL-P004');
         expect(err.message).toContain('requires string message');
       }
     });
 
-    it('throws PARSE_INVALID_SYNTAX for boolean message (AC-ERR-2)', async () => {
+    it('throws RILL-P004 for boolean message (AC-ERR-2)', async () => {
       try {
         await run('error true');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        expect(err.errorId).toBe('RILL-P004');
         expect(err.message).toContain('requires string message');
       }
     });
 
-    it('throws PARSE_INVALID_SYNTAX for list message (AC-ERR-3)', async () => {
+    it('throws RILL-P004 for list message (AC-ERR-3)', async () => {
       try {
         await run('error [1, 2]');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        expect(err.errorId).toBe('RILL-P004');
         expect(err.message).toContain('requires string message');
       }
     });
 
-    it('throws RUNTIME_TYPE_ERROR when piping number (AC-ERR-4)', async () => {
+    it('throws RILL-R002 when piping number (AC-ERR-4)', async () => {
       try {
         await run('42 -> error');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(err.errorId).toBe('RILL-R002');
         expect(err.message).toContain('requires string message');
         expect(err.message).toContain('got number');
       }
@@ -96,7 +96,7 @@ describe('Rill Language: Error Statement', () => {
         await run('error ""');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_ERROR_RAISED');
+        expect(err.errorId).toBe('RILL-R016');
         // Error message is empty but includes location
         expect(err.message).toMatch(/^ at \d+:\d+$/);
       }
@@ -109,7 +109,7 @@ describe('Rill Language: Error Statement', () => {
         await run(script);
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_ERROR_RAISED');
+        expect(err.errorId).toBe('RILL-R016');
         const message = err instanceof Error ? err.message : String(err);
         expect(message).toContain(longMessage);
       }
@@ -208,12 +208,12 @@ describe('Rill Language: Error Statement', () => {
       await expect(run(script)).rejects.toThrow('Error 404: Not Found');
     });
 
-    it('throws RUNTIME_ERROR_RAISED for direct form (EC-4)', async () => {
+    it('throws RILL-R016 for direct form (EC-4)', async () => {
       try {
         await run('error "test"');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('RUNTIME_ERROR_RAISED');
+        expect(err.errorId).toBe('RILL-R016');
       }
     });
 
@@ -402,8 +402,8 @@ describe('Rill Language: Error Statement', () => {
         await run('error');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        // Note: Implementation throws PARSE_INVALID_SYNTAX instead of PARSE_UNEXPECTED_TOKEN
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        // Note: Implementation throws RILL-P002 (Unexpected end of input)
+        expect(err.errorId).toBe('RILL-P002');
         expect(err.message).toContain('expected string');
       }
     });
@@ -413,7 +413,7 @@ describe('Rill Language: Error Statement', () => {
         await run('"test" :> $msg\nerror $msg');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        expect(err.errorId).toBe('RILL-P004');
       }
     });
 
@@ -422,7 +422,7 @@ describe('Rill Language: Error Statement', () => {
         await run('error ("test" -> .upper)');
         expect.fail('Should have thrown');
       } catch (err: any) {
-        expect(err.code).toBe('PARSE_INVALID_SYNTAX');
+        expect(err.errorId).toBe('RILL-P004');
       }
     });
   });

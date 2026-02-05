@@ -242,7 +242,7 @@ describe('Rill Runtime: Host Integration', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(AbortError);
         const abortErr = err as AbortError;
-        expect(abortErr.code).toBe('RUNTIME_ABORTED');
+        expect(abortErr.errorId).toBe('RILL-R013');
         expect(abortErr.message).toContain('aborted');
       }
     });

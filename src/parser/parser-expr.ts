@@ -122,10 +122,9 @@ Parser.prototype.parseCommonConstruct = function (
       )
     ) {
       throw new ParseError(
+        'RILL-P004',
         'Negation operator requires an operand. Use prefix syntax: !expr or (!expr)',
-        start,
-        undefined,
-        'RILL-P004'
+        start
       );
     }
 
@@ -546,18 +545,16 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     peek(this.state, 1).type === TOKEN_TYPES.LT
   ) {
     throw new ParseError(
+      'RILL-P001',
       `Unexpected token: ${token.value}. Hint: Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead`,
-      token.span.start,
-      undefined,
-      'RILL-P001'
+      token.span.start
     );
   }
 
   throw new ParseError(
+    'RILL-P001',
     `Unexpected token: ${token.value}`,
-    token.span.start,
-    undefined,
-    'RILL-P001'
+    token.span.start
   );
 };
 
@@ -797,10 +794,9 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   }
 
   throw new ParseError(
+    'RILL-P001',
     `Expected pipe target, got: ${current(this.state).value}`,
-    current(this.state).span.start,
-    undefined,
-    'RILL-P001'
+    current(this.state).span.start
   );
 };
 

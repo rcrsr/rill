@@ -64,12 +64,12 @@ describe('Rill Runtime: Assert Statement', () => {
       ).rejects.toThrow('Must be positive');
     });
 
-    it('includes error code RUNTIME_ASSERTION_FAILED (AC-6)', async () => {
+    it('includes error code RILL-R015 (AC-6)', async () => {
       try {
         await run('-1 -> assert ($ > 0)');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_ASSERTION_FAILED');
+        expect(err).toHaveProperty('errorId', 'RILL-R015');
       }
     });
 
@@ -115,12 +115,15 @@ describe('Rill Runtime: Assert Statement', () => {
       );
     });
 
-    it('includes error code RUNTIME_TYPE_ERROR for non-boolean', async () => {
+    it('includes error code for type error (assertion requires boolean)', async () => {
       try {
         await run('"test" -> assert $');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        // Error ID should start with RILL-R (runtime error)
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
     });
   });

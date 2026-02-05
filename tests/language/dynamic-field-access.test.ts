@@ -321,7 +321,7 @@ describe('Dynamic Field Access', () => {
           $data.$missingVar
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_UNDEFINED_VARIABLE',
+          errorId: 'RILL-R005',
           message: expect.stringMatching(/Variable 'missingVar' is undefined/),
         });
       });
@@ -334,7 +334,7 @@ describe('Dynamic Field Access', () => {
           $data.$key
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Key must be string or number, got bool/
           ),
@@ -349,7 +349,7 @@ describe('Dynamic Field Access', () => {
           $data.$key
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Key must be string or number, got list/
           ),
@@ -366,7 +366,7 @@ describe('Dynamic Field Access', () => {
           $data.($keys)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Computed key evaluated to list, expected string or number/
           ),
@@ -380,7 +380,7 @@ describe('Dynamic Field Access', () => {
           $data.($undefined + 1)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_UNDEFINED_VARIABLE',
+          errorId: 'RILL-R005',
           message: expect.stringMatching(/Undefined variable: \$undefined/),
         });
       });
@@ -393,7 +393,7 @@ describe('Dynamic Field Access', () => {
           $data.($fn)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Computed key evaluated to closure, expected string or number/
           ),
@@ -408,7 +408,7 @@ describe('Dynamic Field Access', () => {
           $data.($obj)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Computed key evaluated to dict, expected string or number/
           ),
@@ -424,7 +424,7 @@ describe('Dynamic Field Access', () => {
           $list.(name || title)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Alternative access requires dict, got list/
           ),
@@ -438,7 +438,7 @@ describe('Dynamic Field Access', () => {
           $str.(name || nickname)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Alternative access requires dict, got string/
           ),
@@ -452,7 +452,7 @@ describe('Dynamic Field Access', () => {
           $num.(name || nickname)
         `;
         await expect(run(code)).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringMatching(
             /Alternative access requires dict, got number/
           ),

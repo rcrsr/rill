@@ -10,9 +10,10 @@ import {
   ERROR_REGISTRY,
   getHelpUrl,
   LexerError,
+  ParseError,
   renderMessage,
-  RILL_ERROR_CODES,
   RillError,
+  RuntimeError,
   type ErrorDefinition,
   type SourceLocation,
 } from '../../src/index.js';
@@ -23,7 +24,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const definition = ERROR_REGISTRY.get('RILL-R001');
       expect(definition).toBeDefined();
       expect(definition?.errorId).toBe('RILL-R001');
-      expect(definition?.legacyCode).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+      expect(definition?.category).toBe('runtime');
     });
 
     it('No duplicate errorIds [AC-1, AC-2]', () => {
@@ -41,10 +42,13 @@ describe('Rill Runtime: Error Taxonomy', () => {
 
       // Verify registry methods exist
       expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined();
-      expect(
-        ERROR_REGISTRY.getByLegacyCode(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR)
-      ).toHaveLength(4); // R001, R002, R003, R004
       expect(ERROR_REGISTRY.has('RILL-R001')).toBe(true);
+
+      // Verify multiple error IDs exist for type errors
+      expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined(); // Parameter type mismatch
+      expect(ERROR_REGISTRY.get('RILL-R002')).toBeDefined(); // Operator type mismatch
+      expect(ERROR_REGISTRY.get('RILL-R003')).toBeDefined(); // Method receiver type mismatch
+      expect(ERROR_REGISTRY.get('RILL-R004')).toBeDefined(); // Type conversion failure
     });
 
     it('Error ID format supports 3-digit numbers [AC-15]', () => {
@@ -72,12 +76,11 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(ERROR_REGISTRY.get('')).toBeUndefined();
     });
 
-    it('EC-2: Unknown legacyCode returns empty array', () => {
-      // Use a code that doesn't exist
-      const unknownCode = 'UNKNOWN_CODE' as never;
-      const result = ERROR_REGISTRY.getByLegacyCode(unknownCode);
-      expect(result).toEqual([]);
-      expect(result).toHaveLength(0);
+    it('EC-2: Unknown errorId returns undefined', () => {
+      // Use an error ID that doesn't exist
+      const unknownId = 'RILL-Z999';
+      const result = ERROR_REGISTRY.get(unknownId);
+      expect(result).toBeUndefined();
     });
   });
 
@@ -168,21 +171,8 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(error).toBeInstanceOf(RillError);
       expect(error).toBeInstanceOf(LexerError);
       expect(error.name).toBe('LexerError');
-      expect(error.code).toBe(RILL_ERROR_CODES.PARSE_INVALID_SYNTAX);
       expect(error.errorId).toBe('RILL-L001');
       expect(error.location).toEqual(location);
-    });
-
-    it('EC-3: LexerError with unknown errorId throws TypeError', () => {
-      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
-
-      expect(() => {
-        new LexerError('RILL-X999', 'Invalid error', location);
-      }).toThrow(TypeError);
-
-      expect(() => {
-        new LexerError('RILL-X999', 'Invalid error', location);
-      }).toThrow('Unknown error ID: RILL-X999');
     });
 
     it('LexerError requires location', () => {
@@ -197,14 +187,12 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const location: SourceLocation = { line: 2, column: 10, offset: 25 };
       const context = { name: 'foo' };
       const error = new RillError({
-        code: RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
         errorId: 'RILL-R005',
         message: 'Variable foo is not defined',
         location,
         context,
       });
 
-      expect(error.code).toBe(RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE);
       expect(error.errorId).toBe('RILL-R005');
       expect(error.location).toEqual(location);
       expect(error.context).toEqual(context);
@@ -215,7 +203,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
     it('RillError toData() strips location suffix', () => {
       const location: SourceLocation = { line: 2, column: 10, offset: 25 };
       const error = new RillError({
-        code: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
         errorId: 'RILL-R001',
         message: 'Type error',
         location,
@@ -224,6 +211,17 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const data = error.toData();
       expect(data.message).toBe('Type error');
       expect(data.message).not.toContain('at 2:10');
+    });
+
+    it('AC-12: RillError without location omits " at line:column" suffix', () => {
+      const error = new RillError({
+        errorId: 'RILL-R001',
+        message: 'Type error',
+      });
+
+      expect(error.message).toBe('Type error');
+      expect(error.message).not.toContain(' at ');
+      expect(error.location).toBeUndefined();
     });
   });
 
@@ -320,7 +318,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const error = createError('RILL-R005', { name: 'foo' });
       expect(error.message).toBe('Variable foo is not defined');
       expect(error.errorId).toBe('RILL-R005');
-      expect(error.code).toBe(RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE);
     });
 
     it('createError includes location in message', () => {
@@ -359,6 +356,160 @@ describe('Rill Runtime: Error Taxonomy', () => {
     });
   });
 
+  describe('Error Constructor Validation Tests', () => {
+    describe('RillError constructor validation', () => {
+      it('EC-3: throws TypeError when errorId is missing', () => {
+        expect(() => {
+          new RillError({
+            errorId: '',
+            message: 'Test message',
+          });
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new RillError({
+            errorId: '',
+            message: 'Test message',
+          });
+        }).toThrow('errorId is required');
+      });
+
+      it('EC-4: throws TypeError when errorId is unknown', () => {
+        expect(() => {
+          new RillError({
+            errorId: 'RILL-X999',
+            message: 'Test message',
+          });
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new RillError({
+            errorId: 'RILL-X999',
+            message: 'Test message',
+          });
+        }).toThrow('Unknown error ID: RILL-X999');
+      });
+
+      it('creates successfully with valid errorId', () => {
+        const error = new RillError({
+          errorId: 'RILL-R001',
+          message: 'Test message',
+        });
+
+        expect(error).toBeInstanceOf(RillError);
+        expect(error.errorId).toBe('RILL-R001');
+        expect(error.message).toBe('Test message');
+      });
+    });
+
+    describe('LexerError constructor validation [AC-6]', () => {
+      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
+
+      it('EC-5: throws TypeError when errorId is unknown', () => {
+        expect(() => {
+          new LexerError('RILL-X999', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new LexerError('RILL-X999', 'Test message', location);
+        }).toThrow('Unknown error ID: RILL-X999');
+      });
+
+      it('EC-6: throws TypeError when errorId has wrong category', () => {
+        expect(() => {
+          new LexerError('RILL-R001', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new LexerError('RILL-R001', 'Test message', location);
+        }).toThrow('Expected lexer error ID, got: RILL-R001');
+      });
+
+      it('creates successfully with valid lexer errorId', () => {
+        const error = new LexerError('RILL-L001', 'Test message', location);
+
+        expect(error).toBeInstanceOf(LexerError);
+        expect(error).toBeInstanceOf(RillError);
+        expect(error.errorId).toBe('RILL-L001');
+        expect(error.location).toEqual(location);
+      });
+    });
+
+    describe('ParseError constructor validation [AC-7]', () => {
+      const location: SourceLocation = { line: 1, column: 10, offset: 10 };
+
+      it('EC-7: throws TypeError when errorId is unknown', () => {
+        expect(() => {
+          new ParseError('RILL-X999', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new ParseError('RILL-X999', 'Test message', location);
+        }).toThrow('Unknown error ID: RILL-X999');
+      });
+
+      it('EC-8: throws TypeError when errorId has wrong category', () => {
+        expect(() => {
+          new ParseError('RILL-R001', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new ParseError('RILL-R001', 'Test message', location);
+        }).toThrow('Expected parse error ID, got: RILL-R001');
+      });
+
+      it('creates successfully with valid parse errorId', () => {
+        const error = new ParseError('RILL-P001', 'Test message', location);
+
+        expect(error).toBeInstanceOf(ParseError);
+        expect(error).toBeInstanceOf(RillError);
+        expect(error.errorId).toBe('RILL-P001');
+        expect(error.location).toEqual(location);
+      });
+    });
+
+    describe('RuntimeError constructor validation [AC-8]', () => {
+      const location: SourceLocation = { line: 1, column: 15, offset: 15 };
+
+      it('EC-9: throws TypeError when errorId is unknown', () => {
+        expect(() => {
+          new RuntimeError('RILL-X999', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new RuntimeError('RILL-X999', 'Test message', location);
+        }).toThrow('Unknown error ID: RILL-X999');
+      });
+
+      it('EC-10: throws TypeError when errorId has wrong category', () => {
+        expect(() => {
+          new RuntimeError('RILL-L001', 'Test message', location);
+        }).toThrow(TypeError);
+
+        expect(() => {
+          new RuntimeError('RILL-L001', 'Test message', location);
+        }).toThrow('Expected runtime error ID, got: RILL-L001');
+      });
+
+      it('creates successfully with valid runtime errorId', () => {
+        const error = new RuntimeError('RILL-R001', 'Test message', location);
+
+        expect(error).toBeInstanceOf(RuntimeError);
+        expect(error).toBeInstanceOf(RillError);
+        expect(error.errorId).toBe('RILL-R001');
+        expect(error.location).toEqual(location);
+      });
+
+      it('creates successfully without location', () => {
+        const error = new RuntimeError('RILL-R005', 'Test message');
+
+        expect(error).toBeInstanceOf(RuntimeError);
+        expect(error.errorId).toBe('RILL-R005');
+        expect(error.location).toBeUndefined();
+      });
+    });
+  });
+
   describe('Integration Tests [AC-17]', () => {
     it('Complete error lifecycle from registry to error instance', () => {
       // 1. Look up error definition from registry
@@ -367,7 +518,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
 
       // 2. Verify definition structure
       expect(definition?.errorId).toBe('RILL-R001');
-      expect(definition?.legacyCode).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
       expect(definition?.category).toBe('runtime');
       expect(definition?.messageTemplate).toContain('{function}');
 
@@ -388,31 +538,33 @@ describe('Rill Runtime: Error Taxonomy', () => {
       // 4. Verify error instance
       expect(error).toBeInstanceOf(RillError);
       expect(error.errorId).toBe('RILL-R001');
-      expect(error.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
       expect(error.message).toContain('Function add expects parameter x');
       expect(error.location).toEqual(location);
       expect(error.helpUrl).toContain('#rill-r001');
     });
 
-    it('Legacy code can map to multiple error IDs', () => {
-      const typeErrors = ERROR_REGISTRY.getByLegacyCode(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR
-      );
+    it('Multiple error IDs exist for different type error scenarios', () => {
+      // Multiple distinct error IDs for different type error contexts
+      const r001 = ERROR_REGISTRY.get('RILL-R001');
+      const r002 = ERROR_REGISTRY.get('RILL-R002');
+      const r003 = ERROR_REGISTRY.get('RILL-R003');
+      const r004 = ERROR_REGISTRY.get('RILL-R004');
 
-      // R001, R002, R003, R004 all map to RUNTIME_TYPE_ERROR
-      expect(typeErrors.length).toBeGreaterThanOrEqual(4);
+      expect(r001?.description).toBe('Parameter type mismatch');
+      expect(r002?.description).toBe('Operator type mismatch');
+      expect(r003?.description).toBe('Method receiver type mismatch');
+      expect(r004?.description).toBe('Type conversion failure');
 
-      const errorIds = typeErrors.map((def: ErrorDefinition) => def.errorId);
-      expect(errorIds).toContain('RILL-R001'); // Parameter type mismatch
-      expect(errorIds).toContain('RILL-R002'); // Operator type mismatch
-      expect(errorIds).toContain('RILL-R003'); // Method receiver type mismatch
-      expect(errorIds).toContain('RILL-R004'); // Type conversion failure
+      // All should be runtime category
+      expect(r001?.category).toBe('runtime');
+      expect(r002?.category).toBe('runtime');
+      expect(r003?.category).toBe('runtime');
+      expect(r004?.category).toBe('runtime');
     });
 
     it('All error definitions have required fields', () => {
       for (const [errorId, definition] of ERROR_REGISTRY.entries()) {
         expect(definition.errorId).toBe(errorId);
-        expect(definition.legacyCode).toBeDefined();
         expect(definition.category).toMatch(/^(lexer|parse|runtime|check)$/);
         expect(definition.description).toBeTruthy();
         expect(definition.description.length).toBeLessThanOrEqual(50);

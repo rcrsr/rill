@@ -30,7 +30,7 @@ import {
   prefixFunctions,
   emitExtensionEvent,
 } from '../../src/runtime/ext/extensions.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../src/types.js';
+import { RuntimeError } from '../../src/types.js';
 import { run } from '../helpers/runtime.js';
 import { createRuntimeContext } from '../../src/runtime/core/context.js';
 import type { ExtensionEvent } from '../../src/runtime/core/types.js';
@@ -354,9 +354,9 @@ describe('Rill Runtime: Extension System', () => {
         } catch (e) {
           expect(e).toBeInstanceOf(RuntimeError);
           const err = e as RuntimeError;
-          expect(err.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+          expect(err.errorId).toBe('RILL-R004');
           expect(err.message).toBe(
-            'RILL-R004: Invalid namespace: must be non-empty alphanumeric with hyphens only, got ""'
+            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got ""'
           );
         }
       });
@@ -377,9 +377,9 @@ describe('Rill Runtime: Extension System', () => {
         } catch (e) {
           expect(e).toBeInstanceOf(RuntimeError);
           const err = e as RuntimeError;
-          expect(err.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+          expect(err.errorId).toBe('RILL-R004');
           expect(err.message).toBe(
-            'RILL-R004: Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my extension"'
+            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my extension"'
           );
         }
       });
@@ -400,9 +400,9 @@ describe('Rill Runtime: Extension System', () => {
         } catch (e) {
           expect(e).toBeInstanceOf(RuntimeError);
           const err = e as RuntimeError;
-          expect(err.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+          expect(err.errorId).toBe('RILL-R004');
           expect(err.message).toBe(
-            'RILL-R004: Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my_extension"'
+            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my_extension"'
           );
         }
       });
@@ -415,7 +415,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [],
             fn: (args, ctx, location) => {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+                'RILL-R004',
                 'Extension fatal error',
                 location,
                 { subsystem: 'extension:crash' }
@@ -432,7 +432,7 @@ describe('Rill Runtime: Extension System', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('Extension fatal error');
           expect(runtimeErr.context).toBeDefined();
           expect(runtimeErr.context?.subsystem).toBe('extension:crash');

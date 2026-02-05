@@ -265,7 +265,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Missing argument for parameter '\$'/)
@@ -282,7 +284,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/expects 1 arguments, got 2/)
@@ -299,7 +303,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/expects 0 arguments, got 1/)
@@ -316,7 +322,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Missing argument/)
@@ -333,7 +341,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Missing argument for parameter '\$'/)
@@ -350,7 +360,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+        expect(err).toHaveProperty('errorId', 'RILL-R005');
       }
     });
 
@@ -364,7 +374,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         `);
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
     });
 
@@ -374,7 +386,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         await run('[keys: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Cannot use reserved method name 'keys'/)
@@ -388,7 +402,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         await run('[values: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Cannot use reserved method name 'values'/)
@@ -402,7 +418,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         await run('[entries: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
         expect(err).toHaveProperty(
           'message',
           expect.stringMatching(/Cannot use reserved method name 'entries'/)
@@ -416,7 +434,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         await run('"x" -> [x: { $undefined }]');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+        expect(err).toHaveProperty('errorId', 'RILL-R005');
       }
     });
 
@@ -426,7 +444,9 @@ describe('Rill Runtime: Closure Semantics', () => {
         await run('"x" -> [x: { 5 + "text" }]');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+        expect(err).toHaveProperty('errorId');
+        const errorId = (err as { errorId: string }).errorId;
+        expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
     });
   });

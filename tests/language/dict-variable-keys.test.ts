@@ -288,7 +288,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           await run('[_static: 0, $undefined: 1]');
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_UNDEFINED_VARIABLE');
+          expect(err).toHaveProperty('errorId', 'RILL-R005');
           expect(err.message).toMatch(/Variable 'undefined' is undefined/i);
         }
       });
@@ -305,7 +305,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Dict key must be string, got number/i);
         }
       });
@@ -319,7 +321,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Dict key must be string, got boolean/i);
         }
       });
@@ -333,7 +337,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Dict key must be string, got object/i);
         }
       });
@@ -347,7 +353,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(/Dict key must be string, got object/i);
         }
       });
@@ -361,7 +369,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           await run('[_static: 0, (42): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(
             /Dict key evaluated to number, expected string/i
           );
@@ -374,7 +384,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           await run('[_static: 0, (true): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(
             /Dict key evaluated to boolean, expected string/i
           );
@@ -387,7 +399,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           await run('[_static: 0, ([1, 2]): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(
             /Dict key evaluated to object, expected string/i
           );
@@ -403,7 +417,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           `);
           expect.fail('Should have thrown');
         } catch (err) {
-          expect(err).toHaveProperty('code', 'RUNTIME_TYPE_ERROR');
+          expect(err).toHaveProperty('errorId');
+          const errorId = (err as { errorId: string }).errorId;
+          expect(errorId).toMatch(/^RILL-R\d{3}$/);
           expect(err.message).toMatch(
             /Dict key evaluated to number, expected string/i
           );

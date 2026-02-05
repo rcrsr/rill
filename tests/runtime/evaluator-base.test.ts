@@ -28,7 +28,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+        expect(runtimeErr.errorId).toBe('RILL-R005');
         expect(runtimeErr.message).toContain('Undefined variable');
       }
     });
@@ -40,7 +40,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+        expect(runtimeErr.errorId).toBe('RILL-R006');
         expect(runtimeErr.message).toContain('undefined_func');
       }
     });
@@ -52,7 +52,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(runtimeErr.errorId).toBe('RILL-R001');
         expect(runtimeErr.message).toContain('Type mismatch');
       }
     });
@@ -64,7 +64,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(runtimeErr.errorId).toBe('RILL-R004');
         expect(runtimeErr.message).toContain('expected string');
       }
     });
@@ -76,7 +76,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(runtimeErr.errorId).toBe('RILL-R002');
         expect(runtimeErr.message).toContain('boolean');
       }
     });
@@ -88,7 +88,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(runtimeErr.errorId).toBe('RILL-R002');
         expect(runtimeErr.message).toContain('boolean');
       }
     });
@@ -100,7 +100,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+        expect(runtimeErr.errorId).toBe('RILL-R002');
         expect(runtimeErr.message).toContain('Collection operators require');
       }
     });
@@ -137,7 +137,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(TimeoutError);
         const timeoutErr = err as TimeoutError;
-        expect(timeoutErr.code).toBe('RUNTIME_TIMEOUT');
+        expect(timeoutErr.errorId).toBe('RILL-R012');
         expect(timeoutErr.message).toContain('timed out');
       }
     });
@@ -378,7 +378,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_METHOD');
+        expect(runtimeErr.errorId).toBe('RILL-R007');
         expect(runtimeErr.message).toContain('nonexistent');
       }
     });
@@ -390,7 +390,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+        expect(runtimeErr.errorId).toBe('RILL-R005');
       }
     });
 
@@ -401,7 +401,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+        expect(runtimeErr.errorId).toBe('RILL-R005');
       }
     });
   });
@@ -415,7 +415,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('Type assertion failed');
         }
       });
@@ -451,7 +451,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected list');
           expect(runtimeErr.message).toContain('got dict');
         }
@@ -464,7 +464,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected dict');
           expect(runtimeErr.message).toContain('got list');
         }
@@ -477,7 +477,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected bool');
           expect(runtimeErr.message).toContain('got number');
         }
@@ -490,7 +490,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected string');
           expect(runtimeErr.message).toContain('got number');
         }
@@ -503,7 +503,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected tuple');
           expect(runtimeErr.message).toContain('got list');
         }
@@ -516,7 +516,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R004');
           expect(runtimeErr.message).toContain('expected closure');
           expect(runtimeErr.message).toContain('got string');
         }
@@ -550,7 +550,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got string'
           );
@@ -564,7 +564,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got string'
           );
@@ -578,7 +578,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got bool'
           );
@@ -592,7 +592,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got list'
           );
@@ -606,7 +606,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got dict'
           );
@@ -620,7 +620,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got string'
           );
@@ -634,7 +634,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got string'
           );
@@ -648,7 +648,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Division by zero');
         }
       });
@@ -660,7 +660,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Modulo by zero');
         }
       });
@@ -674,7 +674,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('undefined');
         }
       });
@@ -686,7 +686,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
 
@@ -697,7 +697,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('$x');
         }
       });
@@ -709,7 +709,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
 
@@ -720,7 +720,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
 
@@ -731,7 +731,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain(
             'Arithmetic requires number, got string'
           );
@@ -756,7 +756,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
     });
@@ -769,7 +769,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Cannot compare');
           expect(runtimeErr.message).toContain('number');
           expect(runtimeErr.message).toContain('string');
@@ -783,7 +783,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Cannot compare');
         }
       });
@@ -821,7 +821,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
 
@@ -856,7 +856,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('Undefined variable: $');
         }
       });
@@ -868,7 +868,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
     });
@@ -881,7 +881,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R001');
         }
       });
 
@@ -905,7 +905,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R001');
           expect(runtimeErr.message).toContain('locked as number');
         }
       });
@@ -917,7 +917,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R001');
         }
       });
 
@@ -933,7 +933,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R001');
           expect(runtimeErr.message).toContain('Type mismatch');
         }
       });
@@ -949,7 +949,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
         }
       });
 
@@ -972,7 +972,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('2 elements');
           expect(runtimeErr.message).toContain('4');
         }
@@ -992,7 +992,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('requires list');
         }
       });
@@ -1004,7 +1004,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('requires dict');
         }
       });
@@ -1016,7 +1016,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
         }
       });
 
@@ -1027,7 +1027,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
         }
       });
     });
@@ -1040,7 +1040,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Slice requires list or string');
         }
       });
@@ -1052,7 +1052,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Slice requires list or string');
         }
       });
@@ -1064,7 +1064,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('dict');
         }
       });
@@ -1114,7 +1114,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('undefined');
         }
       });
@@ -1126,7 +1126,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Arithmetic requires number');
         }
       });
@@ -1138,7 +1138,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+          expect(runtimeErr.errorId).toBe('RILL-R006');
           expect(runtimeErr.message).toContain('missing_func');
         }
       });
@@ -1150,7 +1150,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Division by zero');
         }
       });
@@ -1162,7 +1162,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R009');
           expect(runtimeErr.message).toContain("Dict has no field 'missing'");
         }
       });
@@ -1174,7 +1174,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('undefined');
         }
       });
@@ -1186,7 +1186,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_METHOD');
+          expect(runtimeErr.errorId).toBe('RILL-R007');
           expect(runtimeErr.message).toContain('nonexistent');
         }
       });
@@ -1200,7 +1200,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('undefined');
         }
       });
@@ -1212,7 +1212,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Arithmetic requires number');
         }
       });
@@ -1224,7 +1224,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('missing');
         }
       });
@@ -1236,7 +1236,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Division by zero');
         }
       });
@@ -1248,7 +1248,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+          expect(runtimeErr.errorId).toBe('RILL-R006');
         }
       });
 
@@ -1259,7 +1259,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
 
@@ -1270,7 +1270,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
         }
       });
     });
@@ -1283,7 +1283,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('undefined');
         }
       });
@@ -1295,7 +1295,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Arithmetic requires number');
         }
       });
@@ -1307,7 +1307,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_VARIABLE');
+          expect(runtimeErr.errorId).toBe('RILL-R005');
           expect(runtimeErr.message).toContain('missing');
         }
       });
@@ -1319,7 +1319,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_TYPE_ERROR');
+          expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('Division by zero');
         }
       });
@@ -1331,7 +1331,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_FUNCTION');
+          expect(runtimeErr.errorId).toBe('RILL-R006');
         }
       });
 
@@ -1342,7 +1342,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.code).toBe('RUNTIME_UNDEFINED_METHOD');
+          expect(runtimeErr.errorId).toBe('RILL-R007');
           expect(runtimeErr.message).toContain('nonexistent');
         }
       });

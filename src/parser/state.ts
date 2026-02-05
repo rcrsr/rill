@@ -91,7 +91,7 @@ export function expect(
   const token = current(state);
   const hint = generateHint(type, token);
   const fullMessage = hint ? `${message}. ${hint}` : message;
-  throw new ParseError(fullMessage, token.span.start, undefined, 'RILL-P005');
+  throw new ParseError('RILL-P005', fullMessage, token.span.start);
 }
 
 /** @internal */

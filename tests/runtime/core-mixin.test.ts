@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AbortError, RuntimeError, RILL_ERROR_CODES } from '../../src/index.js';
+import { AbortError, RuntimeError } from '../../src/index.js';
 import { run } from '../helpers/runtime.js';
 
 describe('CoreMixin Error Contracts', () => {
@@ -20,24 +20,24 @@ describe('CoreMixin Error Contracts', () => {
       // Since we can't easily construct invalid AST through parsing,
       // we test the error message pattern when such nodes are encountered
       const error = new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        'RILL-R004',
         'Unsupported expression type: InvalidType',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.code).toBe('RUNTIME_TYPE_ERROR');
+      expect(error.errorId).toBe('RILL-R004');
       expect(error.message).toContain('Unsupported expression type');
     });
 
     it('throws RuntimeError for unsupported pipe target type', async () => {
       // Similar to above - testing the error contract exists
       const error = new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+        'RILL-R004',
         'Unsupported pipe target type: InvalidTarget',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.code).toBe('RUNTIME_TYPE_ERROR');
+      expect(error.errorId).toBe('RILL-R004');
       expect(error.message).toContain('Unsupported pipe target type');
     });
   });
@@ -117,7 +117,7 @@ describe('CoreMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(AbortError);
         const abortErr = err as AbortError;
-        expect(abortErr.code).toBe('RUNTIME_ABORTED');
+        expect(abortErr.errorId).toBe('RILL-R013');
         expect(abortErr.message).toContain('aborted');
       }
     });

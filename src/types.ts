@@ -24,38 +24,6 @@ export interface SourceSpan {
 // ERROR HIERARCHY
 // ============================================================
 
-/** Error codes for programmatic handling */
-export const RILL_ERROR_CODES = {
-  // Parse errors
-  PARSE_UNEXPECTED_TOKEN: 'PARSE_UNEXPECTED_TOKEN',
-  PARSE_INVALID_SYNTAX: 'PARSE_INVALID_SYNTAX',
-  PARSE_INVALID_TYPE: 'PARSE_INVALID_TYPE',
-
-  // Runtime errors
-  RUNTIME_UNDEFINED_VARIABLE: 'RUNTIME_UNDEFINED_VARIABLE',
-  RUNTIME_UNDEFINED_FUNCTION: 'RUNTIME_UNDEFINED_FUNCTION',
-  RUNTIME_UNDEFINED_METHOD: 'RUNTIME_UNDEFINED_METHOD',
-  RUNTIME_UNDEFINED_ANNOTATION: 'RUNTIME_UNDEFINED_ANNOTATION',
-  RUNTIME_TYPE_ERROR: 'RUNTIME_TYPE_ERROR',
-  RUNTIME_TIMEOUT: 'RUNTIME_TIMEOUT',
-  RUNTIME_INVALID_PATTERN: 'RUNTIME_INVALID_PATTERN',
-  RUNTIME_AUTO_EXCEPTION: 'RUNTIME_AUTO_EXCEPTION',
-  RUNTIME_ABORTED: 'RUNTIME_ABORTED',
-  RUNTIME_PROPERTY_NOT_FOUND: 'RUNTIME_PROPERTY_NOT_FOUND',
-  RUNTIME_LIMIT_EXCEEDED: 'RUNTIME_LIMIT_EXCEEDED',
-  RUNTIME_ASSERTION_FAILED: 'RUNTIME_ASSERTION_FAILED',
-  RUNTIME_ERROR_RAISED: 'RUNTIME_ERROR_RAISED',
-
-  // Check errors
-  CHECK_FILE_NOT_FOUND: 'CHECK_FILE_NOT_FOUND',
-  CHECK_FILE_UNREADABLE: 'CHECK_FILE_UNREADABLE',
-  CHECK_INVALID_CONFIG: 'CHECK_INVALID_CONFIG',
-  CHECK_FIX_COLLISION: 'CHECK_FIX_COLLISION',
-} as const;
-
-export type RillErrorCode =
-  (typeof RILL_ERROR_CODES)[keyof typeof RILL_ERROR_CODES];
-
 /** Error category determining error ID prefix */
 export type ErrorCategory = 'lexer' | 'parse' | 'runtime' | 'check';
 
@@ -66,8 +34,6 @@ export type ErrorSeverity = 'error' | 'warning';
 export interface ErrorDefinition {
   /** Format: RILL-{category}{3-digit} (e.g., RILL-R001) */
   readonly errorId: string;
-  /** Legacy error code from RILL_ERROR_CODES */
-  readonly legacyCode: RillErrorCode;
   /** Error category (determines ID prefix) */
   readonly category: ErrorCategory;
   /** Severity level (defaults to 'error' when omitted) */
@@ -88,7 +54,6 @@ export interface ErrorDefinition {
  */
 export interface ErrorRegistry {
   get(errorId: string): ErrorDefinition | undefined;
-  getByLegacyCode(code: RillErrorCode): readonly ErrorDefinition[];
   has(errorId: string): boolean;
   readonly size: number;
   entries(): IterableIterator<[string, ErrorDefinition]>;
@@ -96,32 +61,19 @@ export interface ErrorRegistry {
 
 class ErrorRegistryImpl implements ErrorRegistry {
   private readonly byId: ReadonlyMap<string, ErrorDefinition>;
-  private readonly byLegacyCode: ReadonlyMap<
-    RillErrorCode,
-    readonly ErrorDefinition[]
-  >;
 
   constructor(definitions: ErrorDefinition[]) {
     const idMap = new Map<string, ErrorDefinition>();
-    const codeMap = new Map<RillErrorCode, ErrorDefinition[]>();
 
     for (const def of definitions) {
       idMap.set(def.errorId, def);
-
-      const existing = codeMap.get(def.legacyCode) ?? [];
-      codeMap.set(def.legacyCode, [...existing, def]);
     }
 
     this.byId = idMap;
-    this.byLegacyCode = codeMap;
   }
 
   get(errorId: string): ErrorDefinition | undefined {
     return this.byId.get(errorId);
-  }
-
-  getByLegacyCode(code: RillErrorCode): readonly ErrorDefinition[] {
-    return this.byLegacyCode.get(code) ?? [];
   }
 
   has(errorId: string): boolean {
@@ -142,35 +94,30 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Lexer Errors (RILL-L0xx)
   {
     errorId: 'RILL-L001',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'lexer',
     description: 'Unterminated string literal',
     messageTemplate: 'Unterminated string literal at {location}',
   },
   {
     errorId: 'RILL-L002',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'lexer',
     description: 'Invalid character',
     messageTemplate: 'Invalid character {char} at {location}',
   },
   {
     errorId: 'RILL-L003',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'lexer',
     description: 'Invalid number format',
     messageTemplate: 'Invalid number format: {value}',
   },
   {
     errorId: 'RILL-L004',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'lexer',
     description: 'Unterminated multiline string',
     messageTemplate: 'Unterminated multiline string starting at {location}',
   },
   {
     errorId: 'RILL-L005',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'lexer',
     description: 'Invalid escape sequence',
     messageTemplate: 'Invalid escape sequence {sequence} at {location}',
@@ -179,35 +126,30 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Parse Errors (RILL-P0xx)
   {
     errorId: 'RILL-P001',
-    legacyCode: RILL_ERROR_CODES.PARSE_UNEXPECTED_TOKEN,
     category: 'parse',
     description: 'Unexpected token',
     messageTemplate: 'Unexpected token {token}, expected {expected}',
   },
   {
     errorId: 'RILL-P002',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'parse',
     description: 'Unexpected end of input',
     messageTemplate: 'Unexpected end of input, expected {expected}',
   },
   {
     errorId: 'RILL-P003',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_TYPE,
     category: 'parse',
     description: 'Invalid type annotation',
     messageTemplate: 'Invalid type annotation: {type}',
   },
   {
     errorId: 'RILL-P004',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'parse',
     description: 'Invalid expression',
     messageTemplate: 'Invalid expression: {details}',
   },
   {
     errorId: 'RILL-P005',
-    legacyCode: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
     category: 'parse',
     description: 'Missing delimiter',
     messageTemplate: 'Missing {delimiter}, found {found}',
@@ -216,7 +158,6 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Runtime Errors (RILL-R0xx)
   {
     errorId: 'RILL-R001',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
     category: 'runtime',
     description: 'Parameter type mismatch',
     messageTemplate:
@@ -224,7 +165,6 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   },
   {
     errorId: 'RILL-R002',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
     category: 'runtime',
     description: 'Operator type mismatch',
     messageTemplate:
@@ -232,98 +172,84 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   },
   {
     errorId: 'RILL-R003',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
     category: 'runtime',
     description: 'Method receiver type mismatch',
     messageTemplate: 'Method {method} cannot be called on {type}',
   },
   {
     errorId: 'RILL-R004',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
     category: 'runtime',
     description: 'Type conversion failure',
     messageTemplate: 'Cannot convert {value} to {targetType}',
   },
   {
     errorId: 'RILL-R005',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
     category: 'runtime',
     description: 'Undefined variable',
     messageTemplate: 'Variable {name} is not defined',
   },
   {
     errorId: 'RILL-R006',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_FUNCTION,
     category: 'runtime',
     description: 'Undefined function',
     messageTemplate: 'Function {name} is not defined',
   },
   {
     errorId: 'RILL-R007',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_METHOD,
     category: 'runtime',
     description: 'Undefined method',
     messageTemplate: 'Method {method} is not defined on {type}',
   },
   {
     errorId: 'RILL-R008',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION,
     category: 'runtime',
     description: 'Undefined annotation',
     messageTemplate: 'Annotation {key} is not defined',
   },
   {
     errorId: 'RILL-R009',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_PROPERTY_NOT_FOUND,
     category: 'runtime',
     description: 'Property not found',
     messageTemplate: 'Property {property} not found on {type}',
   },
   {
     errorId: 'RILL-R010',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_LIMIT_EXCEEDED,
     category: 'runtime',
     description: 'Iteration limit exceeded',
     messageTemplate: 'Iteration limit of {limit} exceeded',
   },
   {
     errorId: 'RILL-R011',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_INVALID_PATTERN,
     category: 'runtime',
     description: 'Invalid regex pattern',
     messageTemplate: 'Invalid regex pattern: {pattern}',
   },
   {
     errorId: 'RILL-R012',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_TIMEOUT,
     category: 'runtime',
     description: 'Operation timeout',
     messageTemplate: 'Operation timed out after {timeout}ms',
   },
   {
     errorId: 'RILL-R013',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_ABORTED,
     category: 'runtime',
     description: 'Execution aborted',
     messageTemplate: 'Execution aborted by signal',
   },
   {
     errorId: 'RILL-R014',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_AUTO_EXCEPTION,
     category: 'runtime',
     description: 'Auto-exception triggered',
     messageTemplate: 'Auto-exception triggered: pattern {pattern} matched',
   },
   {
     errorId: 'RILL-R015',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_ASSERTION_FAILED,
     category: 'runtime',
     description: 'Assertion failed',
     messageTemplate: 'Assertion failed: {condition}',
   },
   {
     errorId: 'RILL-R016',
-    legacyCode: RILL_ERROR_CODES.RUNTIME_ERROR_RAISED,
     category: 'runtime',
     description: 'Error statement executed',
     messageTemplate: 'Error raised: {message}',
@@ -332,28 +258,24 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Check Errors (RILL-C0xx)
   {
     errorId: 'RILL-C001',
-    legacyCode: RILL_ERROR_CODES.CHECK_FILE_NOT_FOUND,
     category: 'check',
     description: 'File not found',
     messageTemplate: 'File not found: {path}',
   },
   {
     errorId: 'RILL-C002',
-    legacyCode: RILL_ERROR_CODES.CHECK_FILE_UNREADABLE,
     category: 'check',
     description: 'File unreadable',
     messageTemplate: 'File unreadable: {path}',
   },
   {
     errorId: 'RILL-C003',
-    legacyCode: RILL_ERROR_CODES.CHECK_INVALID_CONFIG,
     category: 'check',
     description: 'Invalid configuration',
     messageTemplate: 'Invalid configuration: {details}',
   },
   {
     errorId: 'RILL-C004',
-    legacyCode: RILL_ERROR_CODES.CHECK_FIX_COLLISION,
     category: 'check',
     description: 'Fix collision detected',
     messageTemplate: 'Fix collision detected for {location}',
@@ -534,9 +456,8 @@ export function createError(
   // Compute helpUrl from errorId using VERSION constant
   const helpUrl = getHelpUrl(errorId, VERSION);
 
-  // Create RillError with errorId, helpUrl, legacy code, and rendered message
+  // Create RillError with errorId, helpUrl, and rendered message
   return new RillError({
-    code: definition.legacyCode,
     errorId,
     helpUrl: helpUrl || undefined, // Convert empty string to undefined
     message,
@@ -547,8 +468,7 @@ export function createError(
 
 /** Structured error data for host applications */
 export interface RillErrorData {
-  readonly code: RillErrorCode;
-  readonly errorId?: string | undefined;
+  readonly errorId: string;
   readonly helpUrl?: string | undefined;
   readonly message: string;
   readonly location?: SourceLocation | undefined;
@@ -560,19 +480,27 @@ export interface RillErrorData {
  * Provides structured data for host applications to format as needed.
  */
 export class RillError extends Error {
-  readonly code: RillErrorCode;
-  readonly errorId: string | undefined;
+  readonly errorId: string;
   readonly helpUrl: string | undefined;
   readonly location?: SourceLocation | undefined;
   readonly context?: Record<string, unknown> | undefined;
 
   constructor(data: RillErrorData) {
+    // EC-3: Missing errorId
+    if (!data.errorId) {
+      throw new TypeError('errorId is required');
+    }
+
+    // EC-4: Unknown errorId
+    if (!ERROR_REGISTRY.has(data.errorId)) {
+      throw new TypeError(`Unknown error ID: ${data.errorId}`);
+    }
+
     const locationStr = data.location
       ? ` at ${data.location.line}:${data.location.column}`
       : '';
     super(`${data.message}${locationStr}`);
     this.name = 'RillError';
-    this.code = data.code;
     this.errorId = data.errorId;
     this.helpUrl = data.helpUrl;
     this.location = data.location;
@@ -582,7 +510,6 @@ export class RillError extends Error {
   /** Get structured error data for custom formatting */
   toData(): RillErrorData {
     return {
-      code: this.code,
       errorId: this.errorId,
       helpUrl: this.helpUrl,
       message: this.message.replace(/ at \d+:\d+$/, ''), // Strip location suffix
@@ -601,33 +528,28 @@ export class RillError extends Error {
 /** Parse-time errors */
 export class ParseError extends RillError {
   constructor(
+    errorId: string,
     message: string,
     location: SourceLocation,
-    context?: Record<string, unknown>,
-    errorId?: string
+    context?: Record<string, unknown>
   ) {
-    // When errorId provided, look up definition and derive legacyCode
-    if (errorId) {
-      const definition = ERROR_REGISTRY.get(errorId);
-      if (!definition) {
-        throw new TypeError(`Unknown error ID: ${errorId}`);
-      }
-      super({
-        code: definition.legacyCode,
-        errorId,
-        message,
-        location,
-        context,
-      });
-    } else {
-      // Backward compatible: use default PARSE_INVALID_SYNTAX code
-      super({
-        code: RILL_ERROR_CODES.PARSE_INVALID_SYNTAX,
-        message,
-        location,
-        context,
-      });
+    // EC-7: Unknown errorId
+    const definition = ERROR_REGISTRY.get(errorId);
+    if (!definition) {
+      throw new TypeError(`Unknown error ID: ${errorId}`);
     }
+
+    // EC-8: Wrong category
+    if (definition.category !== 'parse') {
+      throw new TypeError(`Expected parse error ID, got: ${errorId}`);
+    }
+
+    super({
+      errorId,
+      message,
+      location,
+      context,
+    });
     this.name = 'ParseError';
   }
 }
@@ -635,41 +557,39 @@ export class ParseError extends RillError {
 /** Runtime execution errors */
 export class RuntimeError extends RillError {
   constructor(
-    code: RillErrorCode,
+    errorId: string,
     message: string,
     location?: SourceLocation,
-    context?: Record<string, unknown>,
-    errorId?: string
+    context?: Record<string, unknown>
   ) {
-    // When errorId provided, look up definition and derive legacyCode
-    if (errorId) {
-      const definition = ERROR_REGISTRY.get(errorId);
-      if (!definition) {
-        throw new TypeError(`Unknown error ID: ${errorId}`);
-      }
-      super({
-        code: definition.legacyCode,
-        errorId,
-        message,
-        location,
-        context,
-      });
-    } else {
-      // Backward compatible: use provided code directly
-      super({ code, message, location, context });
+    // Validate errorId exists in registry
+    const definition = ERROR_REGISTRY.get(errorId);
+    if (!definition) {
+      throw new TypeError(`Unknown error ID: ${errorId}`);
     }
+
+    // Validate errorId is a runtime error
+    if (definition.category !== 'runtime') {
+      throw new TypeError(`Expected runtime error ID, got: ${errorId}`);
+    }
+
+    super({
+      errorId,
+      message,
+      location,
+      context,
+    });
     this.name = 'RuntimeError';
   }
 
   /** Create from an AST node */
   static fromNode(
-    code: RillErrorCode,
+    errorId: string,
     message: string,
     node?: { span: SourceSpan },
-    context?: Record<string, unknown>,
-    errorId?: string
+    context?: Record<string, unknown>
   ): RuntimeError {
-    return new RuntimeError(code, message, node?.span.start, context, errorId);
+    return new RuntimeError(errorId, message, node?.span.start, context);
   }
 }
 
@@ -684,7 +604,7 @@ export class TimeoutError extends RuntimeError {
     location?: SourceLocation
   ) {
     super(
-      RILL_ERROR_CODES.RUNTIME_TIMEOUT,
+      'RILL-R012',
       `Function '${functionName}' timed out after ${timeoutMs}ms`,
       location,
       { functionName, timeoutMs }
@@ -706,7 +626,7 @@ export class AutoExceptionError extends RuntimeError {
     location?: SourceLocation
   ) {
     super(
-      RILL_ERROR_CODES.RUNTIME_AUTO_EXCEPTION,
+      'RILL-R014',
       `Auto-exception triggered: pattern '${pattern}' matched`,
       location,
       { pattern, matchedValue }
@@ -720,7 +640,7 @@ export class AutoExceptionError extends RuntimeError {
 /** Abort errors (when execution is cancelled via AbortSignal) */
 export class AbortError extends RuntimeError {
   constructor(location?: SourceLocation) {
-    super(RILL_ERROR_CODES.RUNTIME_ABORTED, 'Execution aborted', location, {});
+    super('RILL-R013', 'Execution aborted', location, {});
     this.name = 'AbortError';
   }
 }

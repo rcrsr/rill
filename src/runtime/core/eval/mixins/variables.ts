@@ -38,7 +38,7 @@ import type {
   SourceLocation,
   ExpressionNode,
 } from '../../../../types.js';
-import { RuntimeError, RILL_ERROR_CODES } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { inferType } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
@@ -83,7 +83,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Check explicit type annotation matches value
       if (explicitType !== undefined && explicitType !== valueType) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R001',
           `RILL-R001: Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
           location,
           {
@@ -102,7 +102,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         hasVariable(this.ctx.parent, name)
       ) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R001',
           `RILL-R001: Cannot reassign outer variable $${name} from child scope`,
           location,
           { variableName: name }
@@ -113,7 +113,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const lockedType = this.ctx.variableTypes.get(name);
       if (lockedType !== undefined && lockedType !== valueType) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
+          'RILL-R001',
           `RILL-R001: Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
           location,
           {
@@ -146,7 +146,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (node.isPipeVar && !node.name) {
         if (this.ctx.pipeValue === null) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             'RILL-R005: Undefined variable: $',
             this.getNodeLocation(node),
             { variable: '$' }
@@ -160,7 +160,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const result = getVariable(this.ctx, node.name);
         if (result === undefined) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             `RILL-R005: Undefined variable: $${node.name}`,
             this.getNodeLocation(node),
             { variable: node.name }
@@ -171,7 +171,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Should not reach here - all variable nodes have either isPipeVar or name
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+        'RILL-R005',
         'RILL-R005: Invalid variable node',
         this.getNodeLocation(node)
       );
@@ -193,7 +193,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Pipe variable ($)
         if (this.ctx.pipeValue === null) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             'RILL-R005: Undefined variable: $',
             this.getNodeLocation(node),
             { variable: '$' }
@@ -205,7 +205,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const result = getVariable(this.ctx, node.name);
         if (result === undefined) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             `RILL-R005: Undefined variable: $${node.name}`,
             this.getNodeLocation(node),
             { variable: node.name }
@@ -214,7 +214,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         value = result;
       } else {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+          'RILL-R005',
           'RILL-R005: Invalid variable node',
           this.getNodeLocation(node)
         );
@@ -229,8 +229,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             return (this as any).evaluateBody(node.defaultValue);
           }
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R009: Cannot access property on null`,
+            'RILL-R009',
+            `Cannot access property on null`,
             this.getNodeLocation(node)
           );
         }
@@ -246,8 +246,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (Array.isArray(value)) {
             if (typeof indexValue !== 'number') {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                `RILL-R002: List index must be number, got ${inferType(indexValue)}`,
+                'RILL-R002',
+                `List index must be number, got ${inferType(indexValue)}`,
                 this.getNodeLocation(node)
               );
             }
@@ -259,8 +259,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const result = value[index];
             if (result === undefined) {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                `RILL-R009: List index out of bounds: ${indexValue}`,
+                'RILL-R009',
+                `List index out of bounds: ${indexValue}`,
                 this.getNodeLocation(node)
               );
             }
@@ -268,24 +268,24 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else if (isDict(value)) {
             if (typeof indexValue !== 'string') {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                `RILL-R002: Dict key must be string, got ${inferType(indexValue)}`,
+                'RILL-R002',
+                `Dict key must be string, got ${inferType(indexValue)}`,
                 this.getNodeLocation(node)
               );
             }
             const result = (value as Record<string, RillValue>)[indexValue];
             if (result === undefined) {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                `RILL-R009: Undefined dict key: ${indexValue}`,
+                'RILL-R009',
+                `Undefined dict key: ${indexValue}`,
                 this.getNodeLocation(node)
               );
             }
             value = result;
           } else {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R002: Cannot index ${inferType(value)}`,
+              'RILL-R002',
+              `Cannot index ${inferType(value)}`,
               this.getNodeLocation(node)
             );
           }
@@ -309,8 +309,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 value = null;
               } else {
                 throw new RuntimeError(
-                  RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                  `RILL-R003: Cannot access .params on ${inferType(value)}`,
+                  'RILL-R003',
+                  `Cannot access .params on ${inferType(value)}`,
                   this.getNodeLocation(node),
                   { actualType: inferType(value) }
                 );
@@ -353,7 +353,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } catch (e) {
             if (
               e instanceof RuntimeError &&
-              e.code === RILL_ERROR_CODES.RUNTIME_UNDEFINED_ANNOTATION &&
+              e.errorId === 'RILL-R008' &&
               node.defaultValue !== null
             ) {
               // Convert missing annotation to null for ?? coalescing
@@ -366,8 +366,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else {
           // Other field access types (block)
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Field access kind '${access.kind}' not yet supported`,
+            'RILL-R002',
+            `Field access kind '${access.kind}' not yet supported`,
             this.getNodeLocation(node)
           );
         }
@@ -411,7 +411,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (keyValue === undefined) {
             const varName = finalAccess.variableName ?? '$';
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+              'RILL-R005',
               `RILL-R005: Variable '${varName}' is undefined`,
               this.getNodeLocation(node)
             );
@@ -422,8 +422,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // EC-10: Key variable non-string
             if (typeof keyValue !== 'string') {
               throw new RuntimeError(
-                RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-                `RILL-R002: Existence check key must be string, got ${inferType(keyValue)}`,
+                'RILL-R002',
+                `Existence check key must be string, got ${inferType(keyValue)}`,
                 this.getNodeLocation(node)
               );
             }
@@ -460,8 +460,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // EC-11: Computed key non-string
           if (typeof keyValue !== 'string') {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R002: Existence check key evaluated to ${inferType(keyValue)}, expected string`,
+              'RILL-R002',
+              `Existence check key evaluated to ${inferType(keyValue)}, expected string`,
               this.getNodeLocation(node)
             );
           }
@@ -484,8 +484,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // For other access kinds (block, alternatives, annotation), not supported
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Existence check not yet supported for ${finalAccess.kind} access`,
+          'RILL-R002',
+          `Existence check not yet supported for ${finalAccess.kind} access`,
           this.getNodeLocation(node)
         );
       }
@@ -524,7 +524,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         keyValue = this.ctx.pipeValue ?? undefined;
         if (keyValue === undefined) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             `RILL-R005: Pipe variable '$' is undefined`,
             this.getNodeLocation(node)
           );
@@ -534,7 +534,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         keyValue = getVariable(this.ctx, access.variableName);
         if (keyValue === undefined) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE,
+            'RILL-R005',
             `RILL-R005: Variable '${access.variableName}' is undefined`,
             this.getNodeLocation(node)
           );
@@ -544,15 +544,15 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Validate key type (EC-2, EC-3)
       if (typeof keyValue === 'boolean') {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Key must be string or number, got bool`,
+          'RILL-R002',
+          `Key must be string or number, got bool`,
           this.getNodeLocation(node)
         );
       }
       if (Array.isArray(keyValue)) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Key must be string or number, got list`,
+          'RILL-R002',
+          `Key must be string or number, got list`,
           this.getNodeLocation(node)
         );
       }
@@ -588,8 +588,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Other types (dict, closure) - fall through to type error
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R002: Key must be string or number, got ${inferType(keyValue)}`,
+        'RILL-R002',
+        `Key must be string or number, got ${inferType(keyValue)}`,
         this.getNodeLocation(node)
       );
     }
@@ -619,8 +619,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-4: Expression result is closure
       if (isCallable(keyValue)) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Computed key evaluated to closure, expected string or number`,
+          'RILL-R002',
+          `Computed key evaluated to closure, expected string or number`,
           this.getNodeLocation(node)
         );
       }
@@ -628,8 +628,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-5: Expression result is dict
       if (isDict(keyValue)) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Computed key evaluated to dict, expected string or number`,
+          'RILL-R002',
+          `Computed key evaluated to dict, expected string or number`,
           this.getNodeLocation(node)
         );
       }
@@ -637,15 +637,15 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Other invalid types (boolean, list)
       if (typeof keyValue === 'boolean') {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Computed key evaluated to bool, expected string or number`,
+          'RILL-R002',
+          `Computed key evaluated to bool, expected string or number`,
           this.getNodeLocation(node)
         );
       }
       if (Array.isArray(keyValue)) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Computed key evaluated to list, expected string or number`,
+          'RILL-R002',
+          `Computed key evaluated to list, expected string or number`,
           this.getNodeLocation(node)
         );
       }
@@ -681,8 +681,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Shouldn't reach here due to exhaustive type checks above
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R002: Computed key evaluated to unexpected type`,
+        'RILL-R002',
+        `Computed key evaluated to unexpected type`,
         this.getNodeLocation(node)
       );
     }
@@ -708,8 +708,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-6: Target must be dict
       if (!isDict(value)) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Alternative access requires dict, got ${inferType(value)}`,
+          'RILL-R002',
+          `Alternative access requires dict, got ${inferType(value)}`,
           this.getNodeLocation(node)
         );
       }

@@ -232,7 +232,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$missing
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_UNDEFINED_VARIABLE',
+          errorId: 'RILL-R005',
           message: expect.stringContaining("Variable 'missing' is undefined"),
         });
       });
@@ -244,7 +244,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$undefined&number
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_UNDEFINED_VARIABLE',
+          errorId: 'RILL-R005',
           message: expect.stringContaining("Variable 'undefined' is undefined"),
         });
       });
@@ -259,7 +259,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$n
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key must be string, got number'
           ),
@@ -274,7 +274,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$b
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key must be string, got bool'
           ),
@@ -289,7 +289,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$list
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key must be string, got list'
           ),
@@ -304,7 +304,7 @@ describe('Dynamic Existence Check', () => {
             $data.?$dict
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key must be string, got dict'
           ),
@@ -320,7 +320,7 @@ describe('Dynamic Existence Check', () => {
             $data.?(42)
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key evaluated to number, expected string'
           ),
@@ -334,7 +334,7 @@ describe('Dynamic Existence Check', () => {
             $data.?(true)
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key evaluated to bool, expected string'
           ),
@@ -348,7 +348,7 @@ describe('Dynamic Existence Check', () => {
             $data.?([1, 2])
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key evaluated to list, expected string'
           ),
@@ -362,7 +362,7 @@ describe('Dynamic Existence Check', () => {
             $data.?([a: 1])
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key evaluated to dict, expected string'
           ),
@@ -376,7 +376,7 @@ describe('Dynamic Existence Check', () => {
             $data.?(42)&number
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
           message: expect.stringContaining(
             'Existence check key evaluated to number, expected string'
           ),
@@ -739,7 +739,7 @@ describe('Dynamic Existence Check', () => {
             $dict.?$undefined
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_UNDEFINED_VARIABLE',
+          errorId: 'RILL-R005',
           message: expect.stringContaining("Variable 'undefined' is undefined"),
         });
       });
@@ -751,7 +751,7 @@ describe('Dynamic Existence Check', () => {
             $dict.?(42)
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
         });
       });
 
@@ -763,7 +763,7 @@ describe('Dynamic Existence Check', () => {
             $dict.?$n
           `)
         ).rejects.toMatchObject({
-          code: 'RUNTIME_TYPE_ERROR',
+          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
         });
       });
     });

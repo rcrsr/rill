@@ -104,10 +104,9 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     hint = '. Hint: Unexpected end of input';
   }
   throw new ParseError(
+    'RILL-P001',
     `Expected literal, got: ${token.value}${hint}`,
-    token.span.start,
-    undefined,
-    'RILL-P001'
+    token.span.start
   );
 };
 
@@ -173,20 +172,18 @@ Parser.prototype.parseStringParts = function (
 
       if (depth !== 0) {
         throw new ParseError(
+          'RILL-P005',
           'Unterminated string interpolation',
-          baseLocation,
-          undefined,
-          'RILL-P005'
+          baseLocation
         );
       }
 
       const exprSource = raw.slice(exprStart, i - 1);
       if (!exprSource.trim()) {
         throw new ParseError(
+          'RILL-P004',
           'Empty string interpolation',
-          baseLocation,
-          undefined,
-          'RILL-P004'
+          baseLocation
         );
       }
 
@@ -270,10 +267,9 @@ Parser.prototype.parseInterpolationExpr = function (
 
   if (filtered.length === 0 || filtered[0]?.type === TOKEN_TYPES.EOF) {
     throw new ParseError(
+      'RILL-P004',
       'Empty string interpolation',
-      baseLocation,
-      undefined,
-      'RILL-P004'
+      baseLocation
     );
   }
 
@@ -282,10 +278,9 @@ Parser.prototype.parseInterpolationExpr = function (
 
   if (subParser.state.tokens[subParser.state.pos]?.type !== TOKEN_TYPES.EOF) {
     throw new ParseError(
+      'RILL-P001',
       `Unexpected token in interpolation: ${subParser.state.tokens[subParser.state.pos]?.value}`,
-      baseLocation,
-      undefined,
-      'RILL-P001'
+      baseLocation
     );
   }
 
@@ -378,10 +373,9 @@ Parser.prototype.parseTupleElement = function (
       check(this.state, TOKEN_TYPES.EOF)
     ) {
       throw new ParseError(
+        'RILL-P004',
         "Expected expression after '...'",
-        current(this.state).span.start,
-        undefined,
-        'RILL-P004'
+        current(this.state).span.start
       );
     }
 
@@ -440,10 +434,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     advance(this.state); // consume $
     if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
+        'RILL-P005',
         'Expected variable name after $',
-        current(this.state).span.start,
-        undefined,
-        'RILL-P005'
+        current(this.state).span.start
       );
     }
     const varToken = advance(this.state);
@@ -454,10 +447,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
     // Standalone $ without identifier - error
     throw new ParseError(
+      'RILL-P005',
       'Expected variable name after $',
-      current(this.state).span.start,
-      undefined,
-      'RILL-P005'
+      current(this.state).span.start
     );
   } else if (check(this.state, TOKEN_TYPES.LPAREN)) {
     // Parse computed key: (expression)
@@ -465,10 +457,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     const expression = this.parsePipeChain();
     if (!check(this.state, TOKEN_TYPES.RPAREN)) {
       throw new ParseError(
+        'RILL-P005',
         'Expected ) after computed key expression',
-        current(this.state).span.start,
-        undefined,
-        'RILL-P005'
+        current(this.state).span.start
       );
     }
     advance(this.state); // consume )
@@ -481,10 +472,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     const literal = this.parseTupleOrDict();
     if (literal.type !== 'Tuple') {
       throw new ParseError(
+        'RILL-P004',
         'Dict entry key must be identifier or list, not dict',
-        literal.span.start,
-        undefined,
-        'RILL-P004'
+        literal.span.start
       );
     }
     key = literal;
@@ -516,10 +506,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else {
     // Invalid token at key position
     throw new ParseError(
+      'RILL-P001',
       'Dict key must be identifier, string, number, boolean, variable, or expression',
-      current(this.state).span.start,
-      undefined,
-      'RILL-P001'
+      current(this.state).span.start
     );
   }
 

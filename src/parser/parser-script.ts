@@ -79,6 +79,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
             err instanceof ParseError
               ? err
               : new ParseError(
+                  'RILL-P001',
                   err.message.replace(/ at line \d+, column \d+$/, ''),
                   err.location
                 );

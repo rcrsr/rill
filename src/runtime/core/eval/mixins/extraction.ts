@@ -13,7 +13,7 @@ import type {
   SpreadNode,
   GroupedExprNode,
 } from '../../../../types.js';
-import { RILL_ERROR_CODES, RuntimeError } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { RillValue, RillTuple } from '../../values.js';
 import {
@@ -73,8 +73,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Dict destructure pattern
         if (!isDictInput) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Key destructure requires dict, got ${isList ? 'list' : typeof input}`,
+            'RILL-R002',
+            `Key destructure requires dict, got ${isList ? 'list' : typeof input}`,
             node.span.start
           );
         }
@@ -84,8 +84,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           if (elem.kind === 'nested') {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Nested destructure not supported in dict patterns',
+              'RILL-R002',
+              'Nested destructure not supported in dict patterns',
               elem.span.start
             );
           }
@@ -96,8 +96,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             elem.name === null
           ) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Dict destructure requires key: $var patterns',
+              'RILL-R002',
+              'Dict destructure requires key: $var patterns',
               elem.span.start
             );
           }
@@ -105,8 +105,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const dictInput = input as Record<string, RillValue>;
           if (!(elem.key in dictInput)) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R009: Key '${elem.key}' not found in dict`,
+              'RILL-R009',
+              `Key '${elem.key}' not found in dict`,
               elem.span.start,
               { key: elem.key, availableKeys: Object.keys(dictInput) }
             );
@@ -115,8 +115,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const dictValue = dictInput[elem.key];
           if (dictValue === undefined) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R009: Key '${elem.key}' has undefined value`,
+              'RILL-R009',
+              `Key '${elem.key}' has undefined value`,
               elem.span.start
             );
           }
@@ -135,8 +135,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // List destructure pattern
         if (!isList) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Positional destructure requires list, got ${isDictInput ? 'dict' : typeof input}`,
+            'RILL-R002',
+            `Positional destructure requires list, got ${isDictInput ? 'dict' : typeof input}`,
             node.span.start
           );
         }
@@ -144,8 +144,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const listInput = input as RillValue[];
         if (node.elements.length !== listInput.length) {
           throw new RuntimeError(
-            RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-            `RILL-R002: Destructure pattern has ${node.elements.length} elements, list has ${listInput.length}`,
+            'RILL-R002',
+            `Destructure pattern has ${node.elements.length} elements, list has ${listInput.length}`,
             node.span.start
           );
         }
@@ -167,8 +167,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           if (elem.name === null) {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              'RILL-R002: Invalid destructure element',
+              'RILL-R002',
+              'Invalid destructure element',
               elem.span.start
             );
           }
@@ -206,8 +206,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       if (!isList && !isString) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          `RILL-R002: Slice requires list or string, got ${isDict(input) ? 'dict' : typeof input}`,
+          'RILL-R002',
+          `Slice requires list or string, got ${isDict(input) ? 'dict' : typeof input}`,
           node.span.start
         );
       }
@@ -268,8 +268,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R002: Spread requires list or dict, got ${inferType(value)}`,
+        'RILL-R002',
+        `Spread requires list or dict, got ${inferType(value)}`,
         node.span.start
       );
     }
@@ -282,11 +282,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       bound: SliceNode['start']
     ): Promise<number> {
       if (bound === null) {
-        throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'RILL-R002: Slice bound is null',
-          undefined
-        );
+        throw new RuntimeError('RILL-R002', 'Slice bound is null', undefined);
       }
 
       switch (bound.type) {
@@ -300,8 +296,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const value = (this as any).evaluateVariable(bound);
           if (typeof value !== 'number') {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R002: Slice bound must be number, got ${typeof value}`,
+              'RILL-R002',
+              `Slice bound must be number, got ${typeof value}`,
               bound.span.start
             );
           }
@@ -317,8 +313,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
           if (typeof value !== 'number') {
             throw new RuntimeError(
-              RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-              `RILL-R002: Slice bound must be number, got ${typeof value}`,
+              'RILL-R002',
+              `Slice bound must be number, got ${typeof value}`,
               bound.span.start
             );
           }
@@ -342,8 +338,8 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       if (actualStep === 0) {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-          'RILL-R002: Slice step cannot be zero',
+          'RILL-R002',
+          'Slice step cannot be zero',
           undefined
         );
       }

@@ -12,7 +12,6 @@ import {
   AbortError,
   AutoExceptionError,
   RuntimeError,
-  RILL_ERROR_CODES,
   TimeoutError,
 } from '../../../types.js';
 import type { RuntimeContext } from '../types.js';
@@ -132,8 +131,8 @@ export class EvaluatorBase {
   ): Promise<RillValue> {
     if (!isDict(value)) {
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R003: Cannot access field '${field}' on non-dict`,
+        'RILL-R003',
+        `Cannot access field '${field}' on non-dict`,
         location
       );
     }
@@ -146,8 +145,8 @@ export class EvaluatorBase {
         return null;
       }
       throw new RuntimeError(
-        RILL_ERROR_CODES.RUNTIME_TYPE_ERROR,
-        `RILL-R009: Dict has no field '${field}'`,
+        'RILL-R009',
+        `Dict has no field '${field}'`,
         location
       );
     }

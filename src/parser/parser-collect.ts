@@ -66,10 +66,9 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
   }
 
   throw new ParseError(
+    'RILL-P001',
     `Expected collection body (closure, block, grouped, variable, spread, method, or function), got: ${current(this.state).value}`,
-    current(this.state).span.start,
-    undefined,
-    'RILL-P001'
+    current(this.state).span.start
   );
 };
 

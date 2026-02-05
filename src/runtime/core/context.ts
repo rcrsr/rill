@@ -5,7 +5,7 @@
  * Public API for host applications.
  */
 
-import { RILL_ERROR_CODES, RuntimeError } from '../../types.js';
+import { RuntimeError } from '../../types.js';
 import { BUILTIN_FUNCTIONS, BUILTIN_METHODS } from '../ext/builtins.js';
 import type {
   RillMethod,
@@ -114,8 +114,8 @@ export function createRuntimeContext(
         autoExceptions.push(new RegExp(pattern));
       } catch {
         throw new RuntimeError(
-          RILL_ERROR_CODES.RUNTIME_INVALID_PATTERN,
-          `RILL-R011: Invalid autoException pattern: ${pattern}`,
+          'RILL-R011',
+          `Invalid autoException pattern: ${pattern}`,
           undefined,
           { pattern }
         );

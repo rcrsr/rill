@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import {
   AbortError,
   RuntimeError,
-  RILL_ERROR_CODES,
   createRuntimeContext,
   parse,
   execute,
@@ -52,7 +51,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+        expect(runtimeErr.errorId).toBe('RILL-R004');
         expect(runtimeErr.message).toContain('Unsupported expression type');
         expect(runtimeErr.message).toContain('UnknownNode');
       }
@@ -78,7 +77,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+        expect(runtimeErr.errorId).toBe('RILL-R004');
         expect(runtimeErr.message).toContain('Unsupported pipe target type');
         expect(runtimeErr.message).toContain('InvalidPipeTarget');
       }
@@ -105,7 +104,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(AbortError);
         const abortErr = err as AbortError;
-        expect(abortErr.code).toBe(RILL_ERROR_CODES.RUNTIME_ABORTED);
+        expect(abortErr.errorId).toBe('RILL-R013');
         expect(abortErr.message).toContain('Execution aborted');
       }
     });
@@ -216,9 +215,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(
-          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE
-        );
+        expect(runtimeErr.errorId).toBe('RILL-R005');
         expect(runtimeErr.message).toContain('Undefined variable');
       }
     });
@@ -294,9 +291,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(
-          RILL_ERROR_CODES.RUNTIME_UNDEFINED_VARIABLE
-        );
+        expect(runtimeErr.errorId).toBe('RILL-R005');
       }
     });
 
@@ -328,7 +323,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+        expect(runtimeErr.errorId).toBe('RILL-R002');
         expect(runtimeErr.message).toContain('Annotation spread requires dict');
       }
     });
@@ -340,7 +335,7 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.code).toBe(RILL_ERROR_CODES.RUNTIME_TYPE_ERROR);
+        expect(runtimeErr.errorId).toBe('RILL-R002');
         expect(runtimeErr.message).toContain('Annotation spread requires dict');
       }
     });
