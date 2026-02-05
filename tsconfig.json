@@ -1,44 +1,17 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // Language & Environment
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-
-    // Output
+    // Package-specific output paths
     "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-
-    // Strict Type Checking
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-
-    // Module Handling
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "resolveJsonModule": true,
-
-    // Code Quality
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-
-    // Consistency
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-
-    // Composite for project references
-    "composite": true
+    "rootDir": "."
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "packages/**/src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/node_modules",
+    "**/dist",
+    "tests/**/*",
+    "**/tests/**/*"
+  ]
 }

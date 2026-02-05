@@ -4,13 +4,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '../src/index.js';
+import { parse } from '../packages/core/src/index.js';
 import type {
   ErrorNode,
   ScriptNode,
   StatementNode,
   PipeChainNode,
-} from '../src/types.js';
+} from '../packages/core/src/types.js';
 
 describe('Phase 1: Error Statement Parsing', () => {
   describe('error keyword form', () => {

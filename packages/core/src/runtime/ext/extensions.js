@@ -1,0 +1,66 @@
+import { RuntimeError } from '../../types.js';
+/**
+ * Prefix all function names in an extension with a namespace.
+ *
+ * @param namespace - Alphanumeric string with hyphens (e.g., "fs", "http-client")
+ * @param functions - Extension result with function definitions
+ * @returns New ExtensionResult with prefixed function names (namespace::functionName)
+ * @throws {RuntimeError} RUNTIME_TYPE_ERROR if namespace is invalid
+ *
+ * @example
+ * ```typescript
+ * const fs = createFsExtension();
+ * const prefixed = prefixFunctions("fs", fs);
+ * // { "fs::read": ..., "fs::write": ..., dispose: ... }
+ * ```
+ */
+export function prefixFunctions(namespace, functions) {
+    // Validate namespace pattern: non-empty alphanumeric with hyphens only
+    const NAMESPACE_PATTERN = /^[a-zA-Z0-9-]+$/;
+    if (!NAMESPACE_PATTERN.test(namespace)) {
+        throw new RuntimeError('RILL-R004', `Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`);
+    }
+    // Create new object with prefixed keys
+    const result = {};
+    for (const [name, definition] of Object.entries(functions)) {
+        // Skip the dispose method during prefixing
+        if (name === 'dispose')
+            continue;
+        result[`${namespace}::${name}`] = definition;
+    }
+    // Preserve dispose method if present
+    const resultWithDispose = result;
+    if (functions.dispose !== undefined) {
+        resultWithDispose.dispose = functions.dispose;
+    }
+    return resultWithDispose;
+}
+/**
+ * Emit an extension event with auto-generated timestamp.
+ * Adds ISO timestamp if event.timestamp is undefined, then calls onLogEvent callback.
+ *
+ * @param ctx - Runtime context containing callbacks
+ * @param event - Extension event (timestamp auto-added if omitted)
+ *
+ * @example
+ * ```typescript
+ * emitExtensionEvent(ctx, {
+ *   event: 'extension_initialized',
+ *   subsystem: 'extension:openai',
+ *   config: { model: 'gpt-4' }
+ * });
+ * // Calls ctx.callbacks.onLogEvent with timestamp added
+ * ```
+ */
+export function emitExtensionEvent(ctx, event) {
+    // Call callback if defined
+    if (ctx.callbacks.onLogEvent !== undefined) {
+        // Auto-add timestamp if not present
+        const eventWithTimestamp = {
+            ...event,
+            timestamp: event.timestamp ?? new Date().toISOString(),
+        };
+        ctx.callbacks.onLogEvent(eventWithTimestamp);
+    }
+}
+//# sourceMappingURL=extensions.js.map

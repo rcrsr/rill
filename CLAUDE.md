@@ -1,24 +1,88 @@
+## Monorepo Structure
+
+Rill uses pnpm workspaces with the following package organization:
+
+| Package | NPM Name | Purpose |
+|---------|----------|---------|
+| `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
+| `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
+| `packages/ext/example` | `@rcrsr/rill-ext-example` | Example extension template |
+
 ## Commands
 
+### Workspace-Level Commands
+
+Run from repository root for all packages:
+
 ```bash
-npm run build          # Compile TypeScript to dist/
-npm test               # Run all tests
-npm run test:watch     # Watch mode
-npm run typecheck      # Type validation only
-npm run lint           # Check lint errors
-npm run lint:fix       # Auto-fix lint errors
-npm run format         # Format with prettier
-npm run check          # Complete validation (build, test, lint)
+pnpm install             # Install dependencies for all packages
+pnpm run -r build        # Build all packages in dependency order
+pnpm run -r test         # Run tests across all packages
+pnpm run -r typecheck    # Type validation for all packages
+pnpm run -r lint         # Check lint errors across all packages
+pnpm run -r check        # Complete validation (build, test, lint)
+```
+
+### Package-Specific Commands
+
+Run from repository root for a single package:
+
+```bash
+pnpm --filter @rcrsr/rill build         # Build core package only
+pnpm --filter @rcrsr/rill-cli test      # Test CLI package only
+pnpm --filter @rcrsr/rill-ext-example typecheck  # Typecheck example extension
+```
+
+Or navigate to a package directory and run directly:
+
+```bash
+cd packages/core
+pnpm build          # Compile TypeScript to dist/
+pnpm test           # Run all tests
+pnpm typecheck      # Type validation only
+pnpm lint           # Check lint errors
+pnpm check          # Complete validation (build, test, lint)
 ```
 
 ## Test Organization
 
 | Directory | Purpose | Policy |
 |-----------|---------|--------|
-| `tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes. |
-| `tests/runtime/` | Runtime API and implementation | Normal test maintenance applies. |
+| `packages/core/tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes. |
+| `packages/core/tests/runtime/` | Runtime API and implementation | Normal test maintenance applies. |
 
-Run subsets: `npm test -- tests/language` or `npm test -- tests/runtime`
+Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
+
+## Release Process
+
+Rill uses a manual release process via `scripts/release.sh`. The script:
+
+1. Verifies clean working directory and main branch
+2. Builds all packages (`pnpm run -r build`)
+3. Runs all tests (`pnpm run -r test`)
+4. Publishes to npm with `--access public`
+5. Creates git tags (`@rcrsr/rill@x.y.z`, `@rcrsr/rill-cli@x.y.z`, etc.)
+6. Pushes tags to remote
+
+### Release Checklist
+
+Before running `./scripts/release.sh`:
+
+- [ ] Update version in all package.json files
+- [ ] Update CHANGELOG.md with release notes
+- [ ] Commit version changes: `git commit -m "chore: release vx.y.z"`
+- [ ] Ensure working directory is clean
+- [ ] Ensure on main branch
+- [ ] Run `./scripts/release.sh` and follow prompts
+
+### Dry Run Testing
+
+Test publish without releasing:
+
+```bash
+cd packages/core
+npm publish --dry-run --access public
+```
 
 ## Architecture
 
@@ -41,8 +105,6 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 Start at @docs/00_INDEX.md for full navigation.
 
 ## Documentation Examples
-
-Run `npx tsx scripts/test-examples.ts docs/` to validate all code blocks.
 
 **Fence types:**
 - ` ```rill ` — Executable code (tested)

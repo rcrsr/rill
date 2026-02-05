@@ -1,25 +1,10 @@
 {
-  "name": "@rcrsr/rill",
+  "name": "rill-monorepo",
   "version": "0.5.0",
   "description": "Rill - An embeddable scripting language for orchestrating LLM workflows",
+  "private": true,
+  "packageManager": "pnpm@10.10.0",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "bin": {
-    "rill-exec": "./dist/cli-exec.js",
-    "rill-eval": "./dist/cli-eval.js",
-    "rill-check": "./dist/cli-check.js"
-  },
-  "files": [
-    "dist",
-    "docs"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git"
@@ -32,24 +17,15 @@
     "access": "public"
   },
   "scripts": {
-    "generate-docs": "npx tsx scripts/generate-docs-bundle.ts",
-    "generate-version": "npx tsx scripts/generate-version.ts",
-    "generate-error-docs": "npx tsx scripts/generate-error-docs.ts",
-    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-version && npm run generate-docs && npm run generate-error-docs",
-    "build": "tsc",
-    "build:watch": "tsc --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write src/",
-    "format:check": "prettier --check src/",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "rill": "npx tsx src/cli-exec.ts",
-    "test:examples": "npx tsx scripts/test-examples.ts docs/",
-    "check": "npm run test:examples && npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test"
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "check": "pnpm -r run check",
+    "test:examples": "pnpm --filter @rcrsr/rill run test:examples"
   },
   "keywords": [
     "rill",

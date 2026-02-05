@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm -r run build
+
+      - name: Run tests
+        run: pnpm -r run test
+
+      - name: Publish @rcrsr/rill
+        run: npm publish --provenance --access public
+        working-directory: packages/core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @rcrsr/rill-cli
+        run: npm publish --provenance --access public
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @rcrsr/rill-ext-example
+        run: npm publish --provenance --access public
+        working-directory: packages/ext/example
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create git tags
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Tag each package with its name and version
+          CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+          git tag -a "@rcrsr/rill@${CORE_VERSION}" -m "Release @rcrsr/rill@${CORE_VERSION}"
+
+          CLI_VERSION=$(node -p "require('./packages/cli/package.json').version")
+          git tag -a "@rcrsr/rill-cli@${CLI_VERSION}" -m "Release @rcrsr/rill-cli@${CLI_VERSION}"
+
+          EXAMPLE_VERSION=$(node -p "require('./packages/ext/example/package.json').version")
+          git tag -a "@rcrsr/rill-ext-example@${EXAMPLE_VERSION}" -m "Release @rcrsr/rill-ext-example@${EXAMPLE_VERSION}"
+
+          git push --tags

@@ -1,0 +1,23 @@
+{
+  "name": "@rcrsr/rill",
+  "version": "0.6.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "test:examples": "npx tsx ../../scripts/test-examples.ts ../../docs/",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {}
+}

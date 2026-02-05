@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    // Language & Environment
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    // Output
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Strict Type Checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Module Handling
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+
+    // Code Quality
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // Consistency
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    // Composite for project references
+    "composite": true,
+
+    // Path mappings for monorepo packages
+    "paths": {
+      "@rcrsr/rill": ["./packages/core/src/index.ts"]
+    }
+  }
+}

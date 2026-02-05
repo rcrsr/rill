@@ -18,7 +18,7 @@ import {
   parse,
   RillError,
   type RillValue,
-} from '../src/index.js';
+} from '@rcrsr/rill';
 
 interface CodeBlock {
   code: string;
@@ -50,7 +50,7 @@ function trackUnknownFunction(name: string, location: string): void {
 // and methods (.len, .trim, .upper, .lower, .join, etc.) are NOT mocked here
 function createMockFunctions(): Record<
   string,
-  import('../src/runtime/index.js').HostFunctionDefinition
+  import('@rcrsr/rill').HostFunctionDefinition
 > {
   return {
     // Primary app:: namespace (preferred convention for docs)

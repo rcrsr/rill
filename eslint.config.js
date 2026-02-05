@@ -4,9 +4,20 @@ import tsparser from '@typescript-eslint/parser';
 import globals from 'globals';
 
 export default [
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/*.js',
+      '**/*.d.ts',
+      '**/*.d.ts.map',
+      '**/*.js.map',
+      'src/generated/**',
+    ],
+  },
   eslint.configs.recommended,
   {
-    files: ['src/**/*.ts'],
+    files: ['**/*.ts'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -32,12 +43,9 @@ export default [
     },
   },
   {
-    files: ['src/generated/introspection-data.ts'],
+    files: ['**/src/generated/introspection-data.ts'],
     rules: {
       'no-useless-escape': 'off', // Auto-generated docs with literal $ characters
     },
-  },
-  {
-    ignores: ['dist/**', 'node_modules/**', 'src/generated/**'],
   },
 ];

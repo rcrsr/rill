@@ -34,6 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Monorepo package structure with pnpm workspaces** — Restructures @rcrsr/rill into focused packages with independent versioning and release cycles
+  - Core runtime: `@rcrsr/rill` in `packages/core` with zero production dependencies
+  - CLI tools: `@rcrsr/rill-cli` in `packages/cli` depends on core + yaml for configuration support
+  - Extension template: `@rcrsr/rill-ext-example` in `packages/ext/example`
+  - TypeScript project references enable topological build ordering and type-aware cross-package compilation
+  - Workspace delegation: `pnpm run -r build`, `pnpm run -r test`, `pnpm run -r check` commands orchestrate all packages
+  - Git history preserved: all file moves maintain attribution via `git log --follow` across package relocations
+  - Test coverage maintained: 3,376 tests pass across 5 packages with shared test infrastructure
+  - Release automation: GitHub Actions publishes packages to npm with `--access public` and npm provenance verification
+  - Independent package versions: Each package maintains separate `version` in `package.json` for flexibility
+  - Package discovery: Root `package.json` workspaces array defines `packages/*` and `packages/ext/*` structure
+  - Initiative: `monorepo-migration` (6 phases complete, phases 1-6)
+
 - **Capture arrow syntax migration to `=>`** — Operator changed from `:>` to `=>` for ligature font support
   - Lexer now emits `CAPTURE_ARROW` tokens for `=>` via `TWO_CHAR_OPERATORS` table
   - Deprecated `:>` syntax rejected by parser with migration error `RILL-P006`
@@ -58,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VERSION` constant: Semver string from package.json (e.g., `"0.5.0"`)
   - `VERSION_INFO` constant: Structured object with `major`, `minor`, `patch`, `prerelease` fields
   - Use for logging, diagnostics, or compatibility checks in host applications
-  - Generated at build time via `scripts/generate-version.ts`
+  - Generated at build time via `packages/core/scripts/generate-version.ts`
 
 - **Error Taxonomy** — Structured error system with documentation links
   - `ERROR_REGISTRY`: Categorized definitions for all error codes with severity and messages

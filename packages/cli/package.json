@@ -1,0 +1,24 @@
+{
+  "name": "@rcrsr/rill-cli",
+  "version": "0.6.0",
+  "type": "module",
+  "bin": {
+    "rill-exec": "./dist/cli-exec.js",
+    "rill-eval": "./dist/cli-eval.js",
+    "rill-check": "./dist/cli-check.js"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "yaml": "^2.8.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

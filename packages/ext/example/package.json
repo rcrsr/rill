@@ -1,0 +1,16 @@
+{
+  "name": "@rcrsr/rill-ext-example",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "devDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
