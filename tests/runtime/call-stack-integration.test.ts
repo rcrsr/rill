@@ -5,8 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
-import { RuntimeError } from '../../src/index.js';
-import { getCallStack } from '../../src/runtime/core/context.js';
+import { RuntimeError, getCallStack } from '../../src/index.js';
 
 describe('Rill Runtime: Call Stack Integration', () => {
   describe('pushCallFrame at function call sites (IR-2)', () => {
