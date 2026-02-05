@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Error handling coverage** — Unified error system using RILL-XXXX identifiers
+  - Removed legacy `code` field from `RillError` class; `errorId` is sole identifier
+  - Migrated 161 call sites from dual-field to errorId-only signatures
+  - Removed `legacyCode` from `ErrorDefinition`, `getByLegacyCode()` from registry
+  - Deleted `RILL_ERROR_CODES` constant and `RillErrorCode` type
+  - File coverage increased from 48% (35/73) to 80% (58/73)
+  - Static analysis module coverage increased from 21% to 80%
+
 ## [0.5.0] - 2026-02-03
 
 ### Added
