@@ -2,8 +2,9 @@
  * Lexer Errors
  */
 
-import { RillError, ERROR_REGISTRY } from '../types.js';
+import { RillError, ERROR_REGISTRY, getHelpUrl } from '../types.js';
 import type { SourceLocation } from '../types.js';
+import { VERSION } from '../generated/version-data.js';
 
 export class LexerError extends RillError {
   // Override to make location required (lexer errors always have location)
@@ -29,8 +30,10 @@ export class LexerError extends RillError {
     }
 
     // Call RillError constructor with structured data
+    const helpUrl = getHelpUrl(errorId, VERSION);
     super({
       errorId,
+      helpUrl: helpUrl || undefined,
       message,
       location,
       context,

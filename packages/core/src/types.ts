@@ -1013,8 +1013,10 @@ export class ParseError extends RillError {
       throw new TypeError(`Expected parse error ID, got: ${errorId}`);
     }
 
+    const helpUrl = getHelpUrl(errorId, VERSION);
     super({
       errorId,
+      helpUrl: helpUrl || undefined,
       message,
       location,
       context,
@@ -1042,8 +1044,10 @@ export class RuntimeError extends RillError {
       throw new TypeError(`Expected runtime error ID, got: ${errorId}`);
     }
 
+    const helpUrl = getHelpUrl(errorId, VERSION);
     super({
       errorId,
+      helpUrl: helpUrl || undefined,
       message,
       location,
       context,

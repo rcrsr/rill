@@ -193,13 +193,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
 export async function executeScript(
   file: string,
   args: string[],
-  options?: { stdin?: boolean }
+  options?: { stdin?: boolean; source?: string }
 ): Promise<ExecutionResult & { source: string }> {
-  // Read source from file or stdin
+  // Use pre-read source if provided, otherwise read from file or stdin
   let source: string;
   let scriptPath: string;
 
-  if (file === '-' || options?.stdin) {
+  if (options?.source !== undefined) {
+    source = options.source;
+    scriptPath =
+      file === '-'
+        ? path.resolve(process.cwd(), '<stdin>')
+        : path.resolve(file);
+  } else if (file === '-' || options?.stdin) {
     // Read from stdin (must use sync API for stdin)
     source = fsSync.readFileSync(0, 'utf-8');
     scriptPath = path.resolve(process.cwd(), '<stdin>');
@@ -338,11 +344,21 @@ Examples:
           maxStackDepth: parsed.maxStackDepth,
         };
 
-        // Execute mode (executeScript reads source internally)
-        const result = await executeScript(parsed.file, parsed.args);
+        // Read source early so it's available for error enrichment even if parsing fails
+        if (parsed.file === '-') {
+          source = fsSync.readFileSync(0, 'utf-8');
+        } else {
+          try {
+            source = await fs.readFile(parsed.file, 'utf-8');
+          } catch {
+            throw new Error(`File not found: ${parsed.file}`);
+          }
+        }
 
-        // Store source from result for error enrichment
-        source = result.source;
+        // Execute mode
+        const result = await executeScript(parsed.file, parsed.args, {
+          source,
+        });
 
         const { code, message } = determineExitCode(result.value);
 
