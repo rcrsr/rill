@@ -39,11 +39,21 @@ describe('rill-exec', () => {
         mode: 'exec',
         file: 'script.rill',
         args: ['arg1', 'arg2'],
+        format: 'human',
+        verbose: false,
+        maxStackDepth: 10,
       });
     });
 
     it('parses stdin mode', () => {
-      expect(parseArgs(['-'])).toEqual({ mode: 'exec', file: '-', args: [] });
+      expect(parseArgs(['-'])).toEqual({
+        mode: 'exec',
+        file: '-',
+        args: [],
+        format: 'human',
+        verbose: false,
+        maxStackDepth: 10,
+      });
     });
 
     it('parses help and version flags', () => {
@@ -62,6 +72,145 @@ describe('rill-exec', () => {
 
     it('throws when missing file argument', () => {
       expect(() => parseArgs([])).toThrow('Missing file argument');
+    });
+
+    // IC-11: --format, --verbose, --explain, --max-stack-depth flags
+    describe('new CLI flags', () => {
+      it('parses --format flag with human value', () => {
+        const parsed = parseArgs(['--format', 'human', 'script.rill']);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: [],
+          format: 'human',
+          verbose: false,
+          maxStackDepth: 10,
+        });
+      });
+
+      it('parses --format flag with json value', () => {
+        const parsed = parseArgs(['--format', 'json', 'script.rill']);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: [],
+          format: 'json',
+          verbose: false,
+          maxStackDepth: 10,
+        });
+      });
+
+      it('parses --format flag with compact value', () => {
+        const parsed = parseArgs(['--format', 'compact', 'script.rill']);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: [],
+          format: 'compact',
+          verbose: false,
+          maxStackDepth: 10,
+        });
+      });
+
+      // AC-15: Unknown --format value throws error
+      it('throws error for invalid --format value', () => {
+        expect(() => parseArgs(['--format', 'xml', 'script.rill'])).toThrow(
+          'Invalid --format value: xml. Must be one of: human, json, compact'
+        );
+      });
+
+      it('parses --verbose flag', () => {
+        const parsed = parseArgs(['--verbose', 'script.rill']);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: [],
+          format: 'human',
+          verbose: true,
+          maxStackDepth: 10,
+        });
+      });
+
+      it('parses --max-stack-depth flag', () => {
+        const parsed = parseArgs(['--max-stack-depth', '20', 'script.rill']);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: [],
+          format: 'human',
+          verbose: false,
+          maxStackDepth: 20,
+        });
+      });
+
+      it('throws error for missing --max-stack-depth value', () => {
+        expect(() => parseArgs(['--max-stack-depth'])).toThrow(
+          'Missing value after --max-stack-depth'
+        );
+      });
+
+      it('throws error for invalid --max-stack-depth value', () => {
+        expect(() =>
+          parseArgs(['--max-stack-depth', 'abc', 'script.rill'])
+        ).toThrow('--max-stack-depth must be a number between 1 and 100');
+      });
+
+      it('throws error for --max-stack-depth out of range (too low)', () => {
+        expect(() =>
+          parseArgs(['--max-stack-depth', '0', 'script.rill'])
+        ).toThrow('--max-stack-depth must be a number between 1 and 100');
+      });
+
+      it('throws error for --max-stack-depth out of range (too high)', () => {
+        expect(() =>
+          parseArgs(['--max-stack-depth', '101', 'script.rill'])
+        ).toThrow('--max-stack-depth must be a number between 1 and 100');
+      });
+
+      it('parses combined flags', () => {
+        const parsed = parseArgs([
+          '--format',
+          'json',
+          '--verbose',
+          '--max-stack-depth',
+          '5',
+          'script.rill',
+          'arg1',
+        ]);
+        expect(parsed).toEqual({
+          mode: 'exec',
+          file: 'script.rill',
+          args: ['arg1'],
+          format: 'json',
+          verbose: true,
+          maxStackDepth: 5,
+        });
+      });
+
+      it('parses --explain flag with valid error ID', () => {
+        const parsed = parseArgs(['--explain', 'RILL-R009']);
+        expect(parsed).toEqual({
+          mode: 'explain',
+          errorId: 'RILL-R009',
+        });
+      });
+
+      it('throws error for missing --explain value', () => {
+        expect(() => parseArgs(['--explain'])).toThrow(
+          'Missing error ID after --explain'
+        );
+      });
+
+      // AC-16: Malformed --explain errorId throws error
+      it('parses --explain with malformed error ID (handled by explainError)', () => {
+        // parseArgs accepts any string after --explain
+        // Validation happens in explainError function
+        const parsed = parseArgs(['--explain', 'INVALID']);
+        expect(parsed).toEqual({
+          mode: 'explain',
+          errorId: 'INVALID',
+        });
+      });
     });
   });
 

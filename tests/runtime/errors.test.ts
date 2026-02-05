@@ -14,8 +14,11 @@ import {
   renderMessage,
   RillError,
   RuntimeError,
+  type CallFrame,
   type ErrorDefinition,
+  type ErrorExample,
   type SourceLocation,
+  type SourceSpan,
 } from '../../src/index.js';
 
 describe('Rill Runtime: Error Taxonomy', () => {
@@ -619,6 +622,261 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(parseCount).toBeGreaterThan(0);
       expect(runtimeCount).toBeGreaterThan(0);
       expect(checkCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('CallFrame Interface Tests', () => {
+    it('CallFrame accepts SourceSpan with all required fields', () => {
+      const span: SourceSpan = {
+        start: { line: 1, column: 5, offset: 5 },
+        end: { line: 1, column: 10, offset: 10 },
+      };
+
+      const frame: CallFrame = {
+        location: span,
+      };
+
+      expect(frame.location).toEqual(span);
+      expect(frame.location.start.line).toBe(1);
+      expect(frame.location.end.column).toBe(10);
+    });
+
+    it('CallFrame accepts optional functionName', () => {
+      const span: SourceSpan = {
+        start: { line: 2, column: 1, offset: 15 },
+        end: { line: 2, column: 10, offset: 24 },
+      };
+
+      const frame: CallFrame = {
+        location: span,
+        functionName: 'processData',
+      };
+
+      expect(frame.functionName).toBe('processData');
+    });
+
+    it('CallFrame accepts optional context', () => {
+      const span: SourceSpan = {
+        start: { line: 3, column: 5, offset: 30 },
+        end: { line: 3, column: 15, offset: 40 },
+      };
+
+      const frame: CallFrame = {
+        location: span,
+        context: 'in each body',
+      };
+
+      expect(frame.context).toBe('in each body');
+    });
+
+    it('CallFrame accepts all optional fields together', () => {
+      const span: SourceSpan = {
+        start: { line: 4, column: 1, offset: 45 },
+        end: { line: 4, column: 20, offset: 64 },
+      };
+
+      const frame: CallFrame = {
+        location: span,
+        functionName: 'validate',
+        context: 'in map closure',
+      };
+
+      expect(frame.location).toEqual(span);
+      expect(frame.functionName).toBe('validate');
+      expect(frame.context).toBe('in map closure');
+    });
+  });
+
+  describe('ErrorExample Interface Tests', () => {
+    it('ErrorExample accepts description and code', () => {
+      const example: ErrorExample = {
+        description: 'Adding string and number',
+        code: '"hello" + 5',
+      };
+
+      expect(example.description).toBe('Adding string and number');
+      expect(example.code).toBe('"hello" + 5');
+    });
+
+    it('ErrorExample description can be up to 100 characters', () => {
+      const description = 'a'.repeat(100);
+      const example: ErrorExample = {
+        description,
+        code: 'test',
+      };
+
+      expect(example.description.length).toBe(100);
+    });
+
+    it('ErrorExample code can be up to 500 characters', () => {
+      const code = 'x'.repeat(500);
+      const example: ErrorExample = {
+        description: 'Long code example',
+        code,
+      };
+
+      expect(example.code.length).toBe(500);
+    });
+  });
+
+  describe('ErrorDefinition Extension Tests', () => {
+    it('ErrorDefinition accepts optional cause field', () => {
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R001',
+        category: 'runtime',
+        description: 'Parameter type mismatch',
+        messageTemplate: 'Expected {expected}, got {actual}',
+        cause: 'Function parameter received wrong type',
+      };
+
+      expect(definition.cause).toBe('Function parameter received wrong type');
+    });
+
+    it('ErrorDefinition accepts optional resolution field', () => {
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R002',
+        category: 'runtime',
+        description: 'Operator type mismatch',
+        messageTemplate:
+          'Cannot apply {operator} to {leftType} and {rightType}',
+        resolution: 'Ensure both operands have compatible types',
+      };
+
+      expect(definition.resolution).toBe(
+        'Ensure both operands have compatible types'
+      );
+    });
+
+    it('ErrorDefinition accepts optional examples field', () => {
+      const examples: ErrorExample[] = [
+        {
+          description: 'Adding incompatible types',
+          code: '"text" + 5',
+        },
+        {
+          description: 'Multiplying string and number',
+          code: '"hello" * 3',
+        },
+      ];
+
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R002',
+        category: 'runtime',
+        description: 'Operator type mismatch',
+        messageTemplate:
+          'Cannot apply {operator} to {leftType} and {rightType}',
+        examples,
+      };
+
+      expect(definition.examples).toEqual(examples);
+      expect(definition.examples?.length).toBe(2);
+    });
+
+    it('ErrorDefinition accepts all new optional fields together', () => {
+      const examples: ErrorExample[] = [
+        {
+          description: 'Example 1',
+          code: 'code1',
+        },
+        {
+          description: 'Example 2',
+          code: 'code2',
+        },
+        {
+          description: 'Example 3',
+          code: 'code3',
+        },
+      ];
+
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R003',
+        category: 'runtime',
+        description: 'Method receiver type mismatch',
+        messageTemplate: 'Method {method} cannot be called on {type}',
+        cause: 'Method called on incompatible type',
+        resolution: 'Check method receiver type requirements',
+        examples,
+      };
+
+      expect(definition.cause).toBe('Method called on incompatible type');
+      expect(definition.resolution).toBe(
+        'Check method receiver type requirements'
+      );
+      expect(definition.examples).toEqual(examples);
+      expect(definition.examples?.length).toBe(3);
+    });
+
+    it('ErrorDefinition works without new optional fields (backward compatibility)', () => {
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R005',
+        category: 'runtime',
+        description: 'Undefined variable',
+        messageTemplate: 'Variable {name} is not defined',
+      };
+
+      expect(definition.cause).toBeUndefined();
+      expect(definition.resolution).toBeUndefined();
+      expect(definition.examples).toBeUndefined();
+    });
+
+    it('All ERROR_REGISTRY definitions have documentation fields', () => {
+      // Verify that all definitions have the new documentation fields populated
+      for (const [errorId, definition] of ERROR_REGISTRY.entries()) {
+        expect(definition.errorId).toBe(errorId);
+        expect(definition.category).toBeTruthy();
+        expect(definition.description).toBeTruthy();
+        expect(definition.messageTemplate).toBeTruthy();
+        // All 31 error definitions now have documentation fields
+        expect(definition.cause).toBeTruthy();
+        expect(definition.resolution).toBeTruthy();
+        expect(definition.examples).toBeTruthy();
+        expect(definition.examples!.length).toBeGreaterThan(0);
+        expect(definition.examples!.length).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it('cause field can be up to 200 characters', () => {
+      const cause = 'c'.repeat(200);
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R001',
+        category: 'runtime',
+        description: 'Test',
+        messageTemplate: 'Test',
+        cause,
+      };
+
+      expect(definition.cause?.length).toBe(200);
+    });
+
+    it('resolution field can be up to 300 characters', () => {
+      const resolution = 'r'.repeat(300);
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R001',
+        category: 'runtime',
+        description: 'Test',
+        messageTemplate: 'Test',
+        resolution,
+      };
+
+      expect(definition.resolution?.length).toBe(300);
+    });
+
+    it('examples field can have up to 3 entries', () => {
+      const examples: ErrorExample[] = [
+        { description: 'Example 1', code: 'code1' },
+        { description: 'Example 2', code: 'code2' },
+        { description: 'Example 3', code: 'code3' },
+      ];
+
+      const definition: ErrorDefinition = {
+        errorId: 'RILL-R001',
+        category: 'runtime',
+        description: 'Test',
+        messageTemplate: 'Test',
+        examples,
+      };
+
+      expect(definition.examples?.length).toBe(3);
     });
   });
 });

@@ -175,7 +175,9 @@ export function createRuntimeContext(
     timeout: options.timeout,
     autoExceptions,
     signal: options.signal,
+    maxCallStackDepth: options.maxCallStackDepth ?? 100,
     annotationStack: [],
+    callStack: [],
   };
 }
 
@@ -197,7 +199,9 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     timeout: parent.timeout,
     autoExceptions: parent.autoExceptions,
     signal: parent.signal,
+    maxCallStackDepth: parent.maxCallStackDepth,
     annotationStack: parent.annotationStack,
+    callStack: parent.callStack,
   };
 }
 
@@ -229,4 +233,63 @@ export function hasVariable(ctx: RuntimeContext, name: string): boolean {
     return hasVariable(ctx.parent, name);
   }
   return false;
+}
+
+/**
+ * Extract call stack from RuntimeError.
+ * Returns empty array if no call stack attached.
+ *
+ * Constraints:
+ * - O(1) access (stored on error instance)
+ * - Returns defensive copy (immutable)
+ */
+export function getCallStack(
+  error: import('../../types.js').RillError
+): readonly import('../../types.js').CallFrame[] {
+  // EC-1: Non-RillError passed
+  if (
+    !error ||
+    typeof error !== 'object' ||
+    !(error instanceof Error) ||
+    !('errorId' in error)
+  ) {
+    throw new TypeError('Expected RillError instance');
+  }
+
+  // Return defensive copy from context or empty array
+  const callStack = (
+    error.context as
+      | { callStack?: import('../../types.js').CallFrame[] }
+      | undefined
+  )?.callStack;
+  return callStack ? [...callStack] : [];
+}
+
+/**
+ * Push frame onto call stack before function/closure execution.
+ *
+ * Constraints:
+ * - Stack depth limited by maxCallStackDepth option
+ * - Older frames dropped when limit exceeded
+ */
+export function pushCallFrame(
+  ctx: RuntimeContext,
+  frame: import('../../types.js').CallFrame
+): void {
+  ctx.callStack.push(frame);
+
+  // Drop older frames if limit exceeded
+  if (ctx.callStack.length > ctx.maxCallStackDepth) {
+    ctx.callStack.shift();
+  }
+}
+
+/**
+ * Pop frame from call stack after function/closure returns.
+ */
+export function popCallFrame(ctx: RuntimeContext): void {
+  // EC-2: Pop on empty stack is no-op (defensive)
+  if (ctx.callStack.length > 0) {
+    ctx.callStack.pop();
+  }
 }

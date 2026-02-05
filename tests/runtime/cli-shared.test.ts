@@ -14,6 +14,118 @@ import { LexerError } from '../../src/lexer/errors.js';
 
 describe('cli-shared', () => {
   describe('formatError', () => {
+    describe('Enriched error formatting [IC-12]', () => {
+      it('calls enrichError when source is available', () => {
+        const source = '$foo -> .len';
+        const err = new RuntimeError(
+          'RILL-R005',
+          'Variable foo is not defined',
+          { line: 1, column: 0, offset: 0 },
+          { name: 'foo' }
+        );
+        const formatted = formatError(err, source);
+        // Enriched format includes error ID in brackets
+        expect(formatted).toContain('[RILL-R005]');
+        expect(formatted).toContain('Variable foo is not defined');
+      });
+
+      it('includes source snippet when source is provided', () => {
+        const source = '"hello"\n$undefined';
+        const err = new RuntimeError(
+          'RILL-R005',
+          'Variable undefined is not defined',
+          { line: 2, column: 0, offset: 8 }
+        );
+        const formatted = formatError(err, source);
+        // Should include the error line in snippet
+        expect(formatted).toContain('$undefined');
+      });
+
+      it('preserves backward compatibility when source is not provided', () => {
+        const err = new RuntimeError('RILL-R001', 'Type mismatch', {
+          line: 3,
+          column: 5,
+          offset: 20,
+        });
+        const formatted = formatError(err);
+        expect(formatted).toBe('Runtime error at line 3: Type mismatch');
+      });
+
+      it('falls back to simple formatting for non-RillError types', () => {
+        const source = 'some code';
+        const err = new Error('Generic error');
+        const formatted = formatError(err, source);
+        expect(formatted).toBe('Generic error');
+      });
+
+      it('handles ParseError with source', () => {
+        const source = '1 + +';
+        const err = new ParseError('RILL-P002', 'Unexpected token', {
+          line: 1,
+          column: 4,
+          offset: 4,
+        });
+        const formatted = formatError(err, source);
+        expect(formatted).toContain('[RILL-P002]');
+        expect(formatted).toContain('Unexpected token');
+      });
+
+      it('handles LexerError with source', () => {
+        const source = '"unterminated';
+        const err = new LexerError('RILL-L002', 'Unterminated string', {
+          line: 1,
+          column: 0,
+          offset: 0,
+        });
+        const formatted = formatError(err, source);
+        expect(formatted).toContain('[RILL-L002]');
+        expect(formatted).toContain('Unterminated string');
+      });
+
+      it('accepts format options for compact output', () => {
+        const source = '$foo';
+        const err = new RuntimeError(
+          'RILL-R005',
+          'Variable foo is not defined',
+          { line: 1, column: 0, offset: 0 }
+        );
+        const formatted = formatError(err, source, { format: 'compact' });
+        // Compact format is single line
+        expect(formatted).not.toContain('\n');
+        expect(formatted).toContain('[RILL-R005]');
+      });
+
+      it('accepts scope info for suggestions', () => {
+        const source = '$fo';
+        const err = new RuntimeError(
+          'RILL-R005',
+          'Variable fo is not defined',
+          { line: 1, column: 0, offset: 0 },
+          { name: 'fo' }
+        );
+        const scope = {
+          variableNames: ['foo', 'bar'],
+          functionNames: ['baz'],
+        };
+        const formatted = formatError(err, source, undefined, scope);
+        // Should include suggestion
+        expect(formatted).toContain('help:');
+      });
+
+      it('falls back to simple formatting if enrichment throws', () => {
+        // Pass invalid source type to trigger enrichment error
+        const err = new RuntimeError('RILL-R001', 'Type error', {
+          line: 1,
+          column: 0,
+          offset: 0,
+        });
+        // @ts-expect-error - Testing invalid input handling
+        const formatted = formatError(err, 123); // Invalid source type
+        // Should fall back to simple format
+        expect(formatted).toBe('Runtime error at line 1: Type error');
+      });
+    });
+
     describe('RillError types', () => {
       it('formats ParseError as "Parse error at line N: message"', () => {
         const err = new ParseError('RILL-P001', 'Unexpected token', {

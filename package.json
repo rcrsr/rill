@@ -34,7 +34,8 @@
   "scripts": {
     "generate-docs": "npx tsx scripts/generate-docs-bundle.ts",
     "generate-version": "npx tsx scripts/generate-version.ts",
-    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-version && npm run generate-docs",
+    "generate-error-docs": "npx tsx scripts/generate-error-docs.ts",
+    "prebuild": "rm -f tsconfig.tsbuildinfo && npm run generate-version && npm run generate-docs && npm run generate-error-docs",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",

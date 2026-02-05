@@ -258,7 +258,7 @@ describe('Rill Runtime: Introspection API', () => {
         expect(reference.length).toBeGreaterThan(0);
 
         // Verify content includes expected keywords from rill language spec
-        expect(reference).toContain('rill');
+        expect(reference.toLowerCase()).toContain('rill');
         expect(reference).toContain('pipe');
         expect(reference).toContain('->');
       });

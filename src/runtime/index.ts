@@ -99,6 +99,14 @@ export { prefixFunctions, emitExtensionEvent } from './ext/extensions.js';
 export { createRuntimeContext } from './core/context.js';
 
 // ============================================================
+// CALL STACK MANAGEMENT
+// ============================================================
+
+export type { CallFrame } from '../types.js';
+
+export { getCallStack, pushCallFrame, popCallFrame } from './core/context.js';
+
+// ============================================================
 // SCRIPT EXECUTION
 // ============================================================
 

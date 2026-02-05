@@ -140,12 +140,19 @@ export interface RuntimeContext {
   readonly autoExceptions: RegExp[];
   /** AbortSignal for cancellation (undefined = no cancellation) */
   readonly signal: AbortSignal | undefined;
+  /** Maximum call stack depth */
+  readonly maxCallStackDepth: number;
   /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
    * Inner scopes inherit and can override outer annotations.
    */
   readonly annotationStack: Record<string, RillValue>[];
+  /**
+   * Call stack for error context.
+   * Managed by evaluator; pushed on function entry, popped on exit.
+   */
+  readonly callStack: import('../../types.js').CallFrame[];
 }
 
 /** Options for creating a runtime context */
@@ -166,6 +173,8 @@ export interface RuntimeOptions {
   signal?: AbortSignal;
   /** Require descriptions for all functions and parameters */
   requireDescriptions?: boolean;
+  /** Maximum call stack depth (default: 100) */
+  maxCallStackDepth?: number;
 }
 
 /** Result of script execution */

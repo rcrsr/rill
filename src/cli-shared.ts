@@ -7,6 +7,11 @@ import { isCallable, VERSION } from './runtime/index.js';
 import type { RillValue } from './runtime/index.js';
 import { ParseError, RuntimeError } from './types.js';
 import { LexerError } from './lexer/errors.js';
+import { enrichError, type ScopeInfo } from './cli-error-enrichment.js';
+import {
+  formatError as formatEnrichedError,
+  type FormatOptions,
+} from './cli-error-formatter.js';
 
 /**
  * Convert execution result to human-readable string
@@ -27,10 +32,43 @@ export function formatOutput(value: RillValue): string {
 /**
  * Format error for stderr output
  *
+ * When source is available, uses enrichment pipeline to add source snippets and suggestions.
+ * Otherwise, falls back to simple formatting for backward compatibility.
+ *
  * @param err - The error to format
+ * @param source - Optional source code for enrichment
+ * @param options - Optional format options (defaults to human format)
+ * @param scope - Optional scope information for suggestions
  * @returns Formatted error message
  */
-export function formatError(err: Error): string {
+export function formatError(
+  err: Error,
+  source?: string,
+  options?: Partial<FormatOptions>,
+  scope?: ScopeInfo
+): string {
+  // IC-12: Use enrichment pipeline when source is available and error is RillError
+  if (
+    source !== undefined &&
+    (err instanceof LexerError ||
+      err instanceof ParseError ||
+      err instanceof RuntimeError)
+  ) {
+    try {
+      const enriched = enrichError(err, source, scope);
+      const formatOpts: FormatOptions = {
+        format: options?.format ?? 'human',
+        verbose: options?.verbose ?? false,
+        includeCallStack: options?.includeCallStack ?? false,
+        maxCallStackDepth: options?.maxCallStackDepth ?? 10,
+      };
+      return formatEnrichedError(enriched, formatOpts);
+    } catch {
+      // If enrichment fails, fall back to simple formatting
+    }
+  }
+
+  // IC-12: Fallback to existing behavior for backward compatibility
   if (err instanceof LexerError) {
     const location = err.location;
     return `Lexer error at line ${location.line}: ${err.message.replace(/ at \d+:\d+$/, '')}`;

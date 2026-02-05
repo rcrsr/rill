@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P005)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P006)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R016)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -28,22 +28,19 @@ Lexer errors occur during tokenization when the source text contains invalid cha
 
 **Description:** Unterminated string literal
 
-**Cause:** String literal missing closing quote before end of line.
+**Cause:** String opened with quote but never closed before end of line or file.
 
-**Resolution:** Add closing quote or use triple-quote syntax for multiline strings.
+**Resolution:** Add closing quote to complete the string, or use multiline strings with triple quotes (""") for multi-line content.
 
 **Example:**
 
-```rill
-# Error: Missing closing quote
-"hello world
+```text
+# Missing closing quote on single line
+"hello
 
-# Fixed: Close the string
-"hello world"
-
-# Fixed: Use triple-quotes for multiline
-"""hello
-world"""
+# Newline inside single-quoted string
+"hello
+world"
 ```
 
 ---
@@ -52,21 +49,18 @@ world"""
 
 **Description:** Invalid character
 
-**Cause:** Character outside allowed syntax (control characters, invalid Unicode, unsupported symbols).
+**Cause:** Character not recognized by the lexer (not part of Rill syntax).
 
-**Resolution:** Remove invalid character or use valid escape sequence.
+**Resolution:** Remove or replace the invalid character. Common causes: unicode characters in identifiers, unsupported operators, or copy-paste artifacts.
 
 **Example:**
 
-```rill
-# Error: Invalid control character (shown as �)
-"hello�world"
+```text
+# Unicode character in code
+$x → "value"  # → is not valid, use ->
 
-# Fixed: Use valid characters
-"hello world"
-
-# Fixed: Use escape sequence if needed
-"hello\nworld"
+# Backtick instead of quote
+`hello`  # Use "hello" instead
 ```
 
 ---
@@ -75,24 +69,21 @@ world"""
 
 **Description:** Invalid number format
 
-**Cause:** Malformed numeric literal (multiple decimals, invalid digits, trailing characters).
+**Cause:** Number contains invalid characters, multiple decimal points, or unsupported notation.
 
-**Resolution:** Correct number format to valid integer or decimal.
+**Resolution:** Use valid number format: integers (123), decimals (1.5), or scientific notation (1e5). No underscores, trailing dots, or multiple decimals allowed.
 
 **Example:**
 
-```rill
-# Error: Multiple decimal points
-3.14.159
+```text
+# Multiple decimal points
+1.2.3
 
-# Error: Invalid digits
-42x
+# Trailing decimal point
+123.
 
-# Fixed: Valid number formats
-3.14159
-42
--7
-0.5
+# Leading zeros (octal notation not supported)
+0123
 ```
 
 ---
@@ -101,20 +92,19 @@ world"""
 
 **Description:** Unterminated multiline string
 
-**Cause:** Triple-quoted string missing closing `"""` before end of file.
+**Cause:** Multiline string opened with triple quotes (""") but never closed.
 
-**Resolution:** Add closing triple-quotes.
+**Resolution:** Add closing triple quotes (""") to complete the multiline string.
 
 **Example:**
 
-```rill
-# Error: Missing closing triple-quotes
-"""This is a
-multiline string
+```text
+# Missing closing triple quotes
+"""hello
+world
 
-# Fixed: Close with triple-quotes
-"""This is a
-multiline string"""
+# Only two closing quotes instead of three
+"""content""
 ```
 
 ---
@@ -123,23 +113,18 @@ multiline string"""
 
 **Description:** Invalid escape sequence
 
-**Cause:** Backslash followed by unsupported escape character in string.
+**Cause:** Backslash followed by unsupported character in string literal.
 
-**Resolution:** Use valid escape sequences (`\n`, `\t`, `\"`, `\\`) or remove backslash.
+**Resolution:** Use valid escape sequences: \n (newline), \t (tab), \\ (backslash), \" (quote), \{ (brace). For literal backslash, use \\.
 
 **Example:**
 
-```rill
-# Error: Invalid escape sequence \x
-"hello\xworld"
+```text
+# Invalid escape character
+"hello\xworld"  # \x not supported
 
-# Fixed: Valid escape sequences
-"hello\nworld"   # newline
-"hello\\world"   # literal backslash
-"hello\"world"   # escaped quote
-
-# Fixed: Remove backslash if not escaping
-"hello world"
+# Incomplete escape at end
+"path\
 ```
 
 ---
@@ -152,24 +137,21 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 **Description:** Unexpected token
 
-**Cause:** Token appears where different token type expected (wrong keyword, operator, delimiter).
+**Cause:** Token appears in invalid position according to grammar rules.
 
-**Resolution:** Replace token with expected syntax element or fix surrounding context.
+**Resolution:** Check syntax at the indicated position. Common causes: missing operators, mismatched delimiters, or keywords in wrong context.
 
 **Example:**
 
-```rill
-# Error: Expected ), found identifier
-(1 + 2 x
+```text
+# Missing pipe operator between expressions
+"hello" "world"  # Missing -> between
 
-# Fixed: Complete expression
-(1 + 2) -> $x
+# Statement starting with operator
+-> "value"  # Missing left side
 
-# Error: Expected closing brace
-{ "test"
-
-# Fixed: Close the block
-{ "test" }
+# Unexpected closing brace
+{ "value" }}  # Extra closing brace
 ```
 
 ---
@@ -178,24 +160,21 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 **Description:** Unexpected end of input
 
-**Cause:** Source ends before completing syntactic construct (unclosed block, missing operand).
+**Cause:** File or block ended while parser expected more tokens (incomplete expression or statement).
 
-**Resolution:** Complete the unfinished construct.
+**Resolution:** Complete the incomplete construct. Common causes: unclosed blocks, incomplete pipe chains, or missing expression after operator.
 
 **Example:**
 
-```rill
-# Error: Expected expression after ->
+```text
+# Unclosed block
+{ "value"
+
+# Pipe with no target
 "hello" ->
 
-# Fixed: Provide target for pipe
-"hello" -> .upper
-
-# Error: Incomplete conditional
-true ?
-
-# Fixed: Complete the conditional
-true ? "yes" ! "no"
+# Incomplete conditional
+?($x > 0) "yes"  # Missing else branch
 ```
 
 ---
@@ -204,24 +183,21 @@ true ? "yes" ! "no"
 
 **Description:** Invalid type annotation
 
-**Cause:** Type annotation references undefined or misspelled type.
+**Cause:** Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.
 
-**Resolution:** Use valid type name from `string`, `number`, `bool`, `list`, `dict`.
+**Resolution:** Use valid type name from supported set. Check spelling and casing (types are lowercase).
 
 **Example:**
 
-```rill
-# Error: Invalid type 'integer'
-|x: integer|($x + 1)
+```text
+# Uppercase type name
+$x => String  # Use "string" not "String"
 
-# Fixed: Use 'number' type
-|x: number|($x + 1)
+# Invalid type name
+$x => int  # Use "number" for all numeric types
 
-# Error: Misspelled type 'boolen'
-|flag: boolen|($flag ? "yes" ! "no")
-
-# Fixed: Correct spelling
-|flag: bool|($flag ? "yes" ! "no")
+# Generic type syntax not supported
+$x => list<string>  # Use "list" only
 ```
 
 ---
@@ -230,24 +206,18 @@ true ? "yes" ! "no"
 
 **Description:** Invalid expression
 
-**Cause:** Expression violates syntax rules (malformed operator usage, invalid nesting, type operator misuse).
+**Cause:** Expression structure violates grammar rules or contains unsupported constructs.
 
-**Resolution:** Restructure expression to match valid syntax patterns.
+**Resolution:** Check expression syntax. Common causes: invalid operator combinations, malformed literals, or unsupported language features.
 
 **Example:**
 
-```rill
-# Error: Invalid operator sequence
-5 + * 3
+```text
+# Double operators
+$x + + $y
 
-# Fixed: Complete expression
-5 + 2 * 3
-
-# Error: Invalid type assertion context
-$x:string + 1
-
-# Fixed: Use type assertion in proper context
-($x:string) -> .len
+# Assignment operator (not supported)
+$x = 5  # Use "5 => $x" instead
 ```
 
 ---
@@ -256,30 +226,41 @@ $x:string + 1
 
 **Description:** Missing delimiter
 
-**Cause:** Expected closing delimiter not found (missing `}`, `)`, `]`, or `>` in extraction).
+**Cause:** Expected closing delimiter (parenthesis, bracket, brace) not found.
 
-**Resolution:** Add missing delimiter to close construct.
+**Resolution:** Add the missing delimiter. Check for proper nesting and matching pairs.
 
 **Example:**
 
-```rill
-# Error: Missing closing bracket
+```text
+# Missing closing parenthesis
+func($a, $b
+
+# Missing closing bracket in tuple
 [1, 2, 3
 
-# Fixed: Close the list
-[1, 2, 3]
+# Mismatched delimiters
+{ "value"]  # Opened with { but closed with ]
+```
 
-# Error: Missing closing brace in dict
-[name: "alice", age: 30
+---
 
-# Fixed: Close the dict
-[name: "alice", age: 30]
+### rill-p006
 
-# Error: Missing > in destructure
-*<$a, $b
+**Description:** Deprecated capture arrow syntax
 
-# Fixed: Close the destructure
-*<$a, $b>
+**Cause:** Code uses old capture arrow syntax (:>) instead of current syntax (=>).
+
+**Resolution:** Replace :> with => for all variable captures. This change was made in version 0.4.0.
+
+**Example:**
+
+```text
+# Old capture syntax
+"value" :> $x  # Change to "value" => $x
+
+# Old typed capture
+5 :> $x:number  # Change to 5 => $x:number
 ```
 
 ---
@@ -294,24 +275,17 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Cause:** Argument passed to function does not match declared parameter type.
 
-**Resolution:** Pass value matching parameter type or update type annotation.
+**Resolution:** Pass value of correct type, or convert the value before passing. Check function signature for expected types.
 
 **Example:**
 
-```rill
-# Error: Function expects string, got number
-|name: string|("Hello, {$name}") => $greet
-42 -> $greet()
+```text
+# String passed to number parameter
+|x: number| $x * 2
+"5" -> $()
 
-# Fixed: Pass string argument
-"Alice" -> $greet()
-
-# Error: Host function parameter type mismatch
-# Given: repeat(42, 3)
-# Expected: repeat(string, number)
-
-# Fixed: Use string as first argument
-repeat("hi", 3)
+# Number passed to string method
+123 -> .split(",")  # split expects string
 ```
 
 ---
@@ -320,24 +294,21 @@ repeat("hi", 3)
 
 **Description:** Operator type mismatch
 
-**Cause:** Operator applied to incompatible value types (e.g., adding string to number).
+**Cause:** Binary operator applied to incompatible types. Rill does not perform implicit type coercion.
 
-**Resolution:** Convert values to compatible types or use correct operator.
+**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods.
 
 **Example:**
 
-```rill
-# Error: Cannot add string and number
-"5" + 1
+```text
+# Adding string and number
+"5" + 1  # Error: no implicit coercion
 
-# Fixed: Convert string to number
-"5" -> .num + 1
+# Comparing different types
+"10" == 10  # Always false, no coercion
 
-# Error: Cannot multiply strings
-"hello" * "world"
-
-# Fixed: Use repeat for string multiplication
-repeat("hello", 3)
+# Arithmetic on non-numbers
+"hello" * 2
 ```
 
 ---
@@ -346,24 +317,18 @@ repeat("hello", 3)
 
 **Description:** Method receiver type mismatch
 
-**Cause:** Method called on value type that doesn't support it.
+**Cause:** Method called on value of wrong type. String methods require strings, list methods require lists, etc.
 
-**Resolution:** Call method on compatible value type or convert value first.
+**Resolution:** Call method on correct type, or convert value before calling. Check method documentation for receiver type.
 
 **Example:**
 
-```rill
-# Error: Cannot call .split on number
-42 -> .split(" ")
+```text
+# String method on number
+123 -> .upper()  # upper() is string method
 
-# Fixed: Convert to string first
-42 -> .str -> .split("")
-
-# Error: Cannot call .trim on list
-[1, 2, 3] -> .trim
-
-# Fixed: Call .trim on string elements
-[" hello ", " world "] -> map { $ -> .trim }
+# List method on string
+"hello" -> .first()  # first() is list method
 ```
 
 ---
@@ -372,21 +337,18 @@ repeat("hello", 3)
 
 **Description:** Type conversion failure
 
-**Cause:** Value cannot be converted to target type (e.g., non-numeric string to number).
+**Cause:** Value cannot be converted to target type (invalid format or incompatible types).
 
-**Resolution:** Provide convertible value or handle conversion failure.
+**Resolution:** Ensure value has valid format for target type. For string-to-number: check numeric format. For parse operations: validate input structure.
 
 **Example:**
 
-```rill
-# Error: Cannot convert "hello" to number
-"hello" -> .num
+```text
+# Invalid number string
+"abc" -> to_number()  # Not a valid number
 
-# Fixed: Use numeric string
-"42" -> .num
-
-# Fixed: Validate before conversion
-"hello" -> .is_match("^[0-9]+$") ? (.num) ! 0
+# Invalid JSON
+"{bad json}" -> parse_json()
 ```
 
 ---
@@ -395,26 +357,23 @@ repeat("hello", 3)
 
 **Description:** Undefined variable
 
-**Cause:** Variable referenced before assignment or misspelled variable name.
+**Cause:** Variable referenced before assignment, or variable name misspelled.
 
-**Resolution:** Assign variable before use or fix spelling.
+**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference.
 
 **Example:**
 
-```rill
-# Error: Variable $user not defined
-$user.name
+```text
+# Variable used before assignment
+$count + 1  # $count never assigned
 
-# Fixed: Assign before use
-[name: "Alice"] => $user
-$user.name
+# Typo in variable name
+"hi" => $mesage
+$message  # Typo: mesage vs message
 
-# Error: Misspelled variable
-"test" => $value
-$valu  # typo
-
-# Fixed: Correct spelling
-$value
+# Variable out of scope
+{ "local" => $x }
+$x  # $x only exists inside block
 ```
 
 ---
@@ -423,25 +382,18 @@ $value
 
 **Description:** Undefined function
 
-**Cause:** Function called that is not registered in runtime context.
+**Cause:** Function name not found in runtime context (not a built-in or host-provided function).
 
-**Resolution:** Register host function or fix function name spelling.
+**Resolution:** Check function name spelling, ensure function is provided by host application, or verify module imports.
 
 **Example:**
 
-```rill
-# Error: Function 'fetch' not defined
-fetch("https://example.com")
+```text
+# Misspelled function name
+leng("hello")  # Should be length()
 
-# Fixed: Register host function in RuntimeContext
-# functions: { fetch: { params: [...], fn: ... } }
-
-# Error: Misspelled function
-range(1, 5)  # correct
-rang(1, 5)   # Error
-
-# Fixed: Correct spelling
-range(1, 5)
+# Missing host function
+app::fetch($url)  # Host must provide app::fetch
 ```
 
 ---
@@ -450,24 +402,18 @@ range(1, 5)
 
 **Description:** Undefined method
 
-**Cause:** Built-in method called that doesn't exist or misspelled method name.
+**Cause:** Method name not supported for the given type, or method name misspelled.
 
-**Resolution:** Use valid method from built-in set or fix spelling.
+**Resolution:** Check method documentation for the type. Verify method name spelling and that it exists for this type.
 
 **Example:**
 
-```rill
-# Error: Method .uppercase not defined
-"hello" -> .uppercase
+```text
+# Method not available on type
+123 -> .trim()  # trim() only on strings
 
-# Fixed: Use correct method name
-"hello" -> .upper
-
-# Error: Method .size not defined on string
-"hello" -> .size
-
-# Fixed: Use .len for length
-"hello" -> .len
+# Misspelled method name
+"hello" -> .upcase()  # Should be .upper()
 ```
 
 ---
@@ -476,24 +422,15 @@ range(1, 5)
 
 **Description:** Undefined annotation
 
-**Cause:** Accessing annotation key not present on closure.
+**Cause:** Annotation key accessed but not set on statement or parameter.
 
-**Resolution:** Define annotation or use default value operator.
+**Resolution:** Set annotation before accessing (^(key: value)), or check annotation key spelling.
 
 **Example:**
 
-```rill
-# Error: Annotation 'timeout' not defined
-|x|($x) => $fn
-$fn.^timeout
-
-# Fixed: Define annotation on closure
-^(timeout: 30) |x|($x) => $fn
-$fn.^timeout
-
-# Fixed: Use default for optional annotation
-|x|($x) => $fn
-$fn.^timeout ?? 30
+```text
+# Accessing undefined annotation
+$stmt.^timeout  # No ^(timeout: ...) set
 ```
 
 ---
@@ -502,29 +439,21 @@ $fn.^timeout ?? 30
 
 **Description:** Property not found
 
-**Cause:** Dict field or list index accessed that doesn't exist.
+**Cause:** Dict key or tuple index does not exist in the value.
 
-**Resolution:** Use valid field/index or provide default value.
+**Resolution:** Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.
 
 **Example:**
 
-```rill
-# Error: Property 'email' not found
-[name: "Alice", age: 30] => $user
-$user.email
+```text
+# Missing dict key
+[name: "x"] -> .age  # age key not in dict
 
-# Fixed: Use default value operator
-$user.email ?? "no-email@example.com"
+# Index out of bounds
+[1, 2, 3] -> [5]  # Only 3 elements (0-2)
 
-# Fixed: Check existence first
-$user.?email ? $user.email ! "no-email"
-
-# Error: Index 5 out of bounds
-[1, 2, 3][5]
-
-# Fixed: Use valid index
-[1, 2, 3][2]  # Last element
-[1, 2, 3][-1] # Last element (negative index)
+# Safe alternative
+[name: "x"] -> .age ?? 0  # Returns 0 if missing
 ```
 
 ---
@@ -533,21 +462,18 @@ $user.?email ? $user.email ! "no-email"
 
 **Description:** Iteration limit exceeded
 
-**Cause:** Loop exceeds maximum iteration count (default 10,000).
+**Cause:** Loop or collection operation exceeded configured iteration limit (prevents infinite loops).
 
-**Resolution:** Increase limit with annotation or fix infinite loop condition.
+**Resolution:** Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions.
 
 **Example:**
 
-```rill
-# Error: Default 10,000 iteration limit exceeded
-0 -> ($ < 20000) @ { $ + 1 }
+```text
+# Infinite loop without termination
+while(true) { "looping" }  # Never terminates
 
-# Fixed: Increase limit with annotation
-^(limit: 25000) 0 -> ($ < 20000) @ { $ + 1 }
-
-# Fixed: Fix condition to prevent excessive iterations
-0 -> ($ < 100) @ { $ + 1 }
+# Large collection with default limit
+range(1000000) -> each |x| $x  # May exceed default limit
 ```
 
 ---
@@ -556,24 +482,18 @@ $user.?email ? $user.email ! "no-email"
 
 **Description:** Invalid regex pattern
 
-**Cause:** Malformed regular expression in `.match()` or `.is_match()` call.
+**Cause:** Regular expression pattern has invalid syntax or unsupported features.
 
-**Resolution:** Correct regex syntax or escape special characters.
+**Resolution:** Fix regex syntax errors. Check for unescaped special characters, unclosed groups, or invalid quantifiers.
 
 **Example:**
 
-```rill
-# Error: Unclosed bracket in pattern
-"test" -> .is_match("[a-z")
+```text
+# Unclosed group
+"test" -> .match("(abc")  # Missing closing )
 
-# Fixed: Close bracket
-"test" -> .is_match("[a-z]+")
-
-# Error: Invalid escape sequence
-"test" -> .match("\d+")
-
-# Fixed: Escape backslash or use raw pattern
-"test" -> .match("\\d+")
+# Invalid quantifier
+"test" -> .match("a{,5}")  # Empty min in range
 ```
 
 ---
@@ -582,20 +502,18 @@ $user.?email ? $user.email ! "no-email"
 
 **Description:** Operation timeout
 
-**Cause:** Async operation exceeded configured timeout duration.
+**Cause:** Function execution exceeded configured timeout duration.
 
-**Resolution:** Increase timeout in `RuntimeOptions` or optimize slow operation.
+**Resolution:** Increase timeout via RuntimeOptions, optimize slow operations, or add ^(timeout: ms) annotation to specific calls.
 
 **Example:**
 
-```rill
-# Error: Operation timed out after 5000ms
-slow_function()
+```text
+# Slow host function
+app::slow_api()  # Times out if exceeds limit
 
-# Fixed: Increase timeout in RuntimeContext
-# const ctx = createRuntimeContext({ timeout: 30000 })
-
-# Fixed: Optimize function or add progress tracking
+# Setting higher timeout
+^(timeout: 30000) app::slow_api()  # 30 seconds
 ```
 
 ---
@@ -604,24 +522,15 @@ slow_function()
 
 **Description:** Execution aborted
 
-**Cause:** Script execution cancelled via `AbortSignal`.
+**Cause:** Host application cancelled execution via AbortSignal.
 
-**Resolution:** Remove abort signal or allow execution to complete.
+**Resolution:** This is intentional cancellation, not an error. If unexpected, check host abort signal logic.
 
 **Example:**
 
-```typescript
-// Error: Execution aborted by signal
-const controller = new AbortController();
-const ctx = createRuntimeContext({ signal: controller.signal });
-setTimeout(() => controller.abort(), 1000);
-await execute(ast, ctx); // Throws AbortError after 1s
-
-// Fixed: Don't abort or increase delay
-const controller = new AbortController();
-const ctx = createRuntimeContext({ signal: controller.signal });
-// Allow execution to complete without abort
-await execute(ast, ctx);
+```text
+# User cancellation in UI
+# Long-running script cancelled by user
 ```
 
 ---
@@ -630,24 +539,15 @@ await execute(ast, ctx);
 
 **Description:** Auto-exception triggered
 
-**Cause:** Function output matched pattern in `autoExceptions` list.
+**Cause:** Value matched auto-exception pattern (configured to halt on specific error patterns in output).
 
-**Resolution:** Handle error output in script or remove pattern from `autoExceptions`.
+**Resolution:** Handle error condition that produced the matched pattern, or adjust auto-exception configuration.
 
 **Example:**
 
-```rill
-# Given: autoExceptions = ["error:.*", "FATAL"]
-
-# Error: Output "error: invalid input" matches pattern
-process_data("bad-input")  # Returns "error: invalid input"
-
-# Fixed: Handle error output in script
-process_data("bad-input") ->
-  .starts_with("error:") ? "fallback value" ! $
-
-# Fixed: Remove pattern from autoExceptions
-# const ctx = createRuntimeContext({ autoExceptions: [] })
+```text
+# API error response
+# API returned "ERROR:" prefix, auto-exception configured to catch this
 ```
 
 ---
@@ -656,27 +556,18 @@ process_data("bad-input") ->
 
 **Description:** Assertion failed
 
-**Cause:** `assert` statement condition evaluated to false.
+**Cause:** Assertion statement evaluated to false.
 
-**Resolution:** Fix condition or input data to satisfy assertion.
+**Resolution:** Fix the condition causing assertion failure, or remove/adjust assertion if condition is incorrect.
 
 **Example:**
 
-```rill
-# Error: Assertion failed
-5 => $x
-assert ($x > 10)
+```text
+# Basic assertion
+assert $count > 0  # Fails if $count <= 0
 
-# Fixed: Satisfy assertion condition
-15 => $x
-assert ($x > 10)
-
-# Error: Assertion with message
-assert ($x > 10) "Value must be greater than 10"
-
-# Fixed: Provide valid value
-20 => $x
-assert ($x > 10) "Value must be greater than 10"
+# Assertion with message
+assert $age >= 18 "Must be adult"
 ```
 
 ---
@@ -685,24 +576,18 @@ assert ($x > 10) "Value must be greater than 10"
 
 **Description:** Error statement executed
 
-**Cause:** Script explicitly called `error` statement or piped to `error`.
+**Cause:** Error statement executed explicitly in code.
 
-**Resolution:** Remove error statement or handle error condition before reaching it.
+**Resolution:** This is intentional error raising. Fix the condition that triggers the error statement, or handle the error case differently.
 
 **Example:**
 
-```rill
-# Error: Explicit error raised
-error "Something went wrong"
+```text
+# Explicit error
+error "Invalid configuration"
 
-# Error: Piped value as error message
-"Invalid configuration" -> error
-
-# Fixed: Use conditional to avoid error
-$valid ? process_data() ! error "Invalid data"
-
-# Fixed: Handle condition before error
-$valid ? process_data() ! "fallback value"
+# Conditional error
+?($status == "failed") error "Process failed" : "ok"
 ```
 
 ---
@@ -715,22 +600,18 @@ Check errors occur in the `rill-check` CLI tool during file validation and confi
 
 **Description:** File not found
 
-**Cause:** Specified file path does not exist on filesystem.
+**Cause:** Specified file path does not exist in filesystem.
 
-**Resolution:** Verify file path spelling and existence.
+**Resolution:** Verify file path is correct, check file exists, or create the file if it should exist.
 
 **Example:**
 
-```bash
-# Error: File not found
-rill-check scripts/missing.rill
+```text
+# Nonexistent file
+rill-check missing.rill
 
-# Fixed: Use correct path
-rill-check scripts/example.rill
-
-# Fixed: Create file before checking
-touch scripts/example.rill
-rill-check scripts/example.rill
+# Wrong file extension
+rill-check script.txt  # Should be script.rill
 ```
 
 ---
@@ -739,24 +620,15 @@ rill-check scripts/example.rill
 
 **Description:** File unreadable
 
-**Cause:** File exists but lacks read permissions or contains invalid encoding.
+**Cause:** File exists but cannot be read (permission denied or IO error).
 
-**Resolution:** Grant read permissions or fix file encoding.
+**Resolution:** Check file permissions, ensure read access, or verify file is not locked by another process.
 
 **Example:**
 
-```bash
-# Error: File unreadable (permissions)
-rill-check /root/script.rill
-
-# Fixed: Grant read permissions
-chmod +r /root/script.rill
-rill-check /root/script.rill
-
-# Error: Invalid UTF-8 encoding
-# Fixed: Convert file to UTF-8
-iconv -f ISO-8859-1 -t UTF-8 script.rill > script_utf8.rill
-rill-check script_utf8.rill
+```text
+# Permission denied
+rill-check protected.rill  # File exists but no read permission
 ```
 
 ---
@@ -765,25 +637,18 @@ rill-check script_utf8.rill
 
 **Description:** Invalid configuration
 
-**Cause:** Configuration file contains invalid syntax or unsupported options.
+**Cause:** Configuration file or options contain invalid values or structure.
 
-**Resolution:** Fix configuration format or remove invalid options.
+**Resolution:** Fix configuration syntax, ensure all required fields are present, and values are of correct type.
 
 **Example:**
 
-```bash
-# Error: Invalid JSON in config file
-# rill.config.json: { "timeout": "invalid" }
+```text
+# Invalid JSON in config
+# .rillrc.json contains malformed JSON
 
-# Fixed: Use valid configuration
-# rill.config.json:
-{
-  "timeout": 30000,
-  "autoExceptions": ["error:.*"]
-}
-
-# Error: Unknown configuration option
-# Fixed: Use supported options only
+# Unknown config option
+# Config contains unsupported option key
 ```
 
 ---
@@ -792,21 +657,15 @@ rill-check script_utf8.rill
 
 **Description:** Fix collision detected
 
-**Cause:** Multiple auto-fix suggestions attempt to modify same location.
+**Cause:** Multiple auto-fix rules attempt to modify the same source location.
 
-**Resolution:** Apply fixes manually or resolve one error at a time.
+**Resolution:** Apply fixes one at a time, or disable conflicting lint rules. Some fixes may need manual resolution.
 
 **Example:**
 
-```bash
-# Error: Two fixes target same line
-# Line 5: Both "add semicolon" and "remove token" suggested
-
-# Fixed: Apply fixes manually
-# Review conflicting suggestions and edit file directly
-
-# Fixed: Use --no-fix to see errors without auto-fixing
-rill-check --no-fix script.rill
+```text
+# Overlapping fix ranges
+# Two rules try to fix same code section
 ```
 
 ---

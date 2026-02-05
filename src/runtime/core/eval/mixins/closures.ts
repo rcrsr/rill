@@ -72,12 +72,13 @@ import {
   isDict,
   validateCallableArgs,
 } from '../../callable.js';
-import { getVariable } from '../../context.js';
+import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
 import type { RillValue, RillTuple } from '../../values.js';
 import { inferType, isTuple } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { CallFrame } from '../../../../types.js';
 
 /**
  * ClosuresMixin implementation.
@@ -135,14 +136,44 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async invokeCallable(
       callable: RillCallable,
       args: RillValue[],
-      callLocation?: SourceLocation
+      callLocation?: SourceLocation,
+      functionName?: string
     ): Promise<RillValue> {
       this.checkAborted();
 
-      if (callable.kind === 'script') {
-        return this.invokeScriptCallable(callable, args, callLocation);
-      } else {
-        return this.invokeFnCallable(callable, args, callLocation);
+      // Push call frame before invocation (IR-2, IC-9)
+      // Call stack captures the call site location, not the function body location
+      if (callLocation) {
+        const name =
+          functionName ??
+          (callable.kind === 'script' ? '<closure>' : '<callable>');
+        const frame: CallFrame = {
+          location: {
+            start: callLocation,
+            end: callLocation,
+          },
+          functionName: name,
+        };
+        pushCallFrame(this.ctx, frame);
+      }
+
+      try {
+        if (callable.kind === 'script') {
+          return await this.invokeScriptCallable(callable, args, callLocation);
+        } else {
+          return await this.invokeFnCallable(
+            callable,
+            args,
+            callLocation,
+            functionName
+          );
+        }
+      } finally {
+        // Pop call frame after invocation completes (IR-3)
+        // Ensure pop happens even on error paths
+        if (callLocation) {
+          popCallFrame(this.ctx);
+        }
       }
     }
 
@@ -448,16 +479,27 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const startTime = performance.now();
 
-      // Use invokeFnCallable for consistent validation and invocation
+      // Use invokeCallable for consistent validation, invocation, and call stack management
       const wrappedPromise = this.withTimeout(
         (async () => {
           // Handle both CallableFn and ApplicationCallable
           if (typeof fn === 'function') {
-            // Raw CallableFn - call directly (no validation)
-            return fn(args, this.ctx, node.span.start);
+            // Raw CallableFn - wrap in minimal callable and invoke through invokeCallable
+            const callable: RuntimeCallable = {
+              __type: 'callable' as const,
+              kind: 'runtime' as const,
+              fn,
+              isProperty: false,
+            };
+            return this.invokeCallable(
+              callable,
+              args,
+              node.span.start,
+              node.name
+            );
           } else {
-            // ApplicationCallable - use invokeFnCallable for validation
-            return this.invokeFnCallable(fn, args, node.span.start, node.name);
+            // ApplicationCallable - use invokeCallable for validation and call stack
+            return this.invokeCallable(fn, args, node.span.start, node.name);
           }
         })(),
         this.ctx.timeout,
@@ -552,7 +594,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         args.push(pipeInput);
       }
 
-      return this.invokeCallable(closure, args, node.span.start);
+      return this.invokeCallable(closure, args, node.span.start, fullPath);
     }
 
     /**
@@ -686,7 +728,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return this.invokeCallable(
             dictValue,
             args,
-            this.getNodeLocation(node)
+            this.getNodeLocation(node),
+            node.name
           );
         }
       }

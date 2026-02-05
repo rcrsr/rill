@@ -11,6 +11,7 @@ export {
   BreakSignal,
   callable,
   type CallableFn,
+  type CallFrame,
   type CaptureEvent,
   createRuntimeContext,
   createStepper,
@@ -28,6 +29,7 @@ export {
   type HostFunctionDefinition,
   type HostFunctionParam,
   type FunctionReturnEvent,
+  getCallStack,
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,
@@ -40,7 +42,9 @@ export {
   isScriptCallable,
   type ObservabilityCallbacks,
   type ParamMetadata,
+  popCallFrame,
   prefixFunctions,
+  pushCallFrame,
   RESERVED_DICT_METHODS,
   ReturnSignal,
   type RillTuple,
@@ -74,5 +78,18 @@ export {
   getHelpUrl,
   createError,
 } from './types.js';
+
+// ============================================================
+// CLI ERROR ENRICHMENT
+// ============================================================
+export {
+  enrichError,
+  extractSnippet,
+  suggestSimilarNames,
+  type EnrichedError,
+  type ScopeInfo,
+  type SourceSnippet,
+  type SnippetLine,
+} from './cli-error-enrichment.js';
 
 export * from './types.js';

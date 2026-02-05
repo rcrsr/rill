@@ -97,7 +97,9 @@ export function assertType(
     observability: {},
     timeout: undefined,
     autoExceptions: [],
+    maxCallStackDepth: 100,
     annotationStack: [],
+    callStack: [],
   };
 
   const evaluator = getEvaluator(minimalContext);
