@@ -33,9 +33,9 @@ export const FUNC_PARAM_TYPES = ['string', 'number', 'bool'] as const;
 /**
  * Check if token can be used as an identifier in function names
  * (identifiers or keywords)
- * @internal
+ * @internal Exported for parser-functions.ts reuse.
  */
-function isIdentifierOrKeyword(token: { type: string }): boolean {
+export function isIdentifierOrKeyword(token: { type: string }): boolean {
   return (
     token.type === TOKEN_TYPES.IDENTIFIER ||
     token.type === TOKEN_TYPES.TRUE ||

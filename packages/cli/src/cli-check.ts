@@ -15,7 +15,7 @@ import {
   applyFixes,
 } from './check/index.js';
 import { parseWithRecovery } from '@rcrsr/rill';
-import { VERSION } from './cli-shared.js';
+import { VERSION, detectHelpVersionFlag } from './cli-shared.js';
 
 /**
  * Parsed command-line arguments for rill-check
@@ -38,11 +38,9 @@ export type ParsedCheckArgs =
  */
 export function parseCheckArgs(argv: string[]): ParsedCheckArgs {
   // Check for --help or --version flags in any position
-  if (argv.includes('--help') || argv.includes('-h')) {
-    return { mode: 'help' };
-  }
-  if (argv.includes('--version') || argv.includes('-v')) {
-    return { mode: 'version' };
+  const helpVersionFlag = detectHelpVersionFlag(argv);
+  if (helpVersionFlag !== null) {
+    return helpVersionFlag;
   }
 
   // Extract flags

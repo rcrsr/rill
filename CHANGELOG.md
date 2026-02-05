@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Code duplication removal via function extraction** — Eliminates 32 duplicated lines across 5 files in core parser and CLI packages; three targeted function extractions improve maintainability without behavior changes
+  - `isIdentifierOrKeyword()` in `packages/core/src/parser/helpers.ts` (exported) consolidates 13-line identifier validation logic; fixes existing bug where PASS token was missing from `parser-functions.ts` validation
+  - `detectHelpVersionFlag()` in `packages/cli/src/cli-shared.ts` consolidates 6-line --help/--version detection logic from `cli-check.ts` and `cli-exec.ts` with consistent help precedence rule
+  - `isValidSpan()` in `packages/cli/src/check/rules/formatting.ts` (private helper) consolidates 15-line span validation logic from validate and fix methods in SPACING_BRACKETS rule
+  - Zero regression: 3,417 tests pass; 46 unit tests verify edge cases for new functions
+  - Initiative: `code-duplication-removal` (phase 2 complete)
+
 - **Monorepo package structure with pnpm workspaces** — Restructures @rcrsr/rill into focused packages with independent versioning and release cycles
   - Core runtime: `@rcrsr/rill` in `packages/core` with zero production dependencies
   - CLI tools: `@rcrsr/rill-cli` in `packages/cli` depends on core + yaml for configuration support

@@ -264,20 +264,8 @@ export const SPACING_BRACKETS: ValidationRule = {
 
       const bracketAccess = access as BracketAccess;
 
-      // EC-3: Skip if span is missing (graceful handling)
-      if (!bracketAccess.span) {
-        continue;
-      }
-
-      // EC-4: Skip if span coordinates are invalid (graceful handling)
-      if (
-        !bracketAccess.span.start ||
-        !bracketAccess.span.end ||
-        bracketAccess.span.start.line < 1 ||
-        bracketAccess.span.end.line < 1 ||
-        bracketAccess.span.start.column < 1 ||
-        bracketAccess.span.end.column < 1
-      ) {
+      // Skip if span is missing or invalid (EC-3, EC-4)
+      if (!isValidSpan(bracketAccess.span)) {
         continue;
       }
 
@@ -330,15 +318,7 @@ export const SPACING_BRACKETS: ValidationRule = {
       const bracketAccess = access as BracketAccess;
 
       // Skip if span is missing or invalid
-      if (
-        !bracketAccess.span ||
-        !bracketAccess.span.start ||
-        !bracketAccess.span.end ||
-        bracketAccess.span.start.line < 1 ||
-        bracketAccess.span.end.line < 1 ||
-        bracketAccess.span.start.column < 1 ||
-        bracketAccess.span.end.column < 1
-      ) {
+      if (!isValidSpan(bracketAccess.span)) {
         continue;
       }
 
@@ -761,6 +741,32 @@ export const THROWAWAY_CAPTURE: ValidationRule = {
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
+
+/**
+ * Validate that a SourceSpan has valid coordinates.
+ * Returns false if span, start, or end are missing,
+ * or if line/column values are less than 1.
+ *
+ * Exported for testing purposes to enable direct unit testing
+ * of edge cases (null spans, invalid coordinates).
+ */
+export function isValidSpan(span: SourceSpan | null | undefined): boolean {
+  if (!span) {
+    return false;
+  }
+  if (!span.start || !span.end) {
+    return false;
+  }
+  if (
+    span.start.line < 1 ||
+    span.start.column < 1 ||
+    span.end.line < 1 ||
+    span.end.column < 1
+  ) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Extract text from source using span coordinates.

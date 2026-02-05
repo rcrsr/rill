@@ -5,10 +5,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
-import type { ExpressionNode, StatementNode } from '@rcrsr/rill';
+import type { ExpressionNode, SourceSpan } from '@rcrsr/rill';
 import { validateScript } from '../../../src/check/validator.js';
 import type { CheckConfig } from '../../../src/check/types.js';
 import { isBareReference } from '../../../src/check/rules/helpers.js';
+import { isValidSpan } from '../../../src/check/rules/formatting.js';
 
 // ============================================================
 // TEST HELPERS
@@ -131,6 +132,98 @@ describe('isBareReference', () => {
   it('returns false for pipe chain with target', () => {
     const expr = parseExpr('$ -> .upper');
     expect(isBareReference(expr as ExpressionNode)).toBe(false);
+  });
+});
+
+// ============================================================
+// isValidSpan TESTS
+// ============================================================
+
+describe('isValidSpan', () => {
+  it('returns true for valid span with minimum coordinates (BC-2)', () => {
+    const validSpan: SourceSpan = {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(validSpan)).toBe(true);
+  });
+
+  it('returns true for valid span with all coordinates >= 1', () => {
+    const validSpan: SourceSpan = {
+      start: { line: 5, column: 10, offset: 50 },
+      end: { line: 7, column: 15, offset: 75 },
+    };
+    expect(isValidSpan(validSpan)).toBe(true);
+  });
+
+  it('returns false for null span (EC-2)', () => {
+    expect(isValidSpan(null)).toBe(false);
+  });
+
+  it('returns false for undefined span', () => {
+    expect(isValidSpan(undefined)).toBe(false);
+  });
+
+  it('returns false for span with start.line=0 (EC-3)', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: 0, column: 1, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span with start.column=0', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: 1, column: 0, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span with end.line=0', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 0, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span with end.column=0', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 0, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span missing start property (BC-4)', () => {
+    const invalidSpan = {
+      end: { line: 1, column: 2, offset: 1 },
+    } as SourceSpan;
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span missing end property (BC-4)', () => {
+    const invalidSpan = {
+      start: { line: 1, column: 1, offset: 0 },
+    } as SourceSpan;
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span with negative line', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: -1, column: 1, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
+  });
+
+  it('returns false for span with negative column', () => {
+    const invalidSpan: SourceSpan = {
+      start: { line: 1, column: -1, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    expect(isValidSpan(invalidSpan)).toBe(false);
   });
 });
 

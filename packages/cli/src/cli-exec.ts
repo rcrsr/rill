@@ -17,6 +17,7 @@ import {
   formatError,
   determineExitCode,
   VERSION,
+  detectHelpVersionFlag,
 } from './cli-shared.js';
 import { loadModule } from './cli-module-loader.js';
 import { explainError } from './cli-explain.js';
@@ -45,11 +46,9 @@ export type ParsedArgs =
  */
 export function parseArgs(argv: string[]): ParsedArgs {
   // Check for --help or --version flags in any position
-  if (argv.includes('--help') || argv.includes('-h')) {
-    return { mode: 'help' };
-  }
-  if (argv.includes('--version') || argv.includes('-v')) {
-    return { mode: 'version' };
+  const helpVersionFlag = detectHelpVersionFlag(argv);
+  if (helpVersionFlag !== null) {
+    return helpVersionFlag;
   }
 
   // Check for --explain flag (IC-11)

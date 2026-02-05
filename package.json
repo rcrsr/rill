@@ -1,6 +1,6 @@
 {
   "name": "rill-monorepo",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Rill - An embeddable scripting language for orchestrating LLM workflows",
   "private": true,
   "packageManager": "pnpm@10.10.0",

@@ -159,6 +159,26 @@ export function determineExitCode(value: RillValue): {
 }
 
 /**
+ * Detect help or version flags in CLI argument array.
+ * Checks for --help, -h, --version, -v in any position.
+ *
+ * @param argv - Command-line arguments (process.argv.slice(2))
+ * @returns Object with mode if flag found, null otherwise
+ */
+export function detectHelpVersionFlag(
+  argv: string[]
+): { mode: 'help' | 'version' } | null {
+  // Help takes precedence over version
+  if (argv.includes('--help') || argv.includes('-h')) {
+    return { mode: 'help' };
+  }
+  if (argv.includes('--version') || argv.includes('-v')) {
+    return { mode: 'version' };
+  }
+  return null;
+}
+
+/**
  * Package version string (re-exported from version-data.ts)
  *
  * This replaces the previous async readVersion() function with a synchronous constant.

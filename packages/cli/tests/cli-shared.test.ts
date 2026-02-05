@@ -8,6 +8,7 @@ import {
   formatError,
   formatOutput,
   determineExitCode,
+  detectHelpVersionFlag,
 } from '../src/cli-shared.js';
 import { ParseError, RuntimeError, LexerError } from '@rcrsr/rill';
 
@@ -350,6 +351,89 @@ describe('cli-shared', () => {
     it('returns 0 for other values', () => {
       expect(determineExitCode(42)).toEqual({ code: 0 });
       expect(determineExitCode({ key: 'value' })).toEqual({ code: 0 });
+    });
+  });
+
+  describe('detectHelpVersionFlag', () => {
+    describe('Help flag detection [AC-4]', () => {
+      it('detects --help flag [IR-3]', () => {
+        expect(detectHelpVersionFlag(['--help'])).toEqual({ mode: 'help' });
+      });
+
+      it('detects -h flag [IR-3]', () => {
+        expect(detectHelpVersionFlag(['-h'])).toEqual({ mode: 'help' });
+      });
+
+      it('detects --help in any position [IR-3]', () => {
+        expect(detectHelpVersionFlag(['file.rill', '--help'])).toEqual({
+          mode: 'help',
+        });
+        expect(detectHelpVersionFlag(['--help', 'file.rill'])).toEqual({
+          mode: 'help',
+        });
+        expect(
+          detectHelpVersionFlag(['--verbose', '--help', 'file.rill'])
+        ).toEqual({
+          mode: 'help',
+        });
+      });
+
+      it('help takes precedence over version [IR-3]', () => {
+        expect(detectHelpVersionFlag(['--help', '--version'])).toEqual({
+          mode: 'help',
+        });
+        expect(detectHelpVersionFlag(['--version', '--help'])).toEqual({
+          mode: 'help',
+        });
+        expect(detectHelpVersionFlag(['-h', '-v'])).toEqual({ mode: 'help' });
+        expect(detectHelpVersionFlag(['-v', '-h'])).toEqual({ mode: 'help' });
+      });
+    });
+
+    describe('Version flag detection [AC-4]', () => {
+      it('detects --version flag [IR-3]', () => {
+        expect(detectHelpVersionFlag(['--version'])).toEqual({
+          mode: 'version',
+        });
+      });
+
+      it('detects -v flag [IR-3]', () => {
+        expect(detectHelpVersionFlag(['-v'])).toEqual({ mode: 'version' });
+      });
+
+      it('detects --version in any position [IR-3]', () => {
+        expect(detectHelpVersionFlag(['file.rill', '--version'])).toEqual({
+          mode: 'version',
+        });
+        expect(detectHelpVersionFlag(['--version', 'file.rill'])).toEqual({
+          mode: 'version',
+        });
+        expect(
+          detectHelpVersionFlag(['--verbose', '--version', 'file.rill'])
+        ).toEqual({ mode: 'version' });
+      });
+    });
+
+    describe('No flag cases [EC-4, EC-5]', () => {
+      it('returns null for empty array [EC-4]', () => {
+        expect(detectHelpVersionFlag([])).toBeNull();
+      });
+
+      it('returns null for no flags [IR-3]', () => {
+        expect(detectHelpVersionFlag(['file.rill'])).toBeNull();
+        expect(detectHelpVersionFlag(['file.rill', 'arg1', 'arg2'])).toBeNull();
+      });
+
+      it('returns null for unknown flags [EC-5]', () => {
+        expect(detectHelpVersionFlag(['--unknown'])).toBeNull();
+        expect(detectHelpVersionFlag(['--verbose'])).toBeNull();
+        expect(detectHelpVersionFlag(['-x'])).toBeNull();
+      });
+
+      it('returns null for flag-like arguments', () => {
+        expect(detectHelpVersionFlag(['--format', 'json'])).toBeNull();
+        expect(detectHelpVersionFlag(['file.rill', '--fix'])).toBeNull();
+      });
     });
   });
 });

@@ -17,7 +17,11 @@ import type {
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan, peek } from './state.js';
-import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
+import {
+  VALID_TYPE_NAMES,
+  parseTypeName,
+  isIdentifierOrKeyword,
+} from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -67,20 +71,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
     // After ::, accept identifier or keyword
     const token = current(this.state);
 
-    const isValidIdent =
-      token.type === TOKEN_TYPES.IDENTIFIER ||
-      token.type === TOKEN_TYPES.TRUE ||
-      token.type === TOKEN_TYPES.FALSE ||
-      token.type === TOKEN_TYPES.BREAK ||
-      token.type === TOKEN_TYPES.RETURN ||
-      token.type === TOKEN_TYPES.ASSERT ||
-      token.type === TOKEN_TYPES.ERROR ||
-      token.type === TOKEN_TYPES.EACH ||
-      token.type === TOKEN_TYPES.MAP ||
-      token.type === TOKEN_TYPES.FOLD ||
-      token.type === TOKEN_TYPES.FILTER;
-
-    if (!isValidIdent) {
+    if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
         'RILL-P005',
         'Expected identifier or keyword after ::',

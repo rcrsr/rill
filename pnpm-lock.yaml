@@ -51,13 +51,7 @@ importers:
 
   packages/core: {}
 
-  packages/ext/ollama:
-    devDependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../../core
-
-  packages/ext/openai:
+  packages/ext/example:
     devDependencies:
       '@rcrsr/rill':
         specifier: workspace:^
