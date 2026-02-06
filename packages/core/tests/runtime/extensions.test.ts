@@ -21,7 +21,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { HostFunctionDefinition } from '@rcrsr/rill';
 import type {
   ExtensionFactory,
   ExtensionResult,
@@ -356,7 +355,7 @@ describe('Rill Runtime: Extension System', () => {
           const err = e as RuntimeError;
           expect(err.errorId).toBe('RILL-R004');
           expect(err.message).toBe(
-            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got ""'
+            'Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got ""'
           );
         }
       });
@@ -379,32 +378,28 @@ describe('Rill Runtime: Extension System', () => {
           const err = e as RuntimeError;
           expect(err.errorId).toBe('RILL-R004');
           expect(err.message).toBe(
-            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my extension"'
+            'Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got "my extension"'
           );
         }
       });
     });
 
-    describe('AC-E3: Namespace with underscores throws RuntimeError', () => {
-      it('throws when namespace contains underscores', () => {
+    describe('AC-E3: Namespace with underscores is valid (snake_case convention)', () => {
+      it('accepts snake_case namespaces', async () => {
         const extension: ExtensionResult = {
-          doSomething: {
-            params: [],
-            fn: () => 'done',
+          greet: {
+            params: [{ name: 'name', type: 'string' }],
+            fn: (args) => `Hello, ${args[0]}!`,
           },
         };
 
-        try {
-          prefixFunctions('my_extension', extension);
-          expect.fail('Should have thrown');
-        } catch (e) {
-          expect(e).toBeInstanceOf(RuntimeError);
-          const err = e as RuntimeError;
-          expect(err.errorId).toBe('RILL-R004');
-          expect(err.message).toBe(
-            'Invalid namespace: must be non-empty alphanumeric with hyphens only, got "my_extension"'
-          );
-        }
+        const prefixed = prefixFunctions('my_extension', extension);
+
+        expect(prefixed['my_extension::greet']).toBeDefined();
+        const result = await run('my_extension::greet("World")', {
+          functions: prefixed,
+        });
+        expect(result).toBe('Hello, World!');
       });
     });
 

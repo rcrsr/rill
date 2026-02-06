@@ -1,0 +1,28 @@
+{
+  "name": "@rcrsr/rill-ext-claude-code",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "@types/which": "^3.0.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "which": "^6.0.0"
+  }
+}

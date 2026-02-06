@@ -19,7 +19,7 @@ export type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionResult;
 /**
  * Prefix all function names in an extension with a namespace.
  *
- * @param namespace - Alphanumeric string with hyphens (e.g., "fs", "http-client")
+ * @param namespace - Alphanumeric string with underscores/hyphens (e.g., "fs", "claude_code")
  * @param functions - Extension result with function definitions
  * @returns New ExtensionResult with prefixed function names (namespace::functionName)
  * @throws {RuntimeError} RUNTIME_TYPE_ERROR if namespace is invalid
@@ -35,13 +35,13 @@ export function prefixFunctions(
   namespace: string,
   functions: ExtensionResult
 ): ExtensionResult {
-  // Validate namespace pattern: non-empty alphanumeric with hyphens only
-  const NAMESPACE_PATTERN = /^[a-zA-Z0-9-]+$/;
+  // Validate namespace pattern: non-empty alphanumeric with underscores/hyphens
+  const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
   if (!NAMESPACE_PATTERN.test(namespace)) {
     throw new RuntimeError(
       'RILL-R004',
-      `Invalid namespace: must be non-empty alphanumeric with hyphens only, got "${namespace}"`
+      `Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got "${namespace}"`
     );
   }
 

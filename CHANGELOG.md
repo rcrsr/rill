@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claude Code Extension** — PTY-based Claude CLI integration providing three host functions via `ExtensionFactory` pattern
+  - Host functions: `claude-code::prompt`, `claude-code::skill`, `claude-code::command` spawn Claude CLI via node-pty with `--output-format stream-json`
+  - Stream parser with ANSI stripping and chunk buffering extracts line-delimited JSON responses
+  - Structured results contain response text, 5-field token usage (prompt, cache-write-5m, cache-write-1h, cache-read, output), and execution cost calculation
+  - Process manager enforces timeouts (max 300s), handles cleanup, and manages child process lifecycle
+  - Extension factory with eager config validation supports custom binary paths and configurable timeouts
+  - Security design uses direct spawn (no shell invocation) and inherits parent environment
+  - All 50 requirements covered with 221 tests across integration, unit, and error contract suites
+  - Emits extension events for observability (prompt, skill, command, error events)
+  - Package location: `packages/ext/claude-code` following monorepo extension pattern
+  - Initiative: `claude-code-extension` (5 phases complete)
+
 - **Error Reporting Enhancement** — Rich error feedback with call stacks, source snippets, LSP preparation, and contextual suggestions
   - Call stacks show function names and line numbers for error origin tracking
   - Source code snippets with caret indicators display problematic expressions

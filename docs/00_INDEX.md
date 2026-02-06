@@ -35,6 +35,7 @@
 | Topic | Description |
 |-------|-------------|
 | [Host Integration](14_host-integration.md) | Embedding rill in applications |
+| [Extensions](20_extensions.md) | Reusable host function packages |
 | [Modules](13_modules.md) | Convention for host-provided module systems |
 | [CLI Tools](17_cli-tools.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
 
@@ -56,6 +57,7 @@ The formal EBNF grammar is in [grammar.ebnf](15_grammar.ebnf).
 3. **Advanced patterns?** Check the [Cookbook](19_cookbook.md) for orchestration techniques
 4. **Need specifics?** Check the [Reference](11_reference.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](14_host-integration.md)
+6. **Packaging functions?** See [Extensions](20_extensions.md)
 
 ## Design Principles
 

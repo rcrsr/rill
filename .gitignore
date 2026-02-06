@@ -2,6 +2,12 @@
 dist/
 *.tsbuildinfo
 
+# Compiled TypeScript artifacts in src/ (build outputs to dist/)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+
 # Generated files
 src/generated/
 
