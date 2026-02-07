@@ -1,6 +1,6 @@
 # rill String Methods Reference
 
-String methods for text manipulation, pattern matching, and formatting.
+*String methods for text manipulation, pattern matching, and formatting*
 
 ## Case Conversion
 
@@ -13,6 +13,8 @@ String methods for text manipulation, pattern matching, and formatting.
 "Hello World" -> .lower              # "hello world"
 "Hello World" -> .upper              # "HELLO WORLD"
 ```
+
+---
 
 ## Prefix and Suffix
 
@@ -27,6 +29,8 @@ String methods for text manipulation, pattern matching, and formatting.
 "Hello" -> .starts_with("hello")     # false (case sensitive)
 ```
 
+---
+
 ## Search and Position
 
 | Method      | Signature              | Description                         |
@@ -39,6 +43,8 @@ String methods for text manipulation, pattern matching, and formatting.
 "hello world" -> .index_of("o")      # 4
 "hello" -> .index_of("x")            # -1
 ```
+
+---
 
 ## Pattern Matching
 
@@ -81,6 +87,8 @@ $response -> .match("code: (\\d+)") => $m
 $m -> !.empty ? process($m.groups[0])
 ```
 
+---
+
 ## Replacement
 
 | Method         | Signature                               | Description              |
@@ -97,6 +105,8 @@ $m -> !.empty ? process($m.groups[0])
 
 "hello" -> .replace_all("l", "")     # "heo"
 ```
+
+---
 
 ## Formatting
 
@@ -120,6 +130,8 @@ $m -> !.empty ? process($m.groups[0])
 "42" -> .pad_end(5, "0")             # "42000"
 ```
 
+---
+
 ## Splitting and Joining
 
 | Method   | Signature                    | Description                        |
@@ -136,6 +148,8 @@ $m -> !.empty ? process($m.groups[0])
 ["a", "b", "c"] -> .join("\n")       # "a\nb\nc"
 ```
 
+---
+
 ## Conversion and Length
 
 | Method | Signature       | Description                 |
@@ -150,6 +164,8 @@ $m -> !.empty ? process($m.groups[0])
 "hello" -> .len                      # 5
 ```
 
+---
+
 ## Element Access
 
 | Method   | Signature              | Description              |
@@ -163,6 +179,8 @@ $m -> !.empty ? process($m.groups[0])
 "hello" -> .tail                     # "o"
 "hello" -> .at(1)                    # "e"
 ```
+
+---
 
 ## Common Patterns
 
@@ -203,3 +221,11 @@ $text -> .replace_all("\\s+", " ") -> .trim
 $line -> .match("(\\w+):\\s*(.+)") => $m
 $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 ```
+
+---
+
+## See Also
+
+- [Reference](ref-language.md) — Language specification
+- [Collections](topic-collections.md) — String processing with `map`, `filter`, `fold`
+- [Parsing](topic-parsing.md) — Extract structured data from text

@@ -203,8 +203,8 @@ function getMethodName(body: IteratorBody): string | null {
  * Error severity because this is semantically wrong, not just stylistic.
  *
  * References:
- * - docs/16_conventions.md:90-149
- * - docs/07_collections.md
+ * - docs/guide-conventions.md:90-149
+ * - docs/topic-collections.md
  */
 export const BREAK_IN_PARALLEL: ValidationRule = {
   code: 'BREAK_IN_PARALLEL',
@@ -253,7 +253,7 @@ export const BREAK_IN_PARALLEL: ValidationRule = {
  * This is informational - both work, but map is clearer for pure transforms.
  *
  * References:
- * - docs/16_conventions.md:90-149
+ * - docs/guide-conventions.md:90-149
  */
 export const PREFER_MAP: ValidationRule = {
   code: 'PREFER_MAP',
@@ -314,8 +314,8 @@ export const PREFER_MAP: ValidationRule = {
  * This is informational - helps users choose the right operator.
  *
  * References:
- * - docs/16_conventions.md:90-149
- * - docs/07_collections.md
+ * - docs/guide-conventions.md:90-149
+ * - docs/topic-collections.md
  */
 export const FOLD_INTERMEDIATES: ValidationRule = {
   code: 'FOLD_INTERMEDIATES',
@@ -346,7 +346,7 @@ export const FOLD_INTERMEDIATES: ValidationRule = {
  * which is likely not intended when filtering.
  *
  * References:
- * - docs/16_conventions.md:90-149
+ * - docs/guide-conventions.md:90-149
  */
 export const FILTER_NEGATION: ValidationRule = {
   code: 'FILTER_NEGATION',
@@ -399,7 +399,7 @@ export const FILTER_NEGATION: ValidationRule = {
  * This is informational - both forms work identically.
  *
  * References:
- * - docs/16_conventions.md:90-149
+ * - docs/guide-conventions.md:90-149
  */
 export const METHOD_SHORTHAND: ValidationRule = {
   code: 'METHOD_SHORTHAND',

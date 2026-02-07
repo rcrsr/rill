@@ -205,7 +205,7 @@ initial -> @ { body } ? (condition)
 
 Do-while is ideal for retry patterns:
 
-```text
+```rill
 ^(limit: 5) @ {
   app::prompt("Perform operation")
 } ? (.contains("RETRY"))
@@ -296,7 +296,7 @@ $value -> return         # exit with value
 
 ### Multi-Phase Pipeline
 
-```text
+```rill
 {
   "content" => $data
   $data -> .contains("ERROR") ? ("Read failed" -> return)
@@ -399,7 +399,7 @@ Assert throws `RuntimeError` when:
 
 Guard clauses at function start:
 
-```text
+```rill
 |data| {
   assert $data:?list "Expected list"
   assert !$data.empty "List cannot be empty"
@@ -409,7 +409,7 @@ Guard clauses at function start:
 
 Multi-step validation:
 
-```text
+```rill
 $input
   -> assert $:?string "Input must be string"
   -> .trim
@@ -497,7 +497,7 @@ Combine `error` with conditionals for guard clauses:
 # Returns 5 (condition false, proceeds with else branch)
 ```
 
-```text
+```rill
 $data -> .empty ? { error "Data cannot be empty" } ! $data
 # Proceeds with $data if not empty
 ```
@@ -506,7 +506,7 @@ $data -> .empty ? { error "Data cannot be empty" } ! $data
 
 Use `error` in blocks for multi-step validation:
 
-```text
+```rill
 |age| {
   ($age < 0) ? { error "Age cannot be negative: {$age}" }
   ($age > 150) ? { error "Age out of range: {$age}" }
@@ -645,7 +645,7 @@ $cond ? do_something() ! pass
 
 Exit early on invalid conditions (assumes host provides `error()`):
 
-```text
+```rill
 |data| {
   $data -> .empty ? app::error("Empty input")
   $data -> :?list ? $ ! app::error("Expected list")
@@ -686,7 +686,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 
 ## See Also
 
-- [Variables](03_variables.md) — Scope rules and `$` binding
-- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` iteration
-- [Operators](04_operators.md) — Comparison and logical operators
-- [Reference](11_reference.md) — Quick reference tables
+- [Variables](topic-variables.md) — Scope rules and `$` binding
+- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` iteration
+- [Operators](topic-operators.md) — Comparison and logical operators
+- [Reference](ref-language.md) — Quick reference tables

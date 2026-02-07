@@ -1,6 +1,6 @@
-# Content Parsing
+# rill Content Parsing
 
-Built-in functions for extracting structured data from text, optimized for LLM output.
+*Built-in functions for extracting structured data from text, optimized for LLM output*
 
 ## Overview
 
@@ -13,6 +13,8 @@ Built-in functions for extracting structured data from text, optimized for LLM o
 | `parse_fences` | Extract all fenced code blocks |
 | `parse_frontmatter` | Parse YAML frontmatter and body |
 | `parse_checklist` | Parse markdown checkbox items |
+
+---
 
 ## Auto-Detection with `parse_auto`
 
@@ -76,6 +78,8 @@ prompt("Analyze this data") -> parse_auto => $parsed
 }
 ```
 
+---
+
 ## JSON Parsing
 
 ### `parse_json`
@@ -106,6 +110,8 @@ prompt("Return user data as JSON") -> parse_json => $user
 $user.name ?? "Unknown"
 $user.age ?? 0
 ```
+
+---
 
 ## XML Parsing
 
@@ -170,6 +176,8 @@ $tool -> parse_xml("args") -> parse_json => $fn_args
 app::call($fn_name, $fn_args)
 ```
 
+---
+
 ## Fenced Code Blocks
 
 ### `parse_fence`
@@ -207,6 +215,8 @@ prompt("Show examples in Python and JavaScript") -> parse_fences -> each {
 # $config.host -> log
 ```
 
+---
+
 ## Frontmatter Parsing
 
 ### `parse_frontmatter`
@@ -238,6 +248,8 @@ $doc.meta.title -> log
 $doc.body -> log
 ```
 
+---
+
 ## Checklist Parsing
 
 ### `parse_checklist`
@@ -257,6 +269,8 @@ Each item is a tuple: `[completed: bool, text: string]`
 "- [ ] Deploy\n- [x] Test" -> parse_checklist => $tasks
 $tasks -> .len
 ```
+
+---
 
 ## Validation Patterns
 
@@ -296,6 +310,8 @@ app::prompt("Return user profile as JSON") -> parse_json => $user
 parse_json($) => $profile
 ```
 
+---
+
 ## Combining Parsers
 
 Chain parsers for complex extraction:
@@ -313,6 +329,8 @@ Chain parsers for complex extraction:
 # $parsed.body -> parse_checklist => $tasks
 ```
 
+---
+
 ## Best Practices
 
 1. **Use `parse_auto` for unknown formats** — Let it detect the structure
@@ -320,6 +338,8 @@ Chain parsers for complex extraction:
 3. **Check confidence for ambiguous content** — Handle low-confidence parses specially
 4. **Chain parsers for nested structures** — XML containing JSON, frontmatter with checklists
 5. **Validate before using** — Check type and required fields exist
+
+---
 
 ## Limitations
 
@@ -364,3 +384,11 @@ Extracts simple `<tag>content</tag>` but **does not support**:
 - Attribute extraction (`<tag attr="val">` — attr ignored)
 - Nested same-name tags (`<item><item>...</item></item>`)
 - CDATA sections, namespaces, self-closing tags
+
+---
+
+## See Also
+
+- [Reference](ref-language.md) — Language specification
+- [Strings](topic-strings.md) — String methods for text manipulation
+- [Cookbook](cookbook.md) — LLM integration patterns

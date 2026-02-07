@@ -1,6 +1,6 @@
 /**
  * Formatting Rules
- * Enforces style conventions from docs/16_conventions.md:465-662.
+ * Enforces style conventions from docs/guide-conventions.md:465-662.
  */
 
 import type {
@@ -39,7 +39,7 @@ import { extractContextLine, isBareReference } from './helpers.js';
  * - Check if space exists before/after operator
  *
  * References:
- * - docs/16_conventions.md:467-482
+ * - docs/guide-conventions.md:467-482
  */
 export const SPACING_OPERATOR: ValidationRule = {
   code: 'SPACING_OPERATOR',
@@ -169,7 +169,7 @@ function checkCaptureSpacing(span: SourceSpan, source: string): boolean {
  * - Check if opening { has space after, closing } has space before
  *
  * References:
- * - docs/16_conventions.md:497-508
+ * - docs/guide-conventions.md:497-508
  */
 export const SPACING_BRACES: ValidationRule = {
   code: 'SPACING_BRACES',
@@ -236,7 +236,7 @@ export const SPACING_BRACES: ValidationRule = {
  * - Check for spaces inside brackets
  *
  * References:
- * - docs/16_conventions.md:526-535
+ * - docs/guide-conventions.md:526-535
  */
 export const SPACING_BRACKETS: ValidationRule = {
   code: 'SPACING_BRACKETS',
@@ -362,7 +362,7 @@ export const SPACING_BRACKETS: ValidationRule = {
  * - Check spacing around pipes
  *
  * References:
- * - docs/16_conventions.md:549-560
+ * - docs/guide-conventions.md:549-560
  */
 export const SPACING_CLOSURE: ValidationRule = {
   code: 'SPACING_CLOSURE',
@@ -427,7 +427,7 @@ export const SPACING_CLOSURE: ValidationRule = {
  * - Check indentation of continuation lines
  *
  * References:
- * - docs/16_conventions.md:636-662
+ * - docs/guide-conventions.md:636-662
  */
 export const INDENT_CONTINUATION: ValidationRule = {
   code: 'INDENT_CONTINUATION',
@@ -520,7 +520,7 @@ export const INDENT_CONTINUATION: ValidationRule = {
  * - $.trim().upper() second method (receiverSpan covers $.trim())
  *
  * References:
- * - docs/16_conventions.md:587-598
+ * - docs/guide-conventions.md:587-598
  */
 export const IMPLICIT_DOLLAR_METHOD: ValidationRule = {
   code: 'IMPLICIT_DOLLAR_METHOD',
@@ -596,7 +596,7 @@ export const IMPLICIT_DOLLAR_METHOD: ValidationRule = {
  * - HostCall with single argument that is bare $
  *
  * References:
- * - docs/16_conventions.md:599-607
+ * - docs/guide-conventions.md:599-607
  */
 export const IMPLICIT_DOLLAR_FUNCTION: ValidationRule = {
   code: 'IMPLICIT_DOLLAR_FUNCTION',
@@ -656,7 +656,7 @@ export const IMPLICIT_DOLLAR_FUNCTION: ValidationRule = {
  * - ClosureCall with single argument that is bare $
  *
  * References:
- * - docs/16_conventions.md:608-615
+ * - docs/guide-conventions.md:608-615
  */
 export const IMPLICIT_DOLLAR_CLOSURE: ValidationRule = {
   code: 'IMPLICIT_DOLLAR_CLOSURE',
@@ -723,7 +723,7 @@ export const IMPLICIT_DOLLAR_CLOSURE: ValidationRule = {
  * - Variable not referenced later in the script
  *
  * References:
- * - docs/16_conventions.md:617-634
+ * - docs/guide-conventions.md:617-634
  */
 export const THROWAWAY_CAPTURE: ValidationRule = {
   code: 'THROWAWAY_CAPTURE',

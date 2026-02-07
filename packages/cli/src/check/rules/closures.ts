@@ -1,6 +1,6 @@
 /**
  * Closure Convention Rules
- * Enforces closure best practices from docs/16_conventions.md:237-286.
+ * Enforces closure best practices from docs/guide-conventions.md:237-286.
  */
 
 import type {
@@ -45,8 +45,8 @@ import { extractContextLine } from './helpers.js';
  * - Inline blocks: -> { $ * 2 }  (immediate evaluation)
  *
  * References:
- * - docs/16_conventions.md:251-261
- * - docs/06_closures.md: Late binding section
+ * - docs/guide-conventions.md:251-261
+ * - docs/topic-closures.md: Late binding section
  */
 export const CLOSURE_BARE_DOLLAR: ValidationRule = {
   code: 'CLOSURE_BARE_DOLLAR',
@@ -233,7 +233,7 @@ function containsBareReference(node: ASTNode): boolean {
  * - Multiple statements: |x| { $x => $y; $y * 2 }
  *
  * References:
- * - docs/16_conventions.md:239-249
+ * - docs/guide-conventions.md:239-249
  */
 export const CLOSURE_BRACES: ValidationRule = {
   code: 'CLOSURE_BRACES',
@@ -311,8 +311,8 @@ export const CLOSURE_BRACES: ValidationRule = {
  *   }
  *
  * References:
- * - docs/16_conventions.md:251-261
- * - docs/06_closures.md: Late binding section
+ * - docs/guide-conventions.md:251-261
+ * - docs/topic-closures.md: Late binding section
  */
 export const CLOSURE_LATE_BINDING: ValidationRule = {
   code: 'CLOSURE_LATE_BINDING',

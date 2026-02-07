@@ -67,7 +67,7 @@ Line two
 
 Triple-quote strings support interpolation like regular strings.
 
-See [Strings](09_strings.md) for string methods.
+See [Strings](topic-strings.md) for string methods.
 
 ---
 
@@ -88,7 +88,11 @@ Used for arithmetic, exit codes, and loop limits:
 
 ```rill
 5 + 3                      # 8
-"5" + 1                    # ERROR: Arithmetic requires number, got string
+```
+
+```text
+# Error: Arithmetic requires number, got string
+"5" + 1
 ```
 
 ---
@@ -190,7 +194,7 @@ Use `??` for safe access with default:
 $list[0] ?? "default"  # "a"
 ```
 
-See [Collections](07_collections.md) for iteration operators.
+See [Collections](topic-collections.md) for iteration operators.
 
 ---
 
@@ -298,7 +302,7 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 
 ### Dict Closures
 
-Closures in dicts have `$` late-bound to the containing dict. See [Closures](06_closures.md) for details.
+Closures in dicts have `$` late-bound to the containing dict. See [Closures](topic-closures.md) for details.
 
 ```rill
 [
@@ -497,8 +501,8 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ## See Also
 
-- [Variables](03_variables.md) — Declaration, scope, `$` binding
-- [Closures](06_closures.md) — Closure semantics and patterns
-- [Collections](07_collections.md) — List iteration operators
-- [Strings](09_strings.md) — String methods reference
-- [Reference](11_reference.md) — Quick reference tables
+- [Variables](topic-variables.md) — Declaration, scope, `$` binding
+- [Closures](topic-closures.md) — Closure semantics and patterns
+- [Collections](topic-collections.md) — List iteration operators
+- [Strings](topic-strings.md) — String methods reference
+- [Reference](ref-language.md) — Quick reference tables

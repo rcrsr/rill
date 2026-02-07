@@ -562,11 +562,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Infinite loop without termination',
-        code: 'while(true) { "looping" }  # Never terminates',
+        code: '(true) @ { "looping" }  # Never terminates',
       },
       {
         description: 'Large collection with default limit',
-        code: 'range(1000000) -> each |x| $x  # May exceed default limit',
+        code: 'range(0, 1000000) -> each |x| $x  # May exceed default limit',
       },
     ],
   },
@@ -674,7 +674,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'Conditional error',
-        code: '?($status == "failed") error "Process failed" : "ok"',
+        code: '($status == "failed") ? { error "Process failed" } ! "ok"',
       },
     ],
   },
@@ -842,7 +842,7 @@ export function renderMessage(
 /**
  * Generates documentation URL for an error ID.
  *
- * Format: https://github.com/rcrsr/rill/blob/v{version}/docs/88_errors.md#{errorId}
+ * Format: https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{errorId}
  * Error ID is lowercased in anchor.
  *
  * @param errorId - Error identifier (format: RILL-{category}{3-digit}, e.g., RILL-R001)
@@ -851,7 +851,7 @@ export function renderMessage(
  *
  * @example
  * getHelpUrl("RILL-R001", "0.4.1")
- * // Returns: "https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-r001"
+ * // Returns: "https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-r001"
  *
  * @example
  * getHelpUrl("invalid", "0.4.1")
@@ -873,7 +873,7 @@ export function getHelpUrl(errorId: string, version: string): string {
 
   // Build URL with lowercased errorId in anchor
   const anchor = errorId.toLowerCase();
-  return `https://github.com/rcrsr/rill/blob/v${version}/docs/88_errors.md#${anchor}`;
+  return `https://github.com/rcrsr/rill/blob/v${version}/docs/ref-errors.md#${anchor}`;
 }
 
 // ============================================================

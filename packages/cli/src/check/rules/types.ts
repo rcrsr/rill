@@ -1,6 +1,6 @@
 /**
  * Type Safety Convention Rules
- * Enforces type annotation best practices from docs/16_conventions.md:288-316.
+ * Enforces type annotation best practices from docs/guide-conventions.md:288-316.
  */
 
 import type {
@@ -32,7 +32,7 @@ import { extractContextLine } from './helpers.js';
  * - $userInput:string (runtime validation)
  *
  * References:
- * - docs/16_conventions.md:305-315
+ * - docs/guide-conventions.md:305-315
  */
 export const UNNECESSARY_ASSERTION: ValidationRule = {
   code: 'UNNECESSARY_ASSERTION',
@@ -164,7 +164,7 @@ function getLiteralType(
  * but it's a good practice for critical paths.
  *
  * References:
- * - docs/16_conventions.md:307-311
+ * - docs/guide-conventions.md:307-311
  */
 export const VALIDATE_EXTERNAL: ValidationRule = {
   code: 'VALIDATE_EXTERNAL',

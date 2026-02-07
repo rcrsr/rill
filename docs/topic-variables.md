@@ -199,7 +199,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 > $count                                       # Still 0!
 > ```
 >
-> Use `fold` for reductions, or pack multiple values into `$` as a dict. See [Collections](07_collections.md) for accumulator patterns.
+> Use `fold` for reductions, or pack multiple values into `$` as a dict. See [Collections](topic-collections.md) for accumulator patterns.
 
 ### Reading Outer Variables
 
@@ -318,7 +318,7 @@ Use `$` for accumulation in while loops:
 
 ## See Also
 
-- [Types](02_types.md) — Type system and type assertions
-- [Control Flow](05_control-flow.md) — Conditionals and loops
-- [Closures](06_closures.md) — Closure scope and late binding
-- [Reference](11_reference.md) — Quick reference tables
+- [Types](topic-types.md) — Type system and type assertions
+- [Control Flow](topic-control-flow.md) — Conditionals and loops
+- [Closures](topic-closures.md) — Closure scope and late binding
+- [Reference](ref-language.md) — Quick reference tables

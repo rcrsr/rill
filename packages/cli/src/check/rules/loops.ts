@@ -211,7 +211,7 @@ function callsRetryFunction(node: ASTNode): boolean {
  *   }
  *
  * References:
- * - docs/16_conventions.md:151-171
+ * - docs/guide-conventions.md:151-171
  */
 export const LOOP_ACCUMULATOR: ValidationRule = {
   code: 'LOOP_ACCUMULATOR',
@@ -279,7 +279,7 @@ export const LOOP_ACCUMULATOR: ValidationRule = {
  * This is informational - helps guide users to the clearer pattern.
  *
  * References:
- * - docs/16_conventions.md:173-186
+ * - docs/guide-conventions.md:173-186
  */
 export const PREFER_DO_WHILE: ValidationRule = {
   code: 'PREFER_DO_WHILE',
@@ -332,7 +332,7 @@ export const PREFER_DO_WHILE: ValidationRule = {
  * This is informational - while loops work, but each is clearer for collections.
  *
  * References:
- * - docs/16_conventions.md:188-196
+ * - docs/guide-conventions.md:188-196
  */
 export const USE_EACH: ValidationRule = {
   code: 'USE_EACH',

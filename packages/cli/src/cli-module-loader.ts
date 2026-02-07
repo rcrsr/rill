@@ -2,7 +2,7 @@
  * CLI Module Loader
  *
  * Implements module loading for the Rill CLI with circular dependency detection.
- * See docs/13_modules.md for module convention specification.
+ * See docs/integration-modules.md for module convention specification.
  */
 
 import * as fs from 'fs/promises';

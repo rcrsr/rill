@@ -107,7 +107,7 @@ function createNamingDiagnostic(
  * - Single-letter names are valid (common for loop variables)
  *
  * References:
- * - docs/16_conventions.md:10-53
+ * - docs/guide-conventions.md:10-53
  */
 export const NAMING_SNAKE_CASE: ValidationRule = {
   code: 'NAMING_SNAKE_CASE',

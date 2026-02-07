@@ -17,12 +17,12 @@ Rill solves for AI platforms what Lua solves for game engines and Liquid solves 
 
 ## Why Rill?
 
-- **Embeddable.** Zero dependencies. [Integration](docs/14_host-integration.md) takes a few lines of code, browser or backend.
+- **Embeddable.** Zero dependencies. [Integration](docs/integration-host.md) takes a few lines of code, browser or backend.
 - **Sandboxed.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
 - **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
-- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/15_grammar.ebnf) and [LLM reference](docs/99_llm-reference.txt). No ambiguity for codegen — one way to do each thing.
+- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). No ambiguity for codegen — one way to do each thing.
 - **Intentionally constrained.** No null, no truthiness, sealed scopes, locked types. Removes the degrees of freedom where LLMs misgenerate.
-- **Built-in LLM output parsing.** [Auto-detect](docs/10_parsing.md) and parse JSON, XML, YAML, checklists from model responses.
+- **Built-in LLM output parsing.** [Auto-detect](docs/topic-parsing.md) and parse JSON, XML, YAML, checklists from model responses.
 
 ## Who Is This For?
 
@@ -204,19 +204,19 @@ We asked LLMs to review Rill. They had opinions.
 - **Parallel agent fan-out.** Launch specialist agents concurrently, collect structured results.
 - **Edit-review loops.** Iterate until approval or `^(limit: N)` max attempts.
 
-See [Examples](docs/12_examples.md) for complete workflow patterns.
+See [Examples](docs/guide-examples.md) for complete workflow patterns.
 
 ## Documentation
 
-See [docs/00_INDEX.md](docs/00_INDEX.md) for full navigation.
+See [docs/index.md](docs/index.md) for full navigation.
 
 | Document | Description |
 |----------|-------------|
-| [Guide](docs/01_guide.md) | Beginner introduction |
-| [Reference](docs/11_reference.md) | Language specification |
-| [Examples](docs/12_examples.md) | Workflow patterns |
-| [Host Integration](docs/14_host-integration.md) | Embedding API |
-| [Design Principles](docs/18_design-principles.md) | Why Rill works the way it does |
+| [Guide](docs/guide-getting-started.md) | Beginner introduction |
+| [Reference](docs/ref-language.md) | Language specification |
+| [Examples](docs/guide-examples.md) | Workflow patterns |
+| [Host Integration](docs/integration-host.md) | Embedding API |
+| [Design Principles](docs/topic-design-principles.md) | Why Rill works the way it does |
 
 ## License
 

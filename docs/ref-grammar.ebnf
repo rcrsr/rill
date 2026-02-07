@@ -454,7 +454,7 @@ closure-chain = "@" , ( variable | list ) ;  (* @$var or @[closures] *)
 
    Path elements: strings for dict keys, numbers for list indexes.
    Negative indexes supported. Terminal closures receive $ = final key.
-   See docs/04_operators.md for complete dispatch documentation. *)
+   See docs/topic-operators.md for complete dispatch documentation. *)
 
 (* ============================================================ *)
 (* EXTRACTION OPERATORS                                         *)

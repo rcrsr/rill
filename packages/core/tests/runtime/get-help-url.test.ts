@@ -11,28 +11,28 @@ describe('getHelpUrl', () => {
     it('generates correct URL for runtime error RILL-R001 with version 0.4.1', () => {
       const result = getHelpUrl('RILL-R001', '0.4.1');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-r001'
+        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-r001'
       );
     });
 
     it('generates correct URL for parse error RILL-P001 with version 1.0.0', () => {
       const result = getHelpUrl('RILL-P001', '1.0.0');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v1.0.0/docs/88_errors.md#rill-p001'
+        'https://github.com/rcrsr/rill/blob/v1.0.0/docs/ref-errors.md#rill-p001'
       );
     });
 
     it('generates correct URL for lexer error RILL-L001 with version 0.5.0', () => {
       const result = getHelpUrl('RILL-L001', '0.5.0');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.5.0/docs/88_errors.md#rill-l001'
+        'https://github.com/rcrsr/rill/blob/v0.5.0/docs/ref-errors.md#rill-l001'
       );
     });
 
     it('generates correct URL for check error RILL-C001 with version 2.1.3', () => {
       const result = getHelpUrl('RILL-C001', '2.1.3');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v2.1.3/docs/88_errors.md#rill-c001'
+        'https://github.com/rcrsr/rill/blob/v2.1.3/docs/ref-errors.md#rill-c001'
       );
     });
 
@@ -48,7 +48,7 @@ describe('getHelpUrl', () => {
 
     it('includes correct documentation file path', () => {
       const result = getHelpUrl('RILL-R001', '0.4.1');
-      expect(result).toContain('/docs/88_errors.md#');
+      expect(result).toContain('/docs/ref-errors.md#');
     });
 
     it('includes correct GitHub repository path', () => {
@@ -61,28 +61,28 @@ describe('getHelpUrl', () => {
     it('handles lexer category (RILL-L)', () => {
       const result = getHelpUrl('RILL-L005', '0.4.1');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-l005'
+        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-l005'
       );
     });
 
     it('handles parse category (RILL-P)', () => {
       const result = getHelpUrl('RILL-P005', '0.4.1');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-p005'
+        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-p005'
       );
     });
 
     it('handles runtime category (RILL-R)', () => {
       const result = getHelpUrl('RILL-R016', '0.4.1');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-r016'
+        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-r016'
       );
     });
 
     it('handles check category (RILL-C)', () => {
       const result = getHelpUrl('RILL-C004', '0.4.1');
       expect(result).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/88_errors.md#rill-c004'
+        'https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-c004'
       );
     });
   });
@@ -336,7 +336,7 @@ describe('getHelpUrl', () => {
 
     it('URL contains error documentation file', () => {
       const result = getHelpUrl('RILL-R001', '0.4.1');
-      expect(result).toContain('docs/88_errors.md#');
+      expect(result).toContain('docs/ref-errors.md#');
     });
 
     it('anchor is lowercased and complete', () => {

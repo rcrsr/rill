@@ -470,10 +470,10 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 ```text
 # Infinite loop without termination
-while(true) { "looping" }  # Never terminates
+(true) @ { "looping" }  # Never terminates
 
 # Large collection with default limit
-range(1000000) -> each |x| $x  # May exceed default limit
+range(0, 1000000) -> each |x| $x  # May exceed default limit
 ```
 
 ---
@@ -587,7 +587,7 @@ assert $age >= 18 "Must be adult"
 error "Invalid configuration"
 
 # Conditional error
-?($status == "failed") error "Process failed" : "ok"
+($status == "failed") ? { error "Process failed" } ! "ok"
 ```
 
 ---
@@ -734,13 +734,13 @@ Each error message includes a help URL linking to this documentation:
 
 ```
 Error: Variable foo is not defined
-Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/88_errors.md#rill-r005
+Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/ref-errors.md#rill-r005
 ```
 
 The URL format is:
 
 ```
-https://github.com/rcrsr/rill/blob/v{version}/docs/88_errors.md#{error-id}
+https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{error-id}
 ```
 
 Where:
@@ -759,3 +759,10 @@ Found an error not documented here? [Submit an issue](https://github.com/rcrsr/r
 4. rill version
 
 We maintain this documentation to help users resolve issues quickly and understand error conditions.
+
+---
+
+## See Also
+
+- [Language Reference](ref-language.md) - Core rill syntax and semantics
+- [Host API Reference](ref-host-api.md) - TypeScript integration API

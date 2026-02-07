@@ -1,6 +1,6 @@
 /**
  * Anti-Pattern Rules
- * Enforces best practices from docs/16_conventions.md:411-462.
+ * Enforces best practices from docs/guide-conventions.md:411-462.
  */
 
 import type {
@@ -44,7 +44,7 @@ import { extractContextLine } from './helpers.js';
  * - Functional chains: value -> op1 -> op2
  *
  * References:
- * - docs/16_conventions.md:413-424
+ * - docs/guide-conventions.md:413-424
  */
 export const AVOID_REASSIGNMENT: ValidationRule = {
   code: 'AVOID_REASSIGNMENT',
@@ -114,7 +114,7 @@ export const AVOID_REASSIGNMENT: ValidationRule = {
  * - Split complex checks into multiple smaller checks
  *
  * References:
- * - docs/16_conventions.md:451-461
+ * - docs/guide-conventions.md:451-461
  */
 export const COMPLEX_CONDITION: ValidationRule = {
   code: 'COMPLEX_CONDITION',
@@ -313,8 +313,8 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
  * variable name matches an outer-scope variable.
  *
  * References:
- * - docs/99_llm-reference.txt (LOOP STATE PATTERNS)
- * - docs/03_variables.md (Scope Rules)
+ * - docs/ref-llm.txt (LOOP STATE PATTERNS)
+ * - docs/topic-variables.md (Scope Rules)
  */
 export const LOOP_OUTER_CAPTURE: ValidationRule = {
   code: 'LOOP_OUTER_CAPTURE',

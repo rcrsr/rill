@@ -2,6 +2,22 @@
 
 *A beginner-friendly introduction to pipe-based scripting*
 
+## Setup
+
+Install the rill CLI tools:
+
+```bash
+npm install -g @rcrsr/rill-cli
+```
+
+Test the installation:
+
+```bash
+echo '"Hello"' | rill-exec -
+```
+
+The `-` flag reads from stdin.
+
 ## What is rill?
 
 rill is a scripting language where data flows through pipes. Instead of assigning values to variables and then using them, you pipe data from one operation to the next.
@@ -222,12 +238,12 @@ Use `break` to exit a loop early:
   ($ == 3) ? break
   $
 }
-# Result: 3
+# Result: [1, 2]
 ```
 
 ## Closures (Functions)
 
-Define reusable logic with closure syntax `|params| body`. See [Closures](06_closures.md) for advanced patterns including late binding and dict-bound closures.
+Define reusable logic with closure syntax `|params| body`. See [Closures](topic-closures.md) for advanced patterns including late binding and dict-bound closures.
 
 ```rill
 |x|($x * 2) => $double
@@ -341,10 +357,10 @@ $descriptions -> .join(", ")
 
 ## Next Steps
 
-- [Reference](11_reference.md) — Complete language specification
-- [Closures](06_closures.md) — Late binding, dict-bound, and invocation patterns
-- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` operators
-- [Examples](12_examples.md) — Workflow patterns
+- [Reference](ref-language.md) — Complete language specification
+- [Closures](topic-closures.md) — Late binding, dict-bound, and invocation patterns
+- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` operators
+- [Examples](guide-examples.md) — Workflow patterns
 
 ## Quick Reference Card
 

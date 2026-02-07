@@ -1,6 +1,6 @@
-# Closures
+# rill Closures
 
-Closures are first-class values that capture their defining scope. This document covers closure semantics, binding behavior, and common patterns.
+*First-class values that capture their defining scope with late binding and dict integration*
 
 ## Expression Delimiters
 
@@ -47,6 +47,8 @@ The observable result matches eager evaluation, but the mechanism differs. This 
 
 The last row shows the key difference: `( )` requires `$` to already be defined, while `{ }` captures `$` as a parameter for later binding.
 
+---
+
 ## Closure Syntax
 
 ```text
@@ -65,6 +67,8 @@ The last row shows the key difference: `( )` requires `$` to already be defined,
 |x: number = 10| { body }      # default value (type inferred)
 |x: string = "hi"| { body }    # default with explicit type
 ```
+
+---
 
 ## Block-Closures
 
@@ -168,6 +172,8 @@ $six                   # 6
 
 Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
 
+---
+
 ## Late Binding
 
 Closures resolve captured variables at **call time**, not definition time. This enables recursive patterns and forward references.
@@ -225,6 +231,8 @@ Closures see the current value of captured variables:
 
 [$get(), $getPlus1()]    # [5, 6]
 ```
+
+---
 
 ## Dict-Bound Closures
 
@@ -288,6 +296,8 @@ $obj2.str    # "actions: 5 items"
 $math.quad(3)    # 12
 ```
 
+---
+
 ## List-Stored Closures
 
 Closures in lists maintain their defining scope. Invoke via bracket access:
@@ -313,6 +323,8 @@ $transforms[2](5)    # 25
 5 -> @[$inc, $double, $inc]    # 13: (5+1)*2+1
 ```
 
+---
+
 ## Inline Closures
 
 Closures can appear inline in expressions:
@@ -334,6 +346,8 @@ Closures can appear inline in expressions:
 }
 # ["1 -> 10", "2 -> 20", "3 -> 30"]
 ```
+
+---
 
 ## Nested Closures
 
@@ -367,6 +381,8 @@ $tenX(5)      # 50
 $outer()()    # 5 (inner closure sees updated $x)
 ```
 
+---
+
 ## Parameter Shadowing
 
 Closure parameters shadow captured variables of the same name:
@@ -376,6 +392,8 @@ Closure parameters shadow captured variables of the same name:
 |x| { $x * 2 } => $double
 $double(5)    # 10 (parameter $x=5 shadows captured $x=100)
 ```
+
+---
 
 ## Scope Isolation
 
@@ -403,6 +421,8 @@ true ? { || { $x } } ! { || { 0 } } => $fn
 20 => $x
 $fn()    # 20 (late binding sees updated $x)
 ```
+
+---
 
 ## Invocation Patterns
 
@@ -456,6 +476,8 @@ $list[0] -> .upper    # "HELLO"
 ```
 
 Note: `$list[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
+
+---
 
 ## Parameter Metadata
 
@@ -529,6 +551,8 @@ $describe($add)    # "Function has 2 parameter(s)"
 |x, y: number| { $x + $y } => $partial
 $checkTypes($partial)    # ["Missing type annotation: x"]
 ```
+
+---
 
 ## Parameter Annotations
 
@@ -660,6 +684,8 @@ $fn.params.x.?__annotations  # true
 $fn.params.y.?__annotations  # false
 ```
 
+---
+
 ## Annotation Reflection
 
 Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
@@ -734,6 +760,8 @@ $str.^key      # Error: RUNTIME_TYPE_ERROR
 
 All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`.
 
+---
+
 ## Error Behavior
 
 ### Undefined Variables
@@ -759,6 +787,8 @@ $list[0]()    # Error: Cannot invoke non-callable value (got number)
 $fn(42)    # Error: Parameter type mismatch: x expects string, got number
 ```
 
+---
+
 ## Implementation Notes
 
 ### Scope Chain
@@ -780,8 +810,10 @@ Closures store a reference to their defining scope (`definingScope`). At invocat
 - No caching (ensures mutation visibility)
 - Closure creation is lightweight (stores reference, not copy)
 
-## Related Documentation
+---
 
-- [Reference](11_reference.md) — Language specification
-- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` with closures
-- [Guide](01_guide.md) — Getting started tutorial
+## See Also
+
+- [Reference](ref-language.md) — Language specification
+- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` with closures
+- [Guide](guide-getting-started.md) — Getting started tutorial

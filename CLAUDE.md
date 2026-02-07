@@ -102,7 +102,7 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 
 ## Documentation
 
-Start at @docs/00_INDEX.md for full navigation.
+Start at @docs/index.md for full navigation.
 
 ## Documentation Examples
 

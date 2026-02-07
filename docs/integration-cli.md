@@ -1,6 +1,6 @@
-# CLI Tools
+# rill CLI Tools
 
-rill ships three command-line tools for running and validating scripts.
+*Three command-line tools for running and validating scripts*
 
 ## rill-exec
 
@@ -35,10 +35,8 @@ echo 'log("hello")' | rill-exec -
 Scripts with `use:` frontmatter load modules before execution:
 
 ```text
----
 use:
   - utils: ./lib/utils.rill
----
 
 $utils.helper("input")
 ```
@@ -182,3 +180,9 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `IMPLICIT_DOLLAR_FUNCTION` | formatting | info | Prefer implicit `$` for functions |
 | `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for closures |
 | `THROWAWAY_CAPTURE` | formatting | info | Captured variable never used |
+
+## See Also
+
+- [Host Integration](integration-host.md) — Embedding API
+- [Modules](integration-modules.md) — Module convention
+- [Conventions](guide-conventions.md) — Coding style and best practices

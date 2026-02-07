@@ -1,6 +1,6 @@
-# Extensions
+# rill Extensions
 
-Extensions package reusable host functions for distribution as npm packages. An extension factory validates configuration, creates host function definitions, and returns them with an optional cleanup handle.
+*Reusable host function packages distributed as npm modules with lifecycle management*
 
 ## Quick Start
 
@@ -382,14 +382,14 @@ $result.duration     # Execution time in ms
 **skill(name, args?)** — Execute a Claude Code skill:
 
 ```rill
-claude_code::skill("commit", {message: "fix: resolve timeout bug"}) => $result
+claude_code::skill("commit", [message: "fix: resolve timeout bug"]) => $result
 $result.result
 ```
 
 **command(name, args?)** — Execute a Claude Code command:
 
 ```rill
-claude_code::command("review-pr", {pr: "123"}) => $result
+claude_code::command("review-pr", [pr: "123"]) => $result
 $result.result
 ```
 
@@ -430,3 +430,9 @@ export type { ExtensionResult, ExtensionFactory, ExtensionEvent };
 // Extension utilities
 export { prefixFunctions, emitExtensionEvent };
 ```
+
+## See Also
+
+- [Host Integration](integration-host.md) — Embedding API
+- [Modules](integration-modules.md) — Module convention
+- [Reference](ref-language.md) — Language specification

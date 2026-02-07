@@ -13,9 +13,9 @@ rill provides four collection operators for transforming, filtering, and reducin
 | `filter` | Parallel | No | Elements where predicate is true |
 | `fold` | Sequential | Required | Final result only |
 
-All three operators share similar syntax but differ in execution model and output.
+All four operators share similar syntax but differ in execution model and output.
 
-> **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](03_variables.md)). Use `fold` or `each(init)` with accumulators instead.
+> **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `each(init)` with accumulators instead.
 
 ```rill
 # Sequential: results in order, one at a time
@@ -681,8 +681,8 @@ Process nested structures with nested operators.
 
 ## See Also
 
-- [Iterators](08_iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
-- [Reference](11_reference.md) — Complete language specification
-- [Closures](06_closures.md) — Closure semantics and patterns
-- [Guide](01_guide.md) — Beginner introduction
-- [Examples](12_examples.md) — Workflow examples
+- [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
+- [Reference](ref-language.md) — Complete language specification
+- [Closures](topic-closures.md) — Closure semantics and patterns
+- [Guide](guide-getting-started.md) — Beginner introduction
+- [Examples](guide-examples.md) — Workflow examples

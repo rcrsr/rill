@@ -1,6 +1,6 @@
 # rill Design Principles
 
-**rillistic**: code that embraces pipes, explicit booleans, sealed scopes, and value semantics instead of fighting them. This document defines the rillistic mental model for code generators and developers transitioning from Python, TypeScript, or C-like languages.
+*Code that embraces pipes, explicit booleans, sealed scopes, and value semantics*
 
 ---
 
@@ -245,3 +245,11 @@ $str -> .empty ? "no" ! "yes"
 | `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
 | `a = b` (shared ref) | `=>` always deep-copies |
+
+---
+
+## See Also
+
+- [Guide](guide-getting-started.md) — Beginner-friendly introduction
+- [Reference](ref-language.md) — Language specification
+- [Conventions](guide-conventions.md) — Naming and best practices

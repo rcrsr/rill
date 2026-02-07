@@ -1,6 +1,6 @@
-# Module Convention
+# rill Module Convention
 
-This guide describes a convention for hosts implementing module support in Rill scripts. Modules enable code reuse across scripts while preserving Rill's core principle: **frontmatter is opaque to Rill**.
+*Host-implemented module system for code reuse across scripts via frontmatter declarations*
 
 The convention defines:
 - Frontmatter keys (`use`, `export`) for declaring dependencies and public APIs
@@ -20,12 +20,10 @@ Rill itself does not interpret these keys. The host parses frontmatter and provi
 ## Syntax Overview
 
 ```text
----
 use:
   - math: "./utils/math.rill"
   - str: "@core/string"
   - http: "@host/http"
----
 
 5 => $math.double()
 "hello" => $str.reverse()
@@ -45,11 +43,9 @@ Rill sees `$math`, `$str`, `$http` as regular variables containing dicts.
 Imports appear in frontmatter under the `use` key:
 
 ```yaml
----
 use:
   - math: "./utils/math.rill"
   - m: "./utils/math.rill"      # Same module, different name
----
 ```
 
 All imports require a name (the key before the colon). This ensures:
@@ -77,7 +73,6 @@ export:
   - triple
   - constants
 ---
-
 |x|($x * 2) => $double
 |x|($x * 3) => $triple
 [pi: 3.14159, e: 2.71828] => $constants
@@ -94,7 +89,6 @@ The host:
 A module is a Rill script with frontmatter declaring exports:
 
 ```rill
-# utils/math.rill
 ---
 export:
   - double
@@ -102,25 +96,20 @@ export:
   - clamp
   - constants
 ---
-
-# Closure exports
 |x|($x * 2) => $double
 |x|($x * 3) => $triple
 |x, min, max|{
   ($x < $min) ? $min ! ($x > $max) ? $max ! $x
 } => $clamp
 
-# Literal exports (dicts, lists, numbers, strings)
 [pi: 3.14159, e: 2.71828, phi: 1.61803] => $constants
 ```
 
 Usage:
 
 ```text
----
 use:
   - math: "./utils/math.rill"
----
 
 $math.double(5)          # 10
 $math.constants.pi       # 3.14159
@@ -132,10 +121,8 @@ $math.constants -> .keys # ["pi", "e", "phi"]
 A module's exports form a dict. The host binds this dict to the import name:
 
 ```text
----
 use:
   - math: "./utils/math.rill"
----
 
 # $math is a dict: [double: closure, triple: closure, clamp: closure, constants: dict]
 $math.double(5)         # 10
@@ -369,13 +356,11 @@ Hosts can implement these in Rill or TypeScript. Consistency across hosts improv
 ### Basic Module
 
 ```rill
-# greet.rill
 ---
 export:
   - hello
   - goodbye
 ---
-
 |name|"Hello, {$name}!" => $hello
 |name|"Goodbye, {$name}!" => $goodbye
 ```
@@ -383,10 +368,8 @@ export:
 ### Using a Module
 
 ```text
----
 use:
   - greet: "./greet.rill"
----
 
 "World" => $greet.hello() -> log
 # Output: Hello, World!
@@ -398,23 +381,19 @@ Imported modules can be re-exported:
 
 ```text
 # utils/index.rill
----
 use:
   - math: "./math.rill"
   - str: "./string.rill"
 export:
   - math
   - str
----
 ```
 
 The importing script sees nested namespaces:
 
 ```text
----
 use:
   - utils: "./utils/index.rill"
----
 
 5 => $utils.math.double()
 "hello" => $utils.str.reverse()
@@ -429,13 +408,10 @@ Non-exported variables remain private:
 export:
   - processAll
 ---
-
-# Private helper (not exported)
 |item|{
   $item -> .upper -> .trim
 } => $normalizeItem
 
-# Public function using private helper
 |items|{
   $items -> map $normalizeItem
 } => $processAll
@@ -517,3 +493,9 @@ use:
 Should modules export type information?
 
 **Recommendation:** Defer. Types are not enforced at runtime; tooling can infer from execution.
+
+## See Also
+
+- [Host Integration](integration-host.md) — Embedding API
+- [Extensions](integration-extensions.md) — Reusable function packages
+- [Reference](ref-language.md) — Language specification

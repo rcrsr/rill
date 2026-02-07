@@ -185,6 +185,30 @@ function createMockFunctions(): Record<
       fn: () => true,
     },
 
+    // Extension examples (ai::, claude_code::)
+    'ai::greet': {
+      params: [{ name: 'name', type: 'string' }],
+      fn: (name) => `Hello, ${name}!`,
+    },
+    'claude_code::prompt': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => 'mock Claude Code response',
+    },
+    'claude_code::skill': {
+      params: [
+        { name: 'name', type: 'string' },
+        { name: 'args', type: 'dict' },
+      ],
+      fn: () => 'skill executed',
+    },
+    'claude_code::command': {
+      params: [
+        { name: 'name', type: 'string' },
+        { name: 'args', type: 'dict' },
+      ],
+      fn: () => 'command executed',
+    },
+
     // Legacy unnamespaced - these should be migrated to app:: in docs
     prompt: {
       params: [{ name: 'text', type: 'string' }],

@@ -81,7 +81,7 @@ Captures a value into a variable:
 # $a is "hello", $b is "HELLO", result is 5
 ```
 
-See [Variables](03_variables.md) for detailed scoping rules.
+See [Variables](topic-variables.md) for detailed scoping rules.
 
 ---
 
@@ -291,7 +291,7 @@ Using tuples at invocation:
 *[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named, order doesn't matter)
 ```
 
-See [Types](02_types.md) for full tuple documentation.
+See [Types](topic-types.md) for full tuple documentation.
 
 ---
 
@@ -501,7 +501,7 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 [5] -> [1, 2, 3]                 # Error: index 5 out of bounds
 ```
 
-See [Reference](11_reference.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
+See [Reference](ref-language.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
 
 ---
 
@@ -591,7 +591,7 @@ Returns boolean:
 "hello" -> :?string              # true
 ```
 
-See [Types](02_types.md) for detailed type system documentation.
+See [Types](topic-types.md) for detailed type system documentation.
 
 ---
 
@@ -622,8 +622,8 @@ Use parentheses to override precedence:
 
 ## See Also
 
-- [Types](02_types.md) — Type system and assertions
-- [Variables](03_variables.md) — Capture and scope
-- [Control Flow](05_control-flow.md) — Conditionals and loops
-- [Collections](07_collections.md) — Collection operators
-- [Reference](11_reference.md) — Quick reference tables
+- [Types](topic-types.md) — Type system and assertions
+- [Variables](topic-variables.md) — Capture and scope
+- [Control Flow](topic-control-flow.md) — Conditionals and loops
+- [Collections](topic-collections.md) — Collection operators
+- [Reference](ref-language.md) — Quick reference tables

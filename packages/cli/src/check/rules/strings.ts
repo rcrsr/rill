@@ -1,6 +1,6 @@
 /**
  * String Handling Convention Rules
- * Enforces string handling best practices from docs/16_conventions.md:318-352.
+ * Enforces string handling best practices from docs/guide-conventions.md:318-352.
  */
 
 import type {
@@ -34,7 +34,7 @@ import { extractContextLine } from './helpers.js';
  * - $str != "" (direct comparison)
  *
  * References:
- * - docs/16_conventions.md:333-345
+ * - docs/guide-conventions.md:333-345
  */
 export const USE_EMPTY_METHOD: ValidationRule = {
   code: 'USE_EMPTY_METHOD',

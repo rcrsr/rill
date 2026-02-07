@@ -195,8 +195,6 @@ $path -> fold($machine) { $@.$  }
 # Result: [pause: "paused", slow: "playing.slow", fast: "playing.fast"]
 ```
 
----
-
 ## Dispatch Patterns
 
 ### Computed Routing
@@ -251,8 +249,6 @@ $response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
 -> |handler|{ $handler($response) }
 # Result: "Unknown status: unknown"
 ```
-
----
 
 ## Accumulator Patterns
 
@@ -319,8 +315,6 @@ $items -> fold([seen: [], result: []]) {
 } -> .result
 # Result: ["a", "b", "c", "d"]
 ```
-
----
 
 ## Control Flow Patterns
 
@@ -396,8 +390,6 @@ $pipelineInput -> {
 # Result: [ok: false, err: "Must contain HELLO"]
 ```
 
----
-
 ## Data Transformation
 
 ### Flatten Nested Structure
@@ -454,8 +446,6 @@ range(0, $zipKeys -> .len) -> fold([]) |i|{
 # Result: [a: 1, b: 2, c: 3]
 ```
 
----
-
 ## String Processing
 
 ### Template Expansion
@@ -508,8 +498,6 @@ $text
   }
 # Result: [the: 3, quick: 1, brown: 1, fox: 2, jumps: 1, over: 1, lazy: 1, dog: 1]
 ```
-
----
 
 ## Closure Patterns
 
@@ -569,8 +557,6 @@ $compose($double, $increment) => $doubleThenIncrement
 # Result: 11
 ```
 
----
-
 ## Validation Patterns
 
 ### Schema Validation
@@ -618,11 +604,9 @@ $schema.entries -> fold([valid: true, errors: []]) {
 # Result: [valid: false, errors: ["age above maximum"]]
 ```
 
----
-
 ## See Also
 
-- [Reference](11_reference.md) — Complete language specification
-- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold` details
-- [Closures](06_closures.md) — Function patterns and binding
-- [Parsing](10_parsing.md) — Text extraction utilities
+- [Reference](ref-language.md) — Complete language specification
+- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` details
+- [Closures](topic-closures.md) — Function patterns and binding
+- [Parsing](topic-parsing.md) — Text extraction utilities

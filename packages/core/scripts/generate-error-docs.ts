@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Generate docs/88_errors.md from ERROR_DEFINITIONS
+ * Generate docs/ref-errors.md from ERROR_DEFINITIONS
  *
  * Reads error definitions from src/types.ts, validates required fields,
  * and generates structured markdown documentation.
@@ -15,13 +15,13 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ErrorDefinition, ErrorExample } from '../src/types.js';
+import type { ErrorDefinition } from '../src/types.js';
 
-const OUTPUT_FILE = 'docs/88_errors.md';
+const OUTPUT_FILE = 'docs/ref-errors.md';
 
 /**
  * Generate markdown documentation from error definitions.
- * Validates all required fields and generates docs/88_errors.md.
+ * Validates all required fields and generates docs/ref-errors.md.
  */
 function generateErrorDocs(): void {
   const coreDir = path.resolve(
@@ -151,7 +151,7 @@ function generateMarkdown(
     string,
     { name: string; description: string; errors: ErrorDefinition[] }
   >,
-  allDefinitions: ErrorDefinition[]
+  _allDefinitions: ErrorDefinition[]
 ): string {
   const lines: string[] = [];
 
@@ -189,7 +189,7 @@ function generateMarkdown(
   lines.push('');
 
   // Category sections
-  for (const [category, group] of Object.entries(byCategory)) {
+  for (const group of Object.values(byCategory)) {
     if (group.errors.length === 0) continue;
 
     lines.push(`## ${group.name}`);
@@ -299,7 +299,7 @@ function generateMarkdown(
   lines.push('```');
   lines.push('Error: Variable foo is not defined');
   lines.push(
-    'Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/88_errors.md#rill-r005'
+    'Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/ref-errors.md#rill-r005'
   );
   lines.push('```');
   lines.push('');
@@ -307,7 +307,7 @@ function generateMarkdown(
   lines.push('');
   lines.push('```');
   lines.push(
-    'https://github.com/rcrsr/rill/blob/v{version}/docs/88_errors.md#{error-id}'
+    'https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{error-id}'
   );
   lines.push('```');
   lines.push('');
@@ -330,6 +330,17 @@ function generateMarkdown(
   lines.push('');
   lines.push(
     'We maintain this documentation to help users resolve issues quickly and understand error conditions.'
+  );
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  lines.push('## See Also');
+  lines.push('');
+  lines.push(
+    '- [Language Reference](ref-language.md) - Core rill syntax and semantics'
+  );
+  lines.push(
+    '- [Host API Reference](ref-host-api.md) - TypeScript integration API'
   );
   lines.push('');
 

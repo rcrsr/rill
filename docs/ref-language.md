@@ -12,13 +12,7 @@ rill is an imperative scripting language that is dynamically typed and type-safe
 
 ## Design Principles
 
-1. **Pipes over assignment** — Data flows via `->`. No `=` operator exists.
-2. **Pattern-driven decisions** — Check response patterns, branch accordingly.
-3. **Singular control flow** — No try/catch. Errors halt execution. Recovery requires explicit conditionals.
-4. **Value-based** — All values compare by content. No references, no object identity.
-5. **No null/undefined** — Empty values are valid, but "no value" cannot be represented.
-6. **No magic** — No truthiness, no automatic type conversions. Explicit behavior only.
-7. **Expressive and consistent** — Small syntax, coherent semantics. Every construct composes predictably.
+For design principles, see [Design Principles](topic-design-principles.md).
 
 ---
 
@@ -48,7 +42,7 @@ rill is an imperative scripting language that is dynamically typed and type-safe
 | Default | `?? value` |
 | Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type` |
 
-See [Operators](04_operators.md) for detailed documentation.
+See [Operators](topic-operators.md) for detailed documentation.
 
 ### Control Flow
 
@@ -64,7 +58,7 @@ See [Operators](04_operators.md) for detailed documentation.
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 
-See [Control Flow](05_control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
+See [Control Flow](topic-control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
 ### Collection Operators
 
@@ -76,7 +70,7 @@ See [Control Flow](05_control-flow.md) for detailed documentation. Script-level 
 | `-> filter { cond }` | Parallel filter, matching elements |
 | `-> fold(init) { body }` | Sequential reduction, final result |
 
-See [Collections](07_collections.md) for detailed documentation.
+See [Collections](topic-collections.md) for detailed documentation.
 
 ### Types
 
@@ -91,7 +85,7 @@ See [Collections](07_collections.md) for detailed documentation.
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-See [Types](02_types.md) for detailed documentation.
+See [Types](topic-types.md) for detailed documentation.
 
 ### Functions
 
@@ -104,7 +98,7 @@ See [Types](02_types.md) for detailed documentation.
 | `arg -> $fn()` | Call function with pipe value |
 | `arg -> $fn` | Pipe-style invoke |
 
-See [Closures](06_closures.md) for detailed documentation.
+See [Closures](topic-closures.md) for detailed documentation.
 
 ### Special Variables
 
@@ -115,7 +109,7 @@ See [Closures](06_closures.md) for detailed documentation.
 | `$ENV.NAME` | Environment variable | Runtime |
 | `$name` | Named variable | Runtime |
 
-See [Variables](03_variables.md) for detailed documentation.
+See [Variables](topic-variables.md) for detailed documentation.
 
 ### `$` Binding by Context
 
@@ -243,7 +237,7 @@ Terminal closures receive `$` bound to the final path key.
 | `parse_frontmatter` | Parse `---` delimited YAML frontmatter |
 | `parse_checklist` | Parse `- [ ]` and `- [x]` items |
 
-See [Parsing](10_parsing.md) for detailed documentation.
+See [Parsing](topic-parsing.md) for detailed documentation.
 
 ### Core Methods
 
@@ -277,7 +271,7 @@ See [Parsing](10_parsing.md) for detailed documentation.
 | `.entries` | Dict | List | Key-value pairs |
 | `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
 
-See [Strings](09_strings.md) for detailed string method documentation.
+See [Strings](topic-strings.md) for detailed string method documentation.
 
 ### Global Functions
 
@@ -291,7 +285,7 @@ See [Strings](09_strings.md) for detailed string method documentation.
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
 
-See [Iterators](08_iterators.md) for `range` and `repeat` documentation.
+See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 
 ---
 
@@ -332,7 +326,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> /<1:4>                # "ell"
 ```
 
-See [Operators](04_operators.md) for detailed extraction operator documentation.
+See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 
@@ -452,7 +446,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 |timestamp ^(format: "ISO8601")|($timestamp) => $formatDate
 ```
 
-See [Closures](06_closures.md) for parameter annotation examples and patterns.
+See [Closures](topic-closures.md) for parameter annotation examples and patterns.
 
 ---
 
@@ -466,7 +460,7 @@ Tuples package values for argument unpacking:
 *[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named)
 ```
 
-See [Types](02_types.md) for detailed tuple documentation.
+See [Types](topic-types.md) for detailed tuple documentation.
 
 ---
 
@@ -488,7 +482,7 @@ The `^(limit: N)` annotation also controls parallel concurrency in `map`:
 ^(limit: 3) $items -> map { slow_process($) }
 ```
 
-See [Host Integration](14_host-integration.md) for timeout and cancellation configuration.
+See [Host Integration](integration-host.md) for timeout and cancellation configuration.
 
 ---
 
@@ -510,7 +504,7 @@ const ctx = createRuntimeContext({
 
 Scripts call these as `prompt("text")` or `io::read("file.txt")`.
 
-See [Host Integration](14_host-integration.md) for complete API documentation.
+See [Host Integration](integration-host.md) for complete API documentation.
 
 ---
 
@@ -555,7 +549,7 @@ Single-line comments start with `#`:
 
 ## Grammar
 
-The complete formal grammar is in [grammar.ebnf](15_grammar.ebnf).
+The complete formal grammar is in [grammar.ebnf](ref-grammar.ebnf).
 
 ---
 
@@ -580,21 +574,21 @@ Runtime and parse errors include structured error codes for programmatic handlin
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
 
-See [Host Integration](14_host-integration.md) for error handling details.
+See [Host Integration](integration-host.md) for error handling details.
 
 ---
 
-## Topic Guides
+## See Also
 
 For detailed documentation on specific topics:
 
-- [Types](02_types.md) — Type system, type assertions
-- [Variables](03_variables.md) — Declaration, scope, `$` binding
-- [Control Flow](05_control-flow.md) — Conditionals, loops
-- [Operators](04_operators.md) — All operators
-- [Closures](06_closures.md) — Late binding, dict closures
-- [Collections](07_collections.md) — `each`, `map`, `filter`, `fold`
-- [Iterators](08_iterators.md) — `range`, `repeat`, `.first()`
-- [Strings](09_strings.md) — String methods
-- [Parsing](10_parsing.md) — Content parsing
-- [Host Integration](14_host-integration.md) — Embedding API
+- [Types](topic-types.md) — Type system, type assertions
+- [Variables](topic-variables.md) — Declaration, scope, `$` binding
+- [Control Flow](topic-control-flow.md) — Conditionals, loops
+- [Operators](topic-operators.md) — All operators
+- [Closures](topic-closures.md) — Late binding, dict closures
+- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold`
+- [Iterators](topic-iterators.md) — `range`, `repeat`, `.first()`
+- [Strings](topic-strings.md) — String methods
+- [Parsing](topic-parsing.md) — Content parsing
+- [Host Integration](integration-host.md) — Embedding API

@@ -83,7 +83,7 @@ function isVerboseDefaultPattern(node: ConditionalNode): boolean {
  * This is informational - both patterns work identically.
  *
  * References:
- * - docs/16_conventions.md:219-234
+ * - docs/guide-conventions.md:219-234
  */
 export const USE_DEFAULT_OPERATOR: ValidationRule = {
   code: 'USE_DEFAULT_OPERATOR',
@@ -132,7 +132,7 @@ export const USE_DEFAULT_OPERATOR: ValidationRule = {
  * This is a warning because it's likely a bug, not just stylistic.
  *
  * References:
- * - docs/16_conventions.md:199-215
+ * - docs/guide-conventions.md:199-215
  */
 export const CONDITION_TYPE: ValidationRule = {
   code: 'CONDITION_TYPE',

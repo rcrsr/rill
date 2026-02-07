@@ -90,7 +90,7 @@ function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
  * This is an informational rule - both patterns work, but inline is clearer.
  *
  * References:
- * - docs/16_conventions.md:56-74
+ * - docs/guide-conventions.md:56-74
  */
 export const CAPTURE_INLINE_CHAIN: ValidationRule = {
   code: 'CAPTURE_INLINE_CHAIN',
@@ -193,7 +193,7 @@ export const CAPTURE_INLINE_CHAIN: ValidationRule = {
  * This is an informational rule - detects potential inefficiency and clarity issues.
  *
  * References:
- * - docs/16_conventions.md:76-88
+ * - docs/guide-conventions.md:76-88
  */
 export const CAPTURE_BEFORE_BRANCH: ValidationRule = {
   code: 'CAPTURE_BEFORE_BRANCH',

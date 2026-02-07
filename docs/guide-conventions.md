@@ -4,8 +4,6 @@
 
 This document collects conventions and best practices. It is a living document that will grow as the language matures.
 
----
-
 ## Naming
 
 ### Case Style: snake_case
@@ -51,8 +49,6 @@ Name closures for their action:
 ||{ $.count * $.price } => $total # noun for computed value
 ```
 
----
-
 ## Capture and Flow
 
 ### Prefer inline capture when continuing the chain
@@ -84,8 +80,6 @@ $result -> .contains("OK") ? {
   "Failed: {$result}"
 }
 ```
-
----
 
 ## Collection Operators
 
@@ -147,8 +141,6 @@ Method chains work too:
 # Result: [2, 4] (elements processed BEFORE break)
 ```
 
----
-
 ## Loops
 
 ### Use $ as accumulator in while/do-while
@@ -194,8 +186,6 @@ $items -> .first() -> (!$.done) @ {
 }
 ```
 
----
-
 ## Conditionals
 
 ### Condition must be boolean
@@ -231,8 +221,6 @@ $dict.?field ? $dict.field ! "default"
   "Unknown: {$status}"
 }
 ```
-
----
 
 ## Closures
 
@@ -284,8 +272,6 @@ Parameterized closures work as methods:
 $obj.greet("hello")    # "test: hello"
 ```
 
----
-
 ## Type Safety
 
 ### Annotate closure parameters for clarity
@@ -314,8 +300,6 @@ parseJson($input):dict => $data
 5:number => $n
 ```
 
----
-
 ## String Handling
 
 ### Use triple-quotes for multiline content
@@ -332,15 +316,18 @@ Provide a summary.
 ### Use .empty for emptiness checks
 
 ```rill
-# good
+# idiomatic: use .empty property
 "" -> .empty ? "empty" ! "not empty"
 ```
 
-Avoid direct string comparison (not allowed):
+Direct string comparison works but `.empty` is preferred:
 
 ```text
-# this pattern doesn't work in rill
+# works, but verbose
 $str == "" ? "empty"
+
+# idiomatic: clearer intent
+$str -> .empty ? "empty"
 ```
 
 ### Chain string methods naturally
@@ -348,8 +335,6 @@ $str == "" ? "empty"
 ```rill
 "  HELLO world  " -> .trim.lower.split(" ")
 ```
-
----
 
 ## Error Handling
 
@@ -376,21 +361,19 @@ $result -> .contains(":::DONE:::") ? {
 }
 ```
 
----
-
 ## Parsing LLM Output
 
 ### Chain parsers for structured extraction
 
 ```text
 # extract JSON from code fence
-$response -> parseFence("json") -> parseJson => $data
+$response -> parse_fence("json") -> parse_json => $data
 ```
 
-### Use parseAuto for unknown formats
+### Use parse_auto for unknown formats
 
 ```text
-$response -> parseAuto => $parsed
+$response -> parse_auto => $parsed
 ($parsed.type == "json") ? {
   $parsed.data
 } ! {
@@ -401,11 +384,9 @@ $response -> parseAuto => $parsed
 ### Extract XML tags for Claude-style responses
 
 ```text
-$response -> parseXml("thinking") -> log
-$response -> parseXml("answer") => $answer
+$response -> parse_xml("thinking") -> log
+$response -> parse_xml("answer") => $answer
 ```
-
----
 
 ## Anti-Patterns
 
@@ -458,8 +439,6 @@ Break is not supported in `map` or `filter` (they run in parallel):
 (($y < 10) || ($z == 0)) => $valid_range
 ($big_enough && $valid_range) ? { ... }
 ```
-
----
 
 ## Formatting
 
@@ -690,6 +669,10 @@ prompt("Get age")  => $age
 prompt("Get role") => $role
 ```
 
----
-
 *This document will be extended as conventions emerge from real-world usage.*
+
+## See Also
+
+- [Design Principles](topic-design-principles.md) — Core philosophy
+- [Reference](ref-language.md) — Language specification
+- [Guide](guide-getting-started.md) — Getting started tutorial

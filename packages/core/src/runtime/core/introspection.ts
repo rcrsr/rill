@@ -215,7 +215,7 @@ export function getDocumentationCoverage(
 /**
  * Return complete rill language reference for LLM prompt context.
  *
- * Returns bundled content from `docs/99_llm-reference.txt`.
+ * Returns bundled content from `docs/ref-llm.txt`.
  * Content includes syntax, operators, control flow, type system.
  * Always succeeds at runtime (content embedded at build time).
  *

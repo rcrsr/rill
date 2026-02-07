@@ -243,7 +243,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
     it('getHelpUrl produces correct URL [AC-7]', () => {
       const url = getHelpUrl('RILL-R001', '0.4.5');
       expect(url).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.5/docs/88_errors.md#rill-r001'
+        'https://github.com/rcrsr/rill/blob/v0.4.5/docs/ref-errors.md#rill-r001'
       );
     });
 
@@ -353,7 +353,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
       });
 
       expect(error.helpUrl).toBeDefined();
-      expect(error.helpUrl).toContain('docs/88_errors.md#rill-r001');
+      expect(error.helpUrl).toContain('docs/ref-errors.md#rill-r001');
     });
 
     it('createError preserves context', () => {
@@ -601,7 +601,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
       let runtimeCount = 0;
       let checkCount = 0;
 
-      for (const [_errorId, definition] of ERROR_REGISTRY.entries()) {
+      for (const [, definition] of ERROR_REGISTRY.entries()) {
         switch (definition.category) {
           case 'lexer':
             lexerCount++;
@@ -877,6 +877,47 @@ describe('Rill Runtime: Error Taxonomy', () => {
       };
 
       expect(definition.examples?.length).toBe(3);
+    });
+  });
+
+  describe('Error Registry Syntax Validation [AC-9]', () => {
+    it('RILL-R010 infinite loop example uses correct while syntax', () => {
+      const definition = ERROR_REGISTRY.get('RILL-R010');
+      expect(definition).toBeDefined();
+
+      const infiniteLoopExample = definition?.examples?.find(
+        (ex) => ex.description === 'Infinite loop without termination'
+      );
+      expect(infiniteLoopExample).toBeDefined();
+      expect(infiniteLoopExample?.code).toContain('(true) @ {');
+      expect(infiniteLoopExample?.code).not.toContain('while(');
+    });
+
+    it('RILL-R010 large collection example uses correct range syntax', () => {
+      const definition = ERROR_REGISTRY.get('RILL-R010');
+      expect(definition).toBeDefined();
+
+      const largeCollectionExample = definition?.examples?.find(
+        (ex) => ex.description === 'Large collection with default limit'
+      );
+      expect(largeCollectionExample).toBeDefined();
+      expect(largeCollectionExample?.code).toContain('range(0, 1000000)');
+      expect(largeCollectionExample?.code).not.toMatch(/range\(\d+\)(?!\s*,)/);
+    });
+
+    it('RILL-R016 conditional error example uses correct ternary syntax', () => {
+      const definition = ERROR_REGISTRY.get('RILL-R016');
+      expect(definition).toBeDefined();
+
+      const conditionalExample = definition?.examples?.find(
+        (ex) => ex.description === 'Conditional error'
+      );
+      expect(conditionalExample).toBeDefined();
+      expect(conditionalExample?.code).toContain('($status == "failed") ?');
+      expect(conditionalExample?.code).toContain('{ error');
+      expect(conditionalExample?.code).toContain('!');
+      expect(conditionalExample?.code).not.toContain('?($status');
+      expect(conditionalExample?.code).not.toContain(': "ok"');
     });
   });
 });
