@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation file structure and naming** — Semantic category prefixes replace numeric prefixes for immediate clarity of file purpose without navigation lookup
+  - File renames: `00_INDEX.md` → `index.md`, `01_guide.md` → `guide-getting-started.md`, `02_reference.md` → `ref-language.md`, etc.
+  - New prefixes show file category: `guide-*` (getting started, examples), `topic-*` (language topics), `ref-*` (references), `integration-*` (host integration)
+  - Git history preserved via `git mv` for all 23 renamed files
+  - Fixed 5 factual errors across `topic-collections.md`, `guide-conventions.md`, and `integration-host.md`
+  - Corrected 3 invalid rill syntax strings in error registry
+  - Added installation instructions to getting started guide
+  - Split oversized `integration-host.md` (1200+ lines) into two files: `integration-host.md` and new `ref-host-api.md` to meet 1000-line policy limit
+  - Standardized all H1 titles with `# rill ` prefix for consistency
+  - Added italic taglines to 23 documentation files for quick context
+  - Added `## See Also` navigation sections to topic, reference, and integration files
+  - Deduplicated Design Principles content across `index.md` and `ref-language.md` with mutual cross-references
+  - Reordered examples in `guide-examples.md` to show pure language examples before workflow examples requiring host functions
+  - Updated 112 cross-references across 47 files (documentation, source code, build scripts, tests) to maintain consistency
+  - Initiative: `docs-usability-improvements` (6 phases complete)
+
 ### Added
 
 - **Claude Code Extension** — PTY-based Claude CLI integration providing three host functions via `ExtensionFactory` pattern
