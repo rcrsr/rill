@@ -4,7 +4,6 @@
  * Test coverage for Toolbar component:
  * - IC-12: Component renders without errors
  * - AC-6: Example selection triggers onExampleSelect callback
- * - AC-7: Theme toggle triggers onThemeToggle callback
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -15,17 +14,14 @@ import type { CodeExample } from '../../lib/examples.js';
 describe('Toolbar', () => {
   let mockOnRun: ReturnType<typeof vi.fn<() => void>>;
   let mockOnExampleSelect: ReturnType<typeof vi.fn<(example: CodeExample) => void>>;
-  let mockOnThemeToggle: ReturnType<typeof vi.fn<() => void>>;
   let defaultProps: ToolbarProps;
 
   beforeEach(() => {
     mockOnRun = vi.fn<() => void>();
     mockOnExampleSelect = vi.fn<(example: CodeExample) => void>();
-    mockOnThemeToggle = vi.fn<() => void>();
     defaultProps = {
       onRun: mockOnRun,
       onExampleSelect: mockOnExampleSelect,
-      onThemeToggle: mockOnThemeToggle,
     };
   });
 
@@ -40,27 +36,21 @@ describe('Toolbar', () => {
   describe('rendering', () => {
     it('renders without errors', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const toolbar = container.querySelector('.toolbar-container');
+      const toolbar = container.querySelector('.toolbar');
       expect(toolbar).toBeDefined();
     });
 
     it('renders Run button', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const runButton = container.querySelector('.toolbar-run-button');
+      const runButton = container.querySelector('.toolbar-run');
       expect(runButton).toBeDefined();
-      expect(runButton?.textContent).toBe('Run');
+      expect(runButton?.textContent).toContain('Run');
     });
 
     it('renders example selector', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select');
+      const select = container.querySelector('.toolbar-select');
       expect(select).toBeDefined();
-    });
-
-    it('renders theme toggle', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const themeToggle = container.querySelector('.toolbar-theme-toggle');
-      expect(themeToggle).toBeDefined();
     });
 
     it('applies ARIA label to toolbar', () => {
@@ -75,15 +65,9 @@ describe('Toolbar', () => {
       expect(toolbar).toBeDefined();
     });
 
-    it('renders with light theme', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="light" />);
-      const toolbar = container.querySelector('.toolbar-container');
-      expect(toolbar).toBeDefined();
-    });
-
-    it('renders with dark theme', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="dark" />);
-      const toolbar = container.querySelector('.toolbar-container');
+    it('renders with dark brand theme', () => {
+      const { container } = render(<Toolbar {...defaultProps} />);
+      const toolbar = container.querySelector('.toolbar');
       expect(toolbar).toBeDefined();
     });
   });
@@ -95,7 +79,7 @@ describe('Toolbar', () => {
   describe('Run button', () => {
     it('triggers onRun when clicked', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const runButton = container.querySelector('.toolbar-run-button') as HTMLButtonElement;
+      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       fireEvent.click(runButton);
@@ -104,21 +88,21 @@ describe('Toolbar', () => {
 
     it('is disabled when disabled prop is true', () => {
       const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const runButton = container.querySelector('.toolbar-run-button') as HTMLButtonElement;
+      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
       expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(true);
     });
 
     it('is enabled when disabled prop is false', () => {
       const { container } = render(<Toolbar {...defaultProps} disabled={false} />);
-      const runButton = container.querySelector('.toolbar-run-button') as HTMLButtonElement;
+      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
       expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(false);
     });
 
     it('does not trigger onRun when disabled', () => {
       const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const runButton = container.querySelector('.toolbar-run-button') as HTMLButtonElement;
+      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       fireEvent.click(runButton);
@@ -139,7 +123,7 @@ describe('Toolbar', () => {
   describe('example selector', () => {
     it('triggers onExampleSelect when example is selected', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
       expect(select).toBeDefined();
 
       fireEvent.change(select, { target: { value: 'hello-world' } });
@@ -154,7 +138,7 @@ describe('Toolbar', () => {
 
     it('loads variables example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'variables' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -166,7 +150,7 @@ describe('Toolbar', () => {
 
     it('loads pipes example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'pipes' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -178,7 +162,7 @@ describe('Toolbar', () => {
 
     it('loads functions example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'functions' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -190,7 +174,7 @@ describe('Toolbar', () => {
 
     it('loads conditionals example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'conditionals' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -202,7 +186,7 @@ describe('Toolbar', () => {
 
     it('does not trigger onExampleSelect when empty option is selected', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: '' } });
       expect(mockOnExampleSelect).not.toHaveBeenCalled();
@@ -210,7 +194,7 @@ describe('Toolbar', () => {
 
     it('is disabled when disabled prop is true', () => {
       const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
       expect(select).toBeDefined();
       expect(select.disabled).toBe(true);
     });
@@ -223,7 +207,7 @@ describe('Toolbar', () => {
 
     it('renders all required examples', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
       const options = Array.from(select.querySelectorAll('option'));
 
       // Filter out placeholder option
@@ -241,61 +225,12 @@ describe('Toolbar', () => {
 
     it('renders placeholder option as default', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
       const placeholder = select.querySelector('option[value=""]') as HTMLOptionElement;
 
       expect(placeholder).toBeDefined();
-      expect(placeholder?.textContent).toBe('Load Example...');
+      expect(placeholder?.textContent).toBe('Examples');
       expect(placeholder?.disabled).toBe(true);
-    });
-  });
-
-  // ============================================================
-  // AC-7: Theme toggle triggers onThemeToggle callback
-  // ============================================================
-
-  describe('theme toggle', () => {
-    it('triggers onThemeToggle when clicked', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const themeToggle = container.querySelector('.toolbar-theme-toggle') as HTMLButtonElement;
-      expect(themeToggle).toBeDefined();
-
-      fireEvent.click(themeToggle);
-      expect(mockOnThemeToggle).toHaveBeenCalledTimes(1);
-    });
-
-    it('displays "Dark" when theme is light', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="light" />);
-      const themeToggle = container.querySelector('.toolbar-theme-toggle') as HTMLButtonElement;
-      expect(themeToggle).toBeDefined();
-      expect(themeToggle.textContent).toContain('Dark');
-    });
-
-    it('displays "Light" when theme is dark', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="dark" />);
-      const themeToggle = container.querySelector('.toolbar-theme-toggle') as HTMLButtonElement;
-      expect(themeToggle).toBeDefined();
-      expect(themeToggle.textContent).toContain('Light');
-    });
-
-    it('has accessible label for light theme', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="light" />);
-      const themeToggle = container.querySelector('[aria-label="Switch to dark theme"]');
-      expect(themeToggle).toBeDefined();
-    });
-
-    it('has accessible label for dark theme', () => {
-      const { container } = render(<Toolbar {...defaultProps} theme="dark" />);
-      const themeToggle = container.querySelector('[aria-label="Switch to light theme"]');
-      expect(themeToggle).toBeDefined();
-    });
-
-    it('is not disabled when disabled prop is true', () => {
-      // Theme toggle should always be enabled
-      const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const themeToggle = container.querySelector('.toolbar-theme-toggle') as HTMLButtonElement;
-      expect(themeToggle).toBeDefined();
-      expect(themeToggle.disabled).toBe(false);
     });
   });
 
@@ -322,60 +257,21 @@ describe('Toolbar', () => {
     it('all interactive elements have aria-label', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
 
-      const runButton = container.querySelector('.toolbar-run-button');
+      const runButton = container.querySelector('.toolbar-run');
       expect(runButton?.getAttribute('aria-label')).toBe('Run code');
 
-      const select = container.querySelector('.toolbar-example-select');
+      const select = container.querySelector('.toolbar-select');
       expect(select?.getAttribute('aria-label')).toBe('Select example');
-
-      const themeToggle = container.querySelector('.toolbar-theme-toggle');
-      expect(themeToggle?.hasAttribute('aria-label')).toBe(true);
     });
 
     it('disabled elements have proper ARIA state', () => {
       const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
 
-      const runButton = container.querySelector('.toolbar-run-button') as HTMLButtonElement;
+      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
       expect(runButton.disabled).toBe(true);
 
-      const select = container.querySelector('.toolbar-example-select') as HTMLSelectElement;
+      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
       expect(select.disabled).toBe(true);
-    });
-  });
-
-  // ============================================================
-  // Theme switching
-  // ============================================================
-
-  describe('theme switching', () => {
-    it('updates styles when theme changes from light to dark', () => {
-      const { container, rerender } = render(<Toolbar {...defaultProps} theme="light" />);
-
-      rerender(<Toolbar {...defaultProps} theme="dark" />);
-
-      const toolbar = container.querySelector('.toolbar-container');
-      expect(toolbar).toBeDefined();
-    });
-
-    it('updates styles when theme changes from dark to light', () => {
-      const { container, rerender } = render(<Toolbar {...defaultProps} theme="dark" />);
-
-      rerender(<Toolbar {...defaultProps} theme="light" />);
-
-      const toolbar = container.querySelector('.toolbar-container');
-      expect(toolbar).toBeDefined();
-    });
-
-    it('updates theme toggle button text when theme changes', () => {
-      const { container, rerender } = render(<Toolbar {...defaultProps} theme="light" />);
-
-      let themeToggle = container.querySelector('.toolbar-theme-toggle');
-      expect(themeToggle?.textContent).toContain('Dark');
-
-      rerender(<Toolbar {...defaultProps} theme="dark" />);
-
-      themeToggle = container.querySelector('.toolbar-theme-toggle');
-      expect(themeToggle?.textContent).toContain('Light');
     });
   });
 });

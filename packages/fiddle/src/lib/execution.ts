@@ -10,6 +10,9 @@ import {
   createRuntimeContext,
   execute,
   isCallable,
+  ERROR_REGISTRY,
+  getHelpUrl,
+  VERSION,
   type RillValue,
   type ScriptNode,
 } from '@rcrsr/rill';
@@ -32,6 +35,14 @@ export interface FiddleError {
   column: number | null;
   /** Rill error ID (e.g., "RILL-L001") */
   errorId: string | null;
+  /** Help URL for error documentation */
+  helpUrl?: string | undefined;
+  /** Root cause explanation from ERROR_REGISTRY */
+  cause?: string | undefined;
+  /** Resolution steps from ERROR_REGISTRY */
+  resolution?: string | undefined;
+  /** Code examples from ERROR_REGISTRY */
+  examples?: Array<{ description: string; code: string }> | undefined;
 }
 
 /**
@@ -126,13 +137,29 @@ export async function executeRill(source: string): Promise<ExecutionState> {
 function convertError(err: unknown): FiddleError {
   // EC-1, EC-2, EC-3: RillError hierarchy (LexerError, ParseError, RuntimeError)
   if (isRillError(err)) {
-    return {
+    const basicError: FiddleError = {
       message: err.message,
       category: getErrorCategory(err.name),
       line: err.location?.line ?? null,
       column: err.location?.column ?? null,
       errorId: err.errorId,
     };
+
+    // Enrich with metadata from ERROR_REGISTRY if available
+    if (err.errorId) {
+      const definition = ERROR_REGISTRY.get(err.errorId);
+      if (definition) {
+        return {
+          ...basicError,
+          helpUrl: getHelpUrl(err.errorId, VERSION),
+          cause: definition.cause,
+          resolution: definition.resolution,
+          examples: definition.examples,
+        };
+      }
+    }
+
+    return basicError;
   }
 
   // EC-4: Unexpected error (non-Rill errors)

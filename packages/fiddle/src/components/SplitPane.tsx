@@ -3,10 +3,10 @@
  *
  * Resizable split pane layout with persistent state.
  * - Horizontal split (side-by-side) on desktop; vertical (stacked) on narrow viewports
- * - Draggable divider with mouse; keyboard accessible
+ * - Draggable divider with neon highlight on hover/drag
  * - Minimum panel dimension: 200px
- * - Persists split ratio via persistEditorState on drag end
- * - Loads initial ratio from loadEditorState
+ * - Persists split ratio via callback on drag end
+ * - Keyboard accessible (arrow keys to resize)
  */
 
 import type React from 'react';
@@ -17,11 +17,6 @@ import { type JSX, useEffect, useRef, useState } from 'react';
 // ============================================================
 
 /**
- * Theme variant for split pane styling
- */
-export type SplitPaneTheme = 'light' | 'dark';
-
-/**
  * SplitPane component props
  */
 export interface SplitPaneProps {
@@ -29,8 +24,6 @@ export interface SplitPaneProps {
   left: React.ReactNode;
   /** Right/bottom panel content */
   right: React.ReactNode;
-  /** Theme variant */
-  theme?: SplitPaneTheme;
   /** Initial split ratio (0-100 percentage) */
   initialSplitRatio?: number;
   /** Callback when split ratio changes (for persistence) */
@@ -43,26 +36,20 @@ export interface SplitPaneProps {
 // CONSTANTS
 // ============================================================
 
-const MIN_PANEL_SIZE = 200; // Minimum panel dimension in pixels (AC-20)
-const DEFAULT_SPLIT_RATIO = 50; // Default split ratio percentage
-const DEFAULT_BREAKPOINT = 768; // Default breakpoint for vertical layout
+const MIN_PANEL_SIZE = 200;
+const DEFAULT_SPLIT_RATIO = 50;
+const DEFAULT_BREAKPOINT = 768;
 
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
 
-/**
- * Calculate valid split ratio bounds based on container size
- */
 function calculateBounds(containerSize: number): { min: number; max: number } {
   const minRatio = (MIN_PANEL_SIZE / containerSize) * 100;
   const maxRatio = 100 - minRatio;
   return { min: minRatio, max: maxRatio };
 }
 
-/**
- * Clamp split ratio to valid bounds
- */
 function clampRatio(ratio: number, containerSize: number): number {
   const { min, max } = calculateBounds(containerSize);
   return Math.max(min, Math.min(max, ratio));
@@ -72,20 +59,9 @@ function clampRatio(ratio: number, containerSize: number): number {
 // SPLIT PANE COMPONENT
 // ============================================================
 
-/**
- * SplitPane component with resizable divider
- *
- * Features:
- * - Responsive orientation (horizontal on desktop, vertical on mobile)
- * - Draggable divider with minimum panel size enforcement
- * - Keyboard accessibility (arrow keys to resize)
- * - Persistent split ratio via callback
- * - Dark/light theme support
- */
 export function SplitPane({
   left,
   right,
-  theme = 'light',
   initialSplitRatio = DEFAULT_SPLIT_RATIO,
   onSplitChange,
   breakpoint = DEFAULT_BREAKPOINT,
@@ -104,15 +80,10 @@ export function SplitPane({
     function handleResize() {
       const container = containerRef.current;
       if (!container) return;
-
-      const width = container.clientWidth;
-      setIsVertical(width < breakpoint);
+      setIsVertical(container.clientWidth < breakpoint);
     }
 
-    // Initial check
     handleResize();
-
-    // Listen for resize
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [breakpoint]);
@@ -161,27 +132,19 @@ export function SplitPane({
       const delta = currentPos - dragStartRef.current.pos;
       const deltaRatio = (delta / containerSize) * 100;
       const newRatio = dragStartRef.current.ratio + deltaRatio;
-
-      // Clamp to valid bounds
-      const clampedRatio = clampRatio(newRatio, containerSize);
-      setSplitRatio(clampedRatio);
+      setSplitRatio(clampRatio(newRatio, containerSize));
     }
 
     function handleDragEnd() {
       setIsDragging(false);
       dragStartRef.current = null;
-
-      // Persist split ratio on drag end (AC-8)
       if (onSplitChange) {
         onSplitChange(splitRatio);
       }
     }
 
-    // Mouse events
     document.addEventListener('mousemove', handleDragMove);
     document.addEventListener('mouseup', handleDragEnd);
-
-    // Touch events
     document.addEventListener('touchmove', handleDragMove);
     document.addEventListener('touchend', handleDragEnd);
 
@@ -203,12 +166,10 @@ export function SplitPane({
 
     const rect = container.getBoundingClientRect();
     const containerSize = isVertical ? rect.height : rect.width;
-    const step = 2; // 2% adjustment per key press
-
+    const step = 2;
     let newRatio = splitRatio;
 
     if (isVertical) {
-      // Vertical layout: Up/Down arrows
       if (event.key === 'ArrowUp') {
         newRatio = splitRatio - step;
         event.preventDefault();
@@ -217,7 +178,6 @@ export function SplitPane({
         event.preventDefault();
       }
     } else {
-      // Horizontal layout: Left/Right arrows
       if (event.key === 'ArrowLeft') {
         newRatio = splitRatio - step;
         event.preventDefault();
@@ -230,8 +190,6 @@ export function SplitPane({
     if (newRatio !== splitRatio) {
       const clampedRatio = clampRatio(newRatio, containerSize);
       setSplitRatio(clampedRatio);
-
-      // Persist on keyboard adjustment
       if (onSplitChange) {
         onSplitChange(clampedRatio);
       }
@@ -239,48 +197,23 @@ export function SplitPane({
   }
 
   // ============================================================
-  // STYLES
-  // ============================================================
-
-  const dividerStyle: React.CSSProperties = {
-    position: 'relative',
-    backgroundColor: theme === 'light' ? '#e5e7eb' : '#374151',
-    cursor: isVertical ? 'ns-resize' : 'ew-resize',
-    flexShrink: 0,
-    ...(isVertical
-      ? { width: '100%', height: '8px' }
-      : { width: '8px', height: '100%' }),
-  };
-
-  const containerStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: isVertical ? 'column' : 'row',
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-  };
-
-  const leftPanelStyle: React.CSSProperties = {
-    overflow: 'auto',
-    ...(isVertical
-      ? { width: '100%', height: `${splitRatio}%` }
-      : { width: `${splitRatio}%`, height: '100%' }),
-  };
-
-  const rightPanelStyle: React.CSSProperties = {
-    overflow: 'auto',
-    ...(isVertical
-      ? { width: '100%', height: `${100 - splitRatio}%` }
-      : { width: `${100 - splitRatio}%`, height: '100%' }),
-  };
-
-  // ============================================================
   // RENDER
   // ============================================================
 
+  const leftSize = isVertical
+    ? { width: '100%', height: `${splitRatio}%` }
+    : { width: `${splitRatio}%`, height: '100%' };
+
+  const rightSize = isVertical
+    ? { width: '100%', height: `${100 - splitRatio}%` }
+    : { width: `${100 - splitRatio}%`, height: '100%' };
+
   return (
-    <div ref={containerRef} style={containerStyle} className="split-pane-container">
-      <div style={leftPanelStyle} className="split-pane-left">
+    <div
+      ref={containerRef}
+      className={`split-pane${isVertical ? ' vertical' : ''}`}
+    >
+      <div className="split-pane-panel" style={leftSize}>
         {left}
       </div>
 
@@ -294,11 +227,10 @@ export function SplitPane({
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
         onKeyDown={handleKeyDown}
-        style={dividerStyle}
-        className={`split-pane-divider ${isDragging ? 'dragging' : ''}`}
+        className={`split-pane-divider${isDragging ? ' dragging' : ''}`}
       />
 
-      <div style={rightPanelStyle} className="split-pane-right">
+      <div className="split-pane-panel" style={rightSize}>
         {right}
       </div>
     </div>

@@ -9,6 +9,7 @@
  * - AC-12: Syntax error display
  * - AC-13: Parse error display
  * - AC-14: Runtime error display
+ * - Verbose error rendering (cause, resolution, help URL)
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -61,7 +62,7 @@ describe('Output', () => {
   describe('rendering', () => {
     it('renders without errors', () => {
       const { container } = render(<Output state={idleState} />);
-      const output = container.querySelector('.output-container');
+      const output = container.querySelector('.output-panel');
       expect(output).toBeDefined();
     });
 
@@ -77,15 +78,9 @@ describe('Output', () => {
       expect(output).toBeDefined();
     });
 
-    it('renders with light theme', () => {
-      const { container } = render(<Output state={idleState} theme="light" />);
-      const output = container.querySelector('.output-container');
-      expect(output).toBeDefined();
-    });
-
-    it('renders with dark theme', () => {
-      const { container } = render(<Output state={idleState} theme="dark" />);
-      const output = container.querySelector('.output-container');
+    it('renders with dark brand theme', () => {
+      const { container } = render(<Output state={idleState} />);
+      const output = container.querySelector('.output-panel');
       expect(output).toBeDefined();
     });
   });
@@ -264,7 +259,9 @@ describe('Output', () => {
       const { container } = render(<Output state={lexerState} />);
       const errorElement = container.querySelector('.output-error');
       expect(errorElement?.textContent).toContain('Invalid character');
-      expect(errorElement?.textContent).not.toContain('line');
+      // No location element rendered when line is null
+      const locationElement = container.querySelector('.output-error-location');
+      expect(locationElement).toBeNull();
     });
   });
 
@@ -310,7 +307,8 @@ describe('Output', () => {
       const { container } = render(<Output state={parseState} />);
       const errorElement = container.querySelector('.output-error');
       expect(errorElement?.textContent).toContain('Unexpected end of input');
-      expect(errorElement?.textContent).not.toContain('line');
+      const locationElement = container.querySelector('.output-error-location');
+      expect(locationElement).toBeNull();
     });
   });
 
@@ -356,7 +354,8 @@ describe('Output', () => {
       const { container } = render(<Output state={runtimeState} />);
       const errorElement = container.querySelector('.output-error');
       expect(errorElement?.textContent).toContain('Variable not defined: $x');
-      expect(errorElement?.textContent).not.toContain('line');
+      const locationElement = container.querySelector('.output-error-location');
+      expect(locationElement).toBeNull();
     });
   });
 
@@ -399,8 +398,115 @@ describe('Output', () => {
         duration: 10,
       };
       const { container } = render(<Output state={errorState} />);
+      const errorIdElement = container.querySelector('.output-error-id');
+      expect(errorIdElement).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // Verbose error rendering
+  // ============================================================
+
+  describe('verbose error rendering', () => {
+    it('renders error cause when present', () => {
+      const errorWithCause: FiddleError = {
+        message: 'Variable foo is not defined',
+        category: 'runtime',
+        line: 5,
+        column: 10,
+        errorId: 'RILL-R005',
+        helpUrl: undefined,
+        cause: 'Variable referenced before assignment',
+        resolution: undefined,
+        examples: undefined,
+      };
+      const stateWithCause: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: errorWithCause,
+        duration: 100,
+      };
+      const { container } = render(<Output state={stateWithCause} />);
+      const causeElement = container.querySelector('.output-error-cause');
+      expect(causeElement).toBeDefined();
+      expect(causeElement?.textContent).toContain('Variable referenced before assignment');
+    });
+
+    it('renders error resolution when present', () => {
+      const errorWithResolution: FiddleError = {
+        message: 'Type mismatch in operation',
+        category: 'runtime',
+        line: 3,
+        column: 8,
+        errorId: 'RILL-R002',
+        helpUrl: undefined,
+        cause: undefined,
+        resolution: 'Ensure both operands are the same type before performing the operation',
+        examples: undefined,
+      };
+      const stateWithResolution: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: errorWithResolution,
+        duration: 50,
+      };
+      const { container } = render(<Output state={stateWithResolution} />);
+      const resolutionElement = container.querySelector('.output-error-resolution');
+      expect(resolutionElement).toBeDefined();
+      expect(resolutionElement?.textContent).toContain('Fix:');
+      expect(resolutionElement?.textContent).toContain('Ensure both operands are the same type');
+    });
+
+    it('renders help link when helpUrl is present', () => {
+      const errorWithHelpUrl: FiddleError = {
+        message: 'Syntax error',
+        category: 'parse',
+        line: 1,
+        column: 1,
+        errorId: 'RILL-P001',
+        helpUrl: 'https://example.com/docs/errors/RILL-P001',
+        cause: undefined,
+        resolution: undefined,
+        examples: undefined,
+      };
+      const stateWithHelpUrl: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: errorWithHelpUrl,
+        duration: 20,
+      };
+      const { container } = render(<Output state={stateWithHelpUrl} />);
+      const linkElement = container.querySelector('a[href="https://example.com/docs/errors/RILL-P001"]');
+      expect(linkElement).toBeDefined();
+      expect(linkElement?.getAttribute('target')).toBe('_blank');
+      expect(linkElement?.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(linkElement?.textContent).toContain('Docs');
+    });
+
+    it('renders basic error without verbose fields', () => {
+      const basicError: FiddleError = {
+        message: 'Unexpected token',
+        category: 'lexer',
+        line: 2,
+        column: 5,
+        errorId: 'RILL-L001',
+        helpUrl: undefined,
+        cause: undefined,
+        resolution: undefined,
+        examples: undefined,
+      };
+      const stateWithBasicError: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: basicError,
+        duration: 15,
+      };
+      const { container } = render(<Output state={stateWithBasicError} />);
       const errorElement = container.querySelector('.output-error');
-      expect(errorElement?.textContent).not.toContain('RILL-');
+      expect(errorElement?.textContent).toContain('Unexpected token');
+      expect(container.querySelector('.output-error-cause')).toBeNull();
+      expect(container.querySelector('.output-error-resolution')).toBeNull();
+      expect(container.querySelector('a')).toBeNull();
     });
   });
 
@@ -411,21 +517,23 @@ describe('Output', () => {
   describe('duration display', () => {
     it('displays execution duration for success', () => {
       const { container } = render(<Output state={successState} />);
-      const durationElement = container.querySelector('.output-duration');
+      const durationElement = container.querySelector('.output-header-duration');
+      expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('42');
       expect(durationElement?.textContent).toContain('ms');
     });
 
     it('displays execution duration for error', () => {
       const { container } = render(<Output state={errorState} />);
-      const durationElement = container.querySelector('.output-duration');
+      const durationElement = container.querySelector('.output-header-duration');
+      expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('10');
       expect(durationElement?.textContent).toContain('ms');
     });
 
     it('does not display duration when null', () => {
       const { container } = render(<Output state={idleState} />);
-      const durationElement = container.querySelector('.output-duration');
+      const durationElement = container.querySelector('.output-header-duration');
       expect(durationElement).toBeNull();
     });
   });
@@ -451,39 +559,6 @@ describe('Output', () => {
       const { container } = render(<Output state={successState} />);
       const resultElement = container.querySelector('.output-result');
       expect(resultElement).toBeDefined();
-    });
-  });
-
-  // ============================================================
-  // Theme support
-  // ============================================================
-
-  describe('theme support', () => {
-    it('applies light theme styles', () => {
-      const { container } = render(<Output state={successState} theme="light" />);
-      const output = container.querySelector('.output-container');
-      expect(output).toBeDefined();
-    });
-
-    it('applies dark theme styles', () => {
-      const { container } = render(<Output state={successState} theme="dark" />);
-      const output = container.querySelector('.output-container');
-      expect(output).toBeDefined();
-    });
-
-    it('switches theme without losing content', () => {
-      const { container, rerender } = render(<Output state={successState} theme="light" />);
-
-      // Verify initial content
-      let resultElement = container.querySelector('.output-result');
-      expect(resultElement?.textContent).toContain('hello world');
-
-      // Switch theme
-      rerender(<Output state={successState} theme="dark" />);
-
-      // Verify content preserved
-      resultElement = container.querySelector('.output-result');
-      expect(resultElement?.textContent).toContain('hello world');
     });
   });
 });

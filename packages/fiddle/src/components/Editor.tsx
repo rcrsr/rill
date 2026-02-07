@@ -1,27 +1,30 @@
 /**
  * Editor Component
  *
- * CodeMirror 6 instance with line numbers and Rill syntax highlighting.
+ * CodeMirror 6 instance with brand neon syntax highlighting.
  * Accepts value/onChange props for controlled content.
  * Accepts errorLine prop to highlight error gutter line.
  * Keyboard shortcut: Cmd/Ctrl+Enter triggers onRun callback.
- * ARIA labels for screen reader support.
- * Dark/light theme switching via prop.
+ * Dark-only brand theme.
  */
 
 import { type JSX, useEffect, useRef } from 'react';
-import { EditorView, keymap, lineNumbers, Decoration, type DecorationSet } from '@codemirror/view';
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  Decoration,
+  type DecorationSet,
+} from '@codemirror/view';
 import { EditorState, type Extension, StateField, StateEffect } from '@codemirror/state';
-import { javascript } from '@codemirror/lang-javascript';
+import { indentUnit, StreamLanguage } from '@codemirror/language';
+import { createThemeExtension } from '../lib/theme.js';
+import { createTabKeyBinding } from '../lib/keybindings.js';
+import { rillHighlighter } from '../lib/highlight.js';
 
 // ============================================================
 // TYPE DEFINITIONS
 // ============================================================
-
-/**
- * Theme variant for editor styling
- */
-export type EditorTheme = 'light' | 'dark';
 
 /**
  * Editor component props
@@ -35,8 +38,6 @@ export interface EditorProps {
   onRun: () => void;
   /** Line number to highlight for errors (1-based) */
   errorLine?: number | null;
-  /** Theme variant */
-  theme?: EditorTheme;
   /** ARIA label for screen readers */
   ariaLabel?: string;
 }
@@ -86,23 +87,11 @@ const errorLineField = StateField.define<DecorationSet>({
 // EDITOR COMPONENT
 // ============================================================
 
-/**
- * Editor component with CodeMirror 6 integration
- *
- * Features:
- * - Line numbers
- * - Rill syntax highlighting (using JavaScript mode as base)
- * - Error line gutter highlighting
- * - Cmd/Ctrl+Enter keyboard shortcut
- * - Dark/light theme switching
- * - Accessibility support
- */
 export function Editor({
   value,
   onChange,
   onRun,
   errorLine = null,
-  theme = 'light',
   ariaLabel = 'Rill code editor',
 }: EditorProps): JSX.Element {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -123,15 +112,15 @@ export function Editor({
   useEffect(() => {
     if (!editorRef.current) return;
 
-    // Create extensions array
     const extensions: Extension[] = [
-      // Line numbers
       lineNumbers(),
-      // JavaScript syntax highlighting (base for Rill)
-      javascript(),
-      // Error line decoration field
+      indentUnit.of('  '),
+      EditorState.tabSize.of(2),
+      keymap.of(createTabKeyBinding()),
+      // Brand dark theme (always dark)
+      createThemeExtension(true),
+      StreamLanguage.define(rillHighlighter),
       errorLineField,
-      // Keyboard shortcut: Cmd/Ctrl+Enter
       keymap.of([
         {
           key: 'Mod-Enter',
@@ -141,32 +130,27 @@ export function Editor({
           },
         },
       ]),
-      // Update callback
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const newValue = update.state.doc.toString();
           onChangeRef.current(newValue);
         }
       }),
-      // Base theme
       EditorView.baseTheme({
         '&': {
           height: '100%',
           fontSize: '14px',
         },
         '.cm-content': {
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+          fontVariantLigatures: 'normal',
         },
         '.cm-scroller': {
           overflow: 'auto',
         },
-        '.cm-error-line': {
-          backgroundColor: theme === 'light' ? '#fee2e2' : '#7f1d1d',
-        },
       }),
     ];
 
-    // Initialize EditorView
     const view = new EditorView({
       state: EditorState.create({
         doc: value,
@@ -177,12 +161,11 @@ export function Editor({
 
     viewRef.current = view;
 
-    // Cleanup
     return () => {
       view.destroy();
       viewRef.current = null;
     };
-  }, [theme]); // Recreate on theme change
+  }, []);
 
   // ============================================================
   // VALUE SYNCHRONIZATION
@@ -212,12 +195,10 @@ export function Editor({
     const view = viewRef.current;
     if (!view) return;
 
-    // Dispatch error line effect
     view.dispatch({
       effects: setErrorLineEffect.of(errorLine),
     });
 
-    // Scroll to error line if set
     if (errorLine !== null && errorLine > 0) {
       const lineNumber = Math.min(errorLine, view.state.doc.lines);
       const line = view.state.doc.line(lineNumber);
@@ -236,10 +217,6 @@ export function Editor({
       ref={editorRef}
       aria-label={ariaLabel}
       className="editor-container"
-      style={{
-        height: '100%',
-        width: '100%',
-      }}
     />
   );
 }

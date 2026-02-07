@@ -9,72 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-- **Capture arrow syntax `=>` replaces `:>`** — Enables ligatures in programming fonts
-  - Deprecated `:>` rejected by parser with migration error `RILL-P006`
-  - Updated 1136 occurrences in tests and 596 in documentation
+- **Capture arrow `=>` replaces `:>`** — Enables ligatures in programming fonts; `:>` rejected with `RILL-P006`
 
 ### Added
 
-- **Rill Fiddle** — Browser-based playground for learning and experimenting with rill
-  - Client-side execution using `@rcrsr/rill` runtime, React 19, CodeMirror 6, and Vite 7
-  - Editor with line numbers and Cmd/Ctrl+Enter keyboard shortcut to execute
-  - Error display with line/column locations for lexer, parser, and runtime errors
-  - 5 built-in examples: hello-world, variables, pipes, functions, conditionals
-  - Dark/light theme toggle with localStorage persistence
-  - Resizable split-pane layout with draggable divider (200px minimum panel width)
-  - Execution safety: 5s timeout and iteration limit protection against infinite loops
-  - 289 tests across 12 test files
-  - Production build: 709 kB JS (223 kB gzipped), 5.3 kB CSS
-  - Package: `packages/fiddle` (private, not published to npm)
+- **Rill Fiddle** — Browser-based playground at `packages/fiddle` (private, not published)
+  - Client-side execution with React 19, CodeMirror 6, and Vite 7
+  - Rill syntax highlighting, JetBrains Mono with ligatures, dark/light theme
+  - Verbose error display with cause, resolution, and documentation links
+  - 5 built-in examples, resizable split pane, Cmd/Ctrl+Enter to run
+  - 414 tests across 16 test files
 
-- **Claude Code Extension** — PTY-based Claude CLI integration via `ExtensionFactory` pattern
+- **Claude Code Extension** — PTY-based Claude CLI integration at `packages/ext/claude-code`
   - Host functions: `claude-code::prompt`, `claude-code::skill`, `claude-code::command`
-  - Stream parser extracts line-delimited JSON from Claude CLI `--output-format stream-json`
-  - Structured results: response text, 5-field token usage, execution cost
-  - Process manager with timeout enforcement (max 300s) and cleanup
-  - Direct spawn (no shell invocation), inherits parent environment
+  - Stream JSON parser, structured results with token usage and cost
   - 221 tests covering all 50 requirements
-  - Package: `packages/ext/claude-code`
 
-- **Error Reporting Enhancement** — Rich error feedback with call stacks and source context
-  - Call stacks with function names and line numbers
-  - Source code snippets with caret indicators at error location
-  - LSP-compatible error data structure (`location`, `range`, `message`)
-  - Contextual suggestions for common errors
-  - Error codes map to documentation links via `getHelpUrl(code)`
+- **Error reporting** — Rich error feedback with call stacks and source context
+  - Source snippets with caret underline at error location
+  - Contextual suggestions and documentation links via `getHelpUrl(code)`
 
-- **Function Metadata** — Return type declarations and documentation validation for host functions
-  - `returnType` on `HostFunctionDefinition`: `'string' | 'number' | 'bool' | 'list' | 'dict' | 'any'`
-  - `requireDescriptions` option enforces function and parameter descriptions at registration
-  - `getDocumentationCoverage(ctx)` returns `{ total, documented, percentage }` metrics
-  - `FunctionMetadata.returnType` field added to introspection API
-  - New type exported: `RillFunctionReturnType`
+- **Function metadata** — `returnType` declarations and `requireDescriptions` validation for host functions
 
 ### Changed
 
-- **Documentation file naming** — Semantic category prefixes replace numeric prefixes
-  - `00_INDEX.md` → `index.md`, `01_guide.md` → `guide-getting-started.md`, etc.
-  - Prefixes: `guide-*`, `topic-*`, `ref-*`, `integration-*`
-  - Split `integration-host.md` (1200+ lines) into `integration-host.md` + `ref-host-api.md`
-  - Fixed 5 factual errors and 3 invalid rill syntax strings in error registry
-  - Updated 112 cross-references across 47 files
-
-- **Monorepo structure with pnpm workspaces** — Independent packages with separate versioning
-  - `@rcrsr/rill` in `packages/core` (zero production dependencies)
-  - `@rcrsr/rill-cli` in `packages/cli` (depends on core + yaml)
-  - `@rcrsr/rill-ext-example` in `packages/ext/example`
-  - TypeScript project references for topological builds
-  - GitHub Actions publish to npm with provenance verification
-
-- **Code deduplication** — 3 function extractions eliminate 32 duplicated lines across 5 files
-  - `isIdentifierOrKeyword()` — consolidates identifier validation; fixes missing PASS token bug
-  - `detectHelpVersionFlag()` — consolidates --help/--version detection in CLI
-  - `isValidSpan()` — consolidates span validation in SPACING_BRACKETS rule
-
-- **Error system cleanup** — Unified RILL-XXXX error identifiers
-  - Removed legacy `code` field from `RillError`; `errorId` is sole identifier
-  - Migrated 161 call sites to errorId-only signatures
-  - Error coverage: 48% → 80% of files, static analysis: 21% → 80%
+- **Documentation** — Semantic file naming (`guide-*`, `topic-*`, `ref-*`, `integration-*`), split host integration into two files
+- **Monorepo** — pnpm workspaces with `@rcrsr/rill`, `@rcrsr/rill-cli`, `@rcrsr/rill-ext-example`
+- **Error system** — Unified `errorId` replaces legacy `code` field; 80% error coverage
+- **Code deduplication** — 3 extractions (`isIdentifierOrKeyword`, `detectHelpVersionFlag`, `isValidSpan`)
 
 ## [0.5.0] - 2026-02-03
 

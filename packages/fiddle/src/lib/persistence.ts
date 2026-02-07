@@ -3,6 +3,8 @@
  *
  * Provides localStorage-backed persistence with graceful fallback to in-memory defaults
  * when localStorage is unavailable (e.g., private browsing mode).
+ *
+ * Dark-only: theme is no longer persisted.
  */
 
 const STORAGE_KEY = 'rill-fiddle-editor-state' as const;
@@ -18,7 +20,6 @@ const DEFAULT_SOURCE = `# Hello World example
  * Editor state persisted across sessions
  */
 export interface EditorState {
-  theme: 'dark' | 'light';
   splitRatio: number;
   lastSource: string;
 }
@@ -28,7 +29,6 @@ export interface EditorState {
  */
 function getDefaultState(): EditorState {
   return {
-    theme: 'dark',
     splitRatio: 50,
     lastSource: DEFAULT_SOURCE,
   };
@@ -45,13 +45,6 @@ function clampSplitRatio(ratio: number): number {
   const MAX_RATIO = 100 - MIN_RATIO; // ~83.33%
 
   return Math.max(MIN_RATIO, Math.min(MAX_RATIO, ratio));
-}
-
-/**
- * Validate theme value against allowed enum
- */
-function isValidTheme(value: unknown): value is 'dark' | 'light' {
-  return value === 'dark' || value === 'light';
 }
 
 /**
@@ -79,7 +72,6 @@ function isLocalStorageAvailable(): boolean {
  * Clamps splitRatio to valid range (EC-9).
  */
 export function loadEditorState(): EditorState {
-  // EC-7: localStorage unavailable (private browsing)
   if (!isLocalStorageAvailable()) {
     return getDefaultState();
   }
@@ -87,35 +79,29 @@ export function loadEditorState(): EditorState {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
 
-    // First visit: no stored state
     if (stored === null) {
       return getDefaultState();
     }
 
-    // EC-8: Corrupt JSON in localStorage
     const parsed: unknown = JSON.parse(stored);
 
-    // Validate structure
     if (typeof parsed !== 'object' || parsed === null) {
       return getDefaultState();
     }
 
     const state = parsed as Record<string, unknown>;
 
-    // Validate and extract fields
-    const theme = isValidTheme(state['theme']) ? state['theme'] : 'dark';
     const splitRatio =
       typeof state['splitRatio'] === 'number'
-        ? clampSplitRatio(state['splitRatio']) // EC-9: Clamp out-of-range values
+        ? clampSplitRatio(state['splitRatio'])
         : 50;
     const lastSource =
       typeof state['lastSource'] === 'string'
         ? state['lastSource']
         : DEFAULT_SOURCE;
 
-    return { theme, splitRatio, lastSource };
+    return { splitRatio, lastSource };
   } catch {
-    // EC-8: JSON.parse throws on corrupt data
     return getDefaultState();
   }
 }
@@ -126,7 +112,6 @@ export function loadEditorState(): EditorState {
  * Fails silently if localStorage is unavailable (EC-7).
  */
 export function persistEditorState(state: EditorState): void {
-  // EC-7: localStorage unavailable (private browsing)
   if (!isLocalStorageAvailable()) {
     return;
   }
@@ -135,7 +120,6 @@ export function persistEditorState(state: EditorState): void {
     const serialized = JSON.stringify(state);
     localStorage.setItem(STORAGE_KEY, serialized);
   } catch {
-    // Fail silently on quota exceeded or other errors
     return;
   }
 }

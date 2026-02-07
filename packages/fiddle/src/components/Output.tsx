@@ -1,14 +1,17 @@
 /**
  * Output Component
  *
- * Displays execution results with formatted output and error handling.
- * Shows result when status is "success".
- * Shows error alert with line number when status is "error".
- * Shows nothing when status is "idle" or "running".
- * ARIA labels for screen reader support.
+ * Displays execution results with brand-aligned styling.
+ * Shows idle state with pipe animation, running indicator,
+ * success result, or structured error display.
+ *
+ * Features:
+ * - AC-9: Formatted result display
+ * - AC-10: "No output" for null results
+ * - AC-12/13/14: Error display with line number and help links
+ * - ARIA labels for screen reader support
  */
 
-import type React from 'react';
 import type { JSX } from 'react';
 import type { ExecutionState } from '../lib/execution.js';
 
@@ -17,18 +20,11 @@ import type { ExecutionState } from '../lib/execution.js';
 // ============================================================
 
 /**
- * Theme variant for output styling
- */
-export type OutputTheme = 'light' | 'dark';
-
-/**
  * Output component props
  */
 export interface OutputProps {
   /** Current execution state */
   state: ExecutionState;
-  /** Theme variant */
-  theme?: OutputTheme;
   /** ARIA label for screen readers */
   ariaLabel?: string;
 }
@@ -37,118 +33,90 @@ export interface OutputProps {
 // OUTPUT COMPONENT
 // ============================================================
 
-/**
- * Output component for execution results
- *
- * Features:
- * - Displays formatted result when status is "success" (AC-9)
- * - Shows "No output" when result is null (AC-10)
- * - Clears previous output on re-execution (AC-11)
- * - Displays error alert with line number (AC-12, AC-13, AC-14)
- * - ARIA labels for accessibility
- * - Theme support (light/dark)
- */
 export function Output({
   state,
-  theme = 'light',
   ariaLabel = 'Execution output',
 }: OutputProps): JSX.Element {
   const { status, result, error, duration } = state;
 
-  // ============================================================
-  // THEME STYLES
-  // ============================================================
-
-  const containerStyles: React.CSSProperties = {
-    height: '100%',
-    width: '100%',
-    padding: '16px',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: '14px',
-    overflowY: 'auto',
-    backgroundColor: theme === 'light' ? '#ffffff' : '#1e1e1e',
-    color: theme === 'light' ? '#1f2937' : '#d4d4d4',
-  };
-
-  const resultStyles: React.CSSProperties = {
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    marginBottom: '16px',
-  };
-
-  const errorStyles: React.CSSProperties = {
-    padding: '12px',
-    borderRadius: '4px',
-    backgroundColor: theme === 'light' ? '#fee2e2' : '#7f1d1d',
-    color: theme === 'light' ? '#991b1b' : '#fecaca',
-    marginBottom: '16px',
-  };
-
-  const errorHeaderStyles: React.CSSProperties = {
-    fontWeight: 'bold',
-    marginBottom: '8px',
-  };
-
-  const errorMessageStyles: React.CSSProperties = {
-    marginBottom: '4px',
-  };
-
-  const errorLocationStyles: React.CSSProperties = {
-    fontSize: '12px',
-    opacity: 0.8,
-  };
-
-  const durationStyles: React.CSSProperties = {
-    fontSize: '12px',
-    opacity: 0.6,
-    marginTop: '8px',
-  };
-
-  // ============================================================
-  // RENDER
-  // ============================================================
-
   return (
-    <div className="output-container" aria-label={ariaLabel} style={containerStyles}>
-      {/* AC-9, AC-10: Success status displays formatted result */}
-      {status === 'success' && (
-        <>
-          <div className="output-result" style={resultStyles}>
+    <div className="output-panel" aria-label={ariaLabel}>
+      {/* Panel header */}
+      <div className="output-header">
+        <span className="output-header-label">Output</span>
+        <div className="output-header-spacer" />
+        {duration !== null && (
+          <span className="output-header-duration">
+            {status === 'error' ? 'failed' : 'ran'} in {duration.toFixed(1)}ms
+          </span>
+        )}
+      </div>
+
+      {/* Panel body */}
+      <div className="output-body">
+        {/* Idle: empty state */}
+        {status === 'idle' && (
+          <div className="output-idle">
+            <div className="output-idle-pipe">{'->'} {'->'} {'->'}</div>
+            <div className="output-idle-text">Run code to see output</div>
+          </div>
+        )}
+
+        {/* Running: pipe flow indicator */}
+        {status === 'running' && (
+          <div className="output-running">
+            <div className="output-running-indicator" />
+          </div>
+        )}
+
+        {/* Success: formatted result */}
+        {status === 'success' && (
+          <div className="output-result">
             {result === 'null' ? 'No output' : result}
           </div>
-          {duration !== null && (
-            <div className="output-duration" style={durationStyles}>
-              Executed in {duration.toFixed(2)}ms
-            </div>
-          )}
-        </>
-      )}
+        )}
 
-      {/* AC-12, AC-13, AC-14: Error status displays error alert with line number */}
-      {status === 'error' && error !== null && (
-        <>
-          <div className="output-error" role="alert" style={errorStyles}>
-            <div style={errorHeaderStyles}>
-              {error.category === 'lexer' && 'Syntax Error'}
-              {error.category === 'parse' && 'Parse Error'}
-              {error.category === 'runtime' && 'Runtime Error'}
-              {error.errorId && ` (${error.errorId})`}
+        {/* Error: structured error display */}
+        {status === 'error' && error !== null && (
+          <div className="output-error" role="alert">
+            <div className="output-error-header">
+              <span className="output-error-badge">
+                {error.category === 'lexer' && 'Syntax'}
+                {error.category === 'parse' && 'Parse'}
+                {error.category === 'runtime' && 'Runtime'}
+              </span>
+              {error.errorId && <span className="output-error-id">{error.errorId}</span>}
             </div>
-            <div style={errorMessageStyles}>{error.message}</div>
+
+            <div className="output-error-message">{error.message}</div>
+
             {error.line !== null && (
-              <div style={errorLocationStyles}>
-                at line {error.line}
-                {error.column !== null && `, column ${error.column}`}
+              <div className="output-error-location">
+                line {error.line}
+                {error.column !== null && `, col ${error.column}`}
+              </div>
+            )}
+
+            {error.cause && (
+              <div className="output-error-cause">{error.cause}</div>
+            )}
+
+            {error.resolution && (
+              <div className="output-error-resolution">
+                <strong>Fix:</strong> {error.resolution}
+              </div>
+            )}
+
+            {error.helpUrl && (
+              <div className="output-error-help">
+                <a href={error.helpUrl} target="_blank" rel="noopener noreferrer">
+                  Docs {'->'}
+                </a>
               </div>
             )}
           </div>
-          {duration !== null && (
-            <div className="output-duration" style={durationStyles}>
-              Failed after {duration.toFixed(2)}ms
-            </div>
-          )}
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -13,9 +13,11 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@codemirror/lang-javascript": "^6.2.4",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.12",
+    "@lezer/highlight": "^1.0.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@rcrsr/rill": "workspace:^",
     "class-variance-authority": "^0.7.1",

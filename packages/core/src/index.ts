@@ -79,4 +79,12 @@ export {
   createError,
 } from './types.js';
 
+// ============================================================
+// SYNTAX HIGHLIGHTING
+// ============================================================
+export {
+  type HighlightCategory,
+  TOKEN_HIGHLIGHT_MAP,
+} from './highlight-map.js';
+
 export * from './types.js';

@@ -32,11 +32,10 @@ describe('persistence', () => {
   });
 
   describe('loadEditorState', () => {
-    // IR-5: First visit (no localStorage key) returns defaults with dark theme
+    // IR-5: First visit (no localStorage key) returns defaults
     it('returns default state on first visit', () => {
       const state = loadEditorState();
 
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -44,7 +43,6 @@ describe('persistence', () => {
     // IR-4: Persist and load round-trip preserves state
     it('loads persisted state correctly', () => {
       const testState: EditorState = {
-        theme: 'light',
         splitRatio: 60,
         lastSource: 'test code',
       };
@@ -61,7 +59,6 @@ describe('persistence', () => {
 
       const state = loadEditorState();
 
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -72,7 +69,6 @@ describe('persistence', () => {
 
       const state = loadEditorState();
 
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
     });
 
@@ -82,7 +78,6 @@ describe('persistence', () => {
 
       const state = loadEditorState();
 
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
     });
 
@@ -91,7 +86,6 @@ describe('persistence', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 5, // Below minimum (~16.67%)
           lastSource: 'test',
         })
@@ -108,7 +102,6 @@ describe('persistence', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 95, // Above maximum (~83.33%)
           lastSource: 'test',
         })
@@ -128,7 +121,6 @@ describe('persistence', () => {
         localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
-            theme: 'dark',
             splitRatio: ratio,
             lastSource: 'test',
           })
@@ -139,35 +131,17 @@ describe('persistence', () => {
       }
     });
 
-    // IR-5: Theme value validated against "dark" | "light" enum
-    it('returns default theme when stored theme is invalid', () => {
-      localStorage.setItem(
-        'rill-fiddle-editor-state',
-        JSON.stringify({
-          theme: 'invalid-theme',
-          splitRatio: 50,
-          lastSource: 'test',
-        })
-      );
-
-      const state = loadEditorState();
-
-      expect(state.theme).toBe('dark');
-    });
-
     // IR-5: Missing fields use defaults
     it('uses defaults for missing fields', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'light',
           // splitRatio and lastSource missing
         })
       );
 
       const state = loadEditorState();
 
-      expect(state.theme).toBe('light');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -177,7 +151,6 @@ describe('persistence', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 'not a number',
           lastSource: 'test',
         })
@@ -193,7 +166,6 @@ describe('persistence', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 50,
           lastSource: 123, // Should be string
         })
@@ -216,7 +188,6 @@ describe('persistence', () => {
 
       const state = loadEditorState();
 
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -226,7 +197,6 @@ describe('persistence', () => {
     // IR-4: Serializes to JSON and writes single localStorage key
     it('persists state to localStorage', () => {
       const testState: EditorState = {
-        theme: 'light',
         splitRatio: 60,
         lastSource: 'test code',
       };
@@ -243,12 +213,10 @@ describe('persistence', () => {
     // IR-4: Uses single localStorage key for all editor state
     it('overwrites previous state on subsequent persist', () => {
       const state1: EditorState = {
-        theme: 'dark',
         splitRatio: 50,
         lastSource: 'first',
       };
       const state2: EditorState = {
-        theme: 'light',
         splitRatio: 70,
         lastSource: 'second',
       };
@@ -271,7 +239,6 @@ describe('persistence', () => {
       });
 
       const testState: EditorState = {
-        theme: 'light',
         splitRatio: 60,
         lastSource: 'test code',
       };
@@ -283,9 +250,9 @@ describe('persistence', () => {
     // IR-4: Round-trip preserves all fields
     it('preserves all state fields through round-trip', () => {
       const testStates: EditorState[] = [
-        { theme: 'dark', splitRatio: 30, lastSource: 'code 1' },
-        { theme: 'light', splitRatio: 70, lastSource: 'code 2' },
-        { theme: 'dark', splitRatio: 50, lastSource: '' },
+        { splitRatio: 30, lastSource: 'code 1' },
+        { splitRatio: 70, lastSource: 'code 2' },
+        { splitRatio: 50, lastSource: '' },
       ];
 
       for (const state of testStates) {
@@ -302,12 +269,10 @@ describe('persistence', () => {
     it('handles complete lifecycle: first visit -> persist -> load', () => {
       // First visit: returns defaults
       const initial = loadEditorState();
-      expect(initial.theme).toBe('dark');
       expect(initial.splitRatio).toBe(50);
 
       // User changes state
       const updated: EditorState = {
-        theme: 'light',
         splitRatio: 65,
         lastSource: 'updated code',
       };
@@ -327,11 +292,10 @@ describe('persistence', () => {
 
       // Load returns defaults
       const loaded = loadEditorState();
-      expect(loaded.theme).toBe('dark');
+      expect(loaded.splitRatio).toBe(50);
 
       // User makes changes and persists
       const newState: EditorState = {
-        theme: 'light',
         splitRatio: 55,
         lastSource: 'recovered',
       };

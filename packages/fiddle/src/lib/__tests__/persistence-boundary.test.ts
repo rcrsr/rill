@@ -5,7 +5,7 @@
  * - AC-20: Panel divider stops at 200px minimum; does not collapse below
  * - AC-21: Application functions without localStorage (mock unavailable)
  * - AC-22: Corrupt localStorage recovered with default state
- * - AC-24: First visit with no localStorage loads Hello World in dark theme
+ * - AC-24: First visit with no localStorage loads Hello World
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -36,7 +36,6 @@ describe('persistence boundary conditions', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 5, // Far below minimum
           lastSource: 'test',
         })
@@ -55,7 +54,6 @@ describe('persistence boundary conditions', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 95, // Far above maximum
           lastSource: 'test',
         })
@@ -76,7 +74,6 @@ describe('persistence boundary conditions', () => {
         localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
-            theme: 'dark',
             splitRatio: ratio,
             lastSource: 'test',
           })
@@ -97,7 +94,6 @@ describe('persistence boundary conditions', () => {
         localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
-            theme: 'dark',
             splitRatio: ratio,
             lastSource: 'test',
           })
@@ -125,7 +121,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults without crashing
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -137,7 +132,6 @@ describe('persistence boundary conditions', () => {
       });
 
       const testState: EditorState = {
-        theme: 'light',
         splitRatio: 60,
         lastSource: 'test code',
       };
@@ -159,7 +153,6 @@ describe('persistence boundary conditions', () => {
 
       // Then: Both return defaults (no persistence between calls)
       expect(load1).toEqual(load2);
-      expect(load1.theme).toBe('dark');
       expect(load1.splitRatio).toBe(50);
     });
   });
@@ -173,7 +166,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults without crash
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -186,7 +178,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
     });
 
@@ -198,7 +189,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
     });
 
@@ -210,7 +200,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
     });
 
@@ -219,7 +208,6 @@ describe('persistence boundary conditions', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 123, // Should be string
           splitRatio: 'not a number', // Should be number
           lastSource: {}, // Should be string
         })
@@ -229,7 +217,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: Returns defaults for invalid fields
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
@@ -240,10 +227,9 @@ describe('persistence boundary conditions', () => {
 
       // When: Load (returns defaults) then persist new state
       const loaded = loadEditorState();
-      expect(loaded.theme).toBe('dark');
+      expect(loaded.splitRatio).toBe(50);
 
       const newState: EditorState = {
-        theme: 'light',
         splitRatio: 65,
         lastSource: 'recovered',
       };
@@ -256,15 +242,14 @@ describe('persistence boundary conditions', () => {
   });
 
   describe('AC-24: First visit (no localStorage)', () => {
-    it('loads Hello World example in dark theme on first visit', () => {
+    it('loads Hello World example on first visit', () => {
       // Given: Clean localStorage (first visit scenario)
       localStorage.clear();
 
       // When: Loading editor state
       const state = loadEditorState();
 
-      // Then: Returns dark theme with Hello World
-      expect(state.theme).toBe('dark');
+      // Then: Returns default with Hello World
       expect(state.lastSource).toContain('Hello, World!');
     });
 
@@ -297,10 +282,9 @@ describe('persistence boundary conditions', () => {
 
       // When: Load defaults, modify, persist, reload
       const initial = loadEditorState();
-      expect(initial.theme).toBe('dark');
+      expect(initial.splitRatio).toBe(50);
 
       const modified: EditorState = {
-        theme: 'light',
         splitRatio: 70,
         lastSource: 'user code',
       };
@@ -310,7 +294,6 @@ describe('persistence boundary conditions', () => {
 
       // Then: Second load retrieves persisted state
       expect(reloaded).toEqual(modified);
-      expect(reloaded.theme).toBe('light');
     });
   });
 
@@ -320,7 +303,6 @@ describe('persistence boundary conditions', () => {
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
-          theme: 'dark',
           splitRatio: 999, // Way out of range
           lastSource: 'test',
         })
@@ -334,22 +316,21 @@ describe('persistence boundary conditions', () => {
       expect(state.splitRatio).toBeLessThanOrEqual(84);
     });
 
-    it('handles missing theme with valid splitRatio', () => {
-      // Given: Partial object (theme missing)
+    it('handles valid splitRatio with missing other fields', () => {
+      // Given: Partial object (only splitRatio)
       localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 60,
-          lastSource: 'test',
         })
       );
 
       // When: Loading editor state
       const state = loadEditorState();
 
-      // Then: Uses default theme, preserves valid splitRatio
-      expect(state.theme).toBe('dark');
+      // Then: Preserves valid splitRatio, uses default lastSource
       expect(state.splitRatio).toBe(60);
+      expect(state.lastSource).toContain('Hello, World!');
     });
 
     it('handles empty object in localStorage', () => {
@@ -360,7 +341,6 @@ describe('persistence boundary conditions', () => {
       const state = loadEditorState();
 
       // Then: All fields use defaults
-      expect(state.theme).toBe('dark');
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
