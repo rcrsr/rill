@@ -2,3 +2,4 @@ packages:
   - 'packages/core'
   - 'packages/cli'
   - 'packages/ext/*'
+  - 'packages/fiddle'

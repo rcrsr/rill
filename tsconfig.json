@@ -1,17 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // Package-specific output paths
-    "outDir": "./dist",
-    "rootDir": "."
+    "noEmit": true,
+    "composite": false
   },
-  "include": ["src/**/*", "packages/**/src/**/*"],
+  "include": ["packages/**/src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
     "**/node_modules",
     "**/dist",
-    "tests/**/*",
     "**/tests/**/*"
   ]
 }

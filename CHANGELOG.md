@@ -7,98 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Breaking
 
-- **Documentation file structure and naming** — Semantic category prefixes replace numeric prefixes for immediate clarity of file purpose without navigation lookup
-  - File renames: `00_INDEX.md` → `index.md`, `01_guide.md` → `guide-getting-started.md`, `02_reference.md` → `ref-language.md`, etc.
-  - New prefixes show file category: `guide-*` (getting started, examples), `topic-*` (language topics), `ref-*` (references), `integration-*` (host integration)
-  - Git history preserved via `git mv` for all 23 renamed files
-  - Fixed 5 factual errors across `topic-collections.md`, `guide-conventions.md`, and `integration-host.md`
-  - Corrected 3 invalid rill syntax strings in error registry
-  - Added installation instructions to getting started guide
-  - Split oversized `integration-host.md` (1200+ lines) into two files: `integration-host.md` and new `ref-host-api.md` to meet 1000-line policy limit
-  - Standardized all H1 titles with `# rill ` prefix for consistency
-  - Added italic taglines to 23 documentation files for quick context
-  - Added `## See Also` navigation sections to topic, reference, and integration files
-  - Deduplicated Design Principles content across `index.md` and `ref-language.md` with mutual cross-references
-  - Reordered examples in `guide-examples.md` to show pure language examples before workflow examples requiring host functions
-  - Updated 112 cross-references across 47 files (documentation, source code, build scripts, tests) to maintain consistency
-  - Initiative: `docs-usability-improvements` (6 phases complete)
+- **Capture arrow syntax `=>` replaces `:>`** — Enables ligatures in programming fonts
+  - Deprecated `:>` rejected by parser with migration error `RILL-P006`
+  - Updated 1136 occurrences in tests and 596 in documentation
 
 ### Added
 
-- **Claude Code Extension** — PTY-based Claude CLI integration providing three host functions via `ExtensionFactory` pattern
-  - Host functions: `claude-code::prompt`, `claude-code::skill`, `claude-code::command` spawn Claude CLI via node-pty with `--output-format stream-json`
-  - Stream parser with ANSI stripping and chunk buffering extracts line-delimited JSON responses
-  - Structured results contain response text, 5-field token usage (prompt, cache-write-5m, cache-write-1h, cache-read, output), and execution cost calculation
-  - Process manager enforces timeouts (max 300s), handles cleanup, and manages child process lifecycle
-  - Extension factory with eager config validation supports custom binary paths and configurable timeouts
-  - Security design uses direct spawn (no shell invocation) and inherits parent environment
-  - All 50 requirements covered with 221 tests across integration, unit, and error contract suites
-  - Emits extension events for observability (prompt, skill, command, error events)
-  - Package location: `packages/ext/claude-code` following monorepo extension pattern
-  - Initiative: `claude-code-extension` (5 phases complete)
+- **Rill Fiddle** — Browser-based playground for learning and experimenting with rill
+  - Client-side execution using `@rcrsr/rill` runtime, React 19, CodeMirror 6, and Vite 7
+  - Editor with line numbers and Cmd/Ctrl+Enter keyboard shortcut to execute
+  - Error display with line/column locations for lexer, parser, and runtime errors
+  - 5 built-in examples: hello-world, variables, pipes, functions, conditionals
+  - Dark/light theme toggle with localStorage persistence
+  - Resizable split-pane layout with draggable divider (200px minimum panel width)
+  - Execution safety: 5s timeout and iteration limit protection against infinite loops
+  - 289 tests across 12 test files
+  - Production build: 709 kB JS (223 kB gzipped), 5.3 kB CSS
+  - Package: `packages/fiddle` (private, not published to npm)
 
-- **Error Reporting Enhancement** — Rich error feedback with call stacks, source snippets, LSP preparation, and contextual suggestions
-  - Call stacks show function names and line numbers for error origin tracking
-  - Source code snippets with caret indicators display problematic expressions
-  - LSP-compatible error data structure for IDE integration (`location`, `range`, `message`)
-  - Contextual suggestions provide actionable guidance for common errors
+- **Claude Code Extension** — PTY-based Claude CLI integration via `ExtensionFactory` pattern
+  - Host functions: `claude-code::prompt`, `claude-code::skill`, `claude-code::command`
+  - Stream parser extracts line-delimited JSON from Claude CLI `--output-format stream-json`
+  - Structured results: response text, 5-field token usage, execution cost
+  - Process manager with timeout enforcement (max 300s) and cleanup
+  - Direct spawn (no shell invocation), inherits parent environment
+  - 221 tests covering all 50 requirements
+  - Package: `packages/ext/claude-code`
+
+- **Error Reporting Enhancement** — Rich error feedback with call stacks and source context
+  - Call stacks with function names and line numbers
+  - Source code snippets with caret indicators at error location
+  - LSP-compatible error data structure (`location`, `range`, `message`)
+  - Contextual suggestions for common errors
   - Error codes map to documentation links via `getHelpUrl(code)`
-  - Two-phase error rendering: machine-readable data then human presentation
-  - Supports embedded line/column tracking for multi-line expressions
-  - Initiative: `error-reporting-enhancement` (phases 1-5 complete)
 
-- **Function Metadata Enhancement** — Return type declarations and documentation validation for host functions
-  - `returnType` field on `HostFunctionDefinition`: `'string' | 'number' | 'bool' | 'list' | 'dict' | 'any'`
-  - Defaults to `'any'` when omitted; validated at registration time
-  - Invalid return types throw `Error` with descriptive message
-  - `requireDescriptions` option in `RuntimeOptions` enforces documentation at registration
-  - Missing function description throws: `Function 'name' requires description`
-  - Missing parameter description throws: `Parameter 'x' of function 'name' requires description`
+- **Function Metadata** — Return type declarations and documentation validation for host functions
+  - `returnType` on `HostFunctionDefinition`: `'string' | 'number' | 'bool' | 'list' | 'dict' | 'any'`
+  - `requireDescriptions` option enforces function and parameter descriptions at registration
   - `getDocumentationCoverage(ctx)` returns `{ total, documented, percentage }` metrics
-  - Function documented when: non-empty description AND all params have non-empty descriptions
-  - Empty context returns `{ total: 0, documented: 0, percentage: 100 }`
   - `FunctionMetadata.returnType` field added to introspection API
   - New type exported: `RillFunctionReturnType`
 
 ### Changed
 
-- **Code duplication removal via function extraction** — Eliminates 32 duplicated lines across 5 files in core parser and CLI packages; three targeted function extractions improve maintainability without behavior changes
-  - `isIdentifierOrKeyword()` in `packages/core/src/parser/helpers.ts` (exported) consolidates 13-line identifier validation logic; fixes existing bug where PASS token was missing from `parser-functions.ts` validation
-  - `detectHelpVersionFlag()` in `packages/cli/src/cli-shared.ts` consolidates 6-line --help/--version detection logic from `cli-check.ts` and `cli-exec.ts` with consistent help precedence rule
-  - `isValidSpan()` in `packages/cli/src/check/rules/formatting.ts` (private helper) consolidates 15-line span validation logic from validate and fix methods in SPACING_BRACKETS rule
-  - Zero regression: 3,417 tests pass; 46 unit tests verify edge cases for new functions
-  - Initiative: `code-duplication-removal` (phase 2 complete)
+- **Documentation file naming** — Semantic category prefixes replace numeric prefixes
+  - `00_INDEX.md` → `index.md`, `01_guide.md` → `guide-getting-started.md`, etc.
+  - Prefixes: `guide-*`, `topic-*`, `ref-*`, `integration-*`
+  - Split `integration-host.md` (1200+ lines) into `integration-host.md` + `ref-host-api.md`
+  - Fixed 5 factual errors and 3 invalid rill syntax strings in error registry
+  - Updated 112 cross-references across 47 files
 
-- **Monorepo package structure with pnpm workspaces** — Restructures @rcrsr/rill into focused packages with independent versioning and release cycles
-  - Core runtime: `@rcrsr/rill` in `packages/core` with zero production dependencies
-  - CLI tools: `@rcrsr/rill-cli` in `packages/cli` depends on core + yaml for configuration support
-  - Extension template: `@rcrsr/rill-ext-example` in `packages/ext/example`
-  - TypeScript project references enable topological build ordering and type-aware cross-package compilation
-  - Workspace delegation: `pnpm run -r build`, `pnpm run -r test`, `pnpm run -r check` commands orchestrate all packages
-  - Git history preserved: all file moves maintain attribution via `git log --follow` across package relocations
-  - Test coverage maintained: 3,376 tests pass across 5 packages with shared test infrastructure
-  - Release automation: GitHub Actions publishes packages to npm with `--access public` and npm provenance verification
-  - Independent package versions: Each package maintains separate `version` in `package.json` for flexibility
-  - Package discovery: Root `package.json` workspaces array defines `packages/*` and `packages/ext/*` structure
-  - Initiative: `monorepo-migration` (6 phases complete, phases 1-6)
+- **Monorepo structure with pnpm workspaces** — Independent packages with separate versioning
+  - `@rcrsr/rill` in `packages/core` (zero production dependencies)
+  - `@rcrsr/rill-cli` in `packages/cli` (depends on core + yaml)
+  - `@rcrsr/rill-ext-example` in `packages/ext/example`
+  - TypeScript project references for topological builds
+  - GitHub Actions publish to npm with provenance verification
 
-- **Capture arrow syntax migration to `=>`** — Operator changed from `:>` to `=>` for ligature font support
-  - Lexer now emits `CAPTURE_ARROW` tokens for `=>` via `TWO_CHAR_OPERATORS` table
-  - Deprecated `:>` syntax rejected by parser with migration error `RILL-P006`
-  - New syntax enables ligatures in modern programming fonts: Fira Code, JetBrains Mono, Cascadia Code
-  - Maintains alignment with common programming conventions (JavaScript, Python, other languages)
-  - Updated 1136 occurrences across test files and 596 occurrences in documentation
-  - Backward-incompatible change: existing code using `:>` requires migration to `=>`
+- **Code deduplication** — 3 function extractions eliminate 32 duplicated lines across 5 files
+  - `isIdentifierOrKeyword()` — consolidates identifier validation; fixes missing PASS token bug
+  - `detectHelpVersionFlag()` — consolidates --help/--version detection in CLI
+  - `isValidSpan()` — consolidates span validation in SPACING_BRACKETS rule
 
-- **Error handling coverage** — Unified error system using RILL-XXXX identifiers
-  - Removed legacy `code` field from `RillError` class; `errorId` is sole identifier
-  - Migrated 161 call sites from dual-field to errorId-only signatures
-  - Removed `legacyCode` from `ErrorDefinition`, `getByLegacyCode()` from registry
-  - Deleted `RILL_ERROR_CODES` constant and `RillErrorCode` type
-  - File coverage increased from 48% (35/73) to 80% (58/73)
-  - Static analysis module coverage increased from 21% to 80%
+- **Error system cleanup** — Unified RILL-XXXX error identifiers
+  - Removed legacy `code` field from `RillError`; `errorId` is sole identifier
+  - Migrated 161 call sites to errorId-only signatures
+  - Error coverage: 48% → 80% of files, static analysis: 21% → 80%
 
 ## [0.5.0] - 2026-02-03
 

@@ -43,6 +43,36 @@ export default [
     },
   },
   {
+    files: ['**/*.tsx'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        ...globals.browser,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-unused-vars': 'off',
+      'no-undef': 'off', // TypeScript handles this
+    },
+  },
+  {
     files: ['**/src/generated/introspection-data.ts'],
     rules: {
       'no-useless-escape': 'off', // Auto-generated docs with literal $ characters

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="rill logo" width="280">
+  <img src="docs/assets/rill.png" alt="Rill logo" width="280">
 </p>
 
 *The workflow language designed for LLMs*
