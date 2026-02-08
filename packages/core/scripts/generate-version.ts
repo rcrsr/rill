@@ -88,6 +88,9 @@ export const VERSION_INFO: VersionInfo = {
 };
 `;
 
+  // Ensure output directory exists
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+
   // Write output file
   fs.writeFileSync(outputPath, output, 'utf-8');
 
