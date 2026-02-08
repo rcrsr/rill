@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (web)
+
+- **Fully generated `content/docs/`** — `sync-docs.sh` now generates all files including section `_index.md` and docs hub; no committed files remain in `content/docs/`
+
 ## [0.7.0] - 2026-02-08
 
 ### Removed

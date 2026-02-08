@@ -7,8 +7,19 @@ set -euo pipefail
 DOCS_DIR="$(cd "$(dirname "$0")/../../../docs" && pwd)"
 CONTENT_DIR="$(cd "$(dirname "$0")/.." && pwd)/content/docs"
 
-# Clean generated docs (preserve _index.md files)
-find "$CONTENT_DIR" -name '*.md' ! -name '_index.md' -delete 2>/dev/null || true
+# Wipe and recreate content/docs/ from scratch
+rm -rf "$CONTENT_DIR"
+mkdir -p "$CONTENT_DIR"
+
+# Section definitions: key → "title|description|weight"
+declare -A SECTION_MAP=(
+  ["guide"]="Guide|Getting started with rill — tutorials, examples, and conventions|1"
+  ["language"]="Language|rill language topics — types, variables, control flow, operators, closures|2"
+  ["data"]="Data & Collections|Working with data in rill — collections, iterators, strings, parsing|3"
+  ["integration"]="Integration|Embedding rill in applications — host API, extensions, modules, CLI|4"
+  ["extensions"]="Extensions|Pre-built extensions shipped with rill|5"
+  ["reference"]="Reference|rill reference documentation — language spec, host API, errors|6"
+)
 
 # File mapping: source-prefix → target-dir/target-name weight
 declare -A FILE_MAP=(
@@ -64,6 +75,45 @@ declare -A LINK_MAP=(
   ["index.md"]="/docs/"
 )
 
+echo "Syncing docs from $DOCS_DIR to $CONTENT_DIR"
+
+# Generate docs hub _index.md
+cat > "$CONTENT_DIR/_index.md" << 'EOF'
+---
+title: Documentation
+description: "rill language documentation — guides, references, and integration"
+weight: 1
+---
+
+Embeddable, sandboxed scripting to power AI agents.
+
+{{< cards >}}
+  {{< card link="guide" title="Guide" subtitle="Getting started, examples, and conventions" >}}
+  {{< card link="language" title="Language" subtitle="Types, variables, control flow, operators, closures" >}}
+  {{< card link="data" title="Data & Collections" subtitle="Iterators, strings, parsing, collection operators" >}}
+  {{< card link="integration" title="Integration" subtitle="Host embedding, modules, CLI" >}}
+  {{< card link="extensions" title="Extensions" subtitle="Pre-built extensions shipped with rill" >}}
+  {{< card link="reference" title="Reference" subtitle="Language spec, host API, error reference" >}}
+{{< /cards >}}
+EOF
+
+# Generate section _index.md files from SECTION_MAP
+for section in "${!SECTION_MAP[@]}"; do
+  IFS='|' read -r title description weight <<< "${SECTION_MAP[$section]}"
+  local_dir="$CONTENT_DIR/$section"
+  mkdir -p "$local_dir"
+  cat > "$local_dir/_index.md" << SEOF
+---
+title: "$title"
+description: "$description"
+weight: $weight
+sidebar:
+  open: true
+---
+SEOF
+done
+
+# Process source docs into Hugo content
 process_file() {
   local src="$1"
   local basename
@@ -113,21 +163,15 @@ process_file() {
   echo "  $basename → $target_path"
 }
 
-echo "Syncing docs from $DOCS_DIR to $CONTENT_DIR"
-
 for src in "$DOCS_DIR"/*.md; do
   process_file "$src"
 done
 
-# Generate section _index.md link lists from synced pages
+# Append child link lists to section _index.md files
 generate_section_links() {
   local section_dir="$1"
   local index_file="$section_dir/_index.md"
   [[ -f "$index_file" ]] || return
-
-  # Extract frontmatter (first --- through second ---, inclusive)
-  local frontmatter
-  frontmatter="$(awk '/^---$/{n++; print; if(n==2) exit; next} n>=1{print}' "$index_file")"
 
   # Collect child pages as links
   local links=""
@@ -141,13 +185,11 @@ generate_section_links() {
     links="${links}- [${child_title}](${child_slug}/) — ${child_desc}\n"
   done
 
-  # Rewrite _index.md: frontmatter + links
+  # Append links to _index.md
   {
-    echo "$frontmatter"
     echo ""
     echo -e "$links"
-  } > "${index_file}.tmp"
-  mv "${index_file}.tmp" "$index_file"
+  } >> "$index_file"
 }
 
 for section_dir in "$CONTENT_DIR"/*/; do

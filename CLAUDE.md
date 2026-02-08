@@ -104,6 +104,30 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 
 Start at @docs/index.md for full navigation.
 
+### Web Docs (packages/web)
+
+The `docs/` directory is the source of truth. `packages/web/content/docs/` pages are generated.
+
+**Never edit generated files directly.** Edit `docs/*.md`, then run `pnpm sync-docs` from `packages/web/`.
+
+`packages/web/content/docs/` is fully generated — never edit it directly.
+
+`packages/web/scripts/sync-docs.sh` transforms source docs into Hugo content:
+- SECTION_MAP defines section `_index.md` frontmatter (title, description, weight)
+- FILE_MAP controls source-to-section routing and sidebar weight
+- LINK_MAP rewrites `(filename.md)` links to Hugo paths
+- The docs hub `_index.md` (with cards shortcode) is a heredoc in the script
+
+To add a new doc page:
+1. Create `docs/my-topic.md` with H1 title on line 1, italic subtitle on line 3
+2. Add entries to FILE_MAP and LINK_MAP in `sync-docs.sh`
+3. Run `pnpm sync-docs` from `packages/web/` to verify
+
+To add a new section:
+1. Add an entry to SECTION_MAP in `sync-docs.sh`
+2. Route source files to the section via FILE_MAP in `sync-docs.sh`
+3. Run `pnpm sync-docs` from `packages/web/` to verify
+
 ## Documentation Examples
 
 **Fence types:**

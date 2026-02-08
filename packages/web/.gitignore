@@ -1,10 +1,4 @@
-content/docs/guide/*.md
-content/docs/language/*.md
-content/docs/data/*.md
-content/docs/integration/*.md
-content/docs/extensions/*.md
-content/docs/reference/*.md
-!content/docs/**/_index.md
+content/docs/
 data/version.json
 static/fiddle/
 public/
