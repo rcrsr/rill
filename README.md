@@ -1,21 +1,21 @@
 <p align="center">
-  <img src="docs/assets/rill.png" alt="Rill logo" width="280">
+  <img src="docs/assets/rill.png" alt="rill logo" width="280">
 </p>
 
-*The workflow language designed for LLMs*
+*Embeddable, sandboxed scripting to power AI agents*
 
 > [!WARNING]
 > **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
 
 ## The Problem
 
-Give an LLM a general-purpose language and you get unpredictable edge cases — state drift from mutable variables, runaway loops, silent misgeneration that passes a linter but fails at runtime. The more expressive the language, the more ways generated code can go wrong. LLMs don't benefit from expressiveness the way humans do. A human might prefer Python's flexibility. An LLM just needs unambiguous rules and guardrails that make wrong code unrepresentable.
+LLM-generated code runs inside your application. A general-purpose runtime gives that code access to filesystems, networks, and process state — one prompt injection away from data exfiltration or destructive side effects. Sandboxing after the fact requires maintaining a denylist that grows with every new API surface.
 
-Rill treats codegen reliability as a first-class design constraint. It's a language *for LLMs* that humans can read, audit, and learn — but the primary developer is meant to be an agent.
+rill eliminates these risks at the language level. No capabilities exist unless the host explicitly provides them. No null, no implicit coercion, no exceptions — invalid states are unrepresentable. The host controls the entire function surface, not just what's blocked.
 
-Rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, user-authored logic — except the "user" is increasingly an LLM.
+rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, embeddable scripting — except the "user" authoring code is increasingly an LLM.
 
-## Why Rill?
+## Why rill?
 
 - **Embeddable.** Zero dependencies. [Integration](docs/integration-host.md) takes a few lines of code, browser or backend.
 - **Sandboxed.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
@@ -26,11 +26,11 @@ Rill solves for AI platforms what Lua solves for game engines and Liquid solves 
 
 ## Who Is This For?
 
-**Agentic or Workflow Platform builders** who want safe, LLM-authored workflows inside their apps.
+**Agent and platform developers** who want safe, LLM-authored scripting inside their apps.
 
-Rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
+rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
 
-Rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
+rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
 
 ## Quick Start
 
@@ -171,7 +171,7 @@ These aren't arbitrary constraints — they're guardrails for reliable codegen.
 
 ## What Our Target Users Say
 
-We asked LLMs to review Rill. They had opinions.
+We asked LLMs to review rill. They had opinions.
 
 > "Disciplined to the point of stubbornness, but in a good way. It trades familiarity for predictability."
 > — ChatGPT
@@ -216,7 +216,7 @@ See [docs/index.md](docs/index.md) for full navigation.
 | [Reference](docs/ref-language.md) | Language specification |
 | [Examples](docs/guide-examples.md) | Workflow patterns |
 | [Host Integration](docs/integration-host.md) | Embedding API |
-| [Design Principles](docs/topic-design-principles.md) | Why Rill works the way it does |
+| [Design Principles](docs/topic-design-principles.md) | Why rill works the way it does |
 
 ## License
 

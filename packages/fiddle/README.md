@@ -10,11 +10,11 @@ The fiddle package provides a web UI for writing and executing rill scripts in t
 
 The CodeMirror 6 editor includes:
 
-- **Theme switching** - Light and dark modes with WCAG AA compliant colors (4.5:1 minimum contrast ratio)
+- **Dark-only theme** - Brand neon spectrum on void background with WCAG AA contrast ratios
 - **2-space indentation** - Configured via `indentUnit.of('  ')` extension
 - **Tab key binding** - Tab inserts 2 spaces (per rill conventions), Shift+Tab dedents
 - **JetBrains Mono font with ligatures** - Renders `->` as single arrow glyph via `font-variant-ligatures: normal`
-- **Rill-native syntax highlighting** - Real-time tokenization using `@rcrsr/rill` tokenize function and `TOKEN_HIGHLIGHT_MAP`
+- **rill-native syntax highlighting** - Real-time tokenization using `@rcrsr/rill` tokenize function and `TOKEN_HIGHLIGHT_MAP`
 
 ## Highlight Map Usage
 

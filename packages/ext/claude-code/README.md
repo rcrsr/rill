@@ -1,6 +1,6 @@
 # @rcrsr/rill-ext-claude-code
 
-Rill extension for executing [Claude Code](https://docs.anthropic.com/en/docs/claude-code) operations from rill scripts. Provides `prompt`, `skill`, and `command` host functions with streaming output parsing, token tracking, and process lifecycle management.
+rill extension for executing [Claude Code](https://docs.anthropic.com/en/docs/claude-code) operations from rill scripts. Provides `prompt`, `skill`, and `command` host functions with streaming output parsing, token tracking, and process lifecycle management.
 
 > **Experimental.** Breaking changes will occur until v1.0.
 

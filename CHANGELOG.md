@@ -40,9 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Rill Fiddle** — Browser-based playground at `packages/fiddle` (private, not published)
+- **rill fiddle** — Browser-based playground at `packages/fiddle` (private, not published)
   - Client-side execution with React 19, CodeMirror 6, and Vite 7
-  - Rill syntax highlighting, JetBrains Mono with ligatures, dark/light theme
+  - rill syntax highlighting, JetBrains Mono with ligatures, dark/light theme
   - Verbose error display with cause, resolution, and documentation links
   - 5 built-in examples, resizable split pane, Cmd/Ctrl+Enter to run
   - 414 tests across 16 test files
@@ -221,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Documentation** — Added rill cookbook with workflow orchestration patterns
+- **Documentation** — Added rill cookbook with agent scripting patterns
   - `docs/19_cookbook.md`: Advanced patterns for multi-step workflows
   - Updated README with refined LLM feedback quotes
 
@@ -446,7 +446,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Static Analysis Tool** — `rill-check` CLI for linting Rill scripts
+- **Static Analysis Tool** — `rill-check` CLI for linting rill scripts
   - 25 validation rules across 9 categories: naming, flow, collections, loops, conditionals, closures, types, strings, formatting
   - Auto-fix support via `--fix` flag for fixable issues
   - Configuration file support (`.rillcheck.json`) for enabling/disabling rules
@@ -462,13 +462,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Strings**: `.empty` over `== ""`
     - **Formatting**: spacing, indentation, implicit `$` patterns
 
-- **CLI Commands** — Two new commands for executing Rill scripts from the command line
-  - `rill-exec <file> [args...]` — Execute a Rill script file with arguments
+- **CLI Commands** — Two new commands for executing rill scripts from the command line
+  - `rill-exec <file> [args...]` — Execute a rill script file with arguments
     - Arguments passed as `$` list (all strings, no type conversion)
     - Stdin support: `rill-exec -` reads script from stdin
     - Module imports via `use:` frontmatter declarations
     - Exit codes: `true`/non-empty → 0, `false`/empty → 1, `[code, msg]` → custom
-  - `rill-eval <expression>` — Evaluate a Rill expression directly
+  - `rill-eval <expression>` — Evaluate a rill expression directly
     - `$` initialized to empty list `[]`
     - No module imports (inline evaluation only)
   - Both support `--help` and `--version` flags

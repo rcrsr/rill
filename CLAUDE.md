@@ -1,6 +1,6 @@
 ## Monorepo Structure
 
-Rill uses pnpm workspaces with the following package organization:
+rill uses pnpm workspaces with the following package organization:
 
 | Package | NPM Name | Purpose |
 |---------|----------|---------|
@@ -55,7 +55,7 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Release Process
 
-Rill uses a manual release process via `scripts/release.sh`. The script:
+rill uses a manual release process via `scripts/release.sh`. The script:
 
 1. Verifies clean working directory and main branch
 2. Builds all packages (`pnpm run -r build`)

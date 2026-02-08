@@ -1,6 +1,6 @@
 # @rcrsr/rill
 
-Embeddable runtime for the [rill](https://github.com/rcrsr/rill) workflow language. Zero dependencies. Browser and Node.js compatible.
+Embeddable, sandboxed scripting runtime for [rill](https://github.com/rcrsr/rill). Zero dependencies. Browser and Node.js compatible.
 
 > **Experimental.** Breaking changes will occur until v1.0.
 

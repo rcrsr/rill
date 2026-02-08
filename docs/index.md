@@ -55,7 +55,7 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 
 1. **New to rill?** Start with the [Guide](guide-getting-started.md) for core concepts
 2. **Building workflows?** See [Examples](guide-examples.md) for patterns
-3. **Advanced patterns?** Check the [Cookbook](cookbook.md) for orchestration techniques
+3. **Advanced patterns?** Check the [Cookbook](cookbook.md) for agent scripting patterns
 4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](integration-host.md)
 6. **Packaging functions?** See [Extensions](integration-extensions.md)
