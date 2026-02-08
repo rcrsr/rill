@@ -15,6 +15,7 @@ import { type JSX, useEffect, useState, useCallback, useRef } from 'react';
 import { Editor, Output, Toolbar, SplitPane, type ExecutionState } from './components/index.js';
 import { executeRill } from './lib/execution.js';
 import { loadEditorState, persistEditorState, type EditorState } from './lib/persistence.js';
+import { readSourceFromURL, copyLinkToClipboard } from './lib/sharing.js';
 import type { CodeExample } from './lib/examples.js';
 
 // ============================================================
@@ -36,6 +37,8 @@ export function App(): JSX.Element {
   });
   const [errorLine, setErrorLine] = useState<number | null>(null);
   const isExecutingRef = useRef<boolean>(false);
+  const [copyLinkState, setCopyLinkState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ============================================================
   // PERSISTENCE
@@ -48,6 +51,18 @@ export function App(): JSX.Element {
     };
     persistEditorState(state);
   }, [editorState.splitRatio, source]);
+
+  // ============================================================
+  // URL SHARING
+  // ============================================================
+
+  useEffect(() => {
+    readSourceFromURL().then((sharedSource) => {
+      if (sharedSource) {
+        setSource(sharedSource);
+      }
+    });
+  }, []);
 
   // ============================================================
   // EVENT HANDLERS
@@ -90,6 +105,32 @@ export function App(): JSX.Element {
     setSource(value);
   }, []);
 
+  const handleCopyLink = useCallback(async () => {
+    // Clear any existing feedback timer
+    if (copyFeedbackTimerRef.current !== null) {
+      clearTimeout(copyFeedbackTimerRef.current);
+      copyFeedbackTimerRef.current = null;
+    }
+
+    // Copy link to clipboard
+    const result = await copyLinkToClipboard(source);
+
+    // Set feedback state based on result
+    if (result.status === 'copied') {
+      setCopyLinkState('copied');
+    } else {
+      setCopyLinkState('error');
+    }
+
+    // Reset to idle after 2 seconds
+    const timerId = setTimeout(() => {
+      setCopyLinkState('idle');
+      copyFeedbackTimerRef.current = null;
+    }, 2000);
+
+    copyFeedbackTimerRef.current = timerId;
+  }, [source]);
+
   // ============================================================
   // RENDER
   // ============================================================
@@ -99,6 +140,8 @@ export function App(): JSX.Element {
       <Toolbar
         onRun={handleRun}
         onExampleSelect={handleExampleSelect}
+        onCopyLink={handleCopyLink}
+        copyLinkState={copyLinkState}
         disabled={executionState.status === 'running'}
       />
 

@@ -235,6 +235,100 @@ describe('Toolbar', () => {
   });
 
   // ============================================================
+  // Copy Link Button
+  // ============================================================
+
+  describe('Copy Link button', () => {
+    it('not rendered when onCopyLink undefined', () => {
+      const { container } = render(<Toolbar {...defaultProps} />);
+      const shareButton = container.querySelector('.toolbar-share');
+      expect(shareButton).toBeNull();
+    });
+
+    it('rendered when onCopyLink provided', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
+      );
+      const shareButton = container.querySelector('.toolbar-share');
+      expect(shareButton).toBeDefined();
+    });
+
+    it('triggers onCopyLink on click', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+
+      fireEvent.click(shareButton);
+      expect(mockOnCopyLink).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows "Copied!" text when copyLinkState is copied', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="copied" />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+      expect(shareButton.textContent).toContain('Copied!');
+    });
+
+    it('shows "Error" text when copyLinkState is error', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="error" />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+      expect(shareButton.textContent).toContain('Error');
+    });
+
+    it('shows "Share" text when copyLinkState is idle', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="idle" />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+      expect(shareButton.textContent).toContain('Share');
+    });
+
+    it('disabled when disabled prop is true', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} disabled={true} />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+      expect(shareButton.disabled).toBe(true);
+    });
+
+    it('has accessible ARIA label', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
+      );
+      const shareButton = container.querySelector('[aria-label="Copy shareable link"]');
+      expect(shareButton).toBeDefined();
+    });
+
+    it('does not trigger callback when disabled', () => {
+      const mockOnCopyLink = vi.fn();
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} disabled={true} />
+      );
+      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+
+      fireEvent.click(shareButton);
+      expect(mockOnCopyLink).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
   // Accessibility
   // ============================================================
 

@@ -198,6 +198,42 @@ body {
   cursor: not-allowed;
 }
 
+.toolbar-share-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.toolbar-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--void-border);
+  background: var(--void-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.toolbar-share:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.toolbar-share:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+}
+
+.toolbar-share:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .toolbar-spacer {
   flex: 1;
 }

@@ -27,6 +27,10 @@ export interface ToolbarProps {
   onRun: () => void;
   /** Callback when example is selected */
   onExampleSelect: (example: CodeExample) => void;
+  /** Callback when Copy Link button is clicked */
+  onCopyLink?: () => void;
+  /** Feedback state for copy link button */
+  copyLinkState?: 'idle' | 'copied' | 'error';
   /** Disable Run button during execution */
   disabled?: boolean;
   /** ARIA label for toolbar */
@@ -58,6 +62,8 @@ const IS_MAC =
 export function Toolbar({
   onRun,
   onExampleSelect,
+  onCopyLink,
+  copyLinkState = 'idle',
   disabled = false,
   ariaLabel = 'Toolbar',
 }: ToolbarProps): JSX.Element {
@@ -113,6 +119,25 @@ export function Toolbar({
           ) : null;
         })}
       </select>
+
+      {/* Copy Link Button */}
+      {onCopyLink && (
+        <>
+          <div className="toolbar-separator" />
+          <button
+            type="button"
+            onClick={onCopyLink}
+            disabled={disabled}
+            aria-label="Copy shareable link"
+            className="toolbar-share"
+          >
+            <svg className="toolbar-share-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 8L10 2M10 2H6M10 2V6M10 10H2V4" />
+            </svg>
+            {copyLinkState === 'copied' ? 'Copied!' : copyLinkState === 'error' ? 'Error' : 'Share'}
+          </button>
+        </>
+      )}
 
       {/* Spacer */}
       <div className="toolbar-spacer" />

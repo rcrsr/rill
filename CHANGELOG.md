@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Share button (fiddle)** — Encodes editor source into a `?code=` URL query param via gzip + base64url; copies shareable link to clipboard with feedback states
 - **Multi-line conditionals** — `?` and `!` now work as line-continuation tokens, matching `->` and `=>`
 
 ### Changed (ext/claude-code)
