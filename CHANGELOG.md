@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-02-07
+
+### Changed
+
+- **Release workflow** — OIDC trusted publishing replaces `NPM_TOKEN` secret; provenance generated automatically
+- **Release workflow** — Node 20 → 24 (required for npm CLI >= 11.5.1)
+- **Release pipeline** — `@rcrsr/rill-ext-claude-code` replaces `@rcrsr/rill-ext-example` in publish and tag steps
+- **Build** — Core build script auto-generates version data before `tsc`
+
+### Fixed
+
+- **Generated files** — Removed tracked generated files from git; fixed gitignore pattern for nested paths
+- **Version lockstep test** — New test asserts `core`, `cli`, and `fiddle` share the same version
+- **Tag count assertion** — Fixed pre-existing bug expecting 4 tags instead of 3
+
+## [0.6.0] - 2026-02-07
+
 ### Breaking
 
 - **Capture arrow `=>` replaces `:>`** — Enables ligatures in programming fonts; `:>` rejected with `RILL-P006`
@@ -34,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Documentation** — Semantic file naming (`guide-*`, `topic-*`, `ref-*`, `integration-*`), split host integration into two files
-- **Monorepo** — pnpm workspaces with `@rcrsr/rill`, `@rcrsr/rill-cli`, `@rcrsr/rill-ext-example`
+- **Monorepo** — pnpm workspaces with `@rcrsr/rill`, `@rcrsr/rill-cli`, `@rcrsr/rill-ext-claude-code`
 - **Error system** — Unified `errorId` replaces legacy `code` field; 80% error coverage
 - **Code deduplication** — 3 extractions (`isIdentifierOrKeyword`, `detectHelpVersionFlag`, `isValidSpan`)
 
@@ -769,7 +786,9 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/rcrsr/rill/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/rcrsr/rill/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rcrsr/rill/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/rcrsr/rill/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/rcrsr/rill/compare/v0.4.3...v0.4.4
