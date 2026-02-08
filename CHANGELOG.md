@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-08
+
 ### Removed
 
 - **BREAKING: Built-in parsing functions** — `parse_json`, `parse_auto`, `parse_xml`, `parse_fence`, `parse_fences`, `parse_frontmatter`, `parse_checklist` removed from core. Scripts using these functions will receive `RUNTIME_UNDEFINED_FUNCTION`. Parsing will return as a dedicated extension package.
 - **CLI `parse_` prefix detection** — `VALIDATE_EXTERNAL` lint rule no longer flags `parse_*` functions as external data sources
+
+### Fixed
+
+- **Conditional terminator parsing** — `break`/`return` inside `? ` conditionals no longer consumes the next line's parenthesized expression as an invocation
 
 ### Added
 
