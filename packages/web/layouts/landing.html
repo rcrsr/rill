@@ -31,9 +31,9 @@
     </div>
   </section>
 
-  <!-- Pipe flow divider -->
+  <!-- Divider -->
   <div class="pipe-divider" aria-hidden="true">
-    <div class="pipe-flow"></div>
+    <div class="pipe-line"></div>
   </div>
 
   <!-- Features — asymmetric two-column layout -->
@@ -386,7 +386,7 @@
     border-color: rgba(34, 211, 238, 0.2);
   }
 
-  /* ---- Pipe flow divider ---- */
+  /* ---- Divider ---- */
 
   .pipe-divider {
     max-width: 960px;
@@ -394,27 +394,9 @@
     padding: 0 1.5rem;
   }
 
-  .pipe-flow {
+  .pipe-line {
     height: 1px;
     background: var(--void-border);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .pipe-flow::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -40%;
-    width: 40%;
-    height: 100%;
-    background: var(--pipe-gradient-h);
-    animation: pipe-flow 3s ease-in-out infinite;
-  }
-
-  @keyframes pipe-flow {
-    0% { left: -40%; }
-    100% { left: 100%; }
   }
 
   /* ---- Features — staggered two-column ---- */
@@ -729,7 +711,6 @@
     .hero-subtitle { animation: none; opacity: 1; }
     .hero-cta { animation: none; opacity: 1; }
     .hero-install { animation: none; opacity: 1; }
-    .pipe-flow::after { animation: none; opacity: 0.5; left: 30%; }
     .feature-card { animation: none; opacity: 1; transform: none; }
     .landing-atmosphere { animation: none; }
     .hero::before { animation: none; }
