@@ -78,4 +78,21 @@ export default [
       'no-useless-escape': 'off', // Auto-generated docs with literal $ characters
     },
   },
+  {
+    files: [
+      'packages/fiddle/src/**/*.ts',
+      'packages/fiddle/src/**/*.tsx',
+      'src/**/*.ts', // When run from packages/fiddle
+      'src/**/*.tsx', // When run from packages/fiddle
+    ],
+    ignores: ['packages/core/**', 'packages/cli/**', 'packages/ext/**'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-undef': 'off', // TypeScript handles this
+    },
+  },
 ];
