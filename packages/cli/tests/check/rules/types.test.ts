@@ -53,15 +53,6 @@ function hasViolations(source: string, config?: CheckConfig): boolean {
   return diagnostics.length > 0;
 }
 
-/**
- * Validate source and get diagnostic codes.
- */
-function getCodes(source: string, config?: CheckConfig): string[] {
-  const ast = parse(source);
-  const diagnostics = validateScript(ast, source, config ?? createConfig());
-  return diagnostics.map((d) => d.code);
-}
-
 // ============================================================
 // UNNECESSARY_ASSERTION TESTS
 // ============================================================
@@ -164,15 +155,6 @@ describe('UNNECESSARY_ASSERTION', () => {
 describe('VALIDATE_EXTERNAL', () => {
   const config = createConfig({ UNNECESSARY_ASSERTION: 'off' });
 
-  it('recommends validation for parse functions', () => {
-    const source = 'parse_json($input)';
-
-    const messages = getDiagnostics(source, config);
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0]).toContain('Consider validating external input');
-    expect(messages[0]).toContain('parse_json');
-  });
-
   it('recommends validation for fetch functions', () => {
     const source = 'fetch_data($url)';
 
@@ -194,7 +176,7 @@ describe('VALIDATE_EXTERNAL', () => {
   });
 
   it('has correct severity and code', () => {
-    const source = 'parse_json($input)';
+    const source = 'fetch_data($url)';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -204,7 +186,7 @@ describe('VALIDATE_EXTERNAL', () => {
   });
 
   it('does not provide auto-fix', () => {
-    const source = 'parse_json($input)';
+    const source = 'fetch_data($url)';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 
@@ -213,7 +195,7 @@ describe('VALIDATE_EXTERNAL', () => {
   });
 
   it('does not warn when already type-asserted (simple case)', () => {
-    const source = 'parse_json($input):dict';
+    const source = 'fetch_data($url):dict';
 
     const violations = hasViolations(source, config);
     expect(violations).toBe(false);
@@ -241,17 +223,11 @@ describe('VALIDATE_EXTERNAL', () => {
     expect(violations).toBe(false);
   });
 
-  it('does not warn when parse_ function is type-asserted', () => {
-    const source = 'parse_auto($text):dict';
+  it('does not warn for parse_ prefix functions (transformations, not external data)', () => {
+    // parse_* functions are transformations, not external data sources
+    const source = 'parse_something($text)';
 
     const violations = hasViolations(source, config);
     expect(violations).toBe(false);
-  });
-
-  it('warns when parse_ function is not type-asserted', () => {
-    const source = 'parse_auto($text)';
-
-    const violations = hasViolations(source, config);
-    expect(violations).toBe(true);
   });
 });

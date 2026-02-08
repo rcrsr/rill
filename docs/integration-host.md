@@ -199,7 +199,7 @@ Scripts call namespaced functions with the same syntax:
 ```rill
 math::add(1, 2)           # 3
 "hello" -> str::upper     # "HELLO"
-io::file::read("config.json") -> parse_json
+io::file::read("config.json")
 ```
 
 Namespaces help organize host APIs and avoid name collisions without requiring the `$` variable prefix.

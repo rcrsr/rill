@@ -1,5 +1,5 @@
 (* rill v0.4.5 Grammar - EBNF Notation *)
-(* Embeddable, sandboxed scripting language for AI agents *)
+(* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
 (* DESIGN PRINCIPLES                                            *)
@@ -340,18 +340,9 @@ host-name = identifier , { "::" , identifier } ;
                  - type($value)  -- returns type name: "string", "number", "bool", "closure", "list", "dict", "tuple"
                  - log($value)   -- logs value using .str, returns value unchanged (passthrough)
                  - json($value)  -- converts any value to JSON string
-                 - parse_json($text) -- parses JSON string to value (with repair)
                  - identity($value) -- returns value unchanged
                  - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
                  - repeat(value, count) -- iterator repeating value count times
-
-                 Content parsing functions (built-in):
-                 - parse_auto($text)  -- auto-detect and parse structured content
-                 - parse_xml($text, tag?) -- extract content from XML tags
-                 - parse_fence($text, lang?) -- extract fenced code block content
-                 - parse_fences($text) -- extract all fenced code blocks
-                 - parse_frontmatter($text) -- parse YAML frontmatter and body
-                 - parse_checklist($text) -- parse markdown checklist items
 
                  All other functions are registered by the host via RuntimeContext.functions. *)
 
@@ -761,7 +752,7 @@ grouped-expr   = "(" , pipe-chain , ")" ;
 
 identifier    = ( letter | "_" ) , { letter | digit | "_" } ;
               (* Style: snake_case is idiomatic for identifiers.
-                 Functions: parse_json, replace_all, pad_start
+                 Functions: replace_all, pad_start
                  Variables: $user_name, $total_count, $api_response
                  Methods: .starts_with, .ends_with, .index_of *)
 

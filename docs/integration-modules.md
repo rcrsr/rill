@@ -296,8 +296,8 @@ const ctx = createRuntimeContext({
 Scripts call these directly:
 
 ```rill
-http::get("https://api.example.com") -> parse_json
-fs::read("config.json") -> parse_json => $config
+http::get("https://api.example.com")
+fs::read("config.json") => $config
 ```
 
 ### Host Modules (@host/) — Alternative

@@ -1798,7 +1798,7 @@
         <div class="token-row">
           <div class="token-color" style="background: var(--neon-purple);"></div>
           <div class="token-name">Functions</div>
-          <div class="token-example" style="color: var(--neon-purple);">log() range() parse_json()</div>
+          <div class="token-example" style="color: var(--neon-purple);">log() range() json()</div>
         </div>
         <div class="token-row">
           <div class="token-color" style="background: var(--neon-indigo);"></div>
@@ -1816,7 +1816,7 @@
         <h4>Live Example</h4>
         <div class="code-block" style="margin-top: 0;">
 <span class="cmt"># Transform and filter users</span>
-<span class="str">"users.json"</span> <span class="op">-&gt;</span> <span class="fn">parse_json</span>
+<span class="fn">app::read_json</span>(<span class="str">"users.json"</span>)
   <span class="op">-&gt;</span> <span class="kw">filter</span> { <span class="var">$</span>.active }
   <span class="op">-&gt;</span> <span class="kw">map</span> { .name <span class="op">-&gt;</span> .upper }
   <span class="op">-&gt;</span> <span class="kw">each</span> { <span class="fn">log</span>(<span class="str">"User: {<span class="var">$</span>}"</span>) }
@@ -1993,8 +1993,7 @@
       </div>
       <div class="code-block">
 <span class="cmt"># Fetch, parse, transform, deliver</span>
-<span class="fn">app::fetch</span>(<span class="str">"https://api.example.com/users"</span>)
-  <span class="op">-&gt;</span> <span class="fn">parse_json</span>
+<span class="fn">app::fetch_json</span>(<span class="str">"https://api.example.com/users"</span>)
   <span class="op">-&gt;</span> <span class="kw">filter</span> { .role <span class="op">==</span> <span class="str">"admin"</span> }
   <span class="op">-&gt;</span> <span class="kw">map</span> { [name: .name, email: .email] }
   <span class="op">-&gt;</span> <span class="kw">each</span> { <span class="fn">app::notify</span>(<span class="str">"Alert for {.name}"</span>) }

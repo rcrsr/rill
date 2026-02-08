@@ -22,7 +22,6 @@ rill solves for AI platforms what Lua solves for game engines and Liquid solves 
 - **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
 - **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). No ambiguity for codegen — one way to do each thing.
 - **Intentionally constrained.** No null, no truthiness, sealed scopes, locked types. Removes the degrees of freedom where LLMs misgenerate.
-- **Built-in LLM output parsing.** [Auto-detect](docs/topic-parsing.md) and parse JSON, XML, YAML, checklists from model responses.
 
 ## Who Is This For?
 
@@ -117,25 +116,6 @@ Fan out work concurrently. Results preserve order.
 ```rill
 # Parallel filter with method
 ["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
-```
-
-### LLM Output Parsing
-
-Built-in functions for extracting structured data from LLM responses.
-
-```rill
-# Auto-detect format (JSON, XML, YAML, checklist)
-"[1, 2, 3]" -> parse_auto -> .data  # [1, 2, 3]
-```
-
-```rill
-# Extract fenced code blocks
-"```json\n[1,2]\n```" -> parse_fence("json") -> parse_json
-```
-
-```rill
-# Extract XML tags
-"<answer>42</answer>" -> parse_xml("answer")  # "42"
 ```
 
 ### String Interpolation

@@ -320,7 +320,7 @@ Type assertions (`:type`) are for validation, not conversion:
 
 ```text
 # good: validate external input
-parseJson($input):dict => $data
+fetch_data($url):dict => $data
 
 # unnecessary: type is already known
 5:number => $n
@@ -385,33 +385,6 @@ $result -> .contains(":::ERROR:::") ? {
 $result -> .contains(":::DONE:::") ? {
   "Complete" -> return
 }
-```
-
-## Parsing LLM Output
-
-### Chain parsers for structured extraction
-
-```text
-# extract JSON from code fence
-$response -> parse_fence("json") -> parse_json => $data
-```
-
-### Use parse_auto for unknown formats
-
-```text
-$response -> parse_auto => $parsed
-($parsed.type == "json") ? {
-  $parsed.data
-} ! {
-  error("Expected JSON, got {$parsed.type}")
-}
-```
-
-### Extract XML tags for Claude-style responses
-
-```text
-$response -> parse_xml("thinking") -> log
-$response -> parse_xml("answer") => $answer
 ```
 
 ## Anti-Patterns

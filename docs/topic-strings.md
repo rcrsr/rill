@@ -228,4 +228,3 @@ $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 
 - [Reference](ref-language.md) — Language specification
 - [Collections](topic-collections.md) — String processing with `map`, `filter`, `fold`
-- [Parsing](topic-parsing.md) — Extract structured data from text

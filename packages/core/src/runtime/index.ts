@@ -15,7 +15,6 @@
  *   - equals.ts: AST structural equality (internal)
  * - ext/: Self-contained extensions
  *   - builtins.ts: Built-in functions and methods
- *   - content-parser.ts: LLM output parsing utilities
  */
 
 // ============================================================

@@ -440,11 +440,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Invalid number string',
-        code: '"abc" -> to_number()  # Not a valid number',
+        code: '"abc" -> .num()  # Not a valid number',
       },
       {
-        description: 'Invalid JSON',
-        code: '"{bad json}" -> parse_json()',
+        description: 'Cannot serialize closure',
+        code: 'fn() => "test" end -> json()',
       },
     ],
   },

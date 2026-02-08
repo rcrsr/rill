@@ -347,8 +347,8 @@ Runtime errors occur during script execution when operations fail due to type mi
 # Invalid number string
 "abc" -> to_number()  # Not a valid number
 
-# Invalid JSON
-"{bad json}" -> parse_json()
+# Closure serialization
+json({ "hi" })
 ```
 
 ---

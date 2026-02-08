@@ -157,7 +157,7 @@ function getLiteralType(
  *
  * Detection heuristics:
  * - Host function calls (HostCall nodes)
- * - Parsing functions (parse_json, parse_xml, etc.)
+ * - Functions with fetch/read/load in their name
  * - Variables from external sources ($ARGS, $ENV)
  *
  * This is an informational rule - not all external data needs assertions,
@@ -183,7 +183,6 @@ export const VALIDATE_EXTERNAL: ValidationRule = {
 
     // Check if this is a parsing or external data function
     const isExternalDataFunction =
-      functionName.startsWith('parse_') ||
       functionName.includes('fetch') ||
       functionName.includes('read') ||
       functionName.includes('load');

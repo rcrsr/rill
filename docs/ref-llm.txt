@@ -24,7 +24,6 @@ Use cases:
   - Workflow orchestration: chain LLM calls, API requests, transformations
   - State machines: (cond) @ { } loops with $ as state dict
   - Data pipelines: each/map/filter/fold process collections declaratively
-  - Prompt engineering: parse LLM output with parse_json, parse_xml, parse_fence
 
 State machine pattern ($ carries state through iterations):
   [state: "init", data: $input]
@@ -487,17 +486,6 @@ LIST/DICT METHODS
 .has(val)       list contains value (deep equality)
 .has_any(list)  list contains any value from candidates
 .has_all(list)  list contains all values from candidates
-
-PARSING FUNCTIONS (for LLM output)
-----------------------------------
-
-parse_auto(str)           auto-detect format
-parse_json(str)           parse JSON (repairs common errors)
-parse_xml(str, tag?)      extract XML tag content
-parse_fence(str, lang?)   extract fenced code block
-parse_fences(str)         all fenced blocks as list
-parse_frontmatter(str)    parse --- delimited YAML + body
-parse_checklist(str)      parse markdown task lists
 
 GLOBAL FUNCTIONS
 ----------------

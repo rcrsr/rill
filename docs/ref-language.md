@@ -225,20 +225,6 @@ Terminal closures receive `$` bound to the final path key.
 | List dispatch with non-number | `List dispatch requires number index, got {type}` |
 | Dispatch to non-collection | `Cannot dispatch to {type}` |
 
-### Parsing Functions
-
-| Function | Description |
-|----------|-------------|
-| `parse_auto` | Auto-detect and extract structured content |
-| `parse_json` | Parse JSON with error repair |
-| `parse_xml(tag?)` | Extract content between XML tags |
-| `parse_fence(lang?)` | Extract fenced code block content |
-| `parse_fences` | Extract all fenced blocks as list |
-| `parse_frontmatter` | Parse `---` delimited YAML frontmatter |
-| `parse_checklist` | Parse `- [ ]` and `- [x]` items |
-
-See [Parsing](topic-parsing.md) for detailed documentation.
-
 ### Core Methods
 
 | Method | Input | Output | Description |
@@ -590,5 +576,4 @@ For detailed documentation on specific topics:
 - [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold`
 - [Iterators](topic-iterators.md) — `range`, `repeat`, `.first()`
 - [Strings](topic-strings.md) — String methods
-- [Parsing](topic-parsing.md) — Content parsing
 - [Host Integration](integration-host.md) — Embedding API

@@ -204,7 +204,7 @@ Route values through different processors based on type or content:
 ```text
 # Conceptual - string keys with special chars require dispatch syntax
 [
-  "application/json": |body|{ $body -> parse_json },
+  "application/json": |body|{ $body },
   "text/plain": |body|{ $body -> .trim },
   "text/csv": |body|{ $body -> .lines -> map { .split(",") } }
 ] => $parsers
@@ -609,4 +609,4 @@ $schema.entries -> fold([valid: true, errors: []]) {
 - [Reference](ref-language.md) — Complete language specification
 - [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` details
 - [Closures](topic-closures.md) — Function patterns and binding
-- [Parsing](topic-parsing.md) — Text extraction utilities
+- [Host Integration](integration-host.md) — Embedding API

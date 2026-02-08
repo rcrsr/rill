@@ -2,7 +2,7 @@
 
 *Examples demonstrating core language features for agent scripting*
 
-> **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `parse_json`, `range`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
+> **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `range`, `json`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 
 ## Pure Language Examples
 
@@ -162,75 +162,6 @@ $items -> filter { .contains("error") } -> .len => $count
 # "analyzed: file1.txt\nanalyzed: file2.txt\nanalyzed: file3.txt"
 ```
 
-## Parsing LLM Output
-
-Built-in functions for extracting structured data from LLM responses.
-
-### Auto-Detect with `parse_auto`
-
-`parse_auto` detects and extracts structured content from strings.
-
-```rill
-"<status>ok</status>" -> parse_auto => $result
-
-$result.type -> log        # "xml"
-$result.data.status -> log # "ok"
-```
-
-For XML content, use `parse_xml` for more precise extraction:
-
-```rill
-"<response>200</response>" -> parse_xml("response")
-# "200"
-```
-
-### Process Checklists
-
-```rill
-# parse_checklist extracts checkbox items as [done, text] pairs
-"- [ ] Deploy to staging\n- [x] Run tests\n- [ ] Update docs" -> parse_checklist => $tasks
-
-# Filter incomplete tasks
-$tasks -> filter |task| { !$task.at(0) } -> each |task| {
-  "TODO: " -> log
-  $task.at(1) -> log
-}
-```
-
-### Parse Frontmatter Documents
-
-```rill
-# parse_frontmatter extracts YAML header and body
-"---\ntitle: Guide\nstatus: draft\n---\nContent here" -> parse_frontmatter => $doc
-
-$doc.meta.title -> log    # "Guide"
-$doc.body -> log          # "Content here"
-```
-
-### Multi-Block Extraction
-
-```rill
-# parse_fences extracts all fenced code blocks
-"```python\nprint(1)\n```\n```js\nconsole.log(1)\n```" -> parse_fences -> each {
-  $.lang -> log
-  $.content -> log
-}
-```
-
-### Structured Response Validation
-
-Validate parsed content before use to ensure correct structure.
-
-```rill
-"<status>ok</status>" -> parse_auto => $result
-
-($result.type != "xml") ? {
-  "Expected XML" -> log
-}
-
-$result.data.status -> log # "ok"
-```
-
 ## Args Type and Strict Invocation
 
 Explicit argument unpacking with validation.
@@ -287,50 +218,6 @@ $myArgs -> $fmt()       # "1-2-3"
 ```
 
 ## Workflow Examples (require host functions)
-
-## Parsing LLM Output with Host Functions
-
-Demonstrates parsing functions combined with host-provided LLM calls.
-
-### Extract JSON from Fenced Blocks
-
-```rill
-# LLM returns: "Here's the config:\n```json\n{...}\n```"
-app::prompt("Generate JSON config") -> parse_fence("json") -> parse_json => $config
-
-# Access parsed data
-$config.host -> log
-$config.port -> log
-```
-
-### Extract XML Tags (Claude-Style)
-
-```rill
-# LLM returns: "<thinking>...</thinking><answer>...</answer>"
-app::prompt("Analyze step by step") => $response
-
-# Extract thinking for logging
-$response -> parse_xml("thinking") -> log
-
-# Extract and parse answer
-$response -> parse_xml("answer") -> parse_json => $answer
-```
-
-### Parse Tool Calls
-
-```rill
-"""
-What function should I call?
-Return in format: <tool><name>func</name><args>{...}</args></tool>
-""" -> app::prompt() => $response
-
-$response -> parse_xml("tool") => $tool
-$tool -> parse_xml("name") => $fn_name
-$tool -> parse_xml("args") -> parse_json => $fn_args
-
-# Call the function
-call($fn_name, $fn_args)
-```
 
 ## Feature Implementation Workflow
 

@@ -112,7 +112,7 @@ Start at @docs/index.md for full navigation.
 
 **Function namespacing:**
 - `app::prompt()`, `app::fetch()` — Host-provided functions use `app::` prefix
-- `log`, `range`, `parse_json` — Built-ins need no prefix
+- `log`, `range`, `json` — Built-ins need no prefix
 - `$module.func()` — Module imports via `use:` frontmatter
 
 **Auto-skipped patterns:**

@@ -19,15 +19,6 @@ import {
   isRillIterator,
   type RillValue,
 } from '../core/values.js';
-import {
-  parse as contentParse,
-  parseJson,
-  extractXmlTag,
-  extractFenceByLang,
-  extractAllFences,
-  parseFrontmatter,
-  parseChecklist,
-} from './content-parser.js';
 
 // ============================================================
 // BUILT-IN FUNCTIONS
@@ -140,86 +131,6 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
       );
     }
     return JSON.stringify(stripClosures(value));
-  },
-
-  /** Parse JSON string to value (with automatic repair) */
-  parse_json: (args) => {
-    const text = formatValue(args[0] ?? '');
-    return parseJson(text) ?? {};
-  },
-
-  /** Auto-detect and parse structured content from text */
-  parse_auto: (args) => {
-    const text = formatValue(args[0] ?? '');
-    const result = contentParse(text);
-    return {
-      type: result.type,
-      data: result.data,
-      raw: result.raw,
-      confidence: result.confidence,
-      repaired: result.repaired,
-      repairs: result.repairs,
-    };
-  },
-
-  /** Extract content from XML tags */
-  parse_xml: (args, ctx) => {
-    // Check if called with explicit args (args[0] !== ctx.pipeValue)
-    // vs piped value auto-pushed to args (args[0] === ctx.pipeValue)
-    const hasExplicitArg =
-      args.length > 0 && ctx.pipeValue !== null && args[0] !== ctx.pipeValue;
-    const text = hasExplicitArg
-      ? formatValue(ctx.pipeValue ?? '')
-      : formatValue(args[0] ?? '');
-    const tag = hasExplicitArg ? formatValue(args[0] ?? '') : undefined;
-    if (tag) {
-      return extractXmlTag(text, tag) ?? '';
-    }
-    // Without tag, parse returns all tags as dict via contentParse
-    const result = contentParse(text, { prefer: 'xml' });
-    if (result.type === 'xml' && typeof result.data === 'object') {
-      return result.data;
-    }
-    return {};
-  },
-
-  /** Extract content from fenced code block */
-  parse_fence: (args, ctx) => {
-    // Check if called with explicit args (args[0] !== ctx.pipeValue)
-    // vs piped value auto-pushed to args (args[0] === ctx.pipeValue)
-    const hasExplicitArg =
-      args.length > 0 && ctx.pipeValue !== null && args[0] !== ctx.pipeValue;
-    const text = hasExplicitArg
-      ? formatValue(ctx.pipeValue ?? '')
-      : formatValue(args[0] ?? '');
-    const lang = hasExplicitArg ? formatValue(args[0] ?? '') : undefined;
-    if (lang) {
-      return extractFenceByLang(text, lang) ?? '';
-    }
-    // Without lang, extract first fence
-    const fences = extractAllFences(text);
-    return fences.length > 0 ? fences[0]!.content : '';
-  },
-
-  /** Extract all fenced code blocks */
-  parse_fences: (args) => {
-    const text = formatValue(args[0] ?? '');
-    return extractAllFences(text);
-  },
-
-  /** Extract YAML frontmatter and body */
-  parse_frontmatter: (args) => {
-    const text = formatValue(args[0] ?? '');
-    const result = parseFrontmatter(text);
-    return result ?? { meta: {}, body: '' };
-  },
-
-  /** Parse checklist items */
-  parse_checklist: (args) => {
-    const text = formatValue(args[0] ?? '');
-    const items = parseChecklist(text);
-    // Return as list of [checked, text] tuples per spec
-    return items.map((item) => [item.checked, item.text]);
   },
 
   /**

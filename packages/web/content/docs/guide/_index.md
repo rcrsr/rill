@@ -8,6 +8,6 @@ sidebar:
 
 - [Conventions and Idioms](conventions/) — Idiomatic patterns for readable, maintainable rill code
 - [Cookbook](cookbook/) — Advanced patterns for agent scripting
-- [Core Examples](examples/) — Examples demonstrating core language features
-- [Getting Started Guide](getting-started/) — A beginner-friendly introduction to rill
+- [Core Examples](examples/) — Examples demonstrating core language features for agent scripting
+- [Getting Started Guide](getting-started/) — A beginner-friendly introduction to rill's dataflow syntax
 

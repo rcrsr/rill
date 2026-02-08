@@ -28,7 +28,6 @@
 | [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` operators |
 | [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
 | [Strings](topic-strings.md) | String methods for text manipulation |
-| [Parsing](topic-parsing.md) | Extract structured data from text and LLM output |
 
 ## Integration
 
