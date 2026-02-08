@@ -1,5 +1,5 @@
 {
-  "name": "rill-monorepo",
+  "name": "rill-lang",
   "version": "1.0.0",
   "description": "Rill - An embeddable scripting language for orchestrating LLM workflows",
   "private": true,
@@ -49,10 +49,8 @@
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
     "prettier": "^3.8.1",
+    "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
-  },
-  "dependencies": {
-    "yaml": "^2.8.2"
   }
 }

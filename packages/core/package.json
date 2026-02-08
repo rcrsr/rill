@@ -11,13 +11,12 @@
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run",
-    "test:examples": "npx tsx ../../scripts/test-examples.ts ../../docs/",
+    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --config ../../eslint.config.js src/",
     "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
   },
   "publishConfig": {
     "access": "public"
-  },
-  "dependencies": {}
+  }
 }
