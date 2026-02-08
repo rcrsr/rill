@@ -16,8 +16,14 @@ import {
   Decoration,
   type DecorationSet,
 } from '@codemirror/view';
-import { EditorState, type Extension, StateField, StateEffect } from '@codemirror/state';
+import {
+  EditorState,
+  type Extension,
+  StateField,
+  StateEffect,
+} from '@codemirror/state';
 import { indentUnit, StreamLanguage } from '@codemirror/language';
+import { defaultKeymap } from '@codemirror/commands';
 import { createThemeExtension } from '../lib/theme.js';
 import { createTabKeyBinding } from '../lib/keybindings.js';
 import { rillHighlighter } from '../lib/highlight.js';
@@ -116,7 +122,7 @@ export function Editor({
       lineNumbers(),
       indentUnit.of('  '),
       EditorState.tabSize.of(2),
-      keymap.of(createTabKeyBinding()),
+      keymap.of([...createTabKeyBinding(), ...defaultKeymap]),
       // Brand dark theme (always dark)
       createThemeExtension(true),
       StreamLanguage.define(rillHighlighter),
@@ -213,10 +219,6 @@ export function Editor({
   // ============================================================
 
   return (
-    <div
-      ref={editorRef}
-      aria-label={ariaLabel}
-      className="editor-container"
-    />
+    <div ref={editorRef} aria-label={ariaLabel} className="editor-container" />
   );
 }
