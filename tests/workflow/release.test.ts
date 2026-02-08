@@ -103,27 +103,22 @@ describe('Release Workflow', () => {
   });
 
   describe('IC-13: npm publishing', () => {
-    it('uses NPM_TOKEN secret for authentication', () => {
+    it('uses OIDC trusted publishing instead of npm tokens', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
-      expect(content).toContain('NPM_TOKEN');
-      expect(content).toContain('secrets.NPM_TOKEN');
+      // No static NPM_TOKEN — OIDC handles authentication
+      expect(content).not.toContain('NPM_TOKEN');
+      expect(content).not.toContain('NODE_AUTH_TOKEN');
     });
 
-    it('includes --provenance flag for supply chain transparency', () => {
+    it('omits --provenance flag (automatic with OIDC)', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
-      // All publish commands must include --provenance
-      const publishCommands = content.match(/npm publish[^\n]*/g);
-      expect(publishCommands).toBeDefined();
-      expect(publishCommands!.length).toBeGreaterThan(0);
-
-      publishCommands!.forEach((cmd) => {
-        expect(cmd).toContain('--provenance');
-      });
+      // Provenance is generated automatically via trusted publishing
+      expect(content).not.toContain('--provenance');
     });
 
-    it('publishes all four packages', () => {
+    it('publishes all three packages', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
@@ -132,19 +127,17 @@ describe('Release Workflow', () => {
         step.run?.includes('npm publish')
       );
 
-      // Should have 3 publish steps (core, cli, example)
       expect(publishSteps.length).toBe(3);
 
-      // Verify each package is published
       const packageDirs = publishSteps.map(
         (step: any) => step['working-directory']
       );
       expect(packageDirs).toContain('packages/core');
       expect(packageDirs).toContain('packages/cli');
-      expect(packageDirs).toContain('packages/ext/example');
+      expect(packageDirs).toContain('packages/ext/claude-code');
     });
 
-    it('sets NODE_AUTH_TOKEN environment variable for each publish', () => {
+    it('does not set env on publish steps (OIDC provides credentials)', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
@@ -154,8 +147,7 @@ describe('Release Workflow', () => {
       );
 
       publishSteps.forEach((step: any) => {
-        expect(step.env).toBeDefined();
-        expect(step.env.NODE_AUTH_TOKEN).toBe('${{ secrets.NPM_TOKEN }}');
+        expect(step.env).toBeUndefined();
       });
     });
   });
@@ -167,7 +159,7 @@ describe('Release Workflow', () => {
       // Should tag each package with @rcrsr/package@version format
       expect(content).toContain('@rcrsr/rill@');
       expect(content).toContain('@rcrsr/rill-cli@');
-      expect(content).toContain('@rcrsr/rill-ext-example@');
+      expect(content).toContain('@rcrsr/rill-ext-claude-code@');
     });
 
     it('reads version from package.json for each tag', () => {
@@ -181,7 +173,7 @@ describe('Release Workflow', () => {
         "require('./packages/cli/package.json').version"
       );
       expect(content).toContain(
-        "require('./packages/ext/example/package.json').version"
+        "require('./packages/ext/claude-code/package.json').version"
       );
     });
 
@@ -197,7 +189,7 @@ describe('Release Workflow', () => {
       // Should use -a flag for annotated tags with -m for messages
       const tagCommands = content.match(/git tag -a[^\n]*/g);
       expect(tagCommands).toBeDefined();
-      expect(tagCommands!.length).toBeGreaterThanOrEqual(4);
+      expect(tagCommands!.length).toBe(3);
 
       tagCommands!.forEach((cmd) => {
         expect(cmd).toContain('-a');
@@ -207,7 +199,7 @@ describe('Release Workflow', () => {
   });
 
   describe('workflow permissions', () => {
-    it('has id-token write permission for provenance', () => {
+    it('has id-token write permission for OIDC trusted publishing', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
@@ -232,7 +224,7 @@ describe('Release Workflow', () => {
       expect(workflow?.jobs?.release?.['runs-on']).toBe('ubuntu-latest');
     });
 
-    it('uses Node.js 20', () => {
+    it('uses Node.js 24 (required for npm CLI >= 11.5.1)', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
@@ -241,7 +233,7 @@ describe('Release Workflow', () => {
         step.uses?.startsWith('actions/setup-node@')
       );
 
-      expect(setupNodeStep?.with?.['node-version']).toBe('20');
+      expect(setupNodeStep?.with?.['node-version']).toBe('24');
     });
 
     it('configures npm registry', () => {

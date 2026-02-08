@@ -19,6 +19,9 @@
     "@rcrsr/rill": "workspace:^",
     "@types/which": "^3.0.4"
   },
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },

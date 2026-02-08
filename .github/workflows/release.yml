@@ -15,7 +15,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -32,22 +32,16 @@ jobs:
         run: pnpm -r run test
 
       - name: Publish @rcrsr/rill
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         working-directory: packages/core
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @rcrsr/rill-cli
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         working-directory: packages/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @rcrsr/rill-ext-example
-        run: npm publish --provenance --access public
-        working-directory: packages/ext/example
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish @rcrsr/rill-ext-claude-code
+        run: npm publish --access public
+        working-directory: packages/ext/claude-code
 
       - name: Create git tags
         run: |
@@ -61,7 +55,7 @@ jobs:
           CLI_VERSION=$(node -p "require('./packages/cli/package.json').version")
           git tag -a "@rcrsr/rill-cli@${CLI_VERSION}" -m "Release @rcrsr/rill-cli@${CLI_VERSION}"
 
-          EXAMPLE_VERSION=$(node -p "require('./packages/ext/example/package.json').version")
-          git tag -a "@rcrsr/rill-ext-example@${EXAMPLE_VERSION}" -m "Release @rcrsr/rill-ext-example@${EXAMPLE_VERSION}"
+          CLAUDE_CODE_VERSION=$(node -p "require('./packages/ext/claude-code/package.json').version")
+          git tag -a "@rcrsr/rill-ext-claude-code@${CLAUDE_CODE_VERSION}" -m "Release @rcrsr/rill-ext-claude-code@${CLAUDE_CODE_VERSION}"
 
           git push --tags

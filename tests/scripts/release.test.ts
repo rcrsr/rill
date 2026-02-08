@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const SCRIPT_PATH = path.join(process.cwd(), 'scripts/release.sh');
-const PACKAGES = ['packages/core', 'packages/cli', 'packages/ext/example'];
+const PACKAGES = ['packages/core', 'packages/cli', 'packages/ext/claude-code'];
 
 describe('Release Script', () => {
   describe('IC-14: Script exists and is executable', () => {
@@ -156,8 +156,24 @@ describe('Release Script', () => {
       expect(content).toContain('@rcrsr/rill-cli');
 
       // Extension package
-      expect(content).toContain('packages/ext/example');
-      expect(content).toContain('@rcrsr/rill-ext-example');
+      expect(content).toContain('packages/ext/claude-code');
+      expect(content).toContain('@rcrsr/rill-ext-claude-code');
+    });
+  });
+
+  describe('Version consistency', () => {
+    it('lockstep packages share the same version', () => {
+      const readVersion = (dir: string) =>
+        JSON.parse(
+          fs.readFileSync(
+            path.join(process.cwd(), dir, 'package.json'),
+            'utf-8'
+          )
+        ).version;
+
+      const coreVersion = readVersion('packages/core');
+      expect(readVersion('packages/cli')).toBe(coreVersion);
+      expect(readVersion('packages/fiddle')).toBe(coreVersion);
     });
   });
 

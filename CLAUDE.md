@@ -6,7 +6,7 @@ Rill uses pnpm workspaces with the following package organization:
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
 | `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
-| `packages/ext/example` | `@rcrsr/rill-ext-example` | Example extension template |
+| `packages/ext/claude-code` | `@rcrsr/rill-ext-claude-code` | Claude Code integration extension |
 
 ## Commands
 

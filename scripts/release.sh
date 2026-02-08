@@ -57,7 +57,7 @@ pnpm run -r test || error "Tests failed"
 PACKAGES=(
   "packages/core:@rcrsr/rill"
   "packages/cli:@rcrsr/rill-cli"
-  "packages/ext/example:@rcrsr/rill-ext-example"
+  "packages/ext/claude-code:@rcrsr/rill-ext-claude-code"
 )
 
 # Step 7: Verify all packages have publishConfig.access: "public"
