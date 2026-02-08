@@ -9,7 +9,7 @@ src/**/*.d.ts
 src/**/*.d.ts.map
 
 # Generated files
-src/generated/
+**/src/generated/
 
 # Dependencies
 node_modules/

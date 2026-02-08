@@ -9,7 +9,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsx scripts/generate-version.ts && tsc --build",
     "test": "vitest run",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
     "typecheck": "tsc --noEmit",
