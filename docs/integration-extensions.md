@@ -1,19 +1,31 @@
-# rill Extensions
+# Developing Extensions
 
-*Reusable host function packages distributed as npm modules with lifecycle management*
+*Writing reusable host function packages distributed as npm modules*
 
 ## Quick Start
 
+Create a simple extension with a factory function:
+
 ```typescript
 import { createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
-import { createClaudeCodeExtension } from '@rcrsr/rill-ext-claude_code';
+import type { ExtensionResult } from '@rcrsr/rill';
 
-const ext = createClaudeCodeExtension({ defaultTimeout: 60000 });
-const functions = prefixFunctions('claude_code', ext);
+function createGreetExtension(config: { prefix: string }): ExtensionResult {
+  return {
+    greet: {
+      params: [{ name: 'name', type: 'string' }],
+      fn: (args) => `${config.prefix} ${args[0]}!`,
+      description: 'Generate greeting',
+      returnType: 'string',
+    },
+  };
+}
 
+const ext = createGreetExtension({ prefix: 'Hello' });
+const functions = prefixFunctions('app', ext);
 const ctx = createRuntimeContext({ functions });
 
-// Script: claude_code::prompt("Explain TCP handshakes")
+// Script: app::greet("World")
 ```
 
 ## Extension Contract
@@ -113,7 +125,7 @@ function myFunction(args: RillValue[], ctx: RuntimeContext) {
 
 ```typescript
 interface ExtensionEvent {
-  event: string;         // Semantic event name (e.g., "claude_code:prompt")
+  event: string;         // Semantic event name (e.g., "claude-code:prompt")
   subsystem: string;     // Extension identifier (pattern: "extension:{namespace}")
   timestamp?: string;    // ISO 8601 (auto-added by emitExtensionEvent if omitted)
   [key: string]: unknown; // Extensible context fields
@@ -347,77 +359,6 @@ function createMyExtension(): ExtensionResult {
 }
 ```
 
-## Available Extensions
-
-| Package | Namespace | Description |
-|---------|-----------|-------------|
-| `@rcrsr/rill-ext-claude_code` | `claude_code` | Claude Code CLI integration |
-| `@rcrsr/rill-ext-example` | — | Empty extension template |
-
-### claude_code Extension
-
-Integrates Claude Code CLI for AI-powered operations:
-
-```typescript
-import { createClaudeCodeExtension } from '@rcrsr/rill-ext-claude_code';
-
-const ext = createClaudeCodeExtension({
-  binaryPath: '/usr/local/bin/claude',  // default: 'claude'
-  defaultTimeout: 60000,                // default: 30000 (ms)
-});
-```
-
-#### Functions
-
-**prompt(text, options?)** — Execute a Claude Code prompt:
-
-```rill
-claude_code::prompt("Explain TCP handshakes") => $result
-$result.result       # Response text
-$result.tokens       # Token usage breakdown
-$result.cost         # Cost in USD
-$result.duration     # Execution time in ms
-```
-
-**skill(name, args?)** — Execute a Claude Code skill:
-
-```rill
-claude_code::skill("commit", [message: "fix: resolve timeout bug"]) => $result
-$result.result
-```
-
-**command(name, args?)** — Execute a Claude Code command:
-
-```rill
-claude_code::command("review-pr", [pr: "123"]) => $result
-$result.result
-```
-
-#### Result Dict
-
-All 3 functions return the same structure:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `result` | string | Combined text output |
-| `tokens` | dict | Token usage breakdown |
-| `tokens.prompt` | number | Non-cached prompt tokens |
-| `tokens.cacheWrite5m` | number | 5-minute cache write tokens |
-| `tokens.cacheWrite1h` | number | 1-hour cache write tokens |
-| `tokens.cacheRead` | number | Cache read tokens |
-| `tokens.output` | number | Output tokens |
-| `cost` | number | Total cost in USD |
-| `exitCode` | number | CLI exit code (0 = success) |
-| `duration` | number | Execution time in ms |
-
-#### Events
-
-| Event | Emitted When |
-|-------|-------------|
-| `claude_code:prompt` | Prompt completes |
-| `claude_code:skill` | Skill completes |
-| `claude_code:command` | Command completes |
-| `claude_code:error` | Any operation fails |
 
 ## API Reference
 
@@ -433,6 +374,7 @@ export { prefixFunctions, emitExtensionEvent };
 
 ## See Also
 
+- [Bundled Extensions](bundled-extensions.md) — Pre-built extensions shipped with rill
 - [Host Integration](integration-host.md) — Embedding API
 - [Modules](integration-modules.md) — Module convention
 - [Reference](ref-language.md) — Language specification
