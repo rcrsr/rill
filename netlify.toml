@@ -1,0 +1,15 @@
+[build]
+  command = "pnpm --filter @rcrsr/rill build && pnpm --filter @rcrsr/rill-fiddle build:embedded && pnpm --filter @rcrsr/rill-web build"
+  publish = "packages/web/public"
+
+[build.environment]
+  HUGO_VERSION = "0.155.3"
+  GO_VERSION = "1.24.3"
+  NODE_VERSION = "22"
+  HUGO_ENVIRONMENT = "production"
+
+# SPA fallback for fiddle
+[[redirects]]
+  from = "/fiddle/*"
+  to = "/fiddle/index.html"
+  status = 200

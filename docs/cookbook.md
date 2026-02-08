@@ -1,12 +1,12 @@
 # rill Cookbook
 
-*Advanced patterns for workflow orchestration*
+*Advanced patterns for agent scripting*
 
 This cookbook demonstrates idiomatic rill patterns for common programming tasks. Each recipe shows a complete, working example.
 
 ## State Machines
 
-State machines model systems with discrete states and transitions. Rill's dispatch operator makes state machines declarative and readable.
+State machines model systems with discrete states and transitions. rill's dispatch operator makes state machines declarative and readable.
 
 ### Basic State Machine
 

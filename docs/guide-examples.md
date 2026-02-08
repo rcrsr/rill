@@ -1,6 +1,6 @@
 # rill Core Examples
 
-*Examples demonstrating core language features for workflow orchestration*
+*Examples demonstrating core language features for agent scripting*
 
 > **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `parse_json`, `range`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 

@@ -1,0 +1,66 @@
+baseURL: https://rill-lang.netlify.app/
+title: rill
+languageCode: en-us
+
+# Theme via Hugo module
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+# Markdown rendering
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+# Enable Git info for lastmod dates
+enableGitInfo: true
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Fiddle
+      url: /fiddle/
+      weight: 2
+    - name: Search
+      weight: 3
+      params:
+        type: search
+    - name: GitHub
+      url: https://github.com/rcrsr/rill
+      weight: 4
+      params:
+        icon: github
+
+params:
+  theme:
+    default: dark
+    displayToggle: false
+
+  navbar:
+    displayTitle: false
+    displayLogo: true
+    logo:
+      path: images/rill-icon-color.png
+      dark: images/rill-icon-color.png
+      link: /
+      width: 28
+      height: 28
+
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+
+  footer:
+    displayCopyright: false
+    displayPoweredBy: false
+
+  page:
+    width: wide

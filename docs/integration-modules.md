@@ -7,7 +7,7 @@ The convention defines:
 - Path prefixes (`@core/`, `@host/`, relative) for module resolution
 - Host responsibilities for loading, caching, and binding modules
 
-Rill itself does not interpret these keys. The host parses frontmatter and provides resolved modules via the `variables` option.
+rill itself does not interpret these keys. The host parses frontmatter and provides resolved modules via the `variables` option.
 
 ## Design Principles
 
@@ -36,7 +36,7 @@ The host:
 3. Resolves each specifier to a module
 4. Passes resolved modules via `createRuntimeContext({ variables: { math, str, http } })`
 
-Rill sees `$math`, `$str`, `$http` as regular variables containing dicts.
+rill sees `$math`, `$str`, `$http` as regular variables containing dicts.
 
 ## Import Declaration
 
@@ -86,7 +86,7 @@ The host:
 
 ## Module Structure
 
-A module is a Rill script with frontmatter declaring exports:
+A module is a rill script with frontmatter declaring exports:
 
 ```rill
 ---
@@ -134,7 +134,7 @@ $math -> .keys          # ["double", "triple", "clamp", "constants"]
 $math -> type           # "dict"
 ```
 
-This aligns with Rill's existing patterns:
+This aligns with rill's existing patterns:
 - Dict callables with `$obj.method()` syntax
 - Host variables via `createRuntimeContext({ variables: { namespace: { fn: callable(...) } } })`
 - No new concepts—modules are dicts, exports are members
@@ -349,7 +349,7 @@ Suggested standard library modules (host-provided):
 | `@core/math` | `abs`, `min`, `max`, `floor`, `ceil`, `round` |
 | `@core/json` | `parse`, `stringify`, `pretty` |
 
-Hosts can implement these in Rill or TypeScript. Consistency across hosts improves script portability.
+Hosts can implement these in rill or TypeScript. Consistency across hosts improves script portability.
 
 ## Examples
 
@@ -461,7 +461,7 @@ Alternatives considered:
 Keeping module resolution in the host:
 - Preserves "frontmatter is opaque" principle
 - Allows hosts to customize resolution (virtual modules, access control, caching)
-- Keeps Rill runtime dependency-free
+- Keeps rill runtime dependency-free
 - Enables different hosts to support different module ecosystems
 
 ## Open Questions

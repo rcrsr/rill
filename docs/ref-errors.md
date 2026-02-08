@@ -49,7 +49,7 @@ world"
 
 **Description:** Invalid character
 
-**Cause:** Character not recognized by the lexer (not part of Rill syntax).
+**Cause:** Character not recognized by the lexer (not part of rill syntax).
 
 **Resolution:** Remove or replace the invalid character. Common causes: unicode characters in identifiers, unsupported operators, or copy-paste artifacts.
 
@@ -183,7 +183,7 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 **Description:** Invalid type annotation
 
-**Cause:** Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.
+**Cause:** Type name not recognized. rill supports: string, number, bool, closure, list, dict, tuple.
 
 **Resolution:** Use valid type name from supported set. Check spelling and casing (types are lowercase).
 
@@ -294,7 +294,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Operator type mismatch
 
-**Cause:** Binary operator applied to incompatible types. Rill does not perform implicit type coercion.
+**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods.
 

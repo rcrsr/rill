@@ -1,0 +1,436 @@
+/* ============================================================
+ * BRAND DESIGN SYSTEM — HEXTRA OVERRIDES
+ * Source: brand/brand-guide.html
+ * Reference: brand/brand-canonical-messaging.md
+ * ============================================================ */
+
+/* --- Brand custom properties --- */
+:root {
+  --void:        #0a0a0e;
+  --void-raised: #111117;
+  --void-card:   #16161e;
+  --void-border: #1e1e2a;
+
+  --neon-yellow:  #d4e157;
+  --neon-green:   #4ade80;
+  --neon-cyan:    #22d3ee;
+  --neon-blue:    #60a5fa;
+  --neon-indigo:  #818cf8;
+  --neon-purple:  #a78bfa;
+
+  --text-primary:   #e8e8f0;
+  --text-secondary: #8888a0;
+  --text-dim:       #555568;
+
+  --pipe-gradient: linear-gradient(135deg,
+    var(--neon-yellow) 0%,
+    var(--neon-green) 20%,
+    var(--neon-cyan) 40%,
+    var(--neon-blue) 60%,
+    var(--neon-indigo) 80%,
+    var(--neon-purple) 100%
+  );
+  --pipe-gradient-h: linear-gradient(90deg,
+    var(--neon-yellow) 0%,
+    var(--neon-green) 20%,
+    var(--neon-cyan) 40%,
+    var(--neon-blue) 60%,
+    var(--neon-indigo) 80%,
+    var(--neon-purple) 100%
+  );
+
+  --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --font-sans:    'Instrument Sans', 'Inter', system-ui, sans-serif;
+  --font-display: 'Big Shoulders Display', 'Impact', sans-serif;
+
+  --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1);
+}
+
+/* --- Hextra theme variable overrides --- */
+
+/* Primary color: cyan #22d3ee = hsl(187, 82%, 53%) */
+:root {
+  --primary-hue: 187deg;
+  --primary-saturation: 82%;
+  --primary-lightness: 53%;
+}
+
+.dark {
+  --primary-hue: 187deg;
+  --primary-saturation: 82%;
+  --primary-lightness: 53%;
+  --color-dark: var(--void);
+}
+
+/* --- Global overrides --- */
+
+body {
+  font-family: var(--font-sans);
+  background: var(--void);
+  color: var(--text-primary);
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: var(--text-primary);
+}
+
+/* --- Dark mode backgrounds --- */
+
+/* Override Hextra's dark bg to void */
+.dark body {
+  background: var(--void) !important;
+}
+
+/* Navbar */
+.dark .hextra-nav-container-blur {
+  background: rgba(10, 10, 14, 0.85) !important;
+  border-bottom: 1px solid var(--void-border);
+}
+
+.dark .hextra-nav-container {
+  border-color: var(--void-border);
+}
+
+/* Sidebar */
+.dark .hextra-sidebar-container {
+  background: var(--void) !important;
+  border-color: var(--void-border) !important;
+}
+
+.dark .hextra-sidebar-container a:hover,
+.dark .hextra-sidebar-container a[aria-current="true"] {
+  color: var(--neon-cyan) !important;
+}
+
+/* Footer */
+.dark .hextra-footer {
+  background: var(--void) !important;
+  border-top: 1px solid var(--void-border);
+}
+
+.dark .hextra-footer,
+.dark .hextra-footer a,
+.dark .hextra-custom-footer {
+  color: var(--text-dim);
+}
+
+/* --- Typography --- */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+}
+
+.dark h1, .dark h2, .dark h3,
+.dark h4, .dark h5, .dark h6 {
+  color: var(--text-primary);
+}
+
+.content p,
+.content li,
+.content dd {
+  color: var(--text-secondary);
+}
+
+.content blockquote {
+  border-color: var(--void-border);
+  color: var(--text-dim);
+}
+
+/* Monospace font for all code */
+code, pre, kbd {
+  font-family: var(--font-mono);
+}
+
+/* --- Links --- */
+
+.dark .content a {
+  color: var(--neon-cyan);
+  text-decoration-color: rgba(34, 211, 238, 0.3);
+}
+
+.dark .content a:hover {
+  text-decoration-color: var(--neon-cyan);
+}
+
+/* Sidebar and nav links stay subtle */
+.dark nav a {
+  color: var(--text-secondary);
+}
+
+.dark nav a:hover {
+  color: var(--neon-cyan);
+}
+
+/* --- Code blocks --- */
+
+.dark pre {
+  background: var(--void-raised) !important;
+  border: 1px solid var(--void-border);
+  border-radius: 10px;
+}
+
+.dark :not(pre) > code {
+  background: var(--void-card) !important;
+  color: var(--neon-cyan);
+  border-color: var(--void-border) !important;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+/* --- Chroma syntax highlighting — neon spectrum --- */
+
+.dark .highlight .chroma .k,
+.dark .highlight .chroma .kd,
+.dark .highlight .chroma .kn,
+.dark .highlight .chroma .kr,
+.dark .highlight .chroma .kt { color: var(--neon-cyan); font-weight: 600; }
+
+.dark .highlight .chroma .kc,
+.dark .highlight .chroma .kp { color: var(--neon-cyan); }
+
+.dark .highlight .chroma .s,
+.dark .highlight .chroma .s1,
+.dark .highlight .chroma .s2,
+.dark .highlight .chroma .sb,
+.dark .highlight .chroma .sc,
+.dark .highlight .chroma .sd,
+.dark .highlight .chroma .sh,
+.dark .highlight .chroma .si,
+.dark .highlight .chroma .sx,
+.dark .highlight .chroma .sr,
+.dark .highlight .chroma .ss,
+.dark .highlight .chroma .sa,
+.dark .highlight .chroma .dl,
+.dark .highlight .chroma .se { color: var(--neon-green); }
+
+.dark .highlight .chroma .o,
+.dark .highlight .chroma .ow,
+.dark .highlight .chroma .p { color: var(--neon-yellow); font-weight: 600; }
+
+.dark .highlight .chroma .nv,
+.dark .highlight .chroma .nf,
+.dark .highlight .chroma .fm,
+.dark .highlight .chroma .nd { color: var(--neon-purple); font-weight: 600; }
+
+.dark .highlight .chroma .n,
+.dark .highlight .chroma .na,
+.dark .highlight .chroma .nb,
+.dark .highlight .chroma .nc,
+.dark .highlight .chroma .ne,
+.dark .highlight .chroma .ni,
+.dark .highlight .chroma .nl,
+.dark .highlight .chroma .nn,
+.dark .highlight .chroma .nx,
+.dark .highlight .chroma .py,
+.dark .highlight .chroma .nt { color: var(--neon-blue); }
+
+.dark .highlight .chroma .nv,
+.dark .highlight .chroma .vc,
+.dark .highlight .chroma .vg,
+.dark .highlight .chroma .vi,
+.dark .highlight .chroma .vm { color: var(--neon-blue); }
+
+.dark .highlight .chroma .m,
+.dark .highlight .chroma .mb,
+.dark .highlight .chroma .mf,
+.dark .highlight .chroma .mh,
+.dark .highlight .chroma .mi,
+.dark .highlight .chroma .mo,
+.dark .highlight .chroma .il,
+.dark .highlight .chroma .l,
+.dark .highlight .chroma .ld,
+.dark .highlight .chroma .no,
+.dark .highlight .chroma .bp { color: var(--neon-indigo); }
+
+.dark .highlight .chroma .c,
+.dark .highlight .chroma .ch,
+.dark .highlight .chroma .cm,
+.dark .highlight .chroma .c1,
+.dark .highlight .chroma .cs,
+.dark .highlight .chroma .cp,
+.dark .highlight .chroma .cpf { color: var(--text-dim); font-style: italic; font-weight: normal; }
+
+.dark .highlight .chroma .err { color: #f87171; }
+
+.dark .highlight .chroma .gd { color: #fca5a5; background-color: rgba(248, 113, 113, 0.1); }
+.dark .highlight .chroma .gi { color: var(--neon-green); background-color: rgba(74, 222, 128, 0.1); }
+
+/* --- Tables --- */
+
+.dark table {
+  border-color: var(--void-border);
+}
+
+.dark th {
+  background: var(--void-raised) !important;
+  color: var(--text-primary);
+  border-color: var(--void-border) !important;
+}
+
+.dark td {
+  border-color: var(--void-border) !important;
+}
+
+.dark tbody tr:nth-child(even) {
+  background: rgba(22, 22, 30, 0.5);
+}
+
+/* --- Search --- */
+
+.dark .hextra-search-wrapper input {
+  background: var(--void-card) !important;
+  border-color: var(--void-border) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .hextra-search-wrapper input:focus {
+  border-color: var(--neon-cyan) !important;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+}
+
+/* --- Scrollbar --- */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--void-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* --- Cards (Hextra shortcode) --- */
+
+.dark [class*="hextra-card"] {
+  background: var(--void-card) !important;
+  border-color: var(--void-border) !important;
+}
+
+.dark [class*="hextra-card"]:hover {
+  border-color: rgba(34, 211, 238, 0.2) !important;
+}
+
+/* --- Horizontal rules --- */
+
+.dark hr {
+  border-color: var(--void-border);
+}
+
+/* --- Callouts --- */
+
+.dark .hextra-callout {
+  border-color: var(--void-border);
+  background: var(--void-card) !important;
+}
+
+/* --- TOC --- */
+
+/* Fix hardcoded #111 shadow in Hextra TOC bottom */
+.dark .hextra-toc [class*="shadow-[0_-12px"] {
+  background: var(--void) !important;
+  box-shadow: 0 -12px 16px var(--void) !important;
+}
+
+.dark .hextra-toc [class*="border-neutral-800"] {
+  border-color: var(--void-border) !important;
+}
+
+/* TOC link colors */
+.dark .hextra-toc a {
+  color: var(--text-dim);
+}
+
+.dark .hextra-toc a:hover {
+  color: var(--text-secondary);
+}
+
+/* TOC "On this page" heading */
+.dark .hextra-toc p {
+  color: var(--text-secondary);
+}
+
+/* --- Breadcrumbs --- */
+
+.dark [class*="breadcrumb"] a,
+.dark [class*="breadcrumb"] div {
+  color: var(--text-dim);
+}
+
+.dark [class*="breadcrumb"] a:hover {
+  color: var(--text-secondary);
+}
+
+.dark [class*="breadcrumb"] [class*="font-medium"] {
+  color: var(--text-secondary);
+}
+
+/* --- Pager (prev/next navigation) --- */
+
+.dark [class*="border-neutral-800"] {
+  border-color: var(--void-border) !important;
+}
+
+.dark [class*="pager"] a,
+.dark article > main > div[class*="border-t"] a {
+  color: var(--text-secondary);
+}
+
+.dark article > main > div[class*="border-t"] a:hover {
+  color: var(--neon-cyan);
+}
+
+/* --- Content strong/bold --- */
+
+.dark .content strong {
+  color: var(--text-primary);
+}
+
+/* --- Heading anchors --- */
+
+.dark .subheading-anchor:hover {
+  color: var(--neon-cyan);
+}
+
+/* --- Version badge in navbar --- */
+
+.rill-version-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--neon-cyan);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.rill-version-badge:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.1);
+  color: var(--neon-cyan);
+}
+
+/* --- Reduced motion --- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

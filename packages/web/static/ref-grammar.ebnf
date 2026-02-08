@@ -1,0 +1,780 @@
+(* rill v0.4.5 Grammar - EBNF Notation *)
+(* Embeddable, sandboxed scripting language for AI agents *)
+
+(* ============================================================ *)
+(* DESIGN PRINCIPLES                                            *)
+(* ============================================================ *)
+
+(* No Null:rill has no null or nil type. Operations that might produce
+   "nothing" in other languages instead stop execution with an error.
+   This eliminates null-checking boilerplate and makes failures explicit
+   at the point of origin rather than propagating silently. *)
+
+(* Content Equality: All comparisons (==, !=, .eq, .ne) use structural
+   equality, not reference identity. Two values are equal if they have
+   the same content:
+   - Primitives: value equality
+   - Lists: same length + element-wise equality
+   - Dicts: same keys + value-wise equality (order-independent)
+   - Closures: same params + body AST structure + captured values
+     (Source location does not affect equality - two identical closures
+     defined in different places are equal if their structure matches) *)
+
+(* ============================================================ *)
+(* SCRIPT STRUCTURE                                             *)
+(* ============================================================ *)
+
+script        = [ frontmatter ] , { statement } ;
+              (* Semantic: Returns the value of the last statement.
+                 "5" evaluates to 5, equivalent to "5 -> return".
+                 Empty script returns null at the API boundary. *)
+
+(* Frontmatter is syntactically recognized but semantically opaque torill.
+   The content between --- markers is passed through to the runtime/caller
+   for application-specific interpretation.rill does not parse or validate
+   frontmatter fields — that responsibility belongs to the embedding application. *)
+frontmatter   = "---" , newline , { yaml-line } , "---" , newline ;
+yaml-line     = { yaml-char } , newline ;
+yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," | "'" | '"' ;
+
+(* ============================================================ *)
+(* STATEMENTS                                                   *)
+(* ============================================================ *)
+
+(* Statement boundaries:rill requires no semicolons or explicit terminators.
+   The grammar is unambiguous because continuation and start tokens are disjoint.
+
+   Continuation tokens (extend current statement):
+     "->"  pipe operator (to pipe-target or capture)
+     "=>"  capture operator (captures value and continues chain)
+     "."   method chain
+     "?"   conditional operator (expr ? then ! else)
+     "!"   else clause (after conditional then-branch)
+
+   Note: All continuation tokens work as line continuation when they appear
+   at the beginning of a line (same behavior as -> and =>).
+
+   Statement-start tokens (begin new statement):
+     "$"          variable or closure-call (if followed by "name(")
+     identifier   host call (followed by "(")
+     "@"          for-loop or while-loop
+     "{"          block
+     "|"          closure (|params| body)
+     literals     strings, numbers, bools, tuples, dicts
+
+   After any complete expression, if the next token is not a continuation,
+   it must begin a new statement. No lookahead beyond one token is needed.
+
+   Line continuation: ->, =>, ?, or ! at the beginning of a line continues
+   the previous line's pipe chain or conditional. This allows readable
+   multi-line chains:
+     "hello"
+       => $greeting
+       -> .upper
+     some_condition
+       ? "yes"
+       ! "no" *)
+
+(* Parsing note: "->" capture vs "->" pipe-target is unambiguous because
+   capture ("$" identifier) and pipe-target are disjoint sets. Parsers
+   should greedily consume pipe-chain, then check for trailing "-> $id". *)
+
+(* Capture operators:
+   - "=>" (capture-arrow) captures value and continues chain
+   - "->" to "$var" (terminal) captures value and ends chain
+
+   "=>" is preferred for most captures because it's clearer:
+   "hello" => $x -> .upper       -- capture "hello", chain continues, result is "HELLO"
+   "hello" => $x                 -- capture and emit (result is "hello")
+
+   Chain terminators: break and return terminate pipe chains.
+
+   "hello" -> $x                 -- terminal capture (ends chain)
+   "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
+   "hello" => $x -> .len         -- capture arrow (clearer, same effect)
+   [1,2,3] -> each { break }     -- break terminates (exits loop)
+   "result" -> return            -- return terminates (exits function) *)
+
+statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
+              (* pipe-chain includes optional terminator: capture | "break" | "return" *)
+
+(* Annotations: ^(key: value, ...) prefix modifying statement behavior.
+   Common use: loop limits via ^(limit: N).
+   annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
+   annotation-arg = identifier , ":" , literal ;
+*)
+annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
+annotation-arg = identifier , ":" , literal ;
+
+(* ============================================================ *)
+(* EXPRESSIONS                                                  *)
+(* ============================================================ *)
+
+expression    = pipe-chain ;
+
+pipe-chain    = value-expr , [ "?" , body , [ "!" , body ] ]
+              , { ( "->" , ( pipe-target | capture ) ) | ( "=>" , capture ) }
+              , [ "->" , chain-terminator ] ;
+              (* Expression head can include arithmetic, comparisons, and logical ops.
+                 5 + 3                    -- standalone arithmetic
+                 5 > 3                    -- comparison (returns bool)
+                 $a && $b                 -- logical and
+                 $x > 0 && $x < 10        -- comparison with logical ops
+                 !$ready || $timeout      -- logical or with negation
+                 5 > 3 ? "yes" ! "no"     -- expression as conditional
+                 When the head depends on $, "$ ->" is implied:
+                 .len ≡ $ -> .len, ? "yes" ! "no" ≡ $ -> ? "yes" ! "no" *)
+
+(* Expression precedence (lowest to highest):
+   || -> && -> comparison -> + - -> * / % -> unary (- !) -> postfix *)
+(* value-expr is the expression before any pipes or conditionals *)
+value-expr    = logical-or ;
+logical-or    = logical-and , { "||" , logical-and } ;
+logical-and   = comparison , { "&&" , comparison } ;
+comparison    = additive , [ comparison-op , additive ] ;
+additive      = multiplicative , { ( "+" | "-" ) , multiplicative } ;
+multiplicative = unary , { ( "*" | "/" | "%" ) , unary } ;
+unary         = [ "-" | "!" ] , postfix-expr ;
+              (* Semantic: "!" requires boolean operand. No truthiness coercion.
+                 !true -> false, !false -> true
+                 !"string" -> RUNTIME_TYPE_ERROR (Negation requires boolean, got string)
+                 !0 -> RUNTIME_TYPE_ERROR (Negation requires boolean, got number) *)
+
+comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
+
+chain-terminator = "break" | "return" ;
+              (* Note: capture can appear mid-chain or at end; handled in pipe-chain *)
+
+assert-statement = "assert" , expression , [ string ] ;
+              (* Assert statement: validates boolean expression, halts on false.
+                 Optional string provides custom error message.
+                 Constraint: expression must evaluate to boolean, else RUNTIME_TYPE_ERROR. *)
+
+error-statement = "error" , string ;
+
+postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } ;
+
+primary       = literal
+              | variable
+              | closure-call
+              | host-call
+              | conditional
+              | loop
+              | block
+              | grouped-expr
+              | spread              (* *expr - convert list/dict to tuple *)
+              | pass ;
+
+(* Pass: returns current pipe value ($) unchanged.
+   Used for explicit identity pass-through in conditionals and dict values.
+
+   Examples:
+     cond ? pass ! "fallback"      -- preserve $ when condition true
+     cond ? "value" ! pass         -- preserve $ when condition false
+     [key: pass]                   -- include $ as dict value
+     -> { pass }                   -- block returns $
+
+   Semantic: pass requires pipe context. Using pass without $ bound
+   throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
+pass          = "pass" ;
+
+(* implicit-primary: used in contexts where implicit $ is available (body, pipe targets).
+   Includes method-call because .method() expands to $ -> .method().
+   primary excludes method-call since statements cannot start with a bare method call. *)
+implicit-primary = literal | variable | closure-call | host-call | method-call | block | grouped-expr ;
+
+(* ============================================================ *)
+(* LITERALS                                                     *)
+(* ============================================================ *)
+
+literal       = string | number | bool | list | dict | closure ;
+
+(* Closures are first-class values with optional typed parameters.
+   The body can be a block, grouped expression, or postfix expression.
+
+   || { "hello" } -> $greet                    -- no params, block body
+   |x| { $x -> .len } -> $strlen               -- untyped param
+   |x: string| { $x -> .len } -> $strlen       -- typed param
+   |x: string = "default"| { $x } -> $fn       -- typed with default
+   |x = "default"| { $x } -> $fn               -- default with inferred type
+   |a: number, b: number = 0| { } -> $add      -- mixed params
+   |x| ($x + 1) -> $inc                        -- grouped expression body
+   |x| $x -> $identity                         -- postfix expression body
+
+   Scope rules (same as blocks):
+   - Captures outer scope variables (read-only)
+   - Local variables (declared inside) are mutable
+   - Cannot modify outer scope variables
+
+   Invocation:
+   - $fn()           -- call with no args
+   - $fn("arg")      -- call with args
+   - $fn -> $()      -- pipe-style invoke (equivalent)
+   - "value" -> $fn()  -- pipe value as first arg
+   - *[1, 2] -> $fn()  -- tuple unpacking at invocation *)
+
+closure-param    = identifier , [ ":" , param-type ] , [ "=" , literal ]
+              | identifier , "=" , literal ;   (* type inferred from default *)
+param-type    = "string" | "number" | "bool" ;  (* primitives only for closure params *)
+body   = block | grouped-expr | postfix-expr ;
+closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body ;
+
+string        = '"' , { char | escape | brace-escape | interpolation } , '"'
+              | '"""' , { char | escape | brace-escape | interpolation } , '"""' ;
+
+char          = letter | digit | " " | "!" | "#" | "$" | "%" | "&" | "'" | "(" | ")"
+              | "*" | "+" | "," | "-" | "." | "/" | ":" | ";" | "<" | "=" | ">"
+              | "?" | "@" | "[" | "]" | "^" | "_" | "`" | "|" | "~" | newline ;
+              (* excludes " \ { } which have special meaning in strings *)
+escape        = "\\" , ( "n" | "r" | "t" | "\\" | '"' ) ;
+brace-escape  = "{{" | "}}" ;   (* {{ -> literal {, }} -> literal } *)
+
+interpolation = "{" , expression , "}" ;
+
+number        = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
+bool          = "true" | "false" ;
+
+list          = "[" , "]"
+              | "[" , list-element , { "," , list-element } , "]" ;
+list-element  = "..." , expression           (* spread: inline list elements *)
+              | expression ;                 (* regular element *)
+              (* List spread syntax: [1, ...$list, 2] inlines $list elements.
+                 The spread expression must evaluate to a list at runtime.
+                 Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
+                 Error: spreading non-list throws RUNTIME_TYPE_ERROR *)
+
+dict          = "[" , ":" , "]"
+              | "[" , dict-entry , { "," , dict-entry } , "]" ;
+dict-key      = identifier | number | bool
+              | "$" , identifier                      (* variable key: [$keyName: value] *)
+              | "(" , pipe-chain , ")" ;              (* computed key: [($expr): value] *)
+dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , ":" , expression ;
+              (* Keys can be identifiers, numbers, booleans, variables, computed expressions, or multi-key lists.
+                 Variable key: [$varName: value] uses variable value as key (must be string).
+                 Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
+                 Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
+                 Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
+                 Semantic: closure values become "dict closures" where $ is late-bound
+                 to the containing dict at invocation time (like "this" in other languages). *)
+
+(* ============================================================ *)
+(* VARIABLES                                                    *)
+(* ============================================================ *)
+
+variable      = "$" , identifier , { property-access } , [ default-value ] , [ existence-check ]
+              | "$" , { property-access } , [ default-value ] , [ existence-check ] ;
+              (* $ARGS and $ENV are outer-scope variables provided by the runtime,
+                 not grammar-level constructs. Same scoping rules apply. *)
+
+(* Closure calls invoke closures stored in variables:
+   $strlen("hello")     -- call closure with string arg
+   $add(1, 2)           -- call closure with multiple args
+   $transform($data)    -- call closure with variable arg
+   In string interpolation: "Length: {$strlen("word")}" *)
+closure-call = "$" , identifier , "(" , [ arguments ] , ")" ;
+
+(* Property access chain supports both dot and bracket access in any order:
+   $data.user.name          -- literal fields
+   $data.items[0]           -- bracket index
+   $data.items[-1]          -- negative index (from end)
+   $data.user.$field        -- variable as key
+   $data.items.($i + 1)     -- computed expression
+   $data.{get_key()}        -- block returning key
+   $data.user.(nick || name) -- alternatives (try left-to-right)
+*)
+property-access = field-access | bracket-access ;
+
+field-access  = "." , ( identifier
+                      | "$" , identifier              (* variable as key *)
+                      | "(" , pipe-chain , ")"        (* computed expression *)
+                      | "{" , block , "}"             (* block returning key *)
+                      | "(" , identifier , { "||" , identifier } , ")" ) ; (* alternatives *)
+
+bracket-access = "[" , pipe-chain , "]" ;             (* index access, supports negative *)
+
+(* Default value if property is missing: $data.name ?? "Anonymous" *)
+default-value = "??" , body ;
+
+(* Existence check: $data.user.?email returns bool
+   Type narrowing uses & (not :) because the expression returns bool.
+   Using :type would suggest type assertion on a non-bool value.
+   $data.?field&string means "does field exist and is it a string?" -> bool
+   Variable existence: $data.?$keyName checks existence using variable value.
+   Computed existence: $data.?($expr) checks existence using expression result. *)
+existence-check = ".?" , ( identifier
+                         | "$" , identifier              (* variable key *)
+                         | "(" , pipe-chain , ")" )      (* computed expression *)
+                , [ "&" , type-name ] ;
+
+digits        = digit , { digit } ;
+
+(* Capture with optional type annotation.
+   Variables are type-locked after first assignment.
+
+   Capture arrow (=>) captures value into variable:
+   "hello" => $name           -- capture, chain continues with "hello"
+   "hello" => $name -> .upper -- capture, then transform (result: "HELLO")
+   "hello" => $name:string    -- explicit type (validated on assignment)
+
+   Pipe arrow (-> $var) invokes closure stored in $var:
+   "hello" -> $fn             -- invoke $fn("hello") if $fn is closure
+   "hello" -> $fn -> .len     -- invoke, then continue chain
+
+   Type locking:
+   "hello" => $name           -- $name is now type-locked to string
+   5 => $name                 -- ERROR: $name was previously string *)
+capture       = "$" , identifier , [ ":" , capture-type ] ;
+capture-type  = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
+
+(* ============================================================ *)
+(* HOST FUNCTIONS                                               *)
+(* ============================================================ *)
+
+host-call = host-name , "(" , [ arguments ] , ")" ;
+
+host-name = identifier , { "::" , identifier } ;
+              (* Namespaced functions use :: separator: math::add, io::file::read
+                 rill is a vanilla language. The host provides all domain functions.
+
+                 Core global functions (built-in):
+                 - type($value)  -- returns type name: "string", "number", "bool", "closure", "list", "dict", "tuple"
+                 - log($value)   -- logs value using .str, returns value unchanged (passthrough)
+                 - json($value)  -- converts any value to JSON string
+                 - parse_json($text) -- parses JSON string to value (with repair)
+                 - identity($value) -- returns value unchanged
+                 - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
+                 - repeat(value, count) -- iterator repeating value count times
+
+                 Content parsing functions (built-in):
+                 - parse_auto($text)  -- auto-detect and parse structured content
+                 - parse_xml($text, tag?) -- extract content from XML tags
+                 - parse_fence($text, lang?) -- extract fenced code block content
+                 - parse_fences($text) -- extract all fenced code blocks
+                 - parse_frontmatter($text) -- parse YAML frontmatter and body
+                 - parse_checklist($text) -- parse markdown checklist items
+
+                 All other functions are registered by the host via RuntimeContext.functions. *)
+
+arguments     = expression , { "," , expression } ;
+
+(* ============================================================ *)
+(* METHODS                                                      *)
+(* ============================================================ *)
+
+(* Methods: ".method" or ".method()" with implied $ receiver.
+   0-arg methods may omit parens: .empty ≡ .empty() ≡ $.empty()
+   In pipe: "x -> .str" passes x as receiver to str method.
+   In conditional: ".empty ? then ! else" tests $.empty for truthiness.
+   Pipe semantics: "$ -> fn" ≡ "fn($)" — piped value becomes first arg.
+   Global functions (type, log, json) are not methods — use as: "x -> log" *)
+
+method-call   = "." , method-name , [ "(" , [ arguments ] , ")" ] ;
+
+method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
+              | "starts_with" | "ends_with"           (* prefix/suffix: 1 arg *)
+              | "lower" | "upper"                     (* case: 0 args *)
+              | "replace" | "replace_all"             (* regex replace: 2 args *)
+              | "index_of"                            (* position: 1 arg *)
+              | "repeat"                              (* repeat: 1 arg *)
+              | "pad_start" | "pad_end"               (* padding: 1-2 args *)
+              | "empty" | "lines"                     (* utility: 0 args *)
+              | "eq" | "ne" | "lt" | "gt" | "le" | "ge" (* comparison: 1 arg *)
+              | "str" | "num" | "len" | "trim"        (* conversion: 0 args *)
+              | "head" | "tail"                       (* element access: 0 args *)
+              | "first"                                (* iterator: 0 args, returns iterator *)
+              | "at"                                  (* element access: 1 arg *)
+              | "split" | "join"                      (* string ops: 0-1 args *)
+              | "keys" | "values" | "entries" ;       (* dict: 0 args *)
+              (* Note: .str is built-in on ALL types including tuple.
+                 Use global log() and json() functions instead of methods. *)
+
+(* Arity constraints (semantic check, not grammar-enforced):
+   The grammar allows [ arguments ] for flexibility, but these methods
+   have fixed arity that parsers/interpreters must validate:
+   0 args: empty, lines, str, num, len, trim, head, tail, first, keys, values, entries, lower, upper
+   0-1 args: split, join (separator defaults to newline/comma)
+   1 arg:  contains, match, is_match, starts_with, ends_with, index_of, repeat, eq, ne, lt, gt, le, ge, at
+   1-2 args: pad_start, pad_end (fill defaults to space)
+   2 args: replace, replace_all *)
+
+(* ============================================================ *)
+(* PIPES                                                        *)
+(* ============================================================ *)
+
+(* pipe-chain is defined in EXPRESSIONS section *)
+
+(* Capture: stores value in a variable and terminates the pipe chain.
+   The stored value also becomes the expression result.
+
+   Example: fetch("url") -> $result
+   The value is stored in $result and returned.
+
+   Note: Unlike earlier versions, capture ALWAYS terminates the chain.
+   Use explicit chaining for multi-step operations:
+   fetch("url") -> $result
+   $result -> log -> ?(.contains("x")) { } *)
+
+(* Pipe targets: bare host names allowed without parens.
+   "$ -> greet" ≡ "greet($)" — piped value becomes implicit first arg. *)
+
+pipe-target   = host-call       (* $ -> greet("world") — call with explicit args *)
+              | closure-call      (* $ -> $fn("arg") — invoke closure with args *)
+              | pipe-invoke        (* $ -> $() — invoke $ as closure, $ -> $(args) with args *)
+              | variable           (* $ -> $fn — invoke closure stored in $fn with $ as arg *)
+              | host-name      (* $ -> greet — bare name, $ becomes implicit first arg *)
+              | method-call        (* $ -> .len — method on $, $ -> .at(0) with args *)
+              | string             (* $ -> "hello {$}" — template with interpolation *)
+              | conditional        (* $ -> ? "yes" ! "no" — conditional on $ *)
+              | loop               (* $ -> @(cond) { body } — while loop *)
+              | each-expr          (* $ -> each { body } — sequential iteration *)
+              | map-expr           (* $ -> map { body } — parallel iteration *)
+              | fold-expr          (* $ -> fold(init) { body } — reduction *)
+              | filter-expr        (* $ -> filter { cond } — parallel filtering *)
+              | block              (* $ -> { .len } — block with implicit $ head *)
+              | grouped-expr       (* $ -> ($ + 1) — arithmetic/compound expression *)
+              | closure-chain  (* $ -> @[$f, $g] — chain: $g($f($)) *)
+              | destructure        (* $ -> *<$a, $b> — extract elements into vars *)
+              | slice              (* $ -> /<0:3> — extract portion of $ *)
+              | type-assertion     (* $ -> :string — assert $ is string type *)
+              | type-check         (* $ -> :?string — check if $ is string type *)
+              | "*" ;              (* $ -> * — convert $ to tuple for unpacking *)
+
+(* Closure chain (@): compose closures left-to-right.
+   - Chain:     x -> @[$f,$g,$h]        -- $h($g($f(x)))
+   The target must be a closure or list of closures. *)
+
+closure-chain = "@" , ( variable | list ) ;  (* @$var or @[closures] *)
+
+(* Dispatch semantics (runtime behavior, not grammar):
+   When piping to a dict or list literal, dispatch rules apply:
+
+   1. Scalar -> dict: key lookup
+      "apple" -> [apple: "fruit", carrot: "veg"]   -- "fruit"
+
+   2. Number -> list: index access
+      0 -> ["first", "second"]                     -- "first"
+
+   3. List -> dict/list: hierarchical navigation (path dispatch)
+      ["name", "first"] -> [name: [first: "Alice"]]  -- "Alice"
+      [0, 1] -> [[1, 2], [3, 4]]                      -- 4
+      ["users", 0, "name"] -> [users: [[name: "X"]]] -- "X"
+
+   Path elements: strings for dict keys, numbers for list indexes.
+   Negative indexes supported. Terminal closures receive $ = final key.
+   See docs/topic-operators.md for complete dispatch documentation. *)
+
+(* ============================================================ *)
+(* EXTRACTION OPERATORS                                         *)
+(* ============================================================ *)
+
+(* Extraction operators transform collections by extracting elements.
+   They return the extracted values while optionally binding to variables.
+
+   Destructure: extract elements into variables
+   - List: [1, 2, 3] -> *<$a, $b, $c>
+   - Dict:  [name: "x"] -> *<name: $n>
+   - Skip:  [1, 2, 3] -> *<$a, _, $c>
+   - Nested: [[1, 2], 3] -> *<*<$a, $b>, $c>
+
+   Slice: extract portions using Python-style start:stop:step
+   - [1, 2, 3, 4, 5] -> /<1:4>     -> [2, 3, 4]
+   - [1, 2, 3, 4, 5] -> /<::-1>    -> [5, 4, 3, 2, 1]
+   - "hello" -> /<1:4>            -> "ell"
+
+   Enumerate: use global enumerate() function instead
+   - enumerate([10, 20])   -> [[index: 0, value: 10], [index: 1, value: 20]]
+   - enumerate([a: 1])     -> [[index: 0, key: "a", value: 1]] *)
+
+destructure       = "*<" , [ destruct-pattern , { "," , destruct-pattern } ] , ">" ;
+destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
+                  | identifier , ":" , "$" , identifier , [ ":" , capture-type ]  (* key: $var *)
+                  | "_"                                         (* skip placeholder *)
+                  | destructure ;                               (* nested pattern *)
+
+slice             = "/<" , [ slice-bound ] , ":" , [ slice-bound ] , [ ":" , [ slice-bound ] ] , ">" ;
+slice-bound       = number | variable | grouped-expr ;
+
+(* Spread: convert list/dict to tuple for unpacking at closure invocation.
+   The tuple type exists solely to signal "unpack these values as separate arguments."
+
+   Syntax:
+     *[1, 2, 3]              -- positional tuple from list literal
+     *[x: 1, y: 2]           -- named tuple from dict literal
+     *$myList                -- positional tuple from list variable
+     *$myDict                -- named tuple from dict variable
+     [1, 2, 3] -> *          -- convert pipe value to tuple
+
+   Key-based matching at invocation:
+     - Numeric keys (from list): match parameters by position
+     - String keys (from dict): match parameters by name
+
+   Example:
+     |a, b| { [$b, $a] } -> $flip
+     *[1, 2] -> $flip()      -- $a=1, $b=2, returns [2, 1]
+     *[a: 1, b: 2] -> $flip() -- named tuple, same result
+
+   Strict validation: missing or extra arguments error at invocation.
+   Parameter defaults provide explicit opt-in leniency. *)
+
+spread            = "*" , [ postfix-expr ] ;
+              (* Bare * uses implicit $: each { * } ≡ each { $ -> * } *)
+
+(* Pipe-invoke: call the pipe value ($) as a closure
+   ||{ "hello" } -> $()          -- invoke with no args
+   |x|$x -> $("world")           -- invoke with args
+   $closure -> $()               -- invoke variable that holds a closure *)
+pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
+
+(* Type assertion: assert value is a specific type, error if mismatch.
+   Returns value unchanged on success. Can be used as:
+   - Postfix: 42:number, (expr):type - binds tighter than method calls
+   - Pipe target: -> :type - asserts on pipe value ($)
+
+   Examples:
+   42:number                       -- postfix assertion
+   (1 + 2):number                  -- postfix on grouped expr
+   (($ < 5) @ ($ + 1)):number      -- postfix on loop result
+   "hello" -> :string              -- pipe target assertion
+   $val -> :dict -> .keys          -- assert then continue chain *)
+type-assertion = ":" , type-name ;
+
+(* Type check: check if value is a specific type, returns bool.
+   Can be used as postfix (expr:?type) or pipe target (-> :?type).
+
+   Examples:
+   42:?number                      -- true (postfix)
+   "hello":?number                 -- false (postfix)
+   $val -> :?list ? process()      -- conditional on type *)
+type-check    = ":" , "?" , type-name ;
+
+type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
+
+(* ============================================================ *)
+(* CONTROL FLOW                                                 *)
+(* ============================================================ *)
+
+(* Conditional syntax: condition ? then-branch ! else-branch
+   The condition MUST evaluate to a boolean value (true or false).
+   Non-boolean values will cause a runtime error.
+
+   Examples:
+     $ready ? "go" ! "wait"              -- variable must be boolean
+     .valid ? process() ! reject()       -- method must return boolean
+     ($x > 10) ? "big" ! "small"         -- comparison returns boolean
+     true ? "yes" ! "no"                 -- literal boolean
+
+   Piped form (? alone uses $ as condition):
+     true -> ? "yes" ! "no"              -- pipe value must be boolean
+     ($x > 5) -> ? "big" ! "small"       -- expression evaluates to boolean
+
+   Else-if chaining:
+     .eq("A") ? 1 ! .eq("B") ? 2 ! 3     -- chained conditions *)
+
+conditional   = body , "?" , body , [ "!" , else-clause ]
+              | "?" , body , [ "!" , else-clause ] ; (* piped form: condition is $ *)
+else-clause   = conditional | body ;
+
+(* Loop syntax: condition @ body [? condition]
+   The @ operator is for while loops only. For iteration, use collection operators.
+   Both while and do-while conditions MUST evaluate to boolean (true or false).
+   Non-boolean values will cause a runtime error.
+
+   - bool input: while loop (re-evaluates condition each iteration)
+   - trailing ? condition: do-while (body first, then check)
+
+   For-each iteration uses collection operators (each, map, filter, fold).
+   See docs/collections.md for collection operators.
+
+   Examples:
+     ($x < 10) @ { ($x + 1) => $x }     -- while loop (condition is bool)
+     @ { $ } ? ($x < 10)                -- do-while (body, then check)
+     [1, 2, 3] -> each { $ * 2 }        -- for-each (use each operator)
+     "abc" -> each { $ }                -- iterate over string chars
+     [a: 1, b: 2] -> each { $.key }     -- iterate over dict entries
+     $items -> each { process($) }      -- iterate over variable *)
+
+loop          = [ body ] , "@" , body , [ "?" , body ] ;
+              (* First body: input (condition for while, iterable for for-each)
+                 Second body: loop body
+                 Third body (after ?): do-while condition *)
+
+(* ============================================================ *)
+(* COLLECTION OPERATORS                                         *)
+(* ============================================================ *)
+
+(* Collection operators for iteration and reduction.
+   See docs/collections.md for complete documentation.
+
+   Operator comparison:
+   - each:   Sequential iteration, returns list of all results
+   - map:    Parallel iteration (Promise.all), returns list of all results
+   - filter: Parallel filtering, returns elements where predicate is truthy
+   - fold:   Sequential reduction, returns final result only
+
+   Body forms (all operators):
+   - block:     { body }           -- $ is current element
+   - grouped:   ( expr )           -- $ is current element
+   - closure:   |x| body           -- named parameter
+   - variable:  $fn                -- pre-defined closure
+   - identity:  $                  -- return elements unchanged
+
+   Accumulator (each and fold only):
+   - Block form: (init) { body }   -- $@ is accumulator, $ is element
+   - Closure:    |x, acc = init|   -- named accumulator parameter
+
+   Dict iteration binds $ to { key, value } objects.
+
+   Examples:
+     [1, 2, 3] -> each { $ * 2 }           -- [2, 4, 6]
+     [1, 2, 3] -> map ($ + 10)             -- [11, 12, 13]
+     [1, 2, 3, 4, 5] -> filter { $ > 2 }   -- [3, 4, 5]
+     [1, 2, 3] -> fold(0) { $@ + $ }       -- 6
+     [1, 2, 3] -> each(0) { $@ + $ }       -- [1, 3, 6] (running sum)
+     [1, 2, 3] -> each |x, s = 0| ($s + $x) -- [1, 3, 6]
+*)
+
+iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
+              (* Valid body forms for each, map, fold, filter operators.
+                 closure: |x| body or |x, acc = init| body
+                 block: { body } where $ is current element
+                 grouped-expr: ( expr ) where $ is current element
+                 postfix-expr: includes variables ($fn), bare $ for identity, and .method shorthand
+                 host-name: bare function name (func or ns::func), element passed as first arg
+                 Note: variable not listed separately since postfix-expr -> primary -> variable
+                 .method shorthand applies method to each element: ["a","b"] -> map .upper *)
+
+each-expr     = "each" , [ "(" , expression , ")" ] , iterator-body ;
+              (* Sequential iteration returning list of all body results.
+                 Optional (expression) provides initial accumulator value.
+                 With accumulator: $@ is accumulator, $ is current element.
+                 Supports break for early termination.
+                 [1, 2, 3] -> each { $ * 2 }       -- [2, 4, 6]
+                 [1, 2, 3] -> each(0) { $@ + $ }   -- [1, 3, 6] *)
+
+map-expr      = "map" , iterator-body ;
+              (* Parallel iteration returning list of all body results.
+                 Executes all iterations concurrently via Promise.all.
+                 Order is preserved despite parallel execution.
+                 No accumulator (parallel has no "previous" value).
+                 No break support.
+                 [1, 2, 3] -> map { $ * 2 }        -- [2, 4, 6]
+                 $urls -> map |url| fetch($url)   -- concurrent fetch *)
+
+fold-expr     = "fold" , ( "(" , expression , ")" , iterator-body | closure | variable ) ;
+              (* Sequential reduction returning final accumulated value.
+                 Requires accumulator (reduction semantics need initial value).
+                 Block form: (init) { body } where $@ is accumulator.
+                 Closure form: |x, acc = init| body.
+                 Variable form: $fn where closure defines accumulator.
+                 No break support.
+                 [1, 2, 3] -> fold(0) { $@ + $ }          -- 6
+                 [1, 2, 3] -> fold |x, s = 0| ($s + $x)   -- 6 *)
+
+filter-expr   = "filter" , iterator-body ;
+              (* Parallel filtering returning elements where predicate is true.
+                 Predicate MUST return boolean (true or false).
+                 Non-boolean values will cause a runtime error.
+                 Executes all predicates concurrently via Promise.all.
+                 Order is preserved despite parallel execution.
+                 No accumulator (each element evaluated independently).
+                 [1, 2, 3, 4, 5] -> filter { $ > 2 }    -- [3, 4, 5]
+                 $users -> filter |u| ($u.active)      -- active users (must be bool) *)
+
+block         = "{" , statement , { statement } , "}" ;
+              (* Block expression semantics depend on context:
+
+                 EXPRESSION POSITION (creates closure):
+                 - { body } => $fn                  -- stored as closure
+                 - [key: { body }]                  -- dict value is closure
+                 - type({ body })                   -- arg is closure
+                 Block creates ScriptCallable with implicit $ parameter.
+
+                 PIPE TARGET (creates then invokes):
+                 - value -> { body }                -- creates closure, invokes with value
+                 Observable result identical to eager evaluation.
+
+                 SYNTACTIC BODY (eager evaluation):
+                 - each { }                         -- loop body
+                 - cond ? { } ! { }                 -- conditional branches
+                 - |x| { }                          -- closure body
+                 These use BlockNode as grammar body, not expression.
+
+                 VS GROUPED EXPRESSION:
+                 - ( expr )                         -- eager evaluation
+                 - ( expr ) => $x                   -- stores result value
+                 Parentheses always evaluate immediately.
+
+                 Empty blocks not allowed. Blocks return their last expression's value,
+                 enabling use in boolean contexts and as pipe sources. *)
+
+(* ============================================================ *)
+(* NOTE: BOOLEAN/LOGICAL OPERATORS                              *)
+(* ============================================================ *)
+
+(* Logical operators (&&, ||, !) are integrated into the main expression
+   grammar (see value-expr above). They work everywhere expressions
+   work — no special-casing needed.
+
+   Precedence is standard: || < && < comparison < arithmetic < unary
+
+   Examples:
+     $a && $b                   -- logical and
+     $x > 0 || $x < -10         -- comparison with logical or
+     !$ready && $timeout        -- negation with logical and
+     ($a || $b) && $c           -- grouped for precedence
+     $valid && $ready ? "go" ! "wait"  -- used as conditional *)
+
+(* ============================================================ *)
+(* ARITHMETIC EXPRESSIONS                                       *)
+(* ============================================================ *)
+
+(* Arithmetic uses parenthesis grouping: ( expr )
+   Operators follow standard precedence: * / % before + -
+
+   (5 + 3)                   -> 8
+   (2 + 3 * 4)               -> 14
+   ((2 + 3) * 4)             -> 20
+   10 -> ($ + 5)             -> 15  ($ is pipe value)
+   3 -> $x ($ * 2)           -> 6   (variables in expressions)
+   (10 / 0)                  -> ERROR (division by zero)
+
+   Type constraint: all operands must be numbers.
+   "5" -> ($ + 1)            -> ERROR (string is not a number)
+
+   Grouped expressions can appear:
+   - As standalone expressions: (5 + 3)
+   - As pipe targets: 5 -> ($ * 2)
+   - Nested: ((1 + 2) * 3)
+   - As closure bodies: |x| ($x + 1)
+
+   Note: Arithmetic works everywhere now, not just in grouped expressions.
+   5 + 3, { 5 + 3 }, and (5 + 3) all work. Grouped expressions provide
+   explicit scoping for captures. *)
+
+grouped-expr   = "(" , pipe-chain , ")" ;
+              (* Single-expression block with () delimiters.
+                 Uses the same parsing as any expression. *)
+
+(* ============================================================ *)
+(* LEXICAL                                                      *)
+(* ============================================================ *)
+
+identifier    = ( letter | "_" ) , { letter | digit | "_" } ;
+              (* Style: snake_case is idiomatic for identifiers.
+                 Functions: parse_json, replace_all, pad_start
+                 Variables: $user_name, $total_count, $api_response
+                 Methods: .starts_with, .ends_with, .index_of *)
+
+letter        = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+              | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+              | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+              | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+digit         = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+newline       = "\n" | "\r\n" ;
+
+(* ============================================================ *)
+(* WHITESPACE & COMMENTS                                        *)
+(* ============================================================ *)
+
+(* Whitespace (spaces, tabs, newlines) between tokens is insignificant.
+   Comments start with # and extend to end of line. *)

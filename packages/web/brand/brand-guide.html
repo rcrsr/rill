@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rill — Brand Design Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+  /* ═══════════════════════════════════════════
+     CSS CUSTOM PROPERTIES — THE BRAND SYSTEM
+     ═══════════════════════════════════════════ */
+  :root {
+    /* ── Void / Background ── */
+    --void:        #0a0a0e;
+    --void-raised: #111117;
+    --void-card:   #16161e;
+    --void-border: #1e1e2a;
+
+    /* ── Neon Spectrum (from logo) ── */
+    --neon-yellow:  #d4e157;
+    --neon-green:   #4ade80;
+    --neon-cyan:    #22d3ee;
+    --neon-blue:    #60a5fa;
+    --neon-indigo:  #818cf8;
+    --neon-purple:  #a78bfa;
+
+    /* ── Functional Colors ── */
+    --text-primary:   #e8e8f0;
+    --text-secondary: #8888a0;
+    --text-dim:       #555568;
+    --text-accent:    var(--neon-cyan);
+
+    /* ── Gradient: The Pipe ── */
+    --pipe-gradient: linear-gradient(135deg,
+      var(--neon-yellow) 0%,
+      var(--neon-green) 20%,
+      var(--neon-cyan) 40%,
+      var(--neon-blue) 60%,
+      var(--neon-indigo) 80%,
+      var(--neon-purple) 100%
+    );
+    --pipe-gradient-h: linear-gradient(90deg,
+      var(--neon-yellow) 0%,
+      var(--neon-green) 20%,
+      var(--neon-cyan) 40%,
+      var(--neon-blue) 60%,
+      var(--neon-indigo) 80%,
+      var(--neon-purple) 100%
+    );
+
+    /* ── Typography ── */
+    --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    --font-sans:    'Instrument Sans', 'Inter', system-ui, sans-serif;
+    --font-display: 'Big Shoulders Display', 'Impact', sans-serif;
+
+    /* ── Spacing Scale ── */
+    --space-xs:  0.25rem;
+    --space-sm:  0.5rem;
+    --space-md:  1rem;
+    --space-lg:  1.5rem;
+    --space-xl:  2.5rem;
+    --space-2xl: 4rem;
+    --space-3xl: 6rem;
+    --space-4xl: 10rem;
+
+    /* ── Glow Effects ── */
+    --glow-cyan:   0 0 20px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1);
+    --glow-green:  0 0 20px rgba(74, 222, 128, 0.3), 0 0 60px rgba(74, 222, 128, 0.1);
+    --glow-purple: 0 0 20px rgba(167, 139, 250, 0.3), 0 0 60px rgba(167, 139, 250, 0.1);
+  }
+
+  /* ═══════════════════════════════════════════
+     RESET & BASE
+     ═══════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--void);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.25);
+    color: var(--text-primary);
+  }
+
+  /* ═══════════════════════════════════════════
+     NOISE TEXTURE OVERLAY
+     ═══════════════════════════════════════════ */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ═══════════════════════════════════════════
+     LAYOUT SYSTEM
+     ═══════════════════════════════════════════ */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-xl);
+  }
+
+  section {
+    padding: var(--space-3xl) 0;
+    border-bottom: 1px solid var(--void-border);
+    position: relative;
+  }
+
+  section:last-child { border-bottom: none; }
+
+  /* ═══════════════════════════════════════════
+     SECTION HEADERS
+     ═══════════════════════════════════════════ */
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .section-label::before {
+    content: '//';
+    color: var(--neon-cyan);
+    opacity: 0.6;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    margin-bottom: var(--space-lg);
+  }
+
+  .section-desc {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    line-height: 1.8;
+  }
+
+  /* ═══════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════ */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: var(--space-4xl) var(--space-xl);
+    border-bottom: 1px solid var(--void-border);
+    overflow: hidden;
+  }
+
+  /* Radial glow behind hero */
+  .hero::before {
+    content: '';
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* Diagonal grid lines */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        -60deg,
+        transparent,
+        transparent 80px,
+        rgba(34, 211, 238, 0.02) 80px,
+        rgba(34, 211, 238, 0.02) 81px
+      );
+    pointer-events: none;
+  }
+
+  .hero-logo {
+    width: min(400px, 80vw);
+    margin-bottom: var(--space-xl);
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.15));
+    animation: logo-breathe 6s ease-in-out infinite;
+  }
+
+  @keyframes logo-breathe {
+    0%, 100% { filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.15)); }
+    50% { filter: drop-shadow(0 0 60px rgba(34, 211, 238, 0.25)); }
+  }
+
+  .hero-tagline {
+    font-family: var(--font-mono);
+    font-size: clamp(0.85rem, 2vw, 1rem);
+    font-weight: 400;
+    color: var(--text-secondary);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+    margin-bottom: var(--space-md);
+  }
+
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(4rem, 10vw, 8rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+    background: var(--pipe-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--space-md);
+  }
+
+  .hero-subtitle {
+    font-family: var(--font-sans);
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+  }
+
+  .hero-pipe-symbol {
+    font-family: var(--font-mono);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    color: var(--neon-cyan);
+    opacity: 0.4;
+    position: relative;
+    z-index: 1;
+    margin: var(--space-lg) 0;
+    letter-spacing: 0.5em;
+  }
+
+  /* ═══════════════════════════════════════════
+     BRAND IDENTITY SECTION
+     ═══════════════════════════════════════════ */
+  .identity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xl);
+    margin-top: var(--space-2xl);
+  }
+
+  @media (max-width: 768px) {
+    .identity-grid { grid-template-columns: 1fr; }
+  }
+
+  .identity-card {
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s ease;
+  }
+
+  .identity-card:hover {
+    border-color: rgba(34, 211, 238, 0.2);
+  }
+
+  .identity-card h3 {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--neon-cyan);
+    margin-bottom: var(--space-md);
+  }
+
+  .identity-card p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.8;
+  }
+
+  .identity-card .big-text {
+    font-family: var(--font-display);
+    font-size: 2.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+    line-height: 1.15;
+    margin-bottom: var(--space-md);
+  }
+
+  /* ═══════════════════════════════════════════
+     COLOR PALETTE
+     ═══════════════════════════════════════════ */
+  .color-strip {
+    height: 6px;
+    background: var(--pipe-gradient-h);
+    border-radius: 3px;
+    margin: var(--space-2xl) 0 var(--space-xl);
+  }
+
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-md);
+    margin-top: var(--space-xl);
+  }
+
+  .color-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .color-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  .color-swatch {
+    height: 100px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .color-swatch .glow-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+    opacity: 0.8;
+  }
+
+  .color-meta {
+    padding: var(--space-md);
+  }
+
+  .color-name {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .color-hex {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .color-usage {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+  }
+
+  /* Backgrounds row */
+  .bg-palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+  }
+
+  .bg-card {
+    border-radius: 8px;
+    padding: var(--space-lg) var(--space-md);
+    border: 1px solid var(--void-border);
+    text-align: center;
+  }
+
+  .bg-card .color-name { margin-bottom: 2px; }
+  .bg-card .color-hex { display: block; margin-top: 4px; }
+
+  /* ═══════════════════════════════════════════
+     TYPOGRAPHY SHOWCASE
+     ═══════════════════════════════════════════ */
+  .type-showcase {
+    margin-top: var(--space-2xl);
+  }
+
+  .type-row {
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid var(--void-border);
+  }
+
+  .type-row:last-child { border-bottom: none; }
+
+  .type-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--space-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .type-spec {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--neon-cyan);
+    opacity: 0.5;
+    letter-spacing: 0.1em;
+  }
+
+  .type-sample-display {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+  }
+
+  .type-sample-mono {
+    font-family: var(--font-mono);
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    line-height: 1.4;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .type-sample-sans {
+    font-family: var(--font-sans);
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    line-height: 1.8;
+    color: var(--text-secondary);
+    max-width: 640px;
+  }
+
+  .type-weight-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-lg) var(--space-2xl);
+    margin-top: var(--space-lg);
+  }
+
+  .type-weight-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .type-weight-sample {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    color: var(--text-primary);
+  }
+
+  .type-weight-name {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ═══════════════════════════════════════════
+     LOGO USAGE
+     ═══════════════════════════════════════════ */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  .logo-variant {
+    border-radius: 12px;
+    padding: var(--space-2xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    position: relative;
+    border: 1px solid var(--void-border);
+    overflow: hidden;
+  }
+
+  .logo-variant img {
+    max-width: 200px;
+    height: auto;
+    margin-bottom: var(--space-md);
+  }
+
+  .logo-variant-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    position: absolute;
+    bottom: var(--space-md);
+    left: var(--space-md);
+  }
+
+  .logo-variant.dark {
+    background: var(--void);
+  }
+  .logo-variant.dark .logo-variant-label { color: var(--text-dim); }
+
+  .logo-variant.raised {
+    background: var(--void-raised);
+  }
+  .logo-variant.raised .logo-variant-label { color: var(--text-dim); }
+
+  .logo-variant.gradient {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+  }
+  .logo-variant.gradient .logo-variant-label { color: var(--text-dim); }
+
+  .logo-variant.light {
+    background: #f0f0f5;
+    border-color: #ddd;
+  }
+  .logo-variant.light .logo-variant-label { color: #888; }
+
+  /* Logo category headings */
+  .logo-category-heading {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    margin-top: var(--space-2xl);
+    margin-bottom: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+  }
+
+  .logo-category-tag {
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--neon-cyan);
+    background: rgba(34, 211, 238, 0.08);
+    border: 1px solid rgba(34, 211, 238, 0.15);
+    border-radius: 4px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+  }
+
+  .logo-category-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    max-width: 640px;
+    margin-bottom: var(--space-lg);
+  }
+
+  /* Icon grid — smaller images */
+  .logo-grid-icons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    .logo-grid-icons { grid-template-columns: 1fr; }
+  }
+
+  .logo-icon-size {
+    max-width: 100px !important;
+  }
+
+  /* Asset selection table */
+  .asset-selection-table {
+    margin-top: var(--space-2xl);
+  }
+
+  .selection-table {
+    width: 100%;
+    margin-top: var(--space-lg);
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .selection-table th {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: var(--space-md) var(--space-lg);
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--void-border);
+  }
+
+  .selection-table td {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    vertical-align: middle;
+  }
+
+  .selection-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .selection-table .file-cell {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--neon-cyan);
+    opacity: 0.7;
+    letter-spacing: 0.02em;
+  }
+
+  /* Clear space indicator */
+  .clearspace-demo {
+    margin-top: var(--space-2xl);
+    display: flex;
+    justify-content: center;
+  }
+
+  .clearspace-box {
+    position: relative;
+    padding: 60px;
+    border: 1px dashed rgba(34, 211, 238, 0.2);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .clearspace-box img {
+    width: 160px;
+    height: auto;
+  }
+
+  .clearspace-marker {
+    position: absolute;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    color: var(--neon-cyan);
+    opacity: 0.5;
+  }
+
+  .clearspace-marker.top    { top: 8px; left: 50%; transform: translateX(-50%); }
+  .clearspace-marker.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+  .clearspace-marker.left   { left: 8px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+  .clearspace-marker.right  { right: 8px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+
+  /* ═══════════════════════════════════════════
+     VOICE & TONE
+     ═══════════════════════════════════════════ */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  @media (max-width: 768px) {
+    .voice-grid { grid-template-columns: 1fr; }
+  }
+
+  .voice-card {
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+    position: relative;
+  }
+
+  .voice-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .voice-card.do::before   { background: var(--neon-green); }
+  .voice-card.dont::before { background: rgba(255, 100, 100, 0.6); }
+
+  .voice-card h3 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-md);
+  }
+
+  .voice-card.do h3   { color: var(--neon-green); }
+  .voice-card.dont h3 { color: rgba(255, 100, 100, 0.8); }
+
+  .voice-example {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    padding: var(--space-md);
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .voice-example:last-child { margin-bottom: 0; }
+
+  /* ═══════════════════════════════════════════
+     CODE EXAMPLE STYLING
+     ═══════════════════════════════════════════ */
+  .code-block {
+    background: var(--void-raised);
+    border: 1px solid var(--void-border);
+    border-radius: 10px;
+    padding: var(--space-lg) var(--space-xl);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text-primary);
+    overflow-x: auto;
+    margin-top: var(--space-lg);
+    position: relative;
+  }
+
+  .code-block::before {
+    content: 'rill';
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-md);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .code-block .kw   { color: var(--neon-cyan); }
+  .code-block .str  { color: var(--neon-green); }
+  .code-block .op   { color: var(--neon-yellow); }
+  .code-block .fn   { color: var(--neon-purple); }
+  .code-block .var  { color: var(--neon-blue); }
+  .code-block .cmt  { color: var(--text-dim); font-style: italic; }
+  .code-block .num  { color: var(--neon-indigo); }
+
+  /* ═══════════════════════════════════════════
+     MOTION / EFFECTS SECTION
+     ═══════════════════════════════════════════ */
+  .motion-demos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  .motion-card {
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+    text-align: center;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    cursor: default;
+  }
+
+  .motion-card h4 {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* Glow pulse */
+  .glow-demo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--neon-cyan);
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.3), 0 0 40px rgba(34, 211, 238, 0.1); }
+    50% { box-shadow: 0 0 30px rgba(34, 211, 238, 0.5), 0 0 80px rgba(34, 211, 238, 0.2); }
+  }
+
+  /* Pipe flow */
+  .pipe-demo {
+    width: 100%;
+    height: 4px;
+    background: var(--void-border);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pipe-demo::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    background: var(--pipe-gradient-h);
+    border-radius: 2px;
+    animation: pipe-flow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pipe-flow {
+    0% { left: -40%; }
+    100% { left: 100%; }
+  }
+
+  /* Spectrum shift */
+  .spectrum-demo {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    background: var(--pipe-gradient);
+    background-size: 300% 300%;
+    animation: spectrum-shift 6s ease-in-out infinite;
+  }
+
+  @keyframes spectrum-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Neon border */
+  .border-demo {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--void-card), var(--void-card)) padding-box,
+      var(--pipe-gradient) border-box;
+    animation: border-rotate 4s linear infinite;
+    position: relative;
+  }
+
+  @keyframes border-rotate {
+    0%   { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+  }
+
+  /* ═══════════════════════════════════════════
+     UI PATTERNS
+     ═══════════════════════════════════════════ */
+  .patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  /* Sample button */
+  .btn-rill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary {
+    background: var(--neon-cyan);
+    color: var(--void);
+  }
+
+  .btn-primary:hover {
+    box-shadow: var(--glow-cyan);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--void-border);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  .btn-gradient {
+    background: var(--pipe-gradient);
+    color: var(--void);
+    font-weight: 600;
+  }
+
+  .btn-gradient:hover {
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+    transform: translateY(-1px);
+  }
+
+  /* Sample input */
+  .input-rill {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    padding: 12px 16px;
+    background: var(--void);
+    border: 1px solid var(--void-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    width: 100%;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .input-rill:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+  }
+
+  .input-rill::placeholder {
+    color: var(--text-dim);
+  }
+
+  /* Sample badge/chip */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background: rgba(34, 211, 238, 0.1);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(34, 211, 238, 0.15);
+  }
+
+  .chip.green {
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--neon-green);
+    border-color: rgba(74, 222, 128, 0.15);
+  }
+
+  .chip.purple {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--neon-purple);
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  /* Pattern card */
+  .pattern-card {
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+  }
+
+  .pattern-card h4 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--space-lg);
+  }
+
+  .pattern-card .component-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+  }
+
+  .pattern-card .component-row:last-child { margin-bottom: 0; }
+
+  /* ═══════════════════════════════════════════
+     DO / DON'T USAGE
+     ═══════════════════════════════════════════ */
+  .usage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  @media (max-width: 900px) {
+    .usage-grid { grid-template-columns: 1fr; }
+  }
+
+  .usage-card {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--void-border);
+  }
+
+  .usage-card-header {
+    padding: var(--space-md) var(--space-lg);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .usage-card.correct .usage-card-header {
+    background: rgba(74, 222, 128, 0.08);
+    color: var(--neon-green);
+    border-bottom: 1px solid rgba(74, 222, 128, 0.15);
+  }
+
+  .usage-card.incorrect .usage-card-header {
+    background: rgba(255, 100, 100, 0.06);
+    color: rgba(255, 100, 100, 0.8);
+    border-bottom: 1px solid rgba(255, 100, 100, 0.12);
+  }
+
+  .usage-card-body {
+    padding: var(--space-lg);
+    background: var(--void-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+  }
+
+  .usage-card-body img {
+    max-width: 140px;
+    height: auto;
+  }
+
+  .usage-card-caption {
+    padding: var(--space-sm) var(--space-lg) var(--space-md);
+    background: var(--void-card);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ═══════════════════════════════════════════
+     SYNTAX HIGHLIGHT THEME
+     ═══════════════════════════════════════════ */
+  .syntax-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+  }
+
+  @media (max-width: 768px) {
+    .syntax-grid { grid-template-columns: 1fr; }
+  }
+
+  .syntax-card {
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+  }
+
+  .syntax-card h4 {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--space-md);
+  }
+
+  .token-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .token-row:last-child { border-bottom: none; }
+
+  .token-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .token-name {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 100px;
+  }
+
+  .token-example {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  /* ═══════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════ */
+  .footer {
+    padding: var(--space-3xl) 0;
+    text-align: center;
+    position: relative;
+  }
+
+  .footer-pipe {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    background: var(--pipe-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    opacity: 0.4;
+    margin-bottom: var(--space-lg);
+  }
+
+  .footer-text {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ═══════════════════════════════════════════
+     SCROLL ANIMATIONS
+     ═══════════════════════════════════════════ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Stagger delays */
+  .reveal-d1 { transition-delay: 0.1s; }
+  .reveal-d2 { transition-delay: 0.2s; }
+  .reveal-d3 { transition-delay: 0.3s; }
+  .reveal-d4 { transition-delay: 0.4s; }
+  .reveal-d5 { transition-delay: 0.5s; }
+  .reveal-d6 { transition-delay: 0.6s; }
+
+  /* ═══════════════════════════════════════════
+     GRADIENT TEXT UTILITY
+     ═══════════════════════════════════════════ */
+  .gradient-text {
+    background: var(--pipe-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ═══════════════════════════════════════════
+     CATEGORY BANNER
+     ═══════════════════════════════════════════ */
+  .category-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl);
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .category-banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--pipe-gradient);
+  }
+
+  .category-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(34, 211, 238, 0.06);
+    border-radius: 12px;
+    font-family: var(--font-mono);
+    color: var(--neon-cyan);
+  }
+
+  .category-content h3 {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .category-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ═══════════════════════════════════════════
+     COMPOSITION EXAMPLES
+     ═══════════════════════════════════════════ */
+  .composition-example {
+    margin-top: var(--space-2xl);
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: var(--space-2xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+  }
+
+  .comp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .comp-header-left h2 {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .comp-header-left p {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  .comp-header-right {
+    display: flex;
+    gap: var(--space-sm);
+  }
+
+  .comp-divider {
+    height: 1px;
+    background: var(--void-border);
+  }
+
+  .comp-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xl);
+  }
+
+  @media (max-width: 768px) {
+    .comp-body { grid-template-columns: 1fr; }
+  }
+
+  .comp-feature h3 {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--neon-cyan);
+    margin-bottom: var(--space-sm);
+  }
+
+  .comp-feature p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ════════════════════════════════════════════
+     HERO
+     ════════════════════════════════════════════ -->
+<header class="hero">
+  <img src="rill-logo.png" alt="rill logo" class="hero-logo" />
+  <div class="hero-tagline">Brand Design Guide</div>
+  <div class="hero-title">rill</div>
+  <div class="hero-pipe-symbol">-&gt; -&gt; -&gt;</div>
+  <div class="hero-subtitle">Embeddable, sandboxed scripting to power AI agents. A language where data flows, not state mutates.</div>
+</header>
+
+<!-- ════════════════════════════════════════════
+     BRAND IDENTITY
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">01 — Brand Identity</div>
+    <div class="section-title">Category &amp; Purpose</div>
+    <div class="section-desc">
+      rill occupies the developer tools category — specifically, embeddable scripting runtimes. It targets developers building AI agents who need a safe runtime for generated code.
+    </div>
+
+    <div class="category-banner reveal">
+      <div class="category-icon">-&gt;</div>
+      <div class="category-content">
+        <h3>Developer Tools — Embeddable Scripting Runtime</h3>
+        <p>A sandboxed scripting runtime that host applications embed safely. rill eliminates null, exceptions, and implicit coercion. Data enters, transformations shape it, and a result emerges.</p>
+      </div>
+    </div>
+
+    <div class="identity-grid">
+      <div class="identity-card reveal reveal-d1">
+        <h3>Core Metaphor</h3>
+        <div class="big-text">Data in motion</div>
+        <p>The rill brand embodies continuous flow. The logo's forward-leaning parallelograms suggest momentum — data entering from the left, transforming through each stage, emerging on the right. The neon spectrum traces this journey visually.</p>
+      </div>
+      <div class="identity-card reveal reveal-d2">
+        <h3>Brand Personality</h3>
+        <div class="big-text">Precise &amp; luminous</div>
+        <p>rill speaks with technical precision and visual clarity. No weasel words. No ambiguity. The neon-on-void aesthetic makes every element intentional and legible. The brand feels like a well-lit terminal at 2 AM — focused, energized, alive.</p>
+      </div>
+      <div class="identity-card reveal reveal-d3">
+        <h3>Audience</h3>
+        <div class="big-text">Agent developers</div>
+        <p>Developers building AI agents, copilots, and automation tools. They need a scripting runtime that LLMs can generate code for and end users can execute without risk. They value safety guarantees over language flexibility.</p>
+      </div>
+      <div class="identity-card reveal reveal-d4">
+        <h3>Positioning</h3>
+        <div class="big-text">Sandboxed by design</div>
+        <p>Where other runtimes require sandboxing after the fact, rill has no filesystem access, no network access, no side effects unless the host explicitly provides them. Safety is the default, not a configuration option.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     LOGO
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">02 — Logo System</div>
+    <div class="section-title">The Mark</div>
+    <div class="section-desc">
+      The rill logomark combines the letterforms "r" and "//" into a single forward-moving glyph. The double slashes reference pipe operators. The parallelogram geometry conveys direction and speed. The system provides 3 tiers: full neon logo, monochrome variants, and compact icons.
+    </div>
+
+    <!-- ── 02a: Primary Neon Logo ── -->
+    <h3 class="logo-category-heading reveal">
+      <span class="logo-category-tag">02a</span>
+      Primary — Neon Spectrum
+    </h3>
+    <p class="logo-category-desc reveal">The default representation. Use on marketing, hero sections, and branded surfaces where the full neon gradient has room to breathe.</p>
+
+    <div class="logo-grid">
+      <div class="logo-variant dark reveal reveal-d1">
+        <img src="rill-logo.png" alt="rill neon logo on void" />
+        <div class="logo-variant-label">Primary — Void</div>
+      </div>
+      <div class="logo-variant raised reveal reveal-d2">
+        <img src="rill-logo.png" alt="rill neon logo on raised" />
+        <div class="logo-variant-label">On Raised Surface</div>
+      </div>
+      <div class="logo-variant gradient reveal reveal-d3">
+        <img src="rill-logo.png" alt="rill neon logo on gradient" />
+        <div class="logo-variant-label">On Dark Gradient</div>
+      </div>
+      <div class="logo-variant light reveal reveal-d4">
+        <img src="rill-logo.png" alt="rill neon logo on light — avoid" />
+        <div class="logo-variant-label">Light Context (Avoid)</div>
+      </div>
+    </div>
+
+    <!-- ── 02b: Monochrome Logos ── -->
+    <h3 class="logo-category-heading reveal">
+      <span class="logo-category-tag">02b</span>
+      Monochrome — Full Mark
+    </h3>
+    <p class="logo-category-desc reveal">Stroke-outlined versions of the full 3-parallelogram mark for contexts where color reproduction is limited: print, embossing, one-color media, or third-party co-branding lockups.</p>
+
+    <div class="logo-grid">
+      <div class="logo-variant dark reveal reveal-d1">
+        <img src="rill-logo-mono-white.png" alt="rill mono white logo on dark" />
+        <div class="logo-variant-label">Mono White — Dark BG</div>
+      </div>
+      <div class="logo-variant light reveal reveal-d2">
+        <img src="rill-logo-mono-black.png" alt="rill mono black logo on light" style="filter: none;" />
+        <div class="logo-variant-label">Mono Black — Light BG</div>
+      </div>
+      <div class="logo-variant raised reveal reveal-d3">
+        <img src="rill-logo-mono-white.png" alt="rill mono white logo on raised" />
+        <div class="logo-variant-label">Mono White — Raised</div>
+      </div>
+      <div class="logo-variant reveal reveal-d4" style="background: linear-gradient(135deg, #e8e8f0 0%, #d0d0dd 100%); border-color: #ccc;">
+        <img src="rill-logo-mono-black.png" alt="rill mono black logo on light gradient" style="filter: none;" />
+        <div class="logo-variant-label" style="color: #888;">Mono Black — Light Gradient</div>
+      </div>
+    </div>
+
+    <!-- ── Asset Selection Guide ── -->
+    <div class="asset-selection-table reveal">
+      <h3 class="logo-category-heading">
+        <span class="logo-category-tag">ref</span>
+        Asset Selection Guide
+      </h3>
+      <table class="selection-table">
+        <thead>
+          <tr>
+            <th>Context</th>
+            <th>Asset</th>
+            <th>File</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hero sections, landing pages, branded marketing</td>
+            <td><span class="chip" style="font-size: 0.6rem;">Neon</span></td>
+            <td class="file-cell">rill-logo.png</td>
+          </tr>
+          <tr>
+            <td>Print, one-color media, co-branding on dark backgrounds</td>
+            <td><span class="chip" style="font-size: 0.6rem; background: rgba(232,232,240,0.08); color: var(--text-primary); border-color: rgba(232,232,240,0.15);">Mono White</span></td>
+            <td class="file-cell">rill-logo-mono-white.png</td>
+          </tr>
+          <tr>
+            <td>Print, one-color media, co-branding on light backgrounds</td>
+            <td><span class="chip" style="font-size: 0.6rem; background: rgba(30,30,42,0.4); color: var(--text-secondary); border-color: rgba(30,30,42,0.6);">Mono Black</span></td>
+            <td class="file-cell">rill-logo-mono-black.png</td>
+          </tr>
+          <tr>
+            <td>Favicons, app icons, small dark UI, toolbars, badges</td>
+            <td><span class="chip" style="font-size: 0.6rem; background: rgba(232,232,240,0.08); color: var(--text-primary); border-color: rgba(232,232,240,0.15);">Mono White Icon</span></td>
+            <td class="file-cell">rill-icon-mono-white.png</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Clear Space ── -->
+    <h3 class="logo-category-heading reveal">
+      <span class="logo-category-tag">02d</span>
+      Clear Space &amp; Sizing
+    </h3>
+    <p class="logo-category-desc reveal">Maintain minimum clear space of 1.5x the logo's bounding dimension on all sides. Minimum size for the full mark: 80px width. Minimum size for the icon: 16px.</p>
+
+    <div class="clearspace-demo reveal">
+      <div class="clearspace-box">
+        <img src="rill-logo.png" alt="rill logo clearspace" />
+        <span class="clearspace-marker top">1.5x height</span>
+        <span class="clearspace-marker bottom">1.5x height</span>
+        <span class="clearspace-marker left">1.5x width</span>
+        <span class="clearspace-marker right">1.5x width</span>
+      </div>
+    </div>
+
+    <!-- ── Usage Do/Don't ── -->
+    <div class="usage-grid">
+      <div class="usage-card correct reveal reveal-d1">
+        <div class="usage-card-header">Correct Usage</div>
+        <div class="usage-card-body" style="background: var(--void);">
+          <img src="rill-logo.png" alt="correct logo usage" />
+        </div>
+        <div class="usage-card-caption">Neon logo on dark backgrounds. Maintain clear space. Let the glow breathe.</div>
+      </div>
+      <div class="usage-card correct reveal reveal-d2">
+        <div class="usage-card-header">Correct — Mono on Light</div>
+        <div class="usage-card-body" style="background: #f0f0f5;">
+          <img src="rill-logo-mono-black.png" alt="mono black logo on light background" style="filter: none;" />
+        </div>
+        <div class="usage-card-caption">Use mono black on light surfaces. Never place the neon logo on light backgrounds.</div>
+      </div>
+      <div class="usage-card correct reveal reveal-d3">
+        <div class="usage-card-header">Correct — Icon at Small Size</div>
+        <div class="usage-card-body" style="background: var(--void);">
+          <img src="rill-icon-mono-white.png" alt="icon at small size" style="max-width: 48px;" />
+        </div>
+        <div class="usage-card-caption">Use the icon variant below 80px. The full mark loses legibility at small sizes.</div>
+      </div>
+      <div class="usage-card incorrect reveal reveal-d4">
+        <div class="usage-card-header">Avoid</div>
+        <div class="usage-card-body" style="background: #f0f0f5;">
+          <img src="rill-logo.png" alt="incorrect — neon on light" style="filter: saturate(0.3) brightness(0.7); opacity: 0.6;" />
+        </div>
+        <div class="usage-card-caption">Neon on light backgrounds washes out. Never desaturate, rotate, or stretch any variant.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     COLOR
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">03 — Color System</div>
+    <div class="section-title">The Neon Spectrum</div>
+    <div class="section-desc">
+      The palette derives from the logo's rainbow gradient — six neon tones on a near-black void. Cyan serves as the primary accent. The spectrum activates for emphasis, gradients, and interactive states.
+    </div>
+
+    <div class="color-strip reveal"></div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-top: var(--space-xl);">Neon Spectrum</h3>
+    <div class="palette-grid">
+      <div class="color-card reveal reveal-d1">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(212, 225, 87, 0.15), rgba(212, 225, 87, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-yellow);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Yellow</div>
+          <div class="color-hex">#d4e157</div>
+          <div class="color-usage">Pipe operators, warnings</div>
+        </div>
+      </div>
+      <div class="color-card reveal reveal-d2">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(74, 222, 128, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-green);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Green</div>
+          <div class="color-hex">#4ade80</div>
+          <div class="color-usage">Strings, success, valid</div>
+        </div>
+      </div>
+      <div class="color-card reveal reveal-d3">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(34, 211, 238, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-cyan);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Cyan</div>
+          <div class="color-hex">#22d3ee · Primary Accent</div>
+          <div class="color-usage">Keywords, links, focus states</div>
+        </div>
+      </div>
+      <div class="color-card reveal reveal-d4">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(96, 165, 250, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-blue);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Blue</div>
+          <div class="color-hex">#60a5fa</div>
+          <div class="color-usage">Variables, parameters</div>
+        </div>
+      </div>
+      <div class="color-card reveal reveal-d5">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(129, 140, 248, 0.15), rgba(129, 140, 248, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-indigo);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Indigo</div>
+          <div class="color-hex">#818cf8</div>
+          <div class="color-usage">Numbers, constants</div>
+        </div>
+      </div>
+      <div class="color-card reveal reveal-d6">
+        <div class="color-swatch" style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.05));">
+          <div class="glow-dot" style="color: var(--neon-purple);"></div>
+        </div>
+        <div class="color-meta">
+          <div class="color-name">Neon Purple</div>
+          <div class="color-hex">#a78bfa</div>
+          <div class="color-usage">Functions, callables</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-top: var(--space-2xl);">Background Depths</h3>
+    <div class="bg-palette">
+      <div class="bg-card reveal reveal-d1" style="background: var(--void);">
+        <div class="color-name">Void</div>
+        <div class="color-hex">#0a0a0e</div>
+      </div>
+      <div class="bg-card reveal reveal-d2" style="background: var(--void-raised);">
+        <div class="color-name">Raised</div>
+        <div class="color-hex">#111117</div>
+      </div>
+      <div class="bg-card reveal reveal-d3" style="background: var(--void-card);">
+        <div class="color-name">Card</div>
+        <div class="color-hex">#16161e</div>
+      </div>
+      <div class="bg-card reveal reveal-d4" style="background: var(--void-border); border-color: #2a2a38;">
+        <div class="color-name">Border</div>
+        <div class="color-hex">#1e1e2a</div>
+      </div>
+    </div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-top: var(--space-2xl);">Text Hierarchy</h3>
+    <div class="bg-palette">
+      <div class="bg-card reveal reveal-d1" style="background: var(--void-card);">
+        <div style="color: var(--text-primary); font-size: 1.1rem; margin-bottom: 4px;">Primary</div>
+        <div class="color-hex">#e8e8f0</div>
+      </div>
+      <div class="bg-card reveal reveal-d2" style="background: var(--void-card);">
+        <div style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 4px;">Secondary</div>
+        <div class="color-hex">#8888a0</div>
+      </div>
+      <div class="bg-card reveal reveal-d3" style="background: var(--void-card);">
+        <div style="color: var(--text-dim); font-size: 1.1rem; margin-bottom: 4px;">Dim</div>
+        <div class="color-hex">#555568</div>
+      </div>
+      <div class="bg-card reveal reveal-d4" style="background: var(--void-card);">
+        <div style="color: var(--neon-cyan); font-size: 1.1rem; margin-bottom: 4px;">Accent</div>
+        <div class="color-hex">#22d3ee</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     TYPOGRAPHY
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">04 — Typography</div>
+    <div class="section-title">Three Voices</div>
+    <div class="section-desc">
+      Three typeface families serve distinct roles. A condensed industrial display face for headlines and feature text. A monospace for code, labels, and technical content. A clean sans for body text and navigation.
+    </div>
+
+    <div class="type-showcase">
+      <!-- Display -->
+      <div class="type-row reveal">
+        <div class="type-label">
+          <span>Display — Big Shoulders Display</span>
+          <span class="type-spec">Uppercase · Headlines · Feature text</span>
+        </div>
+        <div class="type-sample-display">Data flows, never stops.</div>
+        <div class="type-sample-display" style="font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 600; color: var(--text-secondary);">
+          Embeddable, sandboxed scripting to power AI agents
+        </div>
+      </div>
+
+      <!-- Monospace -->
+      <div class="type-row reveal">
+        <div class="type-label">
+          <span>Technical — JetBrains Mono</span>
+          <span class="type-spec">Code · Labels · UI Chrome</span>
+        </div>
+        <div class="type-sample-mono">
+          <span style="color: var(--neon-cyan);">"hello"</span>
+          <span style="color: var(--neon-yellow);"> -> </span>
+          <span style="color: var(--text-primary);">.trim</span>
+          <span style="color: var(--neon-yellow);"> -> </span>
+          <span style="color: var(--text-primary);">.upper</span>
+          <span style="color: var(--neon-yellow);"> -> </span>
+          <span style="color: var(--text-primary);">.split(</span><span style="color: var(--neon-green);">" "</span><span style="color: var(--text-primary);">)</span>
+        </div>
+
+        <div class="type-weight-row">
+          <div class="type-weight-item">
+            <div class="type-weight-sample" style="font-weight: 300;">Ag -&gt; 0</div>
+            <div class="type-weight-name">Light 300</div>
+          </div>
+          <div class="type-weight-item">
+            <div class="type-weight-sample" style="font-weight: 400;">Ag -&gt; 0</div>
+            <div class="type-weight-name">Regular 400</div>
+          </div>
+          <div class="type-weight-item">
+            <div class="type-weight-sample" style="font-weight: 500;">Ag -&gt; 0</div>
+            <div class="type-weight-name">Medium 500</div>
+          </div>
+          <div class="type-weight-item">
+            <div class="type-weight-sample" style="font-weight: 600;">Ag -&gt; 0</div>
+            <div class="type-weight-name">Semi 600</div>
+          </div>
+          <div class="type-weight-item">
+            <div class="type-weight-sample" style="font-weight: 700;">Ag -&gt; 0</div>
+            <div class="type-weight-name">Bold 700</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sans -->
+      <div class="type-row reveal">
+        <div class="type-label">
+          <span>Body — Instrument Sans</span>
+          <span class="type-spec">Paragraphs · Navigation · Descriptions</span>
+        </div>
+        <div class="type-sample-sans">
+          rill is an embeddable, sandboxed scripting language designed for AI agents. Host applications embed the runtime and control what capabilities are available. The language eliminates null, exceptions, and implicit coercion. Dataflow syntax makes code read like the transformation it describes.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SYNTAX HIGHLIGHTING
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">05 — Syntax Theme</div>
+    <div class="section-title">Code Coloring</div>
+    <div class="section-desc">
+      The syntax theme maps the neon spectrum to rill's grammar. Each color has a semantic role tied to what that token does in the language.
+    </div>
+
+    <div class="syntax-grid">
+      <div class="syntax-card reveal">
+        <h4>Token Mapping</h4>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-cyan);"></div>
+          <div class="token-name">Keywords</div>
+          <div class="token-example" style="color: var(--neon-cyan);">each map filter fold</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-green);"></div>
+          <div class="token-name">Strings</div>
+          <div class="token-example" style="color: var(--neon-green);">"hello world"</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-yellow);"></div>
+          <div class="token-name">Operators</div>
+          <div class="token-example" style="color: var(--neon-yellow);">-&gt; =&gt; ?? .?</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-blue);"></div>
+          <div class="token-name">Variables</div>
+          <div class="token-example" style="color: var(--neon-blue);">$result $name $@</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-purple);"></div>
+          <div class="token-name">Functions</div>
+          <div class="token-example" style="color: var(--neon-purple);">log() range() parse_json()</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--neon-indigo);"></div>
+          <div class="token-name">Numbers</div>
+          <div class="token-example" style="color: var(--neon-indigo);">42 3.14 0</div>
+        </div>
+        <div class="token-row">
+          <div class="token-color" style="background: var(--text-dim);"></div>
+          <div class="token-name">Comments</div>
+          <div class="token-example" style="color: var(--text-dim); font-style: italic;"># pipeline result</div>
+        </div>
+      </div>
+
+      <div class="syntax-card reveal">
+        <h4>Live Example</h4>
+        <div class="code-block" style="margin-top: 0;">
+<span class="cmt"># Transform and filter users</span>
+<span class="str">"users.json"</span> <span class="op">-&gt;</span> <span class="fn">parse_json</span>
+  <span class="op">-&gt;</span> <span class="kw">filter</span> { <span class="var">$</span>.active }
+  <span class="op">-&gt;</span> <span class="kw">map</span> { .name <span class="op">-&gt;</span> .upper }
+  <span class="op">-&gt;</span> <span class="kw">each</span> { <span class="fn">log</span>(<span class="str">"User: {<span class="var">$</span>}"</span>) }
+
+<span class="cmt"># Accumulate results</span>
+<span class="fn">range</span>(<span class="num">1</span>, <span class="num">10</span>)
+  <span class="op">-&gt;</span> <span class="kw">fold</span>(<span class="num">0</span>) { <span class="var">$@</span> + <span class="var">$</span> }
+  <span class="op">=&gt;</span> <span class="var">$total</span>
+
+<span class="var">$total</span> <span class="op">-&gt;</span> <span class="fn">log</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MOTION & EFFECTS
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">06 — Motion &amp; Effects</div>
+    <div class="section-title">Living Neon</div>
+    <div class="section-desc">
+      Animations reinforce the pipe metaphor — data flows, glows pulse, spectrums shift. Motion is directional (left-to-right), rhythmic (breathing glow), and purposeful (never decorative).
+    </div>
+
+    <div class="motion-demos">
+      <div class="motion-card reveal reveal-d1">
+        <div class="glow-demo"></div>
+        <h4>Glow Pulse</h4>
+        <p style="font-size: 0.8rem; color: var(--text-dim);">Breathing rhythm for focus indicators and active states</p>
+      </div>
+      <div class="motion-card reveal reveal-d2">
+        <div class="pipe-demo"></div>
+        <h4>Pipe Flow</h4>
+        <p style="font-size: 0.8rem; color: var(--text-dim);">Left-to-right motion for loading states and progress</p>
+      </div>
+      <div class="motion-card reveal reveal-d3">
+        <div class="spectrum-demo"></div>
+        <h4>Spectrum Shift</h4>
+        <p style="font-size: 0.8rem; color: var(--text-dim);">Gradient animation for featured elements and hero sections</p>
+      </div>
+      <div class="motion-card reveal reveal-d4">
+        <div class="border-demo"></div>
+        <h4>Neon Border</h4>
+        <p style="font-size: 0.8rem; color: var(--text-dim);">Hue-rotating border for premium or interactive surfaces</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     UI PATTERNS
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">07 — UI Patterns</div>
+    <div class="section-title">Component Vocabulary</div>
+    <div class="section-desc">
+      A small set of components establishes the visual language. Monospaced text, subtle borders, neon accents on near-black surfaces.
+    </div>
+
+    <div class="patterns-grid">
+      <div class="pattern-card reveal reveal-d1">
+        <h4>Buttons</h4>
+        <div class="component-row">
+          <button class="btn-rill btn-primary">Install rill</button>
+          <button class="btn-rill btn-ghost">View docs</button>
+        </div>
+        <div class="component-row">
+          <button class="btn-rill btn-gradient">Get started -&gt;</button>
+        </div>
+      </div>
+      <div class="pattern-card reveal reveal-d2">
+        <h4>Input</h4>
+        <input type="text" class="input-rill" placeholder='"hello" -> .upper -> log' />
+      </div>
+      <div class="pattern-card reveal reveal-d3">
+        <h4>Chips / Badges</h4>
+        <div class="component-row">
+          <span class="chip">v0.6.0</span>
+          <span class="chip green">sandboxed</span>
+          <span class="chip purple">TypeScript</span>
+        </div>
+      </div>
+      <div class="pattern-card reveal reveal-d4">
+        <h4>Code Block</h4>
+        <div class="code-block" style="margin-top: 0;">
+<span class="str">"hello"</span> <span class="op">-&gt;</span> .upper <span class="op">-&gt;</span> .len
+<span class="cmt"># Result: 5</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     VOICE & TONE
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">08 — Voice &amp; Tone</div>
+    <div class="section-title">How rill Speaks</div>
+    <div class="section-desc">
+      rill's voice mirrors its design principles: explicit, flowing, and direct. No marketing fluff. No vague promises. Say what the language does, show code, let results speak.
+    </div>
+
+    <div class="voice-grid">
+      <div class="voice-card do reveal reveal-d1">
+        <h3>Do</h3>
+        <div class="voice-example">"Data flows left-to-right through pipes. No assignment operator exists."</div>
+        <div class="voice-example">"filter removes items that fail a boolean test."</div>
+        <div class="voice-example">"rill scripts run inside host applications that provide domain functions."</div>
+      </div>
+      <div class="voice-card dont reveal reveal-d2">
+        <h3>Don't</h3>
+        <div class="voice-example">"rill is a powerful, next-generation scripting solution."</div>
+        <div class="voice-example">"Easily filter your data with our intuitive API."</div>
+        <div class="voice-example">"Supercharge your workflows with rill's amazing features."</div>
+      </div>
+    </div>
+
+    <div class="voice-grid" style="margin-top: var(--space-lg);">
+      <div class="voice-card do reveal reveal-d3">
+        <h3>Naming Conventions</h3>
+        <div class="voice-example">Lowercase "rill" — never "Rill", "RILL", or "rill.js"</div>
+        <div class="voice-example">The pipe operator: <code style="color: var(--neon-yellow);">-></code> — always with arrow, never "pipe symbol"</div>
+        <div class="voice-example">Functions: verb form — "filter", "map", "fold" — not "filtering", "mapping"</div>
+      </div>
+      <div class="voice-card do reveal reveal-d4">
+        <h3>Documentation Pattern</h3>
+        <div class="voice-example">1. State what the feature does in 1 sentence</div>
+        <div class="voice-example">2. Show a code example</div>
+        <div class="voice-example">3. Explain the result</div>
+        <div class="voice-example">4. Note mainstream habits to break (optional)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     COMPOSITION EXAMPLE
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">09 — Composition</div>
+    <div class="section-title">Assembled Example</div>
+    <div class="section-desc">
+      All brand elements working together — typography, color, spacing, and code styling in a realistic card layout.
+    </div>
+
+    <div class="composition-example reveal">
+      <div class="comp-header">
+        <div class="comp-header-left">
+          <h2>Agent Scripting Runtime</h2>
+          <p>Embeddable, sandboxed, safe by design</p>
+        </div>
+        <div class="comp-header-right">
+          <span class="chip">v0.6.0</span>
+          <span class="chip green">stable</span>
+        </div>
+      </div>
+      <div class="comp-divider"></div>
+      <div class="comp-body">
+        <div class="comp-feature">
+          <h3>Natural Dataflow</h3>
+          <p>Data enters and flows through transformations via the <code style="color: var(--neon-yellow);">-></code> operator. Expressions chain naturally. Code reads like the transformation it describes.</p>
+        </div>
+        <div class="comp-feature">
+          <h3>No Null, No Exceptions</h3>
+          <p>Missing values produce errors — use <code style="color: var(--neon-yellow);">??</code> for defaults. No try/catch exists. Validate inputs, check outputs, let errors halt execution cleanly.</p>
+        </div>
+      </div>
+      <div class="code-block">
+<span class="cmt"># Fetch, parse, transform, deliver</span>
+<span class="fn">app::fetch</span>(<span class="str">"https://api.example.com/users"</span>)
+  <span class="op">-&gt;</span> <span class="fn">parse_json</span>
+  <span class="op">-&gt;</span> <span class="kw">filter</span> { .role <span class="op">==</span> <span class="str">"admin"</span> }
+  <span class="op">-&gt;</span> <span class="kw">map</span> { [name: .name, email: .email] }
+  <span class="op">-&gt;</span> <span class="kw">each</span> { <span class="fn">app::notify</span>(<span class="str">"Alert for {.name}"</span>) }
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     CSS VARIABLES REFERENCE
+     ════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="section-label">10 — Implementation</div>
+    <div class="section-title">CSS Variables</div>
+    <div class="section-desc">
+      Copy these custom properties into any project using the rill brand. The complete design system fits in a single <code>:root</code> block.
+    </div>
+
+    <div class="code-block reveal" style="font-size: 0.78rem; line-height: 2;">
+<span class="cmt">/* rill Brand System — CSS Custom Properties */</span>
+
+<span class="cmt">/* Void / Background */</span>
+<span class="kw">--void</span>:        <span class="str">#0a0a0e</span>;
+<span class="kw">--void-raised</span>: <span class="str">#111117</span>;
+<span class="kw">--void-card</span>:   <span class="str">#16161e</span>;
+<span class="kw">--void-border</span>: <span class="str">#1e1e2a</span>;
+
+<span class="cmt">/* Neon Spectrum */</span>
+<span class="kw">--neon-yellow</span>:  <span class="str">#d4e157</span>;
+<span class="kw">--neon-green</span>:   <span class="str">#4ade80</span>;
+<span class="kw">--neon-cyan</span>:    <span class="str">#22d3ee</span>;  <span class="cmt">/* Primary accent */</span>
+<span class="kw">--neon-blue</span>:    <span class="str">#60a5fa</span>;
+<span class="kw">--neon-indigo</span>:  <span class="str">#818cf8</span>;
+<span class="kw">--neon-purple</span>:  <span class="str">#a78bfa</span>;
+
+<span class="cmt">/* Text Hierarchy */</span>
+<span class="kw">--text-primary</span>:   <span class="str">#e8e8f0</span>;
+<span class="kw">--text-secondary</span>: <span class="str">#8888a0</span>;
+<span class="kw">--text-dim</span>:       <span class="str">#555568</span>;
+
+<span class="cmt">/* Pipe Gradient */</span>
+<span class="kw">--pipe-gradient</span>: <span class="fn">linear-gradient</span>(<span class="num">135deg</span>,
+  <span class="kw">var</span>(<span class="str">--neon-yellow</span>) <span class="num">0%</span>,
+  <span class="kw">var</span>(<span class="str">--neon-green</span>) <span class="num">20%</span>,
+  <span class="kw">var</span>(<span class="str">--neon-cyan</span>) <span class="num">40%</span>,
+  <span class="kw">var</span>(<span class="str">--neon-blue</span>) <span class="num">60%</span>,
+  <span class="kw">var</span>(<span class="str">--neon-indigo</span>) <span class="num">80%</span>,
+  <span class="kw">var</span>(<span class="str">--neon-purple</span>) <span class="num">100%</span>);
+
+<span class="cmt">/* Typography */</span>
+<span class="kw">--font-mono</span>:  <span class="str">'JetBrains Mono'</span>, monospace;
+<span class="kw">--font-sans</span>:  <span class="str">'Instrument Sans'</span>, system-ui;
+<span class="kw">--font-display</span>: <span class="str">'Big Shoulders Display'</span>, Impact;
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     FOOTER
+     ════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-pipe">-&gt; -&gt; -&gt;</div>
+    <div class="footer-text">rill brand guide &middot; v0.6.0 &middot; @rcrsr/rill</div>
+  </div>
+</footer>
+
+<!-- ════════════════════════════════════════════
+     SCROLL REVEAL SCRIPT
+     ════════════════════════════════════════════ -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

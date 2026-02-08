@@ -3,3 +3,4 @@ packages:
   - 'packages/cli'
   - 'packages/ext/*'
   - 'packages/fiddle'
+  - 'packages/web'

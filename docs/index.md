@@ -1,6 +1,6 @@
 # rill Documentation
 
-*Pipe-based scripting for workflow orchestration*
+*Embeddable, sandboxed scripting to power AI agents*
 
 ## Quick Links
 
@@ -9,7 +9,7 @@
 | [Guide](guide-getting-started.md) | Beginner-friendly introduction to rill |
 | [Reference](ref-language.md) | Core language specification |
 | [Examples](guide-examples.md) | Workflow patterns and use cases |
-| [Cookbook](cookbook.md) | Advanced workflow orchestration patterns |
+| [Cookbook](cookbook.md) | Advanced agent scripting patterns |
 
 ## Language Topics
 

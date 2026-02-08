@@ -1,6 +1,6 @@
 # rill Getting Started Guide
 
-*A beginner-friendly introduction to pipe-based scripting*
+*A beginner-friendly introduction to rill's dataflow syntax*
 
 ## Setup
 
@@ -27,7 +27,7 @@ rill is a scripting language where data flows through pipes. Instead of assignin
 # Result: 5
 ```
 
-rill is designed for orchestrating workflows—sequences of operations where each step transforms or acts on data from the previous step.
+rill is designed for AI agents that generate and execute scripts—sequences of operations where each step transforms or acts on data from the previous step.
 
 ## Your First Script
 

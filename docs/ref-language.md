@@ -1,8 +1,8 @@
 # rill Core Language Specification v0.5.0
 
-*From prompts to workflows*
+*Sandboxed scripting to power AI agents*
 
-rill is a pipe-based scripting language for orchestrating workflows.
+rill is an embeddable, sandboxed scripting language designed for AI agents.
 
 > **Experimental (v0.5.0).** Active development. Breaking changes until v1.0.
 

@@ -257,7 +257,7 @@ repeat("hi")              # "hi" (uses default count)
 
 ### Supported Types
 
-| Type | Rill Value | Validation |
+| Type | rill Value | Validation |
 |------|------------|------------|
 | `'string'` | String | `typeof value === 'string'` |
 | `'number'` | Number | `typeof value === 'number'` |
@@ -422,8 +422,8 @@ const ctx = createRuntimeContext({
 
 | Kind | Type | Description |
 |------|------|-------------|
-| `script` | `ScriptCallable` | Closures from Rill source code |
-| `runtime` | `RuntimeCallable` | Rill's built-in functions |
+| `script` | `ScriptCallable` | Closures from rill source code |
+| `runtime` | `RuntimeCallable` | rill's built-in functions |
 | `application` | `ApplicationCallable` | Host-provided callables |
 
 ### Type Guards
@@ -445,7 +445,7 @@ if (isApplicationCallable(value)) {
 }
 
 if (isScriptCallable(value)) {
-  // value is ScriptCallable (from Rill source)
+  // value is ScriptCallable (from rill source)
 }
 ```
 
@@ -689,7 +689,7 @@ console.log(`Running rill ${VERSION}`);  // "Running rill 0.5.0"
 
 // VERSION_INFO: Structured components for programmatic comparison
 if (VERSION_INFO.major === 0 && VERSION_INFO.minor < 4) {
-  console.warn('Rill version too old, upgrade required');
+  console.warn('rill version too old, upgrade required');
 }
 
 // Log full version info
@@ -811,7 +811,7 @@ const ctx = createRuntimeContext({
   callbacks: {
     onLog: (value) => {
       // Called when script uses .log method
-      console.log('[Rill]', value);
+      console.log('[rill]', value);
     },
   },
 });
@@ -881,7 +881,7 @@ const ctx = createRuntimeContext({
 
 ## Error Handling
 
-All Rill errors extend `RillError` with structured information:
+All rill errors extend `RillError` with structured information:
 
 ```typescript
 import { RuntimeError, ParseError, AbortError, TimeoutError } from '@rcrsr/rill';
