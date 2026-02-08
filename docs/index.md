@@ -36,9 +36,14 @@
 | [Host Integration](integration-host.md) | Embedding rill in applications |
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
-| [Bundled Extensions](bundled-extensions.md) | Pre-built extensions shipped with rill |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
+
+## Extensions
+
+| Topic | Description |
+|-------|-------------|
+| [Bundled Extensions](bundled-extensions.md) | Pre-built extensions shipped with rill |
 
 ## Grammar
 
@@ -59,7 +64,7 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](integration-host.md)
 6. **Packaging functions?** See [Extensions](integration-extensions.md)
-7. **Using bundled extensions?** See [Bundled Extensions](bundled-extensions.md)
+7. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
 
 ## Design Principles
 

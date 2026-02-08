@@ -1,7 +1,7 @@
 ---
 title: Reference
 description: "rill reference documentation — language spec, host API, errors"
-weight: 5
+weight: 6
 sidebar:
   open: true
 ---
