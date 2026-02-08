@@ -4,8 +4,10 @@
 
 *Embeddable, sandboxed scripting to power AI agents*
 
+**[rill.run](https://rill.run)**
+
 > [!WARNING]
-> **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur until v1.0.
+> **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur before stabilization.
 
 ## The Problem
 

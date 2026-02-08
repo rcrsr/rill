@@ -1,6 +1,6 @@
 # @rcrsr/rill-fiddle
 
-Browser-based interactive editor for the rill scripting language. Built with React and CodeMirror 6.
+Browser-based interactive editor for the [rill](https://rill.run) scripting language. Built with React and CodeMirror 6.
 
 ## Purpose
 

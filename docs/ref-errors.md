@@ -251,7 +251,7 @@ func($a, $b
 
 **Cause:** Code uses old capture arrow syntax (:>) instead of current syntax (=>).
 
-**Resolution:** Replace :> with => for all variable captures. This change was made in version 0.4.0.
+**Resolution:** Replace :> with => for all variable captures. The `:>` syntax is no longer supported.
 
 **Example:**
 
@@ -734,18 +734,16 @@ Each error message includes a help URL linking to this documentation:
 
 ```
 Error: Variable foo is not defined
-Help: https://github.com/rcrsr/rill/blob/v0.5.0/docs/ref-errors.md#rill-r005
+Help: https://rill.run/docs/reference/errors/#rill-r005
 ```
 
 The URL format is:
 
 ```
-https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{error-id}
+https://rill.run/docs/reference/errors/#{error-id}
 ```
 
-Where:
-- `{version}` is the rill package version (e.g., `v0.5.0`)
-- `{error-id}` is the lowercase error ID (e.g., `rill-r005`)
+Where `{error-id}` is the lowercase error ID (e.g., `rill-r005`).
 
 ---
 

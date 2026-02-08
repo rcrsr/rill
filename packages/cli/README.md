@@ -1,8 +1,8 @@
 # @rcrsr/rill-cli
 
-Command-line tools for running and validating [rill](https://github.com/rcrsr/rill) scripts.
+Command-line tools for running and validating [rill](https://rill.run) scripts.
 
-> **Experimental.** Breaking changes will occur until v1.0.
+> **Experimental.** Breaking changes will occur before stabilization.
 
 ## Install
 

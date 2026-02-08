@@ -1,10 +1,10 @@
-# rill Core Language Specification v0.6
+# rill Core Language Specification
 
 *Sandboxed scripting to power AI agents*
 
 rill is an embeddable, sandboxed scripting language designed for AI agents.
 
-> **Experimental (v0.6).** Active development. Breaking changes until v1.0.
+> **Experimental.** Active development. Breaking changes will occur before stabilization.
 
 ## Overview
 
