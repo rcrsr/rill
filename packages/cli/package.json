@@ -1,6 +1,7 @@
 {
   "name": "@rcrsr/rill-cli",
-  "version": "0.6.1",
+  "version": "0.6.2",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "rill-exec": "./dist/cli-exec.js",
