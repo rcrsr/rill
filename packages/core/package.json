@@ -11,7 +11,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "tsx scripts/generate-version.ts && tsc --build",
+    "build": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build",
     "test": "vitest run",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
     "typecheck": "tsc --noEmit",
