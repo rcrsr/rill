@@ -73,7 +73,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
     if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
-        'RILL-P005',
+        'RILL-P001',
         'Expected identifier or keyword after ::',
         token.span.start
       );
@@ -85,7 +85,12 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
 
   return {
     type: 'HostCall',
@@ -116,7 +121,12 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
 
   return {
     type: 'ClosureCall',
@@ -132,7 +142,12 @@ Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
   expect(this.state, TOKEN_TYPES.PIPE_VAR, 'Expected $');
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList();
-  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
 
   return {
     type: 'PipeInvoke',
@@ -162,7 +177,12 @@ Parser.prototype.parseMethodCall = function (
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     advance(this.state);
     args = this.parseArgumentList();
-    const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+    const rparen = expect(
+      this.state,
+      TOKEN_TYPES.RPAREN,
+      'Expected )',
+      'RILL-P005'
+    );
     endLoc = rparen.span.end;
   }
 

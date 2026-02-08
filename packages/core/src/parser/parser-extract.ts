@@ -79,7 +79,7 @@ Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.GT, 'Expected >');
+  expect(this.state, TOKEN_TYPES.GT, 'Expected >', 'RILL-P005');
 
   return {
     type: 'Destructure',
@@ -224,7 +224,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.GT, 'Expected >');
+  expect(this.state, TOKEN_TYPES.GT, 'Expected >', 'RILL-P005');
 
   return {
     type: 'Slice',

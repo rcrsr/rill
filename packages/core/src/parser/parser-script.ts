@@ -161,7 +161,12 @@ Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
   const contentEnd = current(this.state).span.start.offset;
   const content = this.state.source.slice(contentStart, contentEnd).trim();
 
-  expect(this.state, TOKEN_TYPES.FRONTMATTER_DELIM, 'Expected closing ---');
+  expect(
+    this.state,
+    TOKEN_TYPES.FRONTMATTER_DELIM,
+    'Expected closing ---',
+    'RILL-P005'
+  );
 
   return {
     type: 'Frontmatter',
@@ -250,7 +255,7 @@ Parser.prototype.parseAnnotatedStatement = function (
 
   const annotations = this.parseAnnotationArgs();
 
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
 
   // Parse the inner statement (which could also be annotated)
   const statement = this.parseStatement();

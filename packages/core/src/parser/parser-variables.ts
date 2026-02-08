@@ -137,7 +137,8 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       const closeBracket = expect(
         this.state,
         TOKEN_TYPES.RBRACKET,
-        'Expected ] after index expression'
+        'Expected ] after index expression',
+        'RILL-P005'
       );
       const span = makeSpan(openBracket.span.start, closeBracket.span.end);
       accessChain.push({ accessKind: 'bracket', expression, span });
@@ -229,13 +230,23 @@ Parser.prototype.parseComputedOrAlternatives = function (
   if (!isExistenceCheck) {
     const alternatives = this.tryParseAlternatives();
     if (alternatives) {
-      expect(this.state, TOKEN_TYPES.RPAREN, 'Expected ) after alternatives');
+      expect(
+        this.state,
+        TOKEN_TYPES.RPAREN,
+        'Expected ) after alternatives',
+        'RILL-P005'
+      );
       return { kind: 'alternatives', alternatives };
     }
   }
 
   const expression = this.parsePipeChain();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected ) after expression');
+  expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected ) after expression',
+    'RILL-P005'
+  );
   return { kind: 'computed', expression };
 };
 

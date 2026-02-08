@@ -349,7 +349,12 @@ Parser.prototype.parseTuple = function (
     skipNewlines(this.state);
   }
 
-  const rbracket = expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  const rbracket = expect(
+    this.state,
+    TOKEN_TYPES.RBRACKET,
+    'Expected ]',
+    'RILL-P005'
+  );
   return {
     type: 'Tuple',
     elements,
@@ -408,7 +413,12 @@ Parser.prototype.parseDict = function (
     skipNewlines(this.state);
   }
 
-  const rbracket = expect(this.state, TOKEN_TYPES.RBRACKET, 'Expected ]');
+  const rbracket = expect(
+    this.state,
+    TOKEN_TYPES.RBRACKET,
+    'Expected ]',
+    'RILL-P005'
+  );
   return {
     type: 'Dict',
     entries,
@@ -434,7 +444,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     advance(this.state); // consume $
     if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
-        'RILL-P005',
+        'RILL-P001',
         'Expected variable name after $',
         current(this.state).span.start
       );
@@ -447,7 +457,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
     // Standalone $ without identifier - error
     throw new ParseError(
-      'RILL-P005',
+      'RILL-P001',
       'Expected variable name after $',
       current(this.state).span.start
     );
@@ -552,7 +562,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
 
   const body = this.parseBody();
 
@@ -605,7 +615,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     advance(this.state); // consume ^
     expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
     annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
   }
 
   if (check(this.state, TOKEN_TYPES.ASSIGN)) {

@@ -378,7 +378,7 @@ export function parseBareHostCall(state: ParserState): HostCallNode {
 
     if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
-        'RILL-P005',
+        'RILL-P001',
         'Expected identifier or keyword after ::',
         token.span.start
       );

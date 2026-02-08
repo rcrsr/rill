@@ -85,13 +85,14 @@ export function advance(state: ParserState): Token {
 export function expect(
   state: ParserState,
   type: string,
-  message: string
+  message: string,
+  errorId: string = 'RILL-P001'
 ): Token {
   if (check(state, type)) return advance(state);
   const token = current(state);
   const hint = generateHint(type, token);
   const fullMessage = hint ? `${message}. ${hint}` : message;
-  throw new ParseError('RILL-P005', fullMessage, token.span.start);
+  throw new ParseError(errorId, fullMessage, token.span.start);
 }
 
 /** @internal */

@@ -495,7 +495,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
     }
   }
 
-  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
 
   return {
     type: 'Invoke',
@@ -871,7 +876,12 @@ Parser.prototype.parseGrouped = function (this: Parser): GroupedExprNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const expression = this.parsePipeChain();
-  const rparen = expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )');
+  const rparen = expect(
+    this.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
   return {
     type: 'GroupedExpr',
     expression,
