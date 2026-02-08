@@ -297,7 +297,7 @@ Scripts call these directly:
 
 ```rill
 http::get("https://api.example.com")
-fs::read("config.json") => $config
+fs::read("config.json") => $cfg
 ```
 
 ### Host Modules (@host/) — Alternative
