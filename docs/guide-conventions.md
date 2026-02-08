@@ -222,6 +222,32 @@ $dict.?field ? $dict.field ! "default"
 }
 ```
 
+### Multi-line conditionals for readability
+
+Use 2-space indent for `?` and `!` continuations:
+
+```text
+# good: multi-line conditional
+some_condition
+  ? "yes"
+  ! "no"
+
+# good: piped conditional split
+value -> is_valid
+  ? "ok"
+  ! "error"
+
+# good: chained else-if
+$val -> .eq("A") ? "a"
+  ! .eq("B") ? "b"
+  ! "c"
+
+# avoid: inconsistent indent
+condition
+    ? "yes"
+  ! "no"
+```
+
 ## Closures
 
 ### Use braces for complex bodies
@@ -632,6 +658,16 @@ prompt("analyze {$file}")
   => $result
   -> log
   -> .contains("ERROR") ? { error($result) }
+
+# good: conditional continuation
+value -> is_valid
+  ? "ok"
+  ! "error"
+
+# good: split else-if chain
+$val -> .eq("A") ? 1
+  ! .eq("B") ? 2
+  ! 3
 
 # avoid: no indent on continuation
 $data

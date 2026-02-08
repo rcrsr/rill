@@ -51,6 +51,9 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
      "?"   conditional operator (expr ? then ! else)
      "!"   else clause (after conditional then-branch)
 
+   Note: All continuation tokens work as line continuation when they appear
+   at the beginning of a line (same behavior as -> and =>).
+
    Statement-start tokens (begin new statement):
      "$"          variable or closure-call (if followed by "name(")
      identifier   host call (followed by "(")
@@ -62,11 +65,15 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    After any complete expression, if the next token is not a continuation,
    it must begin a new statement. No lookahead beyond one token is needed.
 
-   Line continuation: -> or => at the beginning of a line continues the
-   previous line's pipe chain. This allows readable multi-line chains:
+   Line continuation: ->, =>, ?, or ! at the beginning of a line continues
+   the previous line's pipe chain or conditional. This allows readable
+   multi-line chains:
      "hello"
        => $greeting
-       -> .upper *)
+       -> .upper
+     some_condition
+       ? "yes"
+       ! "no" *)
 
 (* Parsing note: "->" capture vs "->" pipe-target is unambiguous because
    capture ("$" identifier) and pipe-target are disjoint sets. Parsers

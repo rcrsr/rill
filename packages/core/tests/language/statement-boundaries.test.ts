@@ -214,16 +214,13 @@ $parts -> each { "{$}!" }`;
       await expect(run(script)).rejects.toThrow();
     });
 
-    it('else on newline becomes separate statement (! starts new statement)', async () => {
-      // With new syntax, ! at line start is negation, not else clause
-      // So this parses as two statements: conditional (returns false) and negation of block
+    it('else on newline is now part of conditional (multi-line support)', async () => {
+      // With multi-line conditional support, ! after a conditional's then-branch
+      // on a new line is now parsed as the else clause, not a separate statement
       const script = `false -> ? { "yes" }
 ! { "no" }`;
-      // The block { "no" } is a closure, and ! tries to negate it
-      // This throws because negation requires boolean operand
-      await expect(run(script)).rejects.toThrow(
-        'Negation operator (!) requires boolean operand, got closure'
-      );
+      // This now parses as a single conditional with else branch
+      expect(await run(script)).toBe('no');
     });
   });
 });

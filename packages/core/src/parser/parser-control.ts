@@ -25,6 +25,7 @@ import {
   current,
   isAtEnd,
   skipNewlines,
+  skipNewlinesIfFollowedBy,
   makeSpan,
 } from './state.js';
 
@@ -78,12 +79,15 @@ Parser.prototype.parseConditionalRest = function (
   const thenBranch = this.parseBody();
 
   let elseBranch: BodyNode | ConditionalNode | null = null;
+  // Site 4: Add skipNewlines before ! check (safe because we're inside conditional)
+  skipNewlines(this.state);
   if (check(this.state, TOKEN_TYPES.BANG)) {
     advance(this.state);
 
     const elseBody = this.parseBody();
 
-    if (check(this.state, TOKEN_TYPES.QUESTION)) {
+    // Site 5: Add newline lookahead before ? check for else-if
+    if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
       elseBranch = this.parseConditionalWithCondition(elseBody);
     } else {
       elseBranch = elseBody;

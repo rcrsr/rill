@@ -312,4 +312,147 @@ describe('Rill Runtime: Conditionals', () => {
       expect(result).toBe('warn:warn');
     });
   });
+
+  describe('Multi-Line Conditionals', () => {
+    describe('Core Multi-Line Forms', () => {
+      it('AC-1: ? on new line, else inline', async () => {
+        const result = await run(`true
+  ? "yes" ! "no"`);
+        expect(result).toBe('yes');
+      });
+
+      it('AC-2: ! on new line', async () => {
+        const result = await run(`true ? "yes"
+  ! "no"`);
+        expect(result).toBe('yes');
+      });
+
+      it('AC-3: Both ? and ! on new lines', async () => {
+        const result = await run(`false
+  ? "yes"
+  ! "no"`);
+        expect(result).toBe('no');
+      });
+
+      it('AC-4: Block bodies on new lines', async () => {
+        const result = await run(`true
+  ? { "yes" }
+  ! { "no" }`);
+        expect(result).toBe('yes');
+      });
+
+      it('AC-5: Piped conditional split', async () => {
+        const result = await run(`"test" -> .empty
+  ? "error"
+  ! "ok"`);
+        expect(result).toBe('ok');
+      });
+
+      it('AC-6: Method condition, ? on new line', async () => {
+        const result = await run(`"hello" -> .contains("ell")
+  ? "yes" ! "no"`);
+        expect(result).toBe('yes');
+      });
+    });
+
+    describe('Else-If Chains', () => {
+      it('AC-7: Multi-line else-if', async () => {
+        const result = await run(`"B" -> .eq("A") ? 1
+  ! .eq("B") ? 2
+  ! 3`);
+        expect(result).toBe(2);
+      });
+
+      it('AC-8: Fully split else-if chain', async () => {
+        const result = await run(`false
+  ? 1
+  ! false
+  ? 2
+  ! 3`);
+        expect(result).toBe(3);
+      });
+    });
+
+    describe('Regression: Single-Line Must Continue Working', () => {
+      it('AC-9: Single-line unchanged', async () => {
+        expect(await run('true ? "yes" ! "no"')).toBe('yes');
+      });
+
+      it('AC-10: Compact form unchanged', async () => {
+        expect(await run('true?"yes"!"no"')).toBe('yes');
+      });
+
+      it('AC-11: Piped form unchanged', async () => {
+        expect(await run('false -> ? "yes" ! "no"')).toBe('no');
+      });
+
+      it('AC-12: Else-if unchanged', async () => {
+        expect(await run('"B" -> .eq("A") ? 1 ! .eq("B") ? 2 ! 3')).toBe(2);
+      });
+    });
+
+    describe('Regression: Do-While Must Not Gain Newline Lookahead', () => {
+      it('AC-13: Same-line do-while works', async () => {
+        const result = await run(`0 -> @ { $ + 1 } ? ($ < 3)`);
+        expect(result).toBe(3);
+      });
+
+      it('AC-14: Do-while ? on newline must not parse as do-while', async () => {
+        // This should fail to parse because ? cannot start a statement
+        await expect(
+          run(`@ { "body" }
+? "cond"`)
+        ).rejects.toThrow();
+      });
+    });
+
+    describe('Error Cases', () => {
+      it('AC-15: Empty then-block throws error', async () => {
+        await expect(
+          run(`true
+  ? { } ! "no"`)
+        ).rejects.toThrow('Empty blocks are not allowed');
+      });
+
+      it('AC-16: Empty else-block throws error', async () => {
+        await expect(
+          run(`true ? "yes"
+  ! { }`)
+        ).rejects.toThrow('Empty blocks are not allowed');
+      });
+
+      it('AC-17: Piped conditional requires boolean', async () => {
+        await expect(
+          run(`"x"
+  -> ? "yes" ! "no"`)
+        ).rejects.toThrow();
+      });
+    });
+
+    describe('Boundary Conditions', () => {
+      it('AC-18: Multiple blank lines before ?', async () => {
+        const result = await run(`true
+
+
+  ? "yes"`);
+        expect(result).toBe('yes');
+      });
+
+      it('AC-19: Multiple blank lines before !', async () => {
+        const result = await run(`false ? "yes"
+
+
+  ! "no"`);
+        expect(result).toBe('no');
+      });
+
+      it('AC-20: Nested multi-line conditionals', async () => {
+        const result = await run(`true
+  ? (false
+    ? "inner" ! "other")
+  ! "outer"`);
+        expect(result).toBe('other');
+      });
+    });
+  });
 });

@@ -29,6 +29,15 @@ rill provides singular control flow—no exceptions, no try/catch. Errors halt e
 condition ? then-body
 condition ? then-body ! else-body
 $val -> ? then-body ! else-body     # piped form: $ is the condition
+
+# Multi-line forms (? and ! work as line continuations)
+condition
+  ? then-body
+  ! else-body
+
+value -> is_valid
+  ? "ok"
+  ! "error"
 ```
 
 ### Standalone Form
@@ -83,6 +92,16 @@ false ? "skipped"                   # returns empty string
 $val -> .eq("A") ? "a" ! .eq("B") ? "b" ! "other"   # "b"
 ```
 
+Multi-line else-if chains improve readability:
+
+```rill
+"B" => $val
+$val -> .eq("A") ? "a"
+  ! .eq("B") ? "b"
+  ! "other"
+# Result: "b"
+```
+
 ### Return Value
 
 Conditionals return the last expression of the executed branch:
@@ -104,6 +123,16 @@ true -> ? {
 } ! {
   "skipped"
 }
+```
+
+Block bodies work with multi-line conditionals:
+
+```rill
+"data" => $input
+$input -> .empty
+  ? { error "Empty input" }
+  ! { $input -> .upper }
+# Result: "DATA"
 ```
 
 ---

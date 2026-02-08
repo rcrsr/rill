@@ -36,6 +36,7 @@ import {
   makeSpan,
   peek,
   skipNewlines,
+  skipNewlinesIfFollowedBy,
 } from './state.js';
 import {
   isHostCall,
@@ -279,7 +280,8 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   }
 
   // Check for conditional: expr ? then ! else
-  if (check(this.state, TOKEN_TYPES.QUESTION)) {
+  // Site 1: Add newline lookahead before ? check
+  if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
     const headAsPipeChain: PipeChainNode = {
       type: 'PipeChain',
       head,
@@ -382,7 +384,11 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   }
 
   // Check for conditional after pipe chain
-  if (check(this.state, TOKEN_TYPES.QUESTION) && pipes.length > 0) {
+  // Site 2: Add newline lookahead before ? check
+  if (
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION) &&
+    pipes.length > 0
+  ) {
     const span = makeSpan(start, current(this.state).span.end);
     const chainAsCondition: PipeChainNode = {
       type: 'PipeChain',
@@ -414,7 +420,8 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
 Parser.prototype.parsePostfixExpr = function (this: Parser): PostfixExprNode {
   const postfixExpr = this.parsePostfixExprBase();
 
-  if (check(this.state, TOKEN_TYPES.QUESTION)) {
+  // Site 3: Add newline lookahead before ? check
+  if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
     const conditional = this.parseConditionalWithCondition(postfixExpr);
     const span = makeSpan(postfixExpr.span.start, current(this.state).span.end);
     return this.wrapConditionalInPostfixExpr(conditional, span);

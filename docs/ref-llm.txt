@@ -210,6 +210,17 @@ Conditional (if-else):
 Piped conditional ($ becomes condition):
   value -> ? then_expr ! else_expr
 
+Multi-line conditionals (? and ! work as line continuations):
+  condition
+    ? "yes"
+    ! "no"
+  value -> is_valid
+    ? "ok"
+    ! "error"
+  $val -> .eq("A") ? "a"
+    ! .eq("B") ? "b"
+    ! "c"
+
 Condition loop (NO "while" keyword - use @ operator):
   init_value -> ($ < 10) @ { $ + 1 }  # $ is accumulator
 

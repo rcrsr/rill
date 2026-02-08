@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-line conditionals** — `?` and `!` now work as line-continuation tokens, matching `->` and `=>`
+
 ## [0.6.2] - 2026-02-07
 
 ### Fixed

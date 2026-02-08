@@ -48,8 +48,8 @@ See [Operators](topic-operators.md) for detailed documentation.
 
 | Syntax | Description |
 |--------|-------------|
-| `cond ? then ! else` | Conditional (if-else) |
-| `$val -> ? then ! else` | Piped conditional ($ as condition) |
+| `cond ? then ! else` | Conditional (if-else, supports multi-line) |
+| `$val -> ? then ! else` | Piped conditional ($ as condition, supports multi-line) |
 | `(cond) @ body` | While loop |
 | `@ body ? cond` | Do-while |
 | `break` / `$val -> break` | Exit loop |

@@ -203,6 +203,16 @@ When you pipe into `?`, the pipe value becomes the condition:
 # Result: "nothing here"
 ```
 
+Long conditionals can split across lines using `?` and `!` as continuations:
+
+```rill
+"test" => $input
+$input -> .contains("x")
+  ? "found"
+  ! "missing"
+# Result: "missing"
+```
+
 ## Loops
 
 ### For-Each Loop
@@ -381,6 +391,8 @@ true, false                 # boolean
 # Conditionals
 cond ? then ! else          # if-else
 value -> ? then             # piped if (value is condition)
+cond                        # multi-line form
+  ? then ! else
 
 # Loops
 list -> each { body }       # for-each

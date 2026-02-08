@@ -100,6 +100,36 @@ export function skipNewlines(state: ParserState): void {
   while (check(state, TOKEN_TYPES.NEWLINE)) advance(state);
 }
 
+/**
+ * Skip newlines if the next non-newline token is the target type.
+ * Uses peek-then-skip pattern: only consumes newlines if target found.
+ * @internal
+ */
+export function skipNewlinesIfFollowedBy(
+  state: ParserState,
+  tokenType: string
+): boolean {
+  if (!check(state, TOKEN_TYPES.NEWLINE)) {
+    return check(state, tokenType);
+  }
+
+  // Peek past newlines to find target
+  let lookahead = 1;
+  while (peek(state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+    lookahead++;
+  }
+  const nextToken = peek(state, lookahead);
+
+  if (nextToken.type === tokenType) {
+    // Target found: skip newlines and return true
+    while (check(state, TOKEN_TYPES.NEWLINE)) advance(state);
+    return true;
+  }
+
+  // Target not found: don't consume newlines
+  return false;
+}
+
 // ============================================================
 // ERROR HINTS
 // ============================================================
