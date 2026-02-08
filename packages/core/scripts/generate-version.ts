@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 /**
  * Generate version data from package.json for runtime introspection
  *
@@ -6,7 +6,7 @@
  * src/generated/version-data.ts with VERSION and VERSION_INFO constants.
  *
  * Usage:
- *   npx tsx packages/core/scripts/generate-version.ts
+ *   pnpm exec tsx packages/core/scripts/generate-version.ts
  */
 
 import * as fs from 'fs';
@@ -14,13 +14,6 @@ import * as path from 'path';
 
 const PACKAGE_JSON = 'package.json';
 const OUTPUT_FILE = 'src/generated/version-data.ts';
-
-interface VersionInfo {
-  readonly major: number;
-  readonly minor: number;
-  readonly patch: number;
-  readonly prerelease: string | undefined;
-}
 
 function main(): void {
   const rootDir = path.resolve(
@@ -64,13 +57,6 @@ function main(): void {
   const minor = parseInt(match[2]!, 10);
   const patch = parseInt(match[3]!, 10);
   const prerelease = match[4] || undefined;
-
-  const versionInfo: VersionInfo = {
-    major,
-    minor,
-    patch,
-    prerelease,
-  };
 
   // Generate output
   const output = `// AUTO-GENERATED - DO NOT EDIT

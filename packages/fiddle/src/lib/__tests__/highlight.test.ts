@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { type StringStream } from '@codemirror/language';
 import { rillHighlighter, type RillHighlightState } from '../highlight.js';
 import { TOKEN_TYPES } from '@rcrsr/rill';
 
@@ -109,7 +110,7 @@ class MockStringStream {
  * Tokenize a line and return tag sequence
  */
 function tokenizeLine(line: string): Array<string | null> {
-  const stream = new MockStringStream(line) as any;
+  const stream = new MockStringStream(line) as unknown as StringStream;
   const state = highlighter.startState(2);
   const tags: Array<string | null> = [];
 
@@ -364,7 +365,7 @@ describe('error handling', () => {
 
     it('returns null for tokens without category', () => {
       // Empty line or whitespace-only line
-      const stream = new MockStringStream('') as any;
+      const stream = new MockStringStream('') as unknown as StringStream;
       const state = highlighter.startState(2);
 
       // Should handle gracefully
@@ -383,7 +384,7 @@ describe('error handling', () => {
     });
 
     it('continues parsing after error', () => {
-      const stream = new MockStringStream('42 + x') as any;
+      const stream = new MockStringStream('42 + x') as unknown as StringStream;
       const state = highlighter.startState(2);
       const tags: Array<string | null> = [];
 
@@ -401,7 +402,7 @@ describe('error handling', () => {
   describe('EC-4: TOKEN_HIGHLIGHT_MAP missing category', () => {
     it('returns null for unmapped token types', () => {
       // NEWLINE is intentionally unmapped
-      const stream = new MockStringStream('\n') as any;
+      const stream = new MockStringStream('\n') as unknown as StringStream;
       const state = highlighter.startState(2);
 
       const tag = highlighter.token(stream, state);
@@ -411,7 +412,7 @@ describe('error handling', () => {
     });
 
     it('does not throw for unmapped categories', () => {
-      const stream = new MockStringStream('\n') as any;
+      const stream = new MockStringStream('\n') as unknown as StringStream;
       const state = highlighter.startState(2);
 
       expect(() => highlighter.token(stream, state)).not.toThrow();
@@ -450,7 +451,7 @@ describe('integration', () => {
       expect(state.lineNumber).toBe(0);
 
       // Process first line
-      const stream1 = new MockStringStream('42') as any;
+      const stream1 = new MockStringStream('42') as unknown as StringStream;
       while (!stream1.eol()) {
         highlighter.token(stream1, state);
       }
@@ -461,7 +462,9 @@ describe('integration', () => {
       expect(state.lineNumber).toBe(2);
 
       // Process third line
-      const stream2 = new MockStringStream('"hello"') as any;
+      const stream2 = new MockStringStream(
+        '"hello"'
+      ) as unknown as StringStream;
       while (!stream2.eol()) {
         highlighter.token(stream2, state);
       }

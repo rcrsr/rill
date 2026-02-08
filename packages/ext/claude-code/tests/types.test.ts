@@ -95,15 +95,6 @@ describe('types module', () => {
       expect(usage.cache_read_input_tokens).toBeUndefined();
       expect(usage.cache_creation).toBeUndefined();
     });
-
-    it('includes legacy cache_creation_input_tokens', () => {
-      const usage: TokenUsage = {
-        input_tokens: 100,
-        cache_creation_input_tokens: 50,
-      };
-
-      expect(usage.cache_creation_input_tokens).toBe(50);
-    });
   });
 
   describe('ContentBlock variants', () => {

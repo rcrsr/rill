@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 /**
  * Generate docs/ref-errors.md from ERROR_DEFINITIONS
  *
@@ -10,7 +10,7 @@
  * - Fails on missing documentation fields
  *
  * Usage:
- *   npx tsx packages/core/scripts/generate-error-docs.ts
+ *   pnpm exec tsx packages/core/scripts/generate-error-docs.ts
  */
 
 import * as fs from 'fs';

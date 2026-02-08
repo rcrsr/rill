@@ -202,7 +202,7 @@ describe('Rill Runtime: Variables', () => {
     });
   });
 
-  describe('AST Deprecated Fields', () => {
+  describe('VariableNode Access Chain', () => {
     // Helper to find first VariableNode in AST
     function findVariable(node: unknown): VariableNode | null {
       if (!node || typeof node !== 'object') return null;

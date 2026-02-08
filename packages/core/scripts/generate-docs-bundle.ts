@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 /**
  * Generate bundled language reference for runtime introspection
  *
@@ -6,7 +6,7 @@
  * with exported constant for getLanguageReference() implementation.
  *
  * Usage:
- *   npx tsx packages/core/scripts/generate-docs-bundle.ts
+ *   pnpm exec tsx packages/core/scripts/generate-docs-bundle.ts
  */
 
 import * as fs from 'fs';

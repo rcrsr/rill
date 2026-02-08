@@ -33,8 +33,6 @@ export interface TokenUsage {
   readonly input_tokens?: number | undefined;
   /** Generated output tokens */
   readonly output_tokens?: number | undefined;
-  /** Legacy cache write tokens (deprecated) */
-  readonly cache_creation_input_tokens?: number | undefined;
   /** Cache read tokens */
   readonly cache_read_input_tokens?: number | undefined;
   /** Structured cache creation tracking */
