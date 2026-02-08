@@ -157,30 +157,30 @@ describe('createClaudeCodeExtension', () => {
   describe('timeout validation (EC-2)', () => {
     it('throws Error for negative timeout', () => {
       expect(() => createClaudeCodeExtension({ defaultTimeout: -1 })).toThrow(
-        'Invalid timeout: must be positive integer, max 300000'
+        'Invalid timeout: must be positive integer, max 3600000'
       );
     });
 
     it('throws Error for zero timeout', () => {
       expect(() => createClaudeCodeExtension({ defaultTimeout: 0 })).toThrow(
-        'Invalid timeout: must be positive integer, max 300000'
+        'Invalid timeout: must be positive integer, max 3600000'
       );
     });
 
     it('throws Error for non-integer timeout', () => {
       expect(() =>
         createClaudeCodeExtension({ defaultTimeout: 30000.5 })
-      ).toThrow('Invalid timeout: must be positive integer, max 300000');
+      ).toThrow('Invalid timeout: must be positive integer, max 3600000');
     });
 
-    it('throws Error for timeout exceeding 300000', () => {
+    it('throws Error for timeout exceeding 3600000', () => {
       expect(() =>
-        createClaudeCodeExtension({ defaultTimeout: 300001 })
-      ).toThrow('Invalid timeout: must be positive integer, max 300000');
+        createClaudeCodeExtension({ defaultTimeout: 3600001 })
+      ).toThrow('Invalid timeout: must be positive integer, max 3600000');
     });
 
-    it('accepts timeout at boundary (300000)', () => {
-      const ext = createClaudeCodeExtension({ defaultTimeout: 300000 });
+    it('accepts timeout at boundary (3600000)', () => {
+      const ext = createClaudeCodeExtension({ defaultTimeout: 3600000 });
       expect(ext).toBeDefined();
     });
 

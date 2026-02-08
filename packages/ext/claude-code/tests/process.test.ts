@@ -119,12 +119,14 @@ describe('Process Manager', () => {
 
       expect(pty.spawn).toHaveBeenCalledWith(
         '/usr/bin/claude',
-        [
+        expect.arrayContaining([
+          '-p',
+          'test prompt',
           '--output-format',
           'stream-json',
-          '--dangerously-skip-permissions',
           '--verbose',
-        ],
+          '--dangerously-skip-permissions',
+        ]),
         expect.objectContaining({
           name: 'xterm-256color',
           cols: 80,
@@ -133,14 +135,19 @@ describe('Process Manager', () => {
       );
     });
 
-    it('writes prompt to stdin', () => {
-      // Prompt written to PTY
+    it('passes prompt via -p flag', () => {
+      // Prompt passed as CLI argument, not stdin
       const mockPty = createMockPty();
       vi.mocked(pty.spawn).mockReturnValue(mockPty as unknown as pty.IPty);
 
       spawnClaudeCli('my prompt');
 
-      expect(mockPty.write).toHaveBeenCalledWith('my prompt');
+      expect(pty.spawn).toHaveBeenCalledWith(
+        'claude',
+        expect.arrayContaining(['-p', 'my prompt']),
+        expect.any(Object)
+      );
+      expect(mockPty.write).not.toHaveBeenCalled();
     });
 
     it('uses default binary path when not specified', () => {
@@ -387,60 +394,6 @@ describe('Process Manager', () => {
       result.dispose();
 
       // Kill called only once
-      expect(mockPty.kill).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('write errors', () => {
-    it('throws RILL-R004 when write fails', () => {
-      // Prompt write failure
-      const mockPty = createMockPty();
-      mockPty.write.mockImplementation(() => {
-        throw new Error('Broken pipe');
-      });
-
-      vi.mocked(pty.spawn).mockReturnValue(mockPty as unknown as pty.IPty);
-
-      expect(() => spawnClaudeCli('test')).toThrow(
-        'Failed to write prompt to claude process: Broken pipe'
-      );
-    });
-
-    it('kills process when write fails', () => {
-      // Cleanup on write failure
-      const mockPty = createMockPty();
-      mockPty.write.mockImplementation(() => {
-        throw new Error('Broken pipe');
-      });
-
-      vi.mocked(pty.spawn).mockReturnValue(mockPty as unknown as pty.IPty);
-
-      try {
-        spawnClaudeCli('test');
-      } catch {
-        // Expected
-      }
-
-      expect(mockPty.kill).toHaveBeenCalled();
-    });
-
-    it('clears timeout when write fails', () => {
-      // No timeout leak on write failure
-      const mockPty = createMockPty();
-      mockPty.write.mockImplementation(() => {
-        throw new Error('Broken pipe');
-      });
-
-      vi.mocked(pty.spawn).mockReturnValue(mockPty as unknown as pty.IPty);
-
-      try {
-        spawnClaudeCli('test', { timeoutMs: 5000 });
-      } catch {
-        // Expected
-      }
-
-      // Advance time - no additional kills
-      vi.advanceTimersByTime(5000);
       expect(mockPty.kill).toHaveBeenCalledTimes(1);
     });
   });

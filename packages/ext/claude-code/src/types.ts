@@ -154,8 +154,12 @@ export type ClaudeMessage =
 export interface ClaudeCodeConfig {
   /** Path to Claude Code CLI binary (default: 'claude') */
   readonly binaryPath?: string | undefined;
-  /** Default timeout in milliseconds (default: 120000) */
+  /** Default timeout in milliseconds (default: 1800000) */
   readonly defaultTimeout?: number | undefined;
+  /** Skip permission checks (default: true) */
+  readonly dangerouslySkipPermissions?: boolean | undefined;
+  /** Setting sources to load: 'user', 'project', 'local' (default: '') */
+  readonly settingSources?: string | undefined;
 }
 
 /**

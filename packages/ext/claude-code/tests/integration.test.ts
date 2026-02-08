@@ -185,7 +185,7 @@ describe('Claude Code Extension Integration Tests - Success Cases', () => {
         dispose: vi.fn(),
       });
 
-      const ext = createClaudeCodeExtension({ defaultTimeout: 30000 });
+      const ext = createClaudeCodeExtension({ defaultTimeout: 1800000 });
       const ctx = createRuntimeContext();
 
       await ext.prompt.fn(['Test prompt', { timeout: 60000 }], ctx);

@@ -35,7 +35,7 @@ try {
 // Test 3: Invalid timeout validation (too large)
 console.log('\n✓ Test 3: Invalid timeout (exceeds max)');
 try {
-  createClaudeCodeExtension({ defaultTimeout: 300001 });
+  createClaudeCodeExtension({ defaultTimeout: 3600001 });
   console.error('  ✗ FAILED: Should have thrown error');
   process.exit(1);
 } catch (error) {
@@ -43,9 +43,9 @@ try {
 }
 
 // Test 4: Valid timeout at boundary
-console.log('\n✓ Test 4: Valid timeout at max boundary (300000)');
+console.log('\n✓ Test 4: Valid timeout at max boundary (3600000)');
 try {
-  const ext4 = createClaudeCodeExtension({ defaultTimeout: 300000 });
+  const ext4 = createClaudeCodeExtension({ defaultTimeout: 3600000 });
   console.log('  - Factory accepted max timeout');
   ext4.dispose?.();
 } catch (error) {

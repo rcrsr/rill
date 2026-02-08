@@ -18,14 +18,19 @@ npm install @rcrsr/rill-ext-claude-code
 import { parse, execute, createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
 import { createClaudeCodeExtension } from '@rcrsr/rill-ext-claude-code';
 
-const ext = createClaudeCodeExtension({ defaultTimeout: 60000 });
-const functions = prefixFunctions('claude_code', ext);
-const ctx = createRuntimeContext({ functions });
+const ext = createClaudeCodeExtension();
+const prefixed = prefixFunctions('claude_code', ext);
+const { dispose, ...functions } = prefixed;
+
+const ctx = createRuntimeContext({
+  functions,
+  callbacks: { onLog: (v) => console.log(v) },
+});
 
 const script = `claude_code::prompt("Explain TCP handshakes")`;
 const result = await execute(parse(script), ctx);
 
-await ext.dispose?.();
+dispose?.();
 ```
 
 ## Host Functions
@@ -63,15 +68,30 @@ $review.result -> log
 
 ```typescript
 const ext = createClaudeCodeExtension({
-  binaryPath: '/usr/local/bin/claude',  // default: 'claude'
-  defaultTimeout: 60000,                // default: 30000 (ms)
+  binaryPath: '/usr/local/bin/claude',     // default: 'claude'
+  defaultTimeout: 60000,                   // default: 1800000 (30 min)
+  dangerouslySkipPermissions: true,        // default: true
+  settingSources: '',                      // default: '' (no plugins)
 });
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `binaryPath` | string | `'claude'` | Path to Claude Code CLI binary |
-| `defaultTimeout` | number | `30000` | Default timeout in ms (max: 300000) |
+| `defaultTimeout` | number | `1800000` | Default timeout in ms (max: 3600000) |
+| `dangerouslySkipPermissions` | boolean | `true` | Bypass permission checks |
+| `settingSources` | string | `''` | Setting sources to load (see below) |
+
+### settingSources
+
+Controls which Claude Code settings load at startup. Maps to `--setting-sources`.
+
+| Value | Effect |
+|-------|--------|
+| `''` (default) | No settings loaded. Disables plugins, MCP servers, slash commands. |
+| `'user'` | Load user settings (~/.claude/settings.json) including plugins. |
+| `'project'` | Load project settings (.claude/settings.json). |
+| `'user,project'` | Load both user and project settings. |
 
 The factory validates the binary path and timeout eagerly. It throws if the binary is not found in `$PATH` or the timeout is out of range.
 
@@ -96,6 +116,23 @@ const ext = createClaudeCodeExtension();
 // ... use extension ...
 await ext.dispose?.();
 ```
+
+## Test Host
+
+A runnable example at `examples/test-host.ts` wires up the extension with the rill runtime:
+
+```bash
+# Built-in demo
+pnpm exec tsx examples/test-host.ts
+
+# Inline expression
+pnpm exec tsx examples/test-host.ts -e 'claude_code::prompt("Tell me a joke") -> log'
+
+# Script file
+pnpm exec tsx examples/test-host.ts script.rill
+```
+
+Requires `node-pty` native module built for your platform and `claude` in `$PATH`.
 
 ## Documentation
 

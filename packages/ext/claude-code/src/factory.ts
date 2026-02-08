@@ -33,8 +33,8 @@ interface ProcessTracker {
 // ============================================================
 
 const DEFAULT_BINARY_PATH = 'claude';
-const DEFAULT_TIMEOUT = 30000;
-const MAX_TIMEOUT = 300000;
+const DEFAULT_TIMEOUT = 1800000;
+const MAX_TIMEOUT = 3600000;
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -99,15 +99,15 @@ function truncateText(text: string, maxLength = 100): string {
  */
 function validateTimeout(timeout: number): void {
   if (!Number.isInteger(timeout)) {
-    throw new Error('Invalid timeout: must be positive integer, max 300000');
+    throw new Error('Invalid timeout: must be positive integer, max 3600000');
   }
 
   if (timeout <= 0) {
-    throw new Error('Invalid timeout: must be positive integer, max 300000');
+    throw new Error('Invalid timeout: must be positive integer, max 3600000');
   }
 
   if (timeout > MAX_TIMEOUT) {
-    throw new Error('Invalid timeout: must be positive integer, max 300000');
+    throw new Error('Invalid timeout: must be positive integer, max 3600000');
   }
 }
 
@@ -139,6 +139,8 @@ export function createClaudeCodeExtension(
   // Extract config with defaults
   const binaryPath = config.binaryPath ?? DEFAULT_BINARY_PATH;
   const defaultTimeout = config.defaultTimeout ?? DEFAULT_TIMEOUT;
+  const dangerouslySkipPermissions = config.dangerouslySkipPermissions ?? true;
+  const settingSources = config.settingSources ?? '';
 
   // Validate timeout immediately
   validateTimeout(defaultTimeout);
@@ -201,6 +203,8 @@ export function createClaudeCodeExtension(
           const spawn = spawnClaudeCli(text, {
             binaryPath,
             timeoutMs: timeout,
+            dangerouslySkipPermissions,
+            settingSources,
           });
 
           // Register cleanup
@@ -291,6 +295,8 @@ export function createClaudeCodeExtension(
           const spawn = spawnClaudeCli(prompt, {
             binaryPath,
             timeoutMs: timeout,
+            dangerouslySkipPermissions,
+            settingSources,
           });
 
           tracker.disposers.add(spawn.dispose);
@@ -381,6 +387,8 @@ export function createClaudeCodeExtension(
           const spawn = spawnClaudeCli(prompt, {
             binaryPath,
             timeoutMs: timeout,
+            dangerouslySkipPermissions,
+            settingSources,
           });
 
           tracker.disposers.add(spawn.dispose);

@@ -699,7 +699,7 @@ describe('IR-1: Factory creation is idempotent', () => {
     const which = await import('which');
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
-    const config = { binaryPath: 'claude', defaultTimeout: 30000 };
+    const config = { binaryPath: 'claude', defaultTimeout: 1800000 };
 
     // Create multiple instances
     const ext1 = createClaudeCodeExtension(config);

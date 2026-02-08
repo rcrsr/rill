@@ -84,7 +84,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     expect(() => createClaudeCodeExtension({ defaultTimeout: -1000 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
@@ -93,7 +93,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     expect(() => createClaudeCodeExtension({ defaultTimeout: 0 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
@@ -102,17 +102,17 @@ describe('EC-2: Invalid defaultTimeout', () => {
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     expect(() => createClaudeCodeExtension({ defaultTimeout: 1500.5 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
-  it('throws Error for timeout exceeding max (300000)', async () => {
+  it('throws Error for timeout exceeding max (3600000)', async () => {
     const which = await import('which');
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
-    expect(() => createClaudeCodeExtension({ defaultTimeout: 300001 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
-    );
+    expect(() =>
+      createClaudeCodeExtension({ defaultTimeout: 3600001 })
+    ).toThrow('Invalid timeout: must be positive integer, max 3600000');
   });
 });
 

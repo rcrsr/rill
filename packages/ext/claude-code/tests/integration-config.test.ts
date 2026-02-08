@@ -61,7 +61,7 @@ describe('IR-1: createClaudeCodeExtension factory configuration', () => {
       expect(ext.dispose).toBeDefined();
     });
 
-    it('uses defaultTimeout 30000 when not specified', async () => {
+    it('uses defaultTimeout 1800000 when not specified', async () => {
       const which = await import('which');
       const { spawnClaudeCli } = await import('../src/process.js');
       const { createStreamParser } = await import('../src/stream-parser.js');
@@ -101,10 +101,10 @@ describe('IR-1: createClaudeCodeExtension factory configuration', () => {
 
       await ext.prompt.fn(['Test prompt', {}], ctx);
 
-      // Verify default timeout 30000 was used
+      // Verify default timeout 1800000 was used
       expect(spawnClaudeCli).toHaveBeenCalledWith(
         'Test prompt',
-        expect.objectContaining({ timeoutMs: 30000 })
+        expect.objectContaining({ timeoutMs: 1800000 })
       );
     });
 
@@ -236,7 +236,7 @@ describe('IR-1: createClaudeCodeExtension factory configuration', () => {
       );
     });
 
-    it('accepts maximum timeout value 300000', async () => {
+    it('accepts maximum timeout value 3600000', async () => {
       const which = await import('which');
       const { spawnClaudeCli } = await import('../src/process.js');
       const { createStreamParser } = await import('../src/stream-parser.js');
@@ -271,7 +271,7 @@ describe('IR-1: createClaudeCodeExtension factory configuration', () => {
         dispose: vi.fn(),
       });
 
-      const ext = createClaudeCodeExtension({ defaultTimeout: 300000 });
+      const ext = createClaudeCodeExtension({ defaultTimeout: 3600000 });
       const ctx = createRuntimeContext();
 
       await ext.prompt.fn(['Test prompt', {}], ctx);
@@ -279,7 +279,7 @@ describe('IR-1: createClaudeCodeExtension factory configuration', () => {
       // Verify maximum timeout was accepted
       expect(spawnClaudeCli).toHaveBeenCalledWith(
         'Test prompt',
-        expect.objectContaining({ timeoutMs: 300000 })
+        expect.objectContaining({ timeoutMs: 3600000 })
       );
     });
   });
@@ -325,7 +325,7 @@ describe('AC-3: Custom timeout respects timeout option value', () => {
       dispose: vi.fn(),
     });
 
-    const ext = createClaudeCodeExtension({ defaultTimeout: 30000 });
+    const ext = createClaudeCodeExtension({ defaultTimeout: 1800000 });
     const ctx = createRuntimeContext();
 
     await ext.prompt.fn(['Test prompt', { timeout: 90000 }], ctx);
@@ -372,7 +372,7 @@ describe('AC-3: Custom timeout respects timeout option value', () => {
       dispose: vi.fn(),
     });
 
-    const ext = createClaudeCodeExtension({ defaultTimeout: 30000 });
+    const ext = createClaudeCodeExtension({ defaultTimeout: 1800000 });
     const ctx = createRuntimeContext();
 
     await ext.skill.fn(['test-skill', { timeout: 120000 }], ctx);
@@ -419,7 +419,7 @@ describe('AC-3: Custom timeout respects timeout option value', () => {
       dispose: vi.fn(),
     });
 
-    const ext = createClaudeCodeExtension({ defaultTimeout: 30000 });
+    const ext = createClaudeCodeExtension({ defaultTimeout: 1800000 });
     const ctx = createRuntimeContext();
 
     await ext.command.fn(['test-command', { timeout: 150000 }], ctx);
@@ -536,7 +536,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     expect(() => createClaudeCodeExtension({ defaultTimeout: -5000 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
@@ -545,7 +545,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     expect(() => createClaudeCodeExtension({ defaultTimeout: 0 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
@@ -555,7 +555,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
 
     expect(() =>
       createClaudeCodeExtension({ defaultTimeout: 2500.75 })
-    ).toThrow('Invalid timeout: must be positive integer, max 300000');
+    ).toThrow('Invalid timeout: must be positive integer, max 3600000');
   });
 
   it('throws Error for non-integer timeout (float)', async () => {
@@ -564,25 +564,25 @@ describe('EC-2: Invalid defaultTimeout', () => {
 
     expect(() =>
       createClaudeCodeExtension({ defaultTimeout: 10000.1 })
-    ).toThrow('Invalid timeout: must be positive integer, max 300000');
+    ).toThrow('Invalid timeout: must be positive integer, max 3600000');
   });
 
-  it('throws Error for timeout exceeding max (300000)', async () => {
+  it('throws Error for timeout exceeding max (3600000)', async () => {
     const which = await import('which');
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
-    expect(() => createClaudeCodeExtension({ defaultTimeout: 300001 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
-    );
+    expect(() =>
+      createClaudeCodeExtension({ defaultTimeout: 3600001 })
+    ).toThrow('Invalid timeout: must be positive integer, max 3600000');
   });
 
   it('throws Error for timeout far exceeding max', async () => {
     const which = await import('which');
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
-    expect(() => createClaudeCodeExtension({ defaultTimeout: 500000 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
-    );
+    expect(() =>
+      createClaudeCodeExtension({ defaultTimeout: 5000000 })
+    ).toThrow('Invalid timeout: must be positive integer, max 3600000');
   });
 
   it('validates timeout eagerly at factory creation time', async () => {
@@ -591,7 +591,7 @@ describe('EC-2: Invalid defaultTimeout', () => {
 
     // Validation happens immediately during createClaudeCodeExtension call
     expect(() => createClaudeCodeExtension({ defaultTimeout: -1 })).toThrow(
-      'Invalid timeout: must be positive integer, max 300000'
+      'Invalid timeout: must be positive integer, max 3600000'
     );
   });
 
@@ -605,13 +605,13 @@ describe('EC-2: Invalid defaultTimeout', () => {
     ).not.toThrow();
   });
 
-  it('accepts valid timeout at maximum (300000ms)', async () => {
+  it('accepts valid timeout at maximum (3600000ms)', async () => {
     const which = await import('which');
     vi.mocked(which.default.sync).mockReturnValue('claude');
 
     // Should not throw
     expect(() =>
-      createClaudeCodeExtension({ defaultTimeout: 300000 })
+      createClaudeCodeExtension({ defaultTimeout: 3600000 })
     ).not.toThrow();
   });
 });

@@ -35,6 +35,10 @@ export interface SpawnOptions {
   readonly cwd?: string | undefined;
   /** Environment variables (default: inherit) */
   readonly env?: Record<string, string | undefined> | undefined;
+  /** Skip permission checks (default: true) */
+  readonly dangerouslySkipPermissions?: boolean | undefined;
+  /** Setting sources to load: 'user', 'project', 'local' (default: '') */
+  readonly settingSources?: string | undefined;
 }
 
 // ============================================================
@@ -58,7 +62,24 @@ export function spawnClaudeCli(
     timeoutMs,
     cwd = process.cwd(),
     env = process.env,
+    dangerouslySkipPermissions = true,
+    settingSources = '',
   } = options;
+
+  // Build CLI args
+  const args = [
+    '-p',
+    prompt,
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--no-session-persistence',
+    '--setting-sources',
+    settingSources,
+  ];
+  if (dangerouslySkipPermissions) {
+    args.push('--dangerously-skip-permissions');
+  }
 
   // Track timeout and process state
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -76,22 +97,13 @@ export function spawnClaudeCli(
   // Spawn process
   let ptyProcess: pty.IPty;
   try {
-    ptyProcess = pty.spawn(
-      binaryPath,
-      [
-        '--output-format',
-        'stream-json',
-        '--dangerously-skip-permissions',
-        '--verbose',
-      ],
-      {
-        name: 'xterm-256color',
-        cols: 80,
-        rows: 30,
-        cwd,
-        env,
-      }
-    );
+    ptyProcess = pty.spawn(binaryPath, args, {
+      name: 'xterm-256color',
+      cols: 80,
+      rows: 30,
+      cwd,
+      env,
+    });
   } catch (error: unknown) {
     // Handle spawn errors
     if (error instanceof Error) {
@@ -178,26 +190,6 @@ export function spawnClaudeCli(
       }
     }
   });
-
-  // Write prompt to stdin and close
-  try {
-    ptyProcess.write(prompt);
-    // Signal EOF by not writing more (PTY handles stdin closure differently)
-  } catch (error: unknown) {
-    // If write fails, clean up and throw
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    ptyProcess.kill();
-
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new RuntimeError(
-      'RILL-R004',
-      `Failed to write prompt to claude process: ${message}`,
-      undefined,
-      { originalError: message }
-    );
-  }
 
   // Cleanup function
   const dispose = (): void => {

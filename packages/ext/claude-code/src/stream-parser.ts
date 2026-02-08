@@ -3,7 +3,6 @@
  * Handles chunked PTY output with ANSI escape sequences.
  */
 
-import { RuntimeError } from '@rcrsr/rill';
 import type { ClaudeMessage } from './types.js';
 
 // ============================================================
@@ -83,25 +82,28 @@ function stripAnsi(text: string): string {
  */
 export function createStreamParser(): StreamParser {
   let buffer = '';
-  let lineNumber = 0;
 
   /**
    * Process a single complete line.
-   * Emits parsed message or throws RuntimeError on failure.
+   * Skips non-JSON lines (terminal control codes, progress indicators).
    */
   function processLine(
     line: string,
     onMessage: (message: ClaudeMessage) => void
   ): void {
-    lineNumber++;
-
     // Skip empty lines
     if (line.trim().length === 0) {
       return;
     }
 
+    // Strip terminal artifacts beyond ANSI sequences
+    const cleaned = line.trim().replace(/\[<u/g, '');
+    if (cleaned.length === 0) {
+      return;
+    }
+
     try {
-      const parsed = JSON.parse(line) as unknown;
+      const parsed = JSON.parse(cleaned) as unknown;
 
       // Validate parsed object has 'type' discriminant
       if (
@@ -109,16 +111,12 @@ export function createStreamParser(): StreamParser {
         parsed === null ||
         !('type' in parsed)
       ) {
-        throw new Error('Missing "type" field in message');
+        return;
       }
 
       onMessage(parsed as ClaudeMessage);
     } catch {
-      // EC-7: Complete line with invalid JSON is non-recoverable
-      throw new RuntimeError(
-        'RILL-R004',
-        `Invalid stream-json output: line ${lineNumber}: ${line}`
-      );
+      // Skip non-JSON lines (terminal control codes, progress indicators)
     }
   }
 

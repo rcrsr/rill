@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Multi-line conditionals** — `?` and `!` now work as line-continuation tokens, matching `->` and `=>`
 
+### Changed (ext/claude-code)
+
+- **Live CLI support** — prompt delivered via `-p` flag; stream parser skips non-JSON terminal output
+- **Config** — `settingSources` controls plugin/MCP loading; `dangerouslySkipPermissions` flag exposed
+- **Defaults** — timeout 30min (was 30s), `--no-session-persistence` and `--setting-sources ''` always on
+- **Test host** — `examples/test-host.ts` for manual testing against live Claude CLI
+
 ## [0.6.2] - 2026-02-07
 
 ### Fixed

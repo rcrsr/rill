@@ -234,34 +234,30 @@ describe('StreamParser - ANSI Stripping', () => {
 // ERROR HANDLING
 // ============================================================
 
-describe('StreamParser - Error Handling', () => {
-  it('throws RuntimeError RILL-R004 for malformed JSON', () => {
+describe('StreamParser - Non-JSON Handling', () => {
+  it('silently skips malformed JSON lines', () => {
     const parser = createStreamParser();
     const messages: ClaudeMessage[] = [];
 
-    expect(() => {
-      parser.processChunk('{ invalid json }\n', (msg) => {
-        messages.push(msg);
-      });
-    }).toThrow('Invalid stream-json output: line 1: { invalid json }');
+    parser.processChunk('{ invalid json }\n', (msg) => {
+      messages.push(msg);
+    });
 
     expect(messages).toHaveLength(0);
   });
 
-  it('throws RuntimeError RILL-R004 for valid JSON without type field', () => {
+  it('silently skips valid JSON without type field', () => {
     const parser = createStreamParser();
     const messages: ClaudeMessage[] = [];
 
-    expect(() => {
-      parser.processChunk('{"foo": "bar"}\n', (msg) => {
-        messages.push(msg);
-      });
-    }).toThrow('Invalid stream-json output: line 1: {"foo": "bar"}');
+    parser.processChunk('{"foo": "bar"}\n', (msg) => {
+      messages.push(msg);
+    });
 
     expect(messages).toHaveLength(0);
   });
 
-  it('includes correct line number in error message', () => {
+  it('skips non-JSON lines while parsing valid ones', () => {
     const parser = createStreamParser();
     const messages: ClaudeMessage[] = [];
 
@@ -277,23 +273,23 @@ describe('StreamParser - Error Handling', () => {
     });
     expect(messages).toHaveLength(1);
 
-    // Second line is invalid - should throw with line 2
-    expect(() => {
-      parser.processChunk('bad json 1\n', (msg) => {
-        messages.push(msg);
-      });
-    }).toThrow('Invalid stream-json output: line 2: bad json 1');
+    // Second line is invalid - silently skipped
+    parser.processChunk('bad json 1\n', (msg) => {
+      messages.push(msg);
+    });
+    expect(messages).toHaveLength(1);
   });
 
-  it('throws RuntimeError with RILL-R004 error code', () => {
+  it('strips terminal artifacts before parsing', () => {
     const parser = createStreamParser();
+    const messages: ClaudeMessage[] = [];
 
-    try {
-      parser.processChunk('{ invalid json }\n', () => {});
-      expect.fail('Should have thrown RuntimeError');
-    } catch (error) {
-      expect(error).toHaveProperty('errorId', 'RILL-R004');
-    }
+    // Terminal artifact that should be stripped and skipped
+    parser.processChunk('[<u some artifact\n', (msg) => {
+      messages.push(msg);
+    });
+
+    expect(messages).toHaveLength(0);
   });
 });
 
@@ -359,7 +355,7 @@ describe('StreamParser - Flush', () => {
     expect(messages).toHaveLength(1);
   });
 
-  it('flush throws RuntimeError for malformed buffered line', () => {
+  it('flush silently skips malformed buffered line', () => {
     const parser = createStreamParser();
     const messages: ClaudeMessage[] = [];
 
@@ -367,11 +363,9 @@ describe('StreamParser - Flush', () => {
       messages.push(msg);
     });
 
-    expect(() => {
-      parser.flush((msg) => {
-        messages.push(msg);
-      });
-    }).toThrow('Invalid stream-json output: line 1: { incomplete');
+    parser.flush((msg) => {
+      messages.push(msg);
+    });
 
     expect(messages).toHaveLength(0);
   });
@@ -498,16 +492,14 @@ describe('StreamParser - Memory Efficiency', () => {
 // ============================================================
 
 describe('StreamParser - Integration Scenarios', () => {
-  it('throws on non-JSON line in Claude CLI output sequence', () => {
+  it('skips non-JSON lines in Claude CLI output sequence', () => {
     const parser = createStreamParser();
     const messages: ClaudeMessage[] = [];
 
-    // Simulate Claude CLI stream with ANSI codes - invalid JSON throws
-    expect(() => {
-      parser.processChunk('\x1b[1mInitializing...\x1b[0m\n', (msg) => {
-        messages.push(msg);
-      });
-    }).toThrow('Invalid stream-json output: line 1: Initializing...');
+    // Simulate Claude CLI stream with ANSI codes - silently skipped
+    parser.processChunk('\x1b[1mInitializing...\x1b[0m\n', (msg) => {
+      messages.push(msg);
+    });
 
     expect(messages).toHaveLength(0);
   });
