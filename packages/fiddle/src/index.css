@@ -20,6 +20,7 @@
   --neon-indigo: #818cf8;
   --neon-purple: #a78bfa;
   --neon-red: #f87171;
+  --neon-red-rgb: 248, 113, 113;
 
   /* Text Hierarchy */
   --text-primary: #e8e8f0;
@@ -351,8 +352,8 @@ body {
 
 /* Error line highlight */
 .cm-error-line {
-  background-color: rgba(220, 38, 38, 0.12);
-  border-left: 2px solid rgba(220, 38, 38, 0.6);
+  background-color: rgba(var(--neon-red-rgb), 0.12);
+  border-left: 2px solid rgba(var(--neon-red-rgb), 0.6);
 }
 
 /* ============================================================
@@ -532,8 +533,8 @@ body {
 .output-error {
   padding: var(--space-md);
   border-radius: 8px;
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(var(--neon-red-rgb), 0.08);
+  border: 1px solid rgba(var(--neon-red-rgb), 0.2);
 }
 
 .output-error-header {
@@ -551,7 +552,7 @@ body {
   text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 4px;
-  background: rgba(220, 38, 38, 0.15);
+  background: rgba(var(--neon-red-rgb), 0.15);
   color: var(--neon-red);
 }
 

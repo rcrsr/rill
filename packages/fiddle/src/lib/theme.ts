@@ -60,6 +60,7 @@ const COLORS = {
   punctuation: '#8888a0', // text-secondary
   bracket: '#e8e8f0', // text-primary
   meta: '#555568', // text-dim
+  red: '#f87171', // neon-red
 
   // Editor chrome
   selection: '#264f78',

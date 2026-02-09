@@ -36,6 +36,7 @@ Workflow engineers who build pipelines, chain API calls, and parse structured da
 | `--neon-blue` | `#60a5fa` | Variables, parameters |
 | `--neon-indigo` | `#818cf8` | Numbers, constants |
 | `--neon-purple` | `#a78bfa` | Functions, callables |
+| `--neon-red` | `#f87171` | Error states, destructive actions |
 | `--text-primary` | `#e8e8f0` | Headings, primary content |
 | `--text-secondary` | `#8888a0` | Body text, descriptions |
 | `--text-dim` | `#555568` | Labels, comments, metadata |
