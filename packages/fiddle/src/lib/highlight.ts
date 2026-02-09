@@ -76,9 +76,9 @@ export interface RillHighlightState {
  */
 function getTokensForLine(lineText: string): Token[] {
   try {
-    // Tokenize single line
+    // Tokenize single line with comments included for syntax highlighting
     // AC-24: Handle tokenize errors by returning empty array
-    return tokenize(lineText);
+    return tokenize(lineText, undefined, { includeComments: true });
   } catch {
     // EC-3: Tokenize throws error - return empty array
     return [];

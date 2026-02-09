@@ -37,17 +37,32 @@ function skipWhitespace(state: LexerState): void {
   }
 }
 
-function skipComment(state: LexerState): void {
-  if (peek(state) === '#') {
-    while (!isAtEnd(state) && peek(state) !== '\n') {
-      advance(state);
-    }
+function readComment(state: LexerState): Token | null {
+  if (peek(state) !== '#') {
+    return null;
   }
+
+  const start = currentLocation(state);
+  let value = '';
+
+  while (!isAtEnd(state) && peek(state) !== '\n') {
+    value += peek(state);
+    advance(state);
+  }
+
+  const end = currentLocation(state);
+  return makeToken(TOKEN_TYPES.COMMENT, value, start, end);
 }
 
 export function nextToken(state: LexerState): Token {
   skipWhitespace(state);
-  skipComment(state);
+
+  // Check for comment token
+  const commentToken = readComment(state);
+  if (commentToken !== null) {
+    return commentToken;
+  }
+
   skipWhitespace(state);
 
   if (isAtEnd(state)) {
@@ -152,9 +167,14 @@ export function nextToken(state: LexerState): Token {
   throw new LexerError('RILL-L002', `Unexpected character: ${ch}`, start);
 }
 
+export interface TokenizeOptions {
+  includeComments?: boolean;
+}
+
 export function tokenize(
   source: string,
-  baseLocation?: SourceLocation
+  baseLocation?: SourceLocation,
+  options?: TokenizeOptions
 ): Token[] {
   const state = createLexerState(source, baseLocation);
   const tokens: Token[] = [];
@@ -164,6 +184,11 @@ export function tokenize(
     token = nextToken(state);
     tokens.push(token);
   } while (token.type !== TOKEN_TYPES.EOF);
+
+  // Filter out COMMENT tokens unless includeComments is true
+  if (options?.includeComments !== true) {
+    return tokens.filter((t) => t.type !== TOKEN_TYPES.COMMENT);
+  }
 
   return tokens;
 }

@@ -3,7 +3,7 @@
  * Exports lexer, parser, runtime, and AST types
  */
 
-export { LexerError, tokenize } from './lexer/index.js';
+export { LexerError, tokenize, type TokenizeOptions } from './lexer/index.js';
 export { parse, parseWithRecovery } from './parser/index.js';
 export type { ParseResult, RecoveryErrorNode, ErrorNode } from './types.js';
 export {
