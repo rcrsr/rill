@@ -53,14 +53,26 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Tag each package with its name and version
           CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
-          git tag -a "@rcrsr/rill@${CORE_VERSION}" -m "Release @rcrsr/rill@${CORE_VERSION}"
-
           CLI_VERSION=$(node -p "require('./packages/cli/package.json').version")
-          git tag -a "@rcrsr/rill-cli@${CLI_VERSION}" -m "Release @rcrsr/rill-cli@${CLI_VERSION}"
-
           CLAUDE_CODE_VERSION=$(node -p "require('./packages/ext/claude-code/package.json').version")
+
+          # Main release tag
+          git tag -a "v${CORE_VERSION}" -m "Release v${CORE_VERSION}"
+
+          # Per-package tags
+          git tag -a "@rcrsr/rill@${CORE_VERSION}" -m "Release @rcrsr/rill@${CORE_VERSION}"
+          git tag -a "@rcrsr/rill-cli@${CLI_VERSION}" -m "Release @rcrsr/rill-cli@${CLI_VERSION}"
           git tag -a "@rcrsr/rill-ext-claude-code@${CLAUDE_CODE_VERSION}" -m "Release @rcrsr/rill-ext-claude-code@${CLAUDE_CODE_VERSION}"
 
           git push --tags
+
+          echo "RELEASE_VERSION=${CORE_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${RELEASE_VERSION}" \
+            --title "v${RELEASE_VERSION}" \
+            --generate-notes
