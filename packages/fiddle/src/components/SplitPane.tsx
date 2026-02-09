@@ -68,9 +68,18 @@ export function SplitPane({
 }: SplitPaneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const [splitRatio, setSplitRatio] = useState(initialSplitRatio);
+  const splitRatioRef = useRef(initialSplitRatio);
   const [isDragging, setIsDragging] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   const dragStartRef = useRef<{ ratio: number; pos: number } | null>(null);
+
+  // ============================================================
+  // SYNC SPLIT RATIO REF
+  // ============================================================
+
+  useEffect(() => {
+    splitRatioRef.current = splitRatio;
+  }, [splitRatio]);
 
   // ============================================================
   // RESPONSIVE ORIENTATION
@@ -139,7 +148,7 @@ export function SplitPane({
       setIsDragging(false);
       dragStartRef.current = null;
       if (onSplitChange) {
-        onSplitChange(splitRatio);
+        onSplitChange(splitRatioRef.current);
       }
     }
 
@@ -154,7 +163,7 @@ export function SplitPane({
       document.removeEventListener('touchmove', handleDragMove);
       document.removeEventListener('touchend', handleDragEnd);
     };
-  }, [isDragging, splitRatio, isVertical, onSplitChange]);
+  }, [isDragging, isVertical, onSplitChange]);
 
   // ============================================================
   // KEYBOARD NAVIGATION
