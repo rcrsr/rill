@@ -14,6 +14,7 @@ describe('executeRill', () => {
       expect(result.result).toBe('3');
       expect(result.error).toBe(null);
       expect(result.duration).toBeGreaterThanOrEqual(0);
+      expect(result.logs).toEqual([]);
     });
 
     it('executes string literal and returns unquoted value', async () => {
@@ -22,6 +23,7 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
       expect(result.result).toBe('hello world');
       expect(result.error).toBe(null);
+      expect(result.logs).toEqual([]);
     });
 
     it('executes variable capture and returns final value', async () => {
@@ -30,13 +32,15 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
       expect(result.result).toBe('84');
       expect(result.error).toBe(null);
+      expect(result.logs).toEqual([]);
     });
 
     it('captures log output via callbacks.onLog', async () => {
       const result = await executeRill('"test" -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('test\nfinal');
+      expect(result.result).toBe('final');
+      expect(result.logs).toEqual(['test']);
       expect(result.error).toBe(null);
     });
 
@@ -46,7 +50,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('first\nsecond\nthird');
+      expect(result.result).toBe('third');
+      expect(result.logs).toEqual(['first', 'second']);
       expect(result.error).toBe(null);
     });
 
@@ -65,6 +70,7 @@ describe('executeRill', () => {
       expect(result.result).toBe(null);
       expect(result.error).toBe(null);
       expect(result.duration).toBe(null);
+      expect(result.logs).toEqual([]);
     });
 
     it('returns idle status for whitespace-only source', async () => {
@@ -74,6 +80,7 @@ describe('executeRill', () => {
       expect(result.result).toBe(null);
       expect(result.error).toBe(null);
       expect(result.duration).toBe(null);
+      expect(result.logs).toEqual([]);
     });
 
     it('executes conditional blocks', async () => {

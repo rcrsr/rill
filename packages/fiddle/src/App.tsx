@@ -12,9 +12,19 @@
  */
 
 import { type JSX, useEffect, useState, useCallback, useRef } from 'react';
-import { Editor, Output, Toolbar, SplitPane, type ExecutionState } from './components/index.js';
+import {
+  Editor,
+  Output,
+  Toolbar,
+  SplitPane,
+  type ExecutionState,
+} from './components/index.js';
 import { executeRill } from './lib/execution.js';
-import { loadEditorState, persistEditorState, type EditorState } from './lib/persistence.js';
+import {
+  loadEditorState,
+  persistEditorState,
+  type EditorState,
+} from './lib/persistence.js';
 import { readSourceFromURL, copyLinkToClipboard } from './lib/sharing.js';
 import type { CodeExample } from './lib/examples.js';
 
@@ -27,18 +37,25 @@ export function App(): JSX.Element {
   // STATE INITIALIZATION
   // ============================================================
 
-  const [editorState, setEditorState] = useState<EditorState>(() => loadEditorState());
+  const [editorState, setEditorState] = useState<EditorState>(() =>
+    loadEditorState()
+  );
   const [source, setSource] = useState<string>(editorState.lastSource);
   const [executionState, setExecutionState] = useState<ExecutionState>({
     status: 'idle',
     result: null,
     error: null,
     duration: null,
+    logs: [],
   });
   const [errorLine, setErrorLine] = useState<number | null>(null);
   const isExecutingRef = useRef<boolean>(false);
-  const [copyLinkState, setCopyLinkState] = useState<'idle' | 'copied' | 'error'>('idle');
-  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copyLinkState, setCopyLinkState] = useState<
+    'idle' | 'copied' | 'error'
+  >('idle');
+  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // ============================================================
   // PERSISTENCE
@@ -78,6 +95,7 @@ export function App(): JSX.Element {
       result: null,
       error: null,
       duration: null,
+      logs: [],
     });
 
     const result = await executeRill(source);

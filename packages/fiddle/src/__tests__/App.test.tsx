@@ -137,11 +137,14 @@ describe('App', () => {
         result: '"Test"',
         error: null,
         duration: 10,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -161,7 +164,9 @@ describe('App', () => {
     it('selecting example from dropdown replaces editor content', async () => {
       const { container } = render(<App />);
 
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
       expect(select).toBeDefined();
 
       if (select) {
@@ -182,7 +187,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       if (select) {
         select.value = 'hello-world';
@@ -219,11 +226,14 @@ describe('App', () => {
           errorId: 'RUNTIME-001',
         },
         duration: 12,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       if (runButton) {
@@ -254,11 +264,14 @@ describe('App', () => {
           errorId: 'TEST-001',
         },
         duration: 10,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       if (runButton) {
@@ -274,6 +287,7 @@ describe('App', () => {
           result: '"Hello"',
           error: null,
           duration: 5,
+          logs: [],
         });
 
         runButton.click();
@@ -299,11 +313,14 @@ describe('App', () => {
           errorId: 'TEST-002',
         },
         duration: 10,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -318,6 +335,7 @@ describe('App', () => {
           result: '"OK"',
           error: null,
           duration: 5,
+          logs: [],
         });
 
         runButton.click();
@@ -337,6 +355,7 @@ describe('App', () => {
         result: null,
         error: null,
         duration: null,
+        logs: [],
       });
 
       const { container } = render(<App />);
@@ -344,7 +363,9 @@ describe('App', () => {
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -382,6 +403,7 @@ describe('App', () => {
                 result: '"Test"',
                 error: null,
                 duration: 100,
+                logs: [],
               });
             }, 100);
           })
@@ -389,7 +411,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -420,6 +444,7 @@ describe('App', () => {
                 result: '"Test"',
                 error: null,
                 duration: 50,
+                logs: [],
               });
             }, 50);
           })
@@ -427,7 +452,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         expect(runButton.disabled).toBe(false);
@@ -513,11 +540,14 @@ describe('App', () => {
         result: '"First Result"',
         error: null,
         duration: 10,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -532,6 +562,7 @@ describe('App', () => {
           result: '"Second Result"',
           error: null,
           duration: 12,
+          logs: [],
         });
 
         runButton.click();
@@ -558,11 +589,14 @@ describe('App', () => {
           errorId: 'ERR-001',
         },
         duration: 10,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -577,6 +611,7 @@ describe('App', () => {
           result: '"New Result"',
           error: null,
           duration: 8,
+          logs: [],
         });
 
         runButton.click();
@@ -599,11 +634,14 @@ describe('App', () => {
         result: '"First"',
         error: null,
         duration: 5,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -622,6 +660,7 @@ describe('App', () => {
                   result: '"Second"',
                   error: null,
                   duration: 50,
+                  logs: [],
                 });
               }, 50);
             })
@@ -682,11 +721,14 @@ describe('App', () => {
         result: '"Integration Test"',
         error: null,
         duration: 15,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -722,11 +764,14 @@ describe('App', () => {
           errorId: 'COMM-001',
         },
         duration: 8,
+        logs: [],
       });
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
 
       if (runButton) {
         runButton.click();
@@ -734,7 +779,9 @@ describe('App', () => {
         await waitFor(() => {
           const errorDisplay = container.querySelector('.output-error');
           expect(errorDisplay).toBeDefined();
-          expect(errorDisplay?.textContent).toContain('Communication test error');
+          expect(errorDisplay?.textContent).toContain(
+            'Communication test error'
+          );
         });
       }
     });

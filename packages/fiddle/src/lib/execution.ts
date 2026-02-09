@@ -57,6 +57,8 @@ export interface ExecutionState {
   error: FiddleError | null;
   /** Execution time in milliseconds */
   duration: number | null;
+  /** Log messages from log() calls (ordered) */
+  logs: string[];
 }
 
 // ============================================================
@@ -79,6 +81,7 @@ export async function executeRill(source: string): Promise<ExecutionState> {
       result: null,
       error: null,
       duration: null,
+      logs: [],
     };
   }
 
@@ -103,18 +106,15 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     const executionResult = await execute(ast, ctx);
     const duration = performance.now() - startTime;
 
-    // Format result: logs + final value
+    // Format result: final value only
     const formattedValue = formatResult(executionResult.value);
-    const result =
-      logs.length > 0
-        ? `${logs.join('\n')}\n${formattedValue}`
-        : formattedValue;
 
     return {
       status: 'success',
-      result,
+      result: formattedValue,
       error: null,
       duration,
+      logs,
     };
   } catch (err) {
     const duration = performance.now() - startTime;
@@ -127,6 +127,7 @@ export async function executeRill(source: string): Promise<ExecutionState> {
       result: null,
       error: fiddleError,
       duration,
+      logs,
     };
   }
 }

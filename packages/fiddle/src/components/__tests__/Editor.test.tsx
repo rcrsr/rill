@@ -42,13 +42,17 @@ describe('Editor', () => {
     });
 
     it('renders with initial value', () => {
-      const { container } = render(<Editor {...defaultProps} value="log('hello')" />);
+      const { container } = render(
+        <Editor {...defaultProps} value="log('hello')" />
+      );
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
     });
 
     it('applies ARIA label', () => {
-      const { container } = render(<Editor {...defaultProps} ariaLabel="Test editor" />);
+      const { container } = render(
+        <Editor {...defaultProps} ariaLabel="Test editor" />
+      );
       const editor = container.querySelector('[aria-label="Test editor"]');
       expect(editor).toBeDefined();
     });
@@ -121,7 +125,9 @@ describe('Editor', () => {
 
   describe('error line highlighting', () => {
     it('does not highlight when errorLine is null', () => {
-      const { container } = render(<Editor {...defaultProps} errorLine={null} />);
+      const { container } = render(
+        <Editor {...defaultProps} errorLine={null} />
+      );
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
     });
@@ -226,7 +232,9 @@ describe('Editor', () => {
     });
 
     it('container has aria-label', () => {
-      const { container } = render(<Editor {...defaultProps} ariaLabel="Custom label" />);
+      const { container } = render(
+        <Editor {...defaultProps} ariaLabel="Custom label" />
+      );
       const editor = container.querySelector('[aria-label="Custom label"]');
       expect(editor).toBeDefined();
     });
@@ -238,9 +246,10 @@ describe('Editor', () => {
 
   describe('performance', () => {
     it('handles large documents without blocking', () => {
-      const largeValue = Array.from({ length: 1000 }, (_, i) => `line ${i + 1}`).join(
-        '\n'
-      );
+      const largeValue = Array.from(
+        { length: 1000 },
+        (_, i) => `line ${i + 1}`
+      ).join('\n');
       const start = performance.now();
       render(<Editor {...defaultProps} value={largeValue} />);
       const duration = performance.now() - start;
@@ -269,7 +278,9 @@ describe('Editor', () => {
     // AC-5: User views existing code with tabs and sees 2-space indentation width
     it('displays tabs with 2-space width', () => {
       const valueWithTabs = 'if true {\n\tlog("indented")\n}';
-      const { container } = render(<Editor {...defaultProps} value={valueWithTabs} />);
+      const { container } = render(
+        <Editor {...defaultProps} value={valueWithTabs} />
+      );
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
       // Visual verification: tabs should display as 2 spaces wide
@@ -278,7 +289,9 @@ describe('Editor', () => {
     // AC-6: User copies code from documentation and sees preserved alignment with 2-space tabs
     it('preserves alignment with 2-space indentation', () => {
       const valueWithSpaces = 'if true {\n  log("2-space indent")\n}';
-      const { container } = render(<Editor {...defaultProps} value={valueWithSpaces} />);
+      const { container } = render(
+        <Editor {...defaultProps} value={valueWithSpaces} />
+      );
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
       // Visual verification: alignment should be preserved
@@ -291,7 +304,9 @@ describe('Editor', () => {
 
   describe('error handling', () => {
     it('handles theme reconfiguration errors', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const { container } = render(<Editor {...defaultProps} />);
 

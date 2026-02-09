@@ -88,9 +88,7 @@ describe('createThemeExtension', () => {
 
   describe('pure function behavior', () => {
     it('returns consistent result across multiple calls', () => {
-      const calls = Array.from({ length: 5 }, () =>
-        createThemeExtension(true)
-      );
+      const calls = Array.from({ length: 5 }, () => createThemeExtension(true));
       // All calls should succeed
       calls.forEach((ext) => {
         expect(ext).toBeDefined();

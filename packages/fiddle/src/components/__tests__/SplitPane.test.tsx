@@ -54,7 +54,9 @@ describe('SplitPane', () => {
       const divider = container.querySelector('[role="separator"]');
       expect(divider).toBeDefined();
       // Orientation depends on container width, which varies in test environment
-      expect(divider?.getAttribute('aria-orientation')).toMatch(/^(horizontal|vertical)$/);
+      expect(divider?.getAttribute('aria-orientation')).toMatch(
+        /^(horizontal|vertical)$/
+      );
       expect(divider?.getAttribute('tabindex')).toBe('0');
     });
 
@@ -65,7 +67,9 @@ describe('SplitPane', () => {
     });
 
     it('renders with custom initial split ratio', () => {
-      const { container } = render(<SplitPane {...defaultProps} initialSplitRatio={60} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={60} />
+      );
       const divider = container.querySelector('[role="separator"]');
       expect(divider?.getAttribute('aria-valuenow')).toBe('60');
     });
@@ -84,7 +88,9 @@ describe('SplitPane', () => {
   describe('split ratio persistence interface', () => {
     it('accepts onSplitChange callback prop', () => {
       const callback = vi.fn();
-      const { container } = render(<SplitPane {...defaultProps} onSplitChange={callback} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} onSplitChange={callback} />
+      );
       const splitPane = container.querySelector('.split-pane');
       expect(splitPane).toBeDefined();
     });
@@ -119,7 +125,9 @@ describe('SplitPane', () => {
     });
 
     it('clamps initial split ratio to valid bounds', () => {
-      const { container } = render(<SplitPane {...defaultProps} initialSplitRatio={10} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={10} />
+      );
 
       const panels = container.querySelectorAll('.split-pane-panel');
       const divider = container.querySelector('[role="separator"]');
@@ -129,7 +137,9 @@ describe('SplitPane', () => {
     });
 
     it('clamps maximum split ratio to enforce right panel minimum', () => {
-      const { container } = render(<SplitPane {...defaultProps} initialSplitRatio={95} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={95} />
+      );
 
       const panels = container.querySelectorAll('.split-pane-panel');
       const divider = container.querySelector('[role="separator"]');
@@ -164,7 +174,9 @@ describe('SplitPane', () => {
     });
 
     it('accepts custom breakpoint prop', () => {
-      const { container } = render(<SplitPane {...defaultProps} breakpoint={1024} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} breakpoint={1024} />
+      );
 
       const splitPane = container.querySelector('.split-pane');
       expect(splitPane).toBeDefined();
@@ -185,7 +197,9 @@ describe('SplitPane', () => {
   describe('keyboard accessibility', () => {
     it('divider is keyboard focusable', () => {
       const { container } = render(<SplitPane {...defaultProps} />);
-      const divider = container.querySelector('[role="separator"]') as HTMLElement;
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
 
       expect(divider?.tabIndex).toBe(0);
     });
@@ -199,7 +213,9 @@ describe('SplitPane', () => {
     });
 
     it('divider has aria-valuenow for current split ratio', () => {
-      const { container } = render(<SplitPane {...defaultProps} initialSplitRatio={60} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={60} />
+      );
       const divider = container.querySelector('[role="separator"]');
 
       expect(divider?.getAttribute('aria-valuenow')).toBe('60');
@@ -228,9 +244,13 @@ describe('SplitPane', () => {
 
   describe('panel styling', () => {
     it('applies split ratio to panel dimensions', () => {
-      const { container } = render(<SplitPane {...defaultProps} initialSplitRatio={60} />);
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={60} />
+      );
 
-      const panels = container.querySelectorAll('.split-pane-panel') as NodeListOf<HTMLElement>;
+      const panels = container.querySelectorAll(
+        '.split-pane-panel'
+      ) as NodeListOf<HTMLElement>;
 
       expect(panels.length).toBe(2);
 
@@ -249,7 +269,9 @@ describe('SplitPane', () => {
     it('container uses flexbox layout', () => {
       const { container } = render(<SplitPane {...defaultProps} />);
 
-      const splitPaneContainer = container.querySelector('.split-pane') as HTMLElement;
+      const splitPaneContainer = container.querySelector(
+        '.split-pane'
+      ) as HTMLElement;
 
       expect(splitPaneContainer).toBeDefined();
       // Styles are applied via CSS class, not inline

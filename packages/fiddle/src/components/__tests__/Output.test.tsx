@@ -28,6 +28,7 @@ describe('Output', () => {
       result: null,
       error: null,
       duration: null,
+      logs: [],
     };
 
     successState = {
@@ -35,6 +36,7 @@ describe('Output', () => {
       result: 'hello world',
       error: null,
       duration: 42,
+      logs: [],
     };
 
     errorState = {
@@ -48,6 +50,7 @@ describe('Output', () => {
         errorId: 'RILL-L001',
       },
       duration: 10,
+      logs: [],
     };
   });
 
@@ -67,7 +70,9 @@ describe('Output', () => {
     });
 
     it('applies ARIA label', () => {
-      const { container } = render(<Output state={idleState} ariaLabel="Test output" />);
+      const { container } = render(
+        <Output state={idleState} ariaLabel="Test output" />
+      );
       const output = container.querySelector('[aria-label="Test output"]');
       expect(output).toBeDefined();
     });
@@ -90,30 +95,170 @@ describe('Output', () => {
   // ============================================================
 
   describe('log output', () => {
-    it('displays log output from onLog callback', () => {
-      const stateWithLogs: ExecutionState = {
+    it('LOG-1: script with 0 log() calls returns value - result renders, no logs section', () => {
+      const stateNoLogs: ExecutionState = {
         status: 'success',
-        result: 'log line 1\nlog line 2\nfinal result',
+        result: 'hello world',
         error: null,
         duration: 50,
+        logs: [],
+      };
+      const { container } = render(<Output state={stateNoLogs} />);
+      const resultElement = container.querySelector('.output-result');
+      const logsElement = container.querySelector('.output-logs');
+      const resultLabel = container.querySelector('.output-result-label');
+
+      expect(resultElement?.textContent).toContain('hello world');
+      expect(logsElement).toBeNull();
+      expect(resultLabel).toBeNull();
+    });
+
+    it('LOG-2: script with 1 log() call returns value - logs section with 1 entry, result section with value', () => {
+      const stateWithOneLog: ExecutionState = {
+        status: 'success',
+        result: 'final result',
+        error: null,
+        duration: 50,
+        logs: ['log line 1'],
+      };
+      const { container } = render(<Output state={stateWithOneLog} />);
+      const logsElement = container.querySelector('.output-logs');
+      const logsEntries = container.querySelectorAll('.output-logs-entry');
+      const resultElement = container.querySelector('.output-result');
+      const resultLabel = container.querySelector('.output-result-label');
+
+      expect(logsElement).toBeDefined();
+      expect(logsEntries.length).toBe(1);
+      expect(logsEntries[0]?.textContent).toContain('log line 1');
+      expect(resultElement?.textContent).toContain('final result');
+      expect(resultLabel).toBeDefined();
+    });
+
+    it('LOG-3: script with 3 log() calls returns value - logs section with 3 entries in order', () => {
+      const stateWithLogs: ExecutionState = {
+        status: 'success',
+        result: 'final result',
+        error: null,
+        duration: 50,
+        logs: ['log line 1', 'log line 2', 'log line 3'],
       };
       const { container } = render(<Output state={stateWithLogs} />);
+      const logsEntries = container.querySelectorAll('.output-logs-entry');
       const resultElement = container.querySelector('.output-result');
-      expect(resultElement?.textContent).toContain('log line 1');
-      expect(resultElement?.textContent).toContain('log line 2');
+
+      expect(logsEntries.length).toBe(3);
+      expect(logsEntries[0]?.textContent).toContain('log line 1');
+      expect(logsEntries[1]?.textContent).toContain('log line 2');
+      expect(logsEntries[2]?.textContent).toContain('log line 3');
       expect(resultElement?.textContent).toContain('final result');
     });
 
-    it('displays log output without final result', () => {
-      const stateWithLogsOnly: ExecutionState = {
+    it('LOG-4: script with log() calls and null result - logs section shows entries', () => {
+      const stateLogsNullResult: ExecutionState = {
         status: 'success',
-        result: 'log output only\nnull',
+        result: 'null',
         error: null,
         duration: 30,
+        logs: ['log output only'],
       };
-      const { container } = render(<Output state={stateWithLogsOnly} />);
+      const { container } = render(<Output state={stateLogsNullResult} />);
+      const logsEntries = container.querySelectorAll('.output-logs-entry');
       const resultElement = container.querySelector('.output-result');
-      expect(resultElement?.textContent).toContain('log output only');
+
+      expect(logsEntries.length).toBe(1);
+      expect(logsEntries[0]?.textContent).toContain('log output only');
+      expect(resultElement?.textContent).toContain('No output');
+    });
+
+    it('LOG-5: script with log() calls that errors - logs shown above error', () => {
+      const stateLogsWithError: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: 'Runtime error',
+          category: 'runtime',
+          line: 5,
+          column: 10,
+          errorId: 'RILL-R001',
+        },
+        duration: 30,
+        logs: ['log before error', 'another log'],
+      };
+      const { container } = render(<Output state={stateLogsWithError} />);
+      const logsElement = container.querySelector('.output-logs');
+      const logsEntries = container.querySelectorAll('.output-logs-entry');
+      const errorElement = container.querySelector('.output-error');
+
+      expect(logsElement).toBeDefined();
+      expect(logsEntries.length).toBe(2);
+      expect(logsEntries[0]?.textContent).toContain('log before error');
+      expect(logsEntries[1]?.textContent).toContain('another log');
+      expect(errorElement).toBeDefined();
+      expect(errorElement?.textContent).toContain('Runtime error');
+    });
+
+    it('LOG-E1: error before any log() - no logs section, error renders normally', () => {
+      const stateErrorNoLogs: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: 'Parse error',
+          category: 'parse',
+          line: 1,
+          column: 1,
+          errorId: 'RILL-P001',
+        },
+        duration: 10,
+        logs: [],
+      };
+      const { container } = render(<Output state={stateErrorNoLogs} />);
+      const logsElement = container.querySelector('.output-logs');
+      const errorElement = container.querySelector('.output-error');
+
+      expect(logsElement).toBeNull();
+      expect(errorElement).toBeDefined();
+      expect(errorElement?.textContent).toContain('Parse error');
+    });
+
+    it('LOG-B2: log with multi-line value - preserves whitespace', () => {
+      const stateMultilineLog: ExecutionState = {
+        status: 'success',
+        result: 'done',
+        error: null,
+        duration: 30,
+        logs: ['line 1\nline 2\nline 3'],
+      };
+      const { container } = render(<Output state={stateMultilineLog} />);
+      const logsEntry = container.querySelector('.output-logs-entry');
+
+      expect(logsEntry?.textContent).toContain('line 1\nline 2\nline 3');
+    });
+
+    it('LOG-B3: re-execution replaces previous logs', () => {
+      const stateWithLogs1: ExecutionState = {
+        status: 'success',
+        result: 'result 1',
+        error: null,
+        duration: 30,
+        logs: ['old log'],
+      };
+      const stateWithLogs2: ExecutionState = {
+        status: 'success',
+        result: 'result 2',
+        error: null,
+        duration: 40,
+        logs: ['new log'],
+      };
+      const { container, rerender } = render(<Output state={stateWithLogs1} />);
+
+      let logsEntry = container.querySelector('.output-logs-entry');
+      expect(logsEntry?.textContent).toContain('old log');
+
+      rerender(<Output state={stateWithLogs2} />);
+
+      logsEntry = container.querySelector('.output-logs-entry');
+      expect(logsEntry?.textContent).toContain('new log');
+      expect(logsEntry?.textContent).not.toContain('old log');
     });
   });
 
@@ -128,6 +273,7 @@ describe('Output', () => {
         result: 'null',
         error: null,
         duration: 20,
+        logs: [],
       };
       const { container } = render(<Output state={stateWithNull} />);
       const resultElement = container.querySelector('.output-result');
@@ -146,6 +292,7 @@ describe('Output', () => {
         result: null,
         error: null,
         duration: null,
+        logs: [],
       };
       const { container } = render(<Output state={runningState} />);
       const resultElement = container.querySelector('.output-result');
@@ -186,6 +333,7 @@ describe('Output', () => {
         result: null,
         error: null,
         duration: null,
+        logs: [],
       };
       rerender(<Output state={runningState} />);
 
@@ -207,6 +355,7 @@ describe('Output', () => {
         result: 'new output',
         error: null,
         duration: 100,
+        logs: [],
       };
       rerender(<Output state={newState} />);
 
@@ -235,10 +384,13 @@ describe('Output', () => {
         result: null,
         error: lexerError,
         duration: 5,
+        logs: [],
       };
       const { container } = render(<Output state={lexerState} />);
       const errorElement = container.querySelector('.output-error');
-      expect(errorElement?.textContent).toContain('Unterminated string literal');
+      expect(errorElement?.textContent).toContain(
+        'Unterminated string literal'
+      );
       expect(errorElement?.textContent).toContain('line 1');
     });
 
@@ -255,6 +407,7 @@ describe('Output', () => {
         result: null,
         error: lexerError,
         duration: 3,
+        logs: [],
       };
       const { container } = render(<Output state={lexerState} />);
       const errorElement = container.querySelector('.output-error');
@@ -283,10 +436,13 @@ describe('Output', () => {
         result: null,
         error: parseError,
         duration: 8,
+        logs: [],
       };
       const { container } = render(<Output state={parseState} />);
       const errorElement = container.querySelector('.output-error');
-      expect(errorElement?.textContent).toContain('Expected expression after pipe operator');
+      expect(errorElement?.textContent).toContain(
+        'Expected expression after pipe operator'
+      );
       expect(errorElement?.textContent).toContain('line 3');
     });
 
@@ -303,6 +459,7 @@ describe('Output', () => {
         result: null,
         error: parseError,
         duration: 5,
+        logs: [],
       };
       const { container } = render(<Output state={parseState} />);
       const errorElement = container.querySelector('.output-error');
@@ -330,10 +487,13 @@ describe('Output', () => {
         result: null,
         error: runtimeError,
         duration: 15,
+        logs: [],
       };
       const { container } = render(<Output state={runtimeState} />);
       const errorElement = container.querySelector('.output-error');
-      expect(errorElement?.textContent).toContain('Type error: Cannot add string and number');
+      expect(errorElement?.textContent).toContain(
+        'Type error: Cannot add string and number'
+      );
       expect(errorElement?.textContent).toContain('line 2');
     });
 
@@ -350,6 +510,7 @@ describe('Output', () => {
         result: null,
         error: runtimeError,
         duration: 12,
+        logs: [],
       };
       const { container } = render(<Output state={runtimeState} />);
       const errorElement = container.querySelector('.output-error');
@@ -377,6 +538,7 @@ describe('Output', () => {
         result: null,
         error: errorWithId,
         duration: 10,
+        logs: [],
       };
       const { container } = render(<Output state={errorState} />);
       const errorElement = container.querySelector('.output-error');
@@ -396,6 +558,7 @@ describe('Output', () => {
         result: null,
         error: errorWithoutId,
         duration: 10,
+        logs: [],
       };
       const { container } = render(<Output state={errorState} />);
       const errorIdElement = container.querySelector('.output-error-id');
@@ -425,11 +588,14 @@ describe('Output', () => {
         result: null,
         error: errorWithCause,
         duration: 100,
+        logs: [],
       };
       const { container } = render(<Output state={stateWithCause} />);
       const causeElement = container.querySelector('.output-error-cause');
       expect(causeElement).toBeDefined();
-      expect(causeElement?.textContent).toContain('Variable referenced before assignment');
+      expect(causeElement?.textContent).toContain(
+        'Variable referenced before assignment'
+      );
     });
 
     it('renders error resolution when present', () => {
@@ -441,7 +607,8 @@ describe('Output', () => {
         errorId: 'RILL-R002',
         helpUrl: undefined,
         cause: undefined,
-        resolution: 'Ensure both operands are the same type before performing the operation',
+        resolution:
+          'Ensure both operands are the same type before performing the operation',
         examples: undefined,
       };
       const stateWithResolution: ExecutionState = {
@@ -449,12 +616,17 @@ describe('Output', () => {
         result: null,
         error: errorWithResolution,
         duration: 50,
+        logs: [],
       };
       const { container } = render(<Output state={stateWithResolution} />);
-      const resolutionElement = container.querySelector('.output-error-resolution');
+      const resolutionElement = container.querySelector(
+        '.output-error-resolution'
+      );
       expect(resolutionElement).toBeDefined();
       expect(resolutionElement?.textContent).toContain('Fix:');
-      expect(resolutionElement?.textContent).toContain('Ensure both operands are the same type');
+      expect(resolutionElement?.textContent).toContain(
+        'Ensure both operands are the same type'
+      );
     });
 
     it('renders help link when helpUrl is present', () => {
@@ -474,9 +646,12 @@ describe('Output', () => {
         result: null,
         error: errorWithHelpUrl,
         duration: 20,
+        logs: [],
       };
       const { container } = render(<Output state={stateWithHelpUrl} />);
-      const linkElement = container.querySelector('a[href="https://example.com/docs/errors/RILL-P001"]');
+      const linkElement = container.querySelector(
+        'a[href="https://example.com/docs/errors/RILL-P001"]'
+      );
       expect(linkElement).toBeDefined();
       expect(linkElement?.getAttribute('target')).toBe('_blank');
       expect(linkElement?.getAttribute('rel')).toBe('noopener noreferrer');
@@ -500,6 +675,7 @@ describe('Output', () => {
         result: null,
         error: basicError,
         duration: 15,
+        logs: [],
       };
       const { container } = render(<Output state={stateWithBasicError} />);
       const errorElement = container.querySelector('.output-error');
@@ -517,7 +693,9 @@ describe('Output', () => {
   describe('duration display', () => {
     it('displays execution duration for success', () => {
       const { container } = render(<Output state={successState} />);
-      const durationElement = container.querySelector('.output-header-duration');
+      const durationElement = container.querySelector(
+        '.output-header-duration'
+      );
       expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('42');
       expect(durationElement?.textContent).toContain('ms');
@@ -525,7 +703,9 @@ describe('Output', () => {
 
     it('displays execution duration for error', () => {
       const { container } = render(<Output state={errorState} />);
-      const durationElement = container.querySelector('.output-header-duration');
+      const durationElement = container.querySelector(
+        '.output-header-duration'
+      );
       expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('10');
       expect(durationElement?.textContent).toContain('ms');
@@ -533,7 +713,9 @@ describe('Output', () => {
 
     it('does not display duration when null', () => {
       const { container } = render(<Output state={idleState} />);
-      const durationElement = container.querySelector('.output-header-duration');
+      const durationElement = container.querySelector(
+        '.output-header-duration'
+      );
       expect(durationElement).toBeNull();
     });
   });

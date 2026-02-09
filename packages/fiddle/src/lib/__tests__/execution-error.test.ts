@@ -13,6 +13,7 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('error');
       expect(result.result).toBe(null);
+      expect(result.logs).toEqual([]);
       expect(result.error).not.toBe(null);
       expect(result.error?.category).toBe('lexer');
       expect(result.error?.line).toBeGreaterThan(0);

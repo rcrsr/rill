@@ -19,7 +19,8 @@ describe('executeRill', () => {
       const result = await executeRill('"test message" -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('test message\nfinal');
+      expect(result.logs).toEqual(['test message']);
+      expect(result.result).toBe('final');
       expect(result.error).toBe(null);
     });
 
@@ -29,7 +30,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('first\nsecond\nthird\nfinal');
+      expect(result.logs).toEqual(['first', 'second', 'third']);
+      expect(result.result).toBe('final');
       expect(result.error).toBe(null);
     });
 
@@ -39,13 +41,14 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('42');
-      expect(result.result).toContain('true');
-      expect(result.result).toContain('string');
-      expect(result.result).toContain('1');
-      expect(result.result).toContain('2');
-      expect(result.result).toContain('3');
-      expect(result.result).toContain('done');
+      expect(result.logs.length).toBe(4);
+      expect(result.logs[0]).toBe('42');
+      expect(result.logs[1]).toBe('true');
+      expect(result.logs[2]).toBe('string');
+      expect(result.logs[3]).toContain('1');
+      expect(result.logs[3]).toContain('2');
+      expect(result.logs[3]).toContain('3');
+      expect(result.result).toBe('done');
     });
 
     it('captures log() output from loop iterations', async () => {
@@ -54,10 +57,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('1');
-      expect(result.result).toContain('2');
-      expect(result.result).toContain('3');
-      expect(result.result).toContain('done');
+      expect(result.logs).toEqual(['1', '2', '3']);
+      expect(result.result).toBe('done');
     });
 
     it('captures log() output from conditional branches', async () => {
@@ -66,8 +67,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('yes');
-      expect(result.result).toContain('final');
+      expect(result.logs).toEqual(['yes']);
+      expect(result.result).toBe('final');
     });
 
     it('captures log() output from piped expressions', async () => {
@@ -76,24 +77,24 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('first');
-      expect(result.result).toContain('second');
-      expect(result.result).toContain('6'); // length of "second"
-      expect(result.result).toContain('done');
+      expect(result.logs).toEqual(['first', 'second', '6']);
+      expect(result.result).toBe('done');
     });
 
     it('handles log() with zero value', async () => {
       const result = await executeRill('0 -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('0\nfinal');
+      expect(result.logs).toEqual(['0']);
+      expect(result.result).toBe('final');
     });
 
     it('handles log() with empty string', async () => {
       const result = await executeRill('"" -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('\nfinal');
+      expect(result.logs).toEqual(['']);
+      expect(result.result).toBe('final');
     });
 
     it('handles log() with multiline string', async () => {
@@ -102,18 +103,19 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('line1');
-      expect(result.result).toContain('line2');
-      expect(result.result).toContain('line3');
-      expect(result.result).toContain('final');
+      expect(result.logs.length).toBe(1);
+      expect(result.logs[0]).toContain('line1');
+      expect(result.logs[0]).toContain('line2');
+      expect(result.logs[0]).toContain('line3');
+      expect(result.result).toBe('final');
     });
 
     it('returns only final value when no log() calls', async () => {
       const result = await executeRill('42 + 8');
 
       expect(result.status).toBe('success');
+      expect(result.logs).toEqual([]);
       expect(result.result).toBe('50');
-      expect(result.result).not.toContain('\n');
     });
   });
 
@@ -122,14 +124,14 @@ describe('executeRill', () => {
       // First execution
       const firstResult = await executeRill('"first run" -> log\n"result1"');
       expect(firstResult.status).toBe('success');
-      expect(firstResult.result).toBe('first run\nresult1');
+      expect(firstResult.logs).toEqual(['first run']);
+      expect(firstResult.result).toBe('result1');
 
       // Second execution - should not contain first run output
       const secondResult = await executeRill('"second run" -> log\n"result2"');
       expect(secondResult.status).toBe('success');
-      expect(secondResult.result).toBe('second run\nresult2');
-      expect(secondResult.result).not.toContain('first run');
-      expect(secondResult.result).not.toContain('result1');
+      expect(secondResult.logs).toEqual(['second run']);
+      expect(secondResult.result).toBe('result2');
     });
 
     it('clears previous error on successful re-execution', async () => {
@@ -149,13 +151,15 @@ describe('executeRill', () => {
       // First execution with success
       const firstResult = await executeRill('"success" -> log\n42');
       expect(firstResult.status).toBe('success');
-      expect(firstResult.result).toBe('success\n42');
+      expect(firstResult.logs).toEqual(['success']);
+      expect(firstResult.result).toBe('42');
 
       // Second execution with error
       const secondResult = await executeRill('$undefined_variable');
       expect(secondResult.status).toBe('error');
       expect(secondResult.error).not.toBe(null);
       expect(secondResult.result).toBe(null);
+      expect(secondResult.logs).toEqual([]);
     });
 
     it('clears logs from previous execution', async () => {
@@ -164,18 +168,14 @@ describe('executeRill', () => {
         '"log1" -> log\n"log2" -> log\n"log3" -> log\n"result1"'
       );
       expect(firstResult.status).toBe('success');
-      expect(firstResult.result).toContain('log1');
-      expect(firstResult.result).toContain('log2');
-      expect(firstResult.result).toContain('log3');
+      expect(firstResult.logs).toEqual(['log1', 'log2', 'log3']);
+      expect(firstResult.result).toBe('result1');
 
       // Second execution with different logs
       const secondResult = await executeRill('"newlog" -> log\n"result2"');
       expect(secondResult.status).toBe('success');
-      expect(secondResult.result).toBe('newlog\nresult2');
-      expect(secondResult.result).not.toContain('log1');
-      expect(secondResult.result).not.toContain('log2');
-      expect(secondResult.result).not.toContain('log3');
-      expect(secondResult.result).not.toContain('result1');
+      expect(secondResult.logs).toEqual(['newlog']);
+      expect(secondResult.result).toBe('result2');
     });
 
     it('starts with fresh duration on re-execution', async () => {
@@ -208,7 +208,6 @@ describe('executeRill', () => {
     it('does not duplicate output from rapid sequential executions', async () => {
       // Execute same source rapidly multiple times
       const source = '"output" -> log\n"final"';
-      const expectedResult = 'output\nfinal';
 
       const results = await Promise.all([
         executeRill(source),
@@ -219,15 +218,8 @@ describe('executeRill', () => {
       // Each result should be independent with no duplication
       for (const result of results) {
         expect(result.status).toBe('success');
-        expect(result.result).toBe(expectedResult);
-
-        // Count occurrences of "output" - should be exactly 1
-        const outputCount = (result.result?.match(/output/g) || []).length;
-        expect(outputCount).toBe(1);
-
-        // Count occurrences of "final" - should be exactly 1
-        const finalCount = (result.result?.match(/final/g) || []).length;
-        expect(finalCount).toBe(1);
+        expect(result.logs).toEqual(['output']);
+        expect(result.result).toBe('final');
       }
     });
 
@@ -243,21 +235,18 @@ describe('executeRill', () => {
 
       // First result should only contain "first"
       expect(results[0]?.status).toBe('success');
-      expect(results[0]?.result).toBe('first\n1');
-      expect(results[0]?.result).not.toContain('second');
-      expect(results[0]?.result).not.toContain('third');
+      expect(results[0]?.logs).toEqual(['first']);
+      expect(results[0]?.result).toBe('1');
 
       // Second result should only contain "second"
       expect(results[1]?.status).toBe('success');
-      expect(results[1]?.result).toBe('second\n2');
-      expect(results[1]?.result).not.toContain('first');
-      expect(results[1]?.result).not.toContain('third');
+      expect(results[1]?.logs).toEqual(['second']);
+      expect(results[1]?.result).toBe('2');
 
       // Third result should only contain "third"
       expect(results[2]?.status).toBe('success');
-      expect(results[2]?.result).toBe('third\n3');
-      expect(results[2]?.result).not.toContain('first');
-      expect(results[2]?.result).not.toContain('second');
+      expect(results[2]?.logs).toEqual(['third']);
+      expect(results[2]?.result).toBe('3');
     });
 
     it('maintains independent log arrays for concurrent executions', async () => {
@@ -270,18 +259,13 @@ describe('executeRill', () => {
 
       const results = await Promise.all(executions);
 
-      // Verify each has correct log count
-      expect(results[0]?.result).toBe('a\nb\nresult-ab');
-      expect(results[1]?.result).toBe('x\nresult-x');
-      expect(results[2]?.result).toBe('1\n2\n3\nresult-123');
-
-      // Verify no cross-contamination
-      expect(results[0]?.result).not.toContain('x');
-      expect(results[0]?.result).not.toContain('1');
-      expect(results[1]?.result).not.toContain('a');
-      expect(results[1]?.result).not.toContain('b');
-      expect(results[2]?.result).not.toContain('a');
-      expect(results[2]?.result).not.toContain('x');
+      // Verify each has correct log count and result
+      expect(results[0]?.logs).toEqual(['a', 'b']);
+      expect(results[0]?.result).toBe('result-ab');
+      expect(results[1]?.logs).toEqual(['x']);
+      expect(results[1]?.result).toBe('result-x');
+      expect(results[2]?.logs).toEqual(['1', '2', '3']);
+      expect(results[2]?.result).toBe('result-123');
     });
 
     it('handles rapid re-execution with errors', async () => {
@@ -296,16 +280,18 @@ describe('executeRill', () => {
 
       // First execution succeeds
       expect(results[0]?.status).toBe('success');
-      expect(results[0]?.result).toBe('success1\n42');
+      expect(results[0]?.logs).toEqual(['success1']);
+      expect(results[0]?.result).toBe('42');
 
       // Second execution fails
       expect(results[1]?.status).toBe('error');
       expect(results[1]?.error).not.toBe(null);
+      expect(results[1]?.logs).toEqual([]);
 
       // Third execution succeeds independently
       expect(results[2]?.status).toBe('success');
-      expect(results[2]?.result).toBe('success2\n84');
-      expect(results[2]?.result).not.toContain('success1');
+      expect(results[2]?.logs).toEqual(['success2']);
+      expect(results[2]?.result).toBe('84');
     });
 
     it('maintains isolated log state across 10 rapid executions', async () => {
@@ -320,14 +306,8 @@ describe('executeRill', () => {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         expect(result?.status).toBe('success');
-        expect(result?.result).toBe(`log${i}\n${i}`);
-
-        // Verify no contamination from other executions
-        for (let j = 0; j < results.length; j++) {
-          if (i !== j) {
-            expect(result?.result).not.toContain(`log${j}`);
-          }
-        }
+        expect(result?.logs).toEqual([`log${i}`]);
+        expect(result?.result).toBe(`${i}`);
       }
     });
 
@@ -353,10 +333,7 @@ describe('executeRill', () => {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         expect(result?.status).toBe('success');
-
-        // Should have 10 log lines + 1 final value = 11 lines
-        const lines = result?.result?.split('\n') || [];
-        expect(lines.length).toBe(11);
+        expect(result?.logs.length).toBe(10);
       }
     });
   });
@@ -368,13 +345,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      const lines = result.result?.split('\n') || [];
-      expect(lines[0]).toBe('a');
-      expect(lines[1]).toBe('b');
-      expect(lines[2]).toBe('c');
-      expect(lines[3]).toBe('d');
-      expect(lines[4]).toBe('e');
-      expect(lines[5]).toBe('final');
+      expect(result.logs).toEqual(['a', 'b', 'c', 'd', 'e']);
+      expect(result.result).toBe('final');
     });
 
     it('maintains correct final value position after logs', async () => {
@@ -383,10 +355,8 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      const lines = result.result?.split('\n') || [];
-      expect(lines[0]).toBe('log1');
-      expect(lines[1]).toBe('log2');
-      expect(lines[2]).toBe('final value');
+      expect(result.logs).toEqual(['log1', 'log2']);
+      expect(result.result).toBe('final value');
     });
 
     it('handles concurrent executions with different log patterns', async () => {
@@ -399,9 +369,12 @@ describe('executeRill', () => {
 
       const results = await Promise.all(executions);
 
+      expect(results[0]?.logs).toEqual([]);
       expect(results[0]?.result).toBe('42');
-      expect(results[1]?.result).toBe('single\n84');
-      expect(results[2]?.result).toBe('m1\nm2\nm3\n126');
+      expect(results[1]?.logs).toEqual(['single']);
+      expect(results[1]?.result).toBe('84');
+      expect(results[2]?.logs).toEqual(['m1', 'm2', 'm3']);
+      expect(results[2]?.result).toBe('126');
     });
   });
 });

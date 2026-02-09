@@ -37,7 +37,8 @@ export function Output({
   state,
   ariaLabel = 'Execution output',
 }: OutputProps): JSX.Element {
-  const { status, result, error, duration } = state;
+  const { status, result, error, duration, logs } = state;
+  const hasLogs = logs.length > 0;
 
   return (
     <div className="output-panel" aria-label={ariaLabel}>
@@ -57,7 +58,9 @@ export function Output({
         {/* Idle: empty state */}
         {status === 'idle' && (
           <div className="output-idle">
-            <div className="output-idle-pipe">{'->'} {'->'} {'->'}</div>
+            <div className="output-idle-pipe">
+              {'->'} {'->'} {'->'}
+            </div>
             <div className="output-idle-text">Run code to see output</div>
           </div>
         )}
@@ -69,52 +72,87 @@ export function Output({
           </div>
         )}
 
-        {/* Success: formatted result */}
+        {/* Success: formatted result with optional logs section */}
         {status === 'success' && (
-          <div className="output-result">
-            {result === 'null' ? 'No output' : result}
-          </div>
+          <>
+            {hasLogs && (
+              <div className="output-logs">
+                <div className="output-logs-label">Log</div>
+                <div className="output-logs-entries">
+                  {logs.map((entry, index) => (
+                    <div key={index} className="output-logs-entry">
+                      {entry}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="output-result">
+              {hasLogs && <div className="output-result-label">Result</div>}
+              {result === 'null' ? 'No output' : result}
+            </div>
+          </>
         )}
 
-        {/* Error: structured error display */}
+        {/* Error: structured error display with optional logs above */}
         {status === 'error' && error !== null && (
-          <div className="output-error" role="alert">
-            <div className="output-error-header">
-              <span className="output-error-badge">
-                {error.category === 'lexer' && 'Syntax'}
-                {error.category === 'parse' && 'Parse'}
-                {error.category === 'runtime' && 'Runtime'}
-              </span>
-              {error.errorId && <span className="output-error-id">{error.errorId}</span>}
+          <>
+            {hasLogs && (
+              <div className="output-logs">
+                <div className="output-logs-label">Log</div>
+                <div className="output-logs-entries">
+                  {logs.map((entry, index) => (
+                    <div key={index} className="output-logs-entry">
+                      {entry}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="output-error" role="alert">
+              <div className="output-error-header">
+                <span className="output-error-badge">
+                  {error.category === 'lexer' && 'Syntax'}
+                  {error.category === 'parse' && 'Parse'}
+                  {error.category === 'runtime' && 'Runtime'}
+                </span>
+                {error.errorId && (
+                  <span className="output-error-id">{error.errorId}</span>
+                )}
+              </div>
+
+              <div className="output-error-message">{error.message}</div>
+
+              {error.line !== null && (
+                <div className="output-error-location">
+                  line {error.line}
+                  {error.column !== null && `, col ${error.column}`}
+                </div>
+              )}
+
+              {error.cause && (
+                <div className="output-error-cause">{error.cause}</div>
+              )}
+
+              {error.resolution && (
+                <div className="output-error-resolution">
+                  <strong>Fix:</strong> {error.resolution}
+                </div>
+              )}
+
+              {error.helpUrl && (
+                <div className="output-error-help">
+                  <a
+                    href={error.helpUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Docs {'->'}
+                  </a>
+                </div>
+              )}
             </div>
-
-            <div className="output-error-message">{error.message}</div>
-
-            {error.line !== null && (
-              <div className="output-error-location">
-                line {error.line}
-                {error.column !== null && `, col ${error.column}`}
-              </div>
-            )}
-
-            {error.cause && (
-              <div className="output-error-cause">{error.cause}</div>
-            )}
-
-            {error.resolution && (
-              <div className="output-error-resolution">
-                <strong>Fix:</strong> {error.resolution}
-              </div>
-            )}
-
-            {error.helpUrl && (
-              <div className="output-error-help">
-                <a href={error.helpUrl} target="_blank" rel="noopener noreferrer">
-                  Docs {'->'}
-                </a>
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </div>
