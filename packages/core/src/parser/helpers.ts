@@ -164,38 +164,30 @@ export function isNegativeNumber(state: ParserState): boolean {
 }
 
 /**
+ * Check if current token is one of the given types and followed by colon
+ * @internal
+ */
+function isKeyValueStart(state: ParserState, tokenTypes: string[]): boolean {
+  return (
+    tokenTypes.some((type) => check(state, type)) &&
+    peek(state, 1).type === TOKEN_TYPES.COLON
+  );
+}
+
+/**
  * Check for dict start: identifier followed by colon OR list literal followed by colon
  * @internal
  */
 export function isDictStart(state: ParserState): boolean {
-  // Dict can start with identifier followed by colon: [key: value]
+  // Dict can start with simple key-value pairs: [key: value]
   if (
-    check(state, TOKEN_TYPES.IDENTIFIER) &&
-    peek(state, 1).type === TOKEN_TYPES.COLON
-  ) {
-    return true;
-  }
-
-  // Dict can start with string literal followed by colon: ["key": value]
-  if (
-    check(state, TOKEN_TYPES.STRING) &&
-    peek(state, 1).type === TOKEN_TYPES.COLON
-  ) {
-    return true;
-  }
-
-  // Dict can start with number followed by colon: [42: value]
-  if (
-    check(state, TOKEN_TYPES.NUMBER) &&
-    peek(state, 1).type === TOKEN_TYPES.COLON
-  ) {
-    return true;
-  }
-
-  // Dict can start with boolean followed by colon: [true: value] or [false: value]
-  if (
-    (check(state, TOKEN_TYPES.TRUE) || check(state, TOKEN_TYPES.FALSE)) &&
-    peek(state, 1).type === TOKEN_TYPES.COLON
+    isKeyValueStart(state, [
+      TOKEN_TYPES.IDENTIFIER,
+      TOKEN_TYPES.STRING,
+      TOKEN_TYPES.NUMBER,
+      TOKEN_TYPES.TRUE,
+      TOKEN_TYPES.FALSE,
+    ])
   ) {
     return true;
   }

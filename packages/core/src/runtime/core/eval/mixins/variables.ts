@@ -718,19 +718,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const key of access.alternatives) {
         const dictValue = (value as Record<string, RillValue>)[key];
         if (dictValue !== undefined && dictValue !== null) {
-          // Property-style callable: auto-invoke when accessed
-          if (isCallable(dictValue) && dictValue.isProperty) {
-            // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
-            // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
-            const args = dictValue.kind === 'script' ? [] : [value];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).invokeCallable(
-              dictValue,
-              args,
-              this.getNodeLocation(node)
-            );
-          }
-          return dictValue;
+          // Use base class method for consistent property-style callable handling
+          return await this.accessDictField(
+            value,
+            key,
+            this.getNodeLocation(node),
+            true
+          );
         }
       }
 
