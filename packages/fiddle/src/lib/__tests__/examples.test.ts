@@ -53,6 +53,30 @@ describe('loadExample', () => {
       expect(example?.source).toBeTruthy();
       expect(example?.source.length).toBeGreaterThan(0);
     });
+
+    it('returns all new examples', () => {
+      const newIds = [
+        'fold',
+        'fizzbuzz',
+        'dispatch',
+        'closures',
+        'collection-pipeline',
+        'destructuring',
+        'slicing',
+        'type-checking',
+        'string-processing',
+        'dict-methods',
+        'state-machine',
+        'spread',
+      ];
+      for (const id of newIds) {
+        const example = loadExample(id);
+        expect(example).toBeDefined();
+        expect(example?.id).toBe(id);
+        expect(example?.label).toBeTruthy();
+        expect(example?.source.length).toBeGreaterThan(0);
+      }
+    });
   });
 
   describe('example validation', () => {
@@ -63,6 +87,18 @@ describe('loadExample', () => {
         'pipes',
         'functions',
         'conditionals',
+        'fold',
+        'fizzbuzz',
+        'dispatch',
+        'closures',
+        'collection-pipeline',
+        'destructuring',
+        'slicing',
+        'type-checking',
+        'string-processing',
+        'dict-methods',
+        'state-machine',
+        'spread',
       ];
 
       for (const id of requiredIds) {
@@ -81,6 +117,18 @@ describe('loadExample', () => {
         'pipes',
         'functions',
         'conditionals',
+        'fold',
+        'fizzbuzz',
+        'dispatch',
+        'closures',
+        'collection-pipeline',
+        'destructuring',
+        'slicing',
+        'type-checking',
+        'string-processing',
+        'dict-methods',
+        'state-machine',
+        'spread',
       ];
 
       for (const id of requiredIds) {
@@ -96,6 +144,18 @@ describe('loadExample', () => {
         'pipes',
         'functions',
         'conditionals',
+        'fold',
+        'fizzbuzz',
+        'dispatch',
+        'closures',
+        'collection-pipeline',
+        'destructuring',
+        'slicing',
+        'type-checking',
+        'string-processing',
+        'dict-methods',
+        'state-machine',
+        'spread',
       ];
 
       for (const id of requiredIds) {

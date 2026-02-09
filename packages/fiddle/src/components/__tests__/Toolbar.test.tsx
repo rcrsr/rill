@@ -276,13 +276,25 @@ describe('Toolbar', () => {
       // Filter out placeholder option
       const exampleOptions = options.filter((opt) => opt.value !== '');
 
-      expect(exampleOptions).toHaveLength(5);
+      expect(exampleOptions).toHaveLength(17);
       expect(exampleOptions.map((opt) => opt.value)).toEqual([
         'hello-world',
         'variables',
         'pipes',
         'functions',
         'conditionals',
+        'fold',
+        'fizzbuzz',
+        'dispatch',
+        'closures',
+        'collection-pipeline',
+        'destructuring',
+        'slicing',
+        'type-checking',
+        'string-processing',
+        'dict-methods',
+        'state-machine',
+        'spread',
       ]);
     });
 

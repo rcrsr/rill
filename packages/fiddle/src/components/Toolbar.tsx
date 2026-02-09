@@ -49,6 +49,18 @@ const EXAMPLE_IDS = [
   'pipes',
   'functions',
   'conditionals',
+  'fold',
+  'fizzbuzz',
+  'dispatch',
+  'closures',
+  'collection-pipeline',
+  'destructuring',
+  'slicing',
+  'type-checking',
+  'string-processing',
+  'dict-methods',
+  'state-machine',
+  'spread',
 ] as const;
 
 const IS_MAC =
