@@ -1,10 +1,9 @@
 /* ============================================================
  * BRAND DESIGN SYSTEM — HEXTRA OVERRIDES
- * Source: brand/brand-guide.html
- * Reference: brand/brand-canonical-messaging.md
+ * Canonical source: brand/design-context.md
  * ============================================================ */
 
-/* --- Brand custom properties --- */
+/* --- Brand custom properties — canonical source: brand/design-context.md --- */
 :root {
   --void:        #0a0a0e;
   --void-raised: #111117;

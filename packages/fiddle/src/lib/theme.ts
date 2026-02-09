@@ -14,10 +14,11 @@ import { tags } from '@lezer/highlight';
 
 // ============================================================
 // BRAND COLORS — Neon Spectrum on Void
+// Canonical source: brand/design-context.md
 // ============================================================
 
 /**
- * Brand color scheme from internal/brand/brand-guide.html
+ * Brand color scheme from brand/design-context.md
  *
  * Syntax token mapping:
  *   Keywords  → neon-cyan   #22d3ee
