@@ -22,6 +22,11 @@ jobs:
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.152.2'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
