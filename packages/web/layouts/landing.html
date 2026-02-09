@@ -63,12 +63,24 @@
     </div>
   </section>
 
+  <!-- Providers -->
+  <section class="providers">
+    <h2 class="providers-heading">works with every major LLM API</h2>
+    <p class="providers-desc">Switch providers by changing one line. Scripts stay identical.</p>
+    <div class="providers-grid">
+      <a href="/docs/extensions/anthropic/" class="provider-chip">Anthropic</a>
+      <a href="/docs/extensions/openai/" class="provider-chip">OpenAI</a>
+      <a href="/docs/extensions/gemini/" class="provider-chip">Gemini</a>
+      <a href="/docs/extensions/claude-code/" class="provider-chip">Claude Code</a>
+    </div>
+  </section>
+
   <!-- Code example — full-width showcase -->
   <section class="showcase">
     <div class="showcase-inner">
       <div class="showcase-text">
-        <h2 class="showcase-heading">See it in action</h2>
-        <p class="showcase-desc">LLMs write rill. Users run it. Data structures and lookups with no classes, no imports, no risk.</p>
+        <h2 class="showcase-heading">Chain LLM calls like data</h2>
+        <p class="showcase-desc">Pipe model output through conditions, filters, and follow-up calls. Provider-agnostic by default.</p>
       </div>
       <div class="showcase-code">
         <div class="code-block">
@@ -78,19 +90,15 @@
             <span class="code-dot"></span>
             <span class="code-block-label">rill</span>
           </div>
-          <pre><code><span class="hl-comment"># Agent tool-approval workflow</span>
-[
-  <span class="hl-prop">pending</span>: [<span class="hl-prop">approve</span>: <span class="hl-string">"ready"</span>,   <span class="hl-prop">deny</span>: <span class="hl-string">"blocked"</span>],
-  <span class="hl-prop">ready</span>:   [<span class="hl-prop">execute</span>: <span class="hl-string">"done"</span>,    <span class="hl-prop">revoke</span>: <span class="hl-string">"blocked"</span>],
-  <span class="hl-prop">blocked</span>: [<span class="hl-prop">retry</span>: <span class="hl-string">"pending"</span>,   <span class="hl-prop">cancel</span>: <span class="hl-string">"done"</span>]
-] <span class="hl-pipe">=&gt;</span> <span class="hl-var">$workflow</span>
+          <pre><code><span class="hl-comment"># Multi-step code review pipeline</span>
+<span class="hl-fn">llm::message</span>(<span class="hl-string">"Review this code for security issues"</span>)
+  <span class="hl-pipe">=&gt;</span> <span class="hl-var">$review</span>
 
-<span class="hl-comment"># Resolve next state from current context</span>
-<span class="hl-string">"pending"</span> <span class="hl-pipe">=&gt;</span> <span class="hl-var">$state</span>
-<span class="hl-string">"approve"</span> <span class="hl-pipe">=&gt;</span> <span class="hl-var">$action</span>
-
-<span class="hl-var">$workflow</span>.<span class="hl-var">$state</span>.<span class="hl-var">$action</span>
-<span class="hl-comment"># Result: "ready"</span></code></pre>
+<span class="hl-var">$review</span>.content
+  <span class="hl-pipe">-&gt;</span> .contains(<span class="hl-string">"CRITICAL"</span>) ? {
+    <span class="hl-fn">llm::message</span>(<span class="hl-string">"Suggest fixes for: {<span class="hl-var">$review</span>.content}"</span>)
+      <span class="hl-pipe">-&gt;</span> .content
+  } ! <span class="hl-string">"No critical issues found"</span></code></pre>
         </div>
       </div>
     </div>
@@ -499,6 +507,58 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* ---- Providers ---- */
+
+  .providers {
+    padding: 3rem 1.5rem 4rem;
+    max-width: 960px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .providers-heading {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+  }
+
+  .providers-desc {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 0 0 2rem;
+  }
+
+  .providers-grid {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .provider-chip {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 8px;
+    padding: 0.6rem 1.25rem;
+    transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease;
+  }
+
+  .provider-chip:hover {
+    border-color: rgba(34, 211, 238, 0.3);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.06);
+    color: var(--neon-cyan);
+  }
+
   /* ---- Code showcase — two-column ---- */
 
   .showcase {
@@ -688,6 +748,14 @@
 
     .showcase-text {
       text-align: center;
+    }
+
+    .providers {
+      padding: 2rem 1rem 3rem;
+    }
+
+    .providers-grid {
+      gap: 0.75rem;
     }
 
     .hero-cta {

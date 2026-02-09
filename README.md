@@ -36,28 +36,42 @@ rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
+import { createOpenAIExtension } from '@rcrsr/rill-ext-openai';
 
-const script = `
-  prompt("Analyze this code for issues")
-    -> .contains("ERROR") ? error($) ! "Analysis complete"
-`;
-
-const ctx = createRuntimeContext({
-  functions: {
-    prompt: {
-      params: [{ name: 'message', type: 'string' }],
-      fn: async (args) => await callYourLLM(args[0]),
-    },
-    error: {
-      params: [{ name: 'message', type: 'string' }],
-      fn: (args) => { throw new Error(String(args[0])); },
-    },
-  },
+const ext = createOpenAIExtension({
+  api_key: process.env.OPENAI_API_KEY,
+  model: 'gpt-4o',
 });
 
-const result = await execute(parse(script), ctx);
+const { dispose, ...functions } = prefixFunctions('llm', ext);
+
+const ctx = createRuntimeContext({ functions });
+
+const result = await execute(parse(`
+  llm::message("Summarize this code for issues")
+    -> .content -> .contains("ERROR") ? "Issues found" ! "All clear"
+`), ctx);
+
+await dispose();
 ```
+
+Switch providers by changing one line — `createAnthropicExtension` or `createGeminiExtension`. Scripts stay identical.
+
+## Extensions
+
+rill ships bundled extensions for major LLM providers. Integrate the ones you want to expose as functions in scripts:
+
+| Extension | Package | Functions |
+|-----------|---------|-----------|
+| Anthropic | `@rcrsr/rill-ext-anthropic` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
+| OpenAI | `@rcrsr/rill-ext-openai` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
+| Gemini | `@rcrsr/rill-ext-gemini` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
+| Claude Code | `@rcrsr/rill-ext-claude-code` | `prompt`, `skill`, `command` |
+
+All LLM provider extensions share the same function signatures. Use `prefixFunctions('llm', ext)` to write provider-agnostic scripts.
+
+See [Bundled Extensions](docs/bundled-extensions.md) for full documentation and [Developing Extensions](docs/integration-extensions.md) to write your own.
 
 ## Language Overview
 
@@ -198,6 +212,8 @@ See [docs/index.md](docs/index.md) for full navigation.
 | [Reference](docs/ref-language.md) | Language specification |
 | [Examples](docs/guide-examples.md) | Workflow patterns |
 | [Host Integration](docs/integration-host.md) | Embedding API |
+| [Bundled Extensions](docs/bundled-extensions.md) | LLM provider extensions |
+| [Developing Extensions](docs/integration-extensions.md) | Writing custom extensions |
 | [Design Principles](docs/topic-design-principles.md) | Why rill works the way it does |
 
 ## License
