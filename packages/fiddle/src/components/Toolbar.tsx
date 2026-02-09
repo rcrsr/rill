@@ -13,7 +13,7 @@
 import type React from 'react';
 import type { JSX } from 'react';
 import { loadExample, type CodeExample } from '../lib/examples.js';
-import rillLogo from '../assets/rill-logo.png';
+import rillIconColor from '../assets/rill-icon-color.png';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -35,6 +35,8 @@ export interface ToolbarProps {
   disabled?: boolean;
   /** ARIA label for toolbar */
   ariaLabel?: string;
+  /** Link destination for logo (defaults to "/") */
+  logoHref?: string;
 }
 
 // ============================================================
@@ -50,7 +52,8 @@ const EXAMPLE_IDS = [
 ] as const;
 
 const IS_MAC =
-  typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+  typeof navigator !== 'undefined' &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
 
 // ============================================================
 // TOOLBAR COMPONENT
@@ -66,8 +69,11 @@ export function Toolbar({
   copyLinkState = 'idle',
   disabled = false,
   ariaLabel = 'Toolbar',
+  logoHref = '/',
 }: ToolbarProps): JSX.Element {
-  const handleExampleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+  const handleExampleChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ): void => {
     const exampleId = event.target.value;
     if (!exampleId) return;
 
@@ -83,7 +89,9 @@ export function Toolbar({
   return (
     <div className="toolbar" role="toolbar" aria-label={ariaLabel}>
       {/* Brand logo */}
-      <img src={rillLogo} alt="rill" className="toolbar-logo" />
+      <a href={logoHref} className="toolbar-logo-link">
+        <img src={rillIconColor} alt="rill" className="toolbar-logo" />
+      </a>
 
       <div className="toolbar-separator" />
 
@@ -131,10 +139,22 @@ export function Toolbar({
             aria-label="Copy shareable link"
             className="toolbar-share"
           >
-            <svg className="toolbar-share-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="toolbar-share-icon"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M4 8L10 2M10 2H6M10 2V6M10 10H2V4" />
             </svg>
-            {copyLinkState === 'copied' ? 'Copied!' : copyLinkState === 'error' ? 'Error' : 'Share'}
+            {copyLinkState === 'copied'
+              ? 'Copied!'
+              : copyLinkState === 'error'
+                ? 'Error'
+                : 'Share'}
           </button>
         </>
       )}

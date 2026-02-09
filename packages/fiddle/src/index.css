@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ============================================================
  * BRAND DESIGN SYSTEM — CSS CUSTOM PROPERTIES
@@ -7,27 +7,28 @@
 
 :root {
   /* Void / Background */
-  --void:        #0a0a0e;
+  --void: #0a0a0e;
   --void-raised: #111117;
-  --void-card:   #16161e;
+  --void-card: #16161e;
   --void-border: #1e1e2a;
 
   /* Neon Spectrum */
-  --neon-yellow:  #d4e157;
-  --neon-green:   #4ade80;
-  --neon-cyan:    #22d3ee;
-  --neon-blue:    #60a5fa;
-  --neon-indigo:  #818cf8;
-  --neon-purple:  #a78bfa;
+  --neon-yellow: #d4e157;
+  --neon-green: #4ade80;
+  --neon-cyan: #22d3ee;
+  --neon-blue: #60a5fa;
+  --neon-indigo: #818cf8;
+  --neon-purple: #a78bfa;
 
   /* Text Hierarchy */
-  --text-primary:   #e8e8f0;
+  --text-primary: #e8e8f0;
   --text-secondary: #8888a0;
-  --text-dim:       #555568;
-  --text-accent:    var(--neon-cyan);
+  --text-dim: #555568;
+  --text-accent: var(--neon-cyan);
 
   /* Pipe Gradient */
-  --pipe-gradient: linear-gradient(135deg,
+  --pipe-gradient: linear-gradient(
+    135deg,
     var(--neon-yellow) 0%,
     var(--neon-green) 20%,
     var(--neon-cyan) 40%,
@@ -35,7 +36,8 @@
     var(--neon-indigo) 80%,
     var(--neon-purple) 100%
   );
-  --pipe-gradient-h: linear-gradient(90deg,
+  --pipe-gradient-h: linear-gradient(
+    90deg,
     var(--neon-yellow) 0%,
     var(--neon-green) 20%,
     var(--neon-cyan) 40%,
@@ -45,21 +47,25 @@
   );
 
   /* Typography */
-  --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
-  --font-sans:    'Instrument Sans', 'Inter', system-ui, sans-serif;
+  --font-mono:
+    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --font-sans: 'Instrument Sans', 'Inter', system-ui, sans-serif;
   --font-display: 'Big Shoulders Display', 'Impact', sans-serif;
 
   /* Spacing Scale */
-  --space-xs:  0.25rem;
-  --space-sm:  0.5rem;
-  --space-md:  1rem;
-  --space-lg:  1.5rem;
-  --space-xl:  2.5rem;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
 
   /* Glow Effects */
-  --glow-cyan:   0 0 20px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1);
-  --glow-green:  0 0 20px rgba(74, 222, 128, 0.3), 0 0 60px rgba(74, 222, 128, 0.1);
-  --glow-purple: 0 0 20px rgba(167, 139, 250, 0.3), 0 0 60px rgba(167, 139, 250, 0.1);
+  --glow-cyan:
+    0 0 20px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1);
+  --glow-green:
+    0 0 20px rgba(74, 222, 128, 0.3), 0 0 60px rgba(74, 222, 128, 0.1);
+  --glow-purple:
+    0 0 20px rgba(167, 139, 250, 0.3), 0 0 60px rgba(167, 139, 250, 0.1);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -70,7 +76,9 @@
  * RESET & BASE
  * ============================================================ */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -110,12 +118,17 @@ body {
   flex-shrink: 0;
 }
 
-.toolbar-logo {
-  height: 22px;
-  width: auto;
+.toolbar-logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
   margin-right: var(--space-xs);
+}
+
+.toolbar-logo {
+  height: 28px;
+  width: auto;
   user-select: none;
-  pointer-events: none;
   filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.15));
 }
 
@@ -140,7 +153,9 @@ body {
   cursor: pointer;
   background: var(--neon-cyan);
   color: var(--void);
-  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition:
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .toolbar-run:hover:not(:disabled) {
@@ -216,7 +231,9 @@ body {
   background: var(--void-card);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .toolbar-share:hover:not(:disabled) {
@@ -451,8 +468,12 @@ body {
 }
 
 @keyframes pipe-flow {
-  0%   { left: -40%; }
-  100% { left: 100%; }
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Success result */

@@ -13,7 +13,9 @@ import type { CodeExample } from '../../lib/examples.js';
 
 describe('Toolbar', () => {
   let mockOnRun: ReturnType<typeof vi.fn<() => void>>;
-  let mockOnExampleSelect: ReturnType<typeof vi.fn<(example: CodeExample) => void>>;
+  let mockOnExampleSelect: ReturnType<
+    typeof vi.fn<(example: CodeExample) => void>
+  >;
   let defaultProps: ToolbarProps;
 
   beforeEach(() => {
@@ -54,14 +56,20 @@ describe('Toolbar', () => {
     });
 
     it('applies ARIA label to toolbar', () => {
-      const { container } = render(<Toolbar {...defaultProps} ariaLabel="Test toolbar" />);
-      const toolbar = container.querySelector('[role="toolbar"][aria-label="Test toolbar"]');
+      const { container } = render(
+        <Toolbar {...defaultProps} ariaLabel="Test toolbar" />
+      );
+      const toolbar = container.querySelector(
+        '[role="toolbar"][aria-label="Test toolbar"]'
+      );
       expect(toolbar).toBeDefined();
     });
 
     it('uses default ARIA label', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const toolbar = container.querySelector('[role="toolbar"][aria-label="Toolbar"]');
+      const toolbar = container.querySelector(
+        '[role="toolbar"][aria-label="Toolbar"]'
+      );
       expect(toolbar).toBeDefined();
     });
 
@@ -69,6 +77,29 @@ describe('Toolbar', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
       const toolbar = container.querySelector('.toolbar');
       expect(toolbar).toBeDefined();
+    });
+
+    it('logo is wrapped in an anchor tag with default href "/"', () => {
+      const { container } = render(<Toolbar {...defaultProps} />);
+      const logoLink = container.querySelector(
+        '.toolbar-logo-link'
+      ) as HTMLAnchorElement;
+      expect(logoLink).toBeDefined();
+      expect(logoLink.href).toContain('/');
+
+      const logo = logoLink.querySelector('.toolbar-logo');
+      expect(logo).toBeDefined();
+    });
+
+    it('logoHref prop overrides the link destination', () => {
+      const { container } = render(
+        <Toolbar {...defaultProps} logoHref="/custom-path" />
+      );
+      const logoLink = container.querySelector(
+        '.toolbar-logo-link'
+      ) as HTMLAnchorElement;
+      expect(logoLink).toBeDefined();
+      expect(logoLink.href).toContain('/custom-path');
     });
   });
 
@@ -79,7 +110,9 @@ describe('Toolbar', () => {
   describe('Run button', () => {
     it('triggers onRun when clicked', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       fireEvent.click(runButton);
@@ -87,22 +120,34 @@ describe('Toolbar', () => {
     });
 
     it('is disabled when disabled prop is true', () => {
-      const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const { container } = render(
+        <Toolbar {...defaultProps} disabled={true} />
+      );
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(true);
     });
 
     it('is enabled when disabled prop is false', () => {
-      const { container } = render(<Toolbar {...defaultProps} disabled={false} />);
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const { container } = render(
+        <Toolbar {...defaultProps} disabled={false} />
+      );
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(false);
     });
 
     it('does not trigger onRun when disabled', () => {
-      const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const { container } = render(
+        <Toolbar {...defaultProps} disabled={true} />
+      );
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
       fireEvent.click(runButton);
@@ -123,7 +168,9 @@ describe('Toolbar', () => {
   describe('example selector', () => {
     it('triggers onExampleSelect when example is selected', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
       expect(select).toBeDefined();
 
       fireEvent.change(select, { target: { value: 'hello-world' } });
@@ -138,7 +185,9 @@ describe('Toolbar', () => {
 
     it('loads variables example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'variables' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -150,7 +199,9 @@ describe('Toolbar', () => {
 
     it('loads pipes example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'pipes' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -162,7 +213,9 @@ describe('Toolbar', () => {
 
     it('loads functions example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'functions' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -174,7 +227,9 @@ describe('Toolbar', () => {
 
     it('loads conditionals example', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: 'conditionals' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
@@ -186,15 +241,21 @@ describe('Toolbar', () => {
 
     it('does not trigger onExampleSelect when empty option is selected', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
 
       fireEvent.change(select, { target: { value: '' } });
       expect(mockOnExampleSelect).not.toHaveBeenCalled();
     });
 
     it('is disabled when disabled prop is true', () => {
-      const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const { container } = render(
+        <Toolbar {...defaultProps} disabled={true} />
+      );
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
       expect(select).toBeDefined();
       expect(select.disabled).toBe(true);
     });
@@ -207,7 +268,9 @@ describe('Toolbar', () => {
 
     it('renders all required examples', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
       const options = Array.from(select.querySelectorAll('option'));
 
       // Filter out placeholder option
@@ -225,8 +288,12 @@ describe('Toolbar', () => {
 
     it('renders placeholder option as default', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
-      const placeholder = select.querySelector('option[value=""]') as HTMLOptionElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
+      const placeholder = select.querySelector(
+        'option[value=""]'
+      ) as HTMLOptionElement;
 
       expect(placeholder).toBeDefined();
       expect(placeholder?.textContent).toBe('Examples');
@@ -259,7 +326,9 @@ describe('Toolbar', () => {
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
 
       fireEvent.click(shareButton);
@@ -269,9 +338,15 @@ describe('Toolbar', () => {
     it('shows "Copied!" text when copyLinkState is copied', () => {
       const mockOnCopyLink = vi.fn();
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="copied" />
+        <Toolbar
+          {...defaultProps}
+          onCopyLink={mockOnCopyLink}
+          copyLinkState="copied"
+        />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Copied!');
     });
@@ -279,9 +354,15 @@ describe('Toolbar', () => {
     it('shows "Error" text when copyLinkState is error', () => {
       const mockOnCopyLink = vi.fn();
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="error" />
+        <Toolbar
+          {...defaultProps}
+          onCopyLink={mockOnCopyLink}
+          copyLinkState="error"
+        />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Error');
     });
@@ -289,9 +370,15 @@ describe('Toolbar', () => {
     it('shows "Share" text when copyLinkState is idle', () => {
       const mockOnCopyLink = vi.fn();
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} copyLinkState="idle" />
+        <Toolbar
+          {...defaultProps}
+          onCopyLink={mockOnCopyLink}
+          copyLinkState="idle"
+        />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Share');
     });
@@ -299,9 +386,15 @@ describe('Toolbar', () => {
     it('disabled when disabled prop is true', () => {
       const mockOnCopyLink = vi.fn();
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} disabled={true} />
+        <Toolbar
+          {...defaultProps}
+          onCopyLink={mockOnCopyLink}
+          disabled={true}
+        />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
       expect(shareButton.disabled).toBe(true);
     });
@@ -311,16 +404,24 @@ describe('Toolbar', () => {
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
-      const shareButton = container.querySelector('[aria-label="Copy shareable link"]');
+      const shareButton = container.querySelector(
+        '[aria-label="Copy shareable link"]'
+      );
       expect(shareButton).toBeDefined();
     });
 
     it('does not trigger callback when disabled', () => {
       const mockOnCopyLink = vi.fn();
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} disabled={true} />
+        <Toolbar
+          {...defaultProps}
+          onCopyLink={mockOnCopyLink}
+          disabled={true}
+        />
       );
-      const shareButton = container.querySelector('.toolbar-share') as HTMLButtonElement;
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
 
       fireEvent.click(shareButton);
@@ -359,12 +460,18 @@ describe('Toolbar', () => {
     });
 
     it('disabled elements have proper ARIA state', () => {
-      const { container } = render(<Toolbar {...defaultProps} disabled={true} />);
+      const { container } = render(
+        <Toolbar {...defaultProps} disabled={true} />
+      );
 
-      const runButton = container.querySelector('.toolbar-run') as HTMLButtonElement;
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
       expect(runButton.disabled).toBe(true);
 
-      const select = container.querySelector('.toolbar-select') as HTMLSelectElement;
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
       expect(select.disabled).toBe(true);
     });
   });

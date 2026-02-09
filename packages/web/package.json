@@ -5,7 +5,7 @@
   "scripts": {
     "sync-docs": "bash scripts/sync-docs.sh",
     "inject-version": "bash scripts/inject-version.sh",
-    "build:fiddle": "pnpm --filter @rcrsr/rill-fiddle build:embedded && cp -r ../fiddle/dist/ static/fiddle/",
+    "build:fiddle": "pnpm --filter @rcrsr/rill-fiddle build:embedded && rm -rf static/fiddle && cp -r ../fiddle/dist static/fiddle",
     "build:hugo": "hugo --gc --minify",
     "build": "pnpm sync-docs && pnpm inject-version && pnpm build:fiddle && pnpm build:hugo",
     "dev": "pnpm inject-version && pnpm sync-docs && hugo server --buildDrafts"
