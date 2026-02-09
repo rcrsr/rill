@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { render, cleanup, waitFor, act } from '@testing-library/react';
 import { App } from '../App.js';
 import * as persistence from '../lib/persistence.js';
 import * as execution from '../lib/execution.js';
@@ -171,7 +171,9 @@ describe('App', () => {
 
       if (select) {
         select.value = 'variables';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+        act(() => {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
 
         // Toolbar resets select to '' after loading example
         await waitFor(() => {
@@ -193,7 +195,9 @@ describe('App', () => {
 
       if (select) {
         select.value = 'hello-world';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+        act(() => {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
 
         // Wait a tick for state updates
         await waitFor(() => {

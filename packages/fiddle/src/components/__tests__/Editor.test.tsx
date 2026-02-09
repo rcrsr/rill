@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, act } from '@testing-library/react';
 import { Editor, type EditorProps } from '../Editor.js';
 
 describe('Editor', () => {
@@ -89,10 +89,11 @@ describe('Editor', () => {
           metaKey: true,
           bubbles: true,
         });
-        cmEditor.dispatchEvent(event);
-
-        // Wait for event propagation
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await act(async () => {
+          cmEditor.dispatchEvent(event);
+          // Wait for event propagation
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        });
       }
 
       // Note: Due to CodeMirror's event handling, we may need integration tests
@@ -112,9 +113,10 @@ describe('Editor', () => {
           ctrlKey: true,
           bubbles: true,
         });
-        cmEditor.dispatchEvent(event);
-
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await act(async () => {
+          cmEditor.dispatchEvent(event);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        });
       }
     });
   });

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { Toolbar, type ToolbarProps } from '../Toolbar.js';
 import type { CodeExample } from '../../lib/examples.js';
 
@@ -115,7 +115,9 @@ describe('Toolbar', () => {
       ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
-      fireEvent.click(runButton);
+      act(() => {
+        fireEvent.click(runButton);
+      });
       expect(mockOnRun).toHaveBeenCalledTimes(1);
     });
 
@@ -150,7 +152,9 @@ describe('Toolbar', () => {
       ) as HTMLButtonElement;
       expect(runButton).toBeDefined();
 
-      fireEvent.click(runButton);
+      act(() => {
+        fireEvent.click(runButton);
+      });
       expect(mockOnRun).not.toHaveBeenCalled();
     });
 
@@ -343,7 +347,9 @@ describe('Toolbar', () => {
       ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
 
-      fireEvent.click(shareButton);
+      act(() => {
+        fireEvent.click(shareButton);
+      });
       expect(mockOnCopyLink).toHaveBeenCalledTimes(1);
     });
 
@@ -436,7 +442,9 @@ describe('Toolbar', () => {
       ) as HTMLButtonElement;
       expect(shareButton).toBeDefined();
 
-      fireEvent.click(shareButton);
+      act(() => {
+        fireEvent.click(shareButton);
+      });
       expect(mockOnCopyLink).not.toHaveBeenCalled();
     });
   });
