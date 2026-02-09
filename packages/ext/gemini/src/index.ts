@@ -15,7 +15,6 @@ export const VERSION = '0.7.2';
 // ============================================================
 
 export type { LLMExtensionConfig, GeminiExtensionConfig } from './types.js';
-export type { ExtensionResult } from '@rcrsr/rill';
 
 // ============================================================
 // EXTENSION FACTORY
