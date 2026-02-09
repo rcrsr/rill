@@ -20,6 +20,11 @@
     "@rcrsr/rill": "workspace:^",
     "yaml": "^2.8.2"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/cli"
+  },
   "publishConfig": {
     "access": "public"
   }

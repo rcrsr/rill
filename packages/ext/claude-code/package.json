@@ -24,6 +24,11 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/ext/claude-code"
+  },
   "publishConfig": {
     "access": "public"
   },

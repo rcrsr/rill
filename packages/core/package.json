@@ -18,6 +18,11 @@
     "lint": "eslint --config ../../eslint.config.js src/",
     "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/core"
+  },
   "publishConfig": {
     "access": "public"
   }
