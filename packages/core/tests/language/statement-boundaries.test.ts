@@ -222,5 +222,70 @@ $parts -> each { "{$}!" }`;
       // This now parses as a single conditional with else branch
       expect(await run(script)).toBe('no');
     });
+
+    describe('Conditional Block Boundaries', () => {
+      it('parses consecutive conditionals with blocks as separate statements', async () => {
+        // Regression test: Two consecutive (cond) ? { block } conditionals
+        // should parse as separate statements, not nested.
+        const script = `true ? { "first" }
+
+true ? { "second" }`;
+        // Both conditionals execute, last one wins
+        expect(await run(script)).toBe('second');
+      });
+
+      it('parses conditional blocks in do-while without postfix invocation', async () => {
+        // Regression test: Original bug reproduction case.
+        // (cond) ? { block } followed by (cond2) on next line should NOT
+        // parse (cond2) as postfix invocation of the conditional result.
+        const script = `|path| { "draft" } => $get_status
+
+|doc_path, target_status, max_attempts| {
+  0 -> @ {
+    $get_status($doc_path) => $new_status
+
+    ($new_status == $target_status) ? {
+      $max_attempts -> return
+    }
+
+    ($new_status == "draft") ? {
+      log("improving")
+    }
+
+    $ + 1
+  } ? ($ < $max_attempts)
+} => $review_loop
+
+$review_loop("spec.md", "plan-ready", 3)`;
+        // Should execute 3 iterations and return 3, not throw "Cannot invoke non-callable"
+        expect(await run(script)).toBe(3);
+      });
+
+      it('still prevents postfix invocation after conditional with terminator', async () => {
+        // Regression test: Verify 0.7.0 fix still works.
+        // (cond) ? { break } followed by (expr) should NOT parse (expr)
+        // as invocation since break is a terminator.
+        const script = `|n| {
+  0 -> @ {
+    ($ == $n) ? { $ -> break }
+    $ + 1
+  } ? ($ < 10)
+} => $loop
+
+$loop(5)`;
+        // Should break at 5, not attempt to invoke 5 as a function
+        expect(await run(script)).toBe(5);
+      });
+
+      it('allows postfix invocation after conditional with non-block then-branch', async () => {
+        // Verify that postfix invocation still works when then-branch is NOT a block.
+        // (cond) ? value followed by (args) should parse as invocation if value is callable.
+        const script = `|x| { $x * 2 } => $double
+
+(true ? $double ! $double)(5)`;
+        // Conditional returns $double, then (5) invokes it as postfix
+        expect(await run(script)).toBe(10);
+      });
+    });
   });
 });

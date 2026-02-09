@@ -455,15 +455,18 @@ Parser.prototype.parsePostfixExprBase = function (
   // Track the end of the receiver for method calls
   let receiverEnd = primary.span.end;
 
-  // Check if primary is a conditional with terminator - if so, stop parsing
-  // This prevents ($ == 2) ? break\n($ == 5) from being parsed as invocation
-  const hasTerminator =
+  // Check if primary is a conditional that should stop postfix parsing.
+  // Two cases:
+  // 1. Block then-branch: `(cond) ? { ... }` - closing `}` is a statement boundary
+  // 2. PipeChain with terminator: `(cond) ? break` - terminator prevents invocation
+  const shouldStopPostfix =
     primary.type === 'Conditional' &&
-    primary.thenBranch?.type === 'PipeChain' &&
-    primary.thenBranch.terminator !== null;
+    (primary.thenBranch?.type === 'Block' ||
+      (primary.thenBranch?.type === 'PipeChain' &&
+        primary.thenBranch.terminator !== null));
 
   while (
-    !hasTerminator &&
+    !shouldStopPostfix &&
     (isMethodCall(this.state) || check(this.state, TOKEN_TYPES.LPAREN))
   ) {
     if (isMethodCall(this.state)) {

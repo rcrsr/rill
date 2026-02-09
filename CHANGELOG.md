@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-02-08
+
+### Fixed
+
+- **Conditional block postfix parsing** — `(cond) ? { block }` followed by `(expr)` on the next line no longer parses `(expr)` as a postfix invocation of the conditional result. Broadens the v0.7.0 terminator guard to all block then-branches.
+
 ## [0.7.1] - 2026-02-08
 
 ### Fixed
@@ -831,7 +837,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/rcrsr/rill/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rcrsr/rill/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rcrsr/rill/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/rcrsr/rill/compare/v0.6.1...v0.6.2
