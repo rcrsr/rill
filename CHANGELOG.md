@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed (web)
-
-- **Fully generated `content/docs/`** — `sync-docs.sh` now generates all files including section `_index.md` and docs hub; no committed files remain in `content/docs/`
-
 ## [0.7.0] - 2026-02-08
 
 ### Removed
@@ -34,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config** — `settingSources` controls plugin/MCP loading; `dangerouslySkipPermissions` flag exposed
 - **Defaults** — timeout 30min (was 30s), `--no-session-persistence` and `--setting-sources ''` always on
 - **Test host** — `examples/test-host.ts` for manual testing against live Claude CLI
+
+### Changed (web)
+
+- **Fully generated `content/docs/`** — `sync-docs.sh` now generates all files including section `_index.md` and docs hub; no committed files remain in `content/docs/`
+
+### Fixed (web)
+
+- **Mobile navbar** — removed empty hamburger menu; nav links (Docs, Fiddle, Search, GitHub) always visible
+- **Mobile code blocks** — added `overflow-x: auto` to prevent code from overflowing the viewport
 
 ## [0.6.2] - 2026-02-07
 

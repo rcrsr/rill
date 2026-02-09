@@ -423,6 +423,14 @@ code, pre, kbd {
   color: var(--neon-cyan);
 }
 
+/* --- Mobile: prevent code blocks from overflowing viewport --- */
+
+.content .hextra-code-block,
+.content .highlight {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 /* --- Reduced motion --- */
 
 @media (prefers-reduced-motion: reduce) {
