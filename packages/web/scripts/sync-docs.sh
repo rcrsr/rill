@@ -143,22 +143,23 @@ process_file() {
   # Build content: frontmatter + body (skip H1 and subtitle lines)
   {
     echo "---"
-    echo "title: \"$title\""
-    echo "description: \"$description\""
+    echo "title: \"${title//\"/\\\"}\""
+    echo "description: \"${description//\"/\\\"}\""
     echo "weight: $weight"
     echo "---"
     # Skip first 3 lines (H1, blank, subtitle) and the blank line after subtitle
     tail -n +4 "$src" | sed '1{/^$/d;}'
   } > "$target_file"
 
-  # Rewrite internal links
+  # Rewrite internal links (single sed pass per file)
+  local sed_script=""
   for link_src in "${!LINK_MAP[@]}"; do
     local link_target="${LINK_MAP[$link_src]}"
-    # Replace markdown links: (filename.md) → (hugo-path)
-    sed -i "s|(${link_src})|(${link_target})|g" "$target_file"
-    # Replace markdown links with anchors: (filename.md#anchor) → (hugo-path#anchor)
-    sed -i "s|(${link_src}#|(${link_target}#|g" "$target_file"
+    local escaped_src="${link_src//./\\.}"
+    sed_script+="s|(${escaped_src})|(${link_target})|g;"
+    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
   done
+  sed -i "$sed_script" "$target_file"
 
   echo "  $basename → $target_path"
 }

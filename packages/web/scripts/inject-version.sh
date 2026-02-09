@@ -7,7 +7,7 @@ set -euo pipefail
 WEB_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CORE_PKG="$WEB_DIR/../core/package.json"
 
-VERSION="$(grep '"version"' "$CORE_PKG" | head -1 | sed 's/.*"\([0-9][^"]*\)".*/\1/')"
+VERSION="$(node -p "require('$CORE_PKG').version")"
 
 mkdir -p "$WEB_DIR/data"
 printf '{"version": "%s"}\n' "$VERSION" > "$WEB_DIR/data/version.json"
