@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-02-08
+
+### Fixed
+
+- **Zero-param closure pipe injection** — `$c()` with explicit empty parens inside loop bodies no longer receives the loop accumulator as an implicit argument. Mirrors the existing guard for host functions.
+
 ## [0.7.0] - 2026-02-08
 
 ### Removed
@@ -825,7 +831,9 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/rcrsr/rill/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/rcrsr/rill/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/rcrsr/rill/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/rcrsr/rill/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/rcrsr/rill/compare/v0.5.0...v0.6.0

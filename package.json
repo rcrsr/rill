@@ -1,6 +1,6 @@
 {
   "name": "rill-lang",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Embeddable, sandboxed scripting to power AI agents",
   "private": true,
   "packageManager": "pnpm@10.10.0",

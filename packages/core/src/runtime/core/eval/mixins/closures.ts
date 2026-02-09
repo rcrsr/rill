@@ -590,8 +590,16 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const args = await this.evaluateArgs(node.args);
 
       // If no explicit args and has pipe input, add pipe value as first arg
+      // UNLESS closure has zero parameters (explicit zero-param signature)
       if (args.length === 0 && pipeInput !== null) {
-        args.push(pipeInput);
+        const closureHasZeroParams =
+          (isScriptCallable(closure) && closure.params.length === 0) ||
+          (isApplicationCallable(closure) &&
+            closure.params !== undefined &&
+            closure.params.length === 0);
+        if (!closureHasZeroParams) {
+          args.push(pipeInput);
+        }
       }
 
       return this.invokeCallable(closure, args, node.span.start, fullPath);

@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Embeddable, sandboxed scripting to power AI agents",
   "license": "MIT",
   "type": "module",

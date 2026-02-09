@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-cli",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "CLI tools for the rill scripting language",
   "license": "MIT",
   "type": "module",

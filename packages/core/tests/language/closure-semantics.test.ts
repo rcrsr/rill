@@ -450,4 +450,70 @@ describe('Rill Runtime: Closure Semantics', () => {
       }
     });
   });
+
+  describe('Zero-Parameter Closures in Loop Context', () => {
+    it('zero-param closure called with empty parens in loop body succeeds', async () => {
+      // Regression test: zero-param closure $c() with explicit empty parens
+      // should not receive pipe value (accumulator) in loop body
+      const script = `
+        || {
+          "a"
+        } => $c
+
+        0 -> @ {
+          $c()
+          $ + 1
+        } ? ($ != 5)
+      `;
+      expect(await run(script)).toBe(5);
+    });
+
+    it('one-param closure with explicit empty parens receives pipe value', async () => {
+      // Regression guard: one-param closure called with empty parens
+      // should still receive pipe value (accumulator) in loop body
+      const script = `
+        { $ + 10 } => $fn
+
+        0 -> @ {
+          $fn()
+        } ? ($ < 15)
+      `;
+      // Loop: 0 -> $fn() receives 0, returns 10 -> check (10 < 15 is true) -> continue
+      //       10 -> $fn() receives 10, returns 20 -> check (20 < 15 is false) -> exits
+      expect(await run(script)).toBe(20);
+    });
+
+    it('zero-param closure in while-loop with explicit call', async () => {
+      // Zero-param closure called explicitly should not receive loop accumulator
+      const script = `
+        || { 100 } => $constant
+
+        0 -> ($ < 3) @ {
+          $constant()
+          $ + 1
+        }
+      `;
+      expect(await run(script)).toBe(3);
+    });
+
+    it('zero-param closure in do-while with mixed expressions', async () => {
+      // Complex case: zero-param closure alongside accumulator operations
+      const script = `
+        || { 0 } => $reset
+
+        5 -> @ {
+          $ => $prev
+          $reset()
+          $prev - 1
+        } ? ($ > 0)
+      `;
+      // Loop: 5 -> prev=5, reset()=0, prev-1=4
+      //       4 -> prev=4, reset()=0, prev-1=3
+      //       3 -> prev=3, reset()=0, prev-1=2
+      //       2 -> prev=2, reset()=0, prev-1=1
+      //       1 -> prev=1, reset()=0, prev-1=0
+      //       0 -> condition (0 > 0) is false, exits
+      expect(await run(script)).toBe(0);
+    });
+  });
 });
