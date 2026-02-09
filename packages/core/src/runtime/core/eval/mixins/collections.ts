@@ -31,7 +31,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType, isRillIterator } from '../../values.js';
+import { inferType, isRillIterator, isVector } from '../../values.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
@@ -80,6 +80,14 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       input: RillValue,
       node: { span: { start: SourceLocation } }
     ): Promise<RillValue[]> {
+      // Vector guard [EC-32]
+      if (isVector(input)) {
+        throw new RuntimeError(
+          'RILL-R003',
+          'Collection operators require list, string, dict, or iterator, got vector',
+          node.span.start
+        );
+      }
       if (Array.isArray(input)) {
         return input;
       }

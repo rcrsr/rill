@@ -14,6 +14,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | List | `[a, b]` | `["file.ts", 42]` |
 | Dict | `[k: v]` | `[output: "text", code: 0]` |
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` |
+| Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 
 **Key principles:**
@@ -376,6 +377,100 @@ When a closure is invoked with a single tuple argument, the tuple auto-unpacks:
 
 ---
 
+## Vectors
+
+Vectors represent dense numeric embeddings from language models or other ML systems. Host applications provide vectors through embedding APIs.
+
+**Display format:** `vector(model, Nd)` where `model` is the source model name and `N` is the dimension count.
+
+```text
+app::embed("hello world") => $vec
+$vec
+# Result: vector(voyage-3, 1024d)
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.dimensions` | number | Number of dimensions in the vector |
+| `.model` | string | Source model name |
+
+```text
+$vec -> .dimensions
+# Result: 1024
+
+$vec -> .model
+# Result: "voyage-3"
+```
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.similarity(other)` | number | Cosine similarity, range [-1, 1] |
+| `.dot(other)` | number | Dot product |
+| `.distance(other)` | number | Euclidean distance, >= 0 |
+| `.norm()` | number | L2 magnitude |
+| `.normalize()` | vector | Unit vector (preserves model) |
+
+```text
+app::embed("hello") => $a
+app::embed("hi") => $b
+$a -> .similarity($b)
+# Result: 0.92
+
+$a -> .dot($b)
+# Result: 45.3
+
+$a -> .distance($b)
+# Result: 0.28
+
+$a -> .norm
+# Result: 1.0
+
+$a -> .normalize -> .norm
+# Result: 1.0
+```
+
+### Comparison
+
+Vectors support equality comparison (`==`, `!=`). Two vectors are equal when both model and all float elements match:
+
+```text
+app::embed("test") => $v1
+app::embed("test") => $v2
+$v1 == $v2
+# Result: true
+```
+
+Vectors from different models are never equal, even with identical data:
+
+```text
+# Different models
+app::embed("test", "model-a") => $v1
+app::embed("test", "model-b") => $v2
+$v1 == $v2
+# Result: false
+```
+
+### Behavioral Notes
+
+- **Immutable**: Vector data cannot be modified after creation
+- **Always truthy**: Vectors evaluate to true in boolean contexts (non-empty by construction)
+- **No string coercion**: Cannot be used in string interpolation or concatenation
+- **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on vectors
+
+```text
+# Error: cannot coerce vector to string
+"Result: {$vec}"
+
+# Error: Collection operators require list, string, dict, or iterator, got vector
+$vec -> each { $ * 2 }
+```
+
+---
+
 ## Type Assertions
 
 Use type assertions to validate values at runtime.
@@ -415,7 +510,7 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`
 
 ### In Pipe Chains
 
@@ -482,14 +577,18 @@ Type annotations validate on assignment and prevent accidental type changes:
 | `json` | Convert to JSON string |
 
 ```rill
-42 -> type              # "number"
-"hello" -> type         # "string"
-[1, 2] -> type          # "list"
-*[1, 2] -> type         # "tuple"
-[a: 1] -> type          # "dict"
-||{ $ } -> type         # "closure"
+42 -> type                      # "number"
+"hello" -> type                 # "string"
+[1, 2] -> type                  # "list"
+*[1, 2] -> type                 # "tuple"
+[a: 1] -> type                  # "dict"
+||{ $ } -> type                 # "closure"
 
-[a: 1, b: 2] -> json    # '{"a":1,"b":2}'
+[a: 1, b: 2] -> json            # '{"a":1,"b":2}'
+```
+
+```text
+app::embed("test") -> type      # "vector"
 ```
 
 **`json` closure handling:**

@@ -209,6 +209,195 @@ function createMockFunctions(): Record<
       fn: () => 'command executed',
     },
 
+    // anthropic:: namespace
+    'anthropic::message': {
+      params: [
+        { name: 'text', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'anthropic::messages': {
+      params: [
+        { name: 'messages', type: 'list' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'anthropic::embed': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => ({
+        __rill_vector: true,
+        data: new Float32Array([0.1, 0.2, 0.3]),
+        model: 'mock-embed',
+      }),
+    },
+    'anthropic::embed_batch': {
+      params: [{ name: 'texts', type: 'list' }],
+      fn: () => [
+        {
+          __rill_vector: true,
+          data: new Float32Array([0.1, 0.2, 0.3]),
+          model: 'mock-embed',
+        },
+      ],
+    },
+    'anthropic::tool_loop': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        turns: 1,
+        messages: [],
+      }),
+    },
+
+    // openai:: namespace
+    'openai::message': {
+      params: [
+        { name: 'text', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'openai::messages': {
+      params: [
+        { name: 'messages', type: 'list' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'openai::embed': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => ({
+        __rill_vector: true,
+        data: new Float32Array([0.1, 0.2, 0.3]),
+        model: 'mock-embed',
+      }),
+    },
+    'openai::embed_batch': {
+      params: [{ name: 'texts', type: 'list' }],
+      fn: () => [
+        {
+          __rill_vector: true,
+          data: new Float32Array([0.1, 0.2, 0.3]),
+          model: 'mock-embed',
+        },
+      ],
+    },
+    'openai::tool_loop': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        turns: 1,
+        messages: [],
+      }),
+    },
+
+    // gemini:: namespace
+    'gemini::message': {
+      params: [
+        { name: 'text', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'gemini::messages': {
+      params: [
+        { name: 'messages', type: 'list' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        messages: [],
+      }),
+    },
+    'gemini::embed': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => ({
+        __rill_vector: true,
+        data: new Float32Array([0.1, 0.2, 0.3]),
+        model: 'mock-embed',
+      }),
+    },
+    'gemini::embed_batch': {
+      params: [{ name: 'texts', type: 'list' }],
+      fn: () => [
+        {
+          __rill_vector: true,
+          data: new Float32Array([0.1, 0.2, 0.3]),
+          model: 'mock-embed',
+        },
+      ],
+    },
+    'gemini::tool_loop': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        content: 'mock response',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+        turns: 1,
+        messages: [],
+      }),
+    },
+
     // Legacy unnamespaced - these should be migrated to app:: in docs
     prompt: {
       params: [{ name: 'text', type: 'string' }],

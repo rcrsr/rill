@@ -761,7 +761,7 @@ describe('Rill Runtime: Configuration', () => {
           functions: { testFn },
         })
       ).toThrow(
-        "Invalid returnType for function 'testFn': expected one of string, number, bool, list, dict, any"
+        "Invalid returnType for function 'testFn': expected one of string, number, bool, list, dict, vector, any"
       );
     });
 
@@ -777,7 +777,7 @@ describe('Rill Runtime: Configuration', () => {
           functions: { badFn: testFn },
         })
       ).toThrow(
-        "Invalid returnType for function 'badFn': expected one of string, number, bool, list, dict, any"
+        "Invalid returnType for function 'badFn': expected one of string, number, bool, list, dict, vector, any"
       );
     });
 

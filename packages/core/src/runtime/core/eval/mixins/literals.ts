@@ -45,7 +45,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { formatValue, isReservedMethod } from '../../values.js';
+import { formatValue, isReservedMethod, isVector } from '../../values.js';
 import {
   isCallable,
   type ScriptCallable,
@@ -220,6 +220,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this.ctx.pipeValue = savedPipeValue;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const value = await (this as any).evaluateExpression(part.expression);
+          // Vector coercion guard [EC-31]
+          if (isVector(value)) {
+            throw RuntimeError.fromNode(
+              'RILL-R003',
+              'cannot coerce vector to string',
+              part
+            );
+          }
           result += formatValue(value);
         }
       }

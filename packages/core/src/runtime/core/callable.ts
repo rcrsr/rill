@@ -57,7 +57,14 @@ export type CallableFn = (
  */
 export interface CallableParam {
   readonly name: string;
-  readonly typeName: 'string' | 'number' | 'bool' | 'list' | 'dict' | null;
+  readonly typeName:
+    | 'string'
+    | 'number'
+    | 'bool'
+    | 'list'
+    | 'dict'
+    | 'vector'
+    | null;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
@@ -67,7 +74,7 @@ export interface CallableParam {
 
 /**
  * Return type declaration for host-provided functions.
- * Limited to 5 primitive types plus 'any' (default).
+ * Limited to 6 primitive types plus 'any' (default).
  */
 export type RillFunctionReturnType =
   | 'string'
@@ -75,6 +82,7 @@ export type RillFunctionReturnType =
   | 'bool'
   | 'list'
   | 'dict'
+  | 'vector'
   | 'any';
 
 /**
@@ -87,8 +95,8 @@ export interface HostFunctionParam {
   /** Parameter name (for error messages and documentation) */
   readonly name: string;
 
-  /** Expected type: limited to 5 primitive types */
-  readonly type: 'string' | 'number' | 'bool' | 'list' | 'dict';
+  /** Expected type: limited to 6 primitive types */
+  readonly type: 'string' | 'number' | 'bool' | 'list' | 'dict' | 'vector';
 
   /** Default value if argument omitted. Makes parameter optional. */
   readonly defaultValue?: RillValue;
@@ -368,12 +376,13 @@ export function validateReturnType(
     'bool',
     'list',
     'dict',
+    'vector',
     'any',
   ] as const;
 
   if (!validTypes.includes(returnType as RillFunctionReturnType)) {
     throw new Error(
-      `Invalid returnType for function '${functionName}': expected one of string, number, bool, list, dict, any`
+      `Invalid returnType for function '${functionName}': expected one of string, number, bool, list, dict, vector, any`
     );
   }
 }

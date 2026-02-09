@@ -246,7 +246,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -262,7 +262,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -278,7 +278,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });
@@ -296,7 +296,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });
@@ -314,7 +314,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -330,7 +330,7 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           })
         ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });

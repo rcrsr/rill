@@ -17,7 +17,9 @@ import {
   inferType,
   isEmpty,
   isRillIterator,
+  isVector,
   type RillValue,
+  type RillVector,
 } from '../core/values.js';
 
 // ============================================================
@@ -220,6 +222,119 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
     };
 
     return makeRepeatIterator(count);
+  },
+
+  /**
+   * Create a tool descriptor from a closure or host function.
+   *
+   * Call signatures:
+   * - tool(name, description, params, closure) - 4 args, arg[3] callable
+   * - tool("host_fn::name") - 1 arg, string with :: separator
+   * - tool("host_fn::name", overrides) - 2 args, string + dict
+   *
+   * Returns dict: { name, description, params, fn }
+   */
+  tool: (args, ctx, location) => {
+    // Signature 1: tool(name, description, params, closure) - 4 args
+    if (args.length === 4) {
+      const name = args[0] ?? '';
+      const description = args[1] ?? '';
+      const params = args[2] ?? {};
+      const fn = args[3] ?? null;
+
+      if (!isCallable(fn)) {
+        throw new RuntimeError(
+          'RILL-R001',
+          'tool() invalid arguments',
+          location
+        );
+      }
+
+      return {
+        name,
+        description,
+        params,
+        fn,
+      } as Record<string, RillValue>;
+    }
+
+    // Signatures 2 & 3: tool("host_fn::name") or tool("host_fn::name", overrides)
+    if (args.length === 1 || args.length === 2) {
+      const hostRef = args[0];
+
+      if (typeof hostRef !== 'string' || !hostRef.includes('::')) {
+        throw new RuntimeError(
+          'RILL-R001',
+          'tool() invalid arguments',
+          location
+        );
+      }
+
+      const functionName = hostRef;
+      const runtimeCtx = ctx as RuntimeContext;
+      const hostFunction = runtimeCtx.functions.get(functionName);
+
+      if (!hostFunction) {
+        throw new RuntimeError(
+          'RILL-R004',
+          `function '${functionName}' not found`,
+          location
+        );
+      }
+
+      // Extract metadata from host function
+      let description: string = '';
+      let params: RillValue = {};
+
+      if (typeof hostFunction === 'object' && 'kind' in hostFunction) {
+        // ApplicationCallable with metadata
+        description = hostFunction.description ?? '';
+        if (hostFunction.params) {
+          // Convert CallableParam[] to dict
+          const paramsDict: Record<string, RillValue> = {};
+          for (const param of hostFunction.params) {
+            paramsDict[param.name] = {
+              type: param.typeName ?? 'any',
+              description: param.description ?? '',
+            } as Record<string, RillValue>;
+          }
+          params = paramsDict;
+        }
+      }
+
+      // Apply overrides if provided
+      if (args.length === 2) {
+        const overrides = args[1] ?? null;
+        if (!isDict(overrides)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            'tool() invalid arguments',
+            location
+          );
+        }
+
+        // Merge overrides into result
+        if (
+          'description' in overrides &&
+          typeof overrides['description'] === 'string'
+        ) {
+          description = overrides['description'];
+        }
+        if ('params' in overrides && isDict(overrides['params'])) {
+          params = overrides['params'] as RillValue;
+        }
+      }
+
+      return {
+        name: functionName,
+        description,
+        params,
+        fn: hostFunction as RillValue,
+      } as Record<string, RillValue>;
+    }
+
+    // Invalid argument count
+    throw new RuntimeError('RILL-R001', 'tool() invalid arguments', location);
   },
 };
 
@@ -673,5 +788,193 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
       }
     }
     return true;
+  },
+
+  // === Vector methods ===
+
+  /** Get number of dimensions in vector */
+  dimensions: (receiver, _args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `dimensions requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    return receiver.data.length;
+  },
+
+  /** Get model name of vector */
+  model: (receiver, _args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `model requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    return receiver.model;
+  },
+
+  /** Calculate cosine similarity between two vectors (range [-1, 1]) */
+  similarity: (receiver, args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `similarity requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    const other = args[0] ?? null;
+    if (!isVector(other)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `expected vector, got ${inferType(other)}`,
+        location
+      );
+    }
+    if (receiver.data.length !== other.data.length) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+        location
+      );
+    }
+
+    // Cosine similarity: dot(a, b) / (norm(a) * norm(b))
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < receiver.data.length; i++) {
+      const a = receiver.data[i]!;
+      const b = other.data[i]!;
+      dotProduct += a * b;
+      normA += a * a;
+      normB += b * b;
+    }
+
+    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+    if (magnitude === 0) return 0;
+    return dotProduct / magnitude;
+  },
+
+  /** Calculate dot product between two vectors */
+  dot: (receiver, args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `dot requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    const other = args[0] ?? null;
+    if (!isVector(other)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `expected vector, got ${inferType(other)}`,
+        location
+      );
+    }
+    if (receiver.data.length !== other.data.length) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+        location
+      );
+    }
+
+    let result = 0;
+    for (let i = 0; i < receiver.data.length; i++) {
+      result += receiver.data[i]! * other.data[i]!;
+    }
+    return result;
+  },
+
+  /** Calculate Euclidean distance between two vectors (>= 0) */
+  distance: (receiver, args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `distance requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+    const other = args[0] ?? null;
+    if (!isVector(other)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `expected vector, got ${inferType(other)}`,
+        location
+      );
+    }
+    if (receiver.data.length !== other.data.length) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+        location
+      );
+    }
+
+    let sumSquares = 0;
+    for (let i = 0; i < receiver.data.length; i++) {
+      const diff = receiver.data[i]! - other.data[i]!;
+      sumSquares += diff * diff;
+    }
+    return Math.sqrt(sumSquares);
+  },
+
+  /** Calculate L2 norm (magnitude) of vector */
+  norm: (receiver, _args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `norm requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+
+    let sumSquares = 0;
+    for (let i = 0; i < receiver.data.length; i++) {
+      const val = receiver.data[i]!;
+      sumSquares += val * val;
+    }
+    return Math.sqrt(sumSquares);
+  },
+
+  /** Create unit vector (preserves model) */
+  normalize: (receiver, _args, _ctx, location) => {
+    if (!isVector(receiver)) {
+      throw new RuntimeError(
+        'RILL-R003',
+        `normalize requires vector receiver, got ${inferType(receiver)}`,
+        location
+      );
+    }
+
+    // Calculate norm
+    let sumSquares = 0;
+    for (let i = 0; i < receiver.data.length; i++) {
+      const val = receiver.data[i]!;
+      sumSquares += val * val;
+    }
+    const magnitude = Math.sqrt(sumSquares);
+
+    // If zero vector, return as-is
+    if (magnitude === 0) {
+      return receiver;
+    }
+
+    // Create normalized vector
+    const normalized = new Float32Array(receiver.data.length);
+    for (let i = 0; i < receiver.data.length; i++) {
+      normalized[i] = receiver.data[i]! / magnitude;
+    }
+
+    return {
+      __rill_vector: true,
+      data: normalized,
+      model: receiver.model,
+    } satisfies RillVector;
   },
 };

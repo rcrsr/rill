@@ -23,7 +23,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType('void', 'testFn');
         }).toThrow(
-          "Invalid returnType for function 'testFn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'testFn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -31,7 +31,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType('object', 'getData');
         }).toThrow(
-          "Invalid returnType for function 'getData': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'getData': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -39,7 +39,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType('undefined', 'nothing');
         }).toThrow(
-          "Invalid returnType for function 'nothing': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'nothing': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -47,7 +47,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType('array', 'getItems');
         }).toThrow(
-          "Invalid returnType for function 'getItems': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'getItems': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -55,7 +55,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType('', 'emptyType');
         }).toThrow(
-          "Invalid returnType for function 'emptyType': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'emptyType': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });
@@ -65,7 +65,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(null, 'nullReturn');
         }).toThrow(
-          "Invalid returnType for function 'nullReturn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'nullReturn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });
@@ -75,7 +75,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(42, 'numReturn');
         }).toThrow(
-          "Invalid returnType for function 'numReturn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'numReturn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -83,7 +83,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(0, 'zeroReturn');
         }).toThrow(
-          "Invalid returnType for function 'zeroReturn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'zeroReturn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -91,7 +91,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(-1, 'negativeReturn');
         }).toThrow(
-          "Invalid returnType for function 'negativeReturn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'negativeReturn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -99,7 +99,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(3.14, 'floatReturn');
         }).toThrow(
-          "Invalid returnType for function 'floatReturn': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'floatReturn': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });
@@ -152,7 +152,7 @@ describe('Callable Validation Functions', () => {
       it('includes expected types in error message', () => {
         expect(() => {
           validateReturnType('bad', 'fn');
-        }).toThrow('string, number, bool, list, dict, any');
+        }).toThrow('string, number, bool, list, dict, vector, any');
       });
     });
 
@@ -161,7 +161,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(true, 'boolValue');
         }).toThrow(
-          "Invalid returnType for function 'boolValue': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'boolValue': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -169,7 +169,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(false, 'boolValue');
         }).toThrow(
-          "Invalid returnType for function 'boolValue': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'boolValue': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -177,7 +177,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType({}, 'objValue');
         }).toThrow(
-          "Invalid returnType for function 'objValue': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'objValue': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -185,7 +185,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType([], 'arrValue');
         }).toThrow(
-          "Invalid returnType for function 'arrValue': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'arrValue': expected one of string, number, bool, list, dict, vector, any"
         );
       });
 
@@ -193,7 +193,7 @@ describe('Callable Validation Functions', () => {
         expect(() => {
           validateReturnType(undefined, 'undefValue');
         }).toThrow(
-          "Invalid returnType for function 'undefValue': expected one of string, number, bool, list, dict, any"
+          "Invalid returnType for function 'undefValue': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });

@@ -1411,7 +1411,8 @@ export type RillTypeName =
   | 'closure'
   | 'list'
   | 'dict'
-  | 'tuple';
+  | 'tuple'
+  | 'vector';
 
 export interface CaptureNode extends BaseNode {
   readonly type: 'Capture';

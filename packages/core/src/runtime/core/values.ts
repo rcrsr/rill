@@ -32,6 +32,16 @@ export interface RillTuple {
   readonly entries: Map<string | number, RillValue>;
 }
 
+/**
+ * Vector type - represents dense numeric embeddings.
+ * Immutable Float32Array with associated model name.
+ */
+export interface RillVector {
+  readonly __rill_vector: true;
+  readonly data: Float32Array;
+  readonly model: string;
+}
+
 /** Any value that can flow through Rill */
 export type RillValue =
   | string
@@ -41,7 +51,8 @@ export type RillValue =
   | RillValue[]
   | { [key: string]: RillValue }
   | CallableMarker
-  | RillTuple;
+  | RillTuple
+  | RillVector;
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -50,6 +61,16 @@ export function isTuple(value: RillValue): value is RillTuple {
     value !== null &&
     '__rill_tuple' in value &&
     value.__rill_tuple === true
+  );
+}
+
+/** Type guard for RillVector */
+export function isVector(value: RillValue): value is RillVector {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_vector' in value &&
+    value.__rill_vector === true
   );
 }
 
@@ -76,6 +97,17 @@ export function createTupleFromDict(
   return { __rill_tuple: true, entries };
 }
 
+/**
+ * Create vector from Float32Array with model name.
+ * @throws {Error} if data.length is 0 (zero-dimension vectors not allowed)
+ */
+export function createVector(data: Float32Array, model: string): RillVector {
+  if (data.length === 0) {
+    throw new Error('Vector data must have at least one dimension');
+  }
+  return { __rill_vector: true, data, model };
+}
+
 /** Infer the Rill type from a runtime value */
 export function inferType(value: RillValue): RillTypeName {
   if (value === null) return 'string'; // null treated as empty string
@@ -83,6 +115,7 @@ export function inferType(value: RillValue): RillTypeName {
   if (typeof value === 'number') return 'number';
   if (typeof value === 'boolean') return 'bool';
   if (isTuple(value)) return 'tuple';
+  if (isVector(value)) return 'vector';
   if (Array.isArray(value)) return 'list';
   if (
     typeof value === 'object' &&
@@ -110,6 +143,7 @@ export function isTruthy(value: RillValue): boolean {
   if (typeof value === 'number') return value !== 0;
   if (typeof value === 'string') return value.length > 0;
   if (isTuple(value)) return value.entries.size > 0;
+  if (isVector(value)) return true; // Vectors always truthy (non-empty by construction)
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') {
     if ('__type' in value && value.__type === 'callable') return true;
@@ -139,6 +173,9 @@ export function formatValue(value: RillValue): string {
       }
     }
     return `*[${parts.join(', ')}]`;
+  }
+  if (isVector(value)) {
+    return `vector(${value.model}, ${value.data.length}d)`;
   }
   if (
     typeof value === 'object' &&
@@ -180,6 +217,22 @@ export function deepEquals(a: RillValue, b: RillValue): boolean {
     for (const [key, aVal] of a.entries) {
       const bVal = b.entries.get(key);
       if (bVal === undefined || !deepEquals(aVal, bVal)) return false;
+    }
+    return true;
+  }
+
+  // Check for vectors
+  const aIsVector = isVector(a);
+  const bIsVector = isVector(b);
+  if (aIsVector !== bIsVector) return false;
+  if (aIsVector && bIsVector) {
+    // Vectors equal when model matches AND all float elements match
+    if (a.model !== b.model) return false;
+    if (a.data.length !== b.data.length) return false;
+    for (let i = 0; i < a.data.length; i++) {
+      const aVal = a.data[i];
+      const bVal = b.data[i];
+      if (aVal !== bVal) return false;
     }
     return true;
   }

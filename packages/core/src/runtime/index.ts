@@ -67,10 +67,12 @@ export {
 // VALUE TYPES AND UTILITIES
 // ============================================================
 
-export type { RillTuple, RillValue } from './core/values.js';
+export type { RillTuple, RillValue, RillVector } from './core/values.js';
 
 export {
+  createVector,
   isTuple,
+  isVector,
   isReservedMethod,
   RESERVED_DICT_METHODS,
 } from './core/values.js';

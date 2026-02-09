@@ -2,6 +2,10 @@
 
 *Claude Code CLI integration for AI-powered rill scripts*
 
+This extension spawns the Claude Code CLI as a subprocess and exposes it to rill scripts. Scripts send prompts, invoke skills like `/commit`, and run named commands. The extension handles process lifecycle, timeout enforcement, and NDJSON stream parsing.
+
+Each call returns a dict with the response text, token usage breakdown, cost in USD, exit code, and duration in ms. Typical uses: automated code review, commit generation, and PR workflows.
+
 ## Quick Start
 
 ```typescript
