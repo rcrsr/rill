@@ -383,10 +383,10 @@ Vectors represent dense numeric embeddings from language models or other ML syst
 
 **Display format:** `vector(model, Nd)` where `model` is the source model name and `N` is the dimension count.
 
-```text
+```rill
 app::embed("hello world") => $vec
 $vec
-# Result: vector(voyage-3, 1024d)
+# Result: vector(mock-embed, 3d)
 ```
 
 ### Properties
@@ -396,12 +396,13 @@ $vec
 | `.dimensions` | number | Number of dimensions in the vector |
 | `.model` | string | Source model name |
 
-```text
+```rill
+app::embed("hello world") => $vec
 $vec -> .dimensions
-# Result: 1024
+# Result: 3
 
 $vec -> .model
-# Result: "voyage-3"
+# Result: "mock-embed"
 ```
 
 ### Methods
@@ -414,20 +415,20 @@ $vec -> .model
 | `.norm()` | number | L2 magnitude |
 | `.normalize()` | vector | Unit vector (preserves model) |
 
-```text
+```rill
 app::embed("hello") => $a
 app::embed("hi") => $b
 $a -> .similarity($b)
-# Result: 0.92
+# Result: 1.0
 
 $a -> .dot($b)
-# Result: 45.3
+# Result: 0.14
 
 $a -> .distance($b)
-# Result: 0.28
+# Result: 0.0
 
 $a -> .norm
-# Result: 1.0
+# Result: 0.37
 
 $a -> .normalize -> .norm
 # Result: 1.0
@@ -437,7 +438,7 @@ $a -> .normalize -> .norm
 
 Vectors support equality comparison (`==`, `!=`). Two vectors are equal when both model and all float elements match:
 
-```text
+```rill
 app::embed("test") => $v1
 app::embed("test") => $v2
 $v1 == $v2
@@ -446,7 +447,7 @@ $v1 == $v2
 
 Vectors from different models are never equal, even with identical data:
 
-```text
+```rill
 # Different models
 app::embed("test", "model-a") => $v1
 app::embed("test", "model-b") => $v2
@@ -461,7 +462,7 @@ $v1 == $v2
 - **No string coercion**: Cannot be used in string interpolation or concatenation
 - **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on vectors
 
-```text
+```rill
 # Error: cannot coerce vector to string
 "Result: {$vec}"
 
@@ -587,7 +588,7 @@ Type annotations validate on assignment and prevent accidental type changes:
 [a: 1, b: 2] -> json            # '{"a":1,"b":2}'
 ```
 
-```text
+```rill
 app::embed("test") -> type      # "vector"
 ```
 

@@ -83,6 +83,18 @@ function createMockFunctions(): Record<
         throw new Error(String(msg));
       },
     },
+    // Mock embedding function for vector examples
+    'app::embed': {
+      params: [
+        { name: 'text', type: 'string' },
+        { name: 'model', type: 'string', defaultValue: 'mock-embed' },
+      ],
+      fn: (_text, model) => ({
+        __rill_vector: true,
+        data: new Float32Array([0.1, 0.2, 0.3]),
+        model: String(model),
+      }),
+    },
     'app::sleep': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
     'app::process': {
       params: [{ name: 'input', type: 'string' }],
@@ -611,6 +623,22 @@ function createMockVariables(): Record<string, RillValue> {
     input: 'mock input',
     response: 'mock LLM response',
     file: '/path/to/file.txt',
+    // Pre-populated vectors for examples
+    vec: {
+      __rill_vector: true,
+      data: new Float32Array([0.1, 0.2, 0.3]),
+      model: 'mock-embed',
+    },
+    v1: {
+      __rill_vector: true,
+      data: new Float32Array([0.1, 0.2, 0.3]),
+      model: 'mock-embed',
+    },
+    v2: {
+      __rill_vector: true,
+      data: new Float32Array([0.1, 0.2, 0.3]),
+      model: 'mock-embed',
+    },
   };
 }
 
