@@ -39,7 +39,8 @@
 
     // Path mappings for monorepo packages
     "paths": {
-      "@rcrsr/rill": ["./packages/core/src/index.ts"]
+      "@rcrsr/rill": ["./packages/core/src/index.ts"],
+      "@rcrsr/rill-ext-claude-code": ["./packages/ext/claude-code/src/index.ts"]
     }
   }
 }
