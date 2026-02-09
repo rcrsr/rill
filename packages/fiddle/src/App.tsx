@@ -58,6 +58,18 @@ export function App(): JSX.Element {
   );
 
   // ============================================================
+  // CLEANUP TIMERS ON UNMOUNT
+  // ============================================================
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current !== null) {
+        clearTimeout(copyFeedbackTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ============================================================
   // PERSISTENCE
   // ============================================================
 
