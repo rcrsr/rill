@@ -11,6 +11,10 @@
 
 import type React from 'react';
 import { type JSX, useEffect, useRef, useState } from 'react';
+import {
+  MIN_PANEL_SIZE,
+  DEFAULT_BREAKPOINT,
+} from '../lib/constants.js';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -36,16 +40,16 @@ export interface SplitPaneProps {
 // CONSTANTS
 // ============================================================
 
-const MIN_PANEL_SIZE = 200;
 const DEFAULT_SPLIT_RATIO = 50;
-const DEFAULT_BREAKPOINT = 768;
 
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
 
 function calculateBounds(containerSize: number): { min: number; max: number } {
-  const minRatio = (MIN_PANEL_SIZE / containerSize) * 100;
+  // Use reasonable default size for ARIA values when container not yet measured
+  const effectiveSize = containerSize || 1000;
+  const minRatio = (MIN_PANEL_SIZE / effectiveSize) * 100;
   const maxRatio = 100 - minRatio;
   return { min: minRatio, max: maxRatio };
 }
@@ -217,6 +221,13 @@ export function SplitPane({
     ? { width: '100%', height: `${100 - splitRatio}%` }
     : { width: `${100 - splitRatio}%`, height: '100%' };
 
+  const containerSize = containerRef.current
+    ? isVertical
+      ? containerRef.current.clientHeight
+      : containerRef.current.clientWidth
+    : 0;
+  const bounds = calculateBounds(containerSize);
+
   return (
     <div
       ref={containerRef}
@@ -230,8 +241,8 @@ export function SplitPane({
         role="separator"
         aria-orientation={isVertical ? 'horizontal' : 'vertical'}
         aria-valuenow={Math.round(splitRatio)}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        aria-valuemin={Math.round(bounds.min)}
+        aria-valuemax={Math.round(bounds.max)}
         tabIndex={0}
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}

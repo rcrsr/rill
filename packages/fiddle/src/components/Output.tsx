@@ -78,13 +78,16 @@ export function Output({
             {hasLogs && (
               <div className="output-logs">
                 <div className="output-logs-label">Log</div>
-                <div className="output-logs-entries">
+                <ul className="output-logs-entries" aria-label="Execution log">
                   {logs.map((entry, index) => (
-                    <div key={index} className="output-logs-entry">
+                    <li
+                      key={`${index}-${entry}`}
+                      className="output-logs-entry"
+                    >
                       {entry}
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
             <div className="output-result">
@@ -100,13 +103,16 @@ export function Output({
             {hasLogs && (
               <div className="output-logs">
                 <div className="output-logs-label">Log</div>
-                <div className="output-logs-entries">
+                <ul className="output-logs-entries" aria-label="Execution log">
                   {logs.map((entry, index) => (
-                    <div key={index} className="output-logs-entry">
+                    <li
+                      key={`${index}-${entry}`}
+                      className="output-logs-entry"
+                    >
                       {entry}
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
             <div className="output-error" role="alert">

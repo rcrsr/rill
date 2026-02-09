@@ -123,7 +123,7 @@ export function Toolbar({
       <select
         onChange={handleExampleChange}
         disabled={disabled}
-        aria-label="Select example"
+        aria-label="Select code example"
         className="toolbar-select"
         defaultValue=""
       >

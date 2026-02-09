@@ -18,15 +18,29 @@ import {
 describe('persistence boundary conditions', () => {
   // Store original localStorage
   const originalLocalStorage = globalThis.localStorage;
+  // Store original window.innerWidth
+  const originalInnerWidth = window.innerWidth;
 
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear();
+    // Mock window.innerWidth to 1200px for consistent test expectations
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1200,
+    });
   });
 
   afterEach(() => {
     // Restore localStorage after each test
     globalThis.localStorage = originalLocalStorage;
+    // Restore window.innerWidth
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: originalInnerWidth,
+    });
     vi.restoreAllMocks();
   });
 

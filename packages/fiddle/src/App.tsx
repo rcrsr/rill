@@ -49,7 +49,6 @@ export function App(): JSX.Element {
     logs: [],
   });
   const [errorLine, setErrorLine] = useState<number | null>(null);
-  const isExecutingRef = useRef<boolean>(false);
   const [copyLinkState, setCopyLinkState] = useState<
     'idle' | 'copied' | 'error'
   >('idle');
@@ -98,26 +97,29 @@ export function App(): JSX.Element {
   // ============================================================
 
   const handleRun = useCallback(async () => {
-    if (isExecutingRef.current) return;
-    isExecutingRef.current = true;
+    setExecutionState((prevState) => {
+      // Guard: if already running, don't start new execution
+      if (prevState.status === 'running') return prevState;
 
-    setErrorLine(null);
-    setExecutionState({
-      status: 'running',
-      result: null,
-      error: null,
-      duration: null,
-      logs: [],
+      // Start new execution
+      setErrorLine(null);
+
+      // Execute async (outside setState)
+      executeRill(source).then((result) => {
+        setExecutionState(result);
+        if (result.status === 'error' && result.error !== null) {
+          setErrorLine(result.error.line);
+        }
+      });
+
+      return {
+        status: 'running',
+        result: null,
+        error: null,
+        duration: null,
+        logs: [],
+      };
     });
-
-    const result = await executeRill(source);
-    setExecutionState(result);
-
-    if (result.status === 'error' && result.error !== null) {
-      setErrorLine(result.error.line);
-    }
-
-    isExecutingRef.current = false;
   }, [source]);
 
   const handleExampleSelect = useCallback((example: CodeExample) => {

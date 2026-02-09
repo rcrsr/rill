@@ -19,6 +19,7 @@
   --neon-blue: #60a5fa;
   --neon-indigo: #818cf8;
   --neon-purple: #a78bfa;
+  --neon-red: #f87171;
 
   /* Text Hierarchy */
   --text-primary: #e8e8f0;
@@ -497,6 +498,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .output-logs-entry {
@@ -548,7 +552,7 @@ body {
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(220, 38, 38, 0.15);
-  color: #f87171;
+  color: var(--neon-red);
 }
 
 .output-error-id {
@@ -559,7 +563,7 @@ body {
 
 .output-error-message {
   font-size: 0.85rem;
-  color: #fca5a5;
+  color: var(--neon-red);
   margin-bottom: var(--space-sm);
   line-height: 1.6;
 }

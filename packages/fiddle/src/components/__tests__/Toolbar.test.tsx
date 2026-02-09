@@ -262,7 +262,7 @@ describe('Toolbar', () => {
 
     it('has accessible label', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('[aria-label="Select example"]');
+      const select = container.querySelector('[aria-label="Select code example"]');
       expect(select).toBeDefined();
     });
 
@@ -468,7 +468,7 @@ describe('Toolbar', () => {
       expect(runButton?.getAttribute('aria-label')).toBe('Run code');
 
       const select = container.querySelector('.toolbar-select');
-      expect(select?.getAttribute('aria-label')).toBe('Select example');
+      expect(select?.getAttribute('aria-label')).toBe('Select code example');
     });
 
     it('disabled elements have proper ARIA state', () => {

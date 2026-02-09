@@ -7,10 +7,9 @@
  * Dark-only: theme is no longer persisted.
  */
 
-const STORAGE_KEY = 'rill-fiddle-editor-state' as const;
+import { MIN_PANEL_SIZE } from './constants.js';
 
-// Minimum panel width in pixels for splitRatio bounds calculation
-const MIN_PANEL_WIDTH = 200 as const;
+const STORAGE_KEY = 'rill-fiddle-editor-state' as const;
 
 // Default Hello World example
 const DEFAULT_SOURCE = `# Hello World example
@@ -37,12 +36,14 @@ function getDefaultState(): EditorState {
 /**
  * Calculate valid splitRatio bounds that enforce minimum panel width.
  *
- * Assumes a 1200px default viewport width for bounds calculation.
- * At runtime, UI components should enforce actual bounds based on container width.
+ * Uses actual viewport width when available (browser context).
+ * Falls back to 1200px for SSR/test contexts where window is unavailable.
  */
 function clampSplitRatio(ratio: number): number {
-  const MIN_RATIO = (MIN_PANEL_WIDTH / 1200) * 100; // ~16.67%
-  const MAX_RATIO = 100 - MIN_RATIO; // ~83.33%
+  const viewportWidth =
+    typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const MIN_RATIO = (MIN_PANEL_SIZE / viewportWidth) * 100;
+  const MAX_RATIO = 100 - MIN_RATIO;
 
   return Math.max(MIN_RATIO, Math.min(MAX_RATIO, ratio));
 }

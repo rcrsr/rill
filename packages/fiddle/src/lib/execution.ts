@@ -16,6 +16,7 @@ import {
   type RillValue,
   type ScriptNode,
 } from '@rcrsr/rill';
+import { EXECUTION_TIMEOUT_MS } from './constants.js';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -99,7 +100,7 @@ export async function executeRill(source: string): Promise<ExecutionState> {
           logs.push(formatResult(value));
         },
       },
-      timeout: 5000, // 5 second default timeout
+      timeout: EXECUTION_TIMEOUT_MS,
     });
 
     // Execute AST
