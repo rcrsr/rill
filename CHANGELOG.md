@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Vector database extension packages** — Three new extension packages for semantic search and RAG: `@rcrsr/rill-ext-qdrant`, `@rcrsr/rill-ext-pinecone`, `@rcrsr/rill-ext-chroma`. Each provides 11 standardized functions (upsert, upsert_batch, search, get, delete, delete_batch, count, create_collection, delete_collection, list_collections, describe) with identical signatures enabling portability across extensions via namespace prefix changes (qdrant::search vs pinecone::search vs chroma::search). All extensions implement configuration validation, error mapping to RuntimeError('RILL-R004', ...), event emission via emitExtensionEvent(), and lifecycle disposal. Supports Qdrant local/cloud/embedded deployments, Pinecone managed cloud, and ChromaDB embedded/cloud. 202 total tests validating all 79 specification requirements
+
 - **LLM provider extension packages** — Three new extension packages for LLM integrations: `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each package provides five host functions with consistent APIs: `message()` and `messages()` for chat completion, `embed()` and `embed_batch()` for embeddings, and `tool_loop()` for agentic tool execution. All functions emit telemetry events for observability; 242 tests across three providers
 
 - **Native vector type** — New runtime type for semantic operations. Methods include `.similarity()` (dot product), `.dot()` (raw dot product), `.distance()` (Euclidean), `.norm()` (magnitude), and `.normalize()` (unit vector); 47 tests covering all operations

@@ -359,6 +359,56 @@ function createMyExtension(): ExtensionResult {
 }
 ```
 
+### 5. Map SDK Errors to RuntimeError
+
+Extensions that wrap third-party SDKs map errors to `RuntimeError` with consistent messages:
+
+```typescript
+function mapSDKError(error: unknown, namespace: string): RuntimeError {
+  if (error instanceof Error) {
+    const message = error.message;
+
+    // HTTP 401 authentication failure
+    if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+      return new RuntimeError('RILL-R004', `${namespace}: authentication failed (401)`);
+    }
+
+    // Rate limit (429)
+    if (message.includes('429') || message.toLowerCase().includes('rate limit')) {
+      return new RuntimeError('RILL-R004', `${namespace}: rate limit exceeded`);
+    }
+
+    // Timeout/AbortError
+    if (error.name === 'AbortError' || message.toLowerCase().includes('timeout')) {
+      return new RuntimeError('RILL-R004', `${namespace}: request timeout`);
+    }
+
+    // Generic error with SDK message
+    return new RuntimeError('RILL-R004', `${namespace}: ${message}`);
+  }
+
+  return new RuntimeError('RILL-R004', `${namespace}: unknown error`);
+}
+
+// Use in host function implementation
+fn: async (args, ctx) => {
+  try {
+    const result = await sdkClient.operation(args[0]);
+    return result;
+  } catch (error) {
+    const rillError = mapSDKError(error, 'myext');
+    emitExtensionEvent(ctx as RuntimeContext, {
+      event: 'myext:error',
+      subsystem: 'extension:myext',
+      error: rillError.message,
+    });
+    throw rillError;
+  }
+},
+```
+
+**Examples:** The [qdrant](extension-qdrant.md), [pinecone](extension-pinecone.md), and [chroma](extension-chroma.md) extensions show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
+
 
 ## API Reference
 

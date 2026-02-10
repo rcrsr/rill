@@ -619,6 +619,153 @@ Remember the signal rules.
 "Task complete: {$final}" -> log
 ```
 
+## Vector Database
+
+Vector database operations for semantic search and RAG workflows. These examples use `qdrant::` prefix, but all functions work identically across `qdrant::`, `pinecone::`, and `chroma::` namespaces — change the prefix to switch providers.
+
+### RAG Pipeline
+
+Embed query, search similar vectors, format context for LLM.
+
+```text
+args: question: string
+
+# Generate embedding for the query
+$question -> openai::embed => $query_vector
+
+# Search for similar documents
+$query_vector -> qdrant::search($, [k: 3, score_threshold: 0.7]) => $results
+
+# Extract metadata for context
+$results -> map { $.metadata.text } -> .join("\n\n---\n\n") => $context
+
+# Generate answer with retrieved context
+"""
+Answer this question using the provided context:
+
+Question: {$question}
+
+Context:
+{$context}
+""" -> anthropic::prompt
+```
+
+### Batch Upsert with Error Handling
+
+Store multiple documents with partial failure recovery.
+
+```text
+args: documents: list
+
+# Embed all documents
+$documents -> map {
+  [
+    id: $.id,
+    vector: $.text -> openai::embed,
+    metadata: [title: $.title, source: $.source]
+  ]
+} => $items
+
+# Batch insert with error handling
+$items -> qdrant::upsert_batch => $result
+
+# Check for partial failure
+$result.failed -> .empty -> !$ ? {
+  # Partial failure occurred
+  "Batch failed at {$result.failed}: {$result.error}" -> log
+  "Successfully stored {$result.succeeded} vectors before failure" -> log
+  error "Batch upsert incomplete"
+} ! {
+  # Full success
+  "Successfully stored {$result.succeeded} vectors" -> log
+}
+```
+
+### Collection Lifecycle Management
+
+Create, populate, and manage vector collections.
+
+```text
+# Create a new collection
+qdrant::create_collection("knowledge_base", [
+  dimensions: 1536,
+  distance: "cosine"
+]) => $create_result
+
+"Created collection: {$create_result.name}" -> log
+
+# Store vectors (assumes $docs defined)
+$docs -> map {
+  [
+    id: $.id,
+    vector: $.text -> openai::embed,
+    metadata: [title: $.title]
+  ]
+} -> qdrant::upsert_batch => $upsert_result
+
+# Verify collection state
+qdrant::describe() => $info
+"Collection has {$info.count} vectors with {$info.dimensions} dimensions" -> log
+
+# List all collections
+qdrant::list_collections() => $collections
+$collections -> each { $ -> log }
+
+# Clean up when done
+# qdrant::delete_collection("knowledge_base")
+```
+
+### Tool Loop Integration
+
+Vector search as an LLM tool within `anthropic::tool_loop`.
+
+```text
+args: user_query: string
+
+# Define search tool
+tool(
+  "search_knowledge_base",
+  "Search the knowledge base for relevant information",
+  [query: "string"],
+  {
+    # Embed the query and search
+    .query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
+      "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
+    } -> .join("\n\n---\n\n")
+  }
+) => $search_tool
+
+# Define store tool
+tool(
+  "store_document",
+  "Store a new document in the knowledge base",
+  [id: "string", text: "string", title: "string"],
+  {
+    # Create dict, embed text, upsert
+    [
+      id: .id,
+      vector: .text -> openai::embed,
+      metadata: [title: .title, text: .text]
+    ] => $item
+
+    $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
+    "Stored document {$item.id}"
+  }
+) => $store_tool
+
+# Run tool loop with both tools
+anthropic::tool_loop(
+  "Answer the user's question. Use search_knowledge_base to find relevant information. If the user provides new information to remember, use store_document.",
+  [
+    tools: [$search_tool, $store_tool],
+    max_turns: 10,
+    user_message: $user_query
+  ]
+) => $response
+
+$response.content
+```
+
 ## See Also
 
 - [Guide](guide-getting-started.md) — Getting started tutorial
