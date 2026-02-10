@@ -3,9 +3,19 @@
   "version": "0.7.2",
   "description": "rill extension for Claude Code CLI integration",
   "license": "MIT",
+  "author": "Andre Bremer",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "claude-code",
+    "claude",
+    "cli",
+    "extension",
+    "ai",
+    "scripting"
+  ],
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run",
@@ -28,6 +38,10 @@
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/claude-code"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/claude-code#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"

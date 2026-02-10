@@ -3,7 +3,15 @@
   "version": "0.7.2",
   "description": "CLI tools for the rill scripting language",
   "license": "MIT",
+  "author": "Andre Bremer",
   "type": "module",
+  "keywords": [
+    "rill",
+    "cli",
+    "scripting",
+    "exec",
+    "eval"
+  ],
   "bin": {
     "rill-exec": "./dist/cli-exec.js",
     "rill-eval": "./dist/cli-eval.js",
@@ -20,10 +28,17 @@
     "@rcrsr/rill": "workspace:^",
     "yaml": "^2.8.2"
   },
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"

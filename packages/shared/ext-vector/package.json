@@ -2,9 +2,14 @@
   "name": "@rcrsr/rill-ext-vector-shared",
   "private": true,
   "version": "0.0.1",
+  "description": "Shared utilities for rill vector database extensions",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run",
@@ -17,5 +22,10 @@
   },
   "devDependencies": {
     "@rcrsr/rill": "workspace:^"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/shared/ext-vector"
   }
 }

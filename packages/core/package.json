@@ -3,9 +3,18 @@
   "version": "0.7.2",
   "description": "Scripting designed for machine-generated code",
   "license": "MIT",
+  "author": "Andre Bremer",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "scripting",
+    "parser",
+    "runtime",
+    "pipes",
+    "machine-generated"
+  ],
   "files": [
     "dist",
     "docs"
@@ -22,6 +31,10 @@
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/core"
+  },
+  "homepage": "https://github.com/rcrsr/rill#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"

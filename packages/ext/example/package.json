@@ -1,7 +1,9 @@
 {
   "name": "@rcrsr/rill-ext-example",
   "private": true,
-  "version": "0.7.2",
+  "version": "0.0.1",
+  "description": "rill extension template for building custom extensions",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +13,9 @@
   "devDependencies": {
     "@rcrsr/rill": "workspace:^"
   },
-  "publishConfig": {
-    "access": "public"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/ext/example"
   }
 }
