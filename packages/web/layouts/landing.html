@@ -23,10 +23,12 @@
         </a>
         <a href="/fiddle/" class="btn-ghost">Try the Fiddle</a>
       </div>
-      <div class="hero-install">
+      <button class="hero-install" onclick="navigator.clipboard.writeText('npm install @rcrsr/rill').then(function(){var b=document.querySelector('.hero-install');b.classList.add('copied');setTimeout(function(){b.classList.remove('copied')},1500)})" aria-label="Copy install command">
         <span class="install-prompt" aria-hidden="true">$</span>
         <code class="install-cmd">npm install @rcrsr/rill</code>
-      </div>
+        <svg class="install-copy-icon" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="install-copied" aria-hidden="true">Copied!</span>
+      </button>
     </div>
   </section>
 
@@ -77,7 +79,7 @@
 
   <!-- Code example — full-width showcase -->
   <section class="showcase">
-    <div class="showcase-inner">
+    <div class="showcase-inner showcase-reveal">
       <div class="showcase-text">
         <h2 class="showcase-heading">Chain LLM calls like data</h2>
         <p class="showcase-desc">Pipe model output through conditions, filters, and follow-up calls. Provider-agnostic by default.</p>
@@ -95,10 +97,9 @@
   <span class="hl-pipe">=&gt;</span> <span class="hl-var">$review</span>
 
 <span class="hl-var">$review</span>.content
-  <span class="hl-pipe">-&gt;</span> .contains(<span class="hl-string">"CRITICAL"</span>) ? {
-    <span class="hl-fn">llm::message</span>(<span class="hl-string">"Suggest fixes for: {<span class="hl-var">$review</span>.content}"</span>)
-      <span class="hl-pipe">-&gt;</span> .content
-  } ! <span class="hl-string">"No critical issues found"</span></code></pre>
+  <span class="hl-pipe">-&gt;</span> .contains(<span class="hl-string">"CRITICAL"</span>)
+    ? (<span class="hl-fn">llm::message</span>(<span class="hl-string">"Suggest fixes for: {<span class="hl-var">$review</span>.content}"</span>) <span class="hl-pipe">-&gt;</span> .content)
+    ! <span class="hl-string">"No critical issues found"</span></code></pre>
         </div>
       </div>
     </div>
@@ -187,7 +188,7 @@
     height: 800px;
     border-radius: 50%;
     background: radial-gradient(circle,
-      rgba(34, 211, 238, 0.06) 0%,
+      var(--cyan-a06) 0%,
       rgba(129, 140, 248, 0.03) 40%,
       transparent 70%
     );
@@ -213,8 +214,8 @@
         -60deg,
         transparent,
         transparent 80px,
-        rgba(34, 211, 238, 0.012) 80px,
-        rgba(34, 211, 238, 0.012) 81px
+        var(--cyan-a012) 80px,
+        var(--cyan-a012) 81px
       );
     pointer-events: none;
   }
@@ -230,7 +231,7 @@
     height: 130px;
     width: auto;
     margin: 0 auto 2.5rem;
-    filter: drop-shadow(0 0 50px rgba(34, 211, 238, 0.18));
+    filter: drop-shadow(0 0 50px var(--cyan-a18));
     animation: logo-enter 1s cubic-bezier(0.16, 1, 0.3, 1) both,
                logo-breathe 6s ease-in-out 1s infinite;
   }
@@ -239,18 +240,18 @@
     from {
       opacity: 0;
       transform: translateY(20px) scale(0.9);
-      filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0));
+      filter: drop-shadow(0 0 0 transparent);
     }
     to {
       opacity: 1;
       transform: translateY(0) scale(1);
-      filter: drop-shadow(0 0 50px rgba(34, 211, 238, 0.18));
+      filter: drop-shadow(0 0 50px var(--cyan-a18));
     }
   }
 
   @keyframes logo-breathe {
-    0%, 100% { filter: drop-shadow(0 0 50px rgba(34, 211, 238, 0.18)); }
-    50% { filter: drop-shadow(0 0 70px rgba(34, 211, 238, 0.3)); }
+    0%, 100% { filter: drop-shadow(0 0 50px var(--cyan-a18)); }
+    50% { filter: drop-shadow(0 0 70px var(--cyan-a30)); }
   }
 
   /* Headline — staggered line reveal */
@@ -354,20 +355,25 @@
   }
 
   .btn-ghost:hover {
-    border-color: rgba(34, 211, 238, 0.3);
-    box-shadow: 0 0 24px rgba(34, 211, 238, 0.08);
+    border-color: var(--cyan-a30);
+    box-shadow: 0 0 24px var(--cyan-a08);
     transform: translateY(-2px);
     color: var(--neon-cyan);
   }
 
-  /* Install inline */
+  /* Install inline — click-to-copy */
   .hero-install {
     margin-top: 2rem;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
     animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    position: relative;
   }
 
   .install-prompt {
@@ -389,8 +395,35 @@
     transition: border-color 200ms ease;
   }
 
-  .install-cmd:hover {
-    border-color: rgba(34, 211, 238, 0.2);
+  .hero-install:hover .install-cmd {
+    border-color: var(--cyan-a20);
+  }
+
+  .install-copy-icon {
+    color: var(--text-dim);
+    transition: color 200ms ease;
+    flex-shrink: 0;
+  }
+
+  .hero-install:hover .install-copy-icon {
+    color: var(--neon-cyan);
+  }
+
+  .install-copied {
+    position: absolute;
+    top: -1.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--neon-green);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+
+  .hero-install.copied .install-copied {
+    opacity: 1;
   }
 
   /* ---- Divider ---- */
@@ -439,8 +472,8 @@
   }
 
   .feature-card:hover {
-    border-color: rgba(34, 211, 238, 0.15);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(34, 211, 238, 0.04);
+    border-color: var(--cyan-a15);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px var(--cyan-a04);
     transform: translateY(-2px);
   }
 
@@ -510,7 +543,7 @@
   /* ---- Providers ---- */
 
   .providers {
-    padding: 3rem 1.5rem 4rem;
+    padding: 4rem 1.5rem 5rem;
     max-width: 960px;
     margin: 0 auto;
     text-align: center;
@@ -519,7 +552,7 @@
   .providers-heading {
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-size: clamp(1.2rem, 2.5vw, 1.5rem);
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-primary);
@@ -543,26 +576,42 @@
 
   .provider-chip {
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
     text-decoration: none;
     background: var(--void-card);
     border: 1px solid var(--void-border);
+    border-left: 2px solid var(--void-border);
     border-radius: 8px;
-    padding: 0.6rem 1.25rem;
-    transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease;
+    padding: 0.7rem 1.5rem;
+    transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease, border-left-color 300ms ease;
   }
 
   .provider-chip:hover {
-    border-color: rgba(34, 211, 238, 0.3);
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.06);
+    border-color: var(--cyan-a30);
+    border-left-color: var(--neon-cyan);
+    box-shadow: 0 0 20px var(--cyan-a06);
     color: var(--neon-cyan);
+  }
+
+  /* Scroll reveal for showcase */
+  .showcase-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .showcase-reveal.revealed {
+    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .showcase-reveal.revealed .showcase-code {
+    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
   }
 
   /* ---- Code showcase — two-column ---- */
 
   .showcase {
-    padding: 3rem 1.5rem 5rem;
+    padding: 4rem 1.5rem 5rem;
     max-width: 960px;
     margin: 0 auto;
   }
@@ -608,8 +657,8 @@
   }
 
   .code-block:hover {
-    border-color: rgba(34, 211, 238, 0.12);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 40px rgba(34, 211, 238, 0.03);
+    border-color: var(--cyan-a12);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 40px var(--cyan-a03);
   }
 
   .code-block-chrome {
@@ -624,7 +673,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--void-border);
+    background: var(--text-dim);
   }
 
   .code-block-label {
@@ -688,17 +737,17 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    opacity: 0.2;
+    opacity: 0.3;
     transition: opacity 300ms ease;
   }
 
-  .landing-footer-pipe span:nth-child(1) { opacity: 0.1; }
-  .landing-footer-pipe span:nth-child(2) { opacity: 0.2; }
-  .landing-footer-pipe span:nth-child(3) { opacity: 0.3; }
+  .landing-footer-pipe span:nth-child(1) { opacity: 0.2; }
+  .landing-footer-pipe span:nth-child(2) { opacity: 0.3; }
+  .landing-footer-pipe span:nth-child(3) { opacity: 0.4; }
 
-  .landing-footer:hover .landing-footer-pipe span:nth-child(1) { opacity: 0.3; }
-  .landing-footer:hover .landing-footer-pipe span:nth-child(2) { opacity: 0.4; }
-  .landing-footer:hover .landing-footer-pipe span:nth-child(3) { opacity: 0.5; }
+  .landing-footer:hover .landing-footer-pipe span:nth-child(1) { opacity: 0.4; }
+  .landing-footer:hover .landing-footer-pipe span:nth-child(2) { opacity: 0.5; }
+  .landing-footer:hover .landing-footer-pipe span:nth-child(3) { opacity: 0.7; }
 
   .landing-footer-links {
     display: flex;
@@ -783,18 +832,25 @@
     .hero-cta { animation: none; opacity: 1; }
     .hero-install { animation: none; opacity: 1; }
     .feature-card { animation: none; opacity: 1; transform: none; }
+    .showcase-reveal { opacity: 1; transform: none; }
+    .showcase-reveal.revealed,
+    .showcase-reveal.revealed .showcase-code { animation: none; }
     .landing-atmosphere { animation: none; }
     .hero::before { animation: none; }
   }
 </style>
 
 <script>
-  // Scroll-triggered reveal for feature cards
+  // Scroll-triggered reveal for feature cards and showcase
   (function() {
-    const observer = new IntersectionObserver(function(entries) {
+    var observer = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
         if (entry.isIntersecting) {
-          entry.target.style.animationPlayState = 'running';
+          if (entry.target.classList.contains('showcase-reveal')) {
+            entry.target.classList.add('revealed');
+          } else {
+            entry.target.style.animationPlayState = 'running';
+          }
           observer.unobserve(entry.target);
         }
       });
@@ -803,6 +859,9 @@
     document.querySelectorAll('.feature-card').forEach(function(card) {
       observer.observe(card);
     });
+
+    var showcase = document.querySelector('.showcase-reveal');
+    if (showcase) observer.observe(showcase);
   })();
 </script>
 {{ end }}

@@ -42,7 +42,21 @@
   --font-sans:    'Instrument Sans', 'Inter', system-ui, sans-serif;
   --font-display: 'Big Shoulders Display', 'Impact', sans-serif;
 
-  --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1);
+  --cyan-a03:  rgba(34, 211, 238, 0.03);
+  --cyan-a04:  rgba(34, 211, 238, 0.04);
+  --cyan-a06:  rgba(34, 211, 238, 0.06);
+  --cyan-a08:  rgba(34, 211, 238, 0.08);
+  --cyan-a10:  rgba(34, 211, 238, 0.1);
+  --cyan-a12:  rgba(34, 211, 238, 0.12);
+  --cyan-a012: rgba(34, 211, 238, 0.012);
+  --cyan-a15:  rgba(34, 211, 238, 0.15);
+  --cyan-a18:  rgba(34, 211, 238, 0.18);
+  --cyan-a20:  rgba(34, 211, 238, 0.2);
+  --cyan-a25:  rgba(34, 211, 238, 0.25);
+  --cyan-a30:  rgba(34, 211, 238, 0.3);
+  --cyan-a40:  rgba(34, 211, 238, 0.4);
+
+  --glow-cyan: 0 0 20px var(--cyan-a30), 0 0 60px var(--cyan-a10);
 }
 
 /* --- Hextra theme variable overrides --- */
@@ -70,7 +84,7 @@ body {
 }
 
 ::selection {
-  background: rgba(34, 211, 238, 0.25);
+  background: var(--cyan-a25);
   color: var(--text-primary);
 }
 
@@ -145,7 +159,7 @@ code, pre, kbd {
 
 .dark .content a {
   color: var(--neon-cyan);
-  text-decoration-color: rgba(34, 211, 238, 0.3);
+  text-decoration-color: var(--cyan-a30);
 }
 
 .dark .content a:hover {
@@ -286,7 +300,7 @@ code, pre, kbd {
 
 .dark .hextra-search-wrapper input:focus {
   border-color: var(--neon-cyan) !important;
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 0 2px var(--cyan-a10);
 }
 
 /* --- Scrollbar --- */
@@ -317,7 +331,7 @@ code, pre, kbd {
 }
 
 .dark [class*="hextra-card"]:hover {
-  border-color: rgba(34, 211, 238, 0.2) !important;
+  border-color: var(--cyan-a20) !important;
 }
 
 /* --- Horizontal rules --- */
@@ -407,8 +421,8 @@ code, pre, kbd {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--neon-cyan);
-  background: rgba(34, 211, 238, 0.08);
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: var(--cyan-a08);
+  border: 1px solid var(--cyan-a20);
   border-radius: 9999px;
   padding: 0.2rem 0.6rem;
   letter-spacing: 0.02em;
@@ -417,8 +431,8 @@ code, pre, kbd {
 }
 
 .rill-version-badge:hover {
-  border-color: rgba(34, 211, 238, 0.4);
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.1);
+  border-color: var(--cyan-a40);
+  box-shadow: 0 0 12px var(--cyan-a10);
   color: var(--neon-cyan);
 }
 
