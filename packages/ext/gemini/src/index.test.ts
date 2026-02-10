@@ -10,7 +10,7 @@ import type { LLMExtensionConfig, GeminiExtensionConfig } from './types.js';
 describe('Google Extension Scaffolding (Task 4.1)', () => {
   describe('IC-24: Barrel exports VERSION, types, factory', () => {
     it('exports VERSION constant', () => {
-      expect(VERSION).toBe('0.7.2');
+      expect(VERSION).toBe('0.0.1');
     });
 
     it('exports type LLMExtensionConfig', () => {

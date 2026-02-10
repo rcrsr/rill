@@ -1,0 +1,61 @@
+/**
+ * AST Type Unions
+ * String union of all AST node type literals.
+ */
+
+// ============================================================
+// NODE TYPE STRING UNION
+// ============================================================
+
+export type NodeType =
+  | 'Script'
+  | 'Frontmatter'
+  | 'Closure'
+  | 'ClosureParam'
+  | 'Statement'
+  | 'PipeChain'
+  | 'PostfixExpr'
+  | 'MethodCall'
+  | 'Invoke'
+  | 'HostCall'
+  | 'ClosureCall'
+  | 'PipeInvoke'
+  | 'Variable'
+  | 'Capture'
+  | 'Conditional'
+  | 'WhileLoop'
+  | 'DoWhileLoop'
+  | 'Block'
+  | 'StringLiteral'
+  | 'Interpolation'
+  | 'NumberLiteral'
+  | 'BoolLiteral'
+  | 'Tuple'
+  | 'ListSpread'
+  | 'Dict'
+  | 'DictEntry'
+  | 'Break'
+  | 'Return'
+  | 'Pass'
+  | 'Assert'
+  | 'BinaryExpr'
+  | 'UnaryExpr'
+  | 'InnerExpr'
+  | 'GroupedExpr'
+  | 'ClosureChain'
+  | 'Destructure'
+  | 'DestructPattern'
+  | 'Slice'
+  | 'Enumerate'
+  | 'Spread'
+  | 'TypeAssertion'
+  | 'TypeCheck'
+  | 'AnnotatedStatement'
+  | 'NamedArg'
+  | 'SpreadArg'
+  | 'EachExpr'
+  | 'MapExpr'
+  | 'FoldExpr'
+  | 'FilterExpr'
+  | 'RecoveryError'
+  | 'Error';

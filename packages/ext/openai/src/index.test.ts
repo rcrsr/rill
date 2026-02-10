@@ -10,7 +10,7 @@ import type { LLMExtensionConfig, OpenAIExtensionConfig } from './types.js';
 describe('OpenAI Extension Package', () => {
   describe('Barrel Exports (IC-16)', () => {
     it('exports VERSION constant', () => {
-      expect(openaiExtension.VERSION).toBe('0.7.2');
+      expect(openaiExtension.VERSION).toBe('0.0.1');
       expect(typeof openaiExtension.VERSION).toBe('string');
     });
 

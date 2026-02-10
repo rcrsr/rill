@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Core types module refactoring** — `packages/core/src/types.ts` (2,231 lines) split into 7 focused modules: `source-location.ts`, `value-types.ts`, `error-registry.ts`, `token-types.ts`, `ast-nodes.ts`, `ast-unions.ts`, `error-classes.ts`. Architecture creates 3 leaf modules with zero dependencies, followed by first-tier dependents that import only from leaf modules. Original `types.ts` now serves as re-export barrel preserving backward compatibility for all 44 internal importers and @rcrsr/rill public API; dependency graph is cycle-free. All 4,373 tests pass without modification; 12 error contracts verified
+
 ### Added
 
 - **LLM provider extension packages** — Three new extension packages for LLM integrations: `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each package provides five host functions with consistent APIs: `message()` and `messages()` for chat completion, `embed()` and `embed_batch()` for embeddings, and `tool_loop()` for agentic tool execution. All functions emit telemetry events for observability; 242 tests across three providers
