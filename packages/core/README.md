@@ -1,6 +1,6 @@
 # @rcrsr/rill
 
-Embeddable, sandboxed scripting runtime for [rill](https://rill.run). Zero dependencies. Browser and Node.js compatible.
+Scripting runtime for [rill](https://rill.run) — designed for machine-generated code. Zero dependencies. Browser and Node.js compatible.
 
 > **Experimental.** Breaking changes will occur before stabilization.
 

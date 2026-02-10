@@ -1,5 +1,5 @@
 ---
 title: rill
-description: "Embeddable, sandboxed scripting to power AI agents"
+description: "Scripting designed for machine-generated code"
 layout: landing
 ---

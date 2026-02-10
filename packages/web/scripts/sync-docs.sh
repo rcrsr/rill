@@ -90,7 +90,7 @@ description: "rill language documentation — guides, references, and integratio
 weight: 1
 ---
 
-Embeddable, sandboxed scripting to power AI agents.
+Scripting designed for machine-generated code.
 
 {{< cards >}}
   {{< card link="guide" title="Guide" subtitle="Getting started, examples, and conventions" >}}

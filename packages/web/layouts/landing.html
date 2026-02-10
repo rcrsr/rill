@@ -10,11 +10,11 @@
     <div class="hero-inner">
       <img src="/images/rill-logo.png" alt="rill" class="hero-logo" />
       <h1 class="hero-headline">
-        <span class="hero-line hero-line-1">embeddable, sandboxed scripting</span>
-        <span class="hero-line hero-line-2 hero-headline-accent">to power AI agents</span>
+        <span class="hero-line hero-line-1">scripting designed</span>
+        <span class="hero-line hero-line-2 hero-headline-accent">for machine-generated code</span>
       </h1>
       <p class="hero-subtitle">
-        Contain agent execution to the capabilities you expose. Nothing more.
+        If the code will be machine-generated, the language should make entire categories of failure structurally impossible. No null. No exceptions. No side effects unless the host allows them.
       </p>
       <div class="hero-cta">
         <a href="/docs/guide/getting-started/" class="btn-primary">
@@ -32,35 +32,127 @@
     </div>
   </section>
 
+  <!-- Code Comparison — Python vs rill -->
+  <section class="comparison" aria-label="Code comparison: Python defensive code vs rill structural guarantees">
+    <div class="comparison-inner">
+      <div class="comparison-panel comparison-python">
+        <p class="comparison-caption">Defensive code you write because the language allows it</p>
+        <div class="code-block comparison-code">
+          <div class="code-block-chrome">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-block-label">python</span>
+          </div>
+          <pre><code><span class="hl-kw">async def</span> <span class="hl-fn">classify_and_route</span>(<span class="hl-var">task</span>: <span class="hl-kw">str</span>) -&gt; <span class="hl-kw">dict</span>:
+<span class="defense">    <span class="hl-comment"># Call LLM — might throw, might return None</span></span>
+<span class="defense">    <span class="hl-kw">try</span>:</span>
+<span class="defense">        <span class="hl-var">response</span> = <span class="hl-kw">await</span> <span class="hl-var">llm</span>.<span class="hl-fn">classify</span>(<span class="hl-var">task</span>)</span>
+<span class="defense">    <span class="hl-kw">except</span> <span class="hl-kw">Exception</span> <span class="hl-kw">as</span> <span class="hl-var">e</span>:</span>
+<span class="defense">        <span class="hl-kw">return</span> {<span class="hl-string">"error"</span>: <span class="hl-string">f"Classification failed: {e}"</span>}</span>
+
+<span class="defense">    <span class="hl-comment"># Response might be None, might be wrong type</span></span>
+<span class="defense">    <span class="hl-kw">if</span> <span class="hl-var">response</span> <span class="hl-kw">is</span> <span class="hl-kw">None</span>:</span>
+<span class="defense">        <span class="hl-kw">return</span> {<span class="hl-string">"error"</span>: <span class="hl-string">"No response from classifier"</span>}</span>
+
+<span class="defense">    <span class="hl-kw">if not</span> <span class="hl-fn">isinstance</span>(<span class="hl-var">response</span>.category, <span class="hl-kw">str</span>):</span>
+<span class="defense">        <span class="hl-kw">return</span> {<span class="hl-string">"error"</span>: <span class="hl-string">f"Expected string, got {type(response.category)}"</span>}</span>
+
+    <span class="hl-comment"># Route based on category</span>
+    <span class="hl-var">handlers</span> = {
+        <span class="hl-string">"billing"</span>: <span class="hl-var">handle_billing</span>,
+        <span class="hl-string">"technical"</span>: <span class="hl-var">handle_technical</span>,
+        <span class="hl-string">"general"</span>: <span class="hl-var">handle_general</span>,
+    }
+
+    <span class="hl-var">handler</span> = <span class="hl-var">handlers</span>.<span class="hl-fn">get</span>(<span class="hl-var">response</span>.category, <span class="hl-var">handle_general</span>)
+
+<span class="defense">    <span class="hl-kw">try</span>:</span>
+<span class="defense">        <span class="hl-var">result</span> = <span class="hl-kw">await</span> <span class="hl-fn">handler</span>(<span class="hl-var">task</span>)</span>
+<span class="defense">    <span class="hl-kw">except</span> <span class="hl-kw">Exception</span> <span class="hl-kw">as</span> <span class="hl-var">e</span>:</span>
+<span class="defense">        <span class="hl-kw">return</span> {<span class="hl-string">"error"</span>: <span class="hl-string">f"Handler failed: {e}"</span>}</span>
+
+<span class="defense">    <span class="hl-kw">if</span> <span class="hl-var">result</span> <span class="hl-kw">is</span> <span class="hl-kw">None</span>:</span>
+<span class="defense">        <span class="hl-kw">return</span> {<span class="hl-string">"error"</span>: <span class="hl-string">"Handler returned None"</span>}</span>
+
+    <span class="hl-kw">return</span> <span class="hl-var">result</span></code></pre>
+        </div>
+      </div>
+      <div class="comparison-panel comparison-rill">
+        <p class="comparison-caption">What's left when the failure modes are structurally impossible</p>
+        <div class="code-block comparison-code">
+          <div class="code-block-chrome">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-block-label">rill</span>
+          </div>
+          <pre><code><span class="hl-comment"># No null. No exceptions. No wrong types.</span>
+<span class="hl-comment"># If it parses, it's safe to run.</span>
+
+<span class="hl-var">$task</span>
+  <span class="hl-pipe">-&gt;</span> <span class="hl-fn">host::classify</span>
+  <span class="hl-pipe">-&gt;</span> .category<span class="hl-kw">:string</span>
+  <span class="hl-pipe">-&gt;</span> [
+    billing:   <span class="hl-fn">host::handle_billing</span>,
+    technical: <span class="hl-fn">host::handle_technical</span>,
+    general:   <span class="hl-fn">host::handle_general</span>
+  ] <span class="hl-pipe">??</span> <span class="hl-fn">host::handle_general</span>
+  <span class="hl-pipe">-&gt;</span> <span class="hl-kw">$</span>(<span class="hl-var">$task</span>)</code></pre>
+        </div>
+      </div>
+    </div>
+    <div class="comparison-legend">
+      <div class="legend-item">
+        <span class="legend-dot"></span>
+        <code>try/except</code>
+        <span class="legend-sep">&rarr;</span>
+        <span>no exceptions</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot"></span>
+        <code>is None</code>
+        <span class="legend-sep">&rarr;</span>
+        <span>no null</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot"></span>
+        <code>isinstance()</code>
+        <span class="legend-sep">&rarr;</span>
+        <span>types locked at assignment</span>
+      </div>
+    </div>
+  </section>
+
   <!-- Divider -->
   <div class="pipe-divider" aria-hidden="true">
     <div class="pipe-line"></div>
   </div>
 
-  <!-- Features — asymmetric two-column layout -->
+  <!-- Features — value flow: problem → mechanism → deployment -->
   <section class="features">
     <div class="features-col features-col-left">
       <div class="feature-card feature-card-1">
+        <div class="feature-glyph">$&gt;</div>
+        <h3 class="feature-title">Built for machine authorship</h3>
+        <p class="feature-desc">General-purpose languages leave guarantees on the table. rill was designed as a target for LLM code generation.</p>
+      </div>
+      <div class="feature-card feature-card-2">
         <div class="feature-glyph">//</div>
         <h3 class="feature-title">Sandboxed by design</h3>
         <p class="feature-desc">No filesystem, no network, no side effects unless the host allows them.</p>
       </div>
-      <div class="feature-card feature-card-2">
-        <div class="feature-glyph">0d</div>
-        <h3 class="feature-title">Embeddable runtime</h3>
-        <p class="feature-desc">Zero dependencies. Runs in Node, Bun, Deno, or the browser.</p>
-      </div>
     </div>
     <div class="features-col features-col-right">
       <div class="feature-card feature-card-3">
-        <div class="feature-glyph">$&gt;</div>
-        <h3 class="feature-title">Built for agents</h3>
-        <p class="feature-desc">Safe to execute LLM-generated code. Type-checked, no null, no exceptions.</p>
+        <div class="feature-glyph">!!</div>
+        <h3 class="feature-title">Structurally safe</h3>
+        <p class="feature-desc">No null, no exceptions, no implicit coercion. Entire categories of failure don't exist here.</p>
       </div>
       <div class="feature-card feature-card-4">
-        <div class="feature-glyph">-&gt;</div>
-        <h3 class="feature-title">Natural dataflow syntax</h3>
-        <p class="feature-desc">Expressions chain naturally. Code reads like the data transformation it describes.</p>
+        <div class="feature-glyph">{}</div>
+        <h3 class="feature-title">Embeddable runtime</h3>
+        <p class="feature-desc">Zero dependencies. Runs in Node, Bun, Deno, or the browser.</p>
       </div>
     </div>
   </section>
@@ -74,34 +166,6 @@
       <a href="/docs/extensions/openai/" class="provider-chip">OpenAI</a>
       <a href="/docs/extensions/gemini/" class="provider-chip">Gemini</a>
       <a href="/docs/extensions/claude-code/" class="provider-chip">Claude Code</a>
-    </div>
-  </section>
-
-  <!-- Code example — full-width showcase -->
-  <section class="showcase">
-    <div class="showcase-inner showcase-reveal">
-      <div class="showcase-text">
-        <h2 class="showcase-heading">Chain LLM calls like data</h2>
-        <p class="showcase-desc">Pipe model output through conditions, filters, and follow-up calls. Provider-agnostic by default.</p>
-      </div>
-      <div class="showcase-code">
-        <div class="code-block">
-          <div class="code-block-chrome">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-block-label">rill</span>
-          </div>
-          <pre><code><span class="hl-comment"># Multi-step code review pipeline</span>
-<span class="hl-fn">llm::message</span>(<span class="hl-string">"Review this code for security issues"</span>)
-  <span class="hl-pipe">=&gt;</span> <span class="hl-var">$review</span>
-
-<span class="hl-var">$review</span>.content
-  <span class="hl-pipe">-&gt;</span> .contains(<span class="hl-string">"CRITICAL"</span>)
-    ? (<span class="hl-fn">llm::message</span>(<span class="hl-string">"Suggest fixes for: {<span class="hl-var">$review</span>.content}"</span>) <span class="hl-pipe">-&gt;</span> .content)
-    ! <span class="hl-string">"No critical issues found"</span></code></pre>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -175,7 +239,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 7rem 1.5rem 4rem;
+    padding: 7rem 1.5rem 3rem;
     position: relative;
     overflow: hidden;
   }
@@ -426,6 +490,143 @@
     opacity: 1;
   }
 
+  /* ---- Code Comparison ---- */
+
+  .comparison {
+    padding: 2rem 1.5rem 4rem;
+    max-width: 1120px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .comparison-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+
+  .comparison-panel {
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-play-state: paused;
+  }
+
+  .comparison-python { animation-delay: 0s; }
+  .comparison-rill { animation-delay: 0.12s; }
+
+  .comparison-caption {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+    padding: 0 0.25rem;
+  }
+
+  .comparison-python .comparison-caption {
+    color: var(--text-dim);
+  }
+
+  .comparison-rill .comparison-caption {
+    color: var(--neon-cyan);
+    opacity: 0.7;
+  }
+
+  .comparison-code {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .comparison-code pre {
+    flex: 1;
+  }
+
+  /* Panel border tints */
+  .comparison-python .code-block {
+    border-color: rgba(248, 113, 113, 0.12);
+  }
+
+  .comparison-python .code-block:hover {
+    border-color: rgba(248, 113, 113, 0.22);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 30px rgba(248, 113, 113, 0.04);
+  }
+
+  .comparison-python .code-block-label {
+    color: rgba(248, 113, 113, 0.35);
+  }
+
+  .comparison-rill .code-block:hover {
+    border-color: var(--cyan-a25);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 30px var(--cyan-a06);
+  }
+
+  .comparison-rill .code-block-label {
+    color: var(--cyan-a40);
+  }
+
+  /* Comparison code font — slightly smaller to fit side-by-side */
+  .comparison-code code {
+    font-size: 0.73rem;
+    line-height: 1.75;
+  }
+
+  /* Defense line highlights */
+  .defense {
+    background: rgba(248, 113, 113, 0.06);
+    border-radius: 2px;
+    padding: 1px 4px;
+    margin: 0 -4px;
+  }
+
+  /* Legend below comparison */
+  .comparison-legend {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-play-state: paused;
+    animation-delay: 0.24s;
+  }
+
+  .legend-item {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(248, 113, 113, 0.5);
+    flex-shrink: 0;
+  }
+
+  .legend-item code {
+    color: var(--text-secondary);
+    background: rgba(248, 113, 113, 0.08);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    border: none;
+  }
+
+  .legend-sep {
+    color: var(--text-dim);
+  }
+
   /* ---- Divider ---- */
 
   .pipe-divider {
@@ -594,59 +795,8 @@
     color: var(--neon-cyan);
   }
 
-  /* Scroll reveal for showcase */
-  .showcase-reveal {
-    opacity: 0;
-    transform: translateY(20px);
-  }
+  /* ---- Code block (shared) ---- */
 
-  .showcase-reveal.revealed {
-    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .showcase-reveal.revealed .showcase-code {
-    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
-  }
-
-  /* ---- Code showcase — two-column ---- */
-
-  .showcase {
-    padding: 4rem 1.5rem 5rem;
-    max-width: 960px;
-    margin: 0 auto;
-  }
-
-  .showcase-inner {
-    display: grid;
-    grid-template-columns: 1fr 1.4fr;
-    gap: 3rem;
-    align-items: center;
-  }
-
-  .showcase-heading {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-primary);
-    margin: 0 0 0.75rem;
-    line-height: 1.2;
-  }
-
-  .showcase-desc {
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    line-height: 1.65;
-    margin: 0;
-  }
-
-  .showcase-code {
-    position: relative;
-  }
-
-  /* Code block with window chrome */
   .code-block {
     background: var(--void-raised);
     border: 1px solid var(--void-border);
@@ -778,8 +928,30 @@
   /* ---- Mobile ---- */
 
   @media (max-width: 768px) {
-    .hero { padding: 4rem 1rem 3rem; }
+    .hero { padding: 4rem 1rem 2rem; }
     .hero-logo { height: 100px; margin-bottom: 2rem; }
+
+    .comparison {
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .comparison-inner {
+      grid-template-columns: 1fr;
+    }
+
+    .comparison-code {
+      flex: initial;
+    }
+
+    .comparison-code pre {
+      overflow-x: auto;
+    }
+
+    .comparison-legend {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
 
     .features {
       grid-template-columns: 1fr;
@@ -788,15 +960,6 @@
 
     .features-col-right {
       padding-top: 0;
-    }
-
-    .showcase-inner {
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
-    }
-
-    .showcase-text {
-      text-align: center;
     }
 
     .providers {
@@ -832,36 +995,28 @@
     .hero-cta { animation: none; opacity: 1; }
     .hero-install { animation: none; opacity: 1; }
     .feature-card { animation: none; opacity: 1; transform: none; }
-    .showcase-reveal { opacity: 1; transform: none; }
-    .showcase-reveal.revealed,
-    .showcase-reveal.revealed .showcase-code { animation: none; }
+    .comparison-panel { animation: none; opacity: 1; transform: none; }
+    .comparison-legend { animation: none; opacity: 1; transform: none; }
     .landing-atmosphere { animation: none; }
     .hero::before { animation: none; }
   }
 </style>
 
 <script>
-  // Scroll-triggered reveal for feature cards and showcase
+  // Scroll-triggered reveal for feature cards and comparison
   (function() {
     var observer = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
         if (entry.isIntersecting) {
-          if (entry.target.classList.contains('showcase-reveal')) {
-            entry.target.classList.add('revealed');
-          } else {
-            entry.target.style.animationPlayState = 'running';
-          }
+          entry.target.style.animationPlayState = 'running';
           observer.unobserve(entry.target);
         }
       });
     }, { threshold: 0.15 });
 
-    document.querySelectorAll('.feature-card').forEach(function(card) {
-      observer.observe(card);
+    document.querySelectorAll('.feature-card, .comparison-panel, .comparison-legend').forEach(function(el) {
+      observer.observe(el);
     });
-
-    var showcase = document.querySelector('.showcase-reveal');
-    if (showcase) observer.observe(showcase);
   })();
 </script>
 {{ end }}

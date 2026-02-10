@@ -2,7 +2,7 @@
   <img src="docs/assets/rill.png" alt="rill logo" width="280">
 </p>
 
-*Embeddable, sandboxed scripting to power AI agents*
+*Scripting designed for machine-generated code*
 
 **[rill.run](https://rill.run)**
 
@@ -11,25 +11,25 @@
 
 ## The Problem
 
-LLM-generated code runs inside your application. A general-purpose runtime gives that code access to filesystems, networks, and process state — one prompt injection away from data exfiltration or destructive side effects. Sandboxing after the fact requires maintaining a denylist that grows with every new API surface.
+General-purpose languages weren't designed for machine authorship. They allow null, exceptions, implicit coercion, and ambiguous syntax — and no amount of prompting can structurally prevent an LLM from generating them.
 
-rill eliminates these risks at the language level. No capabilities exist unless the host explicitly provides them. No null, no implicit coercion, no exceptions — invalid states are unrepresentable. The host controls the entire function surface, not just what's blocked.
+rill makes these failure categories impossible at the language level. No null, no exceptions, no implicit coercion. Variables lock type on first assignment. The `$` prefix enables single-pass parsing without a symbol table. Errors halt — control flow is singular and explicit.
 
-rill solves for AI platforms what Lua solves for game engines and Liquid solves for e-commerce: safe, embeddable scripting — except the "user" authoring code is increasingly an LLM.
+The host application controls what capabilities are available. No filesystem, no network, no side effects unless explicitly provided. Zero dependencies. Embeds in Node, Bun, Deno, or the browser.
 
 ## Why rill?
 
-- **Embeddable.** Zero dependencies. [Integration](docs/integration-host.md) takes a few lines of code, browser or backend.
-- **Sandboxed.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
+- **Structurally safe.** No null, no exceptions, no implicit coercion. Entire categories of failure are structurally impossible.
+- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). `$` prefix enables single-pass parsing — zero ambiguity for codegen.
 - **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
-- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). No ambiguity for codegen — one way to do each thing.
-- **Intentionally constrained.** No null, no truthiness, sealed scopes, locked types. Removes the degrees of freedom where LLMs misgenerate.
+- **Sandboxed by design.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
+- **Embeddable.** Zero dependencies. [Integration](docs/integration-host.md) takes a few lines of code, browser or backend.
 
 ## Who Is This For?
 
-**Agent and platform developers** who want safe, LLM-authored scripting inside their apps.
+**Developers building AI agents, copilots, and automation tools** who need a scripting runtime that LLMs can generate code for and end users can execute without risk.
 
-rill is not a general-purpose language and it's intentionally constrained. For general application development, you'll want TypeScript, Python, or Go.
+rill is not a general-purpose language — it's intentionally constrained. For general application development, use TypeScript, Python, or Go.
 
 rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a rich automation tool for Claude Code.
 

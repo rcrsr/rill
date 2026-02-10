@@ -1,6 +1,6 @@
 # rill Documentation
 
-*Embeddable, sandboxed scripting to power AI agents*
+*Scripting designed for machine-generated code*
 
 ## Quick Links
 
