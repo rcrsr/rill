@@ -177,6 +177,9 @@ export function formatValue(value: RillValue): string {
   if (isVector(value)) {
     return `vector(${value.model}, ${value.data.length}d)`;
   }
+  if (isRillIterator(value)) {
+    return '[iterator]';
+  }
   if (
     typeof value === 'object' &&
     '__type' in value &&
@@ -300,13 +303,26 @@ export function isReservedMethod(name: string): boolean {
 }
 
 /**
- * Check if a value is a Rill iterator (lazy sequence).
+ * Iterator type - represents a lazy sequence.
  * An iterator is a dict with:
  * - done: boolean - whether iteration is complete
  * - next: callable - function to get next iterator
  * - value: any (only required when not done) - current element
  */
-export function isRillIterator(value: RillValue): boolean {
+export interface RillIterator extends Record<string, RillValue> {
+  readonly done: boolean;
+  readonly next: CallableMarker;
+  readonly value?: RillValue;
+}
+
+/**
+ * Type guard for Rill iterator (lazy sequence).
+ * An iterator is a dict with:
+ * - done: boolean - whether iteration is complete
+ * - next: callable - function to get next iterator
+ * - value: any (only required when not done) - current element
+ */
+export function isRillIterator(value: RillValue): value is RillIterator {
   if (!isDict(value)) return false;
   const dict = value as Record<string, RillValue>;
   if (!('done' in dict && typeof dict['done'] === 'boolean')) return false;

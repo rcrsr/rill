@@ -10,7 +10,7 @@ import {
   determineExitCode,
   detectHelpVersionFlag,
 } from '../src/cli-shared.js';
-import { ParseError, RuntimeError, LexerError } from '@rcrsr/rill';
+import { callable, LexerError, ParseError, RuntimeError } from '@rcrsr/rill';
 
 describe('cli-shared', () => {
   describe('formatError', () => {
@@ -308,6 +308,29 @@ describe('cli-shared', () => {
       const output = formatOutput({ a: 1, b: 2 });
       expect(output).toContain('"a": 1');
       expect(output).toContain('"b": 2');
+    });
+
+    it('formats iterators as "[iterator]"', () => {
+      const iterator = {
+        done: false,
+        value: 1,
+        next: callable(() => ({
+          done: true,
+          next: callable(() => ({ done: true, next: callable(() => ({})) })),
+        })),
+      };
+      expect(formatOutput(iterator)).toBe('[iterator]');
+    });
+
+    it('formats done iterators as "[iterator]"', () => {
+      const doneIterator = {
+        done: true,
+        next: callable(() => ({
+          done: true,
+          next: callable(() => ({ done: true, next: callable(() => ({})) })),
+        })),
+      };
+      expect(formatOutput(doneIterator)).toBe('[iterator]');
     });
   });
 
