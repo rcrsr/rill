@@ -1,6 +1,6 @@
 # @rcrsr/rill-ext-chroma
 
-[rill](https://rill.run) extension for [ChromaDB](https://www.trychroma.com) vector database integration. Provides host functions for vector operations, collection management, and semantic search.
+[rill](https://rill.run) extension for [ChromaDB](https://www.trychroma.com) vector database integration. Provides 11 host functions for vector CRUD, batch operations, and collection management.
 
 > **Experimental.** Breaking changes will occur before stabilization.
 
@@ -19,7 +19,6 @@ import { parse, execute, createRuntimeContext, prefixFunctions } from '@rcrsr/ri
 import { createChromaExtension } from '@rcrsr/rill-ext-chroma';
 
 const ext = createChromaExtension({
-  url: 'http://localhost:8000',
   collection: 'my_vectors',
 });
 const prefixed = prefixFunctions('chroma', ext);
@@ -31,8 +30,8 @@ const ctx = createRuntimeContext({
 });
 
 const script = `
-  chroma::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example"])
-  chroma::search([0.1, 0.2, 0.3], [k: 5]) -> log
+  chroma::upsert("doc-1", $embedding, [title: "Example"])
+  chroma::search($embedding, [k: 5]) -> log
 `;
 const result = await execute(parse(script), ctx);
 
@@ -41,52 +40,62 @@ dispose?.();
 
 ## Host Functions
 
+All vector database extensions share identical function signatures. Swap `chroma::` for `qdrant::` or `pinecone::` with no script changes.
+
 ### chroma::upsert(id, vector, metadata?)
 
-Insert or update a vector with optional metadata.
+Insert or update a single vector with metadata.
 
 ```rill
-chroma::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example", page: 1]) => $result
-$result.success -> log
+chroma::upsert("doc-1", $embedding, [title: "Example", page: 1]) => $result
+$result.id -> log       # "doc-1"
+$result.success -> log  # true
 ```
+
+**Idempotent.** Duplicate ID overwrites existing vector.
 
 ### chroma::upsert_batch(items)
 
-Batch insert or update multiple vectors.
+Batch insert or update vectors. Processes sequentially; halts on first failure.
 
 ```rill
 chroma::upsert_batch([
-  [id: "doc-1", vector: [0.1, 0.2, 0.3], metadata: [title: "First"]],
-  [id: "doc-2", vector: [0.4, 0.5, 0.6], metadata: [title: "Second"]]
+  [id: "doc-1", vector: $v1, metadata: [title: "First"]],
+  [id: "doc-2", vector: $v2, metadata: [title: "Second"]]
 ]) => $result
-$result.succeeded -> log
+$result.succeeded -> log  # 2
 ```
+
+Returns `{ succeeded }` on success. Returns `{ succeeded, failed, error }` on failure.
 
 ### chroma::search(vector, options?)
 
-Search for similar vectors.
+Search for k nearest neighbors.
 
 ```rill
-chroma::search([0.1, 0.2, 0.3], [k: 5, filter: [category: "docs"]]) => $results
-$results -> log
+chroma::search($embedding, [k: 5, score_threshold: 0.8]) => $results
+$results -> each { "{.id}: {.score}" -> log }
 ```
-
-**Options:**
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `k` | number | `10` | Max results to return |
-| `filter` | dict | undefined | Metadata filter conditions |
+| `filter` | dict | `{}` | Metadata filter conditions |
+| `score_threshold` | number | (none) | Exclude results below threshold |
+
+Returns `[{ id, score, metadata }]`. Empty results return `[]`.
 
 ### chroma::get(id)
 
-Retrieve a vector by ID.
+Fetch a vector by ID.
 
 ```rill
 chroma::get("doc-1") => $point
-$point.vector -> log
-$point.metadata -> log
+$point.id -> log        # "doc-1"
+$point.metadata -> log  # [title: "Example", page: 1]
 ```
+
+Returns `{ id, vector, metadata }`. Halts with error if ID not found.
 
 ### chroma::delete(id)
 
@@ -94,69 +103,82 @@ Delete a vector by ID.
 
 ```rill
 chroma::delete("doc-1") => $result
-$result.deleted -> log
+$result.deleted -> log  # true
 ```
+
+Returns `{ id, deleted }`. Halts with error if ID not found.
 
 ### chroma::delete_batch(ids)
 
-Delete multiple vectors by ID.
+Batch delete vectors. Processes sequentially; halts on first failure.
 
 ```rill
 chroma::delete_batch(["doc-1", "doc-2", "doc-3"]) => $result
-$result.succeeded -> log
+$result.succeeded -> log  # 3
 ```
+
+Returns `{ succeeded }` on success. Returns `{ succeeded, failed, error }` on failure.
 
 ### chroma::count()
 
 Count vectors in the collection.
 
 ```rill
-chroma::count() => $count
-$count -> log
+chroma::count() -> log  # 42
 ```
+
+Returns a number.
 
 ### chroma::create_collection(name, options?)
 
 Create a new collection.
 
 ```rill
-chroma::create_collection("my_vectors", [metadata: [description: "Test vectors"]]) => $result
-$result.created -> log
+chroma::create_collection("my_vectors", [dimensions: 384, distance: "cosine"]) => $result
+$result.created -> log  # true
 ```
-
-**Options:**
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `metadata` | dict | `{}` | Collection metadata |
+| `dimensions` | number | (none) | Vector dimension size |
+| `distance` | string | `"cosine"` | `"cosine"`, `"euclidean"`, or `"dot"` |
 
-### chroma::delete_collection(name)
+Returns `{ name, created }`. **Not idempotent** — halts if collection exists.
+
+### chroma::delete_collection(id)
 
 Delete a collection.
 
 ```rill
 chroma::delete_collection("old_vectors") => $result
-$result.deleted -> log
+$result.deleted -> log  # true
 ```
+
+Returns `{ name, deleted }`. **Not idempotent** — halts if collection not found.
 
 ### chroma::list_collections()
 
-List all collections.
+List all collection names.
 
 ```rill
-chroma::list_collections() => $collections
-$collections -> log
+chroma::list_collections() -> log  # ["my_vectors", "archive"]
 ```
+
+Returns a list of strings.
 
 ### chroma::describe()
 
-Get collection information.
+Describe the configured collection.
 
 ```rill
 chroma::describe() => $info
-$info.name -> log
-$info.count -> log
+$info.name -> log        # "my_vectors"
+$info.count -> log       # 42
+$info.dimensions -> log  # 384
+$info.distance -> log    # "cosine"
 ```
+
+Returns `{ name, count, dimensions, distance }`.
 
 ## Configuration
 
@@ -171,39 +193,32 @@ const ext = createChromaExtension({
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `url` | string | undefined | ChromaDB API endpoint URL (undefined uses embedded mode) |
+| `url` | string | undefined | ChromaDB API endpoint (undefined uses embedded mode) |
 | `collection` | string | required | Default collection name |
-| `embeddingFunction` | string | undefined | Embedding function name (e.g., 'openai', 'cohere') |
+| `embeddingFunction` | string | undefined | Embedding function name |
 | `timeout` | number | SDK default | Request timeout in ms |
 
 ## Error Handling
 
-All errors use the format `RuntimeError('RILL-R004', 'chroma: <message>')`.
+All errors use `RuntimeError('RILL-R004', 'chroma: <message>')` and halt script execution.
 
-| Error Condition | Message Pattern |
-|----------------|-----------------|
-| Missing required config | `chroma: collection is required` |
-| Authentication failure | `chroma: authentication failed (401)` |
+| Condition | Message |
+|-----------|---------|
+| HTTP 401 | `chroma: authentication failed (401)` |
 | Collection not found | `chroma: collection not found` |
-| Rate limit exceeded | `chroma: rate limit exceeded` |
-| Network timeout | `chroma: request timeout` |
-| Dimension mismatch | `chroma: dimension mismatch (expected X, got Y)` |
-| Collection already exists | `chroma: collection already exists` |
+| Rate limit (429) | `chroma: rate limit exceeded` |
+| Timeout | `chroma: request timeout` |
+| Dimension mismatch | `chroma: dimension mismatch (expected N, got M)` |
+| Collection exists | `chroma: collection already exists` |
 | ID not found | `chroma: id not found` |
-| API error | `chroma: <API error message>` |
+| After dispose | `chroma: operation cancelled` |
+| Other | `chroma: <error message>` |
 
-```rill
-# Errors are caught at the rill level:
-chroma::search([0.1, 0.2]) => $result  # Dimension mismatch error
-```
+## Local Setup
 
-## Local ChromaDB Setup
+### Embedded Mode (default)
 
-For development, run ChromaDB locally using embedded mode or Docker.
-
-### Embedded Mode (Default)
-
-ChromaDB embedded mode runs in-process without external server:
+ChromaDB runs in-process without an external server:
 
 ```typescript
 const ext = createChromaExtension({
@@ -211,23 +226,17 @@ const ext = createChromaExtension({
 });
 ```
 
-No Docker or server setup required. Data persists to local storage.
+No Docker or server setup required.
 
 ### HTTP Server Mode
 
-Run ChromaDB server using Docker:
+Run ChromaDB with Docker:
 
 ```bash
-# Start ChromaDB server
 docker run -p 8000:8000 chromadb/chroma
-
-# Verify server is running
-curl http://localhost:8000/api/v1
 ```
 
-The server will be available at `http://localhost:8000`.
-
-**HTTP mode configuration:**
+Verify: `curl http://localhost:8000/api/v1`
 
 ```typescript
 const ext = createChromaExtension({
@@ -238,13 +247,13 @@ const ext = createChromaExtension({
 
 ## Lifecycle
 
-Call `dispose()` on the extension to clean up:
-
 ```typescript
 const ext = createChromaExtension({ ... });
 // ... use extension ...
 await ext.dispose?.();
 ```
+
+`dispose()` aborts pending requests and closes the SDK client. Idempotent — second call resolves without error.
 
 ## Documentation
 

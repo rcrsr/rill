@@ -1,6 +1,8 @@
 # @rcrsr/rill-fiddle
 
-Browser-based interactive editor for the [rill](https://rill.run) scripting language. Built with React and CodeMirror 6.
+Browser-based editor for [rill](https://rill.run) — scripting designed for machine-generated code. Built with React and CodeMirror 6.
+
+> **Experimental.** Breaking changes will occur before stabilization.
 
 ## Purpose
 
@@ -82,3 +84,15 @@ Run specific test suites:
 pnpm test -- Editor.test.tsx
 pnpm test -- execution-success.test.ts
 ```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Language Reference](https://github.com/rcrsr/rill/blob/main/docs/ref-language.md) | Language specification |
+| [Host Integration](https://github.com/rcrsr/rill/blob/main/docs/integration-host.md) | Embedding guide |
+| [Design Principles](https://github.com/rcrsr/rill/blob/main/docs/topic-design-principles.md) | Why rill works the way it does |
+
+## License
+
+MIT

@@ -2,12 +2,10 @@
   <img src="docs/assets/rill.png" alt="rill logo" width="280">
 </p>
 
-*Scripting designed for machine-generated code*
-
-**[rill.run](https://rill.run)**
+**[rill](https://rill.run)**: *Scripting designed for machine-generated code*
 
 > [!WARNING]
-> **This language is experimental.** While usable, there may be significant bugs. Breaking changes will occur before stabilization.
+> **This language is experimental.** While usable, there may still be some warts and bugs. Breaking changes will occur before stabilization.
 
 ## The Problem
 
@@ -17,8 +15,74 @@ rill makes these failure categories impossible at the language level. No null, n
 
 The host application controls what capabilities are available. No filesystem, no network, no side effects unless explicitly provided. Zero dependencies. Embeds in Node, Bun, Deno, or the browser.
 
+## What This Looks Like
+
+Defensive code you write because the language allows it:
+
+```python
+async def classify_and_route(task: str) -> dict:
+    # Call LLM — might throw, might return None
+    try:
+        response = await llm.classify(task)
+    except Exception as e:
+        return {"error": f"Classification failed: {e}"}
+
+    # Response might be None, might be wrong type
+    if response is None:
+        return {"error": "No response from classifier"}
+
+    if not isinstance(response.category, str):
+        return {"error": f"Expected string, got {type(response.category)}"}
+
+    # Route based on category
+    handlers = {
+        "billing": handle_billing,
+        "technical": handle_technical,
+        "general": handle_general,
+    }
+
+    handler = handlers.get(response.category, handle_general)
+
+    try:
+        result = await handler(task)
+    except Exception as e:
+        return {"error": f"Handler failed: {e}"}
+
+    if result is None:
+        return {"error": "Handler returned None"}
+
+    return result
+```
+
+What's left when the failure modes are structurally impossible:
+
+```rill
+# No null. No exceptions. No wrong types. If it parses, it's safe to run.
+
+$task
+  -> host::classify
+  -> .category:string
+  -> [
+    billing:   host::handle_billing,
+    technical: host::handle_technical,
+    general:   host::handle_general
+  ] ?? host::handle_general
+  -> $($task)
+```
+
+Every defensive check in the Python maps to a failure category rill eliminates:
+
+| Python defensive code | Why it doesn't exist in rill |
+|-----------------------|------------------------------|
+| `try/except` around LLM call | No exceptions. Errors halt. |
+| `if response is None` | No null. Functions always return. |
+| `isinstance()` type check | `:string` asserts type inline or halts. |
+| `try/except` around handler | No exceptions. Errors halt. |
+| `if result is None` | No null. Functions always return. |
+
 ## Why rill?
 
+- **Built for machine authorship.** General-purpose languages leave guarantees on the table. rill was designed as a target for LLM code generation.
 - **Structurally safe.** No null, no exceptions, no implicit coercion. Entire categories of failure are structurally impossible.
 - **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). `$` prefix enables single-pass parsing — zero ambiguity for codegen.
 - **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
@@ -60,7 +124,7 @@ Switch providers by changing one line — `createAnthropicExtension` or `createG
 
 ## Extensions
 
-rill ships bundled extensions for major LLM providers. Integrate the ones you want to expose as functions in scripts:
+rill ships bundled extensions for LLM providers and vector databases. Integrate the ones you want to expose as functions in scripts:
 
 | Extension | Package | Functions |
 |-----------|---------|-----------|
@@ -68,20 +132,15 @@ rill ships bundled extensions for major LLM providers. Integrate the ones you wa
 | OpenAI | `@rcrsr/rill-ext-openai` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
 | Gemini | `@rcrsr/rill-ext-gemini` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
 | Claude Code | `@rcrsr/rill-ext-claude-code` | `prompt`, `skill`, `command` |
+| Qdrant | `@rcrsr/rill-ext-qdrant` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
+| Pinecone | `@rcrsr/rill-ext-pinecone` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
+| ChromaDB | `@rcrsr/rill-ext-chroma` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
 
-All LLM provider extensions share the same function signatures. Use `prefixFunctions('llm', ext)` to write provider-agnostic scripts.
+All LLM provider extensions share the same function signatures. Use `prefixFunctions('llm', ext)` to write provider-agnostic scripts. Vector database extensions follow the same pattern — swap `qdrant::search` for `pinecone::search` with no script changes.
 
 See [Bundled Extensions](docs/bundled-extensions.md) for full documentation and [Developing Extensions](docs/integration-extensions.md) to write your own.
 
 ## Language Overview
-
-### Pipes
-
-Data flows forward through pipes (`app::*` denotes an application-specific host function call).
-
-```rill
-app::prompt("analyze this code") -> .trim -> log
-```
 
 ### Pattern-Driven Conditionals
 
@@ -108,16 +167,6 @@ app::prompt("analyze code")
 ^(limit: 100) $items -> each { "Processing: {$}" -> log }
 ```
 
-### Closures
-
-First-class functions with captured environment.
-
-```rill
-|x| ($x * 2) => $double
-[1, 2, 3] -> map $double  # [2, 4, 6]
-5 -> $double              # 10
-```
-
 ### Parallel Execution
 
 Fan out work concurrently. Results preserve order.
@@ -132,6 +181,24 @@ Fan out work concurrently. Results preserve order.
 ```rill
 # Parallel filter with method
 ["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
+```
+
+### Closures
+
+First-class functions with captured environment.
+
+```rill
+|x| ($x * 2) => $double
+[1, 2, 3] -> map $double  # [2, 4, 6]
+5 -> $double              # 10
+```
+
+### Dataflow Syntax
+
+Data flows forward through pipes. `app::*` denotes a host-provided function.
+
+```rill
+app::prompt("analyze this code") -> .trim -> log
 ```
 
 ### String Interpolation

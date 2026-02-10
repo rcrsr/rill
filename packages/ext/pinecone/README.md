@@ -1,6 +1,6 @@
 # @rcrsr/rill-ext-pinecone
 
-[rill](https://rill.run) extension for [Pinecone](https://www.pinecone.io) vector database integration. Provides host functions for vector operations, collection management, and semantic search.
+[rill](https://rill.run) extension for [Pinecone](https://www.pinecone.io) vector database integration. Provides 11 host functions for vector CRUD, batch operations, and collection management.
 
 > **Experimental.** Breaking changes will occur before stabilization.
 
@@ -19,9 +19,8 @@ import { parse, execute, createRuntimeContext, prefixFunctions } from '@rcrsr/ri
 import { createPineconeExtension } from '@rcrsr/rill-ext-pinecone';
 
 const ext = createPineconeExtension({
-  apiKey: process.env.PINECONE_API_KEY,
+  apiKey: process.env.PINECONE_API_KEY!,
   index: 'my-index',
-  namespace: 'default',
 });
 const prefixed = prefixFunctions('pinecone', ext);
 const { dispose, ...functions } = prefixed;
@@ -32,8 +31,8 @@ const ctx = createRuntimeContext({
 });
 
 const script = `
-  pinecone::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example"])
-  pinecone::search([0.1, 0.2, 0.3], [limit: 5]) -> log
+  pinecone::upsert("doc-1", $embedding, [title: "Example"])
+  pinecone::search($embedding, [k: 5]) -> log
 `;
 const result = await execute(parse(script), ctx);
 
@@ -42,129 +41,151 @@ dispose?.();
 
 ## Host Functions
 
+All vector database extensions share identical function signatures. Swap `pinecone::` for `qdrant::` or `chroma::` with no script changes.
+
 ### pinecone::upsert(id, vector, metadata?)
 
-Insert or update a vector with optional metadata.
+Insert or update a single vector with metadata.
 
 ```rill
-pinecone::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example", page: 1]) => $result
-$result.upsertedCount -> log
+pinecone::upsert("doc-1", $embedding, [title: "Example", page: 1]) => $result
+$result.id -> log       # "doc-1"
+$result.success -> log  # true
 ```
+
+**Idempotent.** Duplicate ID overwrites existing vector.
 
 ### pinecone::upsert_batch(items)
 
-Batch insert or update multiple vectors.
+Batch insert or update vectors. Processes sequentially; halts on first failure.
 
 ```rill
 pinecone::upsert_batch([
-  [id: "doc-1", vector: [0.1, 0.2, 0.3], metadata: [title: "First"]],
-  [id: "doc-2", vector: [0.4, 0.5, 0.6], metadata: [title: "Second"]]
+  [id: "doc-1", vector: $v1, metadata: [title: "First"]],
+  [id: "doc-2", vector: $v2, metadata: [title: "Second"]]
 ]) => $result
-$result.upsertedCount -> log
+$result.succeeded -> log  # 2
 ```
+
+Returns `{ succeeded }` on success. Returns `{ succeeded, failed, error }` on failure.
 
 ### pinecone::search(vector, options?)
 
-Search for k-nearest neighbor vectors.
+Search for k nearest neighbors.
 
 ```rill
-pinecone::search([0.1, 0.2, 0.3], [limit: 5, minScore: 0.8]) => $results
-$results.matches -> log
+pinecone::search($embedding, [k: 5, score_threshold: 0.8]) => $results
+$results -> each { "{.id}: {.score}" -> log }
 ```
-
-**Options:**
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `limit` | number | `10` | Max results to return |
-| `minScore` | number | undefined | Min similarity score |
-| `filter` | dict | undefined | Metadata filter conditions |
-| `includeValues` | boolean | `true` | Include vector values in results |
-| `includeMetadata` | boolean | `true` | Include metadata in results |
+| `k` | number | `10` | Max results to return |
+| `filter` | dict | `{}` | Metadata filter conditions |
+| `score_threshold` | number | (none) | Exclude results below threshold |
+
+Returns `[{ id, score, metadata }]`. Empty results return `[]`.
 
 ### pinecone::get(id)
 
 Fetch a vector by ID.
 
 ```rill
-pinecone::get("doc-1") => $record
-$record.values -> log
-$record.metadata -> log
+pinecone::get("doc-1") => $point
+$point.id -> log        # "doc-1"
+$point.metadata -> log  # [title: "Example", page: 1]
 ```
+
+Returns `{ id, vector, metadata }`. Halts with error if ID not found.
 
 ### pinecone::delete(id)
 
 Delete a vector by ID.
 
 ```rill
-pinecone::delete("doc-1")
+pinecone::delete("doc-1") => $result
+$result.deleted -> log  # true
 ```
+
+Returns `{ id, deleted }`. Halts with error if ID not found.
 
 ### pinecone::delete_batch(ids)
 
-Delete multiple vectors by ID.
+Batch delete vectors. Processes sequentially; halts on first failure.
 
 ```rill
-pinecone::delete_batch(["doc-1", "doc-2", "doc-3"])
+pinecone::delete_batch(["doc-1", "doc-2", "doc-3"]) => $result
+$result.succeeded -> log  # 3
 ```
+
+Returns `{ succeeded }` on success. Returns `{ succeeded, failed, error }` on failure.
 
 ### pinecone::count()
 
-Count total vectors in the namespace.
+Count vectors in the index.
 
 ```rill
-pinecone::count() => $result
-$result.vectorCount -> log
+pinecone::count() -> log  # 42
 ```
+
+Returns a number.
 
 ### pinecone::create_collection(name, options?)
 
-Create a new collection from the current index.
+Create a new collection.
 
 ```rill
-pinecone::create_collection("backup-2024", [source: "my-index"]) => $result
-$result.name -> log
+pinecone::create_collection("my_vectors", [dimensions: 384, distance: "cosine"]) => $result
+$result.created -> log  # true
 ```
-
-**Options:**
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `source` | string | current index | Source index name |
+| `dimensions` | number | (none) | Vector dimension size |
+| `distance` | string | `"cosine"` | `"cosine"`, `"euclidean"`, or `"dot"` |
+
+Returns `{ name, created }`. **Not idempotent** — halts if collection exists.
 
 ### pinecone::delete_collection(id)
 
-Delete a collection by name.
+Delete a collection.
 
 ```rill
-pinecone::delete_collection("backup-2023")
+pinecone::delete_collection("old_vectors") => $result
+$result.deleted -> log  # true
 ```
+
+Returns `{ name, deleted }`. **Not idempotent** — halts if collection not found.
 
 ### pinecone::list_collections()
 
-List all collections in the project.
+List all collection names.
 
 ```rill
-pinecone::list_collections() => $result
-$result.collections -> log
+pinecone::list_collections() -> log  # ["my_vectors", "archive"]
 ```
+
+Returns a list of strings.
 
 ### pinecone::describe()
 
-Describe the current index.
+Describe the configured index.
 
 ```rill
 pinecone::describe() => $info
-$info.dimension -> log
-$info.metric -> log
-$info.totalVectorCount -> log
+$info.name -> log        # "my-index"
+$info.count -> log       # 42
+$info.dimensions -> log  # 384
+$info.distance -> log    # "cosine"
 ```
+
+Returns `{ name, count, dimensions, distance }`.
 
 ## Configuration
 
 ```typescript
 const ext = createPineconeExtension({
-  apiKey: process.env.PINECONE_API_KEY,
+  apiKey: process.env.PINECONE_API_KEY!,
   index: 'my-index',
   namespace: 'production',
   timeout: 30000,
@@ -175,34 +196,30 @@ const ext = createPineconeExtension({
 |--------|------|---------|-------------|
 | `apiKey` | string | required | Pinecone API key |
 | `index` | string | required | Index name |
-| `namespace` | string | `''` | Namespace (empty string allowed) |
-| `timeout` | number | `30000` | Request timeout in ms (must be positive integer) |
+| `namespace` | string | `''` | Namespace for partitioning |
+| `timeout` | number | `30000` | Request timeout in ms |
 
 ## Error Handling
 
-All errors use the format `RuntimeError('RILL-R004', 'pinecone: <message>')`.
+All errors use `RuntimeError('RILL-R004', 'pinecone: <message>')` and halt script execution.
 
-| Error Condition | Message Pattern |
-|----------------|-----------------|
-| Missing required config | `pinecone: <field> is required` |
-| Invalid timeout value | `pinecone: timeout must be a positive integer` |
-| Index not found | `pinecone: index not found` |
-| Network timeout | `pinecone: request timeout` |
-| API error | `pinecone: <API error message>` |
+| Condition | Message |
+|-----------|---------|
+| HTTP 401 | `pinecone: authentication failed (401)` |
+| Collection not found | `pinecone: collection not found` |
+| Rate limit (429) | `pinecone: rate limit exceeded` |
+| Timeout | `pinecone: request timeout` |
+| Dimension mismatch | `pinecone: dimension mismatch (expected N, got M)` |
+| Collection exists | `pinecone: collection already exists` |
+| ID not found | `pinecone: id not found` |
+| After dispose | `pinecone: operation cancelled` |
+| Other | `pinecone: <error message>` |
 
-```rill
-# Errors are caught at the rill level:
-pinecone::get("nonexistent-id") => $result  # Record not found error
-```
+## Cloud Setup
 
-## Cloud Pinecone Setup
-
-For development, create a free Pinecone account at [pinecone.io](https://www.pinecone.io).
-
-### Create Index
+Create a free account at [pinecone.io](https://www.pinecone.io). Find your API key in the Pinecone Console under **API Keys**.
 
 ```bash
-# Using the Pinecone CLI (https://docs.pinecone.io/guides/get-started/quickstart)
 pinecone index create my-index \
   --dimension 384 \
   --metric cosine \
@@ -210,41 +227,17 @@ pinecone index create my-index \
   --region us-east-1
 ```
 
-Or via the Pinecone Console at [app.pinecone.io](https://app.pinecone.io).
-
-### API Key
-
-Find your API key in the Pinecone Console under **API Keys** section.
-
-**Default configuration:**
-
-```typescript
-const ext = createPineconeExtension({
-  apiKey: process.env.PINECONE_API_KEY,
-  index: 'my-index',
-  namespace: '', // Empty string for default namespace
-});
-```
-
-### Free Tier Limits
-
-Pinecone Starter (free) tier includes:
-- 1 project
-- 1 serverless index
-- 2GB storage
-- 10K vectors per namespace
-
-See [Pinecone Pricing](https://www.pinecone.io/pricing/) for current limits.
+Free tier includes 1 serverless index, 2GB storage, 10K vectors per namespace. See [Pinecone Pricing](https://www.pinecone.io/pricing/) for current limits.
 
 ## Lifecycle
-
-Call `dispose()` on the extension to clean up:
 
 ```typescript
 const ext = createPineconeExtension({ ... });
 // ... use extension ...
 await ext.dispose?.();
 ```
+
+`dispose()` aborts pending requests and closes the SDK client. Idempotent — second call resolves without error.
 
 ## Documentation
 

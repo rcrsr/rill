@@ -1,6 +1,6 @@
 # @rcrsr/rill
 
-Scripting runtime for [rill](https://rill.run) — designed for machine-generated code. Zero dependencies. Browser and Node.js compatible.
+Core runtime for [rill](https://rill.run) — scripting designed for machine-generated code. Zero dependencies. Browser and Node.js compatible.
 
 > **Experimental.** Breaking changes will occur before stabilization.
 
