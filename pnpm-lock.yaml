@@ -60,6 +60,16 @@ importers:
         specifier: workspace:^
         version: link:../../core
 
+  packages/ext/chroma:
+    dependencies:
+      chromadb:
+        specifier: ^1.9.2
+        version: 1.10.5(encoding@0.1.13)
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
+
   packages/ext/claude-code:
     dependencies:
       node-pty:
@@ -102,17 +112,7 @@ importers:
         specifier: workspace:^
         version: link:../../core
 
-  packages/ext/rill-ext-chroma:
-    dependencies:
-      chromadb:
-        specifier: ^1.9.2
-        version: 1.10.5(encoding@0.1.13)
-    devDependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../../core
-
-  packages/ext/rill-ext-pinecone:
+  packages/ext/pinecone:
     dependencies:
       '@pinecone-database/pinecone':
         specifier: ^3.0.3
@@ -122,7 +122,7 @@ importers:
         specifier: workspace:^
         version: link:../../core
 
-  packages/ext/rill-ext-qdrant:
+  packages/ext/qdrant:
     dependencies:
       '@qdrant/js-client-rest':
         specifier: ^1.12.1

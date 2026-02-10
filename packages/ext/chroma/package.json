@@ -1,7 +1,7 @@
 {
-  "name": "@rcrsr/rill-ext-qdrant",
+  "name": "@rcrsr/rill-ext-chroma",
   "version": "0.0.1",
-  "description": "rill extension for Qdrant vector database integration",
+  "description": "rill extension for ChromaDB vector database integration",
   "license": "MIT",
   "author": "Andre Bremer",
   "type": "module",
@@ -9,7 +9,8 @@
   "types": "dist/index.d.ts",
   "keywords": [
     "rill",
-    "qdrant",
+    "chroma",
+    "chromadb",
     "vector-database",
     "vector-search",
     "extension",
@@ -35,9 +36,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
-    "directory": "packages/ext/rill-ext-qdrant"
+    "directory": "packages/ext/chroma"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/rill-ext-qdrant#readme",
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/chroma#readme",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },
@@ -45,6 +46,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@qdrant/js-client-rest": "^1.12.1"
+    "chromadb": "^1.9.2"
   }
 }
