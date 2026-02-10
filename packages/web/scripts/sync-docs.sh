@@ -232,7 +232,8 @@ for section_dir in "$CONTENT_DIR"/*/; do
   generate_section_links "$section_dir"
 done
 
-# Copy grammar file as static download
+# Copy static assets
 cp "$DOCS_DIR/ref-grammar.ebnf" "$(cd "$(dirname "$0")/.." && pwd)/static/ref-grammar.ebnf" 2>/dev/null || true
+cp "$DOCS_DIR/ref-llm.txt" "$(cd "$(dirname "$0")/.." && pwd)/static/llms-full.txt" 2>/dev/null || true
 
 echo "Done: $(find "$CONTENT_DIR" -name '*.md' ! -name '_index.md' | wc -l) docs synced"

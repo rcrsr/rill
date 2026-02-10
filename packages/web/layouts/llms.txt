@@ -1,0 +1,28 @@
+# {{ .Site.Title }}
+
+> {{ .Site.Params.description }}
+
+{{ range $section := site.Sections }}
+{{- template "llms-section-tree" dict "context" . "level" 2 }}
+{{ end }}
+
+{{- define "llms-section-tree" -}}
+{{- $context := .context -}}
+{{- $level := .level | default 2 -}}
+{{- $headerHashes := strings.Repeat $level "#" -}}
+{{- "\n" -}}
+{{ $headerHashes }} {{ $context.Title }}
+
+{{- range $context.RegularPages }}
+{{- $desc := .Params.description }}
+{{- if $desc }}
+- [{{ .Title }}]({{ .Permalink }}): {{ $desc }}
+{{- else }}
+- [{{ .Title }}]({{ .Permalink }})
+{{- end }}
+{{- end }}
+
+{{- range $context.Sections }}
+{{ template "llms-section-tree" dict "context" . "level" (add $level 1) }}
+{{- end }}
+{{- end -}}
