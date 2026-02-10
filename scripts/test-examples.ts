@@ -45,6 +45,89 @@ function trackUnknownFunction(name: string, location: string): void {
   unknownFunctions.get(name)!.add(location);
 }
 
+// Generate mock functions for a vector DB namespace (chroma, pinecone, qdrant)
+function vectorDbMocks(
+  ns: string
+): Record<string, import('@rcrsr/rill').HostFunctionDefinition> {
+  const point = {
+    id: 'doc-1',
+    vector: [0.1, 0.2, 0.3],
+    metadata: { title: 'Example' },
+    payload: { title: 'Example' },
+    values: [0.1, 0.2, 0.3],
+    status: 'ok',
+  };
+  return {
+    [`${ns}::upsert`]: {
+      params: [
+        { name: 'id', type: 'string' },
+        { name: 'vector', type: 'list' },
+        { name: 'metadata', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        success: true,
+        upsertedCount: 1,
+        deleted: true,
+        status: 'ok',
+      }),
+    },
+    [`${ns}::upsert_batch`]: {
+      params: [{ name: 'items', type: 'list' }],
+      fn: () => ({ succeeded: 2, upsertedCount: 2, status: 'ok' }),
+    },
+    [`${ns}::search`]: {
+      params: [
+        { name: 'vector', type: 'list' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({ matches: [point], points: [point] }),
+    },
+    [`${ns}::get`]: {
+      params: [{ name: 'id', type: 'string' }],
+      fn: () => point,
+    },
+    [`${ns}::delete`]: {
+      params: [{ name: 'id', type: 'string' }],
+      fn: () => ({ deleted: true, status: 'ok' }),
+    },
+    [`${ns}::delete_batch`]: {
+      params: [{ name: 'ids', type: 'list' }],
+      fn: () => ({ succeeded: 3, status: 'ok' }),
+    },
+    [`${ns}::count`]: {
+      params: [],
+      fn: () => ({ count: 42, vectorCount: 42 }),
+    },
+    [`${ns}::create_collection`]: {
+      params: [
+        { name: 'name', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({ created: true, name: 'test', status: 'ok' }),
+    },
+    [`${ns}::delete_collection`]: {
+      params: [{ name: 'name', type: 'string' }],
+      fn: () => ({ deleted: true, status: 'ok' }),
+    },
+    [`${ns}::list_collections`]: {
+      params: [],
+      fn: () => ({ collections: ['col1', 'col2'] }),
+    },
+    [`${ns}::describe`]: {
+      params: [],
+      fn: () => ({
+        name: 'test',
+        count: 42,
+        dimension: 3,
+        metric: 'cosine',
+        totalVectorCount: 42,
+        vectors_count: 42,
+        config: { params: { vectors: { size: 3 } } },
+      }),
+    },
+  };
+}
+
 // Mock host functions - all prefixed with app:: to clearly mark as host-provided
 // Built-in functions (enumerate, identity, json, log, parse_*, range, repeat, type)
 // and methods (.len, .trim, .upper, .lower, .join, etc.) are NOT mocked here
@@ -409,6 +492,11 @@ function createMockFunctions(): Record<
         messages: [],
       }),
     },
+
+    // Vector DB extensions (chroma::, pinecone::, qdrant::)
+    ...vectorDbMocks('chroma'),
+    ...vectorDbMocks('pinecone'),
+    ...vectorDbMocks('qdrant'),
 
     // Legacy unnamespaced - these should be migrated to app:: in docs
     prompt: {

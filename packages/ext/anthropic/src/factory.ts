@@ -8,19 +8,30 @@ import {
   RuntimeError,
   emitExtensionEvent,
   isCallable,
-  isDict,
   type ExtensionResult,
   type RillValue,
   type RuntimeContext,
+  type ApplicationCallable,
+  type CallableParam,
 } from '@rcrsr/rill';
+import {
+  validateApiKey,
+  validateModel,
+  validateTemperature,
+  validateEmbedText,
+  validateEmbedBatch,
+  validateEmbedModel,
+  mapProviderError,
+  executeToolLoop,
+  type ProviderErrorDetector,
+  type ToolLoopCallbacks,
+} from '@rcrsr/rill-ext-llm-shared';
 import type { AnthropicExtensionConfig } from './types.js';
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const MIN_TEMPERATURE = 0.0;
-const MAX_TEMPERATURE = 2.0;
 const DEFAULT_MAX_TOKENS = 4096;
 
 // ============================================================
@@ -43,110 +54,42 @@ function extractTextContent(
 }
 
 /**
- * Serialize RillValue to string for tool result.
+ * Anthropic-specific error detector for mapProviderError.
+ * Extracts status code and message from Anthropic.APIError instances.
  *
- * @param value - Value to serialize
- * @returns String representation suitable for API
+ * @param error - Unknown error value
+ * @returns Object with status and message if Anthropic error, null otherwise
  */
-function serializeValue(value: RillValue): string {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (value === null || value === undefined) return '';
-
-  // For objects (dicts, lists, tuples, etc.), use JSON
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-/**
- * Map Anthropic API error to RuntimeError with appropriate message.
- *
- * @param error - Error from Anthropic SDK
- * @returns RuntimeError with appropriate message
- */
-function mapAnthropicError(error: unknown): RuntimeError {
+const detectAnthropicError: ProviderErrorDetector = (error: unknown) => {
   if (error instanceof Anthropic.APIError) {
-    const status = error.status;
-    const message = error.message;
-
-    if (status === 401) {
-      return new RuntimeError(
-        'RILL-R004',
-        `Anthropic: authentication failed (401)`
-      );
-    }
-
-    if (status === 429) {
-      return new RuntimeError('RILL-R004', `Anthropic: rate limit`);
-    }
-
-    if (status && status >= 400) {
-      return new RuntimeError('RILL-R004', `Anthropic: ${message} (${status})`);
-    }
-
-    return new RuntimeError('RILL-R004', `Anthropic: ${message}`);
+    return {
+      status: error.status,
+      message: error.message,
+    };
   }
-
-  if (error instanceof Error) {
-    if (error.name === 'AbortError' || error.message.includes('timeout')) {
-      return new RuntimeError('RILL-R004', 'Anthropic: request timeout');
-    }
-    return new RuntimeError('RILL-R004', `Anthropic: ${error.message}`);
-  }
-
-  return new RuntimeError('RILL-R004', 'Anthropic: unknown error');
-}
-
-// ============================================================
-// VALIDATION
-// ============================================================
+  return null;
+};
 
 /**
- * Validate api_key is present and non-empty.
+ * Wrap shared validation to convert RILL-R001 errors to RILL-R004.
+ * Extension errors use RILL-R004 code for consistency with existing behavior.
  *
- * @param api_key - API key to validate
- * @throws Error if api_key missing or empty (EC-1, EC-3)
+ * @param fn - Validation function to wrap
+ * @returns Wrapped function that throws RILL-R004 errors
  */
-function validateApiKey(
-  api_key: string | undefined
-): asserts api_key is string {
-  if (api_key === undefined) {
-    throw new Error('api_key is required');
-  }
-  if (api_key === '') {
-    throw new Error('api_key cannot be empty');
-  }
-}
-
-/**
- * Validate model is present and non-empty.
- *
- * @param model - Model identifier to validate
- * @throws Error if model missing or empty (EC-2)
- */
-function validateModel(model: string | undefined): asserts model is string {
-  if (model === undefined || model === '') {
-    throw new Error('model is required');
-  }
-}
-
-/**
- * Validate temperature is within valid range (0.0-2.0).
- *
- * @param temperature - Temperature value to validate
- * @throws Error if temperature out of range (EC-4)
- */
-function validateTemperature(temperature: number | undefined): void {
-  if (temperature !== undefined) {
-    if (temperature < MIN_TEMPERATURE || temperature > MAX_TEMPERATURE) {
-      throw new Error('temperature must be between 0 and 2');
+function wrapValidation<T extends unknown[]>(
+  fn: (...args: T) => void | string[]
+): (...args: T) => void | string[] {
+  return (...args: T) => {
+    try {
+      return fn(...args);
+    } catch (error) {
+      if (error instanceof RuntimeError && error.errorId === 'RILL-R001') {
+        throw new RuntimeError('RILL-R004', error.message);
+      }
+      throw error;
     }
-  }
+  };
 }
 
 // ============================================================
@@ -296,7 +239,11 @@ export function createAnthropicExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapAnthropicError(error);
+          const rillError = mapProviderError(
+            'Anthropic',
+            error,
+            detectAnthropicError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:error',
@@ -334,11 +281,11 @@ export function createAnthropicExtension(
             );
           }
 
-          // Validate and transform messages
+          // Transform and validate messages to Anthropic format
           const apiMessages: Anthropic.MessageParam[] = [];
 
           for (let i = 0; i < messages.length; i++) {
-            const msg = messages[i];
+            const msg = messages[i]!;
 
             // EC-10: Missing role raises error
             if (!msg || typeof msg !== 'object' || !('role' in msg)) {
@@ -458,7 +405,11 @@ export function createAnthropicExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapAnthropicError(error);
+          const rillError = mapProviderError(
+            'Anthropic',
+            error,
+            detectAnthropicError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:error',
@@ -484,15 +435,9 @@ export function createAnthropicExtension(
           // Extract argument
           const text = args[0] as string;
 
-          // EC-15: Empty text raises error
-          if (text.length === 0) {
-            throw new RuntimeError('RILL-R004', 'embed text cannot be empty');
-          }
-
-          // EC-16: No embed_model configured raises error
-          if (!factoryEmbedModel) {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
+          // Validate using shared validation functions (wrapped to use RILL-R004)
+          wrapValidation(validateEmbedText)(text);
+          wrapValidation(validateEmbedModel)(factoryEmbedModel);
 
           // NOTE: Anthropic does not currently provide a public embeddings API.
           // This implementation is prepared for when/if the API becomes available.
@@ -530,7 +475,9 @@ export function createAnthropicExtension(
 
           // If already a RuntimeError, use it directly (validation errors)
           const rillError =
-            error instanceof RuntimeError ? error : mapAnthropicError(error);
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Anthropic', error, detectAnthropicError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:error',
@@ -561,27 +508,9 @@ export function createAnthropicExtension(
             return [] as RillValue;
           }
 
-          // EC-18: Non-string element raises error
-          // EC-19: Empty string element raises error
-          for (let i = 0; i < texts.length; i++) {
-            if (typeof texts[i] !== 'string') {
-              throw new RuntimeError(
-                'RILL-R004',
-                'embed_batch requires list of strings'
-              );
-            }
-            if ((texts[i] as string).length === 0) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `embed text cannot be empty at index ${i}`
-              );
-            }
-          }
-
-          // EC-20: No embed_model configured raises error
-          if (!factoryEmbedModel) {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
+          // Validate using shared validation functions (wrapped to use RILL-R004)
+          wrapValidation(validateEmbedBatch)(texts);
+          wrapValidation(validateEmbedModel)(factoryEmbedModel);
 
           // NOTE: Anthropic does not currently provide a public embeddings API.
           // This implementation is prepared for when/if the API becomes available.
@@ -617,7 +546,9 @@ export function createAnthropicExtension(
 
           // If already a RuntimeError, use it directly (validation errors)
           const rillError =
-            error instanceof RuntimeError ? error : mapAnthropicError(error);
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Anthropic', error, detectAnthropicError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:error',
@@ -664,23 +595,13 @@ export function createAnthropicExtension(
             Record<string, unknown>
           >;
 
-          // Build tool name to descriptor map for lookup
-          const toolMap = new Map<string, Record<string, unknown>>();
-          const anthropicTools: Anthropic.Tool[] = [];
-
+          // Convert tool descriptors array to dict for shared tool loop
+          const toolsDict: Record<string, RillValue> = {};
           for (const descriptor of toolDescriptors) {
             const name =
               typeof descriptor['name'] === 'string'
                 ? descriptor['name']
                 : null;
-            const description =
-              typeof descriptor['description'] === 'string'
-                ? descriptor['description']
-                : '';
-            const paramsValue = descriptor['params'] as RillValue;
-            const params = isDict(paramsValue)
-              ? (paramsValue as Record<string, unknown>)
-              : {};
 
             if (!name) {
               throw new RuntimeError(
@@ -689,58 +610,90 @@ export function createAnthropicExtension(
               );
             }
 
-            toolMap.set(name, descriptor);
-
-            // Convert rill params to JSON Schema
-            const properties: Record<string, unknown> = {};
-            const required: string[] = [];
-
-            for (const [paramName, paramDef] of Object.entries(params)) {
-              const paramDefValue = paramDef as RillValue;
-              const paramDict = isDict(paramDefValue)
-                ? (paramDefValue as Record<string, unknown>)
-                : null;
-              if (!paramDict) continue;
-
-              const paramType =
-                typeof paramDict['type'] === 'string'
-                  ? paramDict['type']
-                  : 'string';
-              const paramDesc =
-                typeof paramDict['description'] === 'string'
-                  ? paramDict['description']
-                  : '';
-
-              // Map rill type to JSON Schema type
-              const jsonSchemaType =
-                paramType === 'number'
-                  ? 'number'
-                  : paramType === 'bool'
-                    ? 'boolean'
-                    : paramType === 'list'
-                      ? 'array'
-                      : paramType === 'dict'
-                        ? 'object'
-                        : 'string';
-
-              properties[paramName] = {
-                type: jsonSchemaType,
-                description: paramDesc,
-              };
-
-              // All params are required (no default value support in tool descriptors)
-              required.push(paramName);
+            const toolFnValue = descriptor['fn'] as RillValue;
+            if (!toolFnValue) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' missing fn property`
+              );
             }
 
-            anthropicTools.push({
-              name,
-              description,
-              input_schema: {
-                type: 'object',
-                properties,
-                required,
-              },
-            });
+            // Validate tool is callable
+            if (!isCallable(toolFnValue)) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' fn must be callable`
+              );
+            }
+
+            // Extract params metadata from descriptor and enhance callable
+            const paramsObj = descriptor['params'];
+            const description =
+              typeof descriptor['description'] === 'string'
+                ? descriptor['description']
+                : '';
+
+            let enhancedCallable: RillValue = toolFnValue;
+
+            if (
+              paramsObj &&
+              typeof paramsObj === 'object' &&
+              !Array.isArray(paramsObj)
+            ) {
+              // Convert params object to CallableParam[] format
+              const params: CallableParam[] = Object.entries(
+                paramsObj as Record<string, unknown>
+              ).map(([paramName, paramMeta]) => {
+                const meta = paramMeta as Record<string, unknown>;
+                const typeStr =
+                  typeof meta['type'] === 'string' ? meta['type'] : null;
+
+                // Map type string to RillTypeName
+                let typeName:
+                  | 'string'
+                  | 'number'
+                  | 'bool'
+                  | 'list'
+                  | 'dict'
+                  | 'vector'
+                  | null = null;
+                if (typeStr === 'string') typeName = 'string';
+                else if (typeStr === 'number') typeName = 'number';
+                else if (typeStr === 'bool' || typeStr === 'boolean')
+                  typeName = 'bool';
+                else if (typeStr === 'list' || typeStr === 'array')
+                  typeName = 'list';
+                else if (typeStr === 'dict' || typeStr === 'object')
+                  typeName = 'dict';
+                else if (typeStr === 'vector') typeName = 'vector';
+
+                const param: CallableParam = {
+                  name: paramName,
+                  typeName,
+                  defaultValue: null,
+                  annotations: {},
+                };
+                // Add description only if it exists (optional property)
+                if (typeof meta['description'] === 'string') {
+                  (param as { description?: string }).description =
+                    meta['description'];
+                }
+                return param;
+              });
+
+              // Create enhanced ApplicationCallable with params metadata
+              const baseCallable = toolFnValue as ApplicationCallable;
+              enhancedCallable = {
+                __type: 'callable',
+                kind: 'application' as const,
+                params,
+                fn: baseCallable.fn,
+                description,
+                isProperty: baseCallable.isProperty ?? false,
+              } as ApplicationCallable;
+            }
+
+            toolsDict[name] = enhancedCallable;
           }
 
           // Extract options
@@ -752,14 +705,14 @@ export function createAnthropicExtension(
             typeof options['max_tokens'] === 'number'
               ? options['max_tokens']
               : factoryMaxTokens;
-          const maxTurns =
-            typeof options['max_turns'] === 'number'
-              ? options['max_turns']
-              : undefined;
           const maxErrors =
             typeof options['max_errors'] === 'number'
               ? options['max_errors']
               : 3;
+          const maxTurns =
+            typeof options['max_turns'] === 'number'
+              ? options['max_turns']
+              : 10;
 
           // Initialize conversation with prepended messages if provided
           const messages: Anthropic.MessageParam[] = [];
@@ -802,253 +755,147 @@ export function createAnthropicExtension(
             content: prompt,
           });
 
-          // Initialize loop state
-          let turns = 0;
-          let consecutiveErrors = 0;
-          let totalInputTokens = 0;
-          let totalOutputTokens = 0;
-          let stopReason: string | null = null;
-
-          // Tool-use loop
-          while (true) {
-            // Check max_turns limit BEFORE making API call
-            if (maxTurns !== undefined && turns >= maxTurns) {
-              stopReason = 'max_turns';
-              break;
-            }
-
-            turns++;
+          // Define Anthropic-specific callbacks for shared tool loop
+          const callbacks: ToolLoopCallbacks = {
+            // Build Anthropic Tool format from tool definitions
+            buildTools: (
+              toolDefs: Array<{
+                name: string;
+                description: string;
+                input_schema: object;
+              }>
+            ): Anthropic.Tool[] => {
+              return toolDefs.map((def) => ({
+                name: def.name,
+                description: def.description,
+                input_schema: def.input_schema as Anthropic.Tool.InputSchema,
+              }));
+            },
 
             // Call Anthropic API
-            const apiParams: Anthropic.MessageCreateParamsNonStreaming = {
-              model: factoryModel,
-              max_tokens: maxTokens,
-              messages: [...messages], // Copy array to avoid mutation issues in tests
-              tools: anthropicTools,
-            };
-
-            if (factoryTemperature !== undefined) {
-              apiParams.temperature = factoryTemperature;
-            }
-            if (system !== undefined) {
-              apiParams.system = system;
-            }
-
-            const response = await client.messages.create(apiParams);
-
-            // Accumulate token usage
-            totalInputTokens += response.usage.input_tokens;
-            totalOutputTokens += response.usage.output_tokens;
-
-            // Add assistant response to messages
-            messages.push({
-              role: 'assistant',
-              content: response.content,
-            });
-
-            // Check stop reason
-            stopReason = response.stop_reason;
-
-            // Find tool_use blocks
-            const toolUseBlocks = response.content.filter(
-              (block): block is Anthropic.ToolUseBlock =>
-                block.type === 'tool_use'
-            );
-
-            // AC-26: If no tool calls, return immediately
-            if (toolUseBlocks.length === 0) {
-              // Extract text content
-              const content = extractTextContent(
-                response.content as Array<{ type: string; text?: string }>
-              );
-
-              const result = {
-                content,
-                model: response.model,
-                usage: {
-                  input: totalInputTokens,
-                  output: totalOutputTokens,
-                },
-                stop_reason: stopReason,
-                turns,
-                messages: messages.map((m) => ({
-                  role: m.role,
-                  content:
-                    typeof m.content === 'string'
-                      ? m.content
-                      : JSON.stringify(m.content),
-                })),
+            callAPI: async (
+              msgs: unknown[],
+              tools: unknown
+            ): Promise<unknown> => {
+              const apiParams: Anthropic.MessageCreateParamsNonStreaming = {
+                model: factoryModel,
+                max_tokens: maxTokens,
+                messages: msgs as Anthropic.MessageParam[],
+                tools: tools as Anthropic.Tool[],
               };
 
-              // Emit tool_loop event
-              const duration = Date.now() - startTime;
-              emitExtensionEvent(ctx as RuntimeContext, {
-                event: 'anthropic:tool_loop',
-                subsystem: 'extension:anthropic',
-                turns,
-                total_duration: duration,
-                usage: result.usage,
-              });
-
-              return result as RillValue;
-            }
-
-            // EC-24: Validate all tools exist before executing (unknown tool is fatal error)
-            for (const toolUse of toolUseBlocks) {
-              if (!toolMap.has(toolUse.name)) {
-                throw new RuntimeError(
-                  'RILL-R004',
-                  `unknown tool '${toolUse.name}'`
-                );
+              if (factoryTemperature !== undefined) {
+                apiParams.temperature = factoryTemperature;
               }
-            }
+              if (system !== undefined) {
+                apiParams.system = system;
+              }
 
-            // Execute tool calls (potentially in parallel)
-            const toolResultBlocks: Anthropic.ToolResultBlockParam[] =
-              await Promise.all(
-                toolUseBlocks.map(async (toolUse) => {
-                  const toolCallStartTime = Date.now();
-                  const toolName = toolUse.name;
-                  const toolArgs = toolUse.input as Record<string, unknown>;
+              return await client.messages.create(apiParams);
+            },
 
-                  // Emit tool_call event
-                  emitExtensionEvent(ctx as RuntimeContext, {
-                    event: 'anthropic:tool_call',
-                    subsystem: 'extension:anthropic',
-                    tool_name: toolName,
-                    args: toolArgs,
-                  });
+            // Extract tool calls from Anthropic response
+            extractToolCalls: (
+              response: unknown
+            ): Array<{ id: string; name: string; input: object }> | null => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('content' in response)
+              ) {
+                return null;
+              }
 
-                  try {
-                    // Get descriptor (already validated above)
-                    const descriptor = toolMap.get(toolName)!;
+              const content = (response as { content: unknown[] }).content;
+              if (!Array.isArray(content)) {
+                return null;
+              }
 
-                    const toolFnValue = descriptor['fn'] as RillValue;
-                    if (!isCallable(toolFnValue)) {
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        `tool '${toolName}' missing callable fn`
-                      );
-                    }
+              const toolUseBlocks = content.filter(
+                (block): block is Anthropic.ToolUseBlock =>
+                  typeof block === 'object' &&
+                  block !== null &&
+                  'type' in block &&
+                  block.type === 'tool_use'
+              );
 
-                    // Convert tool args to array for callable invocation
-                    const paramsValue = descriptor['params'] as RillValue;
-                    const params = isDict(paramsValue)
-                      ? (paramsValue as Record<string, unknown>)
-                      : {};
-                    const argArray: RillValue[] = [];
+              if (toolUseBlocks.length === 0) {
+                return null;
+              }
 
-                    for (const paramName of Object.keys(params)) {
-                      argArray.push((toolArgs[paramName] ?? null) as RillValue);
-                    }
+              return toolUseBlocks.map((block) => ({
+                id: block.id,
+                name: block.name,
+                input: block.input as object,
+              }));
+            },
 
-                    // Invoke tool closure (only RuntimeCallable and ApplicationCallable have .fn)
-                    let result: RillValue;
-                    if (
-                      toolFnValue.kind === 'runtime' ||
-                      toolFnValue.kind === 'application'
-                    ) {
-                      const fnResult = toolFnValue.fn(
-                        argArray,
-                        ctx as RuntimeContext
-                      );
-                      result =
-                        fnResult instanceof Promise ? await fnResult : fnResult;
-                    } else {
-                      // ScriptCallable needs special handling - not supported in tool_loop
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        `tool '${toolName}' must be host function or runtime callable`
-                      );
-                    }
-
-                    // Reset consecutive errors on success
-                    consecutiveErrors = 0;
-
-                    // Emit tool_result event
-                    const duration = Date.now() - toolCallStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'anthropic:tool_result',
-                      subsystem: 'extension:anthropic',
-                      tool_name: toolName,
-                      duration,
-                    });
-
-                    // Return tool result (serialize to string)
-                    return {
-                      type: 'tool_result' as const,
-                      tool_use_id: toolUse.id,
-                      content: serializeValue(result),
-                    };
-                  } catch (error: unknown) {
-                    consecutiveErrors++;
-
-                    // Format error for LLM
-                    const errorMessage =
-                      error instanceof Error ? error.message : 'Unknown error';
-                    const errorCode =
-                      error instanceof RuntimeError
-                        ? error.errorId
-                        : 'RILL-R001';
-
-                    // Emit tool_result event with error
-                    const duration = Date.now() - toolCallStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'anthropic:tool_result',
-                      subsystem: 'extension:anthropic',
-                      tool_name: toolName,
-                      duration,
-                      error: errorMessage,
-                    });
-
-                    // Return error as tool result
-                    return {
-                      type: 'tool_result' as const,
-                      tool_use_id: toolUse.id,
-                      content: JSON.stringify({
-                        error: errorMessage,
-                        code: errorCode,
-                      }),
-                      is_error: true,
-                    };
-                  }
+            // Format tool results into Anthropic message format
+            formatToolResult: (
+              toolResults: Array<{
+                id: string;
+                name: string;
+                result: RillValue;
+                error?: string;
+              }>
+            ): unknown => {
+              // Convert tool results to Anthropic tool_result content blocks
+              const content: Anthropic.ToolResultBlockParam[] = toolResults.map(
+                (tr) => ({
+                  type: 'tool_result' as const,
+                  tool_use_id: tr.id,
+                  content: tr.error
+                    ? `Error: ${tr.error}`
+                    : JSON.stringify(tr.result),
+                  is_error: tr.error !== undefined,
                 })
               );
 
-            // EC-25: max_errors exceeded aborts loop
-            if (consecutiveErrors >= maxErrors) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool loop aborted after ${consecutiveErrors} consecutive errors`
-              );
-            }
+              // Return user message with tool results
+              return {
+                role: 'user' as const,
+                content,
+              };
+            },
+          };
 
-            // Add tool results to messages
-            messages.push({
-              role: 'user',
-              content: toolResultBlocks,
-            });
+          // Execute shared tool loop
+          const loopResult = await executeToolLoop(
+            messages,
+            toolsDict as RillValue,
+            maxErrors,
+            callbacks,
+            (event: string, data: Record<string, unknown>) => {
+              // Map shared events to Anthropic-specific events
+              const eventMap: Record<string, string> = {
+                tool_call: 'anthropic:tool_call',
+                tool_result: 'anthropic:tool_result',
+              };
 
-            // Continue loop for next turn
-          }
-
-          // Loop exited due to max_turns
-          const content = extractTextContent(
-            (messages[messages.length - 1]?.content ?? []) as Array<{
-              type: string;
-              text?: string;
-            }>
+              emitExtensionEvent(ctx as RuntimeContext, {
+                event: eventMap[event] || event,
+                subsystem: 'extension:anthropic',
+                ...data,
+              });
+            },
+            maxTurns,
+            ctx
           );
+
+          // Extract response data
+          const response = loopResult.response as Anthropic.Message | null;
+          const content = response
+            ? extractTextContent(
+                response.content as Array<{ type: string; text?: string }>
+              )
+            : '';
 
           const result = {
             content,
-            model: factoryModel,
-            usage: {
-              input: totalInputTokens,
-              output: totalOutputTokens,
-            },
-            stop_reason: stopReason,
-            turns,
+            model: response ? response.model : factoryModel,
+            usage: loopResult.totalTokens,
+            stop_reason: response ? response.stop_reason : 'max_turns',
+            turns: loopResult.turns,
             messages: messages.map((m) => ({
               role: m.role,
               content:
@@ -1063,7 +910,7 @@ export function createAnthropicExtension(
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:tool_loop',
             subsystem: 'extension:anthropic',
-            turns,
+            turns: result.turns,
             total_duration: duration,
             usage: result.usage,
           });
@@ -1073,7 +920,9 @@ export function createAnthropicExtension(
           // Map error and emit failure event
           const duration = Date.now() - startTime;
           const rillError =
-            error instanceof RuntimeError ? error : mapAnthropicError(error);
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Anthropic', error, detectAnthropicError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'anthropic:error',

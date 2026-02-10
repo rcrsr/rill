@@ -11,6 +11,7 @@ export {
   BreakSignal,
   callable,
   type CallableFn,
+  type CallableParam,
   type CallFrame,
   type CaptureEvent,
   createRuntimeContext,

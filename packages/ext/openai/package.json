@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@rcrsr/rill-ext-llm-shared": "workspace:^",
     "openai": "^6.18.0"
   }
 }

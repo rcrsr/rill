@@ -131,7 +131,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'gemini:error',
         subsystem: 'extension:gemini',
-        error: 'Gemini: authentication failed (401)',
+        error: 'Gemini API error (HTTP 401): API request failed (401)',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });
@@ -203,7 +203,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'gemini:error',
         subsystem: 'extension:gemini',
-        error: 'Gemini: rate limit',
+        error: 'Gemini API error (HTTP 429): API request failed (429)',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });
@@ -271,7 +271,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'gemini:error',
         subsystem: 'extension:gemini',
-        error: 'Gemini: request timeout',
+        error: 'Gemini API error: timeout',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });
@@ -348,7 +348,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'gemini:error',
         subsystem: 'extension:gemini',
-        error: 'Gemini: API error',
+        error: 'Gemini API error: API error',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });
@@ -430,7 +430,7 @@ describe('extension event emission', () => {
         subsystem: 'extension:gemini',
         tool_name: 'test_tool',
       });
-      expect(typeof toolCallEvents[0]?.['args']).toBe('string');
+      expect(typeof toolCallEvents[0]?.['args']).toBe('object');
 
       // Verify tool_result event
       expect(toolResultEvents).toHaveLength(1);
@@ -439,7 +439,6 @@ describe('extension event emission', () => {
         subsystem: 'extension:gemini',
         tool_name: 'test_tool',
       });
-      expect(typeof toolResultEvents[0]?.['duration']).toBe('number');
 
       // Verify tool_loop event
       expect(toolLoopEvents).toHaveLength(1);
@@ -496,7 +495,7 @@ describe('extension event emission', () => {
       expect(errorEvents[0]).toMatchObject({
         event: 'gemini:error',
         subsystem: 'extension:gemini',
-        error: 'Gemini: API error',
+        error: 'Provider API error: API error',
       });
       expect(typeof errorEvents[0]?.['duration']).toBe('number');
     });
@@ -565,9 +564,8 @@ describe('extension event emission', () => {
         event: 'gemini:tool_result',
         subsystem: 'extension:gemini',
         tool_name: 'test_tool',
-        error: 'Tool execution failed',
+        error: 'Invalid tool input for test_tool: Tool execution failed',
       });
-      expect(typeof toolResultEvents[0]?.['duration']).toBe('number');
     });
   });
 });

@@ -5,7 +5,31 @@
 
 import { describe, it, expect } from 'vitest';
 import { createOpenAIExtension } from '../src/factory.js';
-import type { OpenAIExtensionConfig } from '../src/types.js';
+import type {
+  OpenAIExtensionConfig,
+  LLMExtensionConfig,
+} from '../src/index.js';
+
+// ============================================================
+// TYPE EXPORT TESTS
+// ============================================================
+
+describe('Type Exports', () => {
+  // AC-6: LLMExtensionConfig importable from package
+  it('exports LLMExtensionConfig type', () => {
+    // Type-only test: verify LLMExtensionConfig is importable
+    const config: LLMExtensionConfig = {
+      on_llm_start: () => {},
+      on_llm_end: () => {},
+      on_llm_error: () => {},
+      on_tool_start: () => {},
+      on_tool_end: () => {},
+      on_tool_error: () => {},
+    };
+
+    expect(config).toBeDefined();
+  });
+});
 
 // ============================================================
 // VALIDATION TESTS

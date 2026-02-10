@@ -141,7 +141,7 @@ $result.collections -> log
 ```rill
 qdrant::describe() => $info
 $info.vectors_count -> log
-$info.config.params.vectors -> log
+$info.config -> log
 ```
 
 ## Error Behavior

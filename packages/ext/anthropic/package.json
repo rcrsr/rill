@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0"
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@rcrsr/rill-ext-llm-shared": "workspace:^"
   }
 }

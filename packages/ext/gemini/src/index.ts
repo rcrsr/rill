@@ -14,7 +14,8 @@ export const VERSION = '0.0.1';
 // TYPE DEFINITIONS
 // ============================================================
 
-export type { LLMExtensionConfig, GeminiExtensionConfig } from './types.js';
+export type { LLMProviderConfig as LLMExtensionConfig } from '@rcrsr/rill-ext-llm-shared';
+export type { GeminiExtensionConfig } from './types.js';
 
 // ============================================================
 // EXTENSION FACTORY

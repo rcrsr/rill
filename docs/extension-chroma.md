@@ -65,7 +65,7 @@ $result.succeeded -> log
 **search(vector, options?)** — Search for similar vectors:
 
 ```rill
-chroma::search([0.1, 0.2, 0.3], [k: 5, filter: [category: "docs"]]) => $results
+chroma::search([0.1, 0.2, 0.3], [k: 5]) => $results
 $results -> log
 ```
 

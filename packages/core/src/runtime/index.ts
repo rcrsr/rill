@@ -44,6 +44,7 @@ export type {
 export type {
   ApplicationCallable,
   CallableFn,
+  CallableParam,
   HostFunctionDefinition,
   HostFunctionParam,
   RillCallable,

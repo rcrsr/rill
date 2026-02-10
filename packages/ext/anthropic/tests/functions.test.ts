@@ -236,7 +236,7 @@ describe('message() function', () => {
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: rate limit',
+        message: 'Anthropic API error (HTTP 429): Rate limit exceeded',
       });
     });
 
@@ -255,7 +255,7 @@ describe('message() function', () => {
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: authentication failed (401)',
+        message: 'Anthropic API error (HTTP 401): Invalid API key',
       });
     });
 
@@ -275,7 +275,7 @@ describe('message() function', () => {
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: request timeout',
+        message: 'Anthropic error: Request timeout',
       });
     });
 
@@ -294,7 +294,7 @@ describe('message() function', () => {
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: Internal server error (500)',
+        message: 'Anthropic API error (HTTP 500): Internal server error',
       });
     });
 
@@ -312,7 +312,7 @@ describe('message() function', () => {
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: unknown error',
+        message: 'Anthropic error: Unknown error',
       });
     });
   });
@@ -607,7 +607,7 @@ describe('messages() function', () => {
         ext.messages.fn([[{ role: 'user', content: 'Test' }]], ctx)
       ).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: rate limit',
+        message: 'Anthropic API error (HTTP 429): Rate limit exceeded',
       });
     });
 
@@ -627,7 +627,7 @@ describe('messages() function', () => {
         ext.messages.fn([[{ role: 'user', content: 'Test' }]], ctx)
       ).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: authentication failed (401)',
+        message: 'Anthropic API error (HTTP 401): Invalid API key',
       });
     });
 
@@ -648,7 +648,7 @@ describe('messages() function', () => {
         ext.messages.fn([[{ role: 'user', content: 'Test' }]], ctx)
       ).rejects.toMatchObject({
         errorId: 'RILL-R004',
-        message: 'Anthropic: request timeout',
+        message: 'Anthropic error: Request timeout',
       });
     });
   });

@@ -281,7 +281,7 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
           location: { type: 'string', description: 'City name' },
           unit: { type: 'string', description: 'Temperature unit' },
         },
-        fn: vi.fn().mockReturnValue('18°C, partly cloudy'),
+        fn: callable(vi.fn().mockReturnValue('18°C, partly cloudy')),
       };
 
       await ext.tool_loop.fn(
@@ -363,7 +363,7 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
           a: { type: 'number' },
           b: { type: 'number' },
         },
-        fn: vi.fn().mockReturnValue(8),
+        fn: callable(vi.fn().mockReturnValue(8)),
       };
 
       await ext.tool_loop.fn(
@@ -575,14 +575,14 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
         name: 'step1',
         description: 'First step',
         params: {},
-        fn: vi.fn().mockReturnValue('step1 done'),
+        fn: callable(vi.fn().mockReturnValue('step1 done')),
       };
 
       const step2Tool = {
         name: 'step2',
         description: 'Second step',
         params: {},
-        fn: vi.fn().mockReturnValue('step2 done'),
+        fn: callable(vi.fn().mockReturnValue('step2 done')),
       };
 
       await ext.tool_loop.fn(

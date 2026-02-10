@@ -297,8 +297,9 @@ describe('tool_loop() function', () => {
       );
     });
 
-    // EC-24: Unknown tool name raises error
-    it('throws error for unknown tool name', async () => {
+    // EC-15: Unknown tool name in tool loop
+    it('does not throw immediately for single unknown tool', async () => {
+      // Single unknown tool (< maxErrors threshold) records error but completes
       const config: AnthropicExtensionConfig = {
         api_key: 'test-key',
         model: 'claude-sonnet-4-5-20250929',
@@ -307,11 +308,14 @@ describe('tool_loop() function', () => {
       const ext = createAnthropicExtension(config);
       const ctx = createRuntimeContext();
 
-      mockCreate.mockResolvedValueOnce(
-        createMockToolUseResponse([
-          { name: 'unknown_tool', id: 'tool_1', input: {} },
-        ])
-      );
+      // First API call returns unknown tool, second returns text response (exits loop)
+      mockCreate
+        .mockResolvedValueOnce(
+          createMockToolUseResponse([
+            { name: 'unknown_tool', id: 'tool_1', input: {} },
+          ])
+        )
+        .mockResolvedValueOnce(createMockTextResponse('Done'));
 
       const tools = [
         {
@@ -322,9 +326,14 @@ describe('tool_loop() function', () => {
         },
       ];
 
-      await expect(ext.tool_loop.fn(['Test', { tools }], ctx)).rejects.toThrow(
-        "unknown tool 'unknown_tool'"
-      );
+      // Should complete without throwing despite unknown tool error
+      const result = await ext.tool_loop.fn(['Test', { tools }], ctx);
+
+      // Verify result structure
+      expect(result).toHaveProperty('content');
+      expect(result).toHaveProperty('turns');
+      const turns = (result as Record<string, unknown>).turns;
+      expect(turns).toBe(2); // Two turns: tool error + final response
     });
 
     // EC-25: max_errors exceeded aborts loop
@@ -368,7 +377,7 @@ describe('tool_loop() function', () => {
 
       await expect(
         ext.tool_loop.fn(['Test', { tools, max_errors: 3 }], ctx)
-      ).rejects.toThrow('tool loop aborted after 3 consecutive errors');
+      ).rejects.toThrow('Tool execution failed: 3 consecutive errors');
     });
 
     it('resets consecutive error count on success', async () => {
@@ -611,6 +620,7 @@ describe('tool_loop() function', () => {
 
       const firstCall = mockCreate.mock.calls[0]?.[0] as any;
       const tool = firstCall.tools[0];
+
       expect(tool.input_schema.properties['str_param'].type).toBe('string');
       expect(tool.input_schema.properties['num_param'].type).toBe('number');
       expect(tool.input_schema.properties['bool_param'].type).toBe('boolean');

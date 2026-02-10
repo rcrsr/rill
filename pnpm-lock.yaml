@@ -55,6 +55,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.74.0
         version: 0.74.0
+      '@rcrsr/rill-ext-llm-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-llm
     devDependencies:
       '@rcrsr/rill':
         specifier: workspace:^
@@ -97,6 +100,9 @@ importers:
       '@google/genai':
         specifier: ^1.40.0
         version: 1.40.0
+      '@rcrsr/rill-ext-llm-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-llm
     devDependencies:
       '@rcrsr/rill':
         specifier: workspace:^
@@ -104,6 +110,9 @@ importers:
 
   packages/ext/openai:
     dependencies:
+      '@rcrsr/rill-ext-llm-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-llm
       openai:
         specifier: ^6.18.0
         version: 6.18.0(ws@8.19.0)
@@ -189,6 +198,12 @@ importers:
       vitest:
         specifier: ^4.0.17
         version: 4.0.18(@types/node@25.2.1)(happy-dom@20.5.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/shared/ext-llm:
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
 
   packages/web:
     devDependencies:

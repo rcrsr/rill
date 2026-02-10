@@ -135,7 +135,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'openai:error',
         subsystem: 'extension:openai',
-        error: 'OpenAI: authentication failed (401)',
+        error: 'OpenAI API error (HTTP 401): Invalid API key',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });
@@ -204,7 +204,7 @@ describe('extension event emission', () => {
       expect(events[0]).toMatchObject({
         event: 'openai:error',
         subsystem: 'extension:openai',
-        error: 'OpenAI: rate limit',
+        error: 'OpenAI API error (HTTP 429): Rate limit',
       });
       expect(typeof events[0]?.['duration']).toBe('number');
     });

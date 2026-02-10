@@ -15,21 +15,30 @@ import {
   RuntimeError,
   emitExtensionEvent,
   createVector,
-  isCallable,
   isVector,
+  isCallable,
   type ExtensionResult,
   type RillValue,
   type RuntimeContext,
-  type RillCallable,
 } from '@rcrsr/rill';
+import {
+  validateApiKey,
+  validateModel,
+  validateTemperature,
+  validateEmbedText,
+  validateEmbedBatch,
+  validateEmbedModel,
+  mapProviderError,
+  executeToolLoop,
+  type ProviderErrorDetector,
+  type ToolLoopCallbacks,
+} from '@rcrsr/rill-ext-llm-shared';
 import type { GeminiExtensionConfig } from './types.js';
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const MIN_TEMPERATURE = 0.0;
-const MAX_TEMPERATURE = 2.0;
 const DEFAULT_MAX_TOKENS = 8192;
 
 // ============================================================
@@ -37,92 +46,31 @@ const DEFAULT_MAX_TOKENS = 8192;
 // ============================================================
 
 /**
- * Map Gemini API error to RuntimeError with appropriate message.
+ * Gemini-specific error detector for mapProviderError.
+ * Extracts status code and message using string pattern matching.
  *
- * @param error - Error from Gemini SDK
- * @returns RuntimeError with appropriate message
+ * @param error - Unknown error value
+ * @returns Object with status and message if Gemini error, null otherwise
  */
-function mapGeminiError(error: unknown): RuntimeError {
+const detectGeminiError: ProviderErrorDetector = (error: unknown) => {
   if (error instanceof Error) {
     const message = error.message;
 
-    // Check for common error patterns in Gemini API responses
-    if (message.includes('401') || message.includes('authentication')) {
-      return new RuntimeError(
-        'RILL-R004',
-        'Gemini: authentication failed (401)'
-      );
-    }
-
-    if (message.includes('429') || message.includes('rate limit')) {
-      return new RuntimeError('RILL-R004', 'Gemini: rate limit');
-    }
-
-    if (message.includes('timeout') || message.includes('ETIMEDOUT')) {
-      return new RuntimeError('RILL-R004', 'Gemini: request timeout');
-    }
-
-    // Extract status code if present
+    // Extract status code if present in message
     const statusMatch = message.match(/\((\d{3})\)/);
     if (statusMatch && statusMatch[1]) {
-      const status = parseInt(statusMatch[1], 10);
-      if (status >= 400) {
-        return new RuntimeError('RILL-R004', `Gemini: ${message} (${status})`);
-      }
+      return {
+        status: parseInt(statusMatch[1], 10),
+        message,
+      };
     }
 
-    return new RuntimeError('RILL-R004', `Gemini: ${message}`);
+    return {
+      message,
+    };
   }
-
-  return new RuntimeError('RILL-R004', 'Gemini: unknown error');
-}
-
-// ============================================================
-// VALIDATION
-// ============================================================
-
-/**
- * Validate api_key is present and non-empty.
- *
- * @param api_key - API key to validate
- * @throws Error if api_key missing or empty (EC-1, EC-3)
- */
-function validateApiKey(
-  api_key: string | undefined
-): asserts api_key is string {
-  if (api_key === undefined) {
-    throw new Error('api_key is required');
-  }
-  if (api_key === '') {
-    throw new Error('api_key cannot be empty');
-  }
-}
-
-/**
- * Validate model is present and non-empty.
- *
- * @param model - Model identifier to validate
- * @throws Error if model missing or empty (EC-2)
- */
-function validateModel(model: string | undefined): asserts model is string {
-  if (model === undefined || model === '') {
-    throw new Error('model is required');
-  }
-}
-
-/**
- * Validate temperature is within valid range (0.0-2.0).
- *
- * @param temperature - Temperature value to validate
- * @throws Error if temperature out of range (EC-4)
- */
-function validateTemperature(temperature: number | undefined): void {
-  if (temperature !== undefined) {
-    if (temperature < MIN_TEMPERATURE || temperature > MAX_TEMPERATURE) {
-      throw new Error('temperature must be between 0 and 2');
-    }
-  }
-}
+  return null;
+};
 
 // ============================================================
 // FACTORY
@@ -297,7 +245,10 @@ export function createGeminiExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapGeminiError(error);
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:error',
@@ -477,7 +428,10 @@ export function createGeminiExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapGeminiError(error);
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:error',
@@ -503,15 +457,9 @@ export function createGeminiExtension(
           // Extract arguments
           const text = args[0] as string;
 
-          // EC-15: Validate text is non-empty
-          if (text.trim().length === 0) {
-            throw new RuntimeError('RILL-R004', 'embed text cannot be empty');
-          }
-
-          // EC-16: Validate embed_model is configured
-          if (factoryEmbedModel === undefined || factoryEmbedModel === '') {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
+          // Validate using shared functions
+          validateEmbedText(text);
+          validateEmbedModel(factoryEmbedModel);
 
           // Call Gemini embedContent API
           const response = await client.models.embedContent({
@@ -550,7 +498,10 @@ export function createGeminiExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapGeminiError(error);
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:error',
@@ -581,30 +532,9 @@ export function createGeminiExtension(
             return [] as RillValue;
           }
 
-          // EC-20: Validate embed_model is configured
-          if (factoryEmbedModel === undefined || factoryEmbedModel === '') {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
-
-          // EC-18: Validate all elements are strings
-          const stringTexts: string[] = [];
-          for (let i = 0; i < texts.length; i++) {
-            const text = texts[i];
-            if (typeof text !== 'string') {
-              throw new RuntimeError(
-                'RILL-R004',
-                'embed_batch requires list of strings'
-              );
-            }
-            // EC-19: Check for empty strings
-            if (text.trim().length === 0) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `embed text cannot be empty at index ${i}`
-              );
-            }
-            stringTexts.push(text);
-          }
+          // Validate using shared functions
+          validateEmbedModel(factoryEmbedModel);
+          const stringTexts = validateEmbedBatch(texts);
 
           // Call Gemini embedContent API with array of texts
           const response = await client.models.embedContent({
@@ -655,7 +585,10 @@ export function createGeminiExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapGeminiError(error);
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:error',
@@ -699,8 +632,43 @@ export function createGeminiExtension(
           }
 
           const toolDescriptors = options['tools'] as Array<
-            Record<string, RillValue>
+            Record<string, unknown>
           >;
+
+          // Convert tool descriptors array to dict for shared tool loop
+          const toolsDict: Record<string, RillValue> = {};
+          for (const descriptor of toolDescriptors) {
+            const name =
+              typeof descriptor['name'] === 'string'
+                ? descriptor['name']
+                : null;
+
+            if (!name) {
+              throw new RuntimeError(
+                'RILL-R004',
+                'tool descriptor missing name'
+              );
+            }
+
+            const toolFnValue = descriptor['fn'] as RillValue;
+            if (!toolFnValue) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' missing fn property`
+              );
+            }
+
+            // Validate tool is callable
+            if (!isCallable(toolFnValue)) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' fn must be callable`
+              );
+            }
+
+            // Use the callable as-is (Gemini tests don't enhance with params)
+            toolsDict[name] = toolFnValue;
+          }
 
           // Extract options with defaults
           const system =
@@ -724,84 +692,8 @@ export function createGeminiExtension(
               ? (options['messages'] as Array<Record<string, unknown>>)
               : [];
 
-          // Build tool map and Gemini tools array
-          const toolMap = new Map<string, RillCallable>();
-          const geminiTools: FunctionDeclaration[] = [];
-
-          for (const tool of toolDescriptors) {
-            if (
-              typeof tool !== 'object' ||
-              tool === null ||
-              !('name' in tool) ||
-              !('fn' in tool)
-            ) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'invalid tool descriptor in tools list'
-              );
-            }
-
-            const toolName = tool['name'] as string;
-            const toolFn = tool['fn'];
-
-            if (!isCallable(toolFn)) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${toolName}' not callable`
-              );
-            }
-
-            toolMap.set(toolName, toolFn as RillCallable);
-
-            // Build Gemini tool definition
-            const description =
-              typeof tool['description'] === 'string'
-                ? tool['description']
-                : '';
-            const params = tool['params'] ?? {};
-
-            // Convert rill params dict to JSON Schema
-            const properties: Record<string, Schema> = {};
-            const required: string[] = [];
-
-            if (typeof params === 'object' && params !== null) {
-              for (const [paramName, paramSpec] of Object.entries(params)) {
-                if (
-                  typeof paramSpec === 'object' &&
-                  paramSpec !== null &&
-                  'type' in paramSpec
-                ) {
-                  const spec = paramSpec as Record<string, unknown>;
-                  const typeStr = (spec['type'] ?? 'string') as string;
-                  // Map rill types to Gemini Schema types
-                  let schemaType = Type.STRING;
-                  if (typeStr === 'number') schemaType = Type.NUMBER;
-                  if (typeStr === 'boolean') schemaType = Type.BOOLEAN;
-                  if (typeStr === 'integer') schemaType = Type.INTEGER;
-
-                  properties[paramName] = {
-                    type: schemaType,
-                    description: (spec['description'] ?? '') as string,
-                  };
-                  // All params are required by default
-                  required.push(paramName);
-                }
-              }
-            }
-
-            geminiTools.push({
-              name: toolName,
-              description,
-              parameters: {
-                type: Type.OBJECT,
-                properties,
-                required,
-              },
-            });
-          }
-
-          // Build initial contents array
-          const conversationContents: Content[] = [];
+          // Build initial Gemini contents array
+          const contents: Content[] = [];
 
           // Add history messages if provided
           for (const msg of initialMessages) {
@@ -813,12 +705,12 @@ export function createGeminiExtension(
             ) {
               const role = msg['role'];
               if (role === 'user') {
-                conversationContents.push({
+                contents.push({
                   role: 'user',
                   parts: [{ text: msg['content'] as string }],
                 });
               } else if (role === 'assistant') {
-                conversationContents.push({
+                contents.push({
                   role: 'model',
                   parts: [{ text: msg['content'] as string }],
                 });
@@ -827,247 +719,194 @@ export function createGeminiExtension(
           }
 
           // Add user prompt
-          conversationContents.push({
+          contents.push({
             role: 'user',
             parts: [{ text: prompt }],
           });
 
-          // Tool loop state
-          let turns = 0;
-          let consecutiveErrors = 0;
-          let totalInputTokens = 0;
-          let totalOutputTokens = 0;
-          let finalContent = '';
-          let stopReason = 'stop';
+          // Define Gemini-specific callbacks for shared tool loop
+          const callbacks: ToolLoopCallbacks = {
+            // Build Gemini FunctionDeclaration format from tool definitions
+            buildTools: (
+              toolDefs: Array<{
+                name: string;
+                description: string;
+                input_schema: {
+                  type: 'object';
+                  properties: Record<string, unknown>;
+                  required: string[];
+                };
+              }>
+            ): FunctionDeclaration[] => {
+              return toolDefs.map((def) => {
+                // Convert JSON Schema properties to Gemini Schema format
+                const properties: Record<string, Schema> = {};
+                for (const [propName, propDef] of Object.entries(
+                  def.input_schema.properties
+                )) {
+                  const prop = propDef as Record<string, unknown>;
+                  const propType = prop['type'] as string;
 
-          // Main tool loop
-          while (turns < maxTurns) {
-            turns++;
+                  // Map JSON Schema types to Gemini Schema types
+                  let schemaType = Type.STRING;
+                  if (propType === 'number') schemaType = Type.NUMBER;
+                  if (propType === 'boolean') schemaType = Type.BOOLEAN;
+                  if (propType === 'integer') schemaType = Type.INTEGER;
+                  if (propType === 'array') schemaType = Type.ARRAY;
+                  if (propType === 'object') schemaType = Type.OBJECT;
 
-            // Build config object
-            const apiConfig = {
-              ...(system !== undefined && { systemInstruction: system }),
-              ...(maxTokens !== undefined && { maxOutputTokens: maxTokens }),
-              ...(factoryTemperature !== undefined && {
-                temperature: factoryTemperature,
-              }),
-              tools: [{ functionDeclarations: geminiTools }],
-            };
+                  properties[propName] = {
+                    type: schemaType,
+                    description: (prop['description'] as string) ?? '',
+                  };
+                }
 
-            // Call Gemini API with tools
-            const response = await client.models.generateContent({
-              model: factoryModel,
-              contents: conversationContents,
-              config: apiConfig,
-            });
-
-            // Aggregate usage (Gemini API may not provide token counts)
-            totalInputTokens += 0;
-            totalOutputTokens += 0;
-
-            // Extract response text
-            const responseText = response.text ?? '';
-
-            // Check for function calls in response
-            const functionCalls = response.functionCalls;
-
-            if (functionCalls && functionCalls.length > 0) {
-              // Add model message with function calls to conversation
-              const functionCallParts: Part[] = functionCalls.map((fc) => ({
-                functionCall: {
-                  name: fc.name ?? '',
-                  args: fc.args ?? {},
-                  id: fc.id ?? '',
-                },
-              }));
-              conversationContents.push({
-                role: 'model',
-                parts: functionCallParts,
+                return {
+                  name: def.name,
+                  description: def.description,
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties,
+                    required: def.input_schema.required,
+                  },
+                };
               });
+            },
 
-              // Execute tool calls (parallel for multiple calls)
-              const toolResults = await Promise.all(
-                functionCalls.map(async (functionCall) => {
-                  const toolStartTime = Date.now();
-                  const toolName = functionCall.name ?? '';
+            // Call Gemini API
+            callAPI: async (
+              msgs: unknown[],
+              tools: unknown
+            ): Promise<unknown> => {
+              const apiConfig = {
+                ...(system !== undefined && { systemInstruction: system }),
+                ...(maxTokens !== undefined && { maxOutputTokens: maxTokens }),
+                ...(factoryTemperature !== undefined && {
+                  temperature: factoryTemperature,
+                }),
+                tools: [
+                  { functionDeclarations: tools as FunctionDeclaration[] },
+                ],
+              };
 
-                  // Emit tool_call event
-                  emitExtensionEvent(ctx as RuntimeContext, {
-                    event: 'gemini:tool_call',
-                    subsystem: 'extension:gemini',
-                    tool_name: toolName,
-                    args: JSON.stringify(functionCall.args),
-                  });
+              return await client.models.generateContent({
+                model: factoryModel,
+                contents: msgs as Content[],
+                config: apiConfig,
+              });
+            },
 
-                  // EC-24: Check tool exists (configuration error, abort immediately)
-                  const toolFn = toolMap.get(toolName);
-                  if (!toolFn) {
-                    throw new RuntimeError(
-                      'RILL-R004',
-                      `unknown tool '${toolName}'`
-                    );
-                  }
+            // Extract tool calls from Gemini response
+            extractToolCalls: (
+              response: unknown
+            ): Array<{ id: string; name: string; input: object }> | null => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('functionCalls' in response)
+              ) {
+                return null;
+              }
 
-                  try {
-                    // Convert args object to RillValue array (positional args)
-                    const toolArgs = functionCall.args ?? {};
-                    const argsArray: RillValue[] = [];
-                    for (const [, value] of Object.entries(toolArgs)) {
-                      argsArray.push(value as RillValue);
-                    }
+              const functionCalls = (response as { functionCalls?: unknown[] })
+                .functionCalls;
+              if (!functionCalls || functionCalls.length === 0) {
+                return null;
+              }
 
-                    // Invoke tool callable based on type
-                    let result: RillValue;
-                    if (toolFn.kind === 'script') {
-                      // ScriptCallable: not supported in tool_loop context
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        'script closures not yet supported in tool_loop'
-                      );
-                    } else {
-                      // RuntimeCallable or ApplicationCallable
-                      result = await toolFn.fn(
-                        argsArray,
-                        ctx as RuntimeContext,
-                        undefined
-                      );
-                    }
+              return functionCalls.map((fc) => {
+                const call = fc as {
+                  id?: string;
+                  name?: string;
+                  args?: object;
+                };
+                return {
+                  id: call.id ?? '',
+                  name: call.name ?? '',
+                  input: call.args ?? {},
+                };
+              });
+            },
 
-                    // Reset consecutive errors on success
-                    consecutiveErrors = 0;
-
-                    // Emit tool_result event
-                    const toolDuration = Date.now() - toolStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'gemini:tool_result',
-                      subsystem: 'extension:gemini',
-                      tool_name: toolName,
-                      duration: toolDuration,
-                    });
-
-                    // Return tool result
-                    return {
-                      name: toolName,
-                      response:
-                        typeof result === 'string'
-                          ? result
-                          : JSON.stringify(result),
-                    };
-                  } catch (error: unknown) {
-                    consecutiveErrors++;
-
-                    // Format error for LLM
-                    const errorMessage =
-                      error instanceof RuntimeError
-                        ? error.message
-                        : error instanceof Error
-                          ? error.message
-                          : 'unknown error';
-
-                    // Emit tool_result event with error
-                    const toolDuration = Date.now() - toolStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'gemini:tool_result',
-                      subsystem: 'extension:gemini',
-                      tool_name: toolName,
-                      duration: toolDuration,
-                      error: errorMessage,
-                    });
-
-                    // EC-25: Check if max_errors exceeded
-                    if (consecutiveErrors >= maxErrors) {
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        `tool loop aborted after ${maxErrors} consecutive errors`
-                      );
-                    }
-
-                    // Return error to LLM as tool result
-                    return {
-                      name: toolName,
-                      response: JSON.stringify({
-                        error: errorMessage,
-                        code: 'RILL-R001',
-                      }),
-                    };
-                  }
-                })
-              );
-
-              // Add function responses to conversation
+            // Format tool results into Gemini message format
+            formatToolResult: (
+              toolResults: Array<{
+                id: string;
+                name: string;
+                result: RillValue;
+                error?: string;
+              }>
+            ): unknown => {
+              // Convert tool results to Gemini functionResponse parts
               const functionResponseParts: Part[] = toolResults.map((tr) => ({
                 functionResponse: {
-                  name: tr.name ?? '',
-                  response: { result: tr.response },
+                  name: tr.name,
+                  response: {
+                    result: tr.error
+                      ? `Error: ${tr.error}`
+                      : typeof tr.result === 'string'
+                        ? tr.result
+                        : JSON.stringify(tr.result),
+                  },
                 },
               }));
-              conversationContents.push({
-                role: 'user',
+
+              // Return user message with function responses
+              return {
+                role: 'user' as const,
                 parts: functionResponseParts,
-              });
-
-              // Continue loop to get next response
-              continue;
-            }
-
-            // No function calls - final response
-            finalContent = responseText;
-            stopReason = 'stop';
-            break;
-          }
-
-          // Check if we hit max_turns
-          if (turns >= maxTurns && stopReason === 'stop') {
-            stopReason = 'max_turns';
-          }
-
-          // Build conversation history for response
-          const fullMessages: Array<Record<string, unknown>> = [];
-          for (const content of conversationContents) {
-            if (content.role === 'user' && content.parts) {
-              // Extract text from parts
-              const textParts = content.parts.filter(
-                (p) => 'text' in p
-              ) as Array<{ text: string }>;
-              if (textParts.length > 0 && textParts[0]) {
-                fullMessages.push({
-                  role: 'user',
-                  content: textParts[0].text,
-                });
-              }
-            } else if (content.role === 'model' && content.parts) {
-              // Extract text from parts
-              const textParts = content.parts.filter(
-                (p) => 'text' in p
-              ) as Array<{ text: string }>;
-              if (textParts.length > 0 && textParts[0]) {
-                fullMessages.push({
-                  role: 'assistant',
-                  content: textParts[0].text,
-                });
-              }
-            }
-          }
-
-          // Build result dict
-          const result = {
-            content: finalContent,
-            model: factoryModel,
-            usage: {
-              input: totalInputTokens,
-              output: totalOutputTokens,
+              };
             },
-            stop_reason: stopReason,
-            turns,
-            messages: fullMessages,
           };
 
-          // Emit success event
+          // Execute shared tool loop
+          const loopResult = await executeToolLoop(
+            contents,
+            toolsDict,
+            maxErrors,
+            callbacks,
+            (event: string, data: Record<string, unknown>) => {
+              // Map shared events to Gemini-specific events
+              const eventMap: Record<string, string> = {
+                tool_call: 'gemini:tool_call',
+                tool_result: 'gemini:tool_result',
+              };
+
+              emitExtensionEvent(ctx as RuntimeContext, {
+                event: eventMap[event] || event,
+                subsystem: 'extension:gemini',
+                ...data,
+              });
+            },
+            maxTurns
+          );
+
+          // Extract response data
+          const response = loopResult.response;
+          const content =
+            response && typeof response === 'object' && 'text' in response
+              ? ((response as { text?: string }).text ?? '')
+              : '';
+
+          const result = {
+            content,
+            model: factoryModel,
+            usage: loopResult.totalTokens,
+            stop_reason: response ? 'stop' : 'max_turns',
+            turns: loopResult.turns,
+            messages: [
+              ...initialMessages,
+              { role: 'user', content: prompt },
+              { role: 'assistant', content },
+            ],
+          };
+
+          // Emit tool_loop event
           const duration = Date.now() - startTime;
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:tool_loop',
             subsystem: 'extension:gemini',
-            turns,
+            turns: result.turns,
             total_duration: duration,
             usage: result.usage,
           });
@@ -1076,7 +915,10 @@ export function createGeminiExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapGeminiError(error);
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'gemini:error',

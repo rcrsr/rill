@@ -13,107 +13,49 @@ import {
   type ExtensionResult,
   type RillValue,
   type RuntimeContext,
-  type RillCallable,
+  type ApplicationCallable,
+  type CallableParam,
 } from '@rcrsr/rill';
+import {
+  validateApiKey,
+  validateModel,
+  validateTemperature,
+  validateEmbedText,
+  validateEmbedModel,
+  validateEmbedBatch,
+  mapProviderError,
+  executeToolLoop,
+  type ProviderErrorDetector,
+  type ToolLoopCallbacks,
+} from '@rcrsr/rill-ext-llm-shared';
 import type { OpenAIExtensionConfig } from './types.js';
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const MIN_TEMPERATURE = 0.0;
-const MAX_TEMPERATURE = 2.0;
 const DEFAULT_MAX_TOKENS = 4096;
 
 // ============================================================
-// HELPER FUNCTIONS
+// ERROR DETECTION
 // ============================================================
 
 /**
- * Map OpenAI API error to RuntimeError with appropriate message.
+ * OpenAI-specific error detector for mapProviderError.
+ * Extracts status code and message from OpenAI.APIError instances.
  *
- * @param error - Error from OpenAI SDK
- * @returns RuntimeError with appropriate message
+ * @param error - Error to detect
+ * @returns Status and message if OpenAI error, null otherwise
  */
-function mapOpenAIError(error: unknown): RuntimeError {
+const detectOpenAIError: ProviderErrorDetector = (error: unknown) => {
   if (error instanceof OpenAI.APIError) {
-    const status = error.status;
-    const message = error.message;
-
-    if (status === 401) {
-      return new RuntimeError(
-        'RILL-R004',
-        `OpenAI: authentication failed (401)`
-      );
-    }
-
-    if (status === 429) {
-      return new RuntimeError('RILL-R004', `OpenAI: rate limit`);
-    }
-
-    if (status && status >= 400) {
-      return new RuntimeError('RILL-R004', `OpenAI: ${message} (${status})`);
-    }
-
-    return new RuntimeError('RILL-R004', `OpenAI: ${message}`);
+    return {
+      status: error.status ?? undefined,
+      message: error.message,
+    };
   }
-
-  if (error instanceof Error) {
-    if (error.name === 'AbortError' || error.message.includes('timeout')) {
-      return new RuntimeError('RILL-R004', 'OpenAI: request timeout');
-    }
-    return new RuntimeError('RILL-R004', `OpenAI: ${error.message}`);
-  }
-
-  return new RuntimeError('RILL-R004', 'OpenAI: unknown error');
-}
-
-// ============================================================
-// VALIDATION
-// ============================================================
-
-/**
- * Validate api_key is present and non-empty.
- *
- * @param api_key - API key to validate
- * @throws Error if api_key missing or empty (EC-1, EC-3)
- */
-function validateApiKey(
-  api_key: string | undefined
-): asserts api_key is string {
-  if (api_key === undefined) {
-    throw new Error('api_key is required');
-  }
-  if (api_key === '') {
-    throw new Error('api_key cannot be empty');
-  }
-}
-
-/**
- * Validate model is present and non-empty.
- *
- * @param model - Model identifier to validate
- * @throws Error if model missing or empty (EC-2)
- */
-function validateModel(model: string | undefined): asserts model is string {
-  if (model === undefined || model === '') {
-    throw new Error('model is required');
-  }
-}
-
-/**
- * Validate temperature is within valid range (0.0-2.0).
- *
- * @param temperature - Temperature value to validate
- * @throws Error if temperature out of range (EC-4)
- */
-function validateTemperature(temperature: number | undefined): void {
-  if (temperature !== undefined) {
-    if (temperature < MIN_TEMPERATURE || temperature > MAX_TEMPERATURE) {
-      throw new Error('temperature must be between 0 and 2');
-    }
-  }
-}
+  return null;
+};
 
 // ============================================================
 // FACTORY
@@ -286,7 +228,11 @@ export function createOpenAIExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapOpenAIError(error);
+          const rillError = mapProviderError(
+            'OpenAI',
+            error,
+            detectOpenAIError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:error',
@@ -453,7 +399,11 @@ export function createOpenAIExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapOpenAIError(error);
+          const rillError = mapProviderError(
+            'OpenAI',
+            error,
+            detectOpenAIError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:error',
@@ -480,14 +430,10 @@ export function createOpenAIExtension(
           const text = args[0] as string;
 
           // EC-15: Validate text is non-empty
-          if (text.trim().length === 0) {
-            throw new RuntimeError('RILL-R004', 'embed text cannot be empty');
-          }
+          validateEmbedText(text.trim());
 
           // EC-16: Validate embed_model is configured
-          if (factoryEmbedModel === undefined || factoryEmbedModel === '') {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
+          validateEmbedModel(factoryEmbedModel);
 
           // Call OpenAI embeddings API
           const response = await client.embeddings.create({
@@ -523,7 +469,11 @@ export function createOpenAIExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapOpenAIError(error);
+          const rillError = mapProviderError(
+            'OpenAI',
+            error,
+            detectOpenAIError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:error',
@@ -555,29 +505,10 @@ export function createOpenAIExtension(
           }
 
           // EC-17: Validate embed_model is configured
-          if (factoryEmbedModel === undefined || factoryEmbedModel === '') {
-            throw new RuntimeError('RILL-R004', 'embed_model not configured');
-          }
+          validateEmbedModel(factoryEmbedModel);
 
           // EC-18: Validate all elements are strings
-          const stringTexts: string[] = [];
-          for (let i = 0; i < texts.length; i++) {
-            const text = texts[i];
-            if (typeof text !== 'string') {
-              throw new RuntimeError(
-                'RILL-R004',
-                'embed_batch requires list of strings'
-              );
-            }
-            // EC-19: Check for empty strings
-            if (text.trim().length === 0) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `embed text cannot be empty at index ${i}`
-              );
-            }
-            stringTexts.push(text);
-          }
+          const stringTexts = validateEmbedBatch(texts);
 
           // Call OpenAI embeddings API with batch
           const response = await client.embeddings.create({
@@ -619,7 +550,11 @@ export function createOpenAIExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapOpenAIError(error);
+          const rillError = mapProviderError(
+            'OpenAI',
+            error,
+            detectOpenAIError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:error',
@@ -663,10 +598,111 @@ export function createOpenAIExtension(
           }
 
           const toolDescriptors = options['tools'] as Array<
-            Record<string, RillValue>
+            Record<string, unknown>
           >;
 
-          // Extract options with defaults
+          // Convert tool descriptors array to dict for shared tool loop
+          const toolsDict: Record<string, RillValue> = {};
+          for (const descriptor of toolDescriptors) {
+            const name =
+              typeof descriptor['name'] === 'string'
+                ? descriptor['name']
+                : null;
+
+            if (!name) {
+              throw new RuntimeError(
+                'RILL-R004',
+                'tool descriptor missing name'
+              );
+            }
+
+            const toolFnValue = descriptor['fn'] as RillValue;
+            if (!toolFnValue) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' missing fn property`
+              );
+            }
+
+            // Validate tool is callable
+            if (!isCallable(toolFnValue)) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `tool '${name}' fn must be callable`
+              );
+            }
+
+            // Extract params metadata from descriptor and enhance callable
+            const paramsObj = descriptor['params'];
+            const description =
+              typeof descriptor['description'] === 'string'
+                ? descriptor['description']
+                : '';
+
+            let enhancedCallable: RillValue = toolFnValue;
+
+            if (
+              paramsObj &&
+              typeof paramsObj === 'object' &&
+              !Array.isArray(paramsObj)
+            ) {
+              // Convert params object to CallableParam[] format
+              const params: CallableParam[] = Object.entries(
+                paramsObj as Record<string, unknown>
+              ).map(([paramName, paramMeta]) => {
+                const meta = paramMeta as Record<string, unknown>;
+                const typeStr =
+                  typeof meta['type'] === 'string' ? meta['type'] : null;
+
+                // Map type string to RillTypeName
+                let typeName:
+                  | 'string'
+                  | 'number'
+                  | 'bool'
+                  | 'list'
+                  | 'dict'
+                  | 'vector'
+                  | null = null;
+                if (typeStr === 'string') typeName = 'string';
+                else if (typeStr === 'number') typeName = 'number';
+                else if (typeStr === 'bool' || typeStr === 'boolean')
+                  typeName = 'bool';
+                else if (typeStr === 'list' || typeStr === 'array')
+                  typeName = 'list';
+                else if (typeStr === 'dict' || typeStr === 'object')
+                  typeName = 'dict';
+                else if (typeStr === 'vector') typeName = 'vector';
+
+                const param: CallableParam = {
+                  name: paramName,
+                  typeName,
+                  defaultValue: null,
+                  annotations: {},
+                };
+                // Add description only if it exists (optional property)
+                if (typeof meta['description'] === 'string') {
+                  (param as { description?: string }).description =
+                    meta['description'];
+                }
+                return param;
+              });
+
+              // Create enhanced ApplicationCallable with params metadata
+              const baseCallable = toolFnValue as ApplicationCallable;
+              enhancedCallable = {
+                __type: 'callable',
+                kind: 'application' as const,
+                params,
+                fn: baseCallable.fn,
+                description,
+                isProperty: baseCallable.isProperty ?? false,
+              } as ApplicationCallable;
+            }
+
+            toolsDict[name] = enhancedCallable;
+          }
+
+          // Extract options
           const system =
             typeof options['system'] === 'string'
               ? options['system']
@@ -675,355 +711,279 @@ export function createOpenAIExtension(
             typeof options['max_tokens'] === 'number'
               ? options['max_tokens']
               : factoryMaxTokens;
-          const maxTurns =
-            typeof options['max_turns'] === 'number'
-              ? options['max_turns']
-              : 10;
           const maxErrors =
             typeof options['max_errors'] === 'number'
               ? options['max_errors']
               : 3;
-          const initialMessages =
-            Array.isArray(options['messages']) && options['messages'].length > 0
-              ? (options['messages'] as Array<Record<string, unknown>>)
-              : [];
+          const maxTurns =
+            typeof options['max_turns'] === 'number'
+              ? options['max_turns']
+              : 10;
 
-          // Build tool map and OpenAI tools array
-          const toolMap = new Map<string, RillCallable>();
-          const openaiTools: OpenAI.ChatCompletionTool[] = [];
-
-          for (const tool of toolDescriptors) {
-            if (
-              typeof tool !== 'object' ||
-              tool === null ||
-              !('name' in tool) ||
-              !('fn' in tool)
-            ) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'invalid tool descriptor in tools list'
-              );
-            }
-
-            const toolName = tool['name'] as string;
-            const toolFn = tool['fn'];
-
-            if (!isCallable(toolFn)) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${toolName}' not callable`
-              );
-            }
-
-            toolMap.set(toolName, toolFn as RillCallable);
-
-            // Build OpenAI tool definition
-            const description =
-              typeof tool['description'] === 'string'
-                ? tool['description']
-                : '';
-            const params = tool['params'] ?? {};
-
-            // Convert rill params dict to JSON Schema
-            const properties: Record<string, unknown> = {};
-            const required: string[] = [];
-
-            if (typeof params === 'object' && params !== null) {
-              for (const [paramName, paramSpec] of Object.entries(params)) {
-                if (
-                  typeof paramSpec === 'object' &&
-                  paramSpec !== null &&
-                  'type' in paramSpec
-                ) {
-                  const spec = paramSpec as Record<string, unknown>;
-                  properties[paramName] = {
-                    type: spec['type'] ?? 'string',
-                    description: spec['description'] ?? '',
-                  };
-                  // All params are required by default
-                  required.push(paramName);
-                }
-              }
-            }
-
-            openaiTools.push({
-              type: 'function',
-              function: {
-                name: toolName,
-                description,
-                parameters: {
-                  type: 'object',
-                  properties,
-                  required,
-                },
-              },
-            });
-          }
-
-          // Build initial messages array
-          const conversationMessages: OpenAI.ChatCompletionMessageParam[] = [];
+          // Initialize conversation with prepended messages if provided
+          const messages: OpenAI.ChatCompletionMessageParam[] = [];
 
           if (system !== undefined) {
-            conversationMessages.push({
+            messages.push({
               role: 'system',
               content: system,
             });
           }
 
-          // Add history messages if provided
-          for (const msg of initialMessages) {
-            if (
-              typeof msg === 'object' &&
-              msg !== null &&
-              'role' in msg &&
-              'content' in msg
-            ) {
-              const role = msg['role'];
-              if (role === 'user' || role === 'assistant') {
-                conversationMessages.push({
-                  role: role as 'user' | 'assistant',
-                  content: msg['content'] as string,
-                });
+          if ('messages' in options && Array.isArray(options['messages'])) {
+            const prependedMessages = options['messages'] as Array<
+              Record<string, unknown>
+            >;
+
+            for (const msg of prependedMessages) {
+              if (!msg || typeof msg !== 'object' || !('role' in msg)) {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  "message missing required 'role' field"
+                );
               }
+
+              const role = msg['role'];
+              if (role !== 'user' && role !== 'assistant') {
+                throw new RuntimeError('RILL-R004', `invalid role '${role}'`);
+              }
+
+              if (!('content' in msg) || typeof msg['content'] !== 'string') {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  `${role} message requires 'content'`
+                );
+              }
+
+              messages.push({
+                role: role as 'user' | 'assistant',
+                content: msg['content'] as string,
+              });
             }
           }
 
-          // Add user prompt
-          conversationMessages.push({
+          // Add the prompt as initial user message
+          messages.push({
             role: 'user',
             content: prompt,
           });
 
-          // Tool loop state
-          let turns = 0;
-          let consecutiveErrors = 0;
-          let totalInputTokens = 0;
-          let totalOutputTokens = 0;
-          let finalContent = '';
-          let stopReason = 'stop';
+          // Define OpenAI-specific callbacks for shared tool loop
+          const callbacks: ToolLoopCallbacks = {
+            // Build OpenAI Tool format from tool definitions
+            buildTools: (
+              toolDefs: Array<{
+                name: string;
+                description: string;
+                input_schema: object;
+              }>
+            ): OpenAI.ChatCompletionTool[] => {
+              return toolDefs.map((def) => ({
+                type: 'function' as const,
+                function: {
+                  name: def.name,
+                  description: def.description,
+                  parameters: def.input_schema as Record<string, unknown>,
+                },
+              }));
+            },
 
-          // Main tool loop
-          while (turns < maxTurns) {
-            turns++;
+            // Call OpenAI API
+            callAPI: async (
+              msgs: unknown[],
+              tools: unknown
+            ): Promise<unknown> => {
+              const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
+                model: factoryModel,
+                max_tokens: maxTokens,
+                messages: msgs as OpenAI.ChatCompletionMessageParam[],
+                tools: tools as OpenAI.ChatCompletionTool[],
+                tool_choice: 'auto' as const,
+              };
 
-            // Call OpenAI API with tools
-            const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
-              model: factoryModel,
-              max_tokens: maxTokens,
-              messages: conversationMessages,
-              tools: openaiTools,
-              tool_choice: 'auto',
-            };
-
-            if (factoryTemperature !== undefined) {
-              apiParams.temperature = factoryTemperature;
-            }
-
-            const response = await client.chat.completions.create(apiParams);
-
-            // Aggregate usage
-            totalInputTokens += response.usage?.prompt_tokens ?? 0;
-            totalOutputTokens += response.usage?.completion_tokens ?? 0;
-
-            const choice = response.choices[0];
-            if (!choice) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'OpenAI: no choices returned'
-              );
-            }
-
-            const message = choice.message;
-            const finishReason = choice.finish_reason;
-
-            // Check if we have tool calls
-            if (message.tool_calls && message.tool_calls.length > 0) {
-              // Add assistant message with tool calls to conversation
-              conversationMessages.push({
-                role: 'assistant',
-                content: message.content ?? null,
-                tool_calls: message.tool_calls,
-              });
-
-              // Execute tool calls (parallel for multiple calls)
-              const toolResults = await Promise.all(
-                message.tool_calls.map(async (toolCall) => {
-                  // Only handle function tool calls (not custom)
-                  if (!('function' in toolCall)) {
-                    throw new RuntimeError(
-                      'RILL-R004',
-                      'unsupported tool call type'
-                    );
-                  }
-
-                  const toolStartTime = Date.now();
-                  const toolName = toolCall.function.name;
-                  const toolCallId = toolCall.id;
-
-                  // Emit tool_call event
-                  emitExtensionEvent(ctx as RuntimeContext, {
-                    event: 'openai:tool_call',
-                    subsystem: 'extension:openai',
-                    tool_name: toolName,
-                    args: toolCall.function.arguments,
-                  });
-
-                  // EC-22: Check tool exists (configuration error, abort immediately)
-                  const toolFn = toolMap.get(toolName);
-                  if (!toolFn) {
-                    throw new RuntimeError(
-                      'RILL-R004',
-                      `unknown tool '${toolName}'`
-                    );
-                  }
-
-                  try {
-                    // Parse arguments
-                    let toolArgs: Record<string, unknown>;
-                    try {
-                      toolArgs = JSON.parse(toolCall.function.arguments);
-                    } catch {
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        `invalid tool arguments for '${toolName}'`
-                      );
-                    }
-
-                    // Convert to RillValue array (positional args from params)
-                    const argsArray: RillValue[] = [];
-                    for (const [, value] of Object.entries(toolArgs)) {
-                      argsArray.push(value as RillValue);
-                    }
-
-                    // Invoke tool callable based on type
-                    let result: RillValue;
-                    if (toolFn.kind === 'script') {
-                      // ScriptCallable: not supported in tool_loop context
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        'script closures not yet supported in tool_loop'
-                      );
-                    } else {
-                      // RuntimeCallable or ApplicationCallable
-                      result = await toolFn.fn(
-                        argsArray,
-                        ctx as RuntimeContext,
-                        undefined
-                      );
-                    }
-
-                    // Reset consecutive errors on success
-                    consecutiveErrors = 0;
-
-                    // Emit tool_result event
-                    const toolDuration = Date.now() - toolStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'openai:tool_result',
-                      subsystem: 'extension:openai',
-                      tool_name: toolName,
-                      duration: toolDuration,
-                    });
-
-                    // Return tool result as string
-                    return {
-                      tool_call_id: toolCallId,
-                      role: 'tool' as const,
-                      content:
-                        typeof result === 'string'
-                          ? result
-                          : JSON.stringify(result),
-                    };
-                  } catch (error: unknown) {
-                    consecutiveErrors++;
-
-                    // Format error for LLM
-                    const errorMessage =
-                      error instanceof RuntimeError
-                        ? error.message
-                        : error instanceof Error
-                          ? error.message
-                          : 'unknown error';
-
-                    // Emit tool_result event with error
-                    const toolDuration = Date.now() - toolStartTime;
-                    emitExtensionEvent(ctx as RuntimeContext, {
-                      event: 'openai:tool_result',
-                      subsystem: 'extension:openai',
-                      tool_name: toolName,
-                      duration: toolDuration,
-                      error: errorMessage,
-                    });
-
-                    // EC-23: Check if max_errors exceeded
-                    if (consecutiveErrors >= maxErrors) {
-                      throw new RuntimeError(
-                        'RILL-R004',
-                        `tool loop aborted after ${maxErrors} consecutive errors`
-                      );
-                    }
-
-                    // Return error to LLM as tool result
-                    return {
-                      tool_call_id: toolCallId,
-                      role: 'tool' as const,
-                      content: JSON.stringify({
-                        error: errorMessage,
-                        code: 'RILL-R001',
-                      }),
-                    };
-                  }
-                })
-              );
-
-              // Add tool results to conversation
-              for (const toolResult of toolResults) {
-                conversationMessages.push(toolResult);
+              if (factoryTemperature !== undefined) {
+                apiParams.temperature = factoryTemperature;
               }
 
-              // Continue loop to get next response
-              continue;
-            }
+              const response = await client.chat.completions.create(apiParams);
 
-            // No tool calls - final response
-            finalContent = message.content ?? '';
-            stopReason = finishReason ?? 'stop';
-            break;
-          }
+              // Normalize response to include usage in expected format
+              return {
+                ...response,
+                usage: {
+                  input_tokens: response.usage?.prompt_tokens ?? 0,
+                  output_tokens: response.usage?.completion_tokens ?? 0,
+                },
+              };
+            },
 
-          // Check if we hit max_turns
-          if (turns >= maxTurns && stopReason === 'stop') {
-            stopReason = 'max_turns';
-          }
+            // Extract tool calls from OpenAI response
+            extractToolCalls: (
+              response: unknown
+            ): Array<{ id: string; name: string; input: object }> | null => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('choices' in response)
+              ) {
+                return null;
+              }
+
+              const choices = (response as { choices: unknown[] }).choices;
+              if (!Array.isArray(choices) || choices.length === 0) {
+                return null;
+              }
+
+              const choice = choices[0];
+              if (
+                !choice ||
+                typeof choice !== 'object' ||
+                !('message' in choice)
+              ) {
+                return null;
+              }
+
+              const message = (choice as { message: unknown }).message;
+              if (
+                !message ||
+                typeof message !== 'object' ||
+                !('tool_calls' in message)
+              ) {
+                return null;
+              }
+
+              const toolCalls = (message as { tool_calls: unknown[] | null })
+                .tool_calls;
+              if (!toolCalls || !Array.isArray(toolCalls)) {
+                return null;
+              }
+
+              // Filter for function tool calls and extract relevant data
+              const functionToolCalls = toolCalls.filter(
+                (
+                  tc
+                ): tc is OpenAI.Chat.Completions.ChatCompletionMessageToolCall =>
+                  typeof tc === 'object' &&
+                  tc !== null &&
+                  'type' in tc &&
+                  tc.type === 'function'
+              );
+
+              return functionToolCalls.map((tc) => {
+                // Type assertion safe because we filtered for function type
+                const functionCall =
+                  tc as OpenAI.Chat.Completions.ChatCompletionMessageToolCall & {
+                    function: { name: string; arguments: string };
+                  };
+                const args = functionCall.function.arguments;
+                let parsedArgs: object;
+                try {
+                  parsedArgs = JSON.parse(args);
+                } catch {
+                  parsedArgs = {};
+                }
+
+                return {
+                  id: tc.id,
+                  name: functionCall.function.name,
+                  input: parsedArgs,
+                };
+              });
+            },
+
+            // Format tool results into OpenAI message format
+            formatToolResult: (
+              toolResults: Array<{
+                id: string;
+                name: string;
+                result: RillValue;
+                error?: string;
+              }>
+            ): unknown => {
+              // For OpenAI, we need to add assistant message with tool calls,
+              // then tool messages with results
+              // Since executeToolLoop already extracted the tool calls, we only
+              // return the tool result messages here
+              return toolResults.map((tr) => ({
+                role: 'tool' as const,
+                tool_call_id: tr.id,
+                content: tr.error
+                  ? JSON.stringify({ error: tr.error, code: 'RILL-R001' })
+                  : typeof tr.result === 'string'
+                    ? tr.result
+                    : JSON.stringify(tr.result),
+              }));
+            },
+          };
+
+          // Execute shared tool loop
+          const loopResult = await executeToolLoop(
+            messages,
+            toolsDict as RillValue,
+            maxErrors,
+            callbacks,
+            (event: string, data: Record<string, unknown>) => {
+              // Map shared events to OpenAI-specific events
+              const eventMap: Record<string, string> = {
+                tool_call: 'openai:tool_call',
+                tool_result: 'openai:tool_result',
+              };
+
+              emitExtensionEvent(ctx as RuntimeContext, {
+                event: eventMap[event] || event,
+                subsystem: 'extension:openai',
+                ...data,
+              });
+            },
+            maxTurns,
+            ctx
+          );
+
+          // Extract response data
+          const response =
+            loopResult.response as OpenAI.Chat.Completions.ChatCompletion | null;
+          const content = response?.choices[0]?.message?.content ?? '';
+          const stopReason =
+            loopResult.turns >= maxTurns
+              ? 'max_turns'
+              : (response?.choices[0]?.finish_reason ?? 'stop');
 
           // Build conversation history for response
+          // Reconstruct full message history from messages array
           const fullMessages: Array<Record<string, unknown>> = [];
-          for (const msg of conversationMessages) {
-            if (msg.role === 'system') {
-              // Skip system messages in history
-              continue;
+          for (const msg of messages) {
+            if ('role' in msg && msg.role !== 'system') {
+              const historyMsg: Record<string, unknown> = {
+                role: msg.role,
+              };
+              if ('content' in msg && msg.content) {
+                historyMsg['content'] = msg.content;
+              }
+              if ('tool_calls' in msg && msg.tool_calls) {
+                historyMsg['tool_calls'] = msg.tool_calls;
+              }
+              fullMessages.push(historyMsg);
             }
-            const historyMsg: Record<string, unknown> = {
-              role: msg.role,
-            };
-            if ('content' in msg && msg.content) {
-              historyMsg['content'] = msg.content;
-            }
-            if ('tool_calls' in msg && msg.tool_calls) {
-              historyMsg['tool_calls'] = msg.tool_calls;
-            }
-            fullMessages.push(historyMsg);
+          }
+
+          // Add final assistant response if present
+          if (response) {
+            fullMessages.push({
+              role: 'assistant',
+              content,
+            });
           }
 
           // Build result dict
           const result = {
-            content: finalContent,
+            content,
             model: factoryModel,
             usage: {
-              input: totalInputTokens,
-              output: totalOutputTokens,
+              input: loopResult.totalTokens.input,
+              output: loopResult.totalTokens.output,
             },
             stop_reason: stopReason,
-            turns,
+            turns: loopResult.turns,
             messages: fullMessages,
           };
 
@@ -1032,7 +992,7 @@ export function createOpenAIExtension(
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:tool_loop',
             subsystem: 'extension:openai',
-            turns,
+            turns: loopResult.turns,
             total_duration: duration,
             usage: result.usage,
           });
@@ -1041,7 +1001,11 @@ export function createOpenAIExtension(
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapOpenAIError(error);
+          const rillError = mapProviderError(
+            'OpenAI',
+            error,
+            detectOpenAIError
+          );
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'openai:error',

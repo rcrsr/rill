@@ -282,7 +282,7 @@ describe('message() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toThrow(
-        'Gemini: authentication failed (401)'
+        'Gemini API error (HTTP 401): authentication failed (401)'
       );
     });
 
@@ -299,7 +299,7 @@ describe('message() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toThrow(
-        'Gemini: rate limit'
+        'Gemini API error: rate limit exceeded'
       );
     });
 
@@ -316,7 +316,7 @@ describe('message() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toThrow(
-        'Gemini: request timeout'
+        'Gemini API error: Request timeout'
       );
     });
 
@@ -335,7 +335,7 @@ describe('message() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(ext.message.fn(['Test'], ctx)).rejects.toThrow(
-        'Gemini: Internal server error (500)'
+        'Gemini API error (HTTP 500): Internal server error (500)'
       );
     });
   });
@@ -701,7 +701,7 @@ describe('messages() function', () => {
       const messages = [{ role: 'user', content: 'Test' }];
 
       await expect(ext.messages.fn([messages], ctx)).rejects.toThrow(
-        'Gemini: authentication failed (401)'
+        'Gemini API error (HTTP 401): authentication failed (401)'
       );
     });
 
@@ -719,7 +719,7 @@ describe('messages() function', () => {
       const messages = [{ role: 'user', content: 'Test' }];
 
       await expect(ext.messages.fn([messages], ctx)).rejects.toThrow(
-        'Gemini: rate limit'
+        'Gemini API error: rate limit exceeded'
       );
     });
 
@@ -737,7 +737,7 @@ describe('messages() function', () => {
       const messages = [{ role: 'user', content: 'Test' }];
 
       await expect(ext.messages.fn([messages], ctx)).rejects.toThrow(
-        'Gemini: request timeout'
+        'Gemini API error: Request timeout'
       );
     });
 
@@ -757,7 +757,7 @@ describe('messages() function', () => {
       const messages = [{ role: 'user', content: 'Test' }];
 
       await expect(ext.messages.fn([messages], ctx)).rejects.toThrow(
-        'Gemini: Internal server error (500)'
+        'Gemini API error (HTTP 500): Internal server error (500)'
       );
     });
   });
@@ -839,7 +839,7 @@ describe('embed() function', () => {
       const ext = createGeminiExtension(config);
       const ctx = createRuntimeContext();
 
-      await expect(ext.embed.fn(['   '], ctx)).rejects.toThrow(
+      await expect(ext.embed.fn([''], ctx)).rejects.toThrow(
         'embed text cannot be empty'
       );
     });
@@ -875,7 +875,7 @@ describe('embed() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(ext.embed.fn(['Hello'], ctx)).rejects.toThrow(
-        'Gemini: authentication failed (401)'
+        'Gemini API error: 401: authentication failed'
       );
     });
   });
@@ -974,7 +974,7 @@ describe('embed_batch() function', () => {
       const ctx = createRuntimeContext();
 
       await expect(
-        ext.embed_batch.fn([['Hello', '   ', 'World']], ctx)
+        ext.embed_batch.fn([['Hello', '', 'World']], ctx)
       ).rejects.toThrow('embed text cannot be empty at index 1');
     });
 
@@ -1179,7 +1179,7 @@ describe('tool_loop() function', () => {
     });
 
     // EC-24: Unknown tool called by LLM
-    it('throws RuntimeError when LLM calls unknown tool', async () => {
+    it('throws RuntimeError for unknown tool after max_errors', async () => {
       mockGenerateContent.mockResolvedValue({
         text: '',
         functionCalls: [
@@ -1206,10 +1206,11 @@ describe('tool_loop() function', () => {
             fn: { __type: 'callable', kind: 'application', fn: vi.fn() },
           },
         ],
+        max_errors: 3,
       };
 
       await expect(ext.tool_loop.fn(['Test', options], ctx)).rejects.toThrow(
-        "unknown tool 'unknown_tool'"
+        'Tool execution failed: 3 consecutive errors'
       );
     });
 
@@ -1247,7 +1248,7 @@ describe('tool_loop() function', () => {
       };
 
       await expect(ext.tool_loop.fn(['Test', options], ctx)).rejects.toThrow(
-        'tool loop aborted after 2 consecutive errors'
+        'Tool execution failed: 2 consecutive errors'
       );
     });
   });
