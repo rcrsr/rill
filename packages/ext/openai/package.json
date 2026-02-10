@@ -1,11 +1,21 @@
 {
   "name": "@rcrsr/rill-ext-openai",
-  "version": "0.7.2",
+  "version": "0.0.1",
   "description": "rill extension for OpenAI API integration",
   "license": "MIT",
+  "author": "Andre Bremer",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "openai",
+    "gpt",
+    "llm",
+    "extension",
+    "ai",
+    "scripting"
+  ],
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run",
@@ -26,6 +36,10 @@
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/openai"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/openai#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"

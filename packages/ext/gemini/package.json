@@ -1,11 +1,21 @@
 {
   "name": "@rcrsr/rill-ext-gemini",
-  "version": "0.7.2",
-  "description": "rill extension for Gemini API integration",
+  "version": "0.0.1",
+  "description": "rill extension for Google Gemini API integration",
   "license": "MIT",
+  "author": "Andre Bremer",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "gemini",
+    "google",
+    "llm",
+    "extension",
+    "ai",
+    "scripting"
+  ],
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run",
@@ -26,6 +36,10 @@
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/gemini"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/gemini#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"
