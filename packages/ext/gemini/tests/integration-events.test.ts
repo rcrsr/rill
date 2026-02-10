@@ -564,7 +564,7 @@ describe('extension event emission', () => {
         event: 'gemini:tool_result',
         subsystem: 'extension:gemini',
         tool_name: 'test_tool',
-        error: 'Invalid tool input for test_tool: Tool execution failed',
+        error: 'Tool execution failed',
       });
     });
   });

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RuntimeError } from '@rcrsr/rill';
+import { RuntimeError, type RillValue } from '@rcrsr/rill';
 import {
   validateApiKey,
   validateModel,
@@ -220,26 +220,30 @@ describe('validateEmbedBatch', () => {
 
   it('throws for non-string element', () => {
     // EC-9, AC-10: Batch contains non-string → RuntimeError
-    expect(() => validateEmbedBatch([123 as any])).toThrow(RuntimeError);
-    expect(() => validateEmbedBatch([123 as any])).toThrow(
+    expect(() => validateEmbedBatch([123 as unknown as RillValue])).toThrow(
+      RuntimeError
+    );
+    expect(() => validateEmbedBatch([123 as unknown as RillValue])).toThrow(
       'embed_batch requires list of strings'
     );
   });
 
   it('throws for mixed types array', () => {
     // AC-10: Batch with mixed types → RuntimeError
-    expect(() => validateEmbedBatch(['valid', 42 as any, 'text'])).toThrow(
-      RuntimeError
-    );
-    expect(() => validateEmbedBatch(['valid', 42 as any, 'text'])).toThrow(
-      'embed_batch requires list of strings'
-    );
+    expect(() =>
+      validateEmbedBatch(['valid', 42 as unknown as RillValue, 'text'])
+    ).toThrow(RuntimeError);
+    expect(() =>
+      validateEmbedBatch(['valid', 42 as unknown as RillValue, 'text'])
+    ).toThrow('embed_batch requires list of strings');
   });
 
   it('throws for array with object', () => {
     // EC-9: Non-string element (object) → RuntimeError
-    expect(() => validateEmbedBatch([{} as any])).toThrow(RuntimeError);
-    expect(() => validateEmbedBatch([{} as any])).toThrow(
+    expect(() => validateEmbedBatch([{} as unknown as RillValue])).toThrow(
+      RuntimeError
+    );
+    expect(() => validateEmbedBatch([{} as unknown as RillValue])).toThrow(
       'embed_batch requires list of strings'
     );
   });

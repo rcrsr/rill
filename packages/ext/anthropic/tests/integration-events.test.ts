@@ -638,7 +638,7 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
 
       const event = errorEvents[0]!;
       expect(event.subsystem).toBe('extension:anthropic');
-      expect(event.error).toContain('authentication failed');
+      expect(event.error).toContain('Authentication failed');
       expect(typeof event.duration).toBe('number');
       expect(event.duration).toBeGreaterThanOrEqual(0);
       expect(typeof event.timestamp).toBe('string');

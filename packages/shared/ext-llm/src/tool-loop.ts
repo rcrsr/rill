@@ -96,7 +96,7 @@ async function executeToolCall(
     }
 
     // Invoke the tool function with positional args and context
-    const result = callable.fn(args, context as any);
+    const result = callable.fn(args, context as unknown);
     return result instanceof Promise ? await result : result;
   } catch (error: unknown) {
     // Re-throw RuntimeErrors directly

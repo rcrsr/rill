@@ -448,7 +448,7 @@ describe('executeToolLoop', () => {
     it('throws for non-callable tool', async () => {
       // EC-16: Tool input validation fails → throws
       const tools = {
-        invalid_tool: 'not a function' as any,
+        invalid_tool: 'not a function' as unknown as RillValue,
       };
 
       // Error happens during setup, not during extractToolCalls
@@ -475,7 +475,7 @@ describe('executeToolLoop', () => {
           // Return tool calls on first call, null on subsequent calls
           apiCallCount++;
           return apiCallCount === 1
-            ? [{ id: 'call_1', name: 'tool', input: null as any }]
+            ? [{ id: 'call_1', name: 'tool', input: null as unknown as object }]
             : null;
         }),
       });
@@ -495,7 +495,7 @@ describe('executeToolLoop', () => {
     it('throws for undefined tool in dict', async () => {
       // EC-16: Tool value is undefined → throws
       const tools = {
-        tool: undefined as any,
+        tool: undefined as unknown as RillValue,
       };
 
       // Error happens during setup, not during extractToolCalls
@@ -599,7 +599,7 @@ describe('executeToolLoop', () => {
       await expect(
         executeToolLoop(
           [{ role: 'user', content: 'Test' }],
-          'not a dict' as any,
+          'not a dict' as unknown as RillValue,
           3,
           callbacks,
           vi.fn()
@@ -609,7 +609,7 @@ describe('executeToolLoop', () => {
 
     it('throws when tool value is not callable during setup', async () => {
       const tools = {
-        invalid: 'not callable' as any,
+        invalid: 'not callable' as unknown as RillValue,
       };
 
       const callbacks = createMockCallbacks();

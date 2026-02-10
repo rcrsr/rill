@@ -172,9 +172,6 @@ export function createQdrantExtension(config: QdrantConfig): ExtensionResult {
   // Store config values for use in functions
   const factoryCollection = config.collection;
 
-  // AbortController for cancelling pending requests (AC-31, AC-32)
-  let abortController: AbortController | undefined = new AbortController();
-
   // Track if disposed for EC-8
   let isDisposed = false;
 
@@ -185,17 +182,6 @@ export function createQdrantExtension(config: QdrantConfig): ExtensionResult {
       return;
     }
     isDisposed = true;
-
-    try {
-      // Cancel pending API requests via AbortController
-      if (abortController) {
-        abortController.abort();
-        abortController = undefined;
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`Failed to abort Qdrant requests: ${message}`);
-    }
 
     try {
       // Cleanup SDK HTTP connections

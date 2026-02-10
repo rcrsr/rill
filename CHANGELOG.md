@@ -9,21 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Core types module refactoring** — `packages/core/src/types.ts` (2,231 lines) split into 7 focused modules: `source-location.ts`, `value-types.ts`, `error-registry.ts`, `token-types.ts`, `ast-nodes.ts`, `ast-unions.ts`, `error-classes.ts`. Architecture creates 3 leaf modules with zero dependencies, followed by first-tier dependents that import only from leaf modules. Original `types.ts` now serves as re-export barrel preserving backward compatibility for all 44 internal importers and @rcrsr/rill public API; dependency graph is cycle-free. All 4,373 tests pass without modification; 12 error contracts verified
+- **Core types module split** — `types.ts` split into 7 focused modules. Public API unchanged; `types.ts` re-exports all symbols for backward compatibility
 
-- **RuntimeError construction standardization** — Standardized 193 RuntimeError throw sites across `packages/core/src/runtime/` to use Pattern 2 construction (`errorId` first, clean message second without ID prefix duplication). Migrated 12 Pattern-1 sites in `variables.ts` from `new RuntimeError('RILL-R001', 'RILL-R001: message')` to `new RuntimeError('RILL-R001', 'message')`; 180 throw sites and 13 `fromNode()` sites confirmed Pattern 2 compliant. Added ESLint rule `rill/no-duplicate-error-id` scoped to runtime sources, validates string literal error IDs, detects and auto-fixes duplicate `RILL-RXXX: ` prefixes in message arguments. Contract tests added: EC-1 unknown errorId throws `TypeError`, EC-2 wrong category errorId throws `TypeError`. Result: zero duplication violations, regression prevention enforced by lint
+- **RuntimeError message cleanup** — Removed duplicate error ID prefixes from runtime error messages. Added ESLint rule `rill/no-duplicate-error-id` to prevent regression
 
 ### Added
 
-- **Shared LLM extension package** — `@rcrsr/rill-ext-llm-shared` extracts 3010 duplicated lines across Anthropic, OpenAI, and Gemini LLM extensions into reusable modules. Core components include type definitions (`LLMExtensionConfig`, `LLMProviderConfig`, `ToolLoopCallbacks`, `ToolLoopResult`), validation functions with comprehensive error contracts (API keys, models, temperature, messages, embed batches), unified error mapping with HTTP status codes, and multi-turn tool loop orchestration with JSON Schema generation, param-to-positional conversion, duration tracking, and token aggregation. All three extensions now import shared types, validation, error mapping, and tool loop; net code reduction 30% (357 lines) after enhanced features. 82 shared package tests with 100% requirement coverage across all extensions. Breaking change: error format standardization affects consumers catching errors by string matching (Anthropic/OpenAI/Gemini now emit `{Provider} API error (HTTP {status}): {message}` format)
+- **Native vector type** — New primitive type for semantic operations. Methods: `.similarity()`, `.dot()`, `.distance()`, `.norm()`, `.normalize()`
 
-- **Vector database extension packages** — Three new extension packages for semantic search and RAG: `@rcrsr/rill-ext-qdrant`, `@rcrsr/rill-ext-pinecone`, `@rcrsr/rill-ext-chroma`. Each provides 11 standardized functions (upsert, upsert_batch, search, get, delete, delete_batch, count, create_collection, delete_collection, list_collections, describe) with identical signatures enabling portability across extensions via namespace prefix changes (qdrant::search vs pinecone::search vs chroma::search). All extensions implement configuration validation, error mapping to RuntimeError('RILL-R004', ...), event emission via emitExtensionEvent(), and lifecycle disposal. Supports Qdrant local/cloud/embedded deployments, Pinecone managed cloud, and ChromaDB embedded/cloud. 202 total tests validating all 79 specification requirements
+- **Shared LLM extension package** — `@rcrsr/rill-ext-llm-shared` provides shared types, validation, error mapping, and tool loop orchestration for all LLM extensions
 
-- **LLM provider extension packages** — Three new extension packages for LLM integrations: `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each package provides five host functions with consistent APIs: `message()` and `messages()` for chat completion, `embed()` and `embed_batch()` for embeddings, and `tool_loop()` for agentic tool execution. All functions emit telemetry events for observability; 242 tests across three providers
+- **Vector database extensions** — `@rcrsr/rill-ext-qdrant`, `@rcrsr/rill-ext-pinecone`, `@rcrsr/rill-ext-chroma`. Each provides 11 functions (`upsert`, `search`, `get`, `delete`, `count`, `create_collection`, etc.) with identical signatures. Swap providers by changing the namespace prefix (`qdrant::search` vs `chroma::search`)
 
-- **Native vector type** — New runtime type for semantic operations. Methods include `.similarity()` (dot product), `.dot()` (raw dot product), `.distance()` (Euclidean), `.norm()` (magnitude), and `.normalize()` (unit vector); 47 tests covering all operations
+- **LLM provider extensions** — `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each provides `message()`, `messages()`, `embed()`, `embed_batch()`, and `tool_loop()` with telemetry events
 
-- **Tool descriptor builder** — `tool()` built-in function creates agentic tool definitions from closures or host functions. Introspects parameters and descriptions to generate structured tool descriptors for LLM consumption; 17 tests
+- **Tool descriptor builder** — `tool()` built-in creates tool definitions from closures or host functions for LLM consumption
 
 ## [0.7.2] - 2026-02-08
 
