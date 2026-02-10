@@ -17,7 +17,7 @@ declare -A SECTION_MAP=(
   ["language"]="Language|rill language topics — types, variables, control flow, operators, closures|2"
   ["data"]="Data & Collections|Working with data in rill — collections, iterators, strings, parsing|3"
   ["integration"]="Integration|Embedding rill in applications — host API, extensions, modules, CLI|4"
-  ["extensions"]="Extensions|Pre-built extensions shipped with rill|5"
+  ["extensions"]="Bundled Extensions|Pre-built extensions shipped with rill|5"
   ["reference"]="Reference|rill reference documentation — language spec, host API, errors|6"
 )
 
@@ -40,11 +40,10 @@ declare -A FILE_MAP=(
   ["integration-extensions"]="integration/extensions 2"
   ["integration-modules"]="integration/modules 3"
   ["integration-cli"]="integration/cli 4"
-  ["bundled-extensions"]="extensions/bundled-extensions 1"
+  ["extension-anthropic"]="extensions/anthropic 1"
   ["extension-claude-code"]="extensions/claude-code 2"
-  ["extension-anthropic"]="extensions/anthropic 3"
+  ["extension-gemini"]="extensions/gemini 3"
   ["extension-openai"]="extensions/openai 4"
-  ["extension-gemini"]="extensions/gemini 5"
   ["ref-language"]="reference/language 1"
   ["ref-host-api"]="reference/host-api 2"
   ["ref-errors"]="reference/errors 3"
@@ -69,7 +68,7 @@ declare -A LINK_MAP=(
   ["integration-extensions.md"]="/docs/integration/extensions/"
   ["integration-modules.md"]="/docs/integration/modules/"
   ["integration-cli.md"]="/docs/integration/cli/"
-  ["bundled-extensions.md"]="/docs/extensions/bundled-extensions/"
+  ["bundled-extensions.md"]="/docs/extensions/"
   ["extension-claude-code.md"]="/docs/extensions/claude-code/"
   ["extension-anthropic.md"]="/docs/extensions/anthropic/"
   ["extension-openai.md"]="/docs/extensions/openai/"
@@ -98,7 +97,7 @@ Embeddable, sandboxed scripting to power AI agents.
   {{< card link="language" title="Language" subtitle="Types, variables, control flow, operators, closures" >}}
   {{< card link="data" title="Data & Collections" subtitle="Iterators, strings, parsing, collection operators" >}}
   {{< card link="integration" title="Integration" subtitle="Host embedding, modules, CLI" >}}
-  {{< card link="extensions" title="Extensions" subtitle="Pre-built extensions shipped with rill" >}}
+  {{< card link="extensions" title="Bundled Extensions" subtitle="Pre-built extensions shipped with rill" >}}
   {{< card link="reference" title="Reference" subtitle="Language spec, host API, error reference" >}}
 {{< /cards >}}
 EOF
@@ -119,14 +118,41 @@ sidebar:
 SEOF
 done
 
+# Promote bundled-extensions.md to extensions section _index.md
+bundled_src="$DOCS_DIR/bundled-extensions.md"
+if [[ -f "$bundled_src" ]]; then
+  ext_index="$CONTENT_DIR/extensions/_index.md"
+  body="$(tail -n +4 "$bundled_src" | sed '1{/^$/d;}')"
+  cat > "$ext_index" << BEOF
+---
+title: "Bundled Extensions"
+description: "Pre-built extensions shipped with rill"
+weight: 5
+sidebar:
+  open: true
+---
+${body}
+BEOF
+  # Rewrite internal links
+  sed_script=""
+  for link_src in "${!LINK_MAP[@]}"; do
+    link_target="${LINK_MAP[$link_src]}"
+    escaped_src="${link_src//./\\.}"
+    sed_script+="s|(${escaped_src})|(${link_target})|g;"
+    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
+  done
+  sed -i "$sed_script" "$ext_index"
+  echo "  bundled-extensions → extensions/_index.md (promoted)"
+fi
+
 # Process source docs into Hugo content
 process_file() {
   local src="$1"
   local basename
   basename="$(basename "$src" .md)"
 
-  # Skip index.md
-  [[ "$basename" == "index" ]] && return
+  # Skip index.md and bundled-extensions (promoted to _index.md)
+  [[ "$basename" == "index" || "$basename" == "bundled-extensions" ]] && return
 
   local mapping="${FILE_MAP[$basename]:-}"
   [[ -z "$mapping" ]] && { echo "WARN: No mapping for $basename, skipping"; return; }
@@ -179,6 +205,9 @@ generate_section_links() {
   local section_dir="$1"
   local index_file="$section_dir/_index.md"
   [[ -f "$index_file" ]] || return
+
+  # Skip extensions — promoted _index.md has its own curated content
+  [[ "$(basename "$section_dir")" == "extensions" ]] && return
 
   # Collect child pages as links
   local links=""
