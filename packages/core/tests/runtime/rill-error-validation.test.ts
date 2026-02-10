@@ -355,8 +355,8 @@ describe('ParseError Constructor Validation (Task 1.3)', () => {
 });
 
 describe('RuntimeError Constructor Validation (Task 1.4)', () => {
-  describe('IR-9: RuntimeError constructor signature', () => {
-    it('accepts errorId as first parameter', () => {
+  describe('IR-1: RuntimeError constructor signature', () => {
+    it('accepts valid errorId RILL-R001 with clean message', () => {
       const error = new RuntimeError('RILL-R001', 'Test runtime error');
 
       expect(error).toBeInstanceOf(RuntimeError);
@@ -400,8 +400,17 @@ describe('RuntimeError Constructor Validation (Task 1.4)', () => {
     });
   });
 
-  describe('IR-10: RuntimeError.fromNode static factory', () => {
-    it('creates RuntimeError from AST node', () => {
+  describe('BC-4: Empty context object', () => {
+    it('accepts empty context object', () => {
+      const error = new RuntimeError('RILL-R001', 'Test error', undefined, {});
+
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect(error.context).toEqual({});
+    });
+  });
+
+  describe('IR-2: RuntimeError.fromNode static factory', () => {
+    it('creates RuntimeError from AST node with valid params', () => {
       const span: SourceSpan = {
         start: { line: 5, column: 10, offset: 42 },
         end: { line: 5, column: 15, offset: 47 },
@@ -438,8 +447,52 @@ describe('RuntimeError Constructor Validation (Task 1.4)', () => {
     });
   });
 
-  describe('EC-9: Unknown errorId throws TypeError', () => {
+  describe('EC-4: RuntimeError.fromNode with invalid errorId', () => {
     it('throws TypeError for unknown errorId', () => {
+      const span: SourceSpan = {
+        start: { line: 5, column: 10, offset: 42 },
+        end: { line: 5, column: 15, offset: 47 },
+      };
+      const node = { span };
+
+      expect(() => {
+        RuntimeError.fromNode('RILL-R999', 'Test error', node);
+      }).toThrow(TypeError);
+
+      expect(() => {
+        RuntimeError.fromNode('RILL-R999', 'Test error', node);
+      }).toThrow('Unknown error ID: RILL-R999');
+    });
+
+    it('throws TypeError for wrong category errorId', () => {
+      const span: SourceSpan = {
+        start: { line: 5, column: 10, offset: 42 },
+        end: { line: 5, column: 15, offset: 47 },
+      };
+      const node = { span };
+
+      expect(() => {
+        RuntimeError.fromNode('RILL-P001', 'Test error', node);
+      }).toThrow(TypeError);
+
+      expect(() => {
+        RuntimeError.fromNode('RILL-P001', 'Test error', node);
+      }).toThrow('Expected runtime error ID, got: RILL-P001');
+    });
+  });
+
+  describe('EC-1: Unknown errorId throws TypeError', () => {
+    it('throws TypeError for unknown errorId RILL-R999', () => {
+      expect(() => {
+        new RuntimeError('RILL-R999', 'Test error');
+      }).toThrow(TypeError);
+
+      expect(() => {
+        new RuntimeError('RILL-R999', 'Test error');
+      }).toThrow('Unknown error ID: RILL-R999');
+    });
+
+    it('throws TypeError for unknown errorId RILL-X999', () => {
       expect(() => {
         new RuntimeError('RILL-X999', 'Test error');
       }).toThrow(TypeError);
@@ -460,8 +513,8 @@ describe('RuntimeError Constructor Validation (Task 1.4)', () => {
     });
   });
 
-  describe('EC-10: Wrong category throws TypeError', () => {
-    it('throws TypeError for parse error ID', () => {
+  describe('EC-2: Wrong category throws TypeError', () => {
+    it('throws TypeError for parse error ID RILL-P001', () => {
       expect(() => {
         new RuntimeError('RILL-P001', 'Test error');
       }).toThrow(TypeError);

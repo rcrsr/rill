@@ -84,7 +84,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (explicitType !== undefined && explicitType !== valueType) {
         throw new RuntimeError(
           'RILL-R001',
-          `RILL-R001: Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
+          `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
           location,
           {
             variableName: name,
@@ -103,7 +103,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       ) {
         throw new RuntimeError(
           'RILL-R001',
-          `RILL-R001: Cannot reassign outer variable $${name} from child scope`,
+          `Cannot reassign outer variable $${name} from child scope`,
           location,
           { variableName: name }
         );
@@ -114,7 +114,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (lockedType !== undefined && lockedType !== valueType) {
         throw new RuntimeError(
           'RILL-R001',
-          `RILL-R001: Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
+          `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
           location,
           {
             variableName: name,
@@ -147,7 +147,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (this.ctx.pipeValue === null) {
           throw new RuntimeError(
             'RILL-R005',
-            'RILL-R005: Undefined variable: $',
+            'Undefined variable: $',
             this.getNodeLocation(node),
             { variable: '$' }
           );
@@ -161,7 +161,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (result === undefined) {
           throw new RuntimeError(
             'RILL-R005',
-            `RILL-R005: Undefined variable: $${node.name}`,
+            `Undefined variable: $${node.name}`,
             this.getNodeLocation(node),
             { variable: node.name }
           );
@@ -172,7 +172,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Should not reach here - all variable nodes have either isPipeVar or name
       throw new RuntimeError(
         'RILL-R005',
-        'RILL-R005: Invalid variable node',
+        'Invalid variable node',
         this.getNodeLocation(node)
       );
     }
@@ -194,7 +194,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (this.ctx.pipeValue === null) {
           throw new RuntimeError(
             'RILL-R005',
-            'RILL-R005: Undefined variable: $',
+            'Undefined variable: $',
             this.getNodeLocation(node),
             { variable: '$' }
           );
@@ -206,7 +206,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (result === undefined) {
           throw new RuntimeError(
             'RILL-R005',
-            `RILL-R005: Undefined variable: $${node.name}`,
+            `Undefined variable: $${node.name}`,
             this.getNodeLocation(node),
             { variable: node.name }
           );
@@ -215,7 +215,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else {
         throw new RuntimeError(
           'RILL-R005',
-          'RILL-R005: Invalid variable node',
+          'Invalid variable node',
           this.getNodeLocation(node)
         );
       }
@@ -412,7 +412,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const varName = finalAccess.variableName ?? '$';
             throw new RuntimeError(
               'RILL-R005',
-              `RILL-R005: Variable '${varName}' is undefined`,
+              `Variable '${varName}' is undefined`,
               this.getNodeLocation(node)
             );
           }
@@ -525,7 +525,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (keyValue === undefined) {
           throw new RuntimeError(
             'RILL-R005',
-            `RILL-R005: Pipe variable '$' is undefined`,
+            `Pipe variable '$' is undefined`,
             this.getNodeLocation(node)
           );
         }
@@ -535,7 +535,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (keyValue === undefined) {
           throw new RuntimeError(
             'RILL-R005',
-            `RILL-R005: Variable '${access.variableName}' is undefined`,
+            `Variable '${access.variableName}' is undefined`,
             this.getNodeLocation(node)
           );
         }

@@ -2,6 +2,7 @@ import eslint from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import globals from 'globals';
+import noDuplicateErrorId from './eslint-rules/no-duplicate-error-id.cjs';
 
 export default [
   {
@@ -93,6 +94,19 @@ export default [
     },
     rules: {
       'no-undef': 'off', // TypeScript handles this
+    },
+  },
+  {
+    files: ['packages/core/src/runtime/**/*.ts'],
+    plugins: {
+      rill: {
+        rules: {
+          'no-duplicate-error-id': noDuplicateErrorId,
+        },
+      },
+    },
+    rules: {
+      'rill/no-duplicate-error-id': 'error',
     },
   },
 ];
