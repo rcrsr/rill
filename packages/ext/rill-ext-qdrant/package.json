@@ -1,0 +1,50 @@
+{
+  "name": "@rcrsr/rill-ext-qdrant",
+  "version": "0.0.1",
+  "description": "rill extension for Qdrant vector database integration",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "qdrant",
+    "vector-database",
+    "vector-search",
+    "extension",
+    "ai",
+    "scripting"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "devDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/ext/rill-ext-qdrant"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/rill-ext-qdrant#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.12.1"
+  }
+}
