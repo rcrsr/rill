@@ -1,4 +1,4 @@
-(* rill v0.4.5 Grammar - EBNF Notation *)
+(* rill Grammar - EBNF Notation *)
 (* Pipe-based scripting language for prompt-drive workflows *)
 
 (* ============================================================ *)
