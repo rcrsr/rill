@@ -46,6 +46,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@rcrsr/rill-ext-vector-shared": "workspace:^",
     "chromadb": "^1.9.2"
   }
 }

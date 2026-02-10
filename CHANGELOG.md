@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Native vector type** — New primitive type for semantic operations. Methods: `.similarity()`, `.dot()`, `.distance()`, `.norm()`, `.normalize()`
 
-- **Shared LLM extension package** — `@rcrsr/rill-ext-llm-shared` provides shared types, validation, error mapping, and tool loop orchestration for all LLM extensions
-
 - **Vector database extensions** — `@rcrsr/rill-ext-qdrant`, `@rcrsr/rill-ext-pinecone`, `@rcrsr/rill-ext-chroma`. Each provides 11 functions (`upsert`, `search`, `get`, `delete`, `count`, `create_collection`, etc.) with identical signatures. Swap providers by changing the namespace prefix (`qdrant::search` vs `chroma::search`)
 
 - **LLM provider extensions** — `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each provides `message()`, `messages()`, `embed()`, `embed_batch()`, and `tool_loop()` with telemetry events

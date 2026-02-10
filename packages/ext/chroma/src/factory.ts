@@ -13,103 +13,15 @@ import {
   type RuntimeContext,
   type RillVector,
 } from '@rcrsr/rill';
+import {
+  mapVectorError,
+  createDisposalState,
+  checkDisposed,
+  dispose,
+  assertRequired,
+  type DisposalState,
+} from '@rcrsr/rill-ext-vector-shared';
 import type { ChromaConfig } from './types.js';
-
-// ============================================================
-// HELPER FUNCTIONS
-// ============================================================
-
-/**
- * Map ChromaDB SDK error to RuntimeError with appropriate message.
- *
- * @param error - Error from ChromaDB SDK
- * @returns RuntimeError with appropriate message
- */
-function mapChromaError(error: unknown): RuntimeError {
-  if (error instanceof Error) {
-    const message = error.message;
-
-    // EC-1: HTTP 401 authentication failure
-    if (
-      message.includes('401') ||
-      message.toLowerCase().includes('unauthorized')
-    ) {
-      return new RuntimeError(
-        'RILL-R004',
-        'chroma: authentication failed (401)'
-      );
-    }
-
-    // EC-2: Collection not found
-    if (
-      message.toLowerCase().includes('collection') &&
-      message.toLowerCase().includes('not found')
-    ) {
-      return new RuntimeError('RILL-R004', 'chroma: collection not found');
-    }
-
-    // EC-3: Rate limit (429)
-    if (
-      message.includes('429') ||
-      message.toLowerCase().includes('rate limit')
-    ) {
-      return new RuntimeError('RILL-R004', 'chroma: rate limit exceeded');
-    }
-
-    // EC-4: Timeout/AbortError
-    if (
-      error.name === 'AbortError' ||
-      message.toLowerCase().includes('timeout')
-    ) {
-      return new RuntimeError('RILL-R004', 'chroma: request timeout');
-    }
-
-    // EC-5: Dimension mismatch
-    if (message.toLowerCase().includes('dimension')) {
-      // Extract expected and actual dimensions if possible
-      const match = message.match(
-        /expected (\d+).*got (\d+)|(\d+).*expected.*(\d+)/i
-      );
-      if (match) {
-        const expected = match[1] || match[4];
-        const actual = match[2] || match[3];
-        return new RuntimeError(
-          'RILL-R004',
-          `chroma: dimension mismatch (expected ${expected}, got ${actual})`
-        );
-      }
-      return new RuntimeError('RILL-R004', 'chroma: dimension mismatch');
-    }
-
-    // EC-6: Collection already exists
-    if (message.toLowerCase().includes('already exists')) {
-      return new RuntimeError('RILL-R004', 'chroma: collection already exists');
-    }
-
-    // EC-9: Other errors
-    return new RuntimeError('RILL-R004', `chroma: ${message}`);
-  }
-
-  return new RuntimeError('RILL-R004', 'chroma: unknown error');
-}
-
-// ============================================================
-// VALIDATION
-// ============================================================
-
-/**
- * Validate collection name is present and non-empty.
- *
- * @param collection - Collection name to validate
- * @throws Error if collection missing or empty (AC-10)
- */
-function validateCollection(
-  collection: string | undefined
-): asserts collection is string {
-  if (collection === undefined || collection === '') {
-    throw new Error('collection is required');
-  }
-}
 
 // ============================================================
 // FACTORY
@@ -141,7 +53,7 @@ function validateCollection(
  */
 export function createChromaExtension(config: ChromaConfig): ExtensionResult {
   // Validate required fields (AC-10)
-  validateCollection(config.collection);
+  assertRequired(config.collection, 'collection');
 
   // Instantiate SDK client at factory time
   // Use embedded mode if url undefined, remote otherwise
@@ -158,33 +70,8 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
   // Store config values for use in functions
   const factoryCollection = config.collection;
 
-  // Track if disposed for EC-8
-  let isDisposed = false;
-
-  // Dispose function for cleanup (AC-31, AC-32)
-  const dispose = async (): Promise<void> => {
-    // AC-32: Idempotent cleanup
-    if (isDisposed) {
-      return;
-    }
-    isDisposed = true;
-
-    try {
-      // Cleanup SDK HTTP connections
-      // Note: ChromaDB SDK doesn't expose a close() method, but we include
-      // this structure for consistency with extension pattern
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`Failed to cleanup ChromaDB SDK: ${message}`);
-    }
-  };
-
-  // Helper to check if disposed (EC-8)
-  const checkDisposed = (): void => {
-    if (isDisposed) {
-      throw new RuntimeError('RILL-R004', 'chroma: operation cancelled');
-    }
-  };
+  // Track disposal state (EC-8)
+  const disposalState: DisposalState = createDisposalState('chroma');
 
   // Return extension result with implementations
   const result: ExtensionResult = {
@@ -199,7 +86,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const id = args[0] as string;
@@ -237,7 +124,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -260,7 +147,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const items = args[0] as Array<Record<string, RillValue>>;
@@ -314,7 +201,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
               succeeded++;
             } catch (error: unknown) {
               // Halt on first failure
-              const rillError = mapChromaError(error);
+              const rillError = mapVectorError('chroma', error);
               const result = {
                 succeeded,
                 failed: id,
@@ -347,7 +234,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -373,7 +260,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const vector = args[0] as RillVector;
@@ -426,7 +313,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -449,7 +336,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const id = args[0] as string;
@@ -503,7 +390,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -526,7 +413,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const id = args[0] as string;
@@ -560,7 +447,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -583,7 +470,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const ids = args[0] as Array<string>;
@@ -608,7 +495,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
               succeeded++;
             } catch (error: unknown) {
               // Halt on first failure
-              const rillError = mapChromaError(error);
+              const rillError = mapVectorError('chroma', error);
               const result = {
                 succeeded,
                 failed: id,
@@ -641,7 +528,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -664,7 +551,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Get or create collection
           const collection = await client.getOrCreateCollection({
@@ -687,7 +574,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -713,7 +600,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const name = args[0] as string;
@@ -750,7 +637,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -773,7 +660,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Extract arguments
           const name = args[0] as string;
@@ -800,7 +687,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -823,7 +710,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Call ChromaDB API
           const names = await client.listCollections();
@@ -841,7 +728,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -864,7 +751,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         const startTime = Date.now();
 
         try {
-          checkDisposed();
+          checkDisposed(disposalState, 'chroma');
 
           // Get or create collection
           const collection = await client.getOrCreateCollection({
@@ -893,7 +780,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
         } catch (error: unknown) {
           // Map error and emit failure event
           const duration = Date.now() - startTime;
-          const rillError = mapChromaError(error);
+          const rillError = mapVectorError('chroma', error);
 
           emitExtensionEvent(ctx as RuntimeContext, {
             event: 'chroma:error',
@@ -910,8 +797,14 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
     },
   };
 
-  // Attach dispose lifecycle method
-  result.dispose = dispose;
+  // Attach dispose lifecycle method using shared utility
+  result.dispose = async (): Promise<void> => {
+    await dispose(disposalState, async () => {
+      // Cleanup SDK HTTP connections
+      // Note: ChromaDB SDK doesn't expose a close() method, but we include
+      // this structure for consistency with extension pattern
+    });
+  };
 
   return result;
 }

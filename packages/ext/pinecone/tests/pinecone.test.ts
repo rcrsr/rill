@@ -155,7 +155,7 @@ describe('createPineconeExtension configuration validation', () => {
         apiKey: '',
         index: 'test',
       })
-    ).toThrow('apiKey cannot be empty');
+    ).toThrow('apiKey is required');
   });
 
   it('throws Error for missing index (AC-10)', () => {

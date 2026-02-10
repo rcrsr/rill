@@ -7,7 +7,7 @@ export const VERSION = '0.0.1';
 // ============================================================
 // CONFIGURATION
 // ============================================================
-export type { QdrantConfig } from './types.js';
+export type { QdrantConfig, QdrantExtensionConfig } from './types.js';
 
 // ============================================================
 // FACTORY

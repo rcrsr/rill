@@ -6,7 +6,7 @@
 // ============================================================
 // PUBLIC TYPES
 // ============================================================
-export type { ChromaConfig } from './types.js';
+export type { ChromaConfig, ChromaExtensionConfig } from './types.js';
 
 // ============================================================
 // FACTORY

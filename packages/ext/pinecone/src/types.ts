@@ -62,3 +62,14 @@ export interface PineconeConfig {
    */
   readonly timeout?: number | undefined;
 }
+
+// ============================================================
+// BACKWARD COMPATIBILITY
+// ============================================================
+
+/**
+ * Legacy type alias for PineconeConfig.
+ *
+ * @deprecated Use PineconeConfig instead.
+ */
+export type PineconeExtensionConfig = PineconeConfig;

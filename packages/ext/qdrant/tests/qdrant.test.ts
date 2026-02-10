@@ -121,7 +121,7 @@ describe('createQdrantExtension configuration validation', () => {
         url: '',
         collection: 'test',
       })
-    ).toThrow('url cannot be empty');
+    ).toThrow('url is required');
   });
 
   it('throws Error for missing collection (AC-10)', () => {
@@ -855,7 +855,7 @@ describe('Error handling contracts', () => {
 // ============================================================
 
 describe('Event emission', () => {
-  it('search emits qdrant:search with duration, result_count, k (AC-5)', async () => {
+  it('search emits qdrant:search with duration, k, result_count (AC-5)', async () => {
     const events: Array<Record<string, unknown>> = [];
     const ctx = createRuntimeContext({
       callbacks: {
@@ -887,8 +887,8 @@ describe('Event emission', () => {
     const searchEvent = events.find((e) => e['event'] === 'qdrant:search');
     expect(searchEvent).toBeDefined();
     expect(searchEvent!['duration']).toBeGreaterThanOrEqual(0);
-    expect(searchEvent!['result_count']).toBe(2);
     expect(searchEvent!['k']).toBe(5);
+    expect(searchEvent!['result_count']).toBe(2);
   });
 });
 

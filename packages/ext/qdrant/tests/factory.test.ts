@@ -18,7 +18,7 @@ describe('createQdrantExtension', () => {
           url: '',
           collection: 'test',
         })
-      ).toThrow('url cannot be empty');
+      ).toThrow('url is required');
     });
 
     it('throws Error for missing collection (AC-10)', () => {

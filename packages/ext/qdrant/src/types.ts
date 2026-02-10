@@ -82,3 +82,14 @@ export interface QdrantConfig {
    */
   readonly timeout?: number | undefined;
 }
+
+// ============================================================
+// BACKWARD COMPATIBILITY
+// ============================================================
+
+/**
+ * Legacy type alias for QdrantConfig.
+ *
+ * @deprecated Use QdrantConfig instead.
+ */
+export type QdrantExtensionConfig = QdrantConfig;

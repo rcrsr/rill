@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@rcrsr/rill-ext-vector-shared": "workspace:^",
     "@qdrant/js-client-rest": "^1.12.1"
   }
 }

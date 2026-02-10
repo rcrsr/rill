@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@rcrsr/rill-ext-vector-shared": "workspace:^",
     "@pinecone-database/pinecone": "^3.0.3"
   }
 }

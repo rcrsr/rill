@@ -61,3 +61,14 @@ export interface ChromaConfig {
    */
   readonly timeout?: number | undefined;
 }
+
+// ============================================================
+// BACKWARD COMPATIBILITY
+// ============================================================
+
+/**
+ * Legacy type alias for ChromaConfig.
+ *
+ * @deprecated Use ChromaConfig instead.
+ */
+export type ChromaExtensionConfig = ChromaConfig;

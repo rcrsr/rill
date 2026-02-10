@@ -7,7 +7,7 @@ export const VERSION = '0.0.1';
 // ============================================================
 // CONFIGURATION
 // ============================================================
-export type { PineconeConfig } from './types.js';
+export type { PineconeConfig, PineconeExtensionConfig } from './types.js';
 
 // ============================================================
 // FACTORY

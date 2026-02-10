@@ -12,6 +12,14 @@ import {
 } from '@rcrsr/rill';
 import type { ToolLoopCallbacks, ToolLoopResult } from './types.js';
 
+// Minimal context interface compatible with CallableFn signature
+// Matches RuntimeContextLike from @rcrsr/rill's callable.ts
+interface RuntimeContextLike {
+  readonly parent?: RuntimeContextLike | undefined;
+  readonly variables: Map<string, RillValue>;
+  pipeValue: RillValue;
+}
+
 // ============================================================
 // TOOL EXECUTION
 // ============================================================
@@ -29,7 +37,7 @@ async function executeToolCall(
   toolName: string,
   toolInput: object,
   tools: RillValue,
-  context: unknown
+  context?: RuntimeContextLike
 ): Promise<RillValue> {
   // EC-15: Tool name not in tool map
   if (!isDict(tools)) {
@@ -96,7 +104,13 @@ async function executeToolCall(
     }
 
     // Invoke the tool function with positional args and context
-    const result = callable.fn(args, context as unknown);
+    // If no context provided, create minimal context-like object for callable signature
+    const ctx: RuntimeContextLike = context ?? {
+      parent: undefined,
+      variables: new Map<string, RillValue>(),
+      pipeValue: null,
+    };
+    const result = callable.fn(args, ctx);
     return result instanceof Promise ? await result : result;
   } catch (error: unknown) {
     // Re-throw RuntimeErrors directly
@@ -157,7 +171,7 @@ export async function executeToolLoop(
   callbacks: ToolLoopCallbacks,
   emitEvent: (event: string, data: Record<string, unknown>) => void,
   maxTurns = 10,
-  context: unknown = {}
+  context?: RuntimeContextLike
 ): Promise<ToolLoopResult> {
   // Validate tools parameter
   if (tools === undefined) {
