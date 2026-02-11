@@ -26,6 +26,9 @@
     "@inquirer/prompts": "^8.2.0",
     "handlebars": "^4.7.8"
   },
+  "devDependencies": {
+    "@rcrsr/rill-cli": "workspace:^"
+  },
   "files": [
     "dist",
     ".claude",
