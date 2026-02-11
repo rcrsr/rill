@@ -4,6 +4,7 @@
  * Scaffolds new rill extension projects
  */
 
+import { fileURLToPath } from 'node:url';
 import { input, checkbox } from '@inquirer/prompts';
 import { scaffold, type ScaffoldConfig } from './scaffold.js';
 import {
@@ -369,7 +370,9 @@ export async function main(args: string[]): Promise<void> {
 // ============================================================
 
 // Only run main if this file is executed directly (not imported)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Convert import.meta.url to file path and compare with process.argv[1]
+// This works reliably with npx, global install, and direct execution
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);

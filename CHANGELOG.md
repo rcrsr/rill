@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-02-11
+
+### Fixed
+
+- **create-agent CLI entry point** — `npx @rcrsr/rill-create-agent` exited silently without scaffolding. The `import.meta.url` guard used string concatenation instead of `fileURLToPath()`, causing path mismatch when invoked via npx symlinks
+
+- **create-agent package name** — Published as `@rcrsr/rill-create-agent`; scaffold docs and tests referenced the unscoped `rill-create-agent`
+
+- **Agent instructions cwd guidance** — `docs/guide-make.md` scaffold command now uses scoped package name and instructs agents to run from the project parent directory
+
+- **Flaky retry backoff test** — Added 2ms timer jitter tolerance to exponential backoff assertions in `fetch-request.test.ts`
+
 ## [0.8.1] - 2026-02-11
 
 ### Added

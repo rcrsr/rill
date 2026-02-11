@@ -1,6 +1,6 @@
 {
   "name": "rill-lang",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Scripting designed for machine-generated code",
   "private": true,
   "packageManager": "pnpm@10.29.2",
