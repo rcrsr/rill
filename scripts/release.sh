@@ -109,6 +109,11 @@ for pkg in "${PACKAGES[@]}"; do
   PKG_DIR="${pkg%%:*}"
   PKG_NAME="${pkg##*:}"
 
+  if npm view "${PKG_NAME}@${VERSION}" version &>/dev/null; then
+    warn "$PKG_NAME@$VERSION already published, skipping"
+    continue
+  fi
+
   info "Publishing $PKG_NAME@$VERSION..."
   cd "$PKG_DIR"
   npm publish --access public || error "Failed to publish $PKG_NAME"

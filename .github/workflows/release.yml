@@ -41,13 +41,18 @@ jobs:
 
       - name: Publish packages
         run: |
+          VERSION=$(node -p "require('./package.json').version")
           for dir in packages/core packages/cli packages/ext/*/; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
             [ "$PRIVATE" = "true" ] && continue
             NAME=$(node -p "require('./$dir/package.json').name")
-            echo "Publishing $NAME..."
+            if npm view "${NAME}@${VERSION}" version &>/dev/null; then
+              echo "Skipping $NAME@$VERSION (already published)"
+              continue
+            fi
+            echo "Publishing $NAME@$VERSION..."
             cd "$dir"
             npm publish --access public
             cd "$GITHUB_WORKSPACE"
@@ -61,7 +66,11 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
 
           # Main release tag
-          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          if git tag -l "v${VERSION}" | grep -q "v${VERSION}"; then
+            echo "Tag v${VERSION} already exists, skipping"
+          else
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          fi
 
           # Per-package tags
           for dir in packages/core packages/cli packages/ext/*/; do
@@ -70,7 +79,12 @@ jobs:
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
             [ "$PRIVATE" = "true" ] && continue
             NAME=$(node -p "require('./$dir/package.json').name")
-            git tag -a "${NAME}@${VERSION}" -m "Release ${NAME}@${VERSION}"
+            TAG="${NAME}@${VERSION}"
+            if git tag -l "$TAG" | grep -q "$TAG"; then
+              echo "Tag $TAG already exists, skipping"
+            else
+              git tag -a "$TAG" -m "Release $TAG"
+            fi
           done
 
           git push --tags
@@ -81,6 +95,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${RELEASE_VERSION}" \
-            --title "v${RELEASE_VERSION}" \
-            --generate-notes
+          if gh release view "v${RELEASE_VERSION}" &>/dev/null; then
+            echo "Release v${RELEASE_VERSION} already exists, skipping"
+          else
+            gh release create "v${RELEASE_VERSION}" \
+              --title "v${RELEASE_VERSION}" \
+              --generate-notes
+          fi
