@@ -20,7 +20,7 @@ import {
   parse,
   execute,
   createRuntimeContext,
-  prefixFunctions,
+  hoistExtension,
 } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { createGeminiExtension } from '../src/index.js';
@@ -119,8 +119,7 @@ async function main(): Promise<void> {
       model,
     });
 
-    const prefixed = prefixFunctions('llm', ext);
-    const { dispose, ...functions } = prefixed;
+    const { functions, dispose } = hoistExtension('llm', ext);
 
     const ctx = createRuntimeContext({
       functions,

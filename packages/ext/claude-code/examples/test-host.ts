@@ -23,7 +23,7 @@ import {
   parse,
   execute,
   createRuntimeContext,
-  prefixFunctions,
+  hoistExtension,
 } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 
@@ -140,11 +140,8 @@ async function main(): Promise<void> {
     // Create extension with no settings (disables plugins, MCP, slash commands)
     const ext = createClaudeCodeExtension();
 
-    // Prefix functions with namespace
-    const prefixed = prefixFunctions('claude_code', ext);
-
-    // Strip dispose from functions object (architecture review finding #1)
-    const { dispose, ...functions } = prefixed;
+    // Hoist extension functions with namespace
+    const { functions, dispose } = hoistExtension('claude_code', ext);
 
     // Create runtime context
     const ctx = createRuntimeContext({

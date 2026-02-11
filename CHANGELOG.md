@@ -7,13 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **Core types module split** — `types.ts` split into 7 focused modules. Public API unchanged; `types.ts` re-exports all symbols for backward compatibility
-
-- **RuntimeError message cleanup** — Removed duplicate error ID prefixes from runtime error messages. Added ESLint rule `rill/no-duplicate-error-id` to prevent regression
-
 ### Added
+
+- **Extension hoisting API** — `hoistExtension(namespace, extension)` separates dispose handlers from functions for safe `createRuntimeContext` usage. Returns `{ functions, dispose }` structure eliminating manual dispose stripping across 4 test hosts. Added error contracts for namespace validation (regex `/^[a-zA-Z0-9_-]+$/`), null checks, and object validation. Includes 17 test cases covering success, error, and boundary conditions
+
+- **Widened `emitExtensionEvent` type signature** — Now accepts `RuntimeContextLike` instead of `RuntimeContext`, eliminating 92 unsafe type casts across 7 extension packages. Non-breaking change preserving all existing extension code
 
 - **Native vector type** — New primitive type for semantic operations. Methods: `.similarity()`, `.dot()`, `.distance()`, `.norm()`, `.normalize()`
 
@@ -22,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LLM provider extensions** — `@rcrsr/rill-ext-anthropic`, `@rcrsr/rill-ext-openai`, `@rcrsr/rill-ext-gemini`. Each provides `message()`, `messages()`, `embed()`, `embed_batch()`, and `tool_loop()` with telemetry events
 
 - **Tool descriptor builder** — `tool()` built-in creates tool definitions from closures or host functions for LLM consumption
+
+### Changed
+
+- **Core types module split** — `types.ts` split into 7 focused modules. Public API unchanged; `types.ts` re-exports all symbols for backward compatibility
+
+- **RuntimeError message cleanup** — Removed duplicate error ID prefixes from runtime error messages. Added ESLint rule `rill/no-duplicate-error-id` to prevent regression
 
 ## [0.7.2] - 2026-02-08
 

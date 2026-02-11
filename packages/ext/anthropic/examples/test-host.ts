@@ -21,7 +21,7 @@ import {
   parse,
   execute,
   createRuntimeContext,
-  prefixFunctions,
+  hoistExtension,
 } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { createAnthropicExtension } from '../src/index.js';
@@ -127,8 +127,7 @@ async function main(): Promise<void> {
       base_url: baseUrl,
     });
 
-    const prefixed = prefixFunctions('llm', ext);
-    const { dispose, ...functions } = prefixed;
+    const { functions, dispose } = hoistExtension('llm', ext);
 
     const ctx = createRuntimeContext({
       functions,
