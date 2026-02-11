@@ -96,9 +96,17 @@ export { BreakSignal, ReturnSignal } from './core/signals.js';
 
 export type { ExtensionEvent } from './core/types.js';
 
-export type { ExtensionFactory, ExtensionResult } from './ext/extensions.js';
+export type {
+  ExtensionFactory,
+  ExtensionResult,
+  HoistedExtension,
+} from './ext/extensions.js';
 
-export { prefixFunctions, emitExtensionEvent } from './ext/extensions.js';
+export {
+  prefixFunctions,
+  emitExtensionEvent,
+  hoistExtension,
+} from './ext/extensions.js';
 
 // ============================================================
 // CONTEXT FACTORY

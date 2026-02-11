@@ -24,10 +24,12 @@ import { describe, expect, it } from 'vitest';
 import type {
   ExtensionFactory,
   ExtensionResult,
+  HoistedExtension,
 } from '../../src/runtime/ext/extensions.js';
 import {
   prefixFunctions,
   emitExtensionEvent,
+  hoistExtension,
 } from '../../src/runtime/ext/extensions.js';
 import { RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
@@ -338,8 +340,8 @@ describe('Rill Runtime: Extension System', () => {
   });
 
   describe('Error Cases', () => {
-    describe('AC-E1: Empty namespace throws RuntimeError with RUNTIME_TYPE_ERROR', () => {
-      it('throws when namespace is empty string', () => {
+    describe('EC-6: Invalid namespace format', () => {
+      it('throws Error when namespace is empty string', () => {
         const extension: ExtensionResult = {
           doSomething: {
             params: [],
@@ -347,40 +349,85 @@ describe('Rill Runtime: Extension System', () => {
           },
         };
 
-        try {
-          prefixFunctions('', extension);
-          expect.fail('Should have thrown');
-        } catch (e) {
-          expect(e).toBeInstanceOf(RuntimeError);
-          const err = e as RuntimeError;
-          expect(err.errorId).toBe('RILL-R004');
-          expect(err.message).toBe(
-            'Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got ""'
-          );
-        }
+        expect(() => prefixFunctions('', extension)).toThrow(Error);
+        expect(() => prefixFunctions('', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
+      });
+
+      it('throws Error when namespace contains spaces', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+        };
+
+        expect(() => prefixFunctions('my extension', extension)).toThrow(Error);
+        expect(() => prefixFunctions('my extension', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
+      });
+
+      it('throws Error when namespace contains special characters', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+        };
+
+        expect(() => prefixFunctions('my@extension', extension)).toThrow(Error);
+        expect(() => prefixFunctions('my@extension', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
       });
     });
 
-    describe('AC-E2: Namespace with spaces throws RuntimeError', () => {
-      it('throws when namespace contains spaces', () => {
-        const extension: ExtensionResult = {
-          doSomething: {
-            params: [],
-            fn: () => 'done',
-          },
-        };
+    describe('EC-7: Extension not object', () => {
+      it('throws TypeError when extension is null', () => {
+        expect(() =>
+          prefixFunctions('test', null as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          prefixFunctions('test', null as unknown as ExtensionResult)
+        ).toThrow('Extension must be an object');
+      });
 
-        try {
-          prefixFunctions('my extension', extension);
-          expect.fail('Should have thrown');
-        } catch (e) {
-          expect(e).toBeInstanceOf(RuntimeError);
-          const err = e as RuntimeError;
-          expect(err.errorId).toBe('RILL-R004');
-          expect(err.message).toBe(
-            'Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got "my extension"'
-          );
-        }
+      it('throws TypeError when extension is undefined', () => {
+        expect(() =>
+          prefixFunctions('test', undefined as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          prefixFunctions('test', undefined as unknown as ExtensionResult)
+        ).toThrow('Extension must be an object');
+      });
+
+      it('throws TypeError when extension is a number', () => {
+        expect(() =>
+          prefixFunctions('test', 42 as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          prefixFunctions('test', 42 as unknown as ExtensionResult)
+        ).toThrow('Extension must be an object');
+      });
+
+      it('throws TypeError when extension is a string', () => {
+        expect(() =>
+          prefixFunctions('test', 'not-an-object' as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          prefixFunctions('test', 'not-an-object' as unknown as ExtensionResult)
+        ).toThrow('Extension must be an object');
+      });
+
+      it('throws TypeError when extension is an array', () => {
+        expect(() =>
+          prefixFunctions('test', [] as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          prefixFunctions('test', [] as unknown as ExtensionResult)
+        ).toThrow('Extension must be an object');
       });
     });
 
@@ -799,6 +846,242 @@ describe('Rill Runtime: Extension System', () => {
     });
   });
 
+  describe('hoistExtension Function', () => {
+    describe('IR-1: hoistExtension returns separated functions and dispose', () => {
+      it('separates functions from dispose for createRuntimeContext', async () => {
+        const extension: ExtensionResult = {
+          greet: {
+            params: [{ name: 'name', type: 'string' }],
+            fn: (args) => `Hello, ${args[0]}!`,
+          },
+          dispose: () => {
+            // cleanup
+          },
+        };
+
+        const hoisted = hoistExtension('app', extension);
+
+        // Verify structure
+        expect(hoisted.functions).toBeDefined();
+        expect(hoisted.dispose).toBeDefined();
+
+        // Verify functions are prefixed
+        expect(hoisted.functions['app::greet']).toBeDefined();
+        expect(
+          hoisted.functions['greet' as keyof typeof hoisted.functions]
+        ).toBeUndefined();
+
+        // Verify dispose is preserved
+        expect(typeof hoisted.dispose).toBe('function');
+
+        // Verify can be used with createRuntimeContext
+        createRuntimeContext({ functions: hoisted.functions });
+        const result = await run('app::greet("World")', {
+          functions: hoisted.functions,
+        });
+        expect(result).toBe('Hello, World!');
+      });
+
+      it('handles extension without dispose method', () => {
+        const extension: ExtensionResult = {
+          add: {
+            params: [
+              { name: 'a', type: 'number' },
+              { name: 'b', type: 'number' },
+            ],
+            fn: (args) => (args[0] as number) + (args[1] as number),
+          },
+        };
+
+        const hoisted = hoistExtension('math', extension);
+
+        // Verify functions exist
+        expect(hoisted.functions['math::add']).toBeDefined();
+
+        // Verify dispose is undefined when not provided
+        expect(hoisted.dispose).toBeUndefined();
+      });
+
+      it('preserves async dispose method', async () => {
+        let disposed = false;
+
+        const extension: ExtensionResult = {
+          test: {
+            params: [],
+            fn: () => 'done',
+          },
+          dispose: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            disposed = true;
+          },
+        };
+
+        const hoisted = hoistExtension('ext', extension);
+
+        expect(hoisted.dispose).toBeDefined();
+
+        await hoisted.dispose!();
+        expect(disposed).toBe(true);
+      });
+    });
+
+    describe('EC-1: Invalid namespace format', () => {
+      it('throws Error with regex message for namespace with spaces', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        expect(() => hoistExtension('my extension', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
+      });
+
+      it('throws Error for namespace with special characters', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        expect(() => hoistExtension('my@extension', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
+      });
+
+      it('throws Error for namespace with dots', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        expect(() => hoistExtension('my.extension', extension)).toThrow(
+          'Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/'
+        );
+      });
+    });
+
+    describe('EC-2: Empty namespace', () => {
+      it('throws Error when namespace is empty string', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        expect(() => hoistExtension('', extension)).toThrow(
+          'Namespace cannot be empty'
+        );
+      });
+    });
+
+    describe('EC-3: Null extension', () => {
+      it('throws TypeError for null extension', () => {
+        expect(() =>
+          hoistExtension('test', null as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          hoistExtension('test', null as unknown as ExtensionResult)
+        ).toThrow('Extension cannot be null or undefined');
+      });
+
+      it('throws TypeError for undefined extension', () => {
+        expect(() =>
+          hoistExtension('test', undefined as unknown as ExtensionResult)
+        ).toThrow(TypeError);
+        expect(() =>
+          hoistExtension('test', undefined as unknown as ExtensionResult)
+        ).toThrow('Extension cannot be null or undefined');
+      });
+    });
+
+    describe('Valid namespace patterns', () => {
+      it('accepts alphanumeric namespace', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        const hoisted = hoistExtension('app123', extension);
+        expect(hoisted.functions['app123::test']).toBeDefined();
+      });
+
+      it('accepts snake_case namespace', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        const hoisted = hoistExtension('my_extension', extension);
+        expect(hoisted.functions['my_extension::test']).toBeDefined();
+      });
+
+      it('accepts kebab-case namespace (for prefixing)', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        const hoisted = hoistExtension('my-extension', extension);
+        expect(hoisted.functions['my-extension::test']).toBeDefined();
+      });
+
+      it('accepts single character namespace', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+        };
+
+        const hoisted = hoistExtension('a', extension);
+        expect(hoisted.functions['a::test']).toBeDefined();
+      });
+    });
+
+    describe('Integration with createRuntimeContext', () => {
+      it('hoisted functions work with createRuntimeContext', async () => {
+        const extension: ExtensionResult = {
+          double: {
+            params: [{ name: 'x', type: 'number' }],
+            fn: (args) => (args[0] as number) * 2,
+          },
+        };
+
+        const { functions } = hoistExtension('math', extension);
+        createRuntimeContext({ functions });
+
+        const result = await run('math::double(21)', { functions });
+        expect(result).toBe(42);
+      });
+
+      it('dispose can be called separately from runtime context', async () => {
+        let disposed = false;
+
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+          dispose: () => {
+            disposed = true;
+          },
+        };
+
+        const { functions, dispose } = hoistExtension('ext', extension);
+
+        // Use functions in runtime
+        const result = await run('ext::test()', { functions });
+        expect(result).toBe('test');
+
+        // Dispose separately
+        expect(dispose).toBeDefined();
+        dispose!();
+        expect(disposed).toBe(true);
+      });
+    });
+
+    describe('Type safety', () => {
+      it('returns HoistedExtension with correct type', () => {
+        const extension: ExtensionResult = {
+          test: { params: [], fn: () => 'test' },
+          dispose: () => {},
+        };
+
+        const hoisted: HoistedExtension = hoistExtension('test', extension);
+
+        // TypeScript validates this at compile time
+        expect(hoisted.functions).toBeDefined();
+        expect(hoisted.dispose).toBeDefined();
+      });
+    });
+  });
+
   describe('emitExtensionEvent Helper', () => {
     it('auto-adds ISO timestamp when timestamp is undefined', () => {
       const events: ExtensionEvent[] = [];
@@ -884,6 +1167,147 @@ describe('Rill Runtime: Extension System', () => {
       expect((events[0] as Record<string, unknown>).model).toBe('gpt-4');
       expect((events[0] as Record<string, unknown>).config).toEqual({
         temperature: 0.7,
+      });
+    });
+
+    describe('EC-4: Null context throws TypeError', () => {
+      it('throws TypeError when context is null', () => {
+        expect(() => {
+          emitExtensionEvent(null as never, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).toThrow(TypeError);
+        expect(() => {
+          emitExtensionEvent(null as never, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).toThrow('Context cannot be null or undefined');
+      });
+
+      it('throws TypeError when context is undefined', () => {
+        expect(() => {
+          emitExtensionEvent(undefined as never, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).toThrow(TypeError);
+        expect(() => {
+          emitExtensionEvent(undefined as never, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).toThrow('Context cannot be null or undefined');
+      });
+    });
+
+    describe('EC-5: Missing event.event throws Error', () => {
+      it('throws Error when event.event is missing', () => {
+        const ctx = createRuntimeContext({
+          callbacks: {
+            onLogEvent: () => {},
+          },
+        });
+
+        expect(() => {
+          emitExtensionEvent(ctx, {
+            event: '',
+            subsystem: 'extension:test',
+          });
+        }).toThrow('Event must include non-empty event field');
+      });
+
+      it('throws Error when event.event is only whitespace', () => {
+        const ctx = createRuntimeContext({
+          callbacks: {
+            onLogEvent: () => {},
+          },
+        });
+
+        expect(() => {
+          emitExtensionEvent(ctx, {
+            event: '   ',
+            subsystem: 'extension:test',
+          });
+        }).toThrow('Event must include non-empty event field');
+      });
+
+      it('throws Error when event.event is undefined (type-cast scenario)', () => {
+        const ctx = createRuntimeContext({
+          callbacks: {
+            onLogEvent: () => {},
+          },
+        });
+
+        expect(() => {
+          emitExtensionEvent(ctx, {
+            event: undefined as never,
+            subsystem: 'extension:test',
+          });
+        }).toThrow('Event must include non-empty event field');
+      });
+    });
+
+    describe('IR-2: Accepts RuntimeContextLike (widened context)', () => {
+      it('accepts object with only callbacks property', () => {
+        const events: ExtensionEvent[] = [];
+        const minimalCtx = {
+          callbacks: {
+            onLogEvent: (event: ExtensionEvent) => events.push(event),
+          },
+        };
+
+        // Should not throw - demonstrates widened parameter type
+        emitExtensionEvent(minimalCtx, {
+          event: 'test_event',
+          subsystem: 'extension:test',
+        });
+
+        expect(events).toHaveLength(1);
+        expect(events[0]!.event).toBe('test_event');
+      });
+
+      it('gracefully handles object without callbacks property', () => {
+        const minimalCtx = {};
+
+        // Should not throw even when callbacks are missing
+        expect(() => {
+          emitExtensionEvent(minimalCtx, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).not.toThrow();
+      });
+
+      it('gracefully handles object with undefined callbacks', () => {
+        const minimalCtx = {
+          callbacks: undefined,
+        };
+
+        // Should not throw when callbacks is explicitly undefined
+        expect(() => {
+          emitExtensionEvent(minimalCtx, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).not.toThrow();
+      });
+
+      it('gracefully handles object with callbacks but no onLogEvent', () => {
+        const minimalCtx = {
+          callbacks: {
+            onLog: () => {},
+          },
+        };
+
+        // Should not throw when onLogEvent is missing
+        expect(() => {
+          emitExtensionEvent(minimalCtx as never, {
+            event: 'test_event',
+            subsystem: 'extension:test',
+          });
+        }).not.toThrow();
       });
     });
   });

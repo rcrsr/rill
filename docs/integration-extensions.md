@@ -7,7 +7,7 @@
 Create a simple extension with a factory function:
 
 ```typescript
-import { createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
+import { createRuntimeContext, hoistExtension } from '@rcrsr/rill';
 import type { ExtensionResult } from '@rcrsr/rill';
 
 function createGreetExtension(config: { prefix: string }): ExtensionResult {
@@ -22,7 +22,7 @@ function createGreetExtension(config: { prefix: string }): ExtensionResult {
 }
 
 const ext = createGreetExtension({ prefix: 'Hello' });
-const functions = prefixFunctions('app', ext);
+const { functions, dispose } = hoistExtension('app', ext);
 const ctx = createRuntimeContext({ functions });
 
 // Script: app::greet("World")
@@ -91,7 +91,7 @@ ai::greet("World")    # "Hello, World!"
 ### Namespace Rules
 
 - Non-empty string
-- Alphanumeric characters and hyphens only (`/^[a-zA-Z0-9-]+$/`)
+- Alphanumeric characters, underscores, and hyphens only (`/^[a-zA-Z0-9_-]+$/`)
 - Invalid namespaces throw `RuntimeError` with code `RUNTIME_TYPE_ERROR`
 
 ### Behavior
@@ -105,9 +105,9 @@ ai::greet("World")    # "Hello, World!"
 Extensions emit structured diagnostic events through `emitExtensionEvent()`:
 
 ```typescript
-import { emitExtensionEvent, type RuntimeContext } from '@rcrsr/rill';
+import { emitExtensionEvent, type RuntimeContextLike } from '@rcrsr/rill';
 
-function myFunction(args: RillValue[], ctx: RuntimeContext) {
+function myFunction(args: RillValue[], ctx: RuntimeContextLike) {
   const start = Date.now();
   const result = doWork(args[0]);
 
@@ -170,14 +170,13 @@ function createPooledExtension(config: PoolConfig): ExtensionResult {
 
 // Usage
 const ext = createPooledExtension({ maxConnections: 10 });
-const ctx = createRuntimeContext({
-  functions: prefixFunctions('db', ext),
-});
+const { functions, dispose } = hoistExtension('db', ext);
+const ctx = createRuntimeContext({ functions });
 
 try {
   const result = await execute(ast, ctx);
 } finally {
-  ext.dispose?.();
+  dispose?.();
 }
 ```
 
@@ -304,14 +303,14 @@ fn: async (args, ctx) => {
   const start = Date.now();
   try {
     const result = await operation(args[0]);
-    emitExtensionEvent(ctx as RuntimeContext, {
+    emitExtensionEvent(ctx, {
       event: 'my-ext:send',
       subsystem: 'extension:my-ext',
       duration: Date.now() - start,
     });
     return result;
   } catch (error) {
-    emitExtensionEvent(ctx as RuntimeContext, {
+    emitExtensionEvent(ctx, {
       event: 'my-ext:error',
       subsystem: 'extension:my-ext',
       error: error instanceof Error ? error.message : 'Unknown',
@@ -397,7 +396,7 @@ fn: async (args, ctx) => {
     return result;
   } catch (error) {
     const rillError = mapSDKError(error, 'myext');
-    emitExtensionEvent(ctx as RuntimeContext, {
+    emitExtensionEvent(ctx, {
       event: 'myext:error',
       subsystem: 'extension:myext',
       error: rillError.message,
@@ -416,10 +415,10 @@ fn: async (args, ctx) => {
 
 ```typescript
 // Extension types
-export type { ExtensionResult, ExtensionFactory, ExtensionEvent };
+export type { ExtensionResult, ExtensionFactory, ExtensionEvent, HoistedExtension };
 
 // Extension utilities
-export { prefixFunctions, emitExtensionEvent };
+export { prefixFunctions, hoistExtension, emitExtensionEvent };
 ```
 
 ## See Also

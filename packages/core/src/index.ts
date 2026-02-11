@@ -27,6 +27,8 @@ export {
   type ExtensionFactory,
   type ExtensionResult,
   type FunctionMetadata,
+  hoistExtension,
+  type HoistedExtension,
   type HostCallEvent,
   type HostFunctionDefinition,
   type HostFunctionParam,

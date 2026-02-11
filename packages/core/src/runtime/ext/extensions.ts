@@ -1,6 +1,13 @@
 import type { HostFunctionDefinition } from '../core/callable.js';
-import type { RuntimeContext, ExtensionEvent } from '../core/types.js';
-import { RuntimeError } from '../../types.js';
+import type { ExtensionEvent, RuntimeCallbacks } from '../core/types.js';
+
+/**
+ * Minimal interface for extension event emission.
+ * Allows emitExtensionEvent to accept any context with callbacks.
+ */
+interface RuntimeContextLike {
+  readonly callbacks?: RuntimeCallbacks | undefined;
+}
 
 /**
  * Result object returned by extension factories.
@@ -9,6 +16,15 @@ import { RuntimeError } from '../../types.js';
 export type ExtensionResult = Record<string, HostFunctionDefinition> & {
   dispose?: () => void | Promise<void>;
 };
+
+/**
+ * Result object returned by hoistExtension.
+ * Separates functions from dispose for safe createRuntimeContext usage.
+ */
+export interface HoistedExtension {
+  functions: Record<string, HostFunctionDefinition>;
+  dispose?: () => void | Promise<void>;
+}
 
 /**
  * Factory function contract for creating extensions.
@@ -35,14 +51,20 @@ export function prefixFunctions(
   namespace: string,
   functions: ExtensionResult
 ): ExtensionResult {
-  // Validate namespace pattern: non-empty alphanumeric with underscores/hyphens
+  // EC-7: Extension not object
+  if (
+    typeof functions !== 'object' ||
+    functions === null ||
+    Array.isArray(functions)
+  ) {
+    throw new TypeError('Extension must be an object');
+  }
+
+  // EC-6: Invalid namespace format
   const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
   if (!NAMESPACE_PATTERN.test(namespace)) {
-    throw new RuntimeError(
-      'RILL-R004',
-      `Invalid namespace: must be non-empty alphanumeric with underscores or hyphens, got "${namespace}"`
-    );
+    throw new Error('Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/');
   }
 
   // Create new object with prefixed keys
@@ -65,11 +87,69 @@ export function prefixFunctions(
 }
 
 /**
+ * Separate dispose from functions for safe createRuntimeContext usage.
+ * Wraps prefixFunctions and returns separated structure.
+ *
+ * @param namespace - String matching /^[a-zA-Z0-9_-]+$/
+ * @param extension - Output from extension factory
+ * @returns Separated functions and dispose handler
+ * @throws {Error} If namespace is empty
+ * @throws {Error} If namespace has invalid format
+ * @throws {TypeError} If extension is null or undefined
+ *
+ * @example
+ * ```typescript
+ * const { functions, dispose } = hoistExtension('db', dbExtension);
+ * const ctx = createRuntimeContext({ functions });
+ * ```
+ */
+export function hoistExtension(
+  namespace: string,
+  extension: ExtensionResult
+): HoistedExtension {
+  // EC-3: Null/undefined extension
+  if (extension === null || extension === undefined) {
+    throw new TypeError('Extension cannot be null or undefined');
+  }
+
+  // EC-2: Empty namespace
+  if (namespace === '') {
+    throw new Error('Namespace cannot be empty');
+  }
+
+  // EC-1: Invalid namespace format
+  const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
+  if (!NAMESPACE_PATTERN.test(namespace)) {
+    throw new Error('Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/');
+  }
+
+  // Call prefixFunctions internally
+  const prefixed = prefixFunctions(namespace, extension);
+
+  // Extract dispose from result
+  const { dispose, ...functions } = prefixed;
+
+  // Return separated structure
+  const result: HoistedExtension = {
+    functions: functions as Record<string, HostFunctionDefinition>,
+  };
+
+  // Only add dispose if it exists (exactOptionalPropertyTypes)
+  if (dispose !== undefined) {
+    result.dispose = dispose;
+  }
+
+  return result;
+}
+
+/**
  * Emit an extension event with auto-generated timestamp.
  * Adds ISO timestamp if event.timestamp is undefined, then calls onLogEvent callback.
  *
- * @param ctx - Runtime context containing callbacks
+ * @param ctx - Runtime context or context-like object containing callbacks
  * @param event - Extension event (timestamp auto-added if omitted)
+ * @throws {TypeError} If ctx is null or undefined
+ * @throws {Error} If event.event is missing or empty
  *
  * @example
  * ```typescript
@@ -82,16 +162,33 @@ export function prefixFunctions(
  * ```
  */
 export function emitExtensionEvent(
-  ctx: RuntimeContext,
+  ctx: RuntimeContextLike,
   event: Omit<ExtensionEvent, 'timestamp'> & { timestamp?: string | undefined }
 ): void {
-  // Call callback if defined
-  if (ctx.callbacks.onLogEvent !== undefined) {
-    // Auto-add timestamp if not present
-    const eventWithTimestamp = {
-      ...event,
-      timestamp: event.timestamp ?? new Date().toISOString(),
-    } as ExtensionEvent;
-    ctx.callbacks.onLogEvent(eventWithTimestamp);
+  // EC-4: Null/undefined context
+  if (ctx === null || ctx === undefined) {
+    throw new TypeError('Context cannot be null or undefined');
+  }
+
+  // EC-5: Missing/empty event.event field
+  if (
+    !event['event'] ||
+    typeof event['event'] !== 'string' ||
+    event['event'].trim() === ''
+  ) {
+    throw new Error('Event must include non-empty event field');
+  }
+
+  // IC-2: Guard for callbacks property (graceful degradation)
+  if ('callbacks' in ctx && ctx.callbacks) {
+    // Call callback if defined
+    if (ctx.callbacks.onLogEvent !== undefined) {
+      // Auto-add timestamp if not present
+      const eventWithTimestamp = {
+        ...event,
+        timestamp: event.timestamp ?? new Date().toISOString(),
+      } as ExtensionEvent;
+      ctx.callbacks.onLogEvent(eventWithTimestamp);
+    }
   }
 }
