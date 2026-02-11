@@ -27,7 +27,7 @@ declare -A FILE_MAP=(
   ["guide-examples"]="guide/examples 2"
   ["guide-conventions"]="guide/conventions 3"
   ["cookbook"]="guide/cookbook 4"
-  ["guide-make"]="guide/make 5"
+  # guide-make promoted to /make (standalone page outside docs tree)
   ["topic-types"]="language/types 1"
   ["topic-variables"]="language/variables 2"
   ["topic-control-flow"]="language/control-flow 3"
@@ -59,7 +59,7 @@ declare -A LINK_MAP=(
   ["guide-examples.md"]="/docs/guide/examples/"
   ["guide-conventions.md"]="/docs/guide/conventions/"
   ["cookbook.md"]="/docs/guide/cookbook/"
-  ["guide-make.md"]="/docs/guide/make/"
+  ["guide-make.md"]="/make/"
   ["topic-types.md"]="/docs/language/types/"
   ["topic-variables.md"]="/docs/language/variables/"
   ["topic-control-flow.md"]="/docs/language/control-flow/"
@@ -153,14 +153,39 @@ BEOF
   echo "  bundled-extensions → extensions/_index.md (promoted)"
 fi
 
+# Promote guide-make.md to standalone /make page
+make_src="$DOCS_DIR/guide-make.md"
+if [[ -f "$make_src" ]]; then
+  make_dir="$(cd "$(dirname "$0")/.." && pwd)/content/make"
+  mkdir -p "$make_dir"
+  make_title="$(head -1 "$make_src" | sed 's/^# //;s/^rill //')"
+  make_desc="$(sed -n '3p' "$make_src" | sed 's/^\*//;s/\*$//')"
+  {
+    echo "---"
+    echo "title: \"${make_title//\"/\\\"}\""
+    echo "description: \"${make_desc//\"/\\\"}\""
+    echo "---"
+    tail -n +4 "$make_src" | sed '1{/^$/d;}'
+  } > "$make_dir/_index.md"
+  sed_script=""
+  for link_src in "${!LINK_MAP[@]}"; do
+    link_target="${LINK_MAP[$link_src]}"
+    escaped_src="${link_src//./\\.}"
+    sed_script+="s|(${escaped_src})|(${link_target})|g;"
+    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
+  done
+  sed -i "$sed_script" "$make_dir/_index.md"
+  echo "  guide-make → /make (standalone)"
+fi
+
 # Process source docs into Hugo content
 process_file() {
   local src="$1"
   local basename
   basename="$(basename "$src" .md)"
 
-  # Skip index.md and bundled-extensions (promoted to _index.md)
-  [[ "$basename" == "index" || "$basename" == "bundled-extensions" ]] && return
+  # Skip promoted pages (handled as standalone or section _index.md)
+  [[ "$basename" == "index" || "$basename" == "bundled-extensions" || "$basename" == "guide-make" ]] && return
 
   local mapping="${FILE_MAP[$basename]:-}"
   [[ -z "$mapping" ]] && { echo "WARN: No mapping for $basename, skipping"; return; }
