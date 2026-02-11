@@ -7,6 +7,32 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ext/fs": {
+      "types": "./dist/ext/fs/index.d.ts",
+      "default": "./dist/ext/fs/index.js"
+    },
+    "./ext/fetch": {
+      "types": "./dist/ext/fetch/index.d.ts",
+      "default": "./dist/ext/fetch/index.js"
+    },
+    "./ext/exec": {
+      "types": "./dist/ext/exec/index.d.ts",
+      "default": "./dist/ext/exec/index.js"
+    },
+    "./ext/kv": {
+      "types": "./dist/ext/kv/index.d.ts",
+      "default": "./dist/ext/kv/index.js"
+    },
+    "./ext/crypto": {
+      "types": "./dist/ext/crypto/index.d.ts",
+      "default": "./dist/ext/crypto/index.js"
+    }
+  },
   "keywords": [
     "rill",
     "scripting",

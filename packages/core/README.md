@@ -135,6 +135,34 @@ try {
 | `isScriptCallable(value)` | Check if value is a script-defined closure |
 | `isApplicationCallable(value)` | Check if value is a host-provided callable |
 
+## Bundled Extensions
+
+rill ships with 5 Node.js-only extensions available as sub-path imports. These extensions provide pre-built host functions for common tasks and are not available in the browser bundle.
+
+### Import Pattern
+
+```typescript
+import { createFsExtension } from '@rcrsr/rill/ext/fs';
+import { createFetchExtension } from '@rcrsr/rill/ext/fetch';
+import { createExecExtension } from '@rcrsr/rill/ext/exec';
+import { createKvExtension } from '@rcrsr/rill/ext/kv';
+import { createCryptoExtension } from '@rcrsr/rill/ext/crypto';
+```
+
+### Available Extensions
+
+| Sub-Path | Factory | Description |
+|----------|---------|-------------|
+| `@rcrsr/rill/ext/fs` | `createFsExtension(config)` | Sandboxed filesystem operations via mount-based access control |
+| `@rcrsr/rill/ext/fetch` | `createFetchExtension(config)` | HTTP requests with endpoint configuration and rate limiting |
+| `@rcrsr/rill/ext/exec` | `createExecExtension(config)` | Sandboxed command execution via allowlist/blocklist controls |
+| `@rcrsr/rill/ext/kv` | `createKvExtension(config)` | Key-value store with JSON persistence and schema validation |
+| `@rcrsr/rill/ext/crypto` | `createCryptoExtension(config)` | Cryptographic functions (hash, hmac, uuid, random) |
+
+Each factory returns an `ExtensionResult` with host function definitions ready to integrate into your runtime context.
+
+> **Note:** These extensions require Node.js APIs and are not compatible with browser environments.
+
 ## Documentation
 
 | Document | Description |

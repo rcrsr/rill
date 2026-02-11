@@ -648,6 +648,186 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: 'RILL-R017',
+    category: 'runtime',
+    description: 'fs extension: unknown mount',
+    messageTemplate: 'mount "{mountName}" not configured',
+    cause:
+      'Script references mount name that does not exist in fs extension configuration, or mount path is invalid.',
+    resolution:
+      'Verify mount name is correct, ensure mount is configured in createFsExtension() call, and check mount path exists.',
+    examples: [
+      {
+        description: 'Unknown mount',
+        code: 'fs::read("unknown", "file.txt")  # Mount "unknown" not in config',
+      },
+      {
+        description: 'Invalid mount path',
+        code: '# createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R018',
+    category: 'runtime',
+    description: 'fs extension: path escapes mount boundary',
+    messageTemplate: 'path escapes mount boundary',
+    cause:
+      'Path traversal attempt (using .. or symlinks) escapes configured mount boundary.',
+    resolution:
+      'Remove path traversal attempts, use paths relative to mount root, or reconfigure mount boundaries.',
+    examples: [
+      {
+        description: 'Path traversal with ..',
+        code: 'fs::read("data", "../../etc/passwd")  # Attempts escape',
+      },
+      {
+        description: 'Symlink escape',
+        code: 'fs::read("data", "symlink_to_root")  # Symlink points outside mount',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R019',
+    category: 'runtime',
+    description: 'fs extension: file type not permitted in mount',
+    messageTemplate: 'file type not permitted in mount "{mountName}"',
+    cause:
+      'Filename does not match mount glob pattern (e.g., trying to read .exe when only *.csv allowed).',
+    resolution:
+      'Use file with allowed extension, or reconfigure mount glob pattern to permit file type.',
+    examples: [
+      {
+        description: 'Glob mismatch',
+        code: 'fs::read("csv_only", "data.json")  # Mount configured with glob: "*.csv"',
+      },
+      {
+        description: 'Multiple extensions',
+        code: 'fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R020',
+    category: 'runtime',
+    description: 'fs extension: mount does not permit operation',
+    messageTemplate: 'mount "{mountName}" does not permit {operation}',
+    cause:
+      'Operation (read or write) not permitted by mount mode (e.g., write to read-only mount).',
+    resolution:
+      'Use mount with appropriate mode, or reconfigure mount to allow operation.',
+    examples: [
+      {
+        description: 'Write to read-only mount',
+        code: 'fs::write("readonly", "file.txt", "data")  # Mount mode: "read"',
+      },
+      {
+        description: 'Read from write-only mount',
+        code: 'fs::read("writeonly", "file.txt")  # Mount mode: "write"',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R021',
+    category: 'runtime',
+    description: 'fs extension: permission denied or file not found',
+    messageTemplate: 'permission denied: {path}',
+    cause:
+      'Operating system denied access to file (EACCES/EPERM), or file does not exist (ENOENT).',
+    resolution:
+      'Check file permissions, verify file exists, ensure user has appropriate access rights.',
+    examples: [
+      {
+        description: 'Permission denied',
+        code: 'fs::read("data", "protected.txt")  # File exists but no read permission',
+      },
+      {
+        description: 'File not found',
+        code: 'fs::read("data", "missing.txt")  # File does not exist',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R022',
+    category: 'runtime',
+    description: 'fetch extension: HTTP 4xx client error',
+    messageTemplate: '{namespace}: HTTP {status} — {body}',
+    cause: 'HTTP request returned a 4xx client error status code.',
+    resolution:
+      'Check request parameters, verify authentication, or adjust request payload.',
+    examples: [
+      {
+        description: 'HTTP 404 Not Found',
+        code: 'fetch::get("api", "/nonexistent")  # Returns 404',
+      },
+      {
+        description: 'HTTP 400 Bad Request',
+        code: 'fetch::post("api", "/users", [invalid: "data"])  # Returns 400',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R023',
+    category: 'runtime',
+    description: 'fetch extension: HTTP 5xx after retries',
+    messageTemplate: '{namespace}: HTTP {status} after {retries} retries',
+    cause: 'HTTP request returned a 5xx server error after all retry attempts.',
+    resolution:
+      'Check server status, reduce request frequency, or increase retry limit.',
+    examples: [
+      {
+        description: 'HTTP 503 Service Unavailable',
+        code: 'fetch::get("api", "/resource")  # Server returns 503',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R024',
+    category: 'runtime',
+    description: 'fetch extension: request timeout',
+    messageTemplate: '{namespace}: request timeout ({timeoutMs}ms)',
+    cause: 'HTTP request exceeded configured timeout duration.',
+    resolution:
+      'Increase timeout via extension configuration, or optimize server response time.',
+    examples: [
+      {
+        description: 'Slow API endpoint',
+        code: 'fetch::get("api", "/slow")  # Times out if exceeds limit',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R025',
+    category: 'runtime',
+    description: 'fetch extension: network error',
+    messageTemplate: '{namespace}: network error — {message}',
+    cause:
+      'Network request failed (DNS resolution, connection refused, or other network issue).',
+    resolution:
+      'Check network connectivity, verify server is reachable, or check firewall settings.',
+    examples: [
+      {
+        description: 'Connection refused',
+        code: 'fetch::get("api", "/endpoint")  # Server not running',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R026',
+    category: 'runtime',
+    description: 'fetch extension: invalid JSON response',
+    messageTemplate: '{namespace}: invalid JSON response',
+    cause: 'Response body could not be parsed as JSON.',
+    resolution:
+      'Check response Content-Type header, verify server returns valid JSON, or use raw response parsing.',
+    examples: [
+      {
+        description: 'HTML error page returned as JSON',
+        code: 'fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON',
+      },
+    ],
+  },
 
   // Check Errors (RILL-C0xx)
   {

@@ -157,16 +157,69 @@
     </div>
   </section>
 
-  <!-- Providers -->
-  <section class="providers">
-    <h2 class="providers-heading">works with every major LLM API</h2>
-    <p class="providers-desc">Switch providers by changing one line. Scripts stay identical.</p>
-    <div class="providers-grid">
-      <a href="/docs/extensions/anthropic/" class="provider-chip">Anthropic</a>
-      <a href="/docs/extensions/openai/" class="provider-chip">OpenAI</a>
-      <a href="/docs/extensions/gemini/" class="provider-chip">Gemini</a>
-      <a href="/docs/extensions/claude-code/" class="provider-chip">Claude Code</a>
+  <!-- Integrations -->
+  <section class="integrations">
+    <h2 class="integrations-heading">drop-in integrations</h2>
+    <p class="integrations-desc">Swap providers by changing one line. Scripts stay identical.</p>
+
+    <div class="integrations-categories">
+      <div class="integration-category integration-category-llm">
+        <div class="category-label">
+          <span class="category-label-dot"></span>
+          <span class="category-label-text">LLM APIs</span>
+          <span class="category-label-line"></span>
+        </div>
+        <div class="integration-chips">
+          <a href="/docs/extensions/anthropic/" class="integration-chip">
+            <span class="chip-prefix">anthropic::</span>message
+          </a>
+          <a href="/docs/extensions/openai/" class="integration-chip">
+            <span class="chip-prefix">openai::</span>message
+          </a>
+          <a href="/docs/extensions/gemini/" class="integration-chip">
+            <span class="chip-prefix">gemini::</span>message
+          </a>
+        </div>
+      </div>
+
+      <div class="integration-category integration-category-vector">
+        <div class="category-label">
+          <span class="category-label-dot"></span>
+          <span class="category-label-text">Vector DBs</span>
+          <span class="category-label-line"></span>
+        </div>
+        <div class="integration-chips">
+          <a href="/docs/extensions/chroma/" class="integration-chip">
+            <span class="chip-prefix">chroma::</span>search
+          </a>
+          <a href="/docs/extensions/pinecone/" class="integration-chip">
+            <span class="chip-prefix">pinecone::</span>search
+          </a>
+          <a href="/docs/extensions/qdrant/" class="integration-chip">
+            <span class="chip-prefix">qdrant::</span>search
+          </a>
+        </div>
+      </div>
+
+      <div class="integration-category integration-category-tools">
+        <div class="category-label">
+          <span class="category-label-dot"></span>
+          <span class="category-label-text">Tools</span>
+          <span class="category-label-line"></span>
+        </div>
+        <div class="integration-chips">
+          <a href="/docs/extensions/claude-code/" class="integration-chip">
+            <span class="chip-prefix">claude-code::</span>skill
+          </a>
+        </div>
+      </div>
     </div>
+
+    <p class="integrations-cta">
+      <a href="/docs/extensions/" class="integrations-link">
+        Browse all extensions <span class="integrations-arrow" aria-hidden="true">-&gt;</span>
+      </a>
+    </p>
   </section>
 
   <!-- Footer -->
@@ -741,16 +794,16 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ---- Providers ---- */
+  /* ---- Integrations ---- */
 
-  .providers {
+  .integrations {
     padding: 4rem 1.5rem 5rem;
     max-width: 960px;
     margin: 0 auto;
     text-align: center;
   }
 
-  .providers-heading {
+  .integrations-heading {
     font-family: var(--font-display);
     font-weight: 800;
     font-size: clamp(1.2rem, 2.5vw, 1.5rem);
@@ -760,38 +813,173 @@
     margin: 0 0 0.5rem;
   }
 
-  .providers-desc {
+  .integrations-desc {
     font-family: var(--font-sans);
     font-size: 0.9rem;
     color: var(--text-secondary);
     line-height: 1.65;
-    margin: 0 0 2rem;
+    margin: 0 0 2.5rem;
   }
 
-  .providers-grid {
+  .integrations-categories {
     display: flex;
-    gap: 1rem;
-    justify-content: center;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  /* Category row */
+  .integration-category {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-play-state: paused;
+  }
+
+  .integration-category-llm    { animation-delay: 0s; }
+  .integration-category-vector  { animation-delay: 0.1s; }
+  .integration-category-tools   { animation-delay: 0.2s; }
+
+  /* Category label with line */
+  .category-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+    padding: 0 0.25rem;
+  }
+
+  .category-label-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .category-label-text {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .category-label-line {
+    flex: 1;
+    height: 1px;
+    opacity: 0.25;
+  }
+
+  /* LLM category accent — cyan */
+  .integration-category-llm .category-label-dot  { background: var(--neon-cyan); }
+  .integration-category-llm .category-label-text  { color: var(--neon-cyan); opacity: 0.7; }
+  .integration-category-llm .category-label-line  { background: var(--neon-cyan); }
+
+  .integration-category-llm .integration-chip:hover {
+    border-color: var(--cyan-a30);
+    border-left-color: var(--neon-cyan);
+    box-shadow: 0 0 20px var(--cyan-a06);
+    color: var(--neon-cyan);
+  }
+
+  .integration-category-llm .chip-prefix {
+    color: var(--neon-cyan);
+    opacity: 0.6;
+  }
+
+  .integration-category-llm .integration-chip:hover .chip-prefix {
+    opacity: 1;
+  }
+
+  /* Vector category accent — purple */
+  .integration-category-vector .category-label-dot  { background: var(--neon-purple); }
+  .integration-category-vector .category-label-text  { color: var(--neon-purple); opacity: 0.7; }
+  .integration-category-vector .category-label-line  { background: var(--neon-purple); }
+
+  .integration-category-vector .integration-chip:hover {
+    border-color: rgba(167, 139, 250, 0.3);
+    border-left-color: var(--neon-purple);
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.06);
+    color: var(--neon-purple);
+  }
+
+  .integration-category-vector .chip-prefix {
+    color: var(--neon-purple);
+    opacity: 0.6;
+  }
+
+  .integration-category-vector .integration-chip:hover .chip-prefix {
+    opacity: 1;
+  }
+
+  /* Tools category accent — green */
+  .integration-category-tools .category-label-dot  { background: var(--neon-green); }
+  .integration-category-tools .category-label-text  { color: var(--neon-green); opacity: 0.7; }
+  .integration-category-tools .category-label-line  { background: var(--neon-green); }
+
+  .integration-category-tools .integration-chip:hover {
+    border-color: rgba(74, 222, 128, 0.3);
+    border-left-color: var(--neon-green);
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.06);
+    color: var(--neon-green);
+  }
+
+  .integration-category-tools .chip-prefix {
+    color: var(--neon-green);
+    opacity: 0.6;
+  }
+
+  .integration-category-tools .integration-chip:hover .chip-prefix {
+    opacity: 1;
+  }
+
+  /* Chip grid within each category */
+  .integration-chips {
+    display: flex;
+    gap: 0.75rem;
     flex-wrap: wrap;
   }
 
-  .provider-chip {
+  .integration-chip {
     font-family: var(--font-mono);
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
     text-decoration: none;
     background: var(--void-card);
     border: 1px solid var(--void-border);
     border-left: 2px solid var(--void-border);
     border-radius: 8px;
-    padding: 0.7rem 1.5rem;
+    padding: 0.65rem 1.25rem;
     transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease, border-left-color 300ms ease;
   }
 
-  .provider-chip:hover {
-    border-color: var(--cyan-a30);
-    border-left-color: var(--neon-cyan);
-    box-shadow: 0 0 20px var(--cyan-a06);
+  .chip-prefix {
+    transition: opacity 300ms ease;
+  }
+
+  /* Browse all link */
+  .integrations-cta {
+    margin: 2.5rem 0 0;
+  }
+
+  .integrations-link {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 200ms ease;
+  }
+
+  .integrations-link:hover {
+    color: var(--text-secondary);
+  }
+
+  .integrations-arrow {
+    display: inline-block;
+    transition: transform 200ms ease, color 200ms ease;
+  }
+
+  .integrations-link:hover .integrations-arrow {
+    transform: translateX(3px);
     color: var(--neon-cyan);
   }
 
@@ -962,12 +1150,17 @@
       padding-top: 0;
     }
 
-    .providers {
+    .integrations {
       padding: 2rem 1rem 3rem;
     }
 
-    .providers-grid {
-      gap: 0.75rem;
+    .integration-chips {
+      gap: 0.5rem;
+    }
+
+    .integration-chip {
+      font-size: 0.75rem;
+      padding: 0.55rem 1rem;
     }
 
     .hero-cta {
@@ -997,6 +1190,7 @@
     .feature-card { animation: none; opacity: 1; transform: none; }
     .comparison-panel { animation: none; opacity: 1; transform: none; }
     .comparison-legend { animation: none; opacity: 1; transform: none; }
+    .integration-category { animation: none; opacity: 1; transform: none; }
     .landing-atmosphere { animation: none; }
     .hero::before { animation: none; }
   }
@@ -1014,7 +1208,7 @@
       });
     }, { threshold: 0.15 });
 
-    document.querySelectorAll('.feature-card, .comparison-panel, .comparison-legend').forEach(function(el) {
+    document.querySelectorAll('.feature-card, .comparison-panel, .comparison-legend, .integration-category').forEach(function(el) {
       observer.observe(el);
     });
   })();
