@@ -38,6 +38,7 @@
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
+| [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects with `rill-create-agent` |
 
 ## Extensions
 

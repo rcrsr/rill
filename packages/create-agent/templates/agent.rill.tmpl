@@ -1,0 +1,59 @@
+{{#if description}}# {{description}}
+
+{{/if}}{{#if (eq starterPattern "search-focused")}}# Search-focused RAG workflow
+# 1. Embed the user query into a vector
+# 2. Search the vector database for relevant documents
+# 3. Summarize results using the AI model
+
+"What is the capital of France?" => $query
+
+# Generate embedding for the query
+$query -> ai::embed => $embedding
+
+# Search vector database for relevant documents
+db::search($embedding.vector, [limit: 5, score_threshold: 0.7]) => $results
+
+# Extract document content from search results
+$results.points -> map { $.payload.content } => $documents
+
+# Build context from retrieved documents
+$documents -> .join("\n\n") => $context
+
+# Generate response using retrieved context
+"Answer this question using the provided context.\n\nQuestion: {$query}\n\nContext:\n{$context}\n\nAnswer:" => $prompt
+ai::message($prompt, [max_tokens: 500]) => $response
+
+$response.content -> log
+{{else}}{{#if (eq starterPattern "conversation-loop")}}# Conversation-loop chatbot workflow
+# Multi-turn message exchange with the AI model
+
+# Initialize conversation with system context
+[
+  [role: "system", content: "You are a helpful assistant."],
+] => $messages
+
+# First user message
+[role: "user", content: "Hello! Can you help me?"] => $user_msg
+[...$messages, $user_msg] => $messages
+
+# Get assistant response
+$messages -> ai::messages => $response
+$response.messages => $messages
+
+# Second user message
+[role: "user", content: "What is the weather like today?"] => $user_msg_2
+[...$messages, $user_msg_2] => $messages
+
+# Get second response
+$messages -> ai::messages => $final_response
+
+# Log the conversation
+$final_response.messages -> each {
+  "{$.role}: {$.content}" -> log
+}
+
+# Log final response
+"Final response: {$final_response.content}" -> log
+{{else}}# Minimal starter script
+"Hello from rill!" -> log
+{{/if}}{{/if}}

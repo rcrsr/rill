@@ -1,0 +1,46 @@
+{
+  "name": "rill-create-agent",
+  "version": "0.8.0",
+  "description": "Scaffolding tool for rill extension projects",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "keywords": [
+    "rill",
+    "scaffolding",
+    "cli",
+    "create",
+    "extension"
+  ],
+  "bin": {
+    "rill-create-agent": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "handlebars": "^4.7.8"
+  },
+  "files": [
+    "dist",
+    ".claude",
+    "templates"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/create-agent"
+  },
+  "homepage": "https://rill.run",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

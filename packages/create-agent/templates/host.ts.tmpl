@@ -1,0 +1,57 @@
+import 'dotenv/config';
+import {
+  type HostFunctionDefinition,
+  hoistExtension,
+  createRuntimeContext,
+  prefixFunctions,
+} from '@rcrsr/rill';
+{{#each imports}}
+import { {{factoryName}} } from '{{packageName}}';
+{{/each}}
+
+// ============================================================
+// EXTENSION SETUP
+// ============================================================
+
+{{#each extensions}}
+const {{namespace}} = hoistExtension('{{namespace}}', {{factoryName}}({
+{{#each configFields}}
+  {{name}}: {{{value}}},
+{{/each}}
+}));
+
+{{/each}}
+// ============================================================
+// APP FUNCTIONS
+// ============================================================
+
+const appFunctions: Record<string, HostFunctionDefinition> = {
+  // TODO: Add your custom host functions here
+  // Example:
+  // greet: {
+  //   fn: async (args) => `Hello, ${args[0]}!`,
+  //   params: [{ name: 'name', type: 'string' }],
+  //   returns: { type: 'string' },
+  // },
+};
+
+// ============================================================
+// CREATE HOST
+// ============================================================
+
+export function createHost() {
+  const functions = {
+    {{#each extensions}}
+    ...{{namespace}}.functions,
+    {{/each}}
+    ...prefixFunctions('app', appFunctions),
+  };
+
+  const dispose = async () => {
+    {{#each extensions}}
+    await {{namespace}}.dispose?.();
+    {{/each}}
+  };
+
+  return { functions, dispose };
+}

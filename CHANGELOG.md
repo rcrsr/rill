@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **rill-create-agent scaffolding CLI** — `rill-create-agent` generates production-ready rill agent projects with three access paths: direct invocation via `npx rill-create-agent`, interactive guided prompts, and Claude Code plugin integration via `/rill-create-agent` skill. Generated projects include fully-configured `host.ts` with extension hoisting, agent starter patterns (minimal, search-focused RAG, conversation-loop chatbots), TypeScript toolchain, and CLAUDE.md documentation. Supports 7 bundled extensions (anthropic, openai, gemini, claude-code, qdrant, pinecone, chroma) with automatic namespace wiring and environment configuration. 165 test cases covering CLI flags, error contracts, template rendering, and end-to-end generation
+
 ## [0.8.0] - 2026-02-10
 
 ### Added

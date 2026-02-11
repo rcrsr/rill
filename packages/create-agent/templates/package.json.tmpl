@@ -1,0 +1,14 @@
+{
+  "name": "{{projectName}}",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/run.ts",
+    "check": "rill-check src/agent.rill"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "^0.8.0",
+    "tsx": "^4.0.0",
+    "dotenv": "^16.0.0"{{#each extensionPackages}},
+    "{{this}}": "latest"{{/each}}
+  }
+}
