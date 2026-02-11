@@ -153,29 +153,21 @@ BEOF
   echo "  bundled-extensions → extensions/_index.md (promoted)"
 fi
 
-# Promote guide-make.md to standalone /make page
+# Promote guide-make.md to static plain-text file at /make/
 make_src="$DOCS_DIR/guide-make.md"
 if [[ -f "$make_src" ]]; then
-  make_dir="$(cd "$(dirname "$0")/.." && pwd)/content/make"
+  make_dir="$(cd "$(dirname "$0")/.." && pwd)/static/make"
   mkdir -p "$make_dir"
-  make_title="$(head -1 "$make_src" | sed 's/^# //;s/^rill //')"
-  make_desc="$(sed -n '3p' "$make_src" | sed 's/^\*//;s/\*$//')"
-  {
-    echo "---"
-    echo "title: \"${make_title//\"/\\\"}\""
-    echo "description: \"${make_desc//\"/\\\"}\""
-    echo "---"
-    tail -n +4 "$make_src" | sed '1{/^$/d;}'
-  } > "$make_dir/_index.md"
+  cp "$make_src" "$make_dir/index.html"
   sed_script=""
   for link_src in "${!LINK_MAP[@]}"; do
     link_target="${LINK_MAP[$link_src]}"
     escaped_src="${link_src//./\\.}"
-    sed_script+="s|(${escaped_src})|(${link_target})|g;"
-    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
+    sed_script+="s|(${escaped_src})|(https://rill.run${link_target})|g;"
+    sed_script+="s|(${escaped_src}#|(https://rill.run${link_target}#|g;"
   done
-  sed -i "$sed_script" "$make_dir/_index.md"
-  echo "  guide-make → /make (standalone)"
+  sed -i "$sed_script" "$make_dir/index.html"
+  echo "  guide-make → /make (plain text)"
 fi
 
 # Process source docs into Hugo content
