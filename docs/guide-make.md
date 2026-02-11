@@ -8,6 +8,8 @@ These instructions guide you through building a rill agent. Follow the four phas
 
 **References:** [rill.run/llms-full.txt](https://rill.run/llms-full.txt) (complete language spec) | [rill.run/docs](https://rill.run/docs/) (full documentation)
 
+> **Hard rule:** Always scaffold with `npx @rcrsr/rill-create-agent`. Never create `package.json`, `host.ts`, `run.ts`, or `tsconfig.json` by hand. The scaffolder generates correct dependencies, imports, and runtime wiring. Hand-rolled projects break on missing internal packages.
+
 ---
 
 ## Phase 1: Explore
@@ -169,12 +171,15 @@ my-agent/
 
 ### 3.2 Plan the Implementation Steps
 
-1. **Scaffold** — Run `rill-create-agent` with the selected external extensions
-2. **Configure host.ts** — Wire all extensions (external + core) with `hoistExtension`
-3. **Set up .env** — Add API keys and connection strings
-4. **Write agent.rill** — Implement the data flow designed in Phase 2
-5. **Test** — Run with `npm start` and verify output
-6. **Iterate** — Adjust agent logic and host configuration based on results
+1. **Scaffold** — Run `rill-create-agent` with the selected external extensions (generates all project files)
+2. **Install** — Run the package manager to install dependencies
+3. **Add core extensions** — Edit the generated `host.ts` to wire core extensions (fs, fetch, exec, kv, crypto)
+4. **Set up .env** — Copy `.env.example` to `.env` and fill in API keys
+5. **Write agent.rill** — Replace the generated starter script with agent logic from Phase 2
+6. **Test** — Run with `npm start` and verify output
+7. **Iterate** — Adjust `agent.rill` logic and `host.ts` configuration based on results
+
+Steps 1-2 produce a working project. Steps 3-5 customize it. Never create project files outside of step 1.
 
 ### 3.3 Determine the Scaffold Command
 
@@ -204,27 +209,34 @@ Run from the user's project parent directory — the scaffolder creates a new fo
 
 Implement the plan step by step.
 
+> **Do not create files manually.** The scaffolder generates `package.json`, `host.ts`, `run.ts`, `tsconfig.json`, `.env.example`, and `CLAUDE.md` with correct internal dependencies. You edit the generated files — you never write them from scratch.
+
 ### 4.1 Scaffold the Project
+
+Run `rill-create-agent` with the external extensions selected in Phase 1:
 
 ```bash
 npx @rcrsr/rill-create-agent my-agent --extensions anthropic,qdrant
 ```
 
-### 4.2 Configure host.ts
+This generates a working project with all dependencies, imports, and runtime wiring. The generated `host.ts` already contains `hoistExtension` calls for every external extension passed via `--extensions`. The generated `run.ts` already handles parsing, execution, output formatting, and cleanup.
 
-Wire extensions into the runtime context using `hoistExtension`. Each call returns `{ functions, dispose }`.
+**Do not modify `run.ts`** unless you need custom callbacks. **Do not modify `package.json`** unless adding new npm dependencies.
 
-**Import pattern:**
+After scaffolding, install dependencies with the chosen package manager:
+
+```bash
+cd my-agent && npm install
+```
+
+### 4.2 Add Core Extensions to host.ts
+
+The scaffolder wires external extensions (anthropic, openai, gemini, qdrant, etc.) automatically. Core extensions (fs, fetch, exec, kv, crypto) ship with `@rcrsr/rill` and require no extra `npm install`, but you must add them to the generated `host.ts` manually.
+
+**Open the scaffolded `src/host.ts` and add imports for each core extension you need:**
 
 ```typescript
-// Core runtime
-import { hoistExtension, createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
-
-// External extensions (separate npm packages)
-import { createAnthropicExtension } from '@rcrsr/rill-ext-anthropic';
-import { createQdrantExtension } from '@rcrsr/rill-ext-qdrant';
-
-// Core extensions (bundled sub-path imports)
+// Add these imports below the existing ones in the generated host.ts
 import { createFsExtension } from '@rcrsr/rill/ext/fs';
 import { createFetchExtension } from '@rcrsr/rill/ext/fetch';
 import { createExecExtension } from '@rcrsr/rill/ext/exec';
@@ -232,17 +244,22 @@ import { createKvExtension } from '@rcrsr/rill/ext/kv';
 import { createCryptoExtension } from '@rcrsr/rill/ext/crypto';
 ```
 
-**Initialization pattern:**
+**Add initialization calls alongside the existing ones:**
 
 ```typescript
-const anthropic = hoistExtension('anthropic', createAnthropicExtension({
-  api_key: process.env.ANTHROPIC_API_KEY || '',
-}));
-
-const fs = hoistExtension('fs', createFsExtension({
-  mounts: {
-    input: { path: './data', mode: 'read' },
-    output: { path: './output', mode: 'read-write' },
+// These go next to the existing hoistExtension calls in the generated file
+const newsapi = hoistExtension('newsapi', createFetchExtension({
+  baseUrl: 'https://newsapi.org/v2',
+  headers: { 'X-Api-Key': process.env.NEWSAPI_KEY || '' },
+  endpoints: {
+    top_headlines: {
+      method: 'GET',
+      path: '/top-headlines',
+      params: [
+        { name: 'country', type: 'string', location: 'query', defaultValue: 'us' },
+        { name: 'pageSize', type: 'number', location: 'query', defaultValue: 10 },
+      ],
+    },
   },
 }));
 
@@ -251,25 +268,28 @@ const kv = hoistExtension('kv', createKvExtension({
 }));
 ```
 
-**Combining into createHost():**
+**Spread their functions into the existing `createHost()` return value:**
 
 ```typescript
+// Edit the existing createHost() — add to the functions spread and dispose calls
 export function createHost() {
   return {
     functions: {
-      ...anthropic.functions,
-      ...fs.functions,
-      ...kv.functions,
+      ...anthropic.functions,   // ← already generated
+      ...newsapi.functions,     // ← add this
+      ...kv.functions,          // ← add this
     },
     dispose: async () => {
-      await anthropic.dispose?.();
-      await kv.dispose?.();
+      await anthropic.dispose?.();  // ← already generated
+      await kv.dispose?.();         // ← add this
     },
   };
 }
 ```
 
-**Custom host functions** (when no extension fits):
+### 4.3 Add Custom Host Functions (if needed)
+
+Only add custom host functions when no extension covers the requirement. Add them to the generated `host.ts`:
 
 ```typescript
 const appFunctions: Record<string, HostFunctionDefinition> = {
@@ -280,29 +300,26 @@ const appFunctions: Record<string, HostFunctionDefinition> = {
   },
 };
 
-// In createHost():
+// In createHost() functions spread:
 ...prefixFunctions('app', appFunctions),
 ```
 
-**Dispose lifecycle** — always in a `finally` block:
+### 4.4 Write agent.rill
 
-```typescript
-try {
-  const result = await execute(ast, ctx);
-} finally {
-  await host.dispose();
-}
+Replace the generated `src/agent.rill` with your agent logic. Use the data flow designed in Phase 2 and the extension functions wired in `host.ts`. See the Syntax Quick Reference and Extension Function Reference sections below.
+
+The agent script calls extension functions using `namespace::function()` syntax. The namespace matches the first argument to `hoistExtension` in `host.ts`:
+
+```rill
+// If host.ts has: hoistExtension('newsapi', createFetchExtension({...}))
+// Then agent.rill calls: newsapi::top_headlines(...)
+newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
 ```
 
-### 4.3 Write agent.rill
-
-Implement the data flow from Phase 2 using rill syntax. See the Syntax Quick Reference and Extension Function Reference sections below.
-
-### 4.4 Test and Iterate
+### 4.5 Test and Iterate
 
 ```bash
 npm run start          # Execute agent.rill
-npm run build          # Compile TypeScript
 npm run typecheck      # Validate types
 ```
 
@@ -550,6 +567,21 @@ createCryptoExtension({
   hmacKey: process.env.HMAC_SECRET,
 })
 ```
+
+---
+
+## Common Mistakes
+
+These patterns cause broken projects. Avoid them.
+
+| Mistake | Why it breaks | Correct approach |
+|---------|---------------|------------------|
+| Writing `package.json` by hand | Missing internal dependencies like `@rcrsr/rill-ext-llm-shared` | Run `npx @rcrsr/rill-create-agent` |
+| Writing `run.ts` by hand | Wrong imports, missing `parse`/`execute` pattern, no output formatting | Use the generated `run.ts` unmodified |
+| Writing `host.ts` from scratch | Missing `dotenv/config` import, wrong `hoistExtension` wiring | Edit the generated `host.ts` |
+| Using raw `fetch()` or `axios` for HTTP | Bypasses sandboxing, no retry/auth, wrong function signature | Use the `fetch` core extension with `createFetchExtension` |
+| Installing core extensions via npm | `fs`, `fetch`, `exec`, `kv`, `crypto` are sub-path exports of `@rcrsr/rill` | Import from `@rcrsr/rill/ext/<name>` — no extra install |
+| Skipping `--extensions` flag | Scaffolder requires either `--extensions` or `--preset` | Always pass external extensions to the scaffold command |
 
 ---
 
