@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-02-11
+
+### Fixed
+
+- **create-agent npx symlink resolution** — `npx @rcrsr/rill-create-agent` produced zero output because the entry point guard compared symlink path against real path. Uses `realpathSync` on both paths before comparison
+
+### Removed
+
+- **create-agent interactive mode** — Removed `@inquirer/prompts` dependency and interactive prompt flow. All inputs must be provided via CLI flags (`--extensions` or `--preset` required). LLM callers gather and provide all values
+
+### Changed
+
+- **Agent instructions data gathering** — `docs/guide-make.md` Phase 2.3 restructured from passive "determine configuration" to explicit per-extension interview checklist. Phase 3.3 collects project name, package manager, and description before scaffold command
+
 ## [0.8.2] - 2026-02-11
 
 ### Fixed

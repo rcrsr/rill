@@ -5,7 +5,7 @@
  */
 
 import { fileURLToPath } from 'node:url';
-import { input, checkbox } from '@inquirer/prompts';
+import { realpathSync } from 'node:fs';
 import { scaffold, type ScaffoldConfig } from './scaffold.js';
 import {
   getExtensionConfig,
@@ -164,27 +164,6 @@ function parseFlags(args: string[]): ParsedFlags {
 }
 
 // ============================================================
-// MODE DETECTION
-// ============================================================
-
-/**
- * Determine if any flag was provided (non-interactive mode).
- *
- * @param flags - Parsed flags
- * @returns true if any flag present (non-interactive), false if no flags (interactive)
- */
-function isNonInteractiveMode(flags: ParsedFlags): boolean {
-  return (
-    flags.extensions !== null ||
-    flags.preset !== null ||
-    flags.description !== null ||
-    flags.packageManager !== null ||
-    flags.noInstall ||
-    flags.typescript
-  );
-}
-
-// ============================================================
 // VALIDATION
 // ============================================================
 
@@ -225,59 +204,23 @@ function validateExtensions(extensions: string[]): void {
 }
 
 /**
- * Validate non-interactive mode requirements.
+ * Validate that --extensions or --preset is provided.
  *
  * @param flags - Parsed flags
  * @throws ValidationError if validation fails
  */
-function validateNonInteractiveMode(flags: ParsedFlags): void {
+function validateFlags(flags: ParsedFlags): void {
   // EC-4: --preset and --extensions both provided
   if (flags.preset !== null && flags.extensions !== null) {
     throw new ValidationError('Cannot combine --preset and --extensions');
   }
 
-  // EC-5: Non-interactive mode, no --extensions or --preset
+  // EC-5: No --extensions or --preset
   if (flags.preset === null && flags.extensions === null) {
     throw new ValidationError(
-      'Provide --extensions or --preset (or omit all flags for interactive mode)'
+      'Provide --extensions or --preset to select extensions'
     );
   }
-}
-
-// ============================================================
-// INTERACTIVE MODE
-// ============================================================
-
-/**
- * Prompt user for extension selection and description.
- *
- * @returns Extensions and description from user input
- */
-async function promptForInput(): Promise<{
-  extensions: string[];
-  description: string;
-}> {
-  // Prompt for extensions (multi-select)
-  const extensions = await checkbox({
-    message: 'Select extensions to include:',
-    choices: [
-      { name: 'Anthropic Claude', value: 'anthropic' },
-      { name: 'OpenAI', value: 'openai' },
-      { name: 'Google Gemini', value: 'gemini' },
-      { name: 'Claude Code', value: 'claude-code' },
-      { name: 'Qdrant Vector DB', value: 'qdrant' },
-      { name: 'Pinecone Vector DB', value: 'pinecone' },
-      { name: 'Chroma Vector DB', value: 'chroma' },
-    ],
-  });
-
-  // Prompt for description
-  const description = await input({
-    message: 'Project description:',
-    default: '',
-  });
-
-  return { extensions, description };
 }
 
 // ============================================================
@@ -286,10 +229,7 @@ async function promptForInput(): Promise<{
 
 /**
  * Parse CLI arguments and invoke scaffold function.
- *
- * Mode Selection:
- * - Any flag provided -> non-interactive (uses flag values, errors on missing required data)
- * - No flags provided -> interactive (prompts for extension selection and description)
+ * All inputs must be provided via flags (no interactive mode).
  *
  * @param args - Command-line arguments (first positional is project name, rest are flags)
  */
@@ -300,7 +240,9 @@ export async function main(args: string[]): Promise<void> {
 
     if (!projectName) {
       console.error('Error: Missing project name');
-      console.error('Usage: rill-create-agent <project-name> [options]');
+      console.error(
+        'Usage: rill-create-agent <project-name> --extensions <ext1,ext2> [options]'
+      );
       process.exit(1);
     }
 
@@ -313,32 +255,21 @@ export async function main(args: string[]): Promise<void> {
     // Parse flags (remaining args)
     const flags = parseFlags(args.slice(1));
 
-    // Determine mode
-    const nonInteractive = isNonInteractiveMode(flags);
+    // Validate required flags
+    validateFlags(flags);
 
     let extensions: string[];
-    let description: string;
 
-    if (nonInteractive) {
-      // Non-interactive mode: validate flags and use values
-      validateNonInteractiveMode(flags);
-
-      if (flags.preset !== null) {
-        // EC-3: Unknown preset name
-        const preset = resolvePreset(flags.preset);
-        extensions = [...preset.extensions];
-      } else {
-        extensions = flags.extensions!;
-        validateExtensions(extensions);
-      }
-
-      description = flags.description ?? '';
+    if (flags.preset !== null) {
+      // EC-3: Unknown preset name
+      const preset = resolvePreset(flags.preset);
+      extensions = [...preset.extensions];
     } else {
-      // Interactive mode: prompt for input
-      const input = await promptForInput();
-      extensions = input.extensions;
-      description = input.description;
+      extensions = flags.extensions!;
+      validateExtensions(extensions);
     }
+
+    const description = flags.description ?? '';
 
     // Build scaffold config
     const config: ScaffoldConfig = {
@@ -370,9 +301,10 @@ export async function main(args: string[]): Promise<void> {
 // ============================================================
 
 // Only run main if this file is executed directly (not imported)
-// Convert import.meta.url to file path and compare with process.argv[1]
-// This works reliably with npx, global install, and direct execution
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Use realpathSync to resolve symlinks created by npx, global install, etc.
+const __thisFile = realpathSync(fileURLToPath(import.meta.url));
+const __execFile = process.argv[1] ? realpathSync(process.argv[1]) : '';
+if (__execFile === __thisFile) {
   main(process.argv.slice(2)).catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);

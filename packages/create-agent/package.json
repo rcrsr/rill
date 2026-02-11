@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-create-agent",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Scaffolding tool for rill extension projects",
   "license": "MIT",
   "author": "Andre Bremer",
@@ -23,7 +23,6 @@
     "check": "pnpm run build && pnpm run test && pnpm run lint"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.2.0",
     "handlebars": "^4.7.8"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-ext-qdrant",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "rill extension for Qdrant vector database integration",
   "license": "MIT",
   "author": "Andre Bremer",

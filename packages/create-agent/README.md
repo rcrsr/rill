@@ -7,28 +7,14 @@ Scaffolding tool for [rill](https://rill.run) extension projects.
 ## Install
 
 ```bash
-npx rill-create-agent my-agent
+npx rill-create-agent my-agent --extensions anthropic
 ```
 
 No global installation required. `npx` executes the latest version from npm.
 
 ## Usage
 
-### Basic Usage
-
-Create a new project with interactive prompts:
-
-```bash
-npx rill-create-agent my-agent
-```
-
-This launches an interactive wizard:
-1. Multi-select extensions to include
-2. Enter project description (optional)
-
-### Non-Interactive Mode
-
-Specify extensions via CLI flags to skip prompts:
+All inputs are provided via CLI flags. The `--extensions` or `--preset` flag is required.
 
 ```bash
 npx rill-create-agent my-agent --extensions anthropic,qdrant
@@ -49,7 +35,7 @@ npx rill-create-agent my-agent --preset rag
 | `--no-install` | Skip dependency installation | `--no-install` |
 | `--typescript` | Generate TypeScript project | `--typescript` |
 
-**Mode detection:** Any flag triggers non-interactive mode. Non-interactive mode requires `--extensions` or `--preset`.
+**Required:** Either `--extensions` or `--preset` must be provided. They cannot be combined.
 
 ## Extensions
 
@@ -120,16 +106,7 @@ npm run typecheck      # Validate types
 
 ## Examples
 
-### Interactive Mode
-
-```bash
-npx rill-create-agent my-chatbot
-# Prompts:
-# - Select extensions: [x] Anthropic Claude
-# - Project description: Conversational agent for support
-```
-
-### Non-Interactive with Preset
+### With Preset
 
 ```bash
 npx rill-create-agent my-rag-bot --preset rag --package-manager pnpm
@@ -140,7 +117,7 @@ Generates project with:
 - Starter pattern: `search-focused`
 - Package manager: `pnpm`
 
-### Non-Interactive with Custom Extensions
+### With Custom Extensions
 
 ```bash
 npx rill-create-agent my-agent \
@@ -196,12 +173,12 @@ After scaffolding:
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `Missing project name` | No positional argument | Provide project name: `npx rill-create-agent my-agent` |
+| `Missing project name` | No positional argument | Provide project name: `npx rill-create-agent my-agent --extensions anthropic` |
 | `Project name must be valid npm package name` | Invalid npm package name | Use lowercase alphanumeric, hyphens, underscores |
 | `Unknown extension: X` | Invalid extension name | Use one of: `anthropic`, `openai`, `gemini`, `claude-code`, `qdrant`, `pinecone`, `chroma` |
 | `Unknown preset: X` | Invalid preset name | Use `rag` or `chatbot` |
 | `Cannot combine --preset and --extensions` | Both flags provided | Use `--preset` OR `--extensions`, not both |
-| `Provide --extensions or --preset` | Non-interactive mode without extensions | Add `--extensions` or `--preset` flag |
+| `Provide --extensions or --preset` | Missing required flag | Add `--extensions` or `--preset` flag |
 | `Invalid --package-manager value` | Unknown package manager | Use `npm`, `pnpm`, or `yarn` |
 
 ## License

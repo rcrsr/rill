@@ -7,11 +7,6 @@ vi.mock('../src/scaffold.js', () => ({
   scaffold: vi.fn(),
 }));
 
-vi.mock('@inquirer/prompts', () => ({
-  input: vi.fn(),
-  checkbox: vi.fn(),
-}));
-
 describe('CLI Entry Point', () => {
   const mockScaffold = vi.mocked(scaffoldModule.scaffold);
   let mockExit: ReturnType<typeof vi.spyOn>;
@@ -368,13 +363,13 @@ describe('CLI Entry Point', () => {
     });
   });
 
-  describe('EC-5: Non-interactive mode, no --extensions or --preset', () => {
+  describe('EC-5: Missing --extensions or --preset', () => {
     it('throws ValidationError when --description provided without extension selection', async () => {
       await expect(
         main(['my-project', '--description', 'My app'])
       ).rejects.toThrow();
       expect(mockConsoleError).toHaveBeenCalledWith(
-        'Error: Provide --extensions or --preset (or omit all flags for interactive mode)'
+        'Error: Provide --extensions or --preset to select extensions'
       );
     });
 
@@ -383,21 +378,28 @@ describe('CLI Entry Point', () => {
         main(['my-project', '--package-manager', 'pnpm'])
       ).rejects.toThrow();
       expect(mockConsoleError).toHaveBeenCalledWith(
-        'Error: Provide --extensions or --preset (or omit all flags for interactive mode)'
+        'Error: Provide --extensions or --preset to select extensions'
       );
     });
 
     it('throws ValidationError when --typescript provided without extension selection', async () => {
       await expect(main(['my-project', '--typescript'])).rejects.toThrow();
       expect(mockConsoleError).toHaveBeenCalledWith(
-        'Error: Provide --extensions or --preset (or omit all flags for interactive mode)'
+        'Error: Provide --extensions or --preset to select extensions'
       );
     });
 
     it('throws ValidationError when --no-install provided without extension selection', async () => {
       await expect(main(['my-project', '--no-install'])).rejects.toThrow();
       expect(mockConsoleError).toHaveBeenCalledWith(
-        'Error: Provide --extensions or --preset (or omit all flags for interactive mode)'
+        'Error: Provide --extensions or --preset to select extensions'
+      );
+    });
+
+    it('throws ValidationError when no flags provided', async () => {
+      await expect(main(['my-project'])).rejects.toThrow();
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        'Error: Provide --extensions or --preset to select extensions'
       );
     });
   });
@@ -464,13 +466,7 @@ describe('CLI Entry Point', () => {
     });
   });
 
-  describe('Mode Selection', () => {
-    it('uses non-interactive mode when any flag is provided', async () => {
-      // Should not prompt, should use flag values directly
-      await main(['my-project', '--extensions', 'anthropic']);
-      expect(mockScaffold).toHaveBeenCalled();
-    });
-
+  describe('Error Handling', () => {
     it('exits with code 1 on ValidationError', async () => {
       await expect(
         main(['my-project', '--extensions', 'unknown'])

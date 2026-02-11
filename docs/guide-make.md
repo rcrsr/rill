@@ -16,13 +16,13 @@ Understand the user's goal and discover which capabilities apply.
 
 ### 1.1 Clarify the Goal
 
-Ask the user clarifying questions before proceeding:
+Ask the user these questions before proceeding:
 
-- What task should the agent perform?
-- What external services does it need (LLMs, APIs, databases)?
-- What data does it read, transform, or produce?
-- Does it need persistent state across runs?
-- What environment will it run in?
+- What task should the agent perform? (one-sentence summary)
+- What external services does it call? (LLM providers, HTTP APIs, databases)
+- What files does it read or write? (paths, formats, permissions)
+- Does it need state that persists between runs?
+- Does it need to run shell commands?
 
 Do not assume requirements. Interview until the scope is clear.
 
@@ -104,22 +104,46 @@ Example:
 | Persist | `kv::set("last_query", $query)` | Remember last query |
 | Write output | `fs::write("output", "result.md", $response)` | Save to file |
 
-### 2.3 Define Host Configuration
+### 2.3 Gather Configuration Values
 
-For each extension, determine what configuration the host needs:
+For each selected extension, **ask the user** for the specific values needed to configure `host.ts`. Do not guess — every value below must come from the user or be explicitly marked as a reasonable default.
 
-- **fs:** Which directories to mount, with what permissions?
-- **fetch:** What base URL, which endpoints, what auth headers?
-- **exec:** Which commands to allow, what arguments to permit?
-- **kv:** What schema keys, what defaults for first run?
-- **LLM extensions:** Which model, what API key env var?
-- **Vector DB extensions:** What URL, which collection?
+**LLM extensions** (anthropic, openai, gemini):
+- Which provider and model?
+- What environment variable holds the API key?
+
+**Vector DB extensions** (qdrant, pinecone, chroma):
+- Connection URL and collection name?
+- What environment variable holds the API key (if any)?
+
+**fs** — ask for each mount point:
+- Mount name, directory path, and mode (`read`, `write`, or `read-write`)?
+- File type filter (glob pattern)?
+
+**fetch** — ask for each external API:
+- Base URL?
+- Auth mechanism (Bearer token env var, API key header, none)?
+- List each endpoint: HTTP method, path, parameters (name, type, location)?
+
+**exec** — ask for each command:
+- Binary name and allowed arguments?
+- Working directory?
+- Does it accept stdin?
+
+**kv** — ask for state requirements:
+- File path for the state store?
+- Schema keys with types and defaults? (or open mode with no schema)
+
+**crypto** — ask only if selected:
+- HMAC secret env var (if HMAC is needed)?
+
+Record every answer. These values flow directly into `host.ts` in Phase 4.
 
 ### 2.4 Identify Custom Host Functions
 
 If the agent needs capabilities no extension provides, plan custom host functions using `prefixFunctions`. Keep these minimal — prefer extensions over custom code.
 
-**Present the design to the user.** Show the data flow, extension choices, and host configuration plan. Get approval before proceeding.
+**Present the design to the user.** Show the data flow, extension choices, and every configuration value collected. Get approval before proceeding.
 
 ---
 
@@ -154,13 +178,23 @@ my-agent/
 
 ### 3.3 Determine the Scaffold Command
 
-Build the scaffold command from the selected external extensions. Run from the user's project parent directory — the scaffolder creates a new folder:
+Ask the user for project setup values:
+
+- **Project name** — valid npm package name (lowercase, hyphens, underscores)
+- **Package manager** — `npm`, `pnpm`, or `yarn` (default: `npm`)
+- **Description** — one-line project description
+
+Build the scaffold command from these values plus the external extensions selected in Phase 1. The `--extensions` or `--preset` flag is required. Core extensions need no flag — they ship with `@rcrsr/rill` and get wired in `host.ts` manually.
 
 ```bash
-npx @rcrsr/rill-create-agent <project-name> --extensions <comma-separated-list>
+npx @rcrsr/rill-create-agent <project-name> \
+  --extensions <comma-separated-list> \
+  --description "<description>" \
+  --package-manager <pm> \
+  --no-install
 ```
 
-Core extensions need no flag — they ship with `@rcrsr/rill` and get wired in `host.ts` manually.
+Run from the user's project parent directory — the scaffolder creates a new folder.
 
 **Present the plan to the user.** Show the scaffold command, implementation steps, and expected file changes. Get approval before executing.
 
