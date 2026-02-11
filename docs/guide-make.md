@@ -154,10 +154,10 @@ my-agent/
 
 ### 3.3 Determine the Scaffold Command
 
-Build the `npx rill-create-agent` command from the selected external extensions:
+Build the scaffold command from the selected external extensions. Run from the user's project parent directory — the scaffolder creates a new folder:
 
 ```bash
-npx rill-create-agent <project-name> --extensions <comma-separated-list>
+npx @rcrsr/rill-create-agent <project-name> --extensions <comma-separated-list>
 ```
 
 Core extensions need no flag — they ship with `@rcrsr/rill` and get wired in `host.ts` manually.
@@ -173,7 +173,7 @@ Implement the plan step by step.
 ### 4.1 Scaffold the Project
 
 ```bash
-npx rill-create-agent my-agent --extensions anthropic,qdrant
+npx @rcrsr/rill-create-agent my-agent --extensions anthropic,qdrant
 ```
 
 ### 4.2 Configure host.ts
