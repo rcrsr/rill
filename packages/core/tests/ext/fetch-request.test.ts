@@ -436,7 +436,7 @@ describe('executeRequest - retry logic', () => {
 
     expect(result).toEqual({ success: true });
     expect(fetchCallCount).toBe(2);
-    expect(elapsed).toBeGreaterThanOrEqual(1000); // Respects Retry-After
+    expect(elapsed).toBeGreaterThanOrEqual(998); // Respects Retry-After (with 2ms tolerance)
   });
 
   it('uses exponential backoff for network errors', async () => {
@@ -467,9 +467,9 @@ describe('executeRequest - retry logic', () => {
     );
 
     expect(callCount).toBe(3);
-    // Check exponential backoff: 50ms, 100ms
-    expect(callTimes[1]! - callTimes[0]!).toBeGreaterThanOrEqual(50);
-    expect(callTimes[2]! - callTimes[1]!).toBeGreaterThanOrEqual(100);
+    // Check exponential backoff: 50ms, 100ms (with 2ms tolerance for timer jitter)
+    expect(callTimes[1]! - callTimes[0]!).toBeGreaterThanOrEqual(48);
+    expect(callTimes[2]! - callTimes[1]!).toBeGreaterThanOrEqual(98);
   });
 
   it('does not retry HTTP 4xx errors (except 429)', async () => {
