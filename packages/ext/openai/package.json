@@ -37,7 +37,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/openai"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/openai#readme",
+  "homepage": "https://rill.run/docs/extensions/openai/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },

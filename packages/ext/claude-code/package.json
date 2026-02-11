@@ -39,7 +39,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/claude-code"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/claude-code#readme",
+  "homepage": "https://rill.run/docs/extensions/claude-code/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },

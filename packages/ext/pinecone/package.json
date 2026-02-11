@@ -37,7 +37,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/pinecone"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/pinecone#readme",
+  "homepage": "https://rill.run/docs/extensions/pinecone/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },

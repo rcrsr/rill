@@ -36,7 +36,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/cli#readme",
+  "homepage": "https://rill.run/docs/integration/cli-tools/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },

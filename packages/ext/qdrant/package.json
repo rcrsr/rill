@@ -37,7 +37,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/qdrant"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/qdrant#readme",
+  "homepage": "https://rill.run/docs/extensions/qdrant/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },

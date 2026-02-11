@@ -37,7 +37,7 @@
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/ext/anthropic"
   },
-  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/ext/anthropic#readme",
+  "homepage": "https://rill.run/docs/extensions/anthropic/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },
