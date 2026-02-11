@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-02-10
+
 ### Added
 
 - **Extension hoisting API** — `hoistExtension(namespace, extension)` separates dispose handlers from functions for safe `createRuntimeContext` usage. Returns `{ functions, dispose }` structure eliminating manual dispose stripping across 4 test hosts. Added error contracts for namespace validation (regex `/^[a-zA-Z0-9_-]+$/`), null checks, and object validation. Includes 17 test cases covering success, error, and boundary conditions
@@ -21,11 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Tool descriptor builder** — `tool()` built-in creates tool definitions from closures or host functions for LLM consumption
 
+- **Version sync tooling** — `scripts/sync-versions.sh` propagates root version to all workspace packages. `scripts/check-versions.sh` validates consistency. Release workflow and `release.sh` discover publishable packages dynamically
+
 ### Changed
 
 - **Core types module split** — `types.ts` split into 7 focused modules. Public API unchanged; `types.ts` re-exports all symbols for backward compatibility
 
 - **RuntimeError message cleanup** — Removed duplicate error ID prefixes from runtime error messages. Added ESLint rule `rill/no-duplicate-error-id` to prevent regression
+
+- **Release infrastructure** — Workflow and `release.sh` use dynamic package discovery instead of hardcoded lists. Adding a new extension requires zero release config changes
 
 ## [0.7.2] - 2026-02-08
 
@@ -857,7 +863,8 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/rcrsr/rill/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/rcrsr/rill/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rcrsr/rill/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rcrsr/rill/compare/v0.6.2...v0.7.0

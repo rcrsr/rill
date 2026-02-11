@@ -45,22 +45,30 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   fi
 fi
 
-# Step 4: Build all packages
+# Step 4: Verify version consistency
+info "Verifying version consistency..."
+./scripts/check-versions.sh || error "Version mismatch detected"
+
+# Step 5: Build all packages
 info "Building all packages..."
 pnpm run -r build || error "Build failed"
 
-# Step 5: Run tests
+# Step 6: Run tests
 info "Running tests..."
 pnpm run -r test || error "Tests failed"
 
-# Step 6: Get package information
-PACKAGES=(
-  "packages/core:@rcrsr/rill"
-  "packages/cli:@rcrsr/rill-cli"
-  "packages/ext/claude-code:@rcrsr/rill-ext-claude-code"
-)
+# Step 7: Discover publishable packages
+PACKAGES=()
+for dir in packages/core packages/cli packages/ext/*/; do
+  dir="${dir%/}"
+  [ -f "$dir/package.json" ] || continue
+  PRIVATE=$(node -p "require('./$dir/package.json').private || false")
+  [ "$PRIVATE" = "true" ] && continue
+  NAME=$(node -p "require('./$dir/package.json').name")
+  PACKAGES+=("$dir:$NAME")
+done
 
-# Step 7: Verify all packages have publishConfig.access: "public"
+# Step 8: Verify all packages have publishConfig.access: "public"
 info "Verifying publish configuration..."
 for pkg in "${PACKAGES[@]}"; do
   PKG_DIR="${pkg%%:*}"
@@ -78,13 +86,12 @@ done
 
 info "All packages have publishConfig.access: \"public\""
 
-# Step 8: Confirm before publishing
+# Step 9: Confirm before publishing
+VERSION=$(node -p "require('./package.json').version")
 echo
-info "Ready to publish the following packages:"
+info "Ready to publish the following packages at v$VERSION:"
 for pkg in "${PACKAGES[@]}"; do
-  PKG_DIR="${pkg%%:*}"
   PKG_NAME="${pkg##*:}"
-  VERSION=$(node -p "require('./$PKG_DIR/package.json').version")
   echo "  - $PKG_NAME@$VERSION"
 done
 
@@ -96,13 +103,11 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-# Step 9: Publish packages
-# Note: publishConfig.access is used automatically, but we verify it exists above
+# Step 10: Publish packages
 info "Publishing packages..."
 for pkg in "${PACKAGES[@]}"; do
   PKG_DIR="${pkg%%:*}"
   PKG_NAME="${pkg##*:}"
-  VERSION=$(node -p "require('./$PKG_DIR/package.json').version")
 
   info "Publishing $PKG_NAME@$VERSION..."
   cd "$PKG_DIR"
@@ -112,14 +117,10 @@ for pkg in "${PACKAGES[@]}"; do
   info "Published $PKG_NAME@$VERSION successfully"
 done
 
-# Step 10: Create git tags
+# Step 11: Create git tags
 info "Creating git tags..."
 for pkg in "${PACKAGES[@]}"; do
-  PKG_DIR="${pkg%%:*}"
   PKG_NAME="${pkg##*:}"
-  VERSION=$(node -p "require('./$PKG_DIR/package.json').version")
-
-  # Tag format: @rcrsr/rill@0.6.0, @rcrsr/rill-cli@0.6.0, etc.
   TAG="${PKG_NAME}@${VERSION}"
 
   if git tag -l "$TAG" | grep -q "$TAG"; then
@@ -130,7 +131,7 @@ for pkg in "${PACKAGES[@]}"; do
   fi
 done
 
-# Step 11: Push tags
+# Step 12: Push tags
 echo
 read -p "Push tags to remote? (y/N) " -n 1 -r
 echo
@@ -146,8 +147,6 @@ echo
 info "Release completed successfully!"
 info "Published packages:"
 for pkg in "${PACKAGES[@]}"; do
-  PKG_DIR="${pkg%%:*}"
   PKG_NAME="${pkg##*:}"
-  VERSION=$(node -p "require('./$PKG_DIR/package.json').version")
   echo "  - $PKG_NAME@$VERSION"
 done
