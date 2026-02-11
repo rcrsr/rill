@@ -27,7 +27,7 @@
     "handlebars": "^4.7.8"
   },
   "devDependencies": {
-    "@rcrsr/rill-cli": "workspace:^"
+    "@rcrsr/rill": "workspace:^"
   },
   "files": [
     "dist",

@@ -59,9 +59,9 @@ importers:
         specifier: ^4.7.8
         version: 4.7.8
     devDependencies:
-      '@rcrsr/rill-cli':
+      '@rcrsr/rill':
         specifier: workspace:^
-        version: link:../cli
+        version: link:../core
 
   packages/ext/anthropic:
     dependencies:

@@ -6,9 +6,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { rm, readFile, access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
+import { parseWithRecovery } from '@rcrsr/rill';
 import {
   scaffold,
   type ScaffoldConfig,
@@ -38,17 +38,14 @@ afterEach(async () => {
 // ============================================================
 
 /**
- * Run rill-check on a generated agent.rill file.
- * Returns true if check passes (exit code 0), false otherwise.
+ * Parse a generated agent.rill file directly.
+ * Returns true if parsing succeeds with no errors, false otherwise.
  */
 function checkRillSyntax(projectPath: string): boolean {
   const agentPath = join(projectPath, 'src', 'agent.rill');
-  const result = spawnSync('rill-check', [agentPath], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-
-  return result.status === 0;
+  const source = readFileSync(agentPath, 'utf8');
+  const result = parseWithRecovery(source);
+  return result.errors.length === 0;
 }
 
 /**
