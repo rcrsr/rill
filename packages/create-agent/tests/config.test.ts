@@ -32,7 +32,7 @@ describe('Package Configuration', () => {
     });
 
     it('has correct package name', () => {
-      expect(packageJson.name).toBe('rill-create-agent');
+      expect(packageJson.name).toBe('@rcrsr/rill-create-agent');
     });
 
     it('includes dist directory in files', () => {
