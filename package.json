@@ -1,9 +1,9 @@
 {
   "name": "rill-lang",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Scripting designed for machine-generated code",
   "private": true,
-  "packageManager": "pnpm@10.10.0",
+  "packageManager": "pnpm@10.29.2",
   "type": "module",
   "repository": {
     "type": "git",

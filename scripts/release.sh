@@ -59,7 +59,7 @@ pnpm run -r test || error "Tests failed"
 
 # Step 7: Discover publishable packages
 PACKAGES=()
-for dir in packages/core packages/cli packages/ext/*/; do
+for dir in packages/core packages/cli packages/create-agent packages/ext/*/; do
   dir="${dir%/}"
   [ -f "$dir/package.json" ] || continue
   PRIVATE=$(node -p "require('./$dir/package.json').private || false")
@@ -69,6 +69,8 @@ for dir in packages/core packages/cli packages/ext/*/; do
 done
 
 # Step 8: Verify all packages have publishConfig.access: "public"
+# publishConfig.access is used automatically during publish, but we verify
+# it exists to prevent ERR_NPM_PACKAGE_PRIVATE rejections.
 info "Verifying publish configuration..."
 for pkg in "${PACKAGES[@]}"; do
   PKG_DIR="${pkg%%:*}"
@@ -116,7 +118,7 @@ for pkg in "${PACKAGES[@]}"; do
 
   info "Publishing $PKG_NAME@$VERSION..."
   cd "$PKG_DIR"
-  npm publish --access public || error "Failed to publish $PKG_NAME"
+  pnpm publish --access public || error "Failed to publish $PKG_NAME"
   cd - > /dev/null
 
   info "Published $PKG_NAME@$VERSION successfully"

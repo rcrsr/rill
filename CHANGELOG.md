@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-02-11
+
 ### Added
 
 - **Core bundled extensions** — `fs`, `fetch`, `exec`, `kv`, and `crypto` shipped as sub-path exports of `@rcrsr/rill` (e.g. `@rcrsr/rill/ext/fs`). Zero third-party dependencies; Node built-ins only. Each extension provides introspection and proper disposal. Sub-path isolation preserves browser compatibility of the main entry point
 
 - **rill-create-agent scaffolding CLI** — `npx rill-create-agent` generates production-ready rill agent projects with extension hoisting, starter patterns (minimal, RAG, chatbot), and TypeScript toolchain. Also available as `/rill-create-agent` skill in Claude Code
+
+### Changed
+
+- **Release uses pnpm publish** — Workflow and `release.sh` use `pnpm publish` instead of `npm publish`, resolving `workspace:` protocol references at publish time
+
+- **pnpm updated to 10.29.2** — `packageManager` field bumped from 10.10.0
+
+- **rill-create-agent added to release pipeline** — `packages/create-agent` included in publish loop and git tag creation
 
 ## [0.8.0] - 2026-02-10
 

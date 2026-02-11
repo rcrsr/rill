@@ -66,9 +66,9 @@ describe('Release Script', () => {
   });
 
   describe('IC-14, EC-7, AC-13: Script publishes with --access public', () => {
-    it('contains npm publish --access public command', () => {
+    it('contains pnpm publish --access public command', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
-      expect(content).toContain('npm publish --access public');
+      expect(content).toContain('pnpm publish --access public');
     });
 
     it('verifies publishConfig.access exists before publishing', () => {
@@ -87,7 +87,7 @@ describe('Release Script', () => {
     it('publishes after tests pass', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
       const testIndex = content.indexOf('pnpm run -r test');
-      const publishIndex = content.indexOf('npm publish --access public');
+      const publishIndex = content.indexOf('pnpm publish --access public');
       expect(publishIndex).toBeGreaterThan(testIndex);
     });
   });
@@ -116,7 +116,7 @@ describe('Release Script', () => {
 
     it('creates tags after successful publish', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
-      const publishIndex = content.indexOf('npm publish --access public');
+      const publishIndex = content.indexOf('pnpm publish --access public');
       // Look for the actual tag creation command with -a flag
       const tagIndex = content.indexOf('git tag -a');
       expect(tagIndex).toBeGreaterThan(publishIndex);
@@ -127,7 +127,7 @@ describe('Release Script', () => {
     it('validates publishConfig before attempting publish', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
       const validateIndex = content.indexOf('publishConfig.access');
-      const publishIndex = content.indexOf('npm publish');
+      const publishIndex = content.indexOf('pnpm publish');
       expect(validateIndex).toBeGreaterThan(0);
       expect(publishIndex).toBeGreaterThan(validateIndex);
     });
@@ -147,17 +147,11 @@ describe('Release Script', () => {
     it('script includes all workspace packages', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
 
-      // Core packages
+      // Package directories in discovery loop (names resolved dynamically)
       expect(content).toContain('packages/core');
-      expect(content).toContain('@rcrsr/rill');
-
-      // CLI package
       expect(content).toContain('packages/cli');
-      expect(content).toContain('@rcrsr/rill-cli');
-
-      // Extension package
-      expect(content).toContain('packages/ext/claude-code');
-      expect(content).toContain('@rcrsr/rill-ext-claude-code');
+      expect(content).toContain('packages/create-agent');
+      expect(content).toContain('packages/ext/');
     });
   });
 

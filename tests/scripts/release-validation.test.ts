@@ -30,7 +30,7 @@ describe('EC-7: Publish without --access public → npm rejects', () => {
 
     // Find verification section
     const verifyIndex = content.indexOf('Verifying publish configuration');
-    const firstPublishIndex = content.indexOf('npm publish');
+    const firstPublishIndex = content.indexOf('pnpm publish');
 
     expect(verifyIndex).toBeGreaterThan(0);
     expect(verifyIndex).toBeLessThan(firstPublishIndex);
@@ -45,11 +45,11 @@ describe('EC-7: Publish without --access public → npm rejects', () => {
     expect(content).toMatch(/error.*missing publishConfig/i);
   });
 
-  it('uses npm publish --access public explicitly', () => {
+  it('uses pnpm publish --access public explicitly', () => {
     const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
 
     // Even though publishConfig exists, we enforce --access public flag
-    expect(content).toContain('npm publish --access public');
+    expect(content).toContain('pnpm publish --access public');
   });
 
   it('includes comment about ERR_NPM_PACKAGE_PRIVATE error', () => {
@@ -65,10 +65,10 @@ describe('AC-13: Publish without --access public → npm rejects', () => {
   it('enforces --access public requirement', () => {
     const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
 
-    // Count all npm publish commands - all must have --access public
-    const publishMatches = content.match(/npm publish/g);
+    // Count all pnpm publish commands - all must have --access public
+    const publishMatches = content.match(/pnpm publish/g);
     const publishWithAccessMatches = content.match(
-      /npm publish --access public/g
+      /pnpm publish --access public/g
     );
 
     expect(publishMatches).toBeTruthy();

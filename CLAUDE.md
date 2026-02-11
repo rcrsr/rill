@@ -81,7 +81,7 @@ Test publish without releasing:
 
 ```bash
 cd packages/core
-npm publish --dry-run --access public
+pnpm publish --dry-run --access public
 ```
 
 ## Architecture

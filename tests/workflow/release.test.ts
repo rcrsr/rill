@@ -89,7 +89,7 @@ describe('Release Workflow', () => {
         step.run?.includes('pnpm -r run test')
       );
       const publishStepIndex = steps.findIndex((step: any) =>
-        step.run?.includes('npm publish')
+        step.run?.includes('pnpm publish')
       );
 
       expect(buildStepIndex).toBeGreaterThanOrEqual(0);
@@ -102,7 +102,7 @@ describe('Release Workflow', () => {
     });
   });
 
-  describe('IC-13: npm publishing', () => {
+  describe('IC-13: pnpm publishing', () => {
     it('uses OIDC trusted publishing instead of npm tokens', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
@@ -118,37 +118,33 @@ describe('Release Workflow', () => {
       expect(content).not.toContain('--provenance');
     });
 
-    it('publishes all three packages', () => {
+    it('publishes all workspace packages via loop', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps || [];
-      const publishSteps = steps.filter((step: any) =>
-        step.run?.includes('npm publish')
+      const publishStep = steps.find((step: any) =>
+        step.run?.includes('pnpm publish')
       );
 
-      expect(publishSteps.length).toBe(3);
-
-      const packageDirs = publishSteps.map(
-        (step: any) => step['working-directory']
-      );
-      expect(packageDirs).toContain('packages/core');
-      expect(packageDirs).toContain('packages/cli');
-      expect(packageDirs).toContain('packages/ext/claude-code');
+      expect(publishStep).toBeDefined();
+      expect(publishStep.run).toContain('packages/core');
+      expect(publishStep.run).toContain('packages/cli');
+      expect(publishStep.run).toContain('packages/create-agent');
+      expect(publishStep.run).toContain('packages/ext/');
     });
 
-    it('does not set env on publish steps (OIDC provides credentials)', () => {
+    it('does not set env on publish step (OIDC provides credentials)', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps || [];
-      const publishSteps = steps.filter((step: any) =>
-        step.run?.includes('npm publish')
+      const publishStep = steps.find((step: any) =>
+        step.run?.includes('pnpm publish')
       );
 
-      publishSteps.forEach((step: any) => {
-        expect(step.env).toBeUndefined();
-      });
+      expect(publishStep).toBeDefined();
+      expect(publishStep.env).toBeUndefined();
     });
   });
 
