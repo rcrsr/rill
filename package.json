@@ -25,7 +25,9 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "check": "pnpm -r run check",
-    "test:examples": "pnpm --filter @rcrsr/rill run test:examples"
+    "test:examples": "pnpm --filter @rcrsr/rill run test:examples",
+    "sync-versions": "bash scripts/sync-versions.sh",
+    "check-versions": "bash scripts/check-versions.sh"
   },
   "keywords": [
     "rill",

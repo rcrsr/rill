@@ -68,7 +68,9 @@ rill uses a manual release process via `scripts/release.sh`. The script:
 
 Before running `./scripts/release.sh`:
 
-- [ ] Update version in all package.json files
+- [ ] Update version in root `package.json`
+- [ ] Run `pnpm sync-versions` to propagate to all packages
+- [ ] Run `pnpm check-versions` to verify consistency
 - [ ] Update CHANGELOG.md with release notes
 - [ ] Commit version changes: `git commit -m "chore: release vx.y.z"`
 - [ ] Ensure working directory is clean
