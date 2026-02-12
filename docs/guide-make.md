@@ -394,7 +394,20 @@ The agent script calls extension functions using `namespace::function()` syntax.
 newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
 ```
 
-**STOP — do not run `npm start` yet.** Present for review:
+**STOP — do not run `npm start` yet.** You must complete two steps before executing.
+
+**Step 1: Verify against common rill mistakes.** Search your `agent.rill` code for each pattern below and fix before presenting:
+
+| Search for | Error if found | Replace with |
+|------------|---------------|--------------|
+| `.length` | `Unknown method: length` | `.len` |
+| Single quote `'` | `Unexpected character: '` | Double quotes `"` only |
+| `$str + $str` (string + string) | `Arithmetic requires number` | Interpolation: `"{$a}{$b}"` |
+| `join(` without leading `.` | `Unknown function: join` | Method syntax: `-> .join(sep)` |
+| `log(` on final result | Duplicated output | `log` for progress only; last expression is sole output |
+| `$.?field ?? "default"` | `Cannot combine existence check with default` | Use one: `$.field ?? "default"` or `$.?field` |
+
+**Step 2: Present for user review:**
 
 1. The complete `src/agent.rill` source code
 2. All `src/host.ts` edits (core extensions added, configuration values, namespace choices)
