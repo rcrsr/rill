@@ -184,6 +184,36 @@ describe('buildRequest', () => {
     });
     expect(responseShape).toBe('body');
   });
+
+  it('preserves base URL path when endpoint path starts with /', () => {
+    const config: FetchExtensionConfig = {
+      baseUrl: 'https://newsapi.org/v2',
+      endpoints: {
+        top_headlines: {
+          path: '/top-headlines',
+          method: 'GET',
+          args: [{ name: 'country', location: 'query' }],
+        },
+      },
+    };
+    const { url } = buildRequest(config, 'top_headlines', { country: 'us' });
+    expect(url).toBe('https://newsapi.org/v2/top-headlines?country=us');
+  });
+
+  it('handles base URL with trailing slash', () => {
+    const config: FetchExtensionConfig = {
+      baseUrl: 'https://newsapi.org/v2/',
+      endpoints: {
+        top_headlines: {
+          path: '/top-headlines',
+          method: 'GET',
+          args: [],
+        },
+      },
+    };
+    const { url } = buildRequest(config, 'top_headlines', {});
+    expect(url).toBe('https://newsapi.org/v2/top-headlines');
+  });
 });
 
 // ============================================================

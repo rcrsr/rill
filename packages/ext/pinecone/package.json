@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-ext-pinecone",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "rill extension for Pinecone vector database integration",
   "license": "MIT",
   "author": "Andre Bremer",

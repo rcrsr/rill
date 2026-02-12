@@ -155,12 +155,14 @@ function buildUrl(
   queryArgs: Map<string, string>
 ): string {
   const path = interpolatePathParams(pathPattern, pathArgs);
-  const url = new URL(path, baseUrl);
+  const base = new URL(baseUrl);
+  base.pathname =
+    base.pathname.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
   const queryString = buildQueryString(queryArgs);
   if (queryString) {
-    url.search = queryString;
+    base.search = queryString;
   }
-  return url.toString();
+  return base.toString();
 }
 
 // ============================================================

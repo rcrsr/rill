@@ -504,7 +504,7 @@ describe('run.ts.tmpl', () => {
       // Main function
       expect(result).toContain('async function main(): Promise<void> {');
       expect(result).toContain(
-        "const source = await readFile('agent.rill', 'utf-8');"
+        "const source = await readFile('src/agent.rill', 'utf-8');"
       );
       expect(result).toContain('const ast = parse(source);');
       expect(result).toContain('const { functions, dispose } = createHost();');

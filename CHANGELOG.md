@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.5] - 2026-02-12
+
+### Fixed
+
+- **Fetch extension URL path concatenation** — `buildUrl()` dropped the base URL path when endpoint paths started with `/` (e.g. `new URL('/top-headlines', 'https://newsapi.org/v2')` resolved to `https://newsapi.org/top-headlines`). Replaced `new URL(path, baseUrl)` with explicit path join that preserves the base path component
+
+- **Scaffolder run.ts agent path** — Generated `run.ts` read `'agent.rill'` from project root but the scaffolder places the file at `src/agent.rill`. Changed to `readFile('src/agent.rill')`
+
+### Changed
+
+- **Agent instructions entry-point detection** — `docs/guide-make.md` adds a decision table for 4 entry scenarios (goal statement, pre-scaffolded project, credentials only, existing bug) so agents determine the correct starting phase
+
+- **Agent instructions review gate** — `docs/guide-make.md` §4.4 requires showing the user final `agent.rill` and `host.ts` edits with explicit approval before first execution
+
+- **Agent instructions debugging guidance** — New §4.6 with error classification table, rules against hand-editing generated files as workarounds, and file path troubleshooting
+
+- **Agent instructions operator precedence** — Syntax Quick Reference documents that `??` consumes the full pipe chain as its default value. Shows 3 safe patterns for optional dict fields and a precedence table for `??`, `=>`, `?`/`!`, `.?`
+
+- **Agent instructions extension return types** — Extension Function Reference expanded with return types, data shapes, and usage examples for all 7 extensions (LLM, vector DB, fs, fetch, exec, kv, crypto). Agents no longer need to search source code for response shapes
 
 ## [0.8.4] - 2026-02-12
 

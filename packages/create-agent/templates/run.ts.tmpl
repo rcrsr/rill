@@ -26,7 +26,7 @@ function formatOutput(value: RillValue): string {
 
 async function main(): Promise<void> {
   try {
-    const source = await readFile('agent.rill', 'utf-8');
+    const source = await readFile('src/agent.rill', 'utf-8');
     const ast = parse(source);
 
     const { functions, dispose } = createHost();
