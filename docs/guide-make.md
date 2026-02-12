@@ -435,7 +435,7 @@ When the agent fails, follow this order:
 
 ## rill Syntax Quick Reference
 
-rill scripts flow data through pipes (`->`), not assignment.
+rill scripts flow data through pipes (`->`), not assignment. Strings use double quotes only — single quotes are not valid syntax.
 
 **Pipes and variables:**
 
@@ -608,12 +608,22 @@ Each endpoint in config becomes a callable function. Return shape depends on `re
 | `'body'` (default) | varies | Parsed JSON body directly (dict, list, string, or number) |
 | `'full'` | dict | `{ status, headers, body }` — status is number, headers is dict |
 
+**Two calling conventions** — both work for every endpoint:
+
 ```rill
-api::get_users([limit: 10]) => $users        # body shape: parsed JSON directly
-api::get_user("user-123") => $user           # single positional arg for path params
-api::create_user([name: "Alice"]) => $new    # dict arg for body params
+# Positional args — matched to params by declaration order
+api::get_users(10) => $users
+newsapi::top_headlines("us", 5) => $response
+
+# Dict/named args — matched to params by name
+api::get_users([limit: 10]) => $users
+newsapi::top_headlines([country: "us", pageSize: 5]) => $response
+
+# Introspection
 api::endpoints() => $list                    # [{ name, method, path, description }, ...]
 ```
+
+The runtime detects which convention you used: a single dict argument triggers named matching; anything else triggers positional matching. Both produce identical HTTP requests.
 
 Supports retry with exponential backoff, `maxConcurrent` throttling, dynamic headers.
 
@@ -773,12 +783,17 @@ These patterns cause broken projects or runtime errors. Avoid them.
 
 | Mistake | Error message | Correct approach |
 |---------|---------------|------------------|
+| Single quotes: `'hello'` | `Unexpected character: '` | rill uses double quotes only: `"hello"` |
+| `"text {$.field ?? 'fallback'}"` | `Unexpected character: '` | Extract default to a variable: `($.field ?? "fallback") => $val` then `"text {$val}"` |
 | `a ++ b` for string concatenation | `Unexpected token: +` | Use interpolation `"{$a}{$b}"` or binary `$a + $b` |
 | `$.?field ?? "default"` | `Cannot combine existence check (.?field) with default value operator (??)` | Use one: `$.field ?? "default"` or `$.?field` — not both |
+| `join(sep, $list)` or `$list -> join(sep)` | `Unknown function: join` | rill operations are methods, not functions: `$list -> .join(sep)` |
 | `$list -> .length` | `Unknown method: length` | Use `.len` — rill method names are abbreviated |
 | `$dict -> .keys` | `Unknown method: keys` | Use `.entries` for dict iteration, or `kv::keys()` for kv store |
 | `log($result)` then `$result` as last line | Duplicated output — `log` prints once, `run.ts` prints the return value again | Use `log` for progress only; let the last expression be the sole output |
 | Skipping phases to "save time" | Syntax errors, wrong extensions, misconfigured APIs — costs more time than the phases save | Follow all 4 phases; each gate prevents a class of errors |
+
+**Method syntax rule:** rill data operations use `.method()` syntax, not standalone functions. Use `$list -> .join(",")`, `$str -> .upper`, `$list -> .len`, `$str -> .split(" ")`, `$str -> .trim`. The dot is required — without it, rill looks for a host function or built-in.
 
 ---
 
