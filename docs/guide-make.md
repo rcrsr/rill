@@ -2,13 +2,15 @@
 
 *Workflow for building rill agent projects*
 
-These instructions guide you through building a rill agent. Follow the four phases in order. Do not skip to implementation.
+These instructions guide you through building a rill agent. The four phases are mandatory gates, not suggestions. Each phase produces deliverables that require user approval before the next phase begins. Do not skip phases. Do not combine phases. Do not proceed without explicit user approval at each gate.
 
 **Prompt template:** "Using the rill agent instructions at [URL], build an agent that [goal]."
 
 **References:** [rill.run/llms-full.txt](https://rill.run/llms-full.txt) (complete language spec) | [rill.run/docs](https://rill.run/docs/) (full documentation)
 
-> **Hard rule:** Always scaffold with `npx @rcrsr/rill-create-agent`. Never create `package.json`, `host.ts`, `run.ts`, or `tsconfig.json` by hand. The scaffolder generates correct dependencies, imports, and runtime wiring. Hand-rolled projects break on missing internal packages.
+> **Hard rule — scaffolder:** Always scaffold with `npx @rcrsr/rill-create-agent`. Never create `package.json`, `host.ts`, `run.ts`, or `tsconfig.json` by hand. The scaffolder generates correct dependencies, imports, and runtime wiring. Hand-rolled projects break on missing internal packages.
+
+> **Hard rule — phases:** Do not run any shell commands, create any files, or write any code until Phase 4. Phases 1–3 are research and planning only. If you find yourself about to scaffold or edit files, stop — you skipped a phase.
 
 ### Workflow Entry Points
 
@@ -82,7 +84,13 @@ Map the user's requirements to extensions:
 | Generate hashes or IDs | `crypto` | SHA-256, HMAC, UUID v4, random bytes |
 | Integrate with Claude Code | `claude-code` | Run prompts and tools inside Claude Code |
 
-**Present your findings to the user.** List selected extensions with rationale. Confirm before proceeding.
+**STOP — Phase 1 gate.** Present the user with:
+
+- One-sentence summary of the agent's task
+- List of selected extensions with rationale
+- Any open questions or assumptions
+
+Wait for explicit approval ("yes", "proceed", "looks good") before moving to Phase 2. Do not proceed on silence or ambiguity.
 
 ---
 
@@ -154,11 +162,62 @@ For each selected extension, **ask the user** for the specific values needed to 
 
 Record every answer. These values flow directly into `host.ts` in Phase 4.
 
-### 2.4 Identify Custom Host Functions
+### 2.4 Define Output Strategy
+
+Ask the user how the agent should deliver results:
+
+| Output mode | When to use | Implementation |
+|-------------|-------------|----------------|
+| **JSON** (recommended) | Agent output consumed by other programs or scripts | Last expression returns a dict or list; no `log` calls in the main flow |
+| **Plain text** | Human reads output directly in terminal | Last expression returns a formatted string; no `log` calls in the main flow |
+| **Logged progress + result** | Long-running agent where user wants status updates | Use `log` for progress only; last expression returns the final result |
+
+**Rules for `log` vs return value:**
+
+- The **last expression** in `agent.rill` is the return value. `run.ts` prints it automatically via `formatOutput()`.
+- `log` is for **side-effect messages only** — progress updates, debug info, status. Never `log` the final result.
+- Do not `log` the same data that the last expression returns. This produces duplicated output.
+
+**Wrong — duplicated output:**
+
+```rill
+anthropic::message($prompt) => $result
+log($result.content)      # prints the content
+$result.content            # run.ts prints the same content again
+```
+
+**Correct — log progress, return result:**
+
+```rill
+log("Fetching headlines...")
+newsapi::headlines() => $articles
+log("Summarizing {$articles -> .len} articles...")
+anthropic::message("Summarize: {$articles}") => $result
+$result.content            # only printed once by run.ts
+```
+
+**Correct — structured JSON return, no log:**
+
+```rill
+newsapi::headlines() => $articles
+$articles -> map { [title: $.title, source: $.source.name] }
+# returns list of dicts — run.ts prints as JSON
+```
+
+If the user has no preference, default to **JSON** output with no `log` calls.
+
+### 2.5 Identify Custom Host Functions
 
 If the agent needs capabilities no extension provides, plan custom host functions using `prefixFunctions`. Keep these minimal — prefer extensions over custom code.
 
-**Present the design to the user.** Show the data flow, extension choices, and every configuration value collected. Get approval before proceeding.
+**STOP — Phase 2 gate.** Present the user with:
+
+- Data flow diagram (pipe chain sequence)
+- Extension selection with configuration values
+- Output strategy (JSON, plain text, or logged progress)
+- Any custom host functions planned
+
+Wait for explicit approval before moving to Phase 3. Do not proceed on silence or ambiguity.
 
 ---
 
@@ -214,7 +273,13 @@ npx @rcrsr/rill-create-agent <project-name> \
 
 Run from the user's project parent directory — the scaffolder creates a new folder.
 
-**Present the plan to the user.** Show the scaffold command, implementation steps, and expected file changes. Get approval before executing.
+**STOP — Phase 3 gate.** Present the user with:
+
+- The exact scaffold command that will run
+- List of implementation steps with expected file changes
+- Environment variables that need values in `.env`
+
+Wait for explicit approval before moving to Phase 4. Do not run any commands until approved.
 
 ---
 
@@ -329,12 +394,14 @@ The agent script calls extension functions using `namespace::function()` syntax.
 newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
 ```
 
-**Before running, present for review:**
+**STOP — do not run `npm start` yet.** Present for review:
 
-1. Show the user the final `src/agent.rill` code
-2. Show any `src/host.ts` edits (core extensions added, configuration values)
-3. Explain the data flow: what each pipe chain does
-4. Get explicit approval before executing `npm start`
+1. The complete `src/agent.rill` source code
+2. All `src/host.ts` edits (core extensions added, configuration values, namespace choices)
+3. One-line explanation of each pipe chain in the agent
+4. The output strategy: what the last expression returns and whether `log` is used
+
+Wait for explicit approval before executing. If the user requests changes, edit and re-present before running.
 
 ### 4.5 Test and Iterate
 
@@ -689,7 +756,9 @@ createCryptoExtension({
 
 ## Common Mistakes
 
-These patterns cause broken projects. Avoid them.
+These patterns cause broken projects or runtime errors. Avoid them.
+
+**Project structure mistakes:**
 
 | Mistake | Why it breaks | Correct approach |
 |---------|---------------|------------------|
@@ -699,6 +768,17 @@ These patterns cause broken projects. Avoid them.
 | Using raw `fetch()` or `axios` for HTTP | Bypasses sandboxing, no retry/auth, wrong function signature | Use the `fetch` core extension with `createFetchExtension` |
 | Installing core extensions via npm | `fs`, `fetch`, `exec`, `kv`, `crypto` are sub-path exports of `@rcrsr/rill` | Import from `@rcrsr/rill/ext/<name>` — no extra install |
 | Skipping `--extensions` flag | Scaffolder requires either `--extensions` or `--preset` | Always pass external extensions to the scaffold command |
+
+**rill language syntax mistakes:**
+
+| Mistake | Error message | Correct approach |
+|---------|---------------|------------------|
+| `a ++ b` for string concatenation | `Unexpected token: +` | Use interpolation `"{$a}{$b}"` or binary `$a + $b` |
+| `$.?field ?? "default"` | `Cannot combine existence check (.?field) with default value operator (??)` | Use one: `$.field ?? "default"` or `$.?field` — not both |
+| `$list -> .length` | `Unknown method: length` | Use `.len` — rill method names are abbreviated |
+| `$dict -> .keys` | `Unknown method: keys` | Use `.entries` for dict iteration, or `kv::keys()` for kv store |
+| `log($result)` then `$result` as last line | Duplicated output — `log` prints once, `run.ts` prints the return value again | Use `log` for progress only; let the last expression be the sole output |
+| Skipping phases to "save time" | Syntax errors, wrong extensions, misconfigured APIs — costs more time than the phases save | Follow all 4 phases; each gate prevents a class of errors |
 
 ---
 
