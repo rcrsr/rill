@@ -470,6 +470,19 @@ $i -> ($ < 3) @ { $ + 1 }
 [1, 2, 3] -> fold(0) { $@ + $ }   # reduce to value
 ```
 
+**String building** — the `+` operator is arithmetic-only. Use interpolation or `.join()`:
+
+```rill
+# Interpolation — embed variables and expressions in double-quoted strings
+"Hello, {$name}!"                             # variable
+"Count: {$list -> .len}"                      # expression
+"Result: {$x * 2}"                            # arithmetic in interpolation
+
+# Multi-part assembly — build a list, then join
+[$title, $description] -> .join(" — ")        # "Title — Description"
+$items -> map { "- {$}" } -> .join("\n")      # markdown bullet list
+```
+
 **Closures:**
 
 ```rill
@@ -785,7 +798,8 @@ These patterns cause broken projects or runtime errors. Avoid them.
 |---------|---------------|------------------|
 | Single quotes: `'hello'` | `Unexpected character: '` | rill uses double quotes only: `"hello"` |
 | `"text {$.field ?? 'fallback'}"` | `Unexpected character: '` | Extract default to a variable: `($.field ?? "fallback") => $val` then `"text {$val}"` |
-| `a ++ b` for string concatenation | `Unexpected token: +` | Use interpolation `"{$a}{$b}"` or binary `$a + $b` |
+| `a ++ b` for string concatenation | `Unexpected token: +` | Use interpolation `"{$a}{$b}"` — see string building patterns below |
+| `$str1 + $str2` for string concatenation | `Arithmetic requires number, got string` | `+` is arithmetic-only in rill. Use interpolation `"{$str1}{$str2}"` or build a list and `.join("")` |
 | `$.?field ?? "default"` | `Cannot combine existence check (.?field) with default value operator (??)` | Use one: `$.field ?? "default"` or `$.?field` — not both |
 | `join(sep, $list)` or `$list -> join(sep)` | `Unknown function: join` | rill operations are methods, not functions: `$list -> .join(sep)` |
 | `$list -> .length` | `Unknown method: length` | Use `.len` — rill method names are abbreviated |
