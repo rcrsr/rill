@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-create-agent",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Scaffolding tool for rill extension projects",
   "license": "MIT",
   "author": "Andre Bremer",

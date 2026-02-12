@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Scripting designed for machine-generated code",
   "license": "MIT",
   "author": "Andre Bremer",

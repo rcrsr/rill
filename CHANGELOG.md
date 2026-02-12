@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-02-12
+
+### Changed
+
+- **Extension bundle generation** — 6 extension packages (anthropic, chroma, gemini, openai, pinecone, qdrant) now use tsup + dts-bundle-generator instead of plain `tsc --build`. Shared libraries (`rill-ext-llm-shared`, `rill-ext-vector-shared`) inlined into output, reducing consumer dependency count
+
+- **Extension build config strictness** — `tsconfig.build.json` for all 6 bundled extensions includes `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `verbatimModuleSyntax`, matching `tsconfig.base.json`
+
 ## [0.8.3] - 2026-02-11
 
 ### Fixed
