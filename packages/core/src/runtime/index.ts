@@ -99,7 +99,9 @@ export type { ExtensionEvent } from './core/types.js';
 export type {
   ExtensionFactory,
   ExtensionResult,
+  FsExtensionContract,
   HoistedExtension,
+  KvExtensionContract,
 } from './ext/extensions.js';
 
 export {

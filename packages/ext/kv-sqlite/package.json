@@ -1,0 +1,54 @@
+{
+  "name": "@rcrsr/rill-ext-kv-sqlite",
+  "version": "0.8.5",
+  "description": "rill extension for SQLite key-value storage backend",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "rill",
+    "sqlite",
+    "key-value",
+    "storage",
+    "extension",
+    "scripting"
+  ],
+  "scripts": {
+    "build": "tsup && dts-bundle-generator --config dts-bundle-generator.config.cjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "devDependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.2.3",
+    "dts-bundle-generator": "^9.5.1",
+    "tsup": "^8.5.0",
+    "undici-types": "^7.21.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/ext/kv-sqlite"
+  },
+  "homepage": "https://rill.run/docs/extensions/kv-sqlite/",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1"
+  }
+}

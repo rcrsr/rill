@@ -35,6 +35,8 @@ export interface StoreConfig {
   maxStoreSize?: number | undefined;
   /** Write policy: 'dispose' (default) or 'immediate' */
   writePolicy?: 'dispose' | 'immediate' | undefined;
+  /** Access mode: 'read', 'write', or 'read-write' (default: 'read-write') */
+  mode?: 'read' | 'write' | 'read-write' | undefined;
 }
 
 // ============================================================
@@ -63,6 +65,7 @@ export async function createStore(config: StoreConfig): Promise<{
   const maxValueSize = config.maxValueSize ?? 102400; // 100KB
   const maxStoreSize = config.maxStoreSize ?? 10485760; // 10MB
   const writePolicy = config.writePolicy ?? 'dispose';
+  const mode = config.mode ?? 'read-write';
   const schema = config.schema;
 
   // Resolve store path
@@ -156,6 +159,18 @@ export async function createStore(config: StoreConfig): Promise<{
   // HELPERS
   // ============================================================
 
+  /** Check if mode allows write operations */
+  function checkWritePermission(): void {
+    if (mode === 'read') {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Store is read-only (mode: ${mode})`,
+        undefined,
+        { mode, path: storePath }
+      );
+    }
+  }
+
   /** Calculate size of a value in bytes */
   function calculateValueSize(value: RillValue): number {
     return Buffer.byteLength(JSON.stringify(value), 'utf-8');
@@ -225,6 +240,9 @@ export async function createStore(config: StoreConfig): Promise<{
 
   /** Set value with validation */
   async function set(key: string, value: RillValue): Promise<void> {
+    // IC-2, EC-3: Check write permission
+    checkWritePermission();
+
     // EC-20: Key not in schema (declared mode)
     if (schema && !(key in schema)) {
       throw new RuntimeError(
@@ -293,6 +311,8 @@ export async function createStore(config: StoreConfig): Promise<{
 
   /** Delete key */
   function deleteKey(key: string): boolean {
+    // IC-2: Check write permission
+    checkWritePermission();
     return data.delete(key);
   }
 
@@ -308,6 +328,9 @@ export async function createStore(config: StoreConfig): Promise<{
 
   /** Clear all keys */
   function clear(): void {
+    // IC-2: Check write permission
+    checkWritePermission();
+
     data.clear();
 
     // If in declared mode, restore schema defaults
