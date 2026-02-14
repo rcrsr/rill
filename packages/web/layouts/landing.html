@@ -170,13 +170,13 @@
           <span class="category-label-line"></span>
         </div>
         <div class="integration-chips">
-          <a href="/docs/extensions/anthropic/" class="integration-chip">
+          <a href="/docs/extensions/llm-anthropic/" class="integration-chip">
             <span class="chip-prefix">anthropic::</span>message
           </a>
-          <a href="/docs/extensions/openai/" class="integration-chip">
+          <a href="/docs/extensions/llm-openai/" class="integration-chip">
             <span class="chip-prefix">openai::</span>message
           </a>
-          <a href="/docs/extensions/gemini/" class="integration-chip">
+          <a href="/docs/extensions/llm-gemini/" class="integration-chip">
             <span class="chip-prefix">gemini::</span>message
           </a>
         </div>
@@ -189,14 +189,33 @@
           <span class="category-label-line"></span>
         </div>
         <div class="integration-chips">
-          <a href="/docs/extensions/chroma/" class="integration-chip">
+          <a href="/docs/extensions/vectordb-chroma/" class="integration-chip">
             <span class="chip-prefix">chroma::</span>search
           </a>
-          <a href="/docs/extensions/pinecone/" class="integration-chip">
+          <a href="/docs/extensions/vectordb-pinecone/" class="integration-chip">
             <span class="chip-prefix">pinecone::</span>search
           </a>
-          <a href="/docs/extensions/qdrant/" class="integration-chip">
+          <a href="/docs/extensions/vectordb-qdrant/" class="integration-chip">
             <span class="chip-prefix">qdrant::</span>search
+          </a>
+        </div>
+      </div>
+
+      <div class="integration-category integration-category-storage">
+        <div class="category-label">
+          <span class="category-label-dot"></span>
+          <span class="category-label-text">Storage</span>
+          <span class="category-label-line"></span>
+        </div>
+        <div class="integration-chips">
+          <a href="/docs/extensions/kv-sqlite/" class="integration-chip">
+            <span class="chip-prefix">kv::</span>sqlite
+          </a>
+          <a href="/docs/extensions/kv-redis/" class="integration-chip">
+            <span class="chip-prefix">kv::</span>redis
+          </a>
+          <a href="/docs/extensions/fs-s3/" class="integration-chip">
+            <span class="chip-prefix">fs::</span>s3
           </a>
         </div>
       </div>
@@ -204,12 +223,15 @@
       <div class="integration-category integration-category-tools">
         <div class="category-label">
           <span class="category-label-dot"></span>
-          <span class="category-label-text">Tools</span>
+          <span class="category-label-text">Connectivity</span>
           <span class="category-label-line"></span>
         </div>
         <div class="integration-chips">
+          <a href="/docs/extensions/mcp/" class="integration-chip">
+            <span class="chip-prefix">mcp::</span>list_tools
+          </a>
           <a href="/docs/extensions/claude-code/" class="integration-chip">
-            <span class="chip-prefix">claude-code::</span>skill
+            <span class="chip-prefix">claude_code::</span>skill
           </a>
         </div>
       </div>
@@ -835,9 +857,10 @@
     animation-play-state: paused;
   }
 
-  .integration-category-llm    { animation-delay: 0s; }
+  .integration-category-llm     { animation-delay: 0s; }
   .integration-category-vector  { animation-delay: 0.1s; }
-  .integration-category-tools   { animation-delay: 0.2s; }
+  .integration-category-storage { animation-delay: 0.2s; }
+  .integration-category-tools   { animation-delay: 0.3s; }
 
   /* Category label with line */
   .category-label {
@@ -911,7 +934,28 @@
     opacity: 1;
   }
 
-  /* Tools category accent — green */
+  /* Storage category accent — yellow */
+  .integration-category-storage .category-label-dot  { background: var(--neon-yellow); }
+  .integration-category-storage .category-label-text  { color: var(--neon-yellow); opacity: 0.7; }
+  .integration-category-storage .category-label-line  { background: var(--neon-yellow); }
+
+  .integration-category-storage .integration-chip:hover {
+    border-color: rgba(212, 225, 87, 0.3);
+    border-left-color: var(--neon-yellow);
+    box-shadow: 0 0 20px rgba(212, 225, 87, 0.06);
+    color: var(--neon-yellow);
+  }
+
+  .integration-category-storage .chip-prefix {
+    color: var(--neon-yellow);
+    opacity: 0.6;
+  }
+
+  .integration-category-storage .integration-chip:hover .chip-prefix {
+    opacity: 1;
+  }
+
+  /* Connectivity category accent — green */
   .integration-category-tools .category-label-dot  { background: var(--neon-green); }
   .integration-category-tools .category-label-text  { color: var(--neon-green); opacity: 0.7; }
   .integration-category-tools .category-label-line  { background: var(--neon-green); }
