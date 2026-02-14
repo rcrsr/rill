@@ -232,6 +232,9 @@ export async function executeToolLoop(
           case null:
             jsonSchemaType = 'string'; // Default for untyped params
             break;
+          default:
+            jsonSchemaType = 'string'; // Fallback for unknown types
+            break;
         }
 
         // Build property definition
