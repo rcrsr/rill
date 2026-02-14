@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Backend-swappable kv and fs extensions** — Mount-based architecture for kv (3 new functions: `merge`, `get_or`, `mounts`) with access mode enforcement. Three new backend packages: `rill-ext-storage-sqlite` (better-sqlite3, WAL mode), `rill-ext-storage-redis` (ioredis, atomic merge), `rill-ext-storage-s3` (AWS S3-compatible). Contract types (`KvExtensionContract`, `FsExtensionContract`) exported from core for compile-time verification
 
+- **Extension documentation** — Dedicated doc pages for mcp, kv-sqlite, kv-redis, and fs-s3 extensions (previously inline in bundled-extensions.md or undocumented)
+
+### Changed
+
+- **Extension package folder naming** — Added category prefixes to extension directories: `llm-` (anthropic, openai, gemini), `vectordb-` (chroma, pinecone, qdrant). Existing `kv-`, `fs-` prefixed packages unchanged. NPM package names unchanged
+
+- **Extension doc file naming** — Renamed extension docs to match folder prefixes: `extension-llm-anthropic.md`, `extension-vectordb-chroma.md`, etc. Updated bundled-extensions.md table, sync-docs.sh mappings, and cross-references
+
+### Fixed
+
+- **ext-llm-shared build failure** — Added default case to `jsonSchemaType` switch in `tool-loop.ts` to fix TS2454 uninitialized variable error (BUG-1)
+
 ## [0.8.5] - 2026-02-12
 
 ### Fixed

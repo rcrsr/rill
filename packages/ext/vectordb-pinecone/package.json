@@ -1,7 +1,7 @@
 {
-  "name": "@rcrsr/rill-ext-chroma",
+  "name": "@rcrsr/rill-ext-pinecone",
   "version": "0.8.5",
-  "description": "rill extension for ChromaDB vector database integration",
+  "description": "rill extension for Pinecone vector database integration",
   "license": "MIT",
   "author": "Andre Bremer",
   "type": "module",
@@ -9,8 +9,7 @@
   "types": "dist/index.d.ts",
   "keywords": [
     "rill",
-    "chroma",
-    "chromadb",
+    "pinecone",
     "vector-database",
     "vector-search",
     "extension",
@@ -41,9 +40,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
-    "directory": "packages/ext/chroma"
+    "directory": "packages/ext/vectordb-pinecone"
   },
-  "homepage": "https://rill.run/docs/extensions/chroma/",
+  "homepage": "https://rill.run/docs/extensions/pinecone/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },
@@ -51,6 +50,6 @@
     "access": "public"
   },
   "dependencies": {
-    "chromadb": "^1.9.2"
+    "@pinecone-database/pinecone": "^3.0.3"
   }
 }

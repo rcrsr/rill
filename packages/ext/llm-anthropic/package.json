@@ -1,7 +1,7 @@
 {
-  "name": "@rcrsr/rill-ext-gemini",
+  "name": "@rcrsr/rill-ext-anthropic",
   "version": "0.8.5",
-  "description": "rill extension for Google Gemini API integration",
+  "description": "rill extension for Anthropic Claude API integration",
   "license": "MIT",
   "author": "Andre Bremer",
   "type": "module",
@@ -9,8 +9,8 @@
   "types": "dist/index.d.ts",
   "keywords": [
     "rill",
-    "gemini",
-    "google",
+    "anthropic",
+    "claude",
     "llm",
     "extension",
     "ai",
@@ -40,9 +40,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
-    "directory": "packages/ext/gemini"
+    "directory": "packages/ext/llm-anthropic"
   },
-  "homepage": "https://rill.run/docs/extensions/gemini/",
+  "homepage": "https://rill.run/docs/extensions/anthropic/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },
@@ -50,6 +50,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@google/genai": "^1.40.0"
+    "@anthropic-ai/sdk": "^0.74.0"
   }
 }

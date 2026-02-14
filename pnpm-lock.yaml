@@ -60,56 +60,6 @@ importers:
         specifier: workspace:^
         version: link:../core
 
-  packages/ext/anthropic:
-    dependencies:
-      '@anthropic-ai/sdk':
-        specifier: ^0.74.0
-        version: 0.74.0(zod@4.3.6)
-    devDependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../../core
-      '@rcrsr/rill-ext-llm-shared':
-        specifier: workspace:^
-        version: link:../../shared/ext-llm
-      '@types/node':
-        specifier: ^25.2.3
-        version: 25.2.3
-      dts-bundle-generator:
-        specifier: ^9.5.1
-        version: 9.5.1
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      undici-types:
-        specifier: ^7.21.0
-        version: 7.21.0
-
-  packages/ext/chroma:
-    dependencies:
-      chromadb:
-        specifier: ^1.9.2
-        version: 1.10.5(encoding@0.1.13)
-    devDependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../../core
-      '@rcrsr/rill-ext-vector-shared':
-        specifier: workspace:^
-        version: link:../../shared/ext-vector
-      '@types/node':
-        specifier: ^25.2.3
-        version: 25.2.3
-      dts-bundle-generator:
-        specifier: ^9.5.1
-        version: 9.5.1
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      undici-types:
-        specifier: ^7.21.0
-        version: 7.21.0
-
   packages/ext/claude-code:
     dependencies:
       node-pty:
@@ -141,31 +91,6 @@ importers:
       '@rcrsr/rill':
         specifier: workspace:^
         version: link:../../core
-      '@types/node':
-        specifier: ^25.2.3
-        version: 25.2.3
-      dts-bundle-generator:
-        specifier: ^9.5.1
-        version: 9.5.1
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      undici-types:
-        specifier: ^7.21.0
-        version: 7.21.0
-
-  packages/ext/gemini:
-    dependencies:
-      '@google/genai':
-        specifier: ^1.40.0
-        version: 1.40.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
-    devDependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../../core
-      '@rcrsr/rill-ext-llm-shared':
-        specifier: workspace:^
-        version: link:../../shared/ext-llm
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3
@@ -226,15 +151,18 @@ importers:
         specifier: ^7.21.0
         version: 7.21.0
 
-  packages/ext/mcp:
+  packages/ext/llm-anthropic:
     dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.26.0
-        version: 1.26.0(zod@4.3.6)
+      '@anthropic-ai/sdk':
+        specifier: ^0.74.0
+        version: 0.74.0(zod@4.3.6)
     devDependencies:
       '@rcrsr/rill':
         specifier: workspace:^
         version: link:../../core
+      '@rcrsr/rill-ext-llm-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-llm
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3
@@ -248,7 +176,32 @@ importers:
         specifier: ^7.21.0
         version: 7.21.0
 
-  packages/ext/openai:
+  packages/ext/llm-gemini:
+    dependencies:
+      '@google/genai':
+        specifier: ^1.40.0
+        version: 1.40.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
+      '@rcrsr/rill-ext-llm-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-llm
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
+      dts-bundle-generator:
+        specifier: ^9.5.1
+        version: 9.5.1
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      undici-types:
+        specifier: ^7.21.0
+        version: 7.21.0
+
+  packages/ext/llm-openai:
     dependencies:
       openai:
         specifier: ^6.18.0
@@ -273,7 +226,54 @@ importers:
         specifier: ^7.21.0
         version: 7.21.0
 
-  packages/ext/pinecone:
+  packages/ext/mcp:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.26.0
+        version: 1.26.0(zod@4.3.6)
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
+      dts-bundle-generator:
+        specifier: ^9.5.1
+        version: 9.5.1
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      undici-types:
+        specifier: ^7.21.0
+        version: 7.21.0
+
+  packages/ext/vectordb-chroma:
+    dependencies:
+      chromadb:
+        specifier: ^1.9.2
+        version: 1.10.5(encoding@0.1.13)
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
+      '@rcrsr/rill-ext-vector-shared':
+        specifier: workspace:^
+        version: link:../../shared/ext-vector
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
+      dts-bundle-generator:
+        specifier: ^9.5.1
+        version: 9.5.1
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      undici-types:
+        specifier: ^7.21.0
+        version: 7.21.0
+
+  packages/ext/vectordb-pinecone:
     dependencies:
       '@pinecone-database/pinecone':
         specifier: ^3.0.3
@@ -298,7 +298,7 @@ importers:
         specifier: ^7.21.0
         version: 7.21.0
 
-  packages/ext/qdrant:
+  packages/ext/vectordb-qdrant:
     dependencies:
       '@qdrant/js-client-rest':
         specifier: ^1.12.1

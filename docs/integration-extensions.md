@@ -406,7 +406,7 @@ fn: async (args, ctx) => {
 },
 ```
 
-**Examples:** The [qdrant](extension-qdrant.md), [pinecone](extension-pinecone.md), and [chroma](extension-chroma.md) extensions show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
+**Examples:** The [qdrant](extension-vectordb-qdrant.md), [pinecone](extension-vectordb-pinecone.md), and [chroma](extension-vectordb-chroma.md) extensions show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
 
 
 ## API Reference

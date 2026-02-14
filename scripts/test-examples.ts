@@ -429,6 +429,53 @@ function createMockFunctions(): Record<
       }),
     },
 
+    // MCP extension namespaces (fs::, gh::, pg::, db::, ai::)
+    'fs::list_tools': {
+      params: [],
+      fn: () => [
+        { name: 'read_file', description: 'Read file contents' },
+        { name: 'write_file', description: 'Write to file' },
+        { name: 'list_directory', description: 'List directory contents' },
+      ],
+    },
+    'fs::read_file': {
+      params: [{ name: 'options', type: 'dict' }],
+      fn: () => ({ content: 'mock file content' }),
+    },
+    'fs::list_resources': {
+      params: [],
+      fn: () => [{ uri: 'file:///tmp/test.txt', mime: 'text/plain' }],
+    },
+    'fs::list_prompts': {
+      params: [],
+      fn: () => [{ name: 'summarize', arguments: ['text'] }],
+    },
+    'gh::list_pull_requests': {
+      params: [{ name: 'options', type: 'dict', defaultValue: {} }],
+      fn: () => [
+        { number: 42, title: 'Fix bug', state: 'open' },
+        { number: 43, title: 'Add feature', state: 'open' },
+      ],
+    },
+    'pg::query': {
+      params: [{ name: 'options', type: 'dict' }],
+      fn: () => ({ status: 'deployed' }),
+    },
+    'db::read_query': {
+      params: [{ name: 'options', type: 'dict' }],
+      fn: () => [
+        { name: 'Acme Corp', revenue: 1000000 },
+        { name: 'Tech Inc', revenue: 800000 },
+      ],
+    },
+    'ai::message': {
+      params: [{ name: 'text', type: 'string' }],
+      fn: () => ({
+        content: 'mock AI analysis',
+        model: 'mock-model',
+      }),
+    },
+
     // openai:: namespace
     'openai::message': {
       params: [

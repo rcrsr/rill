@@ -1,7 +1,7 @@
 {
-  "name": "@rcrsr/rill-ext-anthropic",
+  "name": "@rcrsr/rill-ext-qdrant",
   "version": "0.8.5",
-  "description": "rill extension for Anthropic Claude API integration",
+  "description": "rill extension for Qdrant vector database integration",
   "license": "MIT",
   "author": "Andre Bremer",
   "type": "module",
@@ -9,9 +9,9 @@
   "types": "dist/index.d.ts",
   "keywords": [
     "rill",
-    "anthropic",
-    "claude",
-    "llm",
+    "qdrant",
+    "vector-database",
+    "vector-search",
     "extension",
     "ai",
     "scripting"
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@rcrsr/rill": "workspace:^",
-    "@rcrsr/rill-ext-llm-shared": "workspace:^",
+    "@rcrsr/rill-ext-vector-shared": "workspace:^",
     "@types/node": "^25.2.3",
     "dts-bundle-generator": "^9.5.1",
     "tsup": "^8.5.0",
@@ -40,9 +40,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
-    "directory": "packages/ext/anthropic"
+    "directory": "packages/ext/vectordb-qdrant"
   },
-  "homepage": "https://rill.run/docs/extensions/anthropic/",
+  "homepage": "https://rill.run/docs/extensions/qdrant/",
   "bugs": {
     "url": "https://github.com/rcrsr/rill/issues"
   },
@@ -50,6 +50,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0"
+    "@qdrant/js-client-rest": "^1.12.1"
   }
 }
