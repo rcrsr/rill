@@ -126,7 +126,7 @@ export type { SourceLocation, SourceSpan };
 export { BreakSignal, ReturnSignal };
 
 // Extension contracts
-export type { KvExtensionContract, FsExtensionContract, SchemaEntry };
+export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, VectorExtensionContract, SchemaEntry };
 ```
 
 ## Extension Contracts
@@ -257,6 +257,88 @@ const schema: Record<string, SchemaEntry> = {
   age: { type: 'number', default: 0, description: 'User age in years' },
   active: { type: 'bool', default: true },
 };
+```
+
+### LlmExtensionContract
+
+Contract type for LLM extension implementations. Backend authors use this type to verify compile-time compatibility.
+
+```typescript
+type LlmExtensionContract = {
+  readonly message: HostFunctionDefinition;
+  readonly messages: HostFunctionDefinition;
+  readonly embed: HostFunctionDefinition;
+  readonly embed_batch: HostFunctionDefinition;
+  readonly tool_loop: HostFunctionDefinition;
+  readonly dispose?: (() => void | Promise<void>) | undefined;
+};
+```
+
+**Required Functions (5 total):**
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `message` | `(text: string, options?: dict)` | `dict` | Send single message |
+| `messages` | `(messages: list, options?: dict)` | `dict` | Multi-turn conversation |
+| `embed` | `(text: string)` | `vector` | Generate embedding vector |
+| `embed_batch` | `(texts: list)` | `list` | Batch embeddings |
+| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration |
+
+**Usage:**
+
+```typescript
+import type { LlmExtensionContract } from '@rcrsr/rill';
+import { createMyLlmBackend } from './my-llm-backend';
+
+// Type-check backend implementation
+const backend: LlmExtensionContract = createMyLlmBackend({ /* config */ });
+```
+
+### VectorExtensionContract
+
+Contract type for vector database extension implementations. Backend authors use this type to verify compile-time compatibility.
+
+```typescript
+type VectorExtensionContract = {
+  readonly upsert: HostFunctionDefinition;
+  readonly upsert_batch: HostFunctionDefinition;
+  readonly search: HostFunctionDefinition;
+  readonly get: HostFunctionDefinition;
+  readonly delete: HostFunctionDefinition;
+  readonly delete_batch: HostFunctionDefinition;
+  readonly count: HostFunctionDefinition;
+  readonly create_collection: HostFunctionDefinition;
+  readonly delete_collection: HostFunctionDefinition;
+  readonly list_collections: HostFunctionDefinition;
+  readonly describe: HostFunctionDefinition;
+  readonly dispose?: (() => void | Promise<void>) | undefined;
+};
+```
+
+**Required Functions (11 total):**
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `upsert` | `(id: string, vector: vector, metadata?: dict)` | `dict` | Insert or update vector |
+| `upsert_batch` | `(items: list)` | `dict` | Batch insert/update |
+| `search` | `(vector: vector, options?: dict)` | `list` | Search k nearest neighbors |
+| `get` | `(id: string)` | `dict` | Fetch vector by ID |
+| `delete` | `(id: string)` | `dict` | Delete vector by ID |
+| `delete_batch` | `(ids: list)` | `dict` | Batch delete |
+| `count` | `()` | `number` | Count vectors in collection |
+| `create_collection` | `(name: string, options?: dict)` | `dict` | Create collection |
+| `delete_collection` | `(name: string)` | `dict` | Delete collection |
+| `list_collections` | `()` | `list` | List all collections |
+| `describe` | `()` | `dict` | Get collection metadata |
+
+**Usage:**
+
+```typescript
+import type { VectorExtensionContract } from '@rcrsr/rill';
+import { createMyVectorBackend } from './my-vector-backend';
+
+// Type-check backend implementation
+const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ });
 ```
 
 ## See Also

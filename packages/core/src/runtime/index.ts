@@ -102,6 +102,8 @@ export type {
   FsExtensionContract,
   HoistedExtension,
   KvExtensionContract,
+  LlmExtensionContract,
+  VectorExtensionContract,
 } from './ext/extensions.js';
 
 export type { SchemaEntry } from '../ext/kv/index.js';

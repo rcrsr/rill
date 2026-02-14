@@ -99,6 +99,58 @@ export type FsExtensionContract = {
 };
 
 /**
+ * Contract type for llm extension implementations.
+ * Enforces exact function structure for compile-time verification.
+ *
+ * Backend implementations must provide all 5 functions:
+ * - message(text, options): Send single message
+ * - messages(messages, options): Multi-turn conversation
+ * - embed(text): Generate embedding vector
+ * - embed_batch(texts): Batch embeddings
+ * - tool_loop(prompt, options): Tool use orchestration
+ */
+export type LlmExtensionContract = {
+  readonly message: HostFunctionDefinition;
+  readonly messages: HostFunctionDefinition;
+  readonly embed: HostFunctionDefinition;
+  readonly embed_batch: HostFunctionDefinition;
+  readonly tool_loop: HostFunctionDefinition;
+  readonly dispose?: (() => void | Promise<void>) | undefined;
+};
+
+/**
+ * Contract type for vector extension implementations.
+ * Enforces exact function structure for compile-time verification.
+ *
+ * Backend implementations must provide all 11 functions:
+ * - upsert(id, vector, metadata): Insert or update vector
+ * - upsert_batch(items): Batch insert/update
+ * - search(vector, options): Search k nearest neighbors
+ * - get(id): Fetch vector by ID
+ * - delete(id): Delete vector by ID
+ * - delete_batch(ids): Batch delete
+ * - count(): Count vectors in collection
+ * - create_collection(name, options): Create collection
+ * - delete_collection(name): Delete collection
+ * - list_collections(): List all collections
+ * - describe(): Get collection metadata
+ */
+export type VectorExtensionContract = {
+  readonly upsert: HostFunctionDefinition;
+  readonly upsert_batch: HostFunctionDefinition;
+  readonly search: HostFunctionDefinition;
+  readonly get: HostFunctionDefinition;
+  readonly delete: HostFunctionDefinition;
+  readonly delete_batch: HostFunctionDefinition;
+  readonly count: HostFunctionDefinition;
+  readonly create_collection: HostFunctionDefinition;
+  readonly delete_collection: HostFunctionDefinition;
+  readonly list_collections: HostFunctionDefinition;
+  readonly describe: HostFunctionDefinition;
+  readonly dispose?: (() => void | Promise<void>) | undefined;
+};
+
+/**
  * Prefix all function names in an extension with a namespace.
  *
  * @param namespace - Alphanumeric string with underscores/hyphens (e.g., "fs", "claude_code")
