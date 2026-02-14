@@ -157,6 +157,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
 
     if (!storeState.promise) {
       storeState.promise = createStore({
+        mount: mountName,
         store: mountConfig.store,
         schema: mountConfig.schema,
         maxEntries: mountConfig.maxEntries ?? 10000,
@@ -402,7 +403,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         { name: 'key', type: 'string', description: 'Key to retrieve' },
         {
           name: 'fallback',
-          type: 'dict',
+          type: 'any',
           description: 'Fallback value if key missing',
         },
       ],

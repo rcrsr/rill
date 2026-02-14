@@ -267,17 +267,79 @@ function createMockFunctions(): Record<
       fn: (s) => String(s).toLowerCase(),
     },
 
-    // FS namespace
+    // FS namespace (supports both 2-param and 3-param mount-based signatures)
     'fs::read': {
-      params: [{ name: 'path', type: 'string' }],
+      params: [
+        { name: 'mount_or_path', type: 'string' },
+        { name: 'path', type: 'string', defaultValue: null },
+      ],
       fn: () => 'file contents',
     },
     'fs::write': {
       params: [
-        { name: 'path', type: 'string' },
-        { name: 'content', type: 'string' },
+        { name: 'mount_or_path', type: 'string' },
+        { name: 'path_or_content', type: 'string' },
+        { name: 'content', type: 'string', defaultValue: null },
       ],
       fn: () => true,
+    },
+
+    // KV namespace (supports both 2-param and 3-param mount-based signatures)
+    // 2-param: kv::set(key, value) - for rill app mode
+    // 3-param: kv::set(mount, key, value) - for host integration with mounts
+    'kv::set': {
+      params: [
+        { name: 'key_or_mount', type: 'string' },
+        { name: 'value_or_key', type: 'string' },
+        { name: 'value', type: 'string', defaultValue: null },
+      ],
+      fn: () => true,
+    },
+    'kv::get': {
+      params: [
+        { name: 'key_or_mount', type: 'string' },
+        { name: 'key', type: 'string', defaultValue: null },
+      ],
+      fn: (param1, param2) => {
+        // Determine if 2-param or 3-param call
+        const key = param2 === null ? String(param1) : String(param2);
+        // Return appropriate test values for common keys
+        if (key === 'user_count' || key === 'run_count') return 42;
+        if (key === 'last_sync') return '2024-01-15';
+        if (key.startsWith('cache:')) return 'cached_value';
+        if (key === 'name') return 'Alice';
+        return 'mock_value';
+      },
+    },
+    'kv::delete': {
+      params: [
+        { name: 'key_or_mount', type: 'string' },
+        { name: 'key', type: 'string', defaultValue: null },
+      ],
+      fn: () => true,
+    },
+    'kv::has': {
+      params: [
+        { name: 'key_or_mount', type: 'string' },
+        { name: 'key', type: 'string', defaultValue: null },
+      ],
+      fn: () => true,
+    },
+    'kv::keys': {
+      params: [],
+      fn: () => ['key1', 'key2', 'key3'],
+    },
+    'kv::getAll': {
+      params: [],
+      fn: () => ({ key1: 'value1', key2: 'value2' }),
+    },
+    'kv::clear': {
+      params: [],
+      fn: () => true,
+    },
+    'kv::schema': {
+      params: [],
+      fn: () => [],
     },
 
     // Extension examples (ai::, claude_code::)

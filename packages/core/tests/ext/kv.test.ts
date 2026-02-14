@@ -352,7 +352,7 @@ describe('kv extension factory', () => {
       ).rejects.toThrow(RuntimeError);
       await expect(
         ext2.merge.fn(['default', 'data', { b: 2 }])
-      ).rejects.toThrow('Store is read-only');
+      ).rejects.toThrow("Mount 'default' is read-only");
     });
 
     it('merges into undefined key (creates new dict)', async () => {
@@ -784,7 +784,7 @@ describe('kv extension factory', () => {
         RuntimeError
       );
       await expect(ext.set.fn(['default', 'key', 'value'])).rejects.toThrow(
-        'Store is read-only'
+        "Mount 'default' is read-only"
       );
     });
 
@@ -798,7 +798,7 @@ describe('kv extension factory', () => {
         RuntimeError
       );
       await expect(ext.delete.fn(['default', 'key'])).rejects.toThrow(
-        'Store is read-only'
+        "Mount 'default' is read-only"
       );
     });
 
@@ -810,7 +810,7 @@ describe('kv extension factory', () => {
 
       await expect(ext.clear.fn(['default'])).rejects.toThrow(RuntimeError);
       await expect(ext.clear.fn(['default'])).rejects.toThrow(
-        'Store is read-only'
+        "Mount 'default' is read-only"
       );
     });
 

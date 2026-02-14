@@ -27,12 +27,13 @@
  * - AC-17: Concurrent invocations (2 tests)
  * - AC-18: Mixed typed/untyped functions (5 tests)
  * - AC-19: List validation without element types (5 tests)
+ * - AC-20: Any parameter type accepts all value types (7 tests)
  *
  * Implementation Requirements:
  * - IR-1: validateHostFunctionArgs function (validated via integration tests)
  * - IC-7: File creation (this file)
  *
- * Total: 77 tests (all passing) covering all acceptance criteria
+ * Total: 84 tests (all passing) covering all acceptance criteria
  *
  * Integration Evidence:
  * All tests use run() helper which executes through the full runtime pipeline:
@@ -1403,6 +1404,103 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           },
         });
         expect(result).toBe(2);
+      });
+    });
+
+    describe('AC-20: Any parameter type accepts all value types', () => {
+      it('accepts string argument for any parameter', async () => {
+        const result = await run('acceptAny("hello")', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) => `received: ${args[0]}`,
+            },
+          },
+        });
+        expect(result).toBe('received: hello');
+      });
+
+      it('accepts number argument for any parameter', async () => {
+        const result = await run('acceptAny(42)', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) => `received: ${args[0]}`,
+            },
+          },
+        });
+        expect(result).toBe('received: 42');
+      });
+
+      it('accepts bool argument for any parameter', async () => {
+        const result = await run('acceptAny(true)', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) => `received: ${args[0]}`,
+            },
+          },
+        });
+        expect(result).toBe('received: true');
+      });
+
+      it('accepts list argument for any parameter', async () => {
+        const result = await run('acceptAny([1, 2, 3])', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) =>
+                `received list with length: ${(args[0] as unknown[]).length}`,
+            },
+          },
+        });
+        expect(result).toBe('received list with length: 3');
+      });
+
+      it('accepts dict argument for any parameter', async () => {
+        const result = await run('acceptAny([key: "test"])', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) =>
+                `received dict with key: ${(args[0] as Record<string, unknown>).key}`,
+            },
+          },
+        });
+        expect(result).toBe('received dict with key: test');
+      });
+
+      it('accepts mixed-type list argument for any parameter', async () => {
+        const result = await run('acceptAny(["a", 1, true])', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) =>
+                `received mixed list with length: ${(args[0] as unknown[]).length}`,
+            },
+          },
+        });
+        expect(result).toBe('received mixed list with length: 3');
+      });
+
+      it('accepts vector argument for any parameter', async () => {
+        const vec = { type: 'vector', values: [1, 2, 3] };
+        const result = await run('acceptAny(getVector())', {
+          functions: {
+            acceptAny: {
+              params: [{ name: 'value', type: 'any' }],
+              fn: (args) => {
+                const v = args[0] as { type: string; values: number[] };
+                return `received vector with ${v.values.length} elements`;
+              },
+            },
+            getVector: {
+              params: [],
+              fn: () => vec,
+            },
+          },
+        });
+        expect(result).toBe('received vector with 3 elements');
       });
     });
   });

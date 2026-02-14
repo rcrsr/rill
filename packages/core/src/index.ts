@@ -48,6 +48,7 @@ export {
   isScriptCallable,
   isVector,
   type KvExtensionContract,
+  type SchemaEntry,
   type ObservabilityCallbacks,
   type ParamMetadata,
   popCallFrame,

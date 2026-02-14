@@ -64,6 +64,7 @@ export interface CallableParam {
     | 'list'
     | 'dict'
     | 'vector'
+    | 'any'
     | null;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
@@ -95,8 +96,15 @@ export interface HostFunctionParam {
   /** Parameter name (for error messages and documentation) */
   readonly name: string;
 
-  /** Expected type: limited to 6 primitive types */
-  readonly type: 'string' | 'number' | 'bool' | 'list' | 'dict' | 'vector';
+  /** Expected type: 6 primitive types plus 'any' */
+  readonly type:
+    | 'string'
+    | 'number'
+    | 'bool'
+    | 'list'
+    | 'dict'
+    | 'vector'
+    | 'any';
 
   /** Default value if argument omitted. Makes parameter optional. */
   readonly defaultValue?: RillValue;
@@ -346,6 +354,9 @@ export function validateDefaultValueType(
 ): void {
   if (param.defaultValue === undefined) return;
 
+  // Skip validation for 'any' type (accepts all values)
+  if (param.type === 'any') return;
+
   const actualType = inferType(param.defaultValue);
   const expectedType = param.type;
 
@@ -446,22 +457,24 @@ export function validateHostFunctionArgs(
       }
     }
 
-    // Validate argument type
-    const actualType = inferType(arg);
-    const expectedType = param.type;
+    // Validate argument type (skip for 'any' type)
+    if (param.type !== 'any') {
+      const actualType = inferType(arg);
+      const expectedType = param.type;
 
-    if (actualType !== expectedType) {
-      throw new RuntimeError(
-        'RILL-R001',
-        `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
-        location,
-        {
-          functionName,
-          paramName: param.name,
-          expectedType,
-          actualType,
-        }
-      );
+      if (actualType !== expectedType) {
+        throw new RuntimeError(
+          'RILL-R001',
+          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+          location,
+          {
+            functionName,
+            paramName: param.name,
+            expectedType,
+            actualType,
+          }
+        );
+      }
     }
   }
 }
@@ -525,8 +538,8 @@ export function validateCallableArgs(
       }
     }
 
-    // Validate argument type (only for typed parameters)
-    if (param.typeName !== null) {
+    // Validate argument type (only for typed parameters, skip 'any')
+    if (param.typeName !== null && param.typeName !== 'any') {
       const actualType = inferType(arg);
       const expectedType = param.typeName;
 

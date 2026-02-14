@@ -23,6 +23,8 @@ export interface SchemaEntry {
 
 /** Store configuration */
 export interface StoreConfig {
+  /** Mount name for error messages */
+  mount: string;
   /** Path to store file */
   store: string;
   /** Schema definitions (optional, enables declared mode) */
@@ -61,6 +63,7 @@ export async function createStore(config: StoreConfig): Promise<{
   flush: () => Promise<void>;
 }> {
   // Apply defaults
+  const mount = config.mount;
   const maxEntries = config.maxEntries ?? 10000;
   const maxValueSize = config.maxValueSize ?? 102400; // 100KB
   const maxStoreSize = config.maxStoreSize ?? 10485760; // 10MB
@@ -164,7 +167,7 @@ export async function createStore(config: StoreConfig): Promise<{
     if (mode === 'read') {
       throw new RuntimeError(
         'RILL-R004',
-        `Store is read-only (mode: ${mode})`,
+        `Mount '${mount}' is read-only (mode: ${mode})`,
         undefined,
         { mode, path: storePath }
       );

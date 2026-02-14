@@ -3,26 +3,9 @@
  * Defines configuration for Redis key-value storage backend.
  */
 
-import type { RillValue } from '@rcrsr/rill';
+import type { SchemaEntry } from '@rcrsr/rill';
 
-// ============================================================
-// KV SCHEMA TYPES
-// ============================================================
-
-/**
- * Schema entry defining type and default for a key.
- *
- * Re-defined from @rcrsr/rill/ext/kv to avoid dependency on internal paths.
- * This interface must match the core SchemaEntry definition.
- */
-export interface SchemaEntry {
-  /** Type constraint for the value */
-  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
-  /** Default value when key is missing */
-  default: RillValue;
-  /** Optional description for documentation */
-  description?: string | undefined;
-}
+export type { SchemaEntry };
 
 // ============================================================
 // CONFIGURATION
