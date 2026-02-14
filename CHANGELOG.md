@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Backend-swappable kv and fs extensions** — kv extension transformed to mount-based architecture matching fs pattern with 3 new functions (`merge`, `get_or`, `mounts`) and access mode enforcement. Three new packages (`@rcrsr/rill-ext-storage-sqlite`, `@rcrsr/rill-ext-storage-redis`, `@rcrsr/rill-ext-storage-s3`) provide SQLite (single-server), Redis (distributed), and S3 (cloud storage) backends. Contract types (`KvExtensionContract`, `FsExtensionContract`) exported from core barrel for compile-time verification. SQLite uses better-sqlite3 with WAL mode for concurrent safety; Redis uses ioredis with atomic merge via WATCH/MULTI; S3 supports AWS S3 and S3-compatible services. Backend selection strategy documented: dev uses JSON, single-server uses SQLite, multi-server uses Redis, cloud uses S3. All backends implement identical API contracts (11 kv, 12 fs functions) validated via cross-backend integration tests. Performance validated: SQLite p95 read under 10ms for 100K keys, concurrent writes verified across all backends
+- **MCP Server Mapper Extension** — `@rcrsr/rill-ext-mcp` maps MCP server capabilities to rill host functions via `createMcpExtension()`. Supports stdio and HTTP transports. Tools, resources, and prompts auto-map to callable functions with introspection (`list_tools`, `list_resources`, `list_prompts`). Includes lifecycle events, capability filtering, and multi-server composition via `hoistExtension`
+
+- **Backend-swappable kv and fs extensions** — Mount-based architecture for kv (3 new functions: `merge`, `get_or`, `mounts`) with access mode enforcement. Three new backend packages: `rill-ext-storage-sqlite` (better-sqlite3, WAL mode), `rill-ext-storage-redis` (ioredis, atomic merge), `rill-ext-storage-s3` (AWS S3-compatible). Contract types (`KvExtensionContract`, `FsExtensionContract`) exported from core for compile-time verification
 
 ## [0.8.5] - 2026-02-12
 
