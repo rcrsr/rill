@@ -49,10 +49,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.23.1",
-    "zod": "^4.3.0"
-  },
-  "comments": {
-    "sdk-version": "Pinned to 1.23.1 due to zod-compat bug in 1.23.0-1.26.0 causing v3Schema.safeParseAsync is not a function. Zod v4 added to satisfy SDK peer dependency but bug persists. Version 1.0.4 lacks streamableHttp needed by implementation."
+    "@modelcontextprotocol/sdk": "^1.26.0"
   }
 }

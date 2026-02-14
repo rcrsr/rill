@@ -229,11 +229,8 @@ importers:
   packages/ext/mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: 1.23.1
-        version: 1.23.1(zod@4.3.6)
-      zod:
-        specifier: ^4.3.0
-        version: 4.3.6
+        specifier: ^1.26.0
+        version: 1.26.0(zod@4.3.6)
     devDependencies:
       '@rcrsr/rill':
         specifier: workspace:^
@@ -934,16 +931,6 @@ packages:
 
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
-
-  '@modelcontextprotocol/sdk@1.23.1':
-    resolution: {integrity: sha512-JvO6eVMbSKdk+iZcwECz/tra9DRAKlv1mAOsQ1DAWU3qG28tDIffpkEAUkqMMwlOq77GhnMpezEjiQJGIR+hHw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
-    peerDependenciesMeta:
-      '@cfworker/json-schema':
-        optional: true
 
   '@modelcontextprotocol/sdk@1.26.0':
     resolution: {integrity: sha512-Y5RmPncpiDtTXDbLKswIJzTqu2hyBKxTNsgKqKclDbhIgg1wgtf1fRuvxgTnRfcnxtvvgbIEcqUOzZrJ6iSReg==}
@@ -2044,12 +2031,6 @@ packages:
   expect-type@1.3.0:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
     engines: {node: '>=12.0.0'}
-
-  express-rate-limit@7.5.1:
-    resolution: {integrity: sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==}
-    engines: {node: '>= 16'}
-    peerDependencies:
-      express: '>= 4.11'
 
   express-rate-limit@8.2.1:
     resolution: {integrity: sha512-PCZEIEIxqwhzw4KF0n7QF4QqruVTcF73O5kFKUnGOyjbCCgizBBiFaYpd/fnBLUMPw/BWw9OsiN7GgrNYr7j6g==}
@@ -4037,7 +4018,6 @@ snapshots:
   '@hono/node-server@1.19.9(hono@4.11.9)':
     dependencies:
       hono: 4.11.9
-    optional: true
 
   '@humanfs/core@0.19.1': {}
 
@@ -4092,24 +4072,6 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.2': {}
 
-  '@modelcontextprotocol/sdk@1.23.1(zod@4.3.6)':
-    dependencies:
-      ajv: 8.17.1
-      ajv-formats: 3.0.1(ajv@8.17.1)
-      content-type: 1.0.5
-      cors: 2.8.6
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.0.6
-      express: 5.2.1
-      express-rate-limit: 7.5.1(express@5.2.1)
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@4.3.6)
-    transitivePeerDependencies:
-      - supports-color
-
   '@modelcontextprotocol/sdk@1.26.0(zod@4.3.6)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.11.9)
@@ -4131,7 +4093,6 @@ snapshots:
       zod-to-json-schema: 3.25.1(zod@4.3.6)
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   '@pinecone-database/pinecone@3.0.3':
     dependencies:
@@ -5290,15 +5251,10 @@ snapshots:
 
   expect-type@1.3.0: {}
 
-  express-rate-limit@7.5.1(express@5.2.1):
-    dependencies:
-      express: 5.2.1
-
   express-rate-limit@8.2.1(express@5.2.1):
     dependencies:
       express: 5.2.1
       ip-address: 10.0.1
-    optional: true
 
   express@5.2.1:
     dependencies:
@@ -5527,8 +5483,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.11.9:
-    optional: true
+  hono@4.11.9: {}
 
   http-errors@2.0.1:
     dependencies:
@@ -5584,8 +5539,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ip-address@10.0.1:
-    optional: true
+  ip-address@10.0.1: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -5618,8 +5572,7 @@ snapshots:
 
   jiti@2.6.1: {}
 
-  jose@6.1.3:
-    optional: true
+  jose@6.1.3: {}
 
   joycon@3.1.1: {}
 
@@ -5646,8 +5599,7 @@ snapshots:
 
   json-schema-traverse@1.0.0: {}
 
-  json-schema-typed@8.0.2:
-    optional: true
+  json-schema-typed@8.0.2: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 

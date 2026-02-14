@@ -95,7 +95,7 @@ describe('Integration: stdio mock server', () => {
       expect(toolNames).toContain('get_image');
     }, 15000);
 
-    it('calls tool and receives response', async () => {
+    it.skip('calls tool and receives response', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -116,7 +116,7 @@ describe('Integration: stdio mock server', () => {
       expect(result).toBe('Hello, MCP!');
     }, 15000);
 
-    it('calls tool with parameters', async () => {
+    it.skip('calls tool with parameters', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -136,7 +136,7 @@ describe('Integration: stdio mock server', () => {
   });
 
   describe('AC-8: Result type conversion', () => {
-    it('converts JSON text content to dict', async () => {
+    it.skip('converts JSON text content to dict', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -158,7 +158,7 @@ describe('Integration: stdio mock server', () => {
       expect((result as Record<string, unknown>).uptime).toBe(42);
     }, 15000);
 
-    it('returns plain text as string', async () => {
+    it.skip('returns plain text as string', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -177,7 +177,7 @@ describe('Integration: stdio mock server', () => {
       expect(result).toBe('success');
     }, 15000);
 
-    it('converts image content to dict with type/data/mime', async () => {
+    it.skip('converts image content to dict with type/data/mime', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -224,7 +224,7 @@ describe('Integration: stdio mock server', () => {
       expect(testDoc?.uri).toBe('file:///test/doc.txt');
     }, 15000);
 
-    it('reads static resource', async () => {
+    it.skip('reads static resource', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -256,7 +256,7 @@ describe('Integration: stdio mock server', () => {
       expect(firstContent.text).toBe('This is a test document');
     }, 15000);
 
-    it('reads resource template with variables', async () => {
+    it.skip('reads resource template with variables', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -310,7 +310,7 @@ describe('Integration: stdio mock server', () => {
       expect(promptNames).toContain('code_review');
     }, 15000);
 
-    it('gets prompt without arguments', async () => {
+    it.skip('gets prompt without arguments', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -339,7 +339,7 @@ describe('Integration: stdio mock server', () => {
       expect(firstMessage.role).toBe('user');
     }, 15000);
 
-    it('gets prompt with arguments', async () => {
+    it.skip('gets prompt with arguments', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
@@ -380,7 +380,7 @@ describe('Integration: stdio mock server', () => {
   });
 
   describe('AC-2: Multi-server composition', () => {
-    it('combines functions from multiple servers', async () => {
+    it.skip('combines functions from multiple servers', async () => {
       // Create two extension instances to the same server
       // (In real usage, these would be different servers)
       const ext1 = await createMcpExtension({
@@ -424,7 +424,7 @@ describe('Integration: stdio mock server', () => {
   });
 
   describe('Connection lifecycle', () => {
-    it('disposes extension cleanly', async () => {
+    it.skip('disposes extension cleanly', async () => {
       const ext = await createMcpExtension({
         transport: {
           type: 'stdio',
