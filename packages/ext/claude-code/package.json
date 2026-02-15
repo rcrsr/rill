@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-ext-claude-code",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "rill extension for Claude Code CLI integration",
   "license": "MIT",
   "author": "Andre Bremer",

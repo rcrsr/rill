@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-02-15
+
 ### Added
 
 - **MCP Server Mapper Extension** — `@rcrsr/rill-ext-mcp` maps MCP server capabilities to rill host functions via `createMcpExtension()`. Supports stdio and HTTP transports. Tools, resources, and prompts auto-map to callable functions with introspection (`list_tools`, `list_resources`, `list_prompts`). Includes lifecycle events, capability filtering, and multi-server composition via `hoistExtension`
@@ -951,7 +953,13 @@ Initial release.
   - Example workflows
   - Formal EBNF grammar
 
-[Unreleased]: https://github.com/rcrsr/rill/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/rcrsr/rill/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/rcrsr/rill/compare/v0.8.5...v0.8.6
+[0.8.5]: https://github.com/rcrsr/rill/compare/v0.8.4...v0.8.5
+[0.8.4]: https://github.com/rcrsr/rill/compare/v0.8.3...v0.8.4
+[0.8.3]: https://github.com/rcrsr/rill/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/rcrsr/rill/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/rcrsr/rill/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rcrsr/rill/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/rcrsr/rill/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rcrsr/rill/compare/v0.7.0...v0.7.1
