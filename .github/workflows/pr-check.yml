@@ -19,14 +19,8 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
-      - name: Install build tools for native modules
-        run: sudo apt-get update && sudo apt-get install -y python3 make g++
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Rebuild native modules
-        run: pnpm rebuild better-sqlite3
 
       - name: Run checks
         run: pnpm -r run check
