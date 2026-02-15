@@ -485,7 +485,7 @@ $i -> ($ < 3) @ { $ + 1 }
 
 **String building** — the `+` operator is arithmetic-only. Use interpolation or `.join()`:
 
-```rill
+```text
 # Interpolation — embed variables and expressions in double-quoted strings
 "Hello, {$name}!"                             # variable
 "Count: {$list -> .len}"                      # expression
@@ -518,8 +518,8 @@ $obj.greet
 ```rill
 anthropic::message("Summarize: {$text}") => $summary
 $query -> anthropic::embed($) -> qdrant::search($, 5) => $results
-fs::read("input", "data.csv") => $data
-kv::get("run_count") -> $ + 1 -> kv::set("run_count", $)
+fs::read("input", "data.csv") => $csv
+kv::get("run_count") -> ($ + 1) -> kv::set("run_count", $)
 crypto::uuid() => $request_id
 ```
 
@@ -639,11 +639,11 @@ Each endpoint in config becomes a callable function. Return shape depends on `re
 ```rill
 # Positional args — matched to params by declaration order
 api::get_users(10) => $users
-newsapi::top_headlines("us", 5) => $response
+newsapi::top_headlines("us", 5) => $resp
 
 # Dict/named args — matched to params by name
 api::get_users([limit: 10]) => $users
-newsapi::top_headlines([country: "us", pageSize: 5]) => $response
+newsapi::top_headlines([country: "us", pageSize: 5]) => $resp
 
 # Introspection
 api::endpoints() => $list                    # [{ name, method, path, description }, ...]
@@ -682,7 +682,7 @@ Uses `child_process.execFile()` — no shell injection. Arguments validated agai
 **Important:** `kv::get()` returns empty string `""` for missing keys, not an error. Check with `kv::has()` if you need to distinguish "empty" from "absent".
 
 ```rill
-kv::get("run_count") -> $ + 1 -> kv::set("run_count", $)
+kv::get("run_count") -> ($ + 1) -> kv::set("run_count", $)
 kv::keys() -> each { log($) }
 ```
 

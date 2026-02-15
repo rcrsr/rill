@@ -51,6 +51,7 @@ function vectorDbMocks(
 ): Record<string, import('@rcrsr/rill').HostFunctionDefinition> {
   const point = {
     id: 'doc-1',
+    score: 0.95,
     vector: [0.1, 0.2, 0.3],
     metadata: { title: 'Example' },
     payload: { title: 'Example' },
@@ -76,11 +77,8 @@ function vectorDbMocks(
       fn: () => ({ succeeded: 2, upsertedCount: 2, status: 'ok' }),
     },
     [`${ns}::search`]: {
-      params: [
-        { name: 'vector', type: 'list' },
-        { name: 'options', type: 'dict', defaultValue: {} },
-      ],
-      fn: () => ({ matches: [point], points: [point] }),
+      params: [{ name: 'vector' }, { name: 'options' }],
+      fn: () => [point],
     },
     [`${ns}::get`]: {
       params: [{ name: 'id', type: 'string' }],
@@ -271,7 +269,7 @@ function createMockFunctions(): Record<
     'fs::read': {
       params: [
         { name: 'mount_or_path', type: 'string' },
-        { name: 'path', type: 'string', defaultValue: null },
+        { name: 'path', type: 'string', defaultValue: '' },
       ],
       fn: () => 'file contents',
     },
@@ -279,7 +277,7 @@ function createMockFunctions(): Record<
       params: [
         { name: 'mount_or_path', type: 'string' },
         { name: 'path_or_content', type: 'string' },
-        { name: 'content', type: 'string', defaultValue: null },
+        { name: 'content', type: 'string', defaultValue: '' },
       ],
       fn: () => true,
     },
@@ -290,19 +288,20 @@ function createMockFunctions(): Record<
     'kv::set': {
       params: [
         { name: 'key_or_mount', type: 'string' },
-        { name: 'value_or_key', type: 'string' },
-        { name: 'value', type: 'string', defaultValue: null },
+        { name: 'value_or_key' },
+        { name: 'value', type: 'string', defaultValue: '' },
       ],
       fn: () => true,
     },
     'kv::get': {
       params: [
         { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: null },
+        { name: 'key', type: 'string', defaultValue: '' },
       ],
-      fn: (param1, param2) => {
-        // Determine if 2-param or 3-param call
-        const key = param2 === null ? String(param1) : String(param2);
+      fn: (args) => {
+        // args is an array: [key] or [mount, key]; default fills '' for missing 2nd param
+        const a = args as unknown as string[];
+        const key = !a[1] ? a[0] : a[1];
         // Return appropriate test values for common keys
         if (key === 'user_count' || key === 'run_count') return 42;
         if (key === 'last_sync') return '2024-01-15';
@@ -314,14 +313,14 @@ function createMockFunctions(): Record<
     'kv::delete': {
       params: [
         { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: null },
+        { name: 'key', type: 'string', defaultValue: '' },
       ],
       fn: () => true,
     },
     'kv::has': {
       params: [
         { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: null },
+        { name: 'key', type: 'string', defaultValue: '' },
       ],
       fn: () => true,
     },
@@ -340,6 +339,80 @@ function createMockFunctions(): Record<
     'kv::schema': {
       params: [],
       fn: () => [],
+    },
+
+    // crypto:: namespace
+    'crypto::uuid': {
+      params: [],
+      fn: () => '550e8400-e29b-41d4-a716-446655440000',
+    },
+    'crypto::hash': {
+      params: [
+        { name: 'input', type: 'string' },
+        { name: 'algo', type: 'string', defaultValue: 'sha256' },
+      ],
+      fn: () =>
+        'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
+    },
+    'crypto::hmac': {
+      params: [{ name: 'input', type: 'string' }],
+      fn: () =>
+        'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
+    },
+    'crypto::random': {
+      params: [{ name: 'bytes', type: 'number', defaultValue: 32 }],
+      fn: () =>
+        'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    },
+
+    // newsapi:: namespace
+    'newsapi::headlines': {
+      params: [],
+      fn: () => [
+        { title: 'Breaking News', source: { name: 'Reuters' } },
+        { title: 'Tech Update', source: { name: 'AP' } },
+      ],
+    },
+    'newsapi::top_headlines': {
+      params: [
+        { name: 'country' },
+        { name: 'pageSize', type: 'number', defaultValue: 10 },
+      ],
+      fn: () => [{ title: 'Breaking News', source: { name: 'Reuters' } }],
+    },
+
+    // api:: namespace
+    'api::get_users': {
+      params: [{ name: 'limit' }],
+      fn: () => [{ name: 'Alice' }, { name: 'Bob' }],
+    },
+    'api::endpoints': {
+      params: [],
+      fn: () => [
+        {
+          name: 'get_users',
+          method: 'GET',
+          path: '/users',
+          description: 'List users',
+        },
+      ],
+    },
+
+    // sh:: namespace (exec extension)
+    'sh::git_status': {
+      params: [],
+      fn: () => ({ stdout: 'On branch main', stderr: '', exitCode: 0 }),
+    },
+    'sh::commands': {
+      params: [],
+      fn: () => [{ name: 'git_status', description: 'Run git status' }],
+    },
+    'sh::jq': {
+      params: [
+        { name: 'filter', type: 'string' },
+        { name: 'input', type: 'string', defaultValue: '' },
+      ],
+      fn: () => ({ stdout: '{}', stderr: '', exitCode: 0 }),
     },
 
     // Extension examples (ai::, claude_code::)
@@ -812,6 +885,14 @@ function shouldSkipBlock(code: string): string | null {
 function createMockVariables(): Record<string, RillValue> {
   return {
     // Input variables commonly read in examples
+    prompt: 'test prompt',
+    text: 'sample text',
+    query: 'search query',
+    embedding: {
+      __rill_vector: true,
+      data: new Float32Array([0.1, 0.2, 0.3]),
+      model: 'mock-embed',
+    },
     email: 'test@example.com',
     items: ['a', 'b', 'c'],
     list: [1, 2, 3],
