@@ -124,19 +124,16 @@ Switch providers by changing one line — `createAnthropicExtension` or `createG
 
 ## Extensions
 
-rill ships bundled extensions for LLM providers and vector databases. Integrate the ones you want to expose as functions in scripts:
+Core extensions ship with `@rcrsr/rill` (fs, fetch, exec, kv, crypto). External extensions are separate packages grouped by category:
 
-| Extension | Package | Functions |
-|-----------|---------|-----------|
-| Anthropic | `@rcrsr/rill-ext-anthropic` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
-| OpenAI | `@rcrsr/rill-ext-openai` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
-| Gemini | `@rcrsr/rill-ext-gemini` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
-| Claude Code | `@rcrsr/rill-ext-claude-code` | `prompt`, `skill`, `command` |
-| Qdrant | `@rcrsr/rill-ext-qdrant` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
-| Pinecone | `@rcrsr/rill-ext-pinecone` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
-| ChromaDB | `@rcrsr/rill-ext-chroma` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
+| Category | Packages | Shared functions |
+|----------|----------|-----------------|
+| LLM | `rill-ext-anthropic`, `rill-ext-openai`, `rill-ext-gemini` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
+| Vector DB | `rill-ext-qdrant`, `rill-ext-pinecone`, `rill-ext-chroma` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
+| Storage | `rill-ext-kv-sqlite`, `rill-ext-kv-redis`, `rill-ext-fs-s3` | Backend-swappable kv and fs mounts |
+| Integration | `rill-ext-claude-code`, `rill-ext-mcp` | Provider-specific |
 
-All LLM provider extensions share the same function signatures. Use `prefixFunctions('llm', ext)` to write provider-agnostic scripts. Vector database extensions follow the same pattern — swap `qdrant::search` for `pinecone::search` with no script changes.
+All packages are scoped under `@rcrsr/`. Extensions in the same category share function signatures — swap providers with no script changes.
 
 See [Bundled Extensions](docs/bundled-extensions.md) for full documentation and [Developing Extensions](docs/integration-extensions.md) to write your own.
 
