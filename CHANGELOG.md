@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Variable method calls returned null** — `$var.len`, `$var.trim`, and other built-in methods on variables returned `null` instead of invoking the method. Literal syntax (`[0,1,2].len`) worked correctly. Root cause: `evaluateVariableAsync` treated access chain fields as dict lookups, falling through to `null` for non-dict values. Fix checks `BUILTIN_METHODS` before dict field access and synthesizes a `MethodCallNode` to invoke the method
+
 ## [0.8.6] - 2026-02-15
 
 ### Added

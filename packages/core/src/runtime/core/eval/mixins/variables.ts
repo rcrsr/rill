@@ -37,6 +37,7 @@ import type {
   RillTypeName,
   SourceLocation,
   ExpressionNode,
+  MethodCallNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -45,6 +46,7 @@ import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import { BUILTIN_METHODS } from '../../../ext/builtins.js';
 
 /**
  * VariablesMixin implementation.
@@ -316,6 +318,18 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 );
               }
             }
+          } else if (field in BUILTIN_METHODS) {
+            // Field is a built-in method - invoke it
+            // Create a synthetic MethodCallNode with no args and call evaluateMethod
+            const methodNode: MethodCallNode = {
+              type: 'MethodCall',
+              name: field,
+              args: [],
+              receiverSpan: null,
+              span: node.span,
+            };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateMethod(methodNode, value);
           } else if (isDict(value)) {
             // Allow missing fields if there's a default value or existence check
             const allowMissing =
