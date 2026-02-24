@@ -8,7 +8,7 @@ These instructions guide you through building a rill agent. The four phases are 
 
 **References:** [rill.run/llms-full.txt](https://rill.run/llms-full.txt) (complete language spec) | [rill.run/docs](https://rill.run/docs/) (full documentation)
 
-> **Hard rule — scaffolder:** Always scaffold with `npx @rcrsr/rill-create-agent`. Never create `package.json`, `host.ts`, `run.ts`, or `tsconfig.json` by hand. The scaffolder generates correct dependencies, imports, and runtime wiring. Hand-rolled projects break on missing internal packages.
+> **Hard rule — scaffolder:** Always scaffold with `npx @rcrsr/rill-compose init`. Never create `package.json`, `host.ts`, `run.ts`, or `tsconfig.json` by hand. The scaffolder generates correct dependencies, imports, and runtime wiring. Hand-rolled projects break on missing internal packages.
 
 > **Hard rule — phases:** Do not run any shell commands, create any files, or write any code until Phase 4. Phases 1–3 are research and planning only. If you find yourself about to scaffold or edit files, stop — you skipped a phase.
 
@@ -227,7 +227,7 @@ Create a concrete implementation plan mapping to files and code.
 
 ### 3.1 Plan the File Structure
 
-The `rill-create-agent` scaffolder generates this structure:
+The `rill-compose init` command generates this structure:
 
 ```
 my-agent/
@@ -243,7 +243,7 @@ my-agent/
 
 ### 3.2 Plan the Implementation Steps
 
-1. **Scaffold** — Run `rill-create-agent` with the selected external extensions (generates all project files)
+1. **Scaffold** — Run `rill-compose init` with the selected extensions (generates all project files)
 2. **Install** — Run the package manager to install dependencies
 3. **Add core extensions** — Edit the generated `host.ts` to wire core extensions (fs, fetch, exec, kv, crypto)
 4. **Set up .env** — Copy `.env.example` to `.env` and fill in API keys
@@ -264,7 +264,7 @@ Ask the user for project setup values:
 Build the scaffold command from these values plus the external extensions selected in Phase 1. The `--extensions` or `--preset` flag is required. Core extensions need no flag — they ship with `@rcrsr/rill` and get wired in `host.ts` manually.
 
 ```bash
-npx @rcrsr/rill-create-agent <project-name> \
+npx @rcrsr/rill-compose init <project-name> \
   --extensions <comma-separated-list> \
   --description "<description>" \
   --package-manager <pm> \
@@ -291,10 +291,10 @@ Implement the plan step by step.
 
 ### 4.1 Scaffold the Project
 
-Run `rill-create-agent` with the external extensions selected in Phase 1:
+Run `rill-compose init` with the extensions selected in Phase 1:
 
 ```bash
-npx @rcrsr/rill-create-agent my-agent --extensions anthropic,qdrant
+npx @rcrsr/rill-compose init my-agent --extensions anthropic,qdrant
 ```
 
 This generates a working project with all dependencies, imports, and runtime wiring. The generated `host.ts` already contains `hoistExtension` calls for every external extension passed via `--extensions`. The generated `run.ts` already handles parsing, execution, output formatting, and cleanup.
@@ -798,7 +798,7 @@ These patterns cause broken projects or runtime errors. Avoid them.
 
 | Mistake | Why it breaks | Correct approach |
 |---------|---------------|------------------|
-| Writing `package.json` by hand | Missing internal dependencies like `@rcrsr/rill-ext-llm-shared` | Run `npx @rcrsr/rill-create-agent` |
+| Writing `package.json` by hand | Missing internal dependencies like `@rcrsr/rill-ext-llm-shared` | Run `npx @rcrsr/rill-compose init` |
 | Writing `run.ts` by hand | Wrong imports, missing `parse`/`execute` pattern, no output formatting | Use the generated `run.ts` unmodified |
 | Writing `host.ts` from scratch | Missing `dotenv/config` import, wrong `hoistExtension` wiring | Edit the generated `host.ts` |
 | Using raw `fetch()` or `axios` for HTTP | Bypasses sandboxing, no retry/auth, wrong function signature | Use the `fetch` core extension with `createFetchExtension` |

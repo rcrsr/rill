@@ -1,0 +1,35 @@
+{
+  "name": "@rcrsr/rill-compose",
+  "version": "0.8.6",
+  "type": "module",
+  "bin": {
+    "rill-compose": "./dist/cli.js"
+  },
+  "main": "dist/compose.js",
+  "types": "dist/compose.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/compose.d.ts",
+      "default": "./dist/compose.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "zod": "^4.0.0",
+    "archiver": "^7.0.0",
+    "esbuild": "^0.27.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
