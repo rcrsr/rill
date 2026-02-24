@@ -130,7 +130,7 @@ describe('Release Workflow', () => {
       expect(publishStep).toBeDefined();
       expect(publishStep.run).toContain('packages/core');
       expect(publishStep.run).toContain('packages/cli');
-      expect(publishStep.run).toContain('packages/create-agent');
+      expect(publishStep.run).toContain('packages/compose');
       expect(publishStep.run).toContain('packages/ext/');
     });
 
@@ -149,28 +149,19 @@ describe('Release Workflow', () => {
   });
 
   describe('AC-9: git tags', () => {
-    it('creates git tags with package@version format', () => {
+    it('creates per-package tags via discovery loop', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
-      // Should tag each package with @rcrsr/package@version format
-      expect(content).toContain('@rcrsr/rill@');
-      expect(content).toContain('@rcrsr/rill-cli@');
-      expect(content).toContain('@rcrsr/rill-ext-claude-code@');
+      // Tags are created dynamically via loop over package directories
+      expect(content).toContain('TAG="${NAME}@${VERSION}"');
+      expect(content).toContain('git tag -a "$TAG"');
     });
 
-    it('reads version from package.json for each tag', () => {
+    it('reads version from root package.json for tags', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
-      // Should extract version from package.json files
-      expect(content).toContain(
-        "require('./packages/core/package.json').version"
-      );
-      expect(content).toContain(
-        "require('./packages/cli/package.json').version"
-      );
-      expect(content).toContain(
-        "require('./packages/ext/claude-code/package.json').version"
-      );
+      // Version extracted once from root package.json
+      expect(content).toContain("require('./package.json').version");
     });
 
     it('pushes tags to remote', () => {
@@ -183,9 +174,10 @@ describe('Release Workflow', () => {
       const content = readFileSync(WORKFLOW_FILE, 'utf-8');
 
       // Should use -a flag for annotated tags with -m for messages
+      // 2 commands: main release tag + per-package loop tag
       const tagCommands = content.match(/git tag -a[^\n]*/g);
       expect(tagCommands).toBeDefined();
-      expect(tagCommands!.length).toBe(3);
+      expect(tagCommands!.length).toBe(2);
 
       tagCommands!.forEach((cmd) => {
         expect(cmd).toContain('-a');

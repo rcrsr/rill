@@ -42,7 +42,7 @@ jobs:
       - name: Publish packages
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          for dir in packages/core packages/cli packages/create-agent packages/ext/*/; do
+          for dir in packages/core packages/cli packages/compose packages/ext/*/; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
@@ -73,7 +73,7 @@ jobs:
           fi
 
           # Per-package tags
-          for dir in packages/core packages/cli packages/create-agent packages/ext/*/; do
+          for dir in packages/core packages/cli packages/compose packages/ext/*/; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")

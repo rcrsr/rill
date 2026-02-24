@@ -59,7 +59,7 @@ pnpm run -r test || error "Tests failed"
 
 # Step 7: Discover publishable packages
 PACKAGES=()
-for dir in packages/core packages/cli packages/create-agent packages/ext/*/; do
+for dir in packages/core packages/cli packages/compose packages/ext/*/; do
   dir="${dir%/}"
   [ -f "$dir/package.json" ] || continue
   PRIVATE=$(node -p "require('./$dir/package.json').private || false")

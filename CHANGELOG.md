@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **@rcrsr/rill-compose** — Manifest-driven agent composition via `agent.json`. CLI builds 4 targets: `container` (Dockerfile + node_modules), `lambda` (zip), `worker` (single ESM file), `local` (unbundled). Programmatic API via `composeAgent(manifest)`
+
+- **rill-compose init** — `rill-compose init <name> --extensions anthropic,qdrant` scaffolds a project with `agent.json`, starter script, `.env.example`, and `package.json`. Replaces `npx @rcrsr/rill-create-agent`
+
+- **Extension resolution strategies** — `agent.json` extensions resolve from npm packages, local paths (`./`), or built-in sub-paths (`@rcrsr/rill/ext/fs`). Namespace collision detection prevents duplicate function prefixes
+
+- **Worker target compatibility checking** — Detects native C++ addons and restricted Node.js built-ins (`fs`, `net`, `dns`, `tls`) before bundling for Cloudflare Workers
+
+### Removed
+
+- **@rcrsr/rill-create-agent** — Replaced by `rill-compose init`. `packages/create-agent/` deleted from monorepo
+
+### Changed
+
+- **Agent bootstrapping docs** — `docs/guide-make.md` and `docs/index.md` reference `rill-compose init` instead of `rill-create-agent`
+
 ### Fixed
 
 - **Variable method calls returned null** — `$var.len`, `$var.trim`, and other built-in methods on variables returned `null` instead of invoking the method. Literal syntax (`[0,1,2].len`) worked correctly. Root cause: `evaluateVariableAsync` treated access chain fields as dict lookups, falling through to `null` for non-dict values. Fix checks `BUILTIN_METHODS` before dict field access and synthesizes a `MethodCallNode` to invoke the method

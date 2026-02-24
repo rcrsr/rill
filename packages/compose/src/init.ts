@@ -69,7 +69,7 @@ export interface InitOptions {
 
 /**
  * Validate project name against npm package naming rules.
- * Copied from packages/create-agent/src/cli.ts:44-79.
+ * Based on npm package naming rules.
  * Rules:
  * - Cannot be empty or '.'
  * - Must contain only lowercase alphanumeric, hyphens, underscores

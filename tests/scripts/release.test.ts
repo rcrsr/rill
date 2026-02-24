@@ -150,7 +150,7 @@ describe('Release Script', () => {
       // Package directories in discovery loop (names resolved dynamically)
       expect(content).toContain('packages/core');
       expect(content).toContain('packages/cli');
-      expect(content).toContain('packages/create-agent');
+      expect(content).toContain('packages/compose');
       expect(content).toContain('packages/ext/');
     });
   });
