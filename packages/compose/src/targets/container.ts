@@ -4,11 +4,13 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
   globSync,
 } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { build as esbuild } from 'esbuild';
 import { ComposeError } from '../errors.js';
 import { generateAgentCard } from '../card.js';
@@ -52,8 +54,14 @@ function generateHostEntry(context: BuildContext): string {
 
   for (const ext of extensions) {
     const safeVar = ext.alias.replace(/[^a-zA-Z0-9_]/g, '_');
+    // Local extensions use the absolute file path so esbuild can find and bundle them.
+    // npm/builtin extensions use the package alias, resolved from node_modules.
+    const importSpecifier =
+      ext.strategy === 'local' && ext.resolvedPath
+        ? ext.resolvedPath
+        : ext.alias;
     importLines.push(
-      `import ${safeVar}Factory from ${JSON.stringify(ext.alias)};`
+      `import ${safeVar}Factory from ${JSON.stringify(importSpecifier)};`
     );
     wireLines.push(
       `  [${JSON.stringify(ext.namespace)}, ${safeVar}Factory(${JSON.stringify(ext.config)})],`
@@ -280,10 +288,16 @@ const containerBuilder: TargetBuilder = {
     // Copy assets (AC-24: warn on 0 matches, non-blocking)
     copyAssets(manifest, manifestDir, outputDir);
 
-    // Generate host entry in a temp file for esbuild
+    // Generate host entry in a UUID-named temp subdirectory.
+    // The fixed filename 'host.ts' ensures esbuild produces deterministic output
+    // across concurrent builds; the UUID directory prevents same-name collisions.
     const hostSource = generateHostEntry(context);
-    const tmpDir = os.tmpdir();
-    const tmpHostPath = path.join(tmpDir, `rill-host-${manifest.name}.ts`);
+    const tmpBuildDir = path.join(
+      os.tmpdir(),
+      `rill-build-${randomUUID().slice(0, 8)}`
+    );
+    mkdirSync(tmpBuildDir, { recursive: true });
+    const tmpHostPath = path.join(tmpBuildDir, 'host.ts');
     writeFileSync(tmpHostPath, hostSource, 'utf-8');
 
     // EC-23: compile host entry with esbuild
@@ -304,6 +318,12 @@ const containerBuilder: TargetBuilder = {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new ComposeError(`Build failed: ${msg}`, 'bundling');
+    } finally {
+      try {
+        rmSync(tmpBuildDir, { recursive: true, force: true });
+      } catch {
+        // Best-effort cleanup
+      }
     }
 
     // Copy node_modules

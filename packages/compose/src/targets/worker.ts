@@ -1,5 +1,6 @@
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
 import { ComposeError } from '../errors.js';
@@ -101,13 +102,18 @@ const workerBuilder: TargetBuilder = {
     // EC-20 / EC-21: check extension compatibility with worker target
     await checkTargetCompatibility(extensions, 'worker');
 
-    // Generate worker entry in a temp file co-located with this package so
-    // esbuild resolves @rcrsr/rill from packages/compose/node_modules.
+    // Generate worker entry in a UUID-named subdirectory co-located with this
+    // package so esbuild resolves @rcrsr/rill from packages/compose/node_modules.
+    // The fixed filename 'worker.ts' ensures esbuild produces deterministic output
+    // across concurrent builds; the UUID directory prevents same-name collisions.
     const workerSource = generateWorkerEntry(context);
-    const tmpWorkerPath = path.join(
+    const tmpWorkerDir = path.join(
       PACKAGE_ROOT,
-      `_rill-worker-${manifest.name}.ts`
+      '.rill-tmp',
+      randomUUID().slice(0, 8)
     );
+    mkdirSync(tmpWorkerDir, { recursive: true });
+    const tmpWorkerPath = path.join(tmpWorkerDir, 'worker.ts');
     writeFileSync(tmpWorkerPath, workerSource, 'utf-8');
 
     // EC-23: compile worker entry with esbuild
@@ -129,7 +135,7 @@ const workerBuilder: TargetBuilder = {
       throw new ComposeError(`Build failed: ${msg}`, 'bundling');
     } finally {
       try {
-        unlinkSync(tmpWorkerPath);
+        rmSync(tmpWorkerDir, { recursive: true, force: true });
       } catch {
         // Temp file cleanup is best-effort
       }

@@ -92,16 +92,20 @@ function hasNativeAddon(packageDir: string): boolean {
 
 /**
  * Resolves the package directory for an npm-strategy extension.
- * Searches for node_modules/{namespace} relative to cwd and common locations.
+ * Walks up the directory tree from cwd to the filesystem root, checking
+ * node_modules/{namespace}/package.json at each level. Mirrors Node.js
+ * module resolution for nested workspace support.
  */
 function findNpmPackageDir(namespace: string): string | undefined {
-  const candidates = [
-    join(process.cwd(), 'node_modules', namespace),
-    join(process.cwd(), '..', 'node_modules', namespace),
-  ];
+  let dir = process.cwd();
 
-  for (const candidate of candidates) {
+  while (true) {
+    const candidate = join(dir, 'node_modules', namespace);
     if (existsSync(join(candidate, 'package.json'))) return candidate;
+
+    const parent = dirname(dir);
+    if (parent === dir) break; // reached filesystem root
+    dir = parent;
   }
 
   return undefined;

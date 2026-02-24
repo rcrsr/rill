@@ -3,15 +3,7 @@
  * Covers AC-2, AC-8, EC-22, EC-23.
  */
 
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  afterEach,
-} from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   mkdtempSync,
   writeFileSync,
@@ -19,57 +11,14 @@ import {
   mkdirSync,
   readFileSync,
   chmodSync,
-  symlinkSync,
-  existsSync,
 } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { lambdaBuilder } from '../../src/targets/lambda.js';
 import { ComposeError } from '../../src/errors.js';
 import type { BuildContext } from '../../src/targets/index.js';
 import type { AgentManifest } from '../../src/schema.js';
-
-// ============================================================
-// ESBUILD NODE_MODULES SHIM
-// ============================================================
-//
-// The lambda builder writes the host entry to os.tmpdir() and runs esbuild
-// from there (bundle: true, no external). esbuild resolves node_modules by
-// walking up from the entry file. From /tmp, it cannot find @rcrsr/rill.
-//
-// We create a /tmp/node_modules/@rcrsr/rill symlink before tests so esbuild
-// can bundle the lambda host entry in the happy-path cases.
-//
-const TMP_NODE_MODULES_RCRSR = join(tmpdir(), 'node_modules', '@rcrsr');
-const TMP_RILL_SYMLINK = join(TMP_NODE_MODULES_RCRSR, 'rill');
-const COMPOSE_DIR = dirname(
-  fileURLToPath(import.meta.url.replace('/tests/targets/', '/'))
-);
-const RILL_CORE_PKG = join(COMPOSE_DIR, 'node_modules', '@rcrsr', 'rill');
-
-let createdSymlink = false;
-
-beforeAll(() => {
-  if (!existsSync(TMP_RILL_SYMLINK)) {
-    mkdirSync(TMP_NODE_MODULES_RCRSR, { recursive: true });
-    symlinkSync(RILL_CORE_PKG, TMP_RILL_SYMLINK);
-    createdSymlink = true;
-  }
-});
-
-afterAll(() => {
-  if (createdSymlink && existsSync(TMP_RILL_SYMLINK)) {
-    rmSync(TMP_RILL_SYMLINK, { force: true });
-    // Remove @rcrsr dir only if empty
-    try {
-      rmSync(TMP_NODE_MODULES_RCRSR, { recursive: false });
-    } catch {
-      // Not empty — leave it
-    }
-  }
-});
 
 // ============================================================
 // TEST SETUP

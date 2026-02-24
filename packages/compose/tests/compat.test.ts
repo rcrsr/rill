@@ -461,6 +461,53 @@ describe('checkTargetCompatibility', () => {
   });
 
   // ============================================================
+  // findNpmPackageDir: NESTED WORKSPACE WALK
+  // ============================================================
+
+  describe('findNpmPackageDir walks up directory tree for nested workspaces', () => {
+    it('resolves npm package installed 2 levels above cwd', async () => {
+      // Simulate a cwd that is 2 levels deep inside a temp directory, with
+      // node_modules at the top level. The old 2-candidate implementation
+      // would only check cwd and cwd/..; the upward walk finds it at cwd/../..
+      const pkgName = 'rill-test-nested-pkg';
+      const rootDir = mkdtempSync(join(tmpdir(), 'nested-walk-'));
+
+      try {
+        // Create nested cwd: rootDir/workspace/project/
+        const nestedCwd = join(rootDir, 'workspace', 'project');
+        mkdirSync(nestedCwd, { recursive: true });
+
+        // Install fake package at rootDir/node_modules/<pkgName>/
+        const pkgDir = join(rootDir, 'node_modules', pkgName);
+        mkdirSync(pkgDir, { recursive: true });
+        writeFileSync(
+          join(pkgDir, 'package.json'),
+          JSON.stringify({ name: pkgName, version: '1.0.0', main: 'index.js' })
+        );
+        writeFileSync(
+          join(pkgDir, 'index.js'),
+          'export default function factory() { return {}; }\n'
+        );
+
+        // Point process.cwd() at the deeply-nested directory
+        const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(nestedCwd);
+
+        try {
+          const ext = makeNpmExtension(pkgName);
+          // Should resolve without error — upward walk reaches rootDir/node_modules
+          await expect(
+            checkTargetCompatibility([ext], 'worker')
+          ).resolves.toBeUndefined();
+        } finally {
+          cwdSpy.mockRestore();
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // ============================================================
   // BUILTIN STRATEGY SKIPPED
   // ============================================================
 

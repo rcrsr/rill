@@ -178,6 +178,7 @@ async function resolveLocal(
     namespace: alias,
     strategy: 'local',
     factory,
+    resolvedPath,
     config: extension.config ?? {},
   };
 }
@@ -226,6 +227,8 @@ export interface ResolvedExtension {
   readonly strategy: 'npm' | 'local' | 'builtin';
   readonly factory: ExtensionFactory<unknown>;
   readonly resolvedVersion?: string | undefined;
+  /** Absolute file path for local-strategy extensions. Used by builders to bundle the source. */
+  readonly resolvedPath?: string | undefined;
   readonly config: Record<string, unknown>;
 }
 

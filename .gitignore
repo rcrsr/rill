@@ -1,5 +1,6 @@
 # Build output
 dist/
+.rill-tmp/
 *.tsbuildinfo
 
 # Compiled TypeScript artifacts in src/ (build outputs to dist/)

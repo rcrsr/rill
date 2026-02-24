@@ -3,17 +3,34 @@ import {
   existsSync,
   globSync,
   mkdirSync,
+  rmSync,
   writeFileSync,
   WriteStream,
 } from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { build as esbuild } from 'esbuild';
 import { ComposeError } from '../errors.js';
 import { generateAgentCard } from '../card.js';
 import { assertOutputWritable, buildResolvedManifest } from './helpers.js';
 import type { TargetBuilder, BuildContext, BuildResult } from './index.js';
+
+// ============================================================
+// PACKAGE ROOT
+// ============================================================
+
+/**
+ * Absolute path to the packages/compose directory.
+ * Temp files are written to PACKAGE_ROOT/.rill-tmp/ so esbuild
+ * resolves @rcrsr/rill from this package's own node_modules.
+ */
+const PACKAGE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..'
+);
 
 // ============================================================
 // ARCHIVER IMPORT (CJS MODULE — NO BUNDLED TYPES)
@@ -111,15 +128,23 @@ const lambdaBuilder: TargetBuilder = {
     // EC-22: assert output directory is writable
     assertOutputWritable(outputDir);
 
-    // Generate lambda host entry in a temp file for esbuild
+    // Generate lambda host entry in a UUID-named subdirectory co-located with
+    // this package so esbuild resolves @rcrsr/rill from packages/compose/node_modules.
+    // The fixed filenames ensure esbuild produces deterministic output across
+    // concurrent builds; the UUID directory prevents same-name collisions.
     const hostSource = generateLambdaHostEntry(context);
-    const tmpDir = os.tmpdir();
-    const tmpHostPath = path.join(tmpDir, `rill-lambda-${manifest.name}.ts`);
+    const tmpBuildDir = path.join(
+      PACKAGE_ROOT,
+      '.rill-tmp',
+      randomUUID().slice(0, 8)
+    );
+    mkdirSync(tmpBuildDir, { recursive: true });
+    const tmpHostPath = path.join(tmpBuildDir, 'lambda.ts');
+    const tmpOutDir = path.join(tmpBuildDir, 'out');
+    mkdirSync(tmpOutDir, { recursive: true });
     writeFileSync(tmpHostPath, hostSource, 'utf-8');
 
     // EC-23: compile host entry with esbuild — all deps bundled (bundle: true)
-    const tmpOutDir = path.join(tmpDir, `rill-lambda-out-${manifest.name}`);
-    mkdirSync(tmpOutDir, { recursive: true });
     const hostJsPath = path.join(tmpOutDir, 'host.js');
 
     try {
@@ -137,6 +162,14 @@ const lambdaBuilder: TargetBuilder = {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new ComposeError(`Build failed: ${msg}`, 'bundling');
+    } finally {
+      // Remove the entry source — esbuild is done with it.
+      // tmpBuildDir (containing out/host.js) is cleaned up after archiver reads it.
+      try {
+        rmSync(tmpHostPath, { force: true });
+      } catch {
+        // Best-effort
+      }
     }
 
     // Collect .rill scripts from manifestDir
@@ -191,6 +224,13 @@ const lambdaBuilder: TargetBuilder = {
       output.on('close', resolve);
       archive.on('error', reject);
     });
+
+    // Archiver has finished reading host.js — safe to remove the entire temp build dir.
+    try {
+      rmSync(tmpBuildDir, { recursive: true, force: true });
+    } catch {
+      // Best-effort
+    }
 
     return {
       outputPath: zipPath,

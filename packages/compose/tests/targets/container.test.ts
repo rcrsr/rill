@@ -389,6 +389,47 @@ describe('containerBuilder', () => {
   });
 
   // ============================================================
+  // LOCAL EXTENSION BUNDLING
+  // ============================================================
+
+  describe('local extension bundling: source is inlined into host.js', () => {
+    it('bundles a local extension into host.js via resolvedPath', async () => {
+      // Write a local extension file with a unique sentinel string that esbuild
+      // will inline when bundling. The sentinel lets us confirm the file was
+      // bundled rather than left as an unresolved import.
+      const localExtPath = join(manifestDir, 'myext.js');
+      const sentinel = '__LOCAL_EXT_SENTINEL_D2__';
+      writeFileSync(
+        localExtPath,
+        `export default function factory() { const id = '${sentinel}'; return { ping: () => id }; }\n`,
+        'utf-8'
+      );
+
+      const ctx: BuildContext = {
+        manifest: makeManifest(),
+        extensions: [
+          {
+            alias: 'myExt',
+            namespace: 'myExt',
+            strategy: 'local',
+            factory: () => ({}),
+            resolvedPath: localExtPath,
+            config: {},
+          },
+        ],
+        outputDir,
+        manifestDir,
+        env: {},
+      };
+
+      await containerBuilder.build(ctx);
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).toContain(sentinel);
+    });
+  });
+
+  // ============================================================
   // AC-7: INDEPENDENT BUILDS FROM DIFFERENT MANIFESTS
   // ============================================================
 
@@ -436,13 +477,15 @@ describe('containerBuilder', () => {
   // ============================================================
 
   describe('AC-31: concurrent builds to different output dirs both succeed', () => {
-    it('Promise.all resolves both builds without interference', async () => {
+    it('Promise.all resolves both builds without interference (same manifest name)', async () => {
+      // Both builds use the same manifest name to verify the UUID suffix on the
+      // temp entry file prevents collision when builds run concurrently.
       const manifestA = makeManifest({
-        name: 'concurrent-a',
+        name: 'concurrent-agent',
         version: '1.0.0',
       });
       const manifestB = makeManifest({
-        name: 'concurrent-b',
+        name: 'concurrent-agent',
         version: '1.0.0',
       });
 
