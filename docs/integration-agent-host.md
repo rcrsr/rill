@@ -15,10 +15,13 @@ npm install @rcrsr/rill-host
 ## Quick Start
 
 ```typescript
+import { readFileSync } from 'node:fs';
+import { validateManifest, composeAgent } from '@rcrsr/rill-compose';
 import { createAgentHost } from '@rcrsr/rill-host';
-import { composeAgent } from '@rcrsr/rill-compose';
 
-const agent = await composeAgent('./agent.json');
+const json = JSON.parse(readFileSync('./agent.json', 'utf-8'));
+const manifest = validateManifest(json);
+const agent = await composeAgent(manifest, { basePath: import.meta.dirname });
 const host = createAgentHost(agent);
 
 await host.listen(3000);
@@ -189,3 +192,4 @@ Every request propagates the `X-Correlation-ID` header value into the session re
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports for `@rcrsr/rill` |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects with `rill-compose init` |
+| [rill-compose](integration-compose.md) | Manifest format, validateManifest, and composeAgent API |
