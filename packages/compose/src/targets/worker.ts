@@ -150,7 +150,7 @@ const workerBuilder: TargetBuilder = {
     );
 
     // Generate Agent Card (FR-BUILD-10)
-    const card = generateAgentCard(manifest, extensions);
+    const card = generateAgentCard(manifest);
     const wellKnownDir = path.join(outputDir, '.well-known');
     mkdirSync(wellKnownDir, { recursive: true });
     writeFileSync(

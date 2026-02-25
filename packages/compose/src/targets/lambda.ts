@@ -115,7 +115,7 @@ function getHandler() {
       const rillContext = createRuntimeContext({ functions: mergedFunctions });
       const source = readFileSync(join(__dirname, 'scripts', manifest.entry), 'utf-8');
       const ast = parse(source);
-      const card = { name: manifest.name, version: manifest.version, capabilities: [] };
+      const card = { name: manifest.name, version: manifest.version, description: "", url: "", skills: [], defaultInputModes: ["application/json"], defaultOutputModes: ["application/json"], capabilities: { streaming: false, pushNotifications: false } };
       const agent = {
         ast, context: rillContext, card,
         async dispose() {
@@ -145,7 +145,7 @@ const lambdaBuilder: TargetBuilder = {
   target: 'lambda',
 
   async build(context: BuildContext): Promise<BuildResult> {
-    const { manifest, extensions, outputDir, manifestDir } = context;
+    const { manifest, outputDir, manifestDir } = context;
 
     // EC-22: assert output directory is writable
     assertOutputWritable(outputDir);
@@ -195,7 +195,7 @@ const lambdaBuilder: TargetBuilder = {
     }
 
     // Collect .rill scripts from manifestDir
-    let rillEntries: string[] = [];
+    let rillEntries: string[];
     try {
       rillEntries = globSync('**/*.rill', { cwd: manifestDir });
     } catch {
@@ -204,7 +204,7 @@ const lambdaBuilder: TargetBuilder = {
 
     // Build resolved manifest and agent card
     const resolvedManifest = buildResolvedManifest(context);
-    const card = generateAgentCard(manifest, extensions);
+    const card = generateAgentCard(manifest);
 
     // Create dist.zip using archiver v7 streaming API
     const zipPath = path.join(outputDir, 'dist.zip');

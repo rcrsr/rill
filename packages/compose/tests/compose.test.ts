@@ -155,7 +155,10 @@ describe('composeAgent', () => {
 
       const agent = await composeAgent(manifest, makeOptions());
 
-      expect(agent.card.capabilities).toEqual([]);
+      expect(agent.card.capabilities).toEqual({
+        streaming: false,
+        pushNotifications: false,
+      });
     });
   });
 
@@ -226,7 +229,10 @@ describe('composeAgent', () => {
       const agent = await composeAgent(manifest, makeOptions());
       const elapsed = Date.now() - start;
 
-      expect(agent.card.capabilities).toHaveLength(20);
+      expect(agent.card.capabilities).toEqual({
+        streaming: false,
+        pushNotifications: false,
+      });
       expect(elapsed).toBeLessThan(10000);
     }, 15000);
   });
@@ -383,8 +389,12 @@ describe('composeAgent', () => {
 
       const agent = await composeAgent(manifest, makeOptions());
 
-      const namespaces = agent.card.capabilities.map((c) => c.namespace);
-      expect(new Set(namespaces).size).toBe(namespaces.length);
+      // Extensions no longer appear in the card — capabilities is the A2A protocol object.
+      // Namespace uniqueness is still structurally guaranteed by JSON object key uniqueness.
+      expect(agent.card.capabilities).toEqual({
+        streaming: false,
+        pushNotifications: false,
+      });
     });
   });
 

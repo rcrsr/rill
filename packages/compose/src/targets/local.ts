@@ -113,7 +113,7 @@ const localBuilder: TargetBuilder = {
   target: 'local',
 
   async build(context: BuildContext): Promise<BuildResult> {
-    const { manifest, extensions, outputDir, manifestDir } = context;
+    const { manifest, outputDir, manifestDir } = context;
 
     // Generate host entry first — throws TypeError early for EC-6 / EC-7 guards.
     const hostSource = generateHostEntry(context);
@@ -139,7 +139,7 @@ const localBuilder: TargetBuilder = {
     );
 
     // Generate Agent Card (FR-BUILD-10)
-    const card = generateAgentCard(manifest, extensions);
+    const card = generateAgentCard(manifest);
     const wellKnownDir = path.join(outputDir, '.well-known');
     mkdirSync(wellKnownDir, { recursive: true });
     writeFileSync(

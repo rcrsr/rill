@@ -31,9 +31,25 @@ const manifestHostOptionsSchema = z
 
 const manifestDeployOptionsSchema = z
   .object({
-    port: z.number().default(3000),
+    port: z.number().optional(),
     healthPath: z.string().default('/health'),
     stateBackend: z.string().optional(),
+  })
+  .strict();
+
+// ============================================================
+// AGENT SKILL SCHEMA
+// ============================================================
+
+const agentSkillSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    tags: z.array(z.string()).optional(),
+    examples: z.array(z.string()).optional(),
+    inputModes: z.array(z.string()).optional(),
+    outputModes: z.array(z.string()).optional(),
   })
   .strict();
 
@@ -62,6 +78,8 @@ const agentManifestSchema = z
     extensions: z.record(z.string(), manifestExtensionSchema).default({}),
     functions: z.record(z.string(), z.string()).default({}),
     assets: z.array(z.string()).default([]),
+    description: z.string().optional(),
+    skills: z.array(agentSkillSchema).default([]),
     host: manifestHostOptionsSchema.optional(),
     deploy: manifestDeployOptionsSchema.optional(),
   })
@@ -74,6 +92,7 @@ const agentManifestSchema = z
 export type ManifestExtension = z.infer<typeof manifestExtensionSchema>;
 export type ManifestHostOptions = z.infer<typeof manifestHostOptionsSchema>;
 export type ManifestDeployOptions = z.infer<typeof manifestDeployOptionsSchema>;
+export type AgentSkill = z.infer<typeof agentSkillSchema>;
 export type AgentManifest = z.infer<typeof agentManifestSchema>;
 
 /**

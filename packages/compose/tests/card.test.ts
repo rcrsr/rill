@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { generateAgentCard } from '../src/card.js';
 import type { AgentManifest } from '../src/schema.js';
-import type { ResolvedExtension } from '../src/resolve.js';
-import type { ExtensionResult } from '@rcrsr/rill';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
-const BASE_MANIFEST: AgentManifest = {
+const MINIMAL_MANIFEST: AgentManifest = {
   name: 'test-agent',
   version: '1.0.0',
   runtime: '@rcrsr/rill@^0.8.0',
@@ -17,47 +15,8 @@ const BASE_MANIFEST: AgentManifest = {
   extensions: {},
   functions: {},
   assets: [],
+  skills: [],
 };
-
-function makeHostFn(): { params: readonly never[]; fn: () => null } {
-  return { params: [], fn: () => null };
-}
-
-function makeExtension(
-  namespace: string,
-  fnNames: string[],
-  config: Record<string, unknown> = {}
-): ResolvedExtension {
-  const instance: ExtensionResult = Object.fromEntries(
-    fnNames.map((name) => [name, makeHostFn()])
-  );
-
-  return {
-    alias: namespace,
-    namespace,
-    strategy: 'npm',
-    factory: () => instance,
-    config,
-  };
-}
-
-function makeExtensionWithDispose(
-  namespace: string,
-  fnNames: string[]
-): ResolvedExtension {
-  const instance: ExtensionResult = {
-    ...Object.fromEntries(fnNames.map((name) => [name, makeHostFn()])),
-    dispose: () => undefined,
-  };
-
-  return {
-    alias: namespace,
-    namespace,
-    strategy: 'npm',
-    factory: () => instance,
-    config: {},
-  };
-}
 
 // ============================================================
 // GENERATE AGENT CARD
@@ -65,170 +24,295 @@ function makeExtensionWithDispose(
 
 describe('generateAgentCard', () => {
   // ============================================================
-  // BASIC FIELDS
+  // CAPABILITIES [AC-1]
   // ============================================================
 
-  describe('basic manifest fields', () => {
-    it('copies name from manifest', () => {
-      const card = generateAgentCard(BASE_MANIFEST, []);
-      expect(card.name).toBe('test-agent');
+  describe('capabilities [AC-1]', () => {
+    it('sets streaming to false for any manifest', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.capabilities.streaming).toBe(false);
     });
 
-    it('copies version from manifest', () => {
-      const card = generateAgentCard(BASE_MANIFEST, []);
-      expect(card.version).toBe('1.0.0');
+    it('sets pushNotifications to false for any manifest', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.capabilities.pushNotifications).toBe(false);
+    });
+
+    it('returns capabilities object with exactly streaming and pushNotifications', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.capabilities).toEqual({
+        streaming: false,
+        pushNotifications: false,
+      });
     });
   });
 
   // ============================================================
-  // CAPABILITIES [AC-5]
+  // SKILLS [AC-2, AC-3, AC-25, AC-26]
   // ============================================================
 
-  describe('capabilities [AC-5]', () => {
-    it('populates capabilities with correct namespace and function names', () => {
-      const ext = makeExtension('llm', ['message', 'embed']);
-      const card = generateAgentCard(BASE_MANIFEST, [ext]);
-
-      expect(card.capabilities).toHaveLength(1);
-      expect(card.capabilities[0]?.namespace).toBe('llm');
-      expect(card.capabilities[0]?.functions).toEqual(['message', 'embed']);
+  describe('skills [AC-2, AC-3, AC-25, AC-26]', () => {
+    it('equals manifest.skills verbatim when skills are present [AC-2]', () => {
+      const skills = [
+        {
+          id: 'summarize',
+          name: 'Summarize',
+          description: 'Summarizes text',
+          tags: ['text', 'nlp'],
+          examples: ['Summarize this article'],
+          inputModes: ['text/plain'],
+          outputModes: ['text/plain'],
+        },
+      ];
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, skills };
+      const card = generateAgentCard(manifest);
+      expect(card.skills).toEqual(skills);
     });
 
-    it('populates capabilities from multiple extensions', () => {
-      const llm = makeExtension('llm', ['message', 'embed']);
-      const fs = makeExtension('fs', ['read', 'write', 'list']);
-      const card = generateAgentCard(BASE_MANIFEST, [llm, fs]);
+    it('equals [] when manifest.skills is an empty array [AC-3]', () => {
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, skills: [] };
+      const card = generateAgentCard(manifest);
+      expect(card.skills).toEqual([]);
+    });
 
-      expect(card.capabilities).toHaveLength(2);
-      expect(card.capabilities[0]?.namespace).toBe('llm');
-      expect(card.capabilities[1]?.namespace).toBe('fs');
-      expect(card.capabilities[1]?.functions).toEqual([
-        'read',
-        'write',
-        'list',
+    it('passes through a skill with all optional fields unmodified [AC-25]', () => {
+      const skill = {
+        id: 'classify',
+        name: 'Classify',
+        description: 'Classifies content',
+        tags: ['ml', 'classification'],
+        examples: ['Classify this text', 'Label this document'],
+        inputModes: ['application/json'],
+        outputModes: ['application/json'],
+      };
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, skills: [skill] };
+      const card = generateAgentCard(manifest);
+      expect(card.skills[0]).toEqual(skill);
+    });
+
+    it('passes through a skill with only required fields [AC-26]', () => {
+      const skill = {
+        id: 'translate',
+        name: 'Translate',
+        description: 'Translates text between languages',
+      };
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, skills: [skill] };
+      const card = generateAgentCard(manifest);
+      expect(card.skills[0]).toEqual(skill);
+      expect(card.skills[0]).not.toHaveProperty('tags');
+      expect(card.skills[0]).not.toHaveProperty('examples');
+      expect(card.skills[0]).not.toHaveProperty('inputModes');
+      expect(card.skills[0]).not.toHaveProperty('outputModes');
+    });
+
+    it('preserves multiple skills in order', () => {
+      const skills = [
+        { id: 'a', name: 'Alpha', description: 'First skill' },
+        { id: 'b', name: 'Beta', description: 'Second skill' },
+      ];
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, skills };
+      const card = generateAgentCard(manifest);
+      expect(card.skills).toHaveLength(2);
+      expect(card.skills[0]?.id).toBe('a');
+      expect(card.skills[1]?.id).toBe('b');
+    });
+  });
+
+  // ============================================================
+  // URL [AC-4, AC-5, AC-27]
+  // ============================================================
+
+  describe('url [AC-4, AC-5, AC-27]', () => {
+    it('equals "http://localhost:4000" when deploy.port is 4000 [AC-4]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        deploy: { port: 4000, healthPath: '/health' },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card.url).toBe('http://localhost:4000');
+    });
+
+    it('equals "" when deploy is absent [AC-5]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.url).toBe('');
+    });
+
+    it('equals "" when deploy is present but port is absent [AC-27]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        deploy: { healthPath: '/health' },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card.url).toBe('');
+    });
+
+    it('interpolates port correctly for port 3000', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        deploy: { port: 3000, healthPath: '/health' },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card.url).toBe('http://localhost:3000');
+    });
+  });
+
+  // ============================================================
+  // NAME AND VERSION [AC-6]
+  // ============================================================
+
+  describe('name and version [AC-6]', () => {
+    it('equals manifest.name [AC-6]', () => {
+      const manifest: AgentManifest = { ...MINIMAL_MANIFEST, name: 'my-agent' };
+      const card = generateAgentCard(manifest);
+      expect(card.name).toBe('my-agent');
+    });
+
+    it('equals manifest.version [AC-6]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        version: '2.5.1',
+      };
+      const card = generateAgentCard(manifest);
+      expect(card.version).toBe('2.5.1');
+    });
+  });
+
+  // ============================================================
+  // DESCRIPTION [AC-7]
+  // ============================================================
+
+  describe('description [AC-7]', () => {
+    it('equals manifest.description when present [AC-7]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        description: 'An agent that does things',
+      };
+      const card = generateAgentCard(manifest);
+      expect(card.description).toBe('An agent that does things');
+    });
+
+    it('equals "" when manifest.description is absent [AC-7]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.description).toBe('');
+    });
+  });
+
+  // ============================================================
+  // DEFAULT INPUT MODES [AC-8]
+  // ============================================================
+
+  describe('defaultInputModes [AC-8]', () => {
+    it('equals ["application/json"] [AC-8]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.defaultInputModes).toEqual(['application/json']);
+    });
+  });
+
+  // ============================================================
+  // DEFAULT OUTPUT MODES [AC-9]
+  // ============================================================
+
+  describe('defaultOutputModes [AC-9]', () => {
+    it('equals ["application/json"] [AC-9]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card.defaultOutputModes).toEqual(['application/json']);
+    });
+  });
+
+  // ============================================================
+  // MINIMAL MANIFEST [AC-10]
+  // ============================================================
+
+  describe('minimal manifest [AC-10]', () => {
+    it('returns a valid AgentCard from a minimal manifest [AC-10]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(card).toMatchObject({
+        name: 'test-agent',
+        version: '1.0.0',
+        description: '',
+        url: '',
+        capabilities: { streaming: false, pushNotifications: false },
+        skills: [],
+        defaultInputModes: ['application/json'],
+        defaultOutputModes: ['application/json'],
+      });
+    });
+  });
+
+  // ============================================================
+  // NO EXTENSION DATA IN CARD [AC-28]
+  // ============================================================
+
+  describe('no extension data in card [AC-28]', () => {
+    it('card contains no extension namespace information [AC-28]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        extensions: {
+          llm: {
+            package: '@vendor/llm',
+            config: { model: 'gpt-4' },
+          },
+        },
+      };
+      const card = generateAgentCard(manifest);
+
+      expect(card).not.toHaveProperty('extensions');
+      expect(card).not.toHaveProperty('namespaces');
+      expect(card).not.toHaveProperty('functions');
+      expect(JSON.stringify(card)).not.toContain('llm');
+      expect(JSON.stringify(card)).not.toContain('gpt-4');
+    });
+
+    it('card shape contains only the eight A2A fields', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      const keys = Object.keys(card).sort();
+      expect(keys).toEqual([
+        'capabilities',
+        'defaultInputModes',
+        'defaultOutputModes',
+        'description',
+        'name',
+        'skills',
+        'url',
+        'version',
       ]);
     });
-
-    it('passes config to factory when building capabilities', () => {
-      let capturedConfig: Record<string, unknown> | undefined;
-      const config = { model: 'gpt-4', temperature: 0.7 };
-
-      const ext: ResolvedExtension = {
-        alias: 'llm',
-        namespace: 'llm',
-        strategy: 'npm',
-        factory: (cfg) => {
-          capturedConfig = cfg as Record<string, unknown>;
-          return { message: makeHostFn() };
-        },
-        config,
-      };
-
-      generateAgentCard(BASE_MANIFEST, [ext]);
-      expect(capturedConfig).toEqual(config);
-    });
-
-    it('returns empty capabilities array when no extensions provided', () => {
-      const card = generateAgentCard(BASE_MANIFEST, []);
-      expect(card.capabilities).toEqual([]);
-    });
   });
 
   // ============================================================
-  // DISPOSE EXCLUSION
+  // ERROR HANDLING [EC-1]
   // ============================================================
 
-  describe('dispose exclusion', () => {
-    it('excludes dispose from function names', () => {
-      const ext = makeExtensionWithDispose('kv', ['get', 'set', 'delete']);
-      const card = generateAgentCard(BASE_MANIFEST, [ext]);
-
-      expect(card.capabilities[0]?.functions).toEqual(['get', 'set', 'delete']);
-      expect(card.capabilities[0]?.functions).not.toContain('dispose');
+  describe('error handling and purity [EC-1]', () => {
+    it('does not throw for a valid manifest [EC-1]', () => {
+      expect(() => generateAgentCard(MINIMAL_MANIFEST)).not.toThrow();
     });
 
-    it('includes all non-dispose functions when dispose is present', () => {
-      const ext = makeExtensionWithDispose('kv', ['get', 'set']);
-      const card = generateAgentCard(BASE_MANIFEST, [ext]);
-
-      expect(card.capabilities[0]?.functions).toHaveLength(2);
-    });
-  });
-
-  // ============================================================
-  // DEPLOY FIELDS [AC-30, BC-8]
-  // ============================================================
-
-  describe('deploy fields [AC-30, BC-8]', () => {
-    it('omits port and healthPath when deploy is undefined [AC-30, BC-8]', () => {
-      const card = generateAgentCard(BASE_MANIFEST, []);
-
-      expect(card.port).toBeUndefined();
-      expect(card.healthPath).toBeUndefined();
-    });
-
-    it('does not include port as own property when deploy is undefined [BC-8]', () => {
-      const card = generateAgentCard(BASE_MANIFEST, []);
-
-      expect(Object.prototype.hasOwnProperty.call(card, 'port')).toBe(false);
-      expect(Object.prototype.hasOwnProperty.call(card, 'healthPath')).toBe(
-        false
-      );
-    });
-
-    it('includes port when deploy is defined', () => {
+    it('returns the same output for the same inputs (determinism) [EC-1]', () => {
       const manifest: AgentManifest = {
-        ...BASE_MANIFEST,
+        ...MINIMAL_MANIFEST,
+        description: 'Deterministic agent',
+        skills: [
+          { id: 's1', name: 'Skill One', description: 'Does something' },
+        ],
         deploy: { port: 8080, healthPath: '/health' },
       };
-      const card = generateAgentCard(manifest, []);
 
-      expect(card.port).toBe(8080);
+      const card1 = generateAgentCard(manifest);
+      const card2 = generateAgentCard(manifest);
+
+      expect(card1).toEqual(card2);
     });
 
-    it('includes healthPath when deploy is defined', () => {
+    it('does not mutate the input manifest', () => {
       const manifest: AgentManifest = {
-        ...BASE_MANIFEST,
-        deploy: { port: 3000, healthPath: '/ping' },
+        ...MINIMAL_MANIFEST,
+        skills: [{ id: 'x', name: 'X', description: 'Skill X' }],
       };
-      const card = generateAgentCard(manifest, []);
-
-      expect(card.healthPath).toBe('/ping');
-    });
-
-    it('uses deploy port and healthPath values from manifest', () => {
-      const manifest: AgentManifest = {
-        ...BASE_MANIFEST,
-        deploy: { port: 9090, healthPath: '/status' },
-      };
-      const card = generateAgentCard(manifest, []);
-
-      expect(card.port).toBe(9090);
-      expect(card.healthPath).toBe('/status');
-    });
-  });
-
-  // ============================================================
-  // PURE FUNCTION VERIFICATION
-  // ============================================================
-
-  describe('purity', () => {
-    it('does not mutate the extensions array', () => {
-      const ext = makeExtension('llm', ['message']);
-      const extensions = [ext];
-      generateAgentCard(BASE_MANIFEST, extensions);
-
-      expect(extensions).toHaveLength(1);
-    });
-
-    it('returns consistent results for the same inputs', () => {
-      const ext = makeExtension('llm', ['message', 'embed']);
-      const card1 = generateAgentCard(BASE_MANIFEST, [ext]);
-      const card2 = generateAgentCard(BASE_MANIFEST, [ext]);
-
-      expect(card1.capabilities[0]?.functions).toEqual(
-        card2.capabilities[0]?.functions
-      );
+      const originalSkillCount = manifest.skills.length;
+      generateAgentCard(manifest);
+      expect(manifest.skills).toHaveLength(originalSkillCount);
+      expect(manifest.name).toBe('test-agent');
     });
   });
 });

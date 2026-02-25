@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "runtime": "@rcrsr/rill@*",
   "entry": "scripts/main.rill",
+  "description": "",
+  "skills": [],
   "extensions": {
     "kv": {
       "package": "@rcrsr/rill/ext/kv",

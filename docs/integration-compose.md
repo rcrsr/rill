@@ -48,6 +48,8 @@ await agent.dispose();
 | `extensions` | Record\<string, ManifestExtension\> | no | `{}` | Extension alias → config |
 | `functions` | Record\<string, string\> | no | `{}` | `"app::name"` → `.ts` source path |
 | `assets` | string[] | no | `[]` | Additional asset paths to include |
+| `description` | string | no | — | Agent description for A2A discovery |
+| `skills` | AgentSkill[] | no | `[]` | Agent skill declarations |
 | `host` | ManifestHostOptions | no | — | Runtime configuration |
 | `deploy` | ManifestDeployOptions | no | — | Deployment configuration |
 
@@ -70,9 +72,21 @@ await agent.dispose();
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `port` | number | `3000` | HTTP port for deployment |
+| `port` | number | none | HTTP port for deployment |
 | `healthPath` | string | `"/health"` | Health check endpoint path |
 | `stateBackend` | string | none | State backend identifier |
+
+### AgentSkill Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Unique skill identifier |
+| `name` | string | yes | Human-readable name |
+| `description` | string | yes | Purpose description |
+| `tags` | string[] | no | Categorization tags |
+| `examples` | string[] | no | Example invocations |
+| `inputModes` | string[] | no | Supported input MIME types |
+| `outputModes` | string[] | no | Supported output MIME types |
 
 ### Example agent.json
 
@@ -82,6 +96,16 @@ await agent.dispose();
   "version": "0.1.0",
   "runtime": "@rcrsr/rill@^0.8.0",
   "entry": "main.rill",
+  "description": "An agent that answers questions using a knowledge base",
+  "skills": [
+    {
+      "id": "answer-question",
+      "name": "Answer Question",
+      "description": "Answers natural language questions from a knowledge base",
+      "tags": ["qa", "knowledge-base"],
+      "examples": ["What is the refund policy?", "How do I reset my password?"]
+    }
+  ],
   "extensions": {
     "llm": {
       "package": "@rcrsr/rill-ext-anthropic",

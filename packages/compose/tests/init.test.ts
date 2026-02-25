@@ -71,6 +71,8 @@ describe('initProject', () => {
         version: '0.1.0',
         runtime: '@rcrsr/rill@^0.8.0',
         entry: 'main.rill',
+        description: '',
+        skills: [],
       });
     });
 

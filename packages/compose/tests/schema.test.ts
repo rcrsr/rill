@@ -322,9 +322,9 @@ describe('validateManifest', () => {
       expect(result.deploy).toBeUndefined();
     });
 
-    it('applies deploy.port default of 3000', () => {
+    it('leaves deploy.port undefined when omitted', () => {
       const result = validateManifest({ ...VALID_MANIFEST, deploy: {} });
-      expect(result.deploy?.port).toBe(3000);
+      expect(result.deploy?.port).toBeUndefined();
     });
 
     it('applies deploy.healthPath default of /health', () => {
@@ -338,6 +338,152 @@ describe('validateManifest', () => {
         extensions: { llm: { package: '@rcrsr/rill-ext-llm' } },
       });
       expect(result.extensions?.['llm']?.config).toEqual({});
+    });
+
+    it('applies skills default of empty array', () => {
+      const result = validateManifest(VALID_MANIFEST);
+      expect(result.skills).toEqual([]);
+    });
+  });
+
+  // ============================================================
+  // SKILLS VALIDATION [AC-19, AC-20, AC-21, EC-3, EC-4, EC-5, EC-6]
+  // ============================================================
+
+  describe('skills validation [AC-19, AC-20, AC-21, EC-3, EC-4, EC-5, EC-6]', () => {
+    it('throws ManifestValidationError for skills:[{}] identifying all 3 missing fields [AC-19]', () => {
+      try {
+        validateManifest({ ...VALID_MANIFEST, skills: [{}] });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const paths = err.issues.map((i) => i.path);
+        expect(paths).toContain('manifest.skills.0.id');
+        expect(paths).toContain('manifest.skills.0.name');
+        expect(paths).toContain('manifest.skills.0.description');
+      }
+    });
+
+    it('throws ManifestValidationError for skills missing id [AC-20, EC-3]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          skills: [{ name: 'x', description: 'y' }],
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find((i) => i.path === 'manifest.skills.0.id');
+        expect(issue).toBeDefined();
+        expect(issue?.message).toBe('manifest.skills.0.id is required');
+      }
+    });
+
+    it('throws ManifestValidationError for skills missing name [AC-21, EC-4]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          skills: [{ id: 'x', description: 'y' }],
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.skills.0.name'
+        );
+        expect(issue).toBeDefined();
+        expect(issue?.message).toBe('manifest.skills.0.name is required');
+      }
+    });
+
+    it('throws ManifestValidationError for skills missing description [EC-5]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          skills: [{ id: 'x', name: 'y' }],
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.skills.0.description'
+        );
+        expect(issue).toBeDefined();
+        expect(issue?.message).toBe(
+          'manifest.skills.0.description is required'
+        );
+      }
+    });
+
+    it('throws ManifestValidationError for skills id wrong type [EC-6]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          skills: [{ id: 42, name: 'x', description: 'y' }],
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find((i) => i.path === 'manifest.skills.0.id');
+        expect(issue).toBeDefined();
+        expect(issue?.message).toContain('expected string');
+        expect(issue?.message).toContain('got number');
+      }
+    });
+
+    it('throws ManifestValidationError for skills:"not-array" [AC-23]', () => {
+      expect(() =>
+        validateManifest({ ...VALID_MANIFEST, skills: 'not-array' })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('accepts a valid skill with all required fields', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        skills: [
+          { id: 'search', name: 'Search', description: 'Searches data' },
+        ],
+      });
+      expect(result.skills).toHaveLength(1);
+      expect(result.skills[0]?.id).toBe('search');
+    });
+  });
+
+  // ============================================================
+  // DESCRIPTION VALIDATION [AC-22, EC-7]
+  // ============================================================
+
+  describe('description validation [AC-22, EC-7]', () => {
+    it('throws ManifestValidationError for description:42 [AC-22, EC-7]', () => {
+      try {
+        validateManifest({ ...VALID_MANIFEST, description: 42 });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find((i) => i.path === 'manifest.description');
+        expect(issue).toBeDefined();
+        expect(issue?.message).toContain('expected string');
+        expect(issue?.message).toContain('got number');
+      }
+    });
+
+    it('accepts a valid string description', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        description: 'An agent that does things',
+      });
+      expect(result.description).toBe('An agent that does things');
+    });
+
+    it('leaves description undefined when omitted', () => {
+      const result = validateManifest(VALID_MANIFEST);
+      expect(result.description).toBeUndefined();
     });
   });
 });

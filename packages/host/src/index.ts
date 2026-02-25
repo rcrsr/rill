@@ -25,7 +25,8 @@ export type {
   AgentHost,
   ComposedAgent,
   AgentCard,
-  AgentCapability,
+  AgentCapabilities,
+  AgentSkill,
 } from './host.js';
 export { createAgentHost } from './host.js';
 

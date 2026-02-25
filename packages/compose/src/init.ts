@@ -155,6 +155,8 @@ function buildAgentJson(
     version: '0.1.0',
     runtime: '@rcrsr/rill@^0.8.0',
     entry: 'main.rill',
+    description: '',
+    skills: [],
     extensions: extensionsRecord,
     host: {
       timeout: 30000,

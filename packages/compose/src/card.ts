@@ -1,28 +1,42 @@
 import type { AgentManifest } from './schema.js';
-import type { ResolvedExtension } from './resolve.js';
 
 // ============================================================
 // AGENT CARD TYPES
 // ============================================================
 
 /**
- * A single namespace exposed by a wired extension.
+ * A single skill advertised by an agent in its A2A card.
  */
-export interface AgentCapability {
-  readonly namespace: string;
-  readonly functions: readonly string[];
+export interface AgentSkill {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly tags?: readonly string[] | undefined;
+  readonly examples?: readonly string[] | undefined;
+  readonly inputModes?: readonly string[] | undefined;
+  readonly outputModes?: readonly string[] | undefined;
 }
 
 /**
- * Declarative description of what an agent exposes.
- * Used for tooling, documentation, and health checks.
+ * Transport capabilities declared by an agent.
+ */
+export interface AgentCapabilities {
+  readonly streaming: boolean;
+  readonly pushNotifications: boolean;
+}
+
+/**
+ * A2A-compliant agent card describing identity, capabilities, and skills.
  */
 export interface AgentCard {
   readonly name: string;
+  readonly description: string;
   readonly version: string;
-  readonly capabilities: readonly AgentCapability[];
-  readonly port?: number | undefined;
-  readonly healthPath?: string | undefined;
+  readonly url: string;
+  readonly capabilities: AgentCapabilities;
+  readonly skills: readonly AgentSkill[];
+  readonly defaultInputModes: readonly string[];
+  readonly defaultOutputModes: readonly string[];
 }
 
 // ============================================================
@@ -30,43 +44,28 @@ export interface AgentCard {
 // ============================================================
 
 /**
- * Builds an AgentCard from a validated manifest and resolved extensions.
+ * Produces an A2A-compliant AgentCard from a validated manifest.
  *
- * For each extension, the factory is called with its config. The returned
- * object's own enumerable keys — excluding `dispose` and non-function values
- * — become the function names for that capability.
- *
- * Port and healthPath are included only when `manifest.deploy` is defined.
+ * Pure function — no I/O, no side effects, does not throw for any valid
+ * AgentManifest. Call validateManifest() before calling this function.
  *
  * @param manifest - Validated agent manifest
- * @param extensions - Extensions resolved by resolveExtensions()
- * @returns Populated AgentCard (pure, no side effects)
+ * @returns A2A-compliant AgentCard
  */
-export function generateAgentCard(
-  manifest: AgentManifest,
-  extensions: ResolvedExtension[]
-): AgentCard {
-  const capabilities: AgentCapability[] = extensions.map((ext) => {
-    const instance = ext.factory(ext.config);
+export function generateAgentCard(manifest: AgentManifest): AgentCard {
+  const url =
+    manifest.deploy?.port !== undefined
+      ? `http://localhost:${manifest.deploy.port}`
+      : '';
 
-    const functions = Object.keys(instance).filter((key) => key !== 'dispose');
-
-    return { namespace: ext.namespace, functions };
-  });
-
-  const card: AgentCard = {
+  return {
     name: manifest.name,
+    description: (manifest as { description?: string }).description ?? '',
     version: manifest.version,
-    capabilities,
+    url,
+    capabilities: { streaming: false, pushNotifications: false },
+    skills: (manifest as { skills?: readonly AgentSkill[] }).skills ?? [],
+    defaultInputModes: ['application/json'],
+    defaultOutputModes: ['application/json'],
   };
-
-  if (manifest.deploy !== undefined) {
-    return {
-      ...card,
-      port: manifest.deploy.port,
-      healthPath: manifest.deploy.healthPath,
-    };
-  }
-
-  return card;
 }

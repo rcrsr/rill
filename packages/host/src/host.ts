@@ -8,6 +8,12 @@ import { Hono } from 'hono';
 import { serve, type ServerType } from '@hono/node-server';
 import { execute, createRuntimeContext } from '@rcrsr/rill';
 import type { ObservabilityCallbacks } from '@rcrsr/rill';
+import type {
+  AgentCard,
+  AgentCapabilities,
+  AgentSkill,
+} from '@rcrsr/rill-compose';
+export type { AgentCard, AgentCapabilities, AgentSkill };
 import { AgentHostError } from './errors.js';
 import { SessionManager } from './session.js';
 import {
@@ -63,19 +69,6 @@ function log(level: 'info' | 'debug', msg: string, logLevel: LogLevel): void {
 // COMPOSED AGENT INTERFACES
 // ============================================================
 
-export interface AgentCapability {
-  readonly namespace: string;
-  readonly functions: readonly string[];
-}
-
-export interface AgentCard {
-  readonly name: string;
-  readonly version: string;
-  readonly capabilities: readonly AgentCapability[];
-  readonly port?: number | undefined;
-  readonly healthPath?: string | undefined;
-}
-
 export interface ComposedAgent {
   ast: import('@rcrsr/rill').ScriptNode;
   context: import('@rcrsr/rill').RuntimeContext;
@@ -120,7 +113,7 @@ export function createAgentHost(
   }
 
   const cfg = {
-    port: options?.port ?? agent.card.port ?? DEFAULTS.port,
+    port: options?.port ?? DEFAULTS.port,
     healthPath: options?.healthPath ?? DEFAULTS.healthPath,
     readyPath: options?.readyPath ?? DEFAULTS.readyPath,
     metricsPath: options?.metricsPath ?? DEFAULTS.metricsPath,

@@ -10,7 +10,7 @@ export type {
 } from './schema.js';
 export { validateManifest } from './schema.js';
 export type { ExtensionFactory } from '@rcrsr/rill';
-export type { AgentCard, AgentCapability } from './card.js';
+export type { AgentCard, AgentCapabilities, AgentSkill } from './card.js';
 export type { ResolvedExtension, ResolveOptions } from './resolve.js';
 export { resolveExtensions } from './resolve.js';
 export { checkTargetCompatibility } from './compat.js';
@@ -36,7 +36,7 @@ import { ComposeError } from './errors.js';
 import type { AgentManifest } from './schema.js';
 import { interpolateEnv } from './interpolate.js';
 import { resolveExtensions } from './resolve.js';
-import type { AgentCard, AgentCapability } from './card.js';
+import { type AgentCard, generateAgentCard } from './card.js';
 
 // ============================================================
 // PUBLIC INTERFACES
@@ -282,23 +282,7 @@ export async function composeAgent(
   const entrySource = readFileSync(entryAbsPath, 'utf-8');
   const ast = parse(entrySource);
 
-  // Build card from pre-hoisted functions — avoid re-invoking factories (resource leak)
-  const capabilities: AgentCapability[] = resolved.map((ext) => ({
-    namespace: ext.namespace,
-    functions: Object.keys(mergedFunctions)
-      .filter((k) => k.startsWith(ext.namespace + '::'))
-      .map((k) => k.slice(ext.namespace.length + 2)),
-  }));
-
-  const card: AgentCard = {
-    name: manifest.name,
-    version: manifest.version,
-    capabilities,
-    ...(manifest.deploy !== undefined && {
-      port: manifest.deploy.port,
-      healthPath: manifest.deploy.healthPath,
-    }),
-  };
+  const card = generateAgentCard(manifest);
 
   // Step 10: dispose() in reverse declaration order
   const reverseDispose = [...disposeHandlers].reverse();

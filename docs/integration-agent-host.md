@@ -70,6 +70,62 @@ The host transitions through phases in order. `PAUSED` is not available.
 |--------|------|-------------|---------|
 | `GET` | `/.well-known/agent-card.json` | Agent capability card | 200 `AgentCard` |
 
+`GET /.well-known/agent-card.json` returns an A2A-compliant `AgentCard` JSON object describing the agent's identity and capabilities.
+
+```typescript
+interface AgentCapabilities {
+  readonly streaming: boolean;
+  readonly pushNotifications: boolean;
+}
+
+interface AgentSkill {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly tags?: readonly string[] | undefined;
+  readonly examples?: readonly string[] | undefined;
+  readonly inputModes?: readonly string[] | undefined;
+  readonly outputModes?: readonly string[] | undefined;
+}
+
+interface AgentCard {
+  readonly name: string;
+  readonly description: string;
+  readonly version: string;
+  readonly url: string;
+  readonly capabilities: AgentCapabilities;
+  readonly skills: readonly AgentSkill[];
+  readonly defaultInputModes: readonly string[];
+  readonly defaultOutputModes: readonly string[];
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Agent display name |
+| `description` | `string` | Agent purpose |
+| `version` | `string` | Agent version string |
+| `url` | `string` | Base URL of the running agent |
+| `capabilities` | `AgentCapabilities` | Flags for `streaming` and `pushNotifications` support |
+| `skills` | `AgentSkill[]` | List of named capabilities the agent exposes |
+| `defaultInputModes` | `string[]` | MIME types accepted by default (e.g. `"application/json"`) |
+| `defaultOutputModes` | `string[]` | MIME types returned by default (e.g. `"application/json"`) |
+
+Example response:
+
+```typescript
+{
+  "name": "my-agent",
+  "description": "...",
+  "version": "1.0.0",
+  "url": "http://localhost:3000",
+  "capabilities": { "streaming": false, "pushNotifications": false },
+  "skills": [],
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json"]
+}
+```
+
 ### Error Contracts
 
 | Endpoint | Error Condition | HTTP Status | Response Shape |

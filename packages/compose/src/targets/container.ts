@@ -107,7 +107,7 @@ for (const [namespace, factory, config] of extensions) {
 const context = createRuntimeContext({ functions: mergedFunctions });
 const source = readFileSync(join(__dirname, manifest.entry), 'utf-8');
 const ast = parse(source);
-const card = { name: manifest.name, version: manifest.version, capabilities: [] };
+const card = { name: manifest.name, version: manifest.version, description: "", url: "", skills: [], defaultInputModes: ["application/json"], defaultOutputModes: ["application/json"], capabilities: { streaming: false, pushNotifications: false } };
 const agent = {
   ast, context, card,
   async dispose() {
@@ -278,7 +278,7 @@ const containerBuilder: TargetBuilder = {
   target: 'container',
 
   async build(context: BuildContext): Promise<BuildResult> {
-    const { manifest, extensions, outputDir, manifestDir } = context;
+    const { manifest, outputDir, manifestDir } = context;
 
     // EC-22: assert output directory is writable
     assertOutputWritable(outputDir);
@@ -359,7 +359,7 @@ const containerBuilder: TargetBuilder = {
     );
 
     // Generate Agent Card (FR-BUILD-10)
-    const card = generateAgentCard(manifest, extensions);
+    const card = generateAgentCard(manifest);
     const wellKnownDir = path.join(outputDir, '.well-known');
     mkdirSync(wellKnownDir, { recursive: true });
     writeFileSync(

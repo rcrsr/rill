@@ -9,7 +9,7 @@
  *   AC-6   metrics() returns Prometheus text with all 6 rill_* metric names
  *   AC-12  close() stops HTTP server; subsequent requests fail
  *   AC-15  createAgentHost(null) throws TypeError('agent is required')
- *   AC-18  agent.card.port fallback: no options → listen binds to card.port
+ *   EC-10  listen() with no options falls back to DEFAULTS.port; EADDRINUSE propagates
  *   AC-27  10 concurrent run() calls succeed; 11th throws
  *   AC-31  sessions() returns [] with no active sessions
  *   EC-1   createAgentHost(null) throws TypeError('agent is required')
@@ -324,34 +324,32 @@ describe('listen()', () => {
     expect(err.code).toBe('EADDRINUSE');
   });
 
-  it('binds to agent.card.port when no options are provided (AC-18)', async () => {
-    // Arrange: build an agent with card.port = 8080, no options passed to createAgentHost.
-    const base = await mockComposedAgent();
-    const agentWithPort: ComposedAgent = {
-      ...base,
-      card: { ...base.card, port: 8080 },
-    };
-    const host = createAgentHost(agentWithPort);
+  it('listen() with no options falls back to DEFAULTS.port; EADDRINUSE propagates (EC-10)', async () => {
+    // EC-10: agent.card.port was removed from the port fallback. Without options,
+    // listen() now uses DEFAULTS.port (3000). EADDRINUSE must propagate, not be swallowed.
+    //
+    // Pre-bind DEFAULTS.port so the condition is always met regardless of environment.
+    const { createServer } = await import('node:net');
+    const blocker = createServer();
+    const prebindOk = await new Promise<boolean>((resolve) =>
+      blocker
+        .listen(3000, () => resolve(true))
+        .on('error', () => resolve(false))
+    );
+    // If pre-bind failed, something else holds port 3000 — condition is already met.
+
+    const host = createAgentHost(await mockComposedAgent());
     hostsToClean.push(host);
 
-    // Act: listen() with no port argument — must resolve cfg.port from card.port.
-    await host.listen();
-
-    // Assert phase is running (listen transitions from ready → running on first run,
-    // but phase stays 'ready' until run() is called; the server is up regardless).
-    expect(host.phase).toBe('ready');
-
-    // Verify the server bound to port 8080 by confirming a second host cannot
-    // bind to the same port (EADDRINUSE), matching the EC-3 pattern.
-    const probe = await createTestHost();
     let thrown: unknown;
     try {
-      await probe.listen(8080);
+      await host.listen();
     } catch (err) {
       thrown = err;
     } finally {
-      await host.close().catch(() => undefined);
-      await probe.close().catch(() => undefined);
+      if (prebindOk) {
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
+      }
     }
 
     expect(thrown).toBeDefined();
