@@ -7,6 +7,7 @@ rill uses pnpm workspaces with the following package organization:
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
 | `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
 | `packages/ext/claude-code` | `@rcrsr/rill-ext-claude-code` | Claude Code integration extension |
+| `packages/host` | `@rcrsr/rill-host` | Agent HTTP server with lifecycle, sessions, and metrics |
 
 ## Commands
 

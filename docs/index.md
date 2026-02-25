@@ -34,6 +34,7 @@
 | Topic | Description |
 |-------|-------------|
 | [Host Integration](integration-host.md) | Embedding rill in applications |
+| [Agent Host](integration-agent-host.md) | Production HTTP server for rill agents |
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
@@ -64,8 +65,9 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 3. **Advanced patterns?** Check the [Cookbook](cookbook.md) for agent scripting patterns
 4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](integration-host.md)
-6. **Packaging functions?** See [Extensions](integration-extensions.md)
-7. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
+6. **Deploying agents?** Read [Agent Host](integration-agent-host.md)
+7. **Packaging functions?** See [Extensions](integration-extensions.md)
+8. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
 
 ## Design Principles
 

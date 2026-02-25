@@ -6,3 +6,4 @@ packages:
   - 'packages/fiddle'
   - 'packages/web'
   - 'packages/compose'
+  - 'packages/host'
