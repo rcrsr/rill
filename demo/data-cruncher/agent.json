@@ -1,0 +1,17 @@
+{
+  "name": "demo-agent",
+  "version": "0.1.0",
+  "runtime": "@rcrsr/rill@*",
+  "entry": "scripts/main.rill",
+  "extensions": {
+    "kv": {
+      "package": "@rcrsr/rill/ext/kv",
+      "config": {
+        "store": "./data/state.json"
+      }
+    }
+  },
+  "host": {
+    "timeout": 30000
+  }
+}
