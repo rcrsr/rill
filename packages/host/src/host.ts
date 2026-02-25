@@ -21,8 +21,8 @@ import {
   stepsTotal,
 } from './metrics.js';
 import { registerSignalHandlers } from './signals.js';
-import { registerRoutes, sseEventBuffers, sseSubscribers } from './routes.js';
-import type { SseEvent } from './routes.js';
+import { registerRoutes } from './routes.js';
+import type { SseEvent, SseStore } from './routes.js';
 import type {
   AgentHostOptions,
   LifecyclePhase,
@@ -67,19 +67,6 @@ export interface AgentHost {
 }
 
 // ============================================================
-// SSE PUSH HELPER
-// ============================================================
-
-function pushSseEvent(sessionId: string, event: string, data: unknown): void {
-  const payload: SseEvent = { event, data: JSON.stringify(data) };
-  const buf = sseEventBuffers.get(sessionId) ?? [];
-  buf.push(payload);
-  sseEventBuffers.set(sessionId, buf);
-  const subscriber = sseSubscribers.get(sessionId);
-  if (subscriber !== undefined) subscriber(payload);
-}
-
-// ============================================================
 // FACTORY
 // ============================================================
 
@@ -119,6 +106,20 @@ export function createAgentHost(
   let phase: LifecyclePhase = 'init';
   let composedAgent: ComposedAgent | undefined;
   let httpServer: ServerType | undefined;
+
+  const sseStore: SseStore = {
+    eventBuffers: new Map<string, SseEvent[]>(),
+    subscribers: new Map<string, (event: SseEvent) => void>(),
+  };
+
+  function pushSseEvent(sessionId: string, event: string, data: unknown): void {
+    const payload: SseEvent = { event, data: JSON.stringify(data) };
+    const buf = sseStore.eventBuffers.get(sessionId) ?? [];
+    buf.push(payload);
+    sseStore.eventBuffers.set(sessionId, buf);
+    const subscriber = sseStore.subscribers.get(sessionId);
+    if (subscriber !== undefined) subscriber(payload);
+  }
 
   // ============================================================
   // AgentHost IMPLEMENTATION
@@ -423,7 +424,7 @@ export function createAgentHost(
       const listenPort = port ?? cfg.port;
       const app = new Hono();
 
-      registerRoutes(app, host, composedAgent!.card);
+      registerRoutes(app, host, composedAgent!.card, sseStore);
       registerSignalHandlers(host, cfg.drainTimeout);
 
       await new Promise<void>((resolve) => {

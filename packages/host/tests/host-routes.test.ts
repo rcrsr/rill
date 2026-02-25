@@ -26,12 +26,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import type { AgentCard } from '@rcrsr/rill-compose';
-import {
-  registerRoutes,
-  sseEventBuffers,
-  sseSubscribers,
-} from '../src/routes.js';
-import type { RouteHost } from '../src/routes.js';
+import { registerRoutes } from '../src/routes.js';
+import type { RouteHost, SseStore } from '../src/routes.js';
 import type {
   LifecyclePhase,
   HealthStatus,
@@ -110,28 +106,31 @@ function makeMockHost(overrides: Partial<RouteHost> = {}): RouteHost {
 }
 
 // ============================================================
-// APP FACTORY
-// ============================================================
-
-function makeApp(host: RouteHost, card: AgentCard = MOCK_CARD): Hono {
-  const app = new Hono();
-  registerRoutes(app, host, card);
-  return app;
-}
-
-// ============================================================
 // TESTS
 // ============================================================
 
 describe('host HTTP routes', () => {
-  // Clean module-level SSE state between tests.
-  beforeEach(() => {
-    sseEventBuffers.clear();
-    sseSubscribers.clear();
-  });
-
   // Track real hosts created for cleanup.
   const hosts: AgentHost[] = [];
+
+  let sseStore: SseStore;
+
+  beforeEach(() => {
+    sseStore = {
+      eventBuffers: new Map(),
+      subscribers: new Map(),
+    };
+  });
+
+  function makeApp(
+    host: RouteHost,
+    card: AgentCard = MOCK_CARD,
+    store: SseStore = sseStore
+  ): Hono {
+    const app = new Hono();
+    registerRoutes(app, host, card, store);
+    return app;
+  }
 
   afterEach(async () => {
     for (const h of hosts.splice(0)) {
@@ -517,7 +516,7 @@ describe('host HTTP routes', () => {
       // Wait for the route handler to register the subscriber.
       await new Promise<void>((resolve) => setTimeout(resolve, 15));
 
-      const subscriber = sseSubscribers.get(sessionId);
+      const subscriber = sseStore.subscribers.get(sessionId);
       expect(subscriber).toBeDefined();
 
       if (subscriber !== undefined) {
@@ -568,7 +567,7 @@ describe('host HTTP routes', () => {
       const app = makeApp(host);
 
       // Pre-populate the buffer as host.ts does during execution.
-      sseEventBuffers.set(sessionId, [
+      sseStore.eventBuffers.set(sessionId, [
         { event: 'step', data: JSON.stringify({ index: 0, value: 1 }) },
         {
           event: 'done',

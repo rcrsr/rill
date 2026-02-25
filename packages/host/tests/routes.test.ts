@@ -22,12 +22,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import type { AgentCard } from '@rcrsr/rill-compose';
-import {
-  registerRoutes,
-  sseEventBuffers,
-  sseSubscribers,
-} from '../src/routes.js';
-import type { RouteHost } from '../src/routes.js';
+import { registerRoutes } from '../src/routes.js';
+import type { RouteHost, SseStore } from '../src/routes.js';
 import type {
   LifecyclePhase,
   HealthStatus,
@@ -107,12 +103,6 @@ function makeHost(overrides: Partial<RouteHost> = {}): RouteHost {
 // APP FACTORY
 // ============================================================
 
-function makeApp(host: RouteHost): Hono {
-  const app = new Hono();
-  registerRoutes(app, host, CARD);
-  return app;
-}
-
 // ============================================================
 // HELPERS
 // ============================================================
@@ -126,11 +116,20 @@ async function jsonBody(res: Response): Promise<unknown> {
 // ============================================================
 
 describe('registerRoutes', () => {
-  // Clean module-level SSE state between tests
+  let sseStore: SseStore;
+
   beforeEach(() => {
-    sseEventBuffers.clear();
-    sseSubscribers.clear();
+    sseStore = {
+      eventBuffers: new Map(),
+      subscribers: new Map(),
+    };
   });
+
+  function makeApp(host: RouteHost): Hono {
+    const app = new Hono();
+    registerRoutes(app, host, CARD, sseStore);
+    return app;
+  }
 
   // --------------------------------------------------------
   // GET /healthz
@@ -597,7 +596,7 @@ describe('registerRoutes', () => {
       const app = makeApp(host);
 
       // Pre-populate the buffer as host.ts would do after execution
-      sseEventBuffers.set(sessionId, [
+      sseStore.eventBuffers.set(sessionId, [
         { event: 'step', data: JSON.stringify({ index: 0, value: 'hello' }) },
         {
           event: 'done',
@@ -654,7 +653,7 @@ describe('registerRoutes', () => {
       await new Promise((r) => setTimeout(r, 10));
 
       // Simulate host.ts pushing events
-      const subscriber = sseSubscribers.get(sessionId);
+      const subscriber = sseStore.subscribers.get(sessionId);
       expect(subscriber).toBeDefined();
 
       if (subscriber !== undefined) {

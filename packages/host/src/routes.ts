@@ -2,8 +2,6 @@
  * HTTP route definitions for rill-host.
  *
  * Registers all endpoints on a Hono app instance.
- * Exports sseEventBuffers so host.ts can push buffered events
- * for late-connecting SSE clients (AC-33).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -31,22 +29,17 @@ export interface SseEvent {
 }
 
 // ============================================================
-// SSE STORES (module-level, exported for host.ts to push to)
+// SSE STORE INTERFACE
 // ============================================================
 
 /**
- * Completed event buffers keyed by sessionId.
- * host.ts appends events here during execution so late-connecting
- * SSE clients can receive the full stream (AC-33).
+ * Holds the two Maps that host.ts populates during execution
+ * and route handlers read from to serve SSE clients.
  */
-export const sseEventBuffers = new Map<string, SseEvent[]>();
-
-/**
- * Active SSE subscriber callbacks keyed by sessionId.
- * Set when a client connects before execution completes.
- * host.ts calls the callback to push live events.
- */
-export const sseSubscribers = new Map<string, (event: SseEvent) => void>();
+export interface SseStore {
+  readonly eventBuffers: Map<string, SseEvent[]>;
+  readonly subscribers: Map<string, (event: SseEvent) => void>;
+}
 
 // ============================================================
 // ROUTE HOST INTERFACE
@@ -98,11 +91,13 @@ function resolveCorrelationId(headerValue: string | undefined): string {
  * @param app - Hono application instance
  * @param host - Minimal host interface
  * @param card - AgentCard for /.well-known/agent-card.json
+ * @param sseStore - Shared SSE event buffers and subscriber callbacks
  */
 export function registerRoutes(
   app: Hono,
   host: RouteHost,
-  card: AgentCard
+  card: AgentCard,
+  sseStore: SseStore
 ): void {
   // ----------------------------------------------------------
   // POST /run
@@ -349,7 +344,7 @@ export function registerRoutes(
     c.header('Connection', 'keep-alive');
 
     return streamSSE(c, async (stream) => {
-      const buffered = sseEventBuffers.get(id);
+      const buffered = sseStore.eventBuffers.get(id);
 
       // Late connect: session already has buffered events — replay and close
       if (buffered !== undefined && buffered.length > 0) {
@@ -376,7 +371,7 @@ export function registerRoutes(
 
       // Live connect: register subscriber and wait for events
       await new Promise<void>((resolve) => {
-        sseSubscribers.set(id, async (evt: SseEvent) => {
+        sseStore.subscribers.set(id, async (evt: SseEvent) => {
           try {
             await stream.writeSSE({ event: evt.event, data: evt.data });
           } catch {
@@ -384,13 +379,13 @@ export function registerRoutes(
           }
 
           if (evt.event === 'done') {
-            sseSubscribers.delete(id);
+            sseStore.subscribers.delete(id);
             resolve();
           }
         });
 
         stream.onAbort(() => {
-          sseSubscribers.delete(id);
+          sseStore.subscribers.delete(id);
           resolve();
         });
       });
