@@ -46,9 +46,14 @@ await host.listen(${port});
  * Preserves relative directory structure.
  */
 function copyRillScripts(manifestDir: string, outputDir: string): void {
+  const relativeOutputDir = path.relative(manifestDir, outputDir);
+  const exclude = !relativeOutputDir.startsWith('..')
+    ? [`${relativeOutputDir}/**`]
+    : undefined;
+
   let entries: string[];
   try {
-    entries = globSync('**/*.rill', { cwd: manifestDir });
+    entries = globSync('**/*.rill', { cwd: manifestDir, exclude });
   } catch {
     entries = [];
   }

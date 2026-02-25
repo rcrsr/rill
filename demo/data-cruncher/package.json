@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rill-compose agent.json --target local --output dist/",
+    "build": "rm -rf dist && rill-compose agent.json --target local --output dist/",
     "start": "tsx dist/host.ts",
     "dev": "pnpm build && pnpm start"
   },
