@@ -60,11 +60,11 @@ export function generateAgentCard(manifest: AgentManifest): AgentCard {
 
   return {
     name: manifest.name,
-    description: (manifest as { description?: string }).description ?? '',
+    description: manifest.description ?? '',
     version: manifest.version,
     url,
     capabilities: { streaming: false, pushNotifications: false },
-    skills: (manifest as { skills?: readonly AgentSkill[] }).skills ?? [],
+    skills: manifest.skills ?? [],
     defaultInputModes: ['application/json'],
     defaultOutputModes: ['application/json'],
   };
