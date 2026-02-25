@@ -10,7 +10,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  RuntimeError,
+  validateHostFunctionArgs,
+} from '@rcrsr/rill';
 import { createGeminiExtension } from '../src/factory.js';
 import type { GeminiExtensionConfig } from '../src/types.js';
 
@@ -402,6 +406,20 @@ describe('generate() function', () => {
       await expect(
         ext.generate.fn(['prompt', { schema: { x: 'number' } }], ctx)
       ).rejects.toThrow();
+    });
+
+    // DEBT-1: rill runtime arity gate fires RILL-R001 when options arg is absent
+    it('throws RILL-R001 via validateHostFunctionArgs when called with 1 argument', () => {
+      const ext = createGeminiExtension(baseConfig);
+
+      expect(() =>
+        validateHostFunctionArgs(['prompt'], ext.generate.params, 'generate')
+      ).toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringContaining('options'),
+        })
+      );
     });
 
     // AC-27/EC-6: Provider API error emits gemini:error

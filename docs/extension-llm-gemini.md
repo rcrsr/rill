@@ -142,7 +142,7 @@ $result.usage.output     # Output tokens
 
 ## Result Dict
 
-All functions except `embed` and `embed_batch` return:
+All functions except `embed`, `embed_batch`, and `generate` return:
 
 | Field | Type | Description |
 |-------|------|-------------|

@@ -4,7 +4,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  RuntimeError,
+  validateHostFunctionArgs,
+} from '@rcrsr/rill';
 import { createAnthropicExtension } from '../src/factory.js';
 import type { AnthropicExtensionConfig } from '../src/types.js';
 import type { ExtensionEvent } from '@rcrsr/rill';
@@ -536,6 +540,20 @@ describe('generate() function', () => {
       const errorEvents = events.filter((e) => e.event === 'anthropic:error');
       expect(errorEvents).toHaveLength(1);
       expect(errorEvents[0]!.error).toContain('Rate limit exceeded');
+    });
+
+    // DEBT-1: rill runtime arity gate fires RILL-R001 when options arg is absent
+    it('throws RILL-R001 via validateHostFunctionArgs when called with 1 argument', () => {
+      const ext = createAnthropicExtension(BASE_CONFIG);
+
+      expect(() =>
+        validateHostFunctionArgs(['prompt'], ext.generate.params, 'generate')
+      ).toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringContaining('options'),
+        })
+      );
     });
   });
 

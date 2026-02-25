@@ -109,7 +109,7 @@ $result.turns    # Number of LLM round-trips
 **generate(prompt, options)** — Structured output extraction:
 
 ```rill
-[name: "string", age: "number", active: "boolean"] => $schema
+[name: "string", age: "number", active: "bool"] => $schema
 
 openai::generate("Extract user info: Alice, 30, active", [
   schema: $schema,
