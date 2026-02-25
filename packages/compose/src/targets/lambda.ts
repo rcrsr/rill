@@ -1,6 +1,5 @@
 import {
   createWriteStream,
-  existsSync,
   globSync,
   mkdirSync,
   rmSync,
@@ -195,13 +194,11 @@ const lambdaBuilder: TargetBuilder = {
     // host.js — esbuild bundle (date: new Date(0) for FR-BUILD-12 determinism)
     archive.file(hostJsPath, { name: 'host.js', date: new Date(0) });
 
-    // scripts/ — all .rill files from manifest directory
-    // Only add directory if .rill files exist
-    if (rillEntries.length > 0 && existsSync(manifestDir)) {
-      archive.directory(manifestDir, 'scripts', (entry) => ({
-        ...entry,
-        date: new Date(0),
-      }));
+    // scripts/ — .rill files from manifest directory, sorted for deterministic order
+    const sortedRillEntries = [...rillEntries].sort();
+    for (const rel of sortedRillEntries) {
+      const absPath = path.join(manifestDir, rel);
+      archive.file(absPath, { name: `scripts/${rel}`, date: new Date(0) });
     }
 
     // agent.json — resolved manifest as JSON (in-memory, no filesystem write)
