@@ -12,8 +12,8 @@ $numbers -> fold(0) { $@ + $ } => $sum
 $sum / $count => $mean
 
 # Min and max
-$numbers -> fold($numbers[0]) { $ < $@ ? $ ! $@ } => $min
-$numbers -> fold($numbers[0]) { $ > $@ ? $ ! $@ } => $max
+$numbers -> fold($numbers[0]) { ($ < $@) ? $ ! $@ } => $min
+$numbers -> fold($numbers[0]) { ($ > $@) ? $ ! $@ } => $max
 
 # Derived collections
 $numbers -> filter { $ > $mean } => $above_mean

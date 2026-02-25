@@ -42,6 +42,9 @@ Thumbs.db
 *.tgz
 .npm
 
+# Demo runtime artifacts
+demo/**/data/
+
 # Internal files
 internal/
 brand/

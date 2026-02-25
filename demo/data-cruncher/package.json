@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts"
+    "build": "rill-compose agent.json --target local --output dist/",
+    "start": "tsx dist/host.ts",
+    "dev": "pnpm build && pnpm start"
   },
   "dependencies": {
-    "@rcrsr/rill": "workspace:*",
     "@rcrsr/rill-compose": "workspace:*",
     "@rcrsr/rill-host": "workspace:*"
   },
   "devDependencies": {
-    "tsx": "^4.19.0"
+    "tsx": "^4.21.0"
   }
 }

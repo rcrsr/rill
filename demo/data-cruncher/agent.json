@@ -13,5 +13,8 @@
   },
   "host": {
     "timeout": 30000
+  },
+  "deploy": {
+    "port": 4000
   }
 }
