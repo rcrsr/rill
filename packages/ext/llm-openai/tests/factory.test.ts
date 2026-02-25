@@ -149,9 +149,9 @@ describe('createOpenAIExtension', () => {
     });
   });
 
-  // AC-1: Factory returns ExtensionResult with 5 functions
+  // AC-1: Factory returns ExtensionResult with 6 functions
   describe('extension result structure', () => {
-    it('returns object with 5 function definitions', () => {
+    it('returns object with 6 function definitions', () => {
       const config: OpenAIExtensionConfig = {
         api_key: 'test-key',
         model: 'gpt-4-turbo',
@@ -159,12 +159,13 @@ describe('createOpenAIExtension', () => {
 
       const result = createOpenAIExtension(config);
 
-      // Verify all 5 functions exist
+      // Verify all 6 functions exist
       expect(result.message).toBeDefined();
       expect(result.messages).toBeDefined();
       expect(result.embed).toBeDefined();
       expect(result.embed_batch).toBeDefined();
       expect(result.tool_loop).toBeDefined();
+      expect(result.generate).toBeDefined();
 
       // Verify dispose exists
       expect(result.dispose).toBeDefined();

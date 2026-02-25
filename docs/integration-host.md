@@ -204,6 +204,24 @@ io::file::read("config.json")
 
 Namespaces help organize host APIs and avoid name collisions without requiring the `$` variable prefix.
 
+### Structured Output with generate()
+
+LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. The provider enforces the schema at the API level and returns a consistent dict.
+
+```rill
+[name: "string", age: "number", active: "bool"] => $schema
+
+llm::generate("Extract user info from the following text: Alice, 30, active.", [
+  schema: $schema,
+]) => $result
+
+$result.data.name    # "Alice"
+$result.data.age     # 30
+$result.data.active  # true
+```
+
+`generate()` returns `data` (the parsed dict) instead of `content` (free text). Use `$result.raw` to access the original JSON string.
+
 ### CallableFn Signature
 
 The `fn` property in `HostFunctionDefinition` uses the `CallableFn` type:

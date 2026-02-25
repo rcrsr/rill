@@ -39,6 +39,7 @@ vi.mock('@google/genai', () => {
       INTEGER: 'INTEGER',
       BOOLEAN: 'BOOLEAN',
       OBJECT: 'OBJECT',
+      ARRAY: 'ARRAY',
     },
   };
 });

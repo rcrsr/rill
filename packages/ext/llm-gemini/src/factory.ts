@@ -30,6 +30,8 @@ import {
   validateEmbedModel,
   mapProviderError,
   executeToolLoop,
+  buildJsonSchema,
+  type JsonSchemaProperty,
   type ProviderErrorDetector,
   type ToolLoopCallbacks,
 } from '@rcrsr/rill-ext-llm-shared';
@@ -71,6 +73,51 @@ const detectGeminiError: ProviderErrorDetector = (error: unknown) => {
   }
   return null;
 };
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+/**
+ * Convert a JsonSchemaProperty (string type names) to a Gemini Schema
+ * (Type enum values). Mirrors the type-mapping pattern in buildTools.
+ */
+function toGeminiSchema(prop: JsonSchemaProperty): Schema {
+  // Map JSON Schema type string to Gemini Type enum
+  let schemaType = Type.STRING;
+  if (prop.type === 'number') schemaType = Type.NUMBER;
+  if (prop.type === 'boolean') schemaType = Type.BOOLEAN;
+  if (prop.type === 'integer') schemaType = Type.INTEGER;
+  if (prop.type === 'array') schemaType = Type.ARRAY;
+  if (prop.type === 'object') schemaType = Type.OBJECT;
+
+  const schema: Schema = { type: schemaType };
+
+  if (prop.description !== undefined) {
+    schema.description = prop.description;
+  }
+
+  if (prop.enum !== undefined) {
+    schema.enum = prop.enum;
+  }
+
+  if (prop.type === 'array' && prop.items !== undefined) {
+    schema.items = toGeminiSchema(prop.items);
+  }
+
+  if (prop.type === 'object' && prop.properties !== undefined) {
+    const nestedProperties: Record<string, Schema> = {};
+    for (const [key, nestedProp] of Object.entries(prop.properties)) {
+      nestedProperties[key] = toGeminiSchema(nestedProp);
+    }
+    schema.properties = nestedProperties;
+    if (prop.required !== undefined) {
+      schema.required = prop.required;
+    }
+  }
+
+  return schema;
+}
 
 // ============================================================
 // FACTORY
@@ -931,6 +978,195 @@ export function createGeminiExtension(
         }
       },
       description: 'Execute tool-use loop with Gemini API',
+      returnType: 'dict',
+    },
+
+    // IR-3: gemini::generate
+    generate: {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict' },
+      ],
+      fn: async (args, ctx): Promise<RillValue> => {
+        const startTime = Date.now();
+
+        try {
+          // Extract arguments
+          const prompt = args[0] as string;
+          const options = (args[1] ?? {}) as Record<string, unknown>;
+
+          // EC-3: Validate schema option is present
+          if (
+            !('schema' in options) ||
+            options['schema'] === null ||
+            options['schema'] === undefined
+          ) {
+            throw new RuntimeError(
+              'RILL-R004',
+              "generate requires 'schema' option"
+            );
+          }
+
+          // EC-4: Build JSON Schema — delegates type validation to buildJsonSchema
+          const rillSchema = options['schema'] as Record<string, unknown>;
+          const jsonSchema = buildJsonSchema(rillSchema);
+
+          // Convert JSON Schema properties to Gemini Schema type (IR-6)
+          const geminiProperties: Record<string, Schema> = {};
+          for (const [key, prop] of Object.entries(jsonSchema.properties)) {
+            geminiProperties[key] = toGeminiSchema(prop);
+          }
+          const responseSchema: Schema = {
+            type: Type.OBJECT,
+            properties: geminiProperties,
+            required: jsonSchema.required,
+          };
+
+          // Extract options
+          const system =
+            typeof options['system'] === 'string'
+              ? options['system']
+              : factorySystem;
+          const maxTokens =
+            typeof options['max_tokens'] === 'number'
+              ? options['max_tokens']
+              : factoryMaxTokens;
+
+          // Build Gemini contents array: prepend context messages then prompt
+          const contents: Content[] = [];
+
+          if ('messages' in options && Array.isArray(options['messages'])) {
+            const prependedMessages = options['messages'] as Array<
+              Record<string, unknown>
+            >;
+
+            for (const msg of prependedMessages) {
+              if (
+                typeof msg === 'object' &&
+                msg !== null &&
+                'role' in msg &&
+                'content' in msg
+              ) {
+                const role = msg['role'];
+                if (role === 'user') {
+                  contents.push({
+                    role: 'user',
+                    parts: [{ text: msg['content'] as string }],
+                  });
+                } else if (role === 'assistant') {
+                  contents.push({
+                    role: 'model',
+                    parts: [{ text: msg['content'] as string }],
+                  });
+                }
+              }
+            }
+          }
+
+          // Add the prompt as the final user turn
+          contents.push({
+            role: 'user',
+            parts: [{ text: prompt }],
+          });
+
+          // Build API config with responseSchema and responseMimeType (IR-6)
+          const apiConfig: {
+            systemInstruction?: string;
+            maxOutputTokens?: number;
+            temperature?: number;
+            responseSchema: Schema;
+            responseMimeType: string;
+          } = {
+            responseSchema,
+            responseMimeType: 'application/json',
+          };
+
+          if (system !== undefined) {
+            apiConfig.systemInstruction = system;
+          }
+          if (maxTokens !== undefined) {
+            apiConfig.maxOutputTokens = maxTokens;
+          }
+          if (factoryTemperature !== undefined) {
+            apiConfig.temperature = factoryTemperature;
+          }
+
+          // Call Gemini API
+          const response = await client.models.generateContent({
+            model: factoryModel,
+            contents,
+            config: apiConfig,
+          });
+
+          // Extract JSON string from response.text (IR-6)
+          const raw = response.text ?? '';
+
+          // EC-5: Parse JSON, throw on failure with original error detail
+          let data: unknown;
+          try {
+            data = JSON.parse(raw) as unknown;
+          } catch (parseError: unknown) {
+            const detail =
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError);
+            throw new RuntimeError(
+              'RILL-R004',
+              `generate: failed to parse response JSON: ${detail}`
+            );
+          }
+
+          // Extract usage metadata (IR-6)
+          const inputTokens = response.usageMetadata?.promptTokenCount ?? 0;
+          const outputTokens =
+            response.usageMetadata?.candidatesTokenCount ?? 0;
+
+          // Extract stop reason and id (IR-6)
+          const stopReason = response.candidates?.[0]?.finishReason ?? 'stop';
+          const id = response.responseId ?? '';
+
+          // Build 6-key response dict (AC-6, AC-7)
+          const generateResult = {
+            data,
+            raw,
+            model: factoryModel,
+            usage: {
+              input: inputTokens,
+              output: outputTokens,
+            },
+            stop_reason: stopReason,
+            id,
+          };
+
+          // Emit success event (AC-34)
+          const duration = Date.now() - startTime;
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'gemini:generate',
+            subsystem: 'extension:gemini',
+            duration,
+            model: factoryModel,
+            usage: generateResult.usage,
+          });
+
+          return generateResult as RillValue;
+        } catch (error: unknown) {
+          const duration = Date.now() - startTime;
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Gemini', error, detectGeminiError);
+
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'gemini:error',
+            subsystem: 'extension:gemini',
+            error: rillError.message,
+            duration,
+          });
+
+          throw rillError;
+        }
+      },
+      description: 'Generate structured output from Gemini API',
       returnType: 'dict',
     },
   };

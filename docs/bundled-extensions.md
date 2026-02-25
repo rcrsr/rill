@@ -228,6 +228,8 @@ External extensions ship as separate npm packages. Install and integrate as need
 | [vectordb-pinecone](extension-vectordb-pinecone.md) | `@rcrsr/rill-ext-pinecone` | `pinecone` | Pinecone vector database |
 | [vectordb-qdrant](extension-vectordb-qdrant.md) | `@rcrsr/rill-ext-qdrant` | `qdrant` | Qdrant vector database |
 
+All three LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. See each provider's doc for usage.
+
 ## See Also
 
 - [Developing Extensions](integration-extensions.md) — Writing custom extensions

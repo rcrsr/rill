@@ -4,7 +4,7 @@
 
 This extension allows rill scripts to access OpenAI's GPT and embedding APIs. The host binds it to a namespace with `prefixFunctions('llm', ext)`, and scripts call `llm::message()`, `llm::embed()`, and so on. Switching to Anthropic or Google means changing one line of host config. Scripts stay identical.
 
-Five functions cover the core LLM operations. `message` sends a single prompt. `messages` continues a multi-turn conversation. `embed` and `embed_batch` generate vector embeddings — OpenAI offers `text-embedding-3-small` and `text-embedding-3-large` for this. `tool_loop` runs an agentic loop where the model calls rill closures as tools. All return the same dict shape (`content`, `model`, `usage`, `stop_reason`, `id`, `messages`), so scripts work across providers without changes.
+Six functions cover the core LLM operations. `message` sends a single prompt. `messages` continues a multi-turn conversation. `embed` and `embed_batch` generate vector embeddings — OpenAI offers `text-embedding-3-small` and `text-embedding-3-large` for this. `tool_loop` runs an agentic loop where the model calls rill closures as tools. `generate` extracts structured output matching a schema dict. `message`, `messages`, and `tool_loop` return a `content`/`messages` shape. `generate` returns a `data`/`raw` shape.
 
 The host sets API key, model, and temperature at creation time — scripts never handle credentials. Each call emits a structured event (`openai:message`, `openai:tool_call`) for host-side logging and metrics.
 
@@ -59,7 +59,7 @@ const ext = createOpenAIExtension({
 ```rill
 openai::message("Explain TCP handshakes") => $result
 $result.content      # Response text
-$result.model        # Model used
+$result.stop_reason  # Why generation stopped
 $result.usage.input  # Input tokens
 $result.usage.output # Output tokens
 ```
@@ -106,20 +106,35 @@ $result.content  # Final response
 $result.turns    # Number of LLM round-trips
 ```
 
+**generate(prompt, options)** — Structured output extraction:
+
+```rill
+[name: "string", age: "number", active: "boolean"] => $schema
+
+openai::generate("Extract user info: Alice, 30, active", [
+  schema: $schema,
+]) => $result
+$result.data            # Parsed dict matching schema keys
+$result.raw             # Original JSON string from model
+$result.usage.input     # Input tokens
+$result.usage.output    # Output tokens
+```
+
 ### Per-Call Options
 
 | Option | Type | Applies To | Description |
 |--------|------|-----------|-------------|
-| `system` | string | message, messages, tool_loop | Override system prompt |
-| `max_tokens` | number | message, messages, tool_loop | Override max tokens |
+| `system` | string | message, messages, tool_loop, generate | Override system prompt |
+| `max_tokens` | number | message, messages, tool_loop, generate | Override max tokens |
 | `tools` | list | tool_loop (required) | Tool descriptors |
 | `max_turns` | number | tool_loop | Limit LLM round-trips |
 | `max_errors` | number | tool_loop | Consecutive error limit (default: 3) |
-| `messages` | list | tool_loop | Prepend conversation history |
+| `messages` | list | tool_loop, generate | Prepend conversation history |
+| `schema` | dict | generate (required) | Field-to-type mapping for structured output |
 
 ## Result Dict
 
-All functions except `embed` and `embed_batch` return:
+All functions except `embed`, `embed_batch`, and `generate` return:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -132,6 +147,20 @@ All functions except `embed` and `embed_batch` return:
 | `messages` | list | Conversation history |
 
 The `tool_loop` result adds `turns` (number of LLM round-trips).
+
+### Generate Result Dict
+
+`generate` returns a separate dict shape:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | dict | Parsed JSON matching schema keys |
+| `raw` | string | Original JSON string from model response |
+| `model` | string | Provider model identifier |
+| `usage.input` | number | Input token count |
+| `usage.output` | number | Output token count |
+| `stop_reason` | string | Provider stop reason string |
+| `id` | string | Provider response ID |
 
 ## Error Behavior
 
@@ -156,6 +185,12 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 - Unknown tool → `RuntimeError RILL-R004: unknown tool '{name}'`
 - Error limit → `RuntimeError RILL-R004: tool loop aborted after {n} consecutive errors`
 
+**Generate errors**:
+
+- Missing schema → `RuntimeError RILL-R004: generate requires 'schema' option`
+- Unsupported type in schema → `RuntimeError RILL-R004` before HTTP call
+- JSON parse failure → `RuntimeError RILL-R004` with original parse error detail
+
 ## Events
 
 | Event | Emitted When |
@@ -165,6 +200,7 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 | `openai:embed` | embed() completes |
 | `openai:embed_batch` | embed_batch() completes |
 | `openai:tool_loop` | tool_loop() completes |
+| `openai:generate` | generate() completes successfully |
 | `openai:tool_call` | Tool invoked during loop |
 | `openai:tool_result` | Tool returns during loop |
 | `openai:error` | Any operation fails |

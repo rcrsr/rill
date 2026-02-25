@@ -23,6 +23,7 @@ import {
   validateEmbedModel,
   mapProviderError,
   executeToolLoop,
+  buildJsonSchema,
   type ProviderErrorDetector,
   type ToolLoopCallbacks,
 } from '@rcrsr/rill-ext-llm-shared';
@@ -935,6 +936,173 @@ export function createAnthropicExtension(
         }
       },
       description: 'Execute tool-use loop with Claude API',
+      returnType: 'dict',
+    },
+
+    // IR-3: anthropic::generate
+    generate: {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict' },
+      ],
+      fn: async (args, ctx): Promise<RillValue> => {
+        const startTime = Date.now();
+
+        try {
+          // Extract arguments
+          const prompt = args[0] as string;
+          const options = (args[1] ?? {}) as Record<string, unknown>;
+
+          // EC-3: Validate schema option is present
+          if (
+            !('schema' in options) ||
+            options['schema'] === null ||
+            options['schema'] === undefined
+          ) {
+            throw new RuntimeError(
+              'RILL-R004',
+              "generate requires 'schema' option"
+            );
+          }
+
+          // EC-4: Build JSON Schema — delegates type validation to buildJsonSchema
+          const rillSchema = options['schema'] as Record<string, unknown>;
+          const jsonSchema = buildJsonSchema(rillSchema);
+
+          // Extract options
+          const system =
+            typeof options['system'] === 'string'
+              ? options['system']
+              : factorySystem;
+          const maxTokens =
+            typeof options['max_tokens'] === 'number'
+              ? options['max_tokens']
+              : factoryMaxTokens;
+
+          // Build messages array: prepend conversation context if provided
+          const apiMessages: Anthropic.MessageParam[] = [];
+
+          if ('messages' in options && Array.isArray(options['messages'])) {
+            const prependedMessages = options['messages'] as Array<
+              Record<string, unknown>
+            >;
+
+            for (const msg of prependedMessages) {
+              if (!msg || typeof msg !== 'object' || !('role' in msg)) {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  "message missing required 'role' field"
+                );
+              }
+
+              const role = msg['role'];
+              if (role !== 'user' && role !== 'assistant') {
+                throw new RuntimeError('RILL-R004', `invalid role '${role}'`);
+              }
+
+              if (!('content' in msg) || typeof msg['content'] !== 'string') {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  `${role} message requires 'content'`
+                );
+              }
+
+              apiMessages.push({
+                role: role as 'user' | 'assistant',
+                content: msg['content'] as string,
+              });
+            }
+          }
+
+          // Add the prompt as the final user message
+          apiMessages.push({ role: 'user', content: prompt });
+
+          // Call Anthropic API with native structured output
+          const apiParams: Anthropic.MessageCreateParamsNonStreaming = {
+            model: factoryModel,
+            max_tokens: maxTokens,
+            messages: apiMessages,
+            output_config: {
+              format: {
+                type: 'json_schema',
+                schema: jsonSchema as unknown as { [key: string]: unknown },
+              },
+            },
+          };
+
+          // Add optional parameters only if defined
+          if (factoryTemperature !== undefined) {
+            apiParams.temperature = factoryTemperature;
+          }
+          if (system !== undefined) {
+            apiParams.system = system;
+          }
+
+          const response = await client.messages.create(apiParams);
+
+          // Extract JSON string from response content text block (AC-8)
+          const raw = extractTextContent(
+            response.content as Array<{ type: string; text?: string }>
+          );
+
+          // EC-5: Parse JSON, throw on failure with original error detail
+          let data: unknown;
+          try {
+            data = JSON.parse(raw) as unknown;
+          } catch (parseError: unknown) {
+            const detail =
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError);
+            throw new RuntimeError(
+              'RILL-R004',
+              `generate: failed to parse response JSON: ${detail}`
+            );
+          }
+
+          // Build 6-key response dict (AC-6, AC-7)
+          const result = {
+            data,
+            raw,
+            model: response.model,
+            usage: {
+              input: response.usage.input_tokens,
+              output: response.usage.output_tokens,
+            },
+            stop_reason: response.stop_reason,
+            id: response.id,
+          };
+
+          // Emit success event
+          const duration = Date.now() - startTime;
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'anthropic:generate',
+            subsystem: 'extension:anthropic',
+            duration,
+            model: response.model,
+            usage: result.usage,
+          });
+
+          return result as RillValue;
+        } catch (error: unknown) {
+          // Map error and emit failure event
+          const duration = Date.now() - startTime;
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('Anthropic', error, detectAnthropicError);
+
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'anthropic:error',
+            subsystem: 'extension:anthropic',
+            error: rillError.message,
+            duration,
+          });
+
+          throw rillError;
+        }
+      },
+      description: 'Generate structured output from Anthropic API',
       returnType: 'dict',
     },
   };

@@ -102,12 +102,13 @@ export type FsExtensionContract = {
  * Contract type for llm extension implementations.
  * Enforces exact function structure for compile-time verification.
  *
- * Backend implementations must provide all 5 functions:
+ * Backend implementations must provide all 6 functions:
  * - message(text, options): Send single message
  * - messages(messages, options): Multi-turn conversation
  * - embed(text): Generate embedding vector
  * - embed_batch(texts): Batch embeddings
  * - tool_loop(prompt, options): Tool use orchestration
+ * - generate(prompt, options): Structured output extraction
  */
 export type LlmExtensionContract = {
   readonly message: HostFunctionDefinition;
@@ -115,6 +116,7 @@ export type LlmExtensionContract = {
   readonly embed: HostFunctionDefinition;
   readonly embed_batch: HostFunctionDefinition;
   readonly tool_loop: HostFunctionDefinition;
+  readonly generate: HostFunctionDefinition;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 

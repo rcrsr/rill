@@ -501,6 +501,20 @@ function createMockFunctions(): Record<
         messages: [],
       }),
     },
+    'anthropic::generate': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        data: { name: 'rill', confidence: 0.95, tags: ['scripting', 'pipes'] },
+        raw: '{"name":"rill","confidence":0.95,"tags":["scripting","pipes"]}',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'end_turn',
+        id: 'mock-id',
+      }),
+    },
 
     // MCP extension namespaces (fs::, gh::, pg::, db::, ai::)
     'fs::list_tools': {
@@ -611,6 +625,20 @@ function createMockFunctions(): Record<
         messages: [],
       }),
     },
+    'openai::generate': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        data: { name: 'Alice', age: 30, active: true },
+        raw: '{"name":"Alice","age":30,"active":true}',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+      }),
+    },
 
     // gemini:: namespace
     'gemini::message': {
@@ -672,6 +700,36 @@ function createMockFunctions(): Record<
         id: 'mock-id',
         turns: 1,
         messages: [],
+      }),
+    },
+    'gemini::generate': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict', defaultValue: {} },
+      ],
+      fn: () => ({
+        data: { name: 'rill', confidence: 0.95, tags: ['scripting', 'pipes'] },
+        raw: '{"name":"rill","confidence":0.95,"tags":["scripting","pipes"]}',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'stop',
+        id: 'mock-id',
+      }),
+    },
+
+    // llm:: namespace (provider-agnostic)
+    'llm::generate': {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict' },
+      ],
+      fn: () => ({
+        data: { name: 'Alice', age: 30, active: true },
+        raw: '{"name":"Alice","age":30,"active":true}',
+        model: 'mock-model',
+        usage: { input: 10, output: 20 },
+        stop_reason: 'end_turn',
+        id: 'mock-id',
       }),
     },
 

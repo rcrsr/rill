@@ -11,6 +11,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import type { ToolLoopCallbacks, ToolLoopResult } from './types.js';
+import { buildJsonSchema } from './schema.js';
 
 // Minimal context interface compatible with CallableFn signature
 // Matches RuntimeContextLike from @rcrsr/rill's callable.ts
@@ -205,64 +206,51 @@ export async function executeToolLoop(
         : '';
 
     // Extract parameter metadata and generate JSON Schema
-    const properties: Record<string, unknown> = {};
-    const required: string[] = [];
+    let inputSchema: {
+      type: 'object';
+      properties: Record<string, unknown>;
+      required: string[];
+    };
 
     if (callable.kind === 'application' && callable.params) {
+      // Build a descriptor dict for buildJsonSchema.
+      // null typeName means untyped param; use 'string' as fallback.
+      const descriptor: Record<string, unknown> = {};
+      const paramsWithDefaults = new Set<string>();
+
       for (const param of callable.params) {
-        // Map rill types to JSON Schema types
-        let jsonSchemaType: string;
-        switch (param.typeName) {
-          case 'string':
-            jsonSchemaType = 'string';
-            break;
-          case 'number':
-            jsonSchemaType = 'number';
-            break;
-          case 'bool':
-            jsonSchemaType = 'boolean';
-            break;
-          case 'list':
-            jsonSchemaType = 'array';
-            break;
-          case 'dict':
-          case 'vector':
-            jsonSchemaType = 'object';
-            break;
-          case null:
-            jsonSchemaType = 'string'; // Default for untyped params
-            break;
-          default:
-            jsonSchemaType = 'string'; // Fallback for unknown types
-            break;
-        }
-
-        // Build property definition
-        const property: Record<string, unknown> = {
-          type: jsonSchemaType,
+        const typeEntry: Record<string, unknown> = {
+          type: param.typeName ?? 'string',
         };
-
         if (param.description) {
-          property['description'] = param.description;
+          typeEntry['description'] = param.description;
         }
+        descriptor[param.name] = typeEntry;
 
-        properties[param.name] = property;
-
-        // Add to required if no default value
-        if (param.defaultValue === null) {
-          required.push(param.name);
+        if (param.defaultValue !== null) {
+          paramsWithDefaults.add(param.name);
         }
       }
+
+      // buildJsonSchema puts ALL keys in required; filter out params with defaults
+      const schema = buildJsonSchema(descriptor);
+      const required = schema.required.filter(
+        (name) => !paramsWithDefaults.has(name)
+      );
+
+      inputSchema = {
+        type: 'object',
+        properties: schema.properties as Record<string, unknown>,
+        required,
+      };
+    } else {
+      inputSchema = { type: 'object', properties: {}, required: [] };
     }
 
     return {
       name,
       description,
-      input_schema: {
-        type: 'object' as const,
-        properties,
-        required,
-      },
+      input_schema: inputSchema,
     };
   });
 

@@ -25,6 +25,7 @@ import {
   validateEmbedBatch,
   mapProviderError,
   executeToolLoop,
+  buildJsonSchema,
   type ProviderErrorDetector,
   type ToolLoopCallbacks,
 } from '@rcrsr/rill-ext-llm-shared';
@@ -1018,6 +1019,178 @@ export function createOpenAIExtension(
         }
       },
       description: 'Execute tool-use loop with OpenAI API',
+      returnType: 'dict',
+    },
+
+    // IR-3: openai::generate
+    generate: {
+      params: [
+        { name: 'prompt', type: 'string' },
+        { name: 'options', type: 'dict' },
+      ],
+      fn: async (args, ctx): Promise<RillValue> => {
+        const startTime = Date.now();
+
+        try {
+          // Extract arguments
+          const prompt = args[0] as string;
+          const options = (args[1] ?? {}) as Record<string, unknown>;
+
+          // EC-3: Validate schema option is present
+          if (
+            !('schema' in options) ||
+            options['schema'] === null ||
+            options['schema'] === undefined
+          ) {
+            throw new RuntimeError(
+              'RILL-R004',
+              "generate requires 'schema' option"
+            );
+          }
+
+          // EC-4: Build JSON Schema — delegates type validation to buildJsonSchema
+          const rillSchema = options['schema'] as Record<string, unknown>;
+          const jsonSchema = buildJsonSchema(rillSchema);
+
+          // Extract options
+          const system =
+            typeof options['system'] === 'string'
+              ? options['system']
+              : factorySystem;
+          const maxTokens =
+            typeof options['max_tokens'] === 'number'
+              ? options['max_tokens']
+              : factoryMaxTokens;
+
+          // Build messages array: prepend conversation context if provided (AC-11)
+          const apiMessages: OpenAI.ChatCompletionMessageParam[] = [];
+
+          if (system !== undefined) {
+            apiMessages.push({
+              role: 'system',
+              content: system,
+            });
+          }
+
+          if ('messages' in options && Array.isArray(options['messages'])) {
+            const prependedMessages = options['messages'] as Array<
+              Record<string, unknown>
+            >;
+
+            for (const msg of prependedMessages) {
+              if (!msg || typeof msg !== 'object' || !('role' in msg)) {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  "message missing required 'role' field"
+                );
+              }
+
+              const role = msg['role'];
+              if (role !== 'user' && role !== 'assistant') {
+                throw new RuntimeError('RILL-R004', `invalid role '${role}'`);
+              }
+
+              if (!('content' in msg) || typeof msg['content'] !== 'string') {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  `${role} message requires 'content'`
+                );
+              }
+
+              apiMessages.push({
+                role: role as 'user' | 'assistant',
+                content: msg['content'] as string,
+              });
+            }
+          }
+
+          // Add the prompt as the final user message
+          apiMessages.push({ role: 'user', content: prompt });
+
+          // Call OpenAI API with native structured output via json_schema response_format
+          const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
+            model: factoryModel,
+            max_tokens: maxTokens,
+            messages: apiMessages,
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'output',
+                schema: jsonSchema as unknown as Record<string, unknown>,
+                strict: true,
+              },
+            },
+          };
+
+          // Add optional parameters only if defined
+          if (factoryTemperature !== undefined) {
+            apiParams.temperature = factoryTemperature;
+          }
+
+          const response = await client.chat.completions.create(apiParams);
+
+          // Extract JSON string from response (IR-5)
+          const raw = response.choices[0]?.message?.content ?? '';
+
+          // EC-5: Parse JSON, throw on failure with original error detail
+          let data: unknown;
+          try {
+            data = JSON.parse(raw) as unknown;
+          } catch (parseError: unknown) {
+            const detail =
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError);
+            throw new RuntimeError(
+              'RILL-R004',
+              `generate: failed to parse response JSON: ${detail}`
+            );
+          }
+
+          // Build 6-key response dict (AC-6, AC-7, AC-8)
+          const result = {
+            data,
+            raw,
+            model: response.model,
+            usage: {
+              input: response.usage?.prompt_tokens ?? 0,
+              output: response.usage?.completion_tokens ?? 0,
+            },
+            stop_reason: response.choices[0]?.finish_reason ?? 'unknown',
+            id: response.id,
+          };
+
+          // Emit success event (AC-33)
+          const duration = Date.now() - startTime;
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'openai:generate',
+            subsystem: 'extension:openai',
+            duration,
+            model: response.model,
+            usage: result.usage,
+          });
+
+          return result as RillValue;
+        } catch (error: unknown) {
+          // Map error and emit failure event (AC-35)
+          // Re-throw RuntimeError directly so EC-3/EC-4/EC-5 messages are preserved
+          const duration = Date.now() - startTime;
+          const rillError =
+            error instanceof RuntimeError
+              ? error
+              : mapProviderError('OpenAI', error, detectOpenAIError);
+
+          emitExtensionEvent(ctx as RuntimeContext, {
+            event: 'openai:error',
+            subsystem: 'extension:openai',
+            error: rillError.message,
+            duration,
+          });
+
+          throw rillError;
+        }
+      },
+      description: 'Generate structured output from OpenAI API',
       returnType: 'dict',
     },
   };

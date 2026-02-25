@@ -40,3 +40,9 @@ export { mapProviderError } from './errors.js';
 // TOOL ORCHESTRATION
 // ============================================================
 export { executeToolLoop } from './tool-loop.js';
+
+// ============================================================
+// SCHEMA BUILDING
+// ============================================================
+export { buildJsonSchema, mapRillType } from './schema.js';
+export type { JsonSchemaObject, JsonSchemaProperty } from './schema.js';

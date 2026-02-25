@@ -4,7 +4,7 @@
 
 This extension allows rill scripts to access Anthropic's Claude API. The host binds it to a namespace with `prefixFunctions('llm', ext)`, and scripts call `llm::message()`, `llm::embed()`, and so on. Switching to OpenAI or Google means changing one line of host config. Scripts stay identical.
 
-Five functions cover the core LLM operations. `message` sends a single prompt. `messages` continues a multi-turn conversation. `embed` and `embed_batch` generate vector embeddings. `tool_loop` runs an agentic loop where the model calls rill closures as tools. All return the same dict shape (`content`, `model`, `usage`, `stop_reason`, `id`, `messages`), so scripts work across providers without changes.
+Six functions cover the core LLM operations. `message` sends a single prompt. `messages` continues a multi-turn conversation. `embed` and `embed_batch` generate vector embeddings. `tool_loop` runs an agentic loop where the model calls rill closures as tools. `generate` extracts structured data as a typed dict. `message`, `messages`, and `tool_loop` return the same dict shape (`content`, `model`, `usage`, `stop_reason`, `id`, `messages`), so scripts work across providers without changes. `generate` returns a separate shape with `data` and `raw` fields instead of `content` and `messages`.
 
 The host sets API key, model, and temperature at creation time — scripts never handle credentials. Each call emits a structured event (`anthropic:message`, `anthropic:tool_call`) for host-side logging and metrics.
 
@@ -59,7 +59,7 @@ const ext = createAnthropicExtension({
 ```rill
 anthropic::message("Explain TCP handshakes") => $result
 $result.content      # Response text
-$result.model        # Model used
+$result.stop_reason  # Why generation stopped
 $result.usage.input  # Input tokens
 $result.usage.output # Output tokens
 ```
@@ -106,16 +106,39 @@ $result.content  # Final response
 $result.turns    # Number of LLM round-trips
 ```
 
+**generate(prompt, options)** — Structured output extraction:
+
+```rill
+[
+  name: "string",
+  confidence: "number",
+  tags: "list",
+] => $schema
+
+anthropic::generate("Extract metadata from: rill is a pipe-based scripting language", [
+  schema: $schema,
+  system: "Extract structured data from the input.",
+]) => $result
+$result.data.name        # Extracted name field
+$result.data.confidence  # Extracted confidence field
+$result.data.tags        # Extracted tags list
+$result.raw              # Original JSON string from model
+$result.stop_reason      # Why generation stopped
+$result.usage.input      # Input tokens
+$result.usage.output     # Output tokens
+```
+
 ### Per-Call Options
 
 | Option | Type | Applies To | Description |
 |--------|------|-----------|-------------|
-| `system` | string | message, messages, tool_loop | Override system prompt |
-| `max_tokens` | number | message, messages, tool_loop | Override max tokens |
+| `system` | string | message, messages, tool_loop, generate | Override system prompt |
+| `max_tokens` | number | message, messages, tool_loop, generate | Override max tokens |
 | `tools` | list | tool_loop (required) | Tool descriptors |
 | `max_turns` | number | tool_loop | Limit LLM round-trips |
 | `max_errors` | number | tool_loop | Consecutive error limit (default: 3) |
-| `messages` | list | tool_loop | Prepend conversation history |
+| `messages` | list | tool_loop, generate | Prepend conversation history |
+| `schema` | dict | generate (required) | Field names mapped to type strings |
 
 ## Result Dict
 
@@ -132,6 +155,20 @@ All functions except `embed` and `embed_batch` return:
 | `messages` | list | Conversation history |
 
 The `tool_loop` result adds `turns` (number of LLM round-trips).
+
+### Generate Result Dict
+
+`generate` returns a separate dict shape:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | dict | Parsed JSON matching schema keys |
+| `raw` | string | Original JSON string from model response |
+| `model` | string | Provider model identifier |
+| `usage.input` | number | Input token count |
+| `usage.output` | number | Output token count |
+| `stop_reason` | string | Provider stop reason string |
+| `id` | string | Provider response ID |
 
 ## Error Behavior
 
@@ -156,6 +193,12 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 - Unknown tool → `RuntimeError RILL-R004: unknown tool '{name}'`
 - Error limit → `RuntimeError RILL-R004: tool loop aborted after {n} consecutive errors`
 
+**Generate errors**:
+
+- Missing schema → `RuntimeError RILL-R004: generate requires 'schema' option`
+- Unsupported type in schema → `RuntimeError RILL-R004: unsupported schema type '{type}'`
+- JSON parse failure → `RuntimeError RILL-R004: generate response parse failed: {detail}`
+
 ## Events
 
 | Event | Emitted When |
@@ -165,6 +208,7 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 | `anthropic:embed` | embed() completes |
 | `anthropic:embed_batch` | embed_batch() completes |
 | `anthropic:tool_loop` | tool_loop() completes |
+| `anthropic:generate` | generate() completes successfully |
 | `anthropic:tool_call` | Tool invoked during loop |
 | `anthropic:tool_result` | Tool returns during loop |
 | `anthropic:error` | Any operation fails |

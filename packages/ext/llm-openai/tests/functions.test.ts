@@ -1465,3 +1465,322 @@ describe('tool_loop() function', () => {
     });
   });
 });
+
+// ============================================================
+// GENERATE() TESTS
+// ============================================================
+
+describe('generate() function', () => {
+  beforeEach(() => {
+    mockCreate.mockReset();
+  });
+
+  const baseConfig: OpenAIExtensionConfig = {
+    api_key: 'test-key',
+    model: 'gpt-4o',
+  };
+
+  function createGenerateMockResponse(jsonContent: string, model = 'gpt-4o') {
+    return {
+      id: 'chatcmpl-gen-test',
+      object: 'chat.completion' as const,
+      created: 1234567890,
+      model,
+      choices: [
+        {
+          index: 0,
+          message: { role: 'assistant' as const, content: jsonContent },
+          finish_reason: 'stop' as const,
+        },
+      ],
+      usage: { prompt_tokens: 15, completion_tokens: 25, total_tokens: 40 },
+    };
+  }
+
+  describe('success cases', () => {
+    // AC-6: returns dict with exactly 6 keys: data, raw, model, usage, stop_reason, id
+    it('returns dict with data, raw, model, usage, stop_reason, id', async () => {
+      const jsonContent = JSON.stringify({ name: 'Alice', age: 30 });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      const result = (await ext.generate.fn(
+        ['describe a person', { schema: { name: 'string', age: 'number' } }],
+        ctx
+      )) as Record<string, unknown>;
+
+      expect(Object.keys(result).sort()).toEqual(
+        ['data', 'id', 'model', 'raw', 'stop_reason', 'usage'].sort()
+      );
+    });
+
+    // AC-7: usage is {input: number, output: number}
+    it('returns usage with input and output token counts', async () => {
+      const jsonContent = JSON.stringify({ name: 'Bob' });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      const result = (await ext.generate.fn(
+        ['describe a person', { schema: { name: 'string' } }],
+        ctx
+      )) as Record<string, unknown>;
+
+      expect(result['usage']).toEqual({ input: 15, output: 25 });
+    });
+
+    // AC-8: raw contains original JSON string
+    it('returns raw as the original JSON string from response', async () => {
+      const jsonContent = '{"name":"Charlie","score":99}';
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      const result = (await ext.generate.fn(
+        ['score this', { schema: { name: 'string', score: 'number' } }],
+        ctx
+      )) as Record<string, unknown>;
+
+      expect(result['raw']).toBe(jsonContent);
+    });
+
+    // AC-9: system option overrides factory default
+    it('uses system option over factory default', async () => {
+      const jsonContent = JSON.stringify({ ok: true });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension({
+        ...baseConfig,
+        system: 'factory system',
+      });
+      const ctx = createRuntimeContext();
+
+      await ext.generate.fn(
+        ['prompt', { schema: { ok: 'bool' }, system: 'override system' }],
+        ctx
+      );
+
+      const callArgs = mockCreate.mock.calls[0][0] as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const systemMsg = callArgs.messages.find((m) => m.role === 'system');
+      expect(systemMsg?.content).toBe('override system');
+    });
+
+    // AC-10: max_tokens option caps output tokens
+    it('passes max_tokens option to API call', async () => {
+      const jsonContent = JSON.stringify({ result: 'ok' });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await ext.generate.fn(
+        ['prompt', { schema: { result: 'string' }, max_tokens: 128 }],
+        ctx
+      );
+
+      const callArgs = mockCreate.mock.calls[0][0] as { max_tokens: number };
+      expect(callArgs.max_tokens).toBe(128);
+    });
+
+    // AC-11: messages option prepends context
+    it('prepends messages before the prompt', async () => {
+      const jsonContent = JSON.stringify({ answer: 42 });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      const prependedMessages = [
+        { role: 'user', content: 'prior question' },
+        { role: 'assistant', content: 'prior answer' },
+      ];
+
+      await ext.generate.fn(
+        [
+          'final prompt',
+          { schema: { answer: 'number' }, messages: prependedMessages },
+        ],
+        ctx
+      );
+
+      const callArgs = mockCreate.mock.calls[0][0] as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const nonSystemMessages = callArgs.messages.filter(
+        (m) => m.role !== 'system'
+      );
+      expect(nonSystemMessages[0]).toEqual({
+        role: 'user',
+        content: 'prior question',
+      });
+      expect(nonSystemMessages[1]).toEqual({
+        role: 'assistant',
+        content: 'prior answer',
+      });
+      expect(nonSystemMessages[2]).toEqual({
+        role: 'user',
+        content: 'final prompt',
+      });
+    });
+
+    // AC-12: absent system uses factory default
+    it('uses factory system when no system option provided', async () => {
+      const jsonContent = JSON.stringify({ val: 1 });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension({
+        ...baseConfig,
+        system: 'factory default system',
+      });
+      const ctx = createRuntimeContext();
+
+      await ext.generate.fn(['prompt', { schema: { val: 'number' } }], ctx);
+
+      const callArgs = mockCreate.mock.calls[0][0] as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      const systemMsg = callArgs.messages.find((m) => m.role === 'system');
+      expect(systemMsg?.content).toBe('factory default system');
+    });
+
+    // IR-5: response_format uses json_schema with strict: true
+    it('sends response_format with type json_schema and strict true', async () => {
+      const jsonContent = JSON.stringify({ x: 1 });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await ext.generate.fn(['prompt', { schema: { x: 'number' } }], ctx);
+
+      const callArgs = mockCreate.mock.calls[0][0] as {
+        response_format: {
+          type: string;
+          json_schema: { name: string; strict: boolean; schema: unknown };
+        };
+      };
+      expect(callArgs.response_format.type).toBe('json_schema');
+      expect(callArgs.response_format.json_schema.name).toBe('output');
+      expect(callArgs.response_format.json_schema.strict).toBe(true);
+    });
+
+    // AC-33: success emits openai:generate with model, usage, duration
+    it('emits openai:generate event on success', async () => {
+      const jsonContent = JSON.stringify({ x: 1 });
+      mockCreate.mockResolvedValue(createGenerateMockResponse(jsonContent));
+
+      const events: Array<Record<string, unknown>> = [];
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext({
+        callbacks: {
+          onLog: vi.fn(),
+          onLogEvent: (event) => {
+            events.push(event);
+          },
+        },
+      });
+
+      await ext.generate.fn(['prompt', { schema: { x: 'number' } }], ctx);
+
+      const generateEvent = events.find(
+        (e) => e['event'] === 'openai:generate'
+      );
+      expect(generateEvent).toBeDefined();
+      expect(generateEvent?.['model']).toBe('gpt-4o');
+      expect(generateEvent?.['usage']).toEqual({ input: 15, output: 25 });
+      expect(typeof generateEvent?.['duration']).toBe('number');
+    });
+  });
+
+  describe('error cases', () => {
+    // EC-3: missing schema throws RuntimeError RILL-R004
+    it('throws RILL-R004 when schema option is missing', async () => {
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await expect(ext.generate.fn(['prompt', {}], ctx)).rejects.toThrow(
+        "generate requires 'schema' option"
+      );
+    });
+
+    // EC-3: no HTTP call when schema is missing
+    it('makes no API call when schema is missing', async () => {
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await expect(ext.generate.fn(['prompt', {}], ctx)).rejects.toThrow();
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    // EC-4: unsupported type throws RILL-R004 via buildJsonSchema
+    it('throws RILL-R004 for unsupported schema type', async () => {
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await expect(
+        ext.generate.fn(
+          ['prompt', { schema: { field: 'unsupported_type' } }],
+          ctx
+        )
+      ).rejects.toThrow('unsupported type: unsupported_type');
+    });
+
+    // EC-5: JSON parse failure throws RILL-R004 with parse error detail
+    it('throws RILL-R004 with parse error detail when response is not valid JSON', async () => {
+      mockCreate.mockResolvedValue(
+        createGenerateMockResponse('not valid json {{')
+      );
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await expect(
+        ext.generate.fn(['prompt', { schema: { x: 'number' } }], ctx)
+      ).rejects.toThrow('generate: failed to parse response JSON:');
+    });
+
+    // EC-6: provider API error mapped via mapProviderError
+    it('maps OpenAI API errors to RuntimeError', async () => {
+      mockCreate.mockRejectedValue(
+        new (class extends Error {
+          status = 429;
+          name = 'APIError';
+        })('Rate limit exceeded')
+      );
+
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext();
+
+      await expect(
+        ext.generate.fn(['prompt', { schema: { x: 'number' } }], ctx)
+      ).rejects.toThrow('Rate limit exceeded');
+    });
+
+    // AC-35: failure emits openai:error with error and duration
+    it('emits openai:error event on failure', async () => {
+      const events: Array<Record<string, unknown>> = [];
+      const ext = createOpenAIExtension(baseConfig);
+      const ctx = createRuntimeContext({
+        callbacks: {
+          onLog: vi.fn(),
+          onLogEvent: (event) => {
+            events.push(event);
+          },
+        },
+      });
+
+      await expect(ext.generate.fn(['prompt', {}], ctx)).rejects.toThrow();
+
+      const errorEvent = events.find((e) => e['event'] === 'openai:error');
+      expect(errorEvent).toBeDefined();
+      expect(typeof errorEvent?.['error']).toBe('string');
+      expect(typeof errorEvent?.['duration']).toBe('number');
+    });
+  });
+});

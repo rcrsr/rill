@@ -270,11 +270,12 @@ type LlmExtensionContract = {
   readonly embed: HostFunctionDefinition;
   readonly embed_batch: HostFunctionDefinition;
   readonly tool_loop: HostFunctionDefinition;
+  readonly generate: HostFunctionDefinition;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
 
-**Required Functions (5 total):**
+**Required Functions (6 total):**
 
 | Function | Signature | Returns | Description |
 |----------|-----------|---------|-------------|
@@ -283,6 +284,7 @@ type LlmExtensionContract = {
 | `embed` | `(text: string)` | `vector` | Generate embedding vector |
 | `embed_batch` | `(texts: list)` | `list` | Batch embeddings |
 | `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration |
+| `generate` | `(prompt: string, options: dict)` | `dict` | Structured output extraction |
 
 **Usage:**
 
