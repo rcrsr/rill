@@ -1,6 +1,15 @@
 import type { RillValue } from '@rcrsr/rill';
 
 /**
+ * Log verbosity for AgentHost.
+ *
+ * - 'silent' — no output
+ * - 'info'   — lifecycle events only
+ * - 'debug'  — lifecycle events + per-session trace
+ */
+export type LogLevel = 'silent' | 'info' | 'debug';
+
+/**
  * Lifecycle phases for the AgentHost process.
  *
  * 'paused' is excluded — blocked pending core stepper serialization.
@@ -47,6 +56,7 @@ export interface SessionRecord {
  * - sessionTtl: 3600000
  * - maxConcurrentSessions: 10
  * - responseTimeout: 30000
+ * - logLevel: 'info'
  */
 export interface AgentHostOptions {
   readonly port?: number | undefined;
@@ -57,6 +67,7 @@ export interface AgentHostOptions {
   readonly sessionTtl?: number | undefined;
   readonly maxConcurrentSessions?: number | undefined;
   readonly responseTimeout?: number | undefined;
+  readonly logLevel?: LogLevel | undefined;
 }
 
 /**

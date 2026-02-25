@@ -1,4 +1,4 @@
-import { accessSync, constants } from 'node:fs';
+import { accessSync, mkdirSync, constants } from 'node:fs';
 import { ComposeError } from '../errors.js';
 import type { BuildContext, ResolvedManifest } from './index.js';
 
@@ -7,11 +7,13 @@ import type { BuildContext, ResolvedManifest } from './index.js';
 // ============================================================
 
 /**
- * Asserts the output directory is writable.
+ * Ensures the output directory exists and is writable.
+ * Creates the directory (recursively) if it does not exist.
  * Throws ComposeError (phase: 'bundling') per EC-22.
  */
 export function assertOutputWritable(outputDir: string): void {
   try {
+    mkdirSync(outputDir, { recursive: true });
     accessSync(outputDir, constants.W_OK);
   } catch {
     throw new ComposeError(

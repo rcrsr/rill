@@ -249,7 +249,7 @@ export async function checkTargetCompatibility(
         bundle: true,
         write: false,
         metafile: true,
-        target: 'node20',
+        target: 'node22',
         platform: 'node',
         logLevel: 'silent',
       });

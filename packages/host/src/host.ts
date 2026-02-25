@@ -24,6 +24,7 @@ import type { SseEvent, SseStore } from './routes.js';
 import type {
   AgentHostOptions,
   LifecyclePhase,
+  LogLevel,
   RunRequest,
   RunResponse,
   HealthStatus,
@@ -43,23 +44,36 @@ const DEFAULTS = {
   sessionTtl: 3600000,
   maxConcurrentSessions: 10,
   responseTimeout: 30000,
+  logLevel: 'info' as LogLevel,
 } as const;
+
+// ============================================================
+// LOGGING
+// ============================================================
+
+const LOG_PRIORITY = { silent: 0, info: 1, debug: 2 } as const;
+
+function log(level: 'info' | 'debug', msg: string, logLevel: LogLevel): void {
+  if (LOG_PRIORITY[level] <= LOG_PRIORITY[logLevel]) {
+    console.log(msg);
+  }
+}
 
 // ============================================================
 // COMPOSED AGENT INTERFACES
 // ============================================================
 
 export interface AgentCapability {
-  namespace: string;
-  functions: string[];
+  readonly namespace: string;
+  readonly functions: readonly string[];
 }
 
 export interface AgentCard {
-  name: string;
-  version: string;
-  capabilities: AgentCapability[];
-  port?: number | undefined;
-  healthPath?: string | undefined;
+  readonly name: string;
+  readonly version: string;
+  readonly capabilities: readonly AgentCapability[];
+  readonly port?: number | undefined;
+  readonly healthPath?: string | undefined;
 }
 
 export interface ComposedAgent {
@@ -115,6 +129,7 @@ export function createAgentHost(
     maxConcurrentSessions:
       options?.maxConcurrentSessions ?? DEFAULTS.maxConcurrentSessions,
     responseTimeout: options?.responseTimeout ?? DEFAULTS.responseTimeout,
+    logLevel: options?.logLevel ?? DEFAULTS.logLevel,
   };
 
   const sessionManager = new SessionManager({
@@ -173,6 +188,12 @@ export function createAgentHost(
         phase = 'running';
       }
 
+      log(
+        'debug',
+        `[host] session ${sessionId} started (trigger: ${input.trigger ?? 'api'})`,
+        cfg.logLevel
+      );
+
       sessionsActive.inc();
 
       // Build per-session AbortController
@@ -229,6 +250,13 @@ export function createAgentHost(
         observability,
         signal: controller.signal,
         maxCallStackDepth: baseContext.maxCallStackDepth,
+        callbacks: {
+          onLog: (value: import('@rcrsr/rill').RillValue) => {
+            const msg =
+              typeof value === 'string' ? value : JSON.stringify(value);
+            log('info', `[rill] ${msg}`, cfg.logLevel);
+          },
+        },
       });
 
       // Override the builtin-only functions map with the full composedAgent
@@ -365,6 +393,8 @@ export function createAgentHost(
         return;
       }
 
+      log('info', `[host] ${composedAgent.card.name} stopping`, cfg.logLevel);
+
       phase = 'stopped';
 
       // Drain: wait for active sessions up to drainTimeout
@@ -380,6 +410,8 @@ export function createAgentHost(
           // Best-effort dispose
         }
       }
+
+      log('info', `[host] ${composedAgent.card.name} stopped`, cfg.logLevel);
     },
 
     // ----------------------------------------------------------
@@ -431,6 +463,12 @@ export function createAgentHost(
           reject(err);
         });
       });
+
+      log(
+        'info',
+        `[host] ${composedAgent.card.name} listening on http://localhost:${listenPort}`,
+        cfg.logLevel
+      );
     },
 
     // ----------------------------------------------------------

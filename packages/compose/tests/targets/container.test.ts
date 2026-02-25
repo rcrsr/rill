@@ -103,16 +103,10 @@ describe('containerBuilder', () => {
       expect(existsSync(join(outputDir, 'agent.json'))).toBe(true);
     });
 
-    it('produces scripts/ directory in the output directory', async () => {
+    it('copies .rill entry file preserving relative path', async () => {
       await containerBuilder.build(makeContext());
 
-      expect(existsSync(join(outputDir, 'scripts'))).toBe(true);
-    });
-
-    it('copies .rill entry file into scripts/', async () => {
-      await containerBuilder.build(makeContext());
-
-      expect(existsSync(join(outputDir, 'scripts', 'agent.rill'))).toBe(true);
+      expect(existsSync(join(outputDir, 'agent.rill'))).toBe(true);
     });
 
     it('produces .well-known/agent-card.json in the output directory', async () => {

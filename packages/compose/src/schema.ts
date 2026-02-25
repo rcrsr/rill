@@ -17,6 +17,7 @@ const manifestExtensionSchema = z
     package: z.string(),
     version: z.string().optional(),
     config: z.record(z.string(), z.unknown()).default({}),
+    resolvedVersion: z.string().optional(),
   })
   .strict();
 

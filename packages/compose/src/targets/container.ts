@@ -36,19 +36,15 @@ const PACKAGE_ROOT = path.resolve(
 // DOCKERFILE TEMPLATE
 // ============================================================
 
-const DOCKERFILE_TEMPLATE = `FROM node:20-alpine AS builder
+const DOCKERFILE_TEMPLATE = `FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json .
 RUN npm ci --omit=dev
 
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 WORKDIR /app
+COPY . .
 COPY --from=builder /app/node_modules ./node_modules
-COPY host.js .
-COPY host.js.map .
-COPY scripts ./scripts
-COPY assets ./assets
-COPY package.json .
 EXPOSE 3000
 CMD ["node", "host.js"]
 `;
@@ -109,7 +105,7 @@ for (const [namespace, factory, config] of extensions) {
   if (hoisted.dispose) disposeHandlers.push(hoisted.dispose);
 }
 const context = createRuntimeContext({ functions: mergedFunctions });
-const source = readFileSync(join(__dirname, 'scripts', manifest.entry), 'utf-8');
+const source = readFileSync(join(__dirname, manifest.entry), 'utf-8');
 const ast = parse(source);
 const card = { name: manifest.name, version: manifest.version, capabilities: [] };
 const agent = {
@@ -120,7 +116,8 @@ const agent = {
     }
   }
 };
-const host = createAgentHost(agent, { port: ${port} });
+const logLevel = process.env.LOG_LEVEL ?? 'info';
+const host = createAgentHost(agent, { port: ${port}, logLevel });
 await host.listen(${port});
 `;
 }
@@ -130,13 +127,11 @@ await host.listen(${port});
 // ============================================================
 
 /**
- * Copies all .rill files from manifestDir to outputDir/scripts/.
- * Preserves relative directory structure.
+ * Copies all .rill files from manifestDir to outputDir, preserving
+ * their relative directory structure (e.g. scripts/main.rill stays
+ * at outputDir/scripts/main.rill).
  */
 function copyRillScripts(manifestDir: string, outputDir: string): void {
-  const scriptsDir = path.join(outputDir, 'scripts');
-  mkdirSync(scriptsDir, { recursive: true });
-
   let entries: string[];
   try {
     entries = globSync('**/*.rill', { cwd: manifestDir });
@@ -146,7 +141,7 @@ function copyRillScripts(manifestDir: string, outputDir: string): void {
 
   for (const rel of entries) {
     const src = path.join(manifestDir, rel);
-    const dest = path.join(scriptsDir, rel);
+    const dest = path.join(outputDir, rel);
     mkdirSync(path.dirname(dest), { recursive: true });
     cpSync(src, dest);
   }
@@ -315,7 +310,7 @@ const containerBuilder: TargetBuilder = {
         entryPoints: [tmpHostPath],
         bundle: true,
         platform: 'node',
-        target: 'node20',
+        target: 'node22',
         format: 'esm',
         outfile,
         sourcemap: true,

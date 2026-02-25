@@ -98,19 +98,17 @@ describe('LocalBuilder', () => {
       expect(existsSync(join(outputDir, 'host.js'))).toBe(false);
     });
 
-    it('copies .rill entry file to scripts/', async () => {
+    it('copies .rill entry file preserving relative path', async () => {
       writeFileSync(join(manifestDir, 'main.rill'), '"hello"');
       await build('local', makeContext());
-      expect(existsSync(join(outputDir, 'scripts', 'main.rill'))).toBe(true);
+      expect(existsSync(join(outputDir, 'main.rill'))).toBe(true);
     });
 
     it('copies nested .rill files preserving directory structure', async () => {
       mkdirSync(join(manifestDir, 'lib'), { recursive: true });
       writeFileSync(join(manifestDir, 'lib', 'util.rill'), '"util"');
       await build('local', makeContext());
-      expect(existsSync(join(outputDir, 'scripts', 'lib', 'util.rill'))).toBe(
-        true
-      );
+      expect(existsSync(join(outputDir, 'lib', 'util.rill'))).toBe(true);
     });
 
     it('writes agent.json with resolved manifest', async () => {

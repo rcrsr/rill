@@ -3,6 +3,7 @@
 // ============================================================
 export type {
   LifecyclePhase,
+  LogLevel,
   SessionState,
   SessionRecord,
   AgentHostOptions,

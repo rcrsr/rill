@@ -26,12 +26,13 @@ function generateHostEntry(context: BuildContext): string {
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateManifest, composeAgent } from '@rcrsr/rill-compose';
-import { createAgentHost } from '@rcrsr/rill-host';
+import { createAgentHost, type LogLevel } from '@rcrsr/rill-host';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const manifest = validateManifest(JSON.parse(readFileSync(join(__dirname, 'agent.json'), 'utf-8')));
 const agent = await composeAgent(manifest, { basePath: __dirname });
-const host = createAgentHost(agent, { port: ${port} });
+const logLevel = (process.env.LOG_LEVEL ?? 'info') as LogLevel;
+const host = createAgentHost(agent, { port: ${port}, logLevel });
 await host.listen(${port});
 `;
 }
@@ -45,9 +46,6 @@ await host.listen(${port});
  * Preserves relative directory structure.
  */
 function copyRillScripts(manifestDir: string, outputDir: string): void {
-  const scriptsDir = path.join(outputDir, 'scripts');
-  mkdirSync(scriptsDir, { recursive: true });
-
   let entries: string[];
   try {
     entries = globSync('**/*.rill', { cwd: manifestDir });
@@ -57,7 +55,7 @@ function copyRillScripts(manifestDir: string, outputDir: string): void {
 
   for (const rel of entries) {
     const src = path.join(manifestDir, rel);
-    const dest = path.join(scriptsDir, rel);
+    const dest = path.join(outputDir, rel);
     mkdirSync(path.dirname(dest), { recursive: true });
     cpSync(src, dest);
   }

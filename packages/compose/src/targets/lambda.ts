@@ -174,7 +174,7 @@ const lambdaBuilder: TargetBuilder = {
         entryPoints: [tmpHostPath],
         bundle: true,
         platform: 'node',
-        target: 'node20',
+        target: 'node22',
         format: 'cjs',
         outfile: hostJsPath,
         sourcemap: false,
