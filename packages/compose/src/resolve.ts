@@ -37,26 +37,39 @@ function detectStrategy(packageField: string): ResolutionStrategy {
 // ============================================================
 
 /**
- * Validates that a loaded module exports a callable function as default.
- * Throws ComposeError (phase: 'resolution') if not valid.
+ * Extracts a callable ExtensionFactory from a loaded module.
+ * First tries mod.default; if not callable, scans named exports for the first
+ * callable function. Throws ComposeError (phase: 'resolution') if none found.
  */
 function extractFactory(
   mod: unknown,
   packageField: string
 ): ExtensionFactory<unknown> {
-  const defaultExport =
-    mod !== null && typeof mod === 'object' && 'default' in mod
-      ? (mod as Record<string, unknown>)['default']
-      : mod;
+  if (mod !== null && typeof mod === 'object') {
+    const record = mod as Record<string, unknown>;
 
-  if (typeof defaultExport !== 'function') {
-    throw new ComposeError(
-      `${packageField} does not export a valid ExtensionFactory`,
-      'resolution'
+    if ('default' in record) {
+      if (typeof record['default'] !== 'function') {
+        throw new ComposeError(
+          `${packageField} does not export a valid ExtensionFactory`,
+          'resolution'
+        );
+      }
+      return record['default'] as ExtensionFactory<unknown>;
+    }
+
+    const namedFactory = Object.values(record).find(
+      (v) => typeof v === 'function'
     );
+    if (namedFactory !== undefined) {
+      return namedFactory as ExtensionFactory<unknown>;
+    }
   }
 
-  return defaultExport as ExtensionFactory<unknown>;
+  throw new ComposeError(
+    `${packageField} does not export a valid ExtensionFactory`,
+    'resolution'
+  );
 }
 
 // ============================================================

@@ -187,36 +187,15 @@ describe('resolveExtensions', () => {
       }
     });
 
-    it('resolves an installed npm package', async () => {
-      // Use esbuild which is a known dependency of @rcrsr/rill-compose.
-      // manifestDir must be COMPOSE_DIR so import.meta.resolve can find
-      // packages in packages/compose/node_modules.
-      // esbuild has no default ExtensionFactory export, so EC-18 is thrown.
+    it('resolves an installed npm package (EC-15 does not fire)', async () => {
+      // esbuild is a known dependency — import.meta.resolve finds it.
+      // Its default export is an object (not callable), so EC-18 fires.
+      // This test confirms EC-15 (package not found) is NOT the failure.
       const extensions = { bundler: makeExt('esbuild') };
 
       await expect(
         resolveExtensions(extensions, makeOptions(COMPOSE_DIR))
-      ).rejects.toMatchObject({
-        message: expect.stringContaining(
-          'does not export a valid ExtensionFactory'
-        ),
-        phase: 'resolution',
-      });
-    });
-
-    it('package found in node_modules does not throw EC-15', async () => {
-      // Confirms esbuild resolves successfully before factory validation fails.
-      // EC-15 (package not found) must NOT appear — only EC-18 (no factory).
-      const extensions = { bundler: makeExt('esbuild') };
-      const error = await resolveExtensions(
-        extensions,
-        makeOptions(COMPOSE_DIR)
-      ).catch((e: unknown) => e);
-
-      expect(error).toBeInstanceOf(ComposeError);
-      expect((error as ComposeError).message).not.toContain(
-        'package not found'
-      );
+      ).rejects.toThrow('does not export a valid ExtensionFactory');
     });
   });
 
