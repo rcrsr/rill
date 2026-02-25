@@ -200,7 +200,7 @@ async function resolveBuiltin(
     );
   }
 
-  const mod = await import(`@rcrsr/rill/ext/${name}`);
+  const mod = await import(/* @vite-ignore */ `@rcrsr/rill/ext/${name}`);
   const factory = extractFactory(mod, packageField);
 
   return {
