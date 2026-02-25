@@ -6,8 +6,6 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { serve, type ServerType } from '@hono/node-server';
-import { composeAgent } from '@rcrsr/rill-compose';
-import type { AgentManifest, ComposedAgent } from '@rcrsr/rill-compose';
 import { execute, createRuntimeContext } from '@rcrsr/rill';
 import type { ObservabilityCallbacks } from '@rcrsr/rill';
 import { AgentHostError } from './errors.js';
@@ -48,12 +46,35 @@ const DEFAULTS = {
 } as const;
 
 // ============================================================
+// COMPOSED AGENT INTERFACES
+// ============================================================
+
+export interface AgentCapability {
+  namespace: string;
+  functions: string[];
+}
+
+export interface AgentCard {
+  name: string;
+  version: string;
+  capabilities: AgentCapability[];
+  port?: number | undefined;
+  healthPath?: string | undefined;
+}
+
+export interface ComposedAgent {
+  ast: import('@rcrsr/rill').ScriptNode;
+  context: import('@rcrsr/rill').RuntimeContext;
+  card: AgentCard;
+  dispose(): Promise<void>;
+}
+
+// ============================================================
 // AgentHost INTERFACE
 // ============================================================
 
 export interface AgentHost {
   readonly phase: LifecyclePhase;
-  init(): Promise<void>;
   run(input: RunRequest): Promise<RunResponse>;
   stop(): Promise<void>;
   health(): HealthStatus;
@@ -71,21 +92,21 @@ export interface AgentHost {
 // ============================================================
 
 /**
- * Create an AgentHost in phase 'init'.
- * Caller must call init() before run() or listen().
+ * Create an AgentHost ready to listen().
+ * Accepts a pre-composed agent; no init() step required.
  *
- * EC-1: manifest null/undefined → AgentHostError('manifest is required', 'init')
+ * EC-1: agent null/undefined → TypeError('agent is required')
  */
 export function createAgentHost(
-  manifest: AgentManifest,
+  agent: ComposedAgent,
   options?: AgentHostOptions
 ): AgentHost {
-  if (manifest == null) {
-    throw new AgentHostError('manifest is required', 'init');
+  if (agent == null) {
+    throw new TypeError('agent is required');
   }
 
   const cfg = {
-    port: options?.port ?? DEFAULTS.port,
+    port: options?.port ?? agent.card.port ?? DEFAULTS.port,
     healthPath: options?.healthPath ?? DEFAULTS.healthPath,
     readyPath: options?.readyPath ?? DEFAULTS.readyPath,
     metricsPath: options?.metricsPath ?? DEFAULTS.metricsPath,
@@ -103,8 +124,8 @@ export function createAgentHost(
 
   const startTime = Date.now();
 
-  let phase: LifecyclePhase = 'init';
-  let composedAgent: ComposedAgent | undefined;
+  let phase: LifecyclePhase = 'ready';
+  const composedAgent = agent;
   let httpServer: ServerType | undefined;
 
   const sseStore: SseStore = {
@@ -131,29 +152,9 @@ export function createAgentHost(
     },
 
     // ----------------------------------------------------------
-    // IR-2: init()
-    // ----------------------------------------------------------
-    async init(): Promise<void> {
-      if (phase !== 'init') {
-        throw new AgentHostError('host already initialized', 'init');
-      }
-
-      try {
-        composedAgent = await composeAgent(manifest);
-      } catch (err) {
-        throw new AgentHostError('compose failed', 'init', err);
-      }
-
-      phase = 'ready';
-    },
-
-    // ----------------------------------------------------------
     // IR-3: run()
     // ----------------------------------------------------------
     async run(input: RunRequest): Promise<RunResponse> {
-      if (phase === 'init') {
-        throw new AgentHostError('host not ready', 'lifecycle');
-      }
       if (phase === 'stopped') {
         throw new AgentHostError('host stopped', 'lifecycle');
       }
@@ -359,9 +360,6 @@ export function createAgentHost(
     // IR-4: stop()
     // ----------------------------------------------------------
     async stop(): Promise<void> {
-      if (phase === 'init') {
-        throw new AgentHostError('host not initialized', 'lifecycle');
-      }
       if (phase === 'stopped') {
         // Idempotent — no-op
         return;
@@ -414,9 +412,6 @@ export function createAgentHost(
     // IR-8: listen()
     // ----------------------------------------------------------
     async listen(port?: number): Promise<void> {
-      if (phase === 'init') {
-        throw new AgentHostError('host not ready', 'lifecycle');
-      }
       if (httpServer !== undefined) {
         throw new AgentHostError('server already listening', 'lifecycle');
       }
@@ -427,9 +422,13 @@ export function createAgentHost(
       registerRoutes(app, host, composedAgent!.card, sseStore);
       registerSignalHandlers(host, cfg.drainTimeout);
 
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         httpServer = serve({ fetch: app.fetch, port: listenPort }, () => {
           resolve();
+        });
+        httpServer.once('error', (err: Error) => {
+          httpServer = undefined;
+          reject(err);
         });
       });
     },

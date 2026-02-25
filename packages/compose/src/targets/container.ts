@@ -9,13 +9,28 @@ import {
   globSync,
 } from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { build as esbuild } from 'esbuild';
 import { ComposeError } from '../errors.js';
 import { generateAgentCard } from '../card.js';
 import { assertOutputWritable, buildResolvedManifest } from './helpers.js';
 import type { TargetBuilder, BuildContext, BuildResult } from './index.js';
+
+// ============================================================
+// PACKAGE ROOT
+// ============================================================
+
+/**
+ * Absolute path to the packages/compose directory.
+ * Temp files are written to PACKAGE_ROOT/.rill-tmp/ so esbuild
+ * resolves @rcrsr/rill-host from this package's own node_modules.
+ */
+const PACKAGE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..'
+);
 
 // ============================================================
 // DOCKERFILE TEMPLATE
@@ -43,79 +58,70 @@ CMD ["node", "host.js"]
 // ============================================================
 
 /**
- * Generates a temporary host.ts that sets up an HTTP server,
- * wires extensions, and executes the rill entry script per request.
+ * Generates a temporary host.ts that statically imports each extension,
+ * wires them via hoistExtension, and starts an HTTP server via @rcrsr/rill-host.
+ *
+ * Static imports (not dynamic) allow esbuild to validate and bundle all
+ * extensions at build time, causing build failures for unresolvable specifiers
+ * and ensuring local extension source is inlined into host.js.
+ *
+ * esbuild bundles @rcrsr/rill-host; @rcrsr/rill remains external.
  */
 function generateHostEntry(context: BuildContext): string {
   const { manifest, extensions } = context;
+  const port = manifest.deploy?.port ?? 3000;
 
   const importLines: string[] = [];
   const wireLines: string[] = [];
 
   for (const ext of extensions) {
     const safeVar = ext.alias.replace(/[^a-zA-Z0-9_]/g, '_');
-    // Local extensions use the absolute file path so esbuild can find and bundle them.
-    // npm/builtin extensions use the package alias, resolved from node_modules.
-    const importSpecifier =
-      ext.strategy === 'local' && ext.resolvedPath
-        ? ext.resolvedPath
-        : ext.alias;
+    const specifier = ext.strategy === 'local' ? ext.resolvedPath! : ext.alias;
     importLines.push(
-      `import ${safeVar}Factory from ${JSON.stringify(importSpecifier)};`
+      `import ${safeVar}Factory from ${JSON.stringify(specifier)};`
     );
     wireLines.push(
-      `  [${JSON.stringify(ext.namespace)}, ${safeVar}Factory(${JSON.stringify(ext.config)})],`
+      `  [${JSON.stringify(ext.namespace)}, ${safeVar}Factory, ${JSON.stringify(ext.config)}],`
     );
   }
 
-  const port = manifest.deploy?.port ?? 3000;
-  const healthPath = manifest.deploy?.healthPath ?? '/health';
-  const entryScript = manifest.entry;
+  const importBlock =
+    importLines.length > 0 ? '\n' + importLines.join('\n') : '';
 
-  return `import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+  return `import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRuntimeContext, execute } from '@rcrsr/rill';
-${importLines.join('\n')}
+import { createRuntimeContext, hoistExtension, parse } from '@rcrsr/rill';
+import { createAgentHost } from '@rcrsr/rill-host';${importBlock}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptPath = join(__dirname, 'scripts', ${JSON.stringify(entryScript)});
-const source = readFileSync(scriptPath, 'utf-8');
-
-const namespaceMap = new Map([
+const manifest = JSON.parse(readFileSync(join(__dirname, 'agent.json'), 'utf-8'));
+const extensions = [
 ${wireLines.join('\n')}
-]);
+];
 
-const server = createServer(async (req, res) => {
-  if (req.url === ${JSON.stringify(healthPath)}) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
+let mergedFunctions = {};
+const disposeHandlers = [];
+for (const [namespace, factory, config] of extensions) {
+  const instance = factory(config);
+  const hoisted = hoistExtension(namespace, instance);
+  mergedFunctions = { ...mergedFunctions, ...hoisted.functions };
+  if (hoisted.dispose) disposeHandlers.push(hoisted.dispose);
+}
+const context = createRuntimeContext({ functions: mergedFunctions });
+const source = readFileSync(join(__dirname, 'scripts', manifest.entry), 'utf-8');
+const ast = parse(source);
+const card = { name: manifest.name, version: manifest.version, capabilities: [] };
+const agent = {
+  ast, context, card,
+  async dispose() {
+    for (const h of [...disposeHandlers].reverse()) {
+      try { await h(); } catch {}
+    }
   }
-
-  try {
-    const ctx = createRuntimeContext({
-      functions: Object.fromEntries(
-        [...namespaceMap.entries()].flatMap(([ns, ext]) =>
-          Object.entries(ext)
-            .filter(([k]) => k !== 'dispose' && typeof ext[k] === 'function')
-            .map(([k, fn]) => [\`\${ns}::\${k}\`, fn])
-        )
-      ),
-    });
-    const result = await execute(source, ctx);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ result }));
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
-  }
-});
-
-server.listen(${port}, () => {
-  process.stderr.write(\`Agent listening on port ${port}\\n\`);
-});
+};
+const host = createAgentHost(agent, { port: ${port} });
+await host.listen(${port});
 `;
 }
 
@@ -288,13 +294,15 @@ const containerBuilder: TargetBuilder = {
     // Copy assets (AC-24: warn on 0 matches, non-blocking)
     copyAssets(manifest, manifestDir, outputDir);
 
-    // Generate host entry in a UUID-named temp subdirectory.
+    // Generate host entry in a UUID-named subdirectory co-located with
+    // this package so esbuild resolves @rcrsr/rill-host from packages/compose/node_modules.
     // The fixed filename 'host.ts' ensures esbuild produces deterministic output
     // across concurrent builds; the UUID directory prevents same-name collisions.
     const hostSource = generateHostEntry(context);
     const tmpBuildDir = path.join(
-      os.tmpdir(),
-      `rill-build-${randomUUID().slice(0, 8)}`
+      PACKAGE_ROOT,
+      '.rill-tmp',
+      randomUUID().slice(0, 8)
     );
     mkdirSync(tmpBuildDir, { recursive: true });
     const tmpHostPath = path.join(tmpBuildDir, 'host.ts');

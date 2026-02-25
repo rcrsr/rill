@@ -9,21 +9,18 @@
 ## Installation
 
 ```bash
-npm install @rcrsr/rill-host @rcrsr/rill-compose
+npm install @rcrsr/rill-host
 ```
-
-`@rcrsr/rill-compose` is a required peer dependency.
 
 ## Quick Start
 
 ```typescript
 import { createAgentHost } from '@rcrsr/rill-host';
-import { loadManifest } from '@rcrsr/rill-compose';
+import { composeAgent } from '@rcrsr/rill-compose';
 
-const manifest = await loadManifest('./agent.json');
-const host = createAgentHost(manifest);
+const agent = await composeAgent('./agent.json');
+const host = createAgentHost(agent);
 
-await host.init();
 await host.listen(3000);
 ```
 
@@ -33,8 +30,7 @@ The host transitions through phases in order. `PAUSED` is not available.
 
 | Phase | Description |
 |-------|-------------|
-| `INIT` | Host created, not yet composed. Rejects `run()` and `listen()`. |
-| `READY` | `init()` completed. Accepts requests. No sessions running yet. |
+| `READY` | Host created. Accepts requests. No sessions running yet. |
 | `RUNNING` | First session started. Transitions automatically on first `run()`. |
 | `STOPPED` | `stop()` called. Drains active sessions, then closes. |
 
@@ -132,7 +128,6 @@ Connect to `GET /sessions/{id}/stream` to receive real-time execution events. La
 ```typescript
 interface AgentHost {
   readonly phase: LifecyclePhase;
-  init(): Promise<void>;
   run(input: RunRequest): Promise<RunResponse>;
   stop(): Promise<void>;
   health(): HealthStatus;
@@ -143,11 +138,11 @@ interface AgentHost {
 }
 ```
 
-Call `init()` before `run()` or `listen()`. Call `close()` to stop the HTTP server without draining sessions.
+Call `run()` or `listen()` after creating the host. Call `close()` to stop the HTTP server without draining sessions.
 
 ## Configuration
 
-Pass options as the second argument to `createAgentHost(manifest, options)`.
+Pass options as the second argument to `createAgentHost(agent, options)`.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

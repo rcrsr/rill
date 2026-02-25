@@ -62,54 +62,77 @@ const archiver = require('archiver') as (
 // ============================================================
 
 /**
- * Generates a Lambda handler host.ts.
- * Lambda invokes exports.handler — no HTTP server needed.
- * All dependencies are bundled by esbuild (bundle: true).
+ * Generates a Lambda handler that statically requires each extension,
+ * wires them via hoistExtension, and delegates invocations to
+ * createAgentHandler from @rcrsr/rill-host.
+ *
+ * Static require() calls (not dynamic) allow esbuild to validate and bundle
+ * all extensions at build time, causing build failures for unresolvable
+ * specifiers (EC-23). esbuild bundles all deps including @rcrsr/rill.
  */
 function generateLambdaHostEntry(context: BuildContext): string {
-  const { manifest, extensions } = context;
+  const { extensions } = context;
 
-  const importLines: string[] = [];
+  const requireLines: string[] = [];
   const wireLines: string[] = [];
 
   for (const ext of extensions) {
     const safeVar = ext.alias.replace(/[^a-zA-Z0-9_]/g, '_');
-    importLines.push(
-      `import ${safeVar}Factory from ${JSON.stringify(ext.alias)};`
+    const specifier = ext.strategy === 'local' ? ext.resolvedPath! : ext.alias;
+    requireLines.push(
+      `const ${safeVar}Factory = require(${JSON.stringify(specifier)});`
     );
     wireLines.push(
-      `  [${JSON.stringify(ext.namespace)}, ${safeVar}Factory(${JSON.stringify(ext.config)})],`
+      `    [${JSON.stringify(ext.namespace)}, ${safeVar}Factory, ${JSON.stringify(ext.config)}],`
     );
   }
 
-  const entryScript = manifest.entry;
+  const requireBlock =
+    requireLines.length > 0 ? requireLines.join('\n') + '\n' : '';
 
-  return `import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createRuntimeContext, execute } from '@rcrsr/rill';
-${importLines.join('\n')}
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptPath = join(__dirname, 'scripts', ${JSON.stringify(entryScript)});
-const source = readFileSync(scriptPath, 'utf-8');
-
-const namespaceMap = new Map([
+  return `const { createRuntimeContext, hoistExtension, parse } = require('@rcrsr/rill');
+const { createAgentHandler } = require('@rcrsr/rill-host');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
+${requireBlock}
+const manifest = JSON.parse(readFileSync(join(__dirname, 'agent.json'), 'utf-8'));
+const extensions = [
 ${wireLines.join('\n')}
-]);
+];
 
-export const handler = async (event: unknown): Promise<unknown> => {
-  const ctx = createRuntimeContext({
-    functions: Object.fromEntries(
-      [...namespaceMap.entries()].flatMap(([ns, ext]) =>
-        Object.entries(ext as Record<string, unknown>)
-          .filter(([k]) => k !== 'dispose' && typeof (ext as Record<string, unknown>)[k] === 'function')
-          .map(([k, fn]) => [\`\${ns}::\${k}\`, fn])
-      )
-    ),
-  });
-  const result = await execute(source, ctx);
-  return { statusCode: 200, body: JSON.stringify({ result, event }) };
+let handlerPromise;
+function getHandler() {
+  if (handlerPromise === undefined) {
+    handlerPromise = (async () => {
+      let mergedFunctions = {};
+      const disposeHandlers = [];
+      for (const [namespace, factory, config] of extensions) {
+        const instance = factory(config);
+        const hoisted = hoistExtension(namespace, instance);
+        mergedFunctions = { ...mergedFunctions, ...hoisted.functions };
+        if (hoisted.dispose) disposeHandlers.push(hoisted.dispose);
+      }
+      const rillContext = createRuntimeContext({ functions: mergedFunctions });
+      const source = readFileSync(join(__dirname, 'scripts', manifest.entry), 'utf-8');
+      const ast = parse(source);
+      const card = { name: manifest.name, version: manifest.version, capabilities: [] };
+      const agent = {
+        ast, context: rillContext, card,
+        async dispose() {
+          for (const h of [...disposeHandlers].reverse()) {
+            try { await h(); } catch {}
+          }
+        }
+      };
+      return createAgentHandler(agent);
+    })();
+  }
+  return handlerPromise;
+}
+
+exports.handler = async function handler(event, context) {
+  const agentHandler = await getHandler();
+  return agentHandler(event, context);
 };
 `;
 }

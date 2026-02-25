@@ -20,5 +20,21 @@ export { AgentHostError } from './errors.js';
 // ============================================================
 // AGENT HOST
 // ============================================================
-export type { AgentHost } from './host.js';
+export type {
+  AgentHost,
+  ComposedAgent,
+  AgentCard,
+  AgentCapability,
+} from './host.js';
 export { createAgentHost } from './host.js';
+
+// ============================================================
+// SERVERLESS HANDLER
+// ============================================================
+export type {
+  APIGatewayEvent,
+  LambdaContext,
+  HandlerResponse,
+  AgentHandler,
+} from './handler.js';
+export { createAgentHandler } from './handler.js';

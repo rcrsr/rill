@@ -6,7 +6,8 @@
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import type { AgentManifest } from '@rcrsr/rill-compose';
+import { composeAgent } from '@rcrsr/rill-compose';
+import type { ComposedAgent } from '../../src/index.js';
 import type { AgentHost, AgentHostOptions } from '../../src/index.js';
 import { createAgentHost } from '../../src/index.js';
 
@@ -18,27 +19,28 @@ const FIXTURE_DIR = path.resolve(
   '../../fixtures'
 );
 
-const MINIMAL_ENTRY = path.join(FIXTURE_DIR, 'minimal.rill');
-
 // ============================================================
-// MOCK MANIFEST
+// MOCK COMPOSED AGENT
 // ============================================================
 
 /**
- * Returns a minimal valid AgentManifest for testing.
- * All optional collection fields use empty defaults.
+ * Returns a minimal ComposedAgent for testing by calling composeAgent()
+ * with a local manifest literal and the fixture directory as basePath.
  */
-export function mockManifest(): AgentManifest {
-  return {
-    name: 'test-agent',
-    version: '0.0.1',
-    runtime: '@rcrsr/rill@*',
-    entry: MINIMAL_ENTRY,
-    modules: {},
-    extensions: {},
-    functions: {},
-    assets: [],
-  };
+export async function mockComposedAgent(): Promise<ComposedAgent> {
+  return composeAgent(
+    {
+      name: 'test-agent',
+      version: '0.0.1',
+      runtime: '@rcrsr/rill@*',
+      entry: 'minimal.rill',
+      modules: {},
+      extensions: {},
+      functions: {},
+      assets: [],
+    },
+    { basePath: FIXTURE_DIR }
+  );
 }
 
 // ============================================================
@@ -47,12 +49,10 @@ export function mockManifest(): AgentManifest {
 
 /**
  * Creates a fully initialized AgentHost in 'ready' state for testing.
- * Calls init() before returning so the host is ready to run scripts.
+ * createAgentHost() accepts a pre-composed agent; no init() call is needed.
  */
 export async function createTestHost(
   options?: AgentHostOptions
 ): Promise<AgentHost> {
-  const host = createAgentHost(mockManifest(), options);
-  await host.init();
-  return host;
+  return createAgentHost(await mockComposedAgent(), options);
 }

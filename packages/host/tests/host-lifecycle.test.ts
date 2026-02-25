@@ -2,53 +2,42 @@
  * Tests for AgentHost lifecycle, phase transitions, and error contracts.
  *
  * Covered:
- *   AC-1   createAgentHost returns host with phase 'init'
- *   AC-2   init() calls composeAgent, transitions to 'ready'
+ *   AC-1   createAgentHost returns host with phase 'ready'
  *   AC-3   run() returns RunResponse with state 'completed'
  *   AC-4   sessions() returns record with correct stepCount
  *   AC-5   health() returns HealthStatus with phase 'running' after run
  *   AC-6   metrics() returns Prometheus text with all 6 rill_* metric names
  *   AC-12  close() stops HTTP server; subsequent requests fail
+ *   AC-15  createAgentHost(null) throws TypeError('agent is required')
+ *   AC-18  agent.card.port fallback: no options → listen binds to card.port
  *   AC-27  10 concurrent run() calls succeed; 11th throws
  *   AC-31  sessions() returns [] with no active sessions
- *   EC-1   createAgentHost(null) throws AgentHostError('manifest is required', 'init')
- *   EC-2   init() called twice throws AgentHostError('host already initialized', 'init')
- *   EC-3   init() with bad manifest wraps ComposeError as cause
- *   EC-4   run() before init() throws AgentHostError('host not ready', 'lifecycle')
+ *   EC-1   createAgentHost(null) throws TypeError('agent is required')
+ *   EC-2   listen() called twice rejects with Error('server already listening')
+ *   EC-3   listen() on port in use rejects with EADDRINUSE
  *   EC-5   run() after stop() throws AgentHostError('host stopped', 'lifecycle')
  *   EC-6   run() at capacity throws AgentHostError('session limit reached', 'capacity')
- *   EC-7   stop() before init() throws AgentHostError('host not initialized', 'lifecycle')
  *   EC-8   stop() called twice is no-op (idempotent)
- *   EC-9   listen() before init() throws AgentHostError('host not ready', 'lifecycle')
  *   EC-10  listen() called twice throws AgentHostError('server already listening', 'lifecycle')
  *   EC-11  close() when not listening is no-op
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import type { AgentManifest } from '@rcrsr/rill-compose';
 import {
   createAgentHost,
   AgentHostError,
   type AgentHost,
-  type AgentHostOptions,
+  type ComposedAgent,
 } from '../src/index.js';
-import { createTestHost, mockManifest } from './helpers/host.js';
+import { createTestHost, mockComposedAgent } from './helpers/host.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
 /**
- * Creates a host without calling init().
- * Used to test pre-init error contracts.
- */
-function createUninitializedHost(options?: AgentHostOptions): AgentHost {
-  return createAgentHost(mockManifest(), options);
-}
-
-/**
  * Safely stops a host that may be in any phase.
- * No-op if host is in 'init' or 'stopped' phase.
+ * No-op if host is in 'stopped' phase.
  */
 async function safeStop(host: AgentHost): Promise<void> {
   if (host.phase === 'ready' || host.phase === 'running') {
@@ -75,94 +64,39 @@ afterEach(async () => {
 // ============================================================
 
 describe('createAgentHost', () => {
-  it('returns AgentHost with phase init synchronously (AC-1)', () => {
-    const host = createUninitializedHost();
+  it('returns AgentHost with phase ready synchronously (AC-1)', async () => {
+    const host = await createTestHost();
     hostsToClean.push(host);
 
-    expect(host.phase).toBe('init');
-  });
-
-  it('throws AgentHostError when manifest is null (EC-1)', () => {
-    expect(() =>
-      createAgentHost(null as unknown as AgentManifest)
-    ).toThrowError(AgentHostError);
-
-    let thrown: unknown;
-    try {
-      createAgentHost(null as unknown as AgentManifest);
-    } catch (err) {
-      thrown = err;
-    }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('manifest is required');
-    expect(err.phase).toBe('init');
-  });
-
-  it('throws AgentHostError when manifest is undefined (EC-1)', () => {
-    let thrown: unknown;
-    try {
-      createAgentHost(undefined as unknown as AgentManifest);
-    } catch (err) {
-      thrown = err;
-    }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('manifest is required');
-    expect(err.phase).toBe('init');
-  });
-});
-
-// ============================================================
-// INIT TESTS
-// ============================================================
-
-describe('init()', () => {
-  it('calls composeAgent and transitions phase to ready (AC-2)', async () => {
-    const host = createUninitializedHost();
-    hostsToClean.push(host);
-
-    expect(host.phase).toBe('init');
-    await host.init();
     expect(host.phase).toBe('ready');
   });
 
-  it('throws AgentHostError when called twice (EC-2)', async () => {
-    const host = createUninitializedHost();
-    hostsToClean.push(host);
-
-    await host.init();
+  it('throws TypeError when agent is null (AC-15 / EC-1)', () => {
+    expect(() => createAgentHost(null as unknown as ComposedAgent)).toThrow(
+      TypeError
+    );
 
     let thrown: unknown;
     try {
-      await host.init();
+      createAgentHost(null as unknown as ComposedAgent);
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('host already initialized');
-    expect(err.phase).toBe('init');
+    expect(thrown).toBeInstanceOf(TypeError);
+    const err = thrown as TypeError;
+    expect(err.message).toBe('agent is required');
   });
 
-  it('wraps ComposeError when manifest entry is invalid (EC-3)', async () => {
-    const badManifest: AgentManifest = {
-      ...mockManifest(),
-      entry: '/nonexistent/path/script.rill',
-    };
-    const host = createAgentHost(badManifest);
-    hostsToClean.push(host);
-
+  it('throws TypeError when agent is undefined (EC-1)', () => {
     let thrown: unknown;
     try {
-      await host.init();
+      createAgentHost(undefined as unknown as ComposedAgent);
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.phase).toBe('init');
-    expect(err.cause).toBeDefined();
+    expect(thrown).toBeInstanceOf(TypeError);
+    const err = thrown as TypeError;
+    expect(err.message).toBe('agent is required');
   });
 });
 
@@ -180,22 +114,6 @@ describe('run()', () => {
     expect(response.state).toBe('completed');
     expect(response.sessionId).toBeDefined();
     expect(response.correlationId).toBeDefined();
-  });
-
-  it('throws AgentHostError when phase is init (EC-4)', async () => {
-    const host = createUninitializedHost();
-    hostsToClean.push(host);
-
-    let thrown: unknown;
-    try {
-      await host.run({});
-    } catch (err) {
-      thrown = err;
-    }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('host not ready');
-    expect(err.phase).toBe('lifecycle');
   });
 
   it('throws AgentHostError when phase is stopped (EC-5)', async () => {
@@ -343,22 +261,6 @@ describe('metrics()', () => {
 // ============================================================
 
 describe('stop()', () => {
-  it('throws AgentHostError when phase is init (EC-7)', async () => {
-    const host = createUninitializedHost();
-    hostsToClean.push(host);
-
-    let thrown: unknown;
-    try {
-      await host.stop();
-    } catch (err) {
-      thrown = err;
-    }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('host not initialized');
-    expect(err.phase).toBe('lifecycle');
-  });
-
   it('is a no-op when called twice on a stopped host (EC-8)', async () => {
     const host = await createTestHost();
     hostsToClean.push(host);
@@ -377,22 +279,6 @@ describe('stop()', () => {
 // ============================================================
 
 describe('listen()', () => {
-  it('throws AgentHostError when phase is init (EC-9)', async () => {
-    const host = createUninitializedHost();
-    hostsToClean.push(host);
-
-    let thrown: unknown;
-    try {
-      await host.listen(0);
-    } catch (err) {
-      thrown = err;
-    }
-    expect(thrown).toBeInstanceOf(AgentHostError);
-    const err = thrown as AgentHostError;
-    expect(err.message).toBe('host not ready');
-    expect(err.phase).toBe('lifecycle');
-  });
-
   it('throws AgentHostError when called twice (EC-10)', async () => {
     const host = await createTestHost();
     hostsToClean.push(host);
@@ -414,6 +300,63 @@ describe('listen()', () => {
     const err = thrown as AgentHostError;
     expect(err.message).toBe('server already listening');
     expect(err.phase).toBe('lifecycle');
+  });
+
+  it('rejects with EADDRINUSE when port is already in use (EC-2 / EC-3)', async () => {
+    const hostA = await createTestHost();
+    const hostB = await createTestHost();
+
+    // Bind hostA to a fixed port so hostB can conflict with it.
+    await hostA.listen(19998);
+
+    let thrown: unknown;
+    try {
+      await hostB.listen(19998);
+    } catch (err) {
+      thrown = err;
+    } finally {
+      await hostA.close().catch(() => undefined);
+      await hostB.close().catch(() => undefined);
+    }
+
+    expect(thrown).toBeDefined();
+    const err = thrown as { code?: string };
+    expect(err.code).toBe('EADDRINUSE');
+  });
+
+  it('binds to agent.card.port when no options are provided (AC-18)', async () => {
+    // Arrange: build an agent with card.port = 8080, no options passed to createAgentHost.
+    const base = await mockComposedAgent();
+    const agentWithPort: ComposedAgent = {
+      ...base,
+      card: { ...base.card, port: 8080 },
+    };
+    const host = createAgentHost(agentWithPort);
+    hostsToClean.push(host);
+
+    // Act: listen() with no port argument — must resolve cfg.port from card.port.
+    await host.listen();
+
+    // Assert phase is running (listen transitions from ready → running on first run,
+    // but phase stays 'ready' until run() is called; the server is up regardless).
+    expect(host.phase).toBe('ready');
+
+    // Verify the server bound to port 8080 by confirming a second host cannot
+    // bind to the same port (EADDRINUSE), matching the EC-3 pattern.
+    const probe = await createTestHost();
+    let thrown: unknown;
+    try {
+      await probe.listen(8080);
+    } catch (err) {
+      thrown = err;
+    } finally {
+      await host.close().catch(() => undefined);
+      await probe.close().catch(() => undefined);
+    }
+
+    expect(thrown).toBeDefined();
+    const err = thrown as { code?: string };
+    expect(err.code).toBe('EADDRINUSE');
   });
 });
 

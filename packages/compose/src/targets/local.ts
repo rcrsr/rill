@@ -9,73 +9,30 @@ import type { TargetBuilder, BuildContext, BuildResult } from './index.js';
 // ============================================================
 
 /**
- * Generates a host.ts that wires extensions and executes
- * the rill entry script. Users run it with: tsx dist/host.ts
+ * Generates a host.ts that loads agent.json, composes the agent,
+ * and starts a full server via @rcrsr/rill-host. Run with: tsx dist/host.ts
  */
 function generateHostEntry(context: BuildContext): string {
-  const { manifest, extensions } = context;
-
-  const importLines: string[] = [];
-  const wireLines: string[] = [];
-
-  for (const ext of extensions) {
-    const safeVar = ext.alias.replace(/[^a-zA-Z0-9_]/g, '_');
-    importLines.push(
-      `import ${safeVar}Factory from ${JSON.stringify(ext.alias)};`
-    );
-    wireLines.push(
-      `  [${JSON.stringify(ext.namespace)}, ${safeVar}Factory(${JSON.stringify(ext.config)})],`
-    );
+  if (context.manifest == null) {
+    throw new TypeError('context.manifest is required');
+  }
+  if (!context.manifest.entry) {
+    throw new TypeError('context.manifest.entry is required');
   }
 
-  const port = manifest.deploy?.port ?? 3000;
-  const healthPath = manifest.deploy?.healthPath ?? '/health';
-  const entryScript = manifest.entry;
+  const port = context.manifest.deploy?.port ?? 3000;
 
-  return `import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+  return `import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRuntimeContext, execute } from '@rcrsr/rill';
-${importLines.join('\n')}
+import { validateManifest, composeAgent } from '@rcrsr/rill-compose';
+import { createAgentHost } from '@rcrsr/rill-host';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptPath = join(__dirname, 'scripts', ${JSON.stringify(entryScript)});
-const source = readFileSync(scriptPath, 'utf-8');
-
-const namespaceMap = new Map([
-${wireLines.join('\n')}
-]);
-
-const server = createServer(async (req, res) => {
-  if (req.url === ${JSON.stringify(healthPath)}) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
-  }
-
-  try {
-    const ctx = createRuntimeContext({
-      functions: Object.fromEntries(
-        [...namespaceMap.entries()].flatMap(([ns, ext]) =>
-          Object.entries(ext)
-            .filter(([k]) => k !== 'dispose' && typeof ext[k] === 'function')
-            .map(([k, fn]) => [\`\${ns}::\${k}\`, fn])
-        )
-      ),
-    });
-    const result = await execute(source, ctx);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ result }));
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
-  }
-});
-
-server.listen(${port}, () => {
-  process.stderr.write(\`Agent listening on port ${port}\\n\`);
-});
+const manifest = validateManifest(JSON.parse(readFileSync(join(__dirname, 'agent.json'), 'utf-8')));
+const agent = await composeAgent(manifest, { basePath: __dirname });
+const host = createAgentHost(agent, { port: ${port} });
+await host.listen(${port});
 `;
 }
 
@@ -155,6 +112,9 @@ const localBuilder: TargetBuilder = {
   async build(context: BuildContext): Promise<BuildResult> {
     const { manifest, extensions, outputDir, manifestDir } = context;
 
+    // Generate host entry first — throws TypeError early for EC-6 / EC-7 guards.
+    const hostSource = generateHostEntry(context);
+
     // EC-22: assert output directory is writable
     assertOutputWritable(outputDir);
 
@@ -164,8 +124,7 @@ const localBuilder: TargetBuilder = {
     // Copy assets (warn on 0 matches, non-blocking)
     copyAssets(manifest, manifestDir, outputDir);
 
-    // Generate host.ts and write as-is (no esbuild; users run with tsx)
-    const hostSource = generateHostEntry(context);
+    // Write generated host.ts as-is (no esbuild; users run with tsx)
     writeFileSync(path.join(outputDir, 'host.ts'), hostSource, 'utf-8');
 
     // Build resolved manifest (FR-BUILD-11)

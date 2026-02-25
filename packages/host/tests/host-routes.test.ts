@@ -25,7 +25,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import type { AgentCard } from '@rcrsr/rill-compose';
+import type { AgentCard } from '../src/index.js';
 import { registerRoutes } from '../src/routes.js';
 import type { RouteHost, SseStore } from '../src/routes.js';
 import type {

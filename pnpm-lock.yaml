@@ -413,15 +413,16 @@ importers:
       '@rcrsr/rill':
         specifier: workspace:^
         version: link:../core
-      '@rcrsr/rill-compose':
-        specifier: workspace:^
-        version: link:../compose
       hono:
         specifier: ^4.12.2
         version: 4.12.2
       prom-client:
         specifier: ^15.1.3
         version: 15.1.3
+    devDependencies:
+      '@rcrsr/rill-compose':
+        specifier: workspace:^
+        version: link:../compose
 
   packages/shared/ext-llm:
     devDependencies:

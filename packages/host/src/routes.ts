@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import type { AgentCard } from '@rcrsr/rill-compose';
+import type { AgentCard } from './host.js';
 import type {
   LifecyclePhase,
   RunRequest,

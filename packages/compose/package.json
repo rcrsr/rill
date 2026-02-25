@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:^",
+    "@rcrsr/rill-host": "workspace:^",
     "zod": "^4.0.0",
     "archiver": "^7.0.0",
     "esbuild": "^0.27.0"

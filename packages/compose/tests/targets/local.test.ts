@@ -12,6 +12,7 @@ import {
   mkdirSync,
   existsSync,
   chmodSync,
+  readFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -132,6 +133,94 @@ describe('LocalBuilder', () => {
     it('returns card with correct name', async () => {
       const result = await build('local', makeContext());
       expect(result.card.name).toBe('my-agent');
+    });
+  });
+
+  // ============================================================
+  // AC-9: host.ts imports from @rcrsr/rill-host (≤15 lines)
+  // ============================================================
+
+  describe('host.ts content [AC-9]', () => {
+    it('generated host.ts imports from @rcrsr/rill-host', async () => {
+      await build('local', makeContext());
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain('@rcrsr/rill-host');
+    });
+
+    it('generated host.ts imports from @rcrsr/rill-compose', async () => {
+      await build('local', makeContext());
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain('@rcrsr/rill-compose');
+    });
+
+    it('generated host.ts is 15 lines or fewer', async () => {
+      await build('local', makeContext());
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      const lines = content.split('\n').filter((l) => l.length > 0);
+      expect(lines.length).toBeLessThanOrEqual(15);
+    });
+
+    it('substitutes deploy.port into generated host.ts', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: { port: 8080, healthPath: '/health', stateBackend: undefined },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain('8080');
+    });
+
+    it('uses default port 3000 when deploy.port is absent', async () => {
+      await build('local', makeContext());
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain('3000');
+    });
+  });
+
+  // ============================================================
+  // EC-6: null manifest → TypeError
+  // EC-7: missing entry → TypeError
+  // ============================================================
+
+  describe('generateHostEntry guards [EC-6, EC-7]', () => {
+    it('throws TypeError when context.manifest is null [EC-6]', async () => {
+      // Cast to bypass TypeScript — tests runtime guard behavior.
+      const ctx = makeContext({
+        manifest: null as unknown as BuildContext['manifest'],
+      });
+      await expect(build('local', ctx)).rejects.toThrow(TypeError);
+    });
+
+    it('error message identifies manifest as required [EC-6]', async () => {
+      const ctx = makeContext({
+        manifest: null as unknown as BuildContext['manifest'],
+      });
+      await expect(build('local', ctx)).rejects.toThrow(
+        'context.manifest is required'
+      );
+    });
+
+    it('throws TypeError when context.manifest.entry is empty string [EC-7]', async () => {
+      const manifest = { ...VALID_MANIFEST, entry: '' };
+      const ctx = makeContext({ manifest });
+      await expect(build('local', ctx)).rejects.toThrow(TypeError);
+    });
+
+    it('error message identifies entry as required [EC-7]', async () => {
+      const manifest = { ...VALID_MANIFEST, entry: '' };
+      const ctx = makeContext({ manifest });
+      await expect(build('local', ctx)).rejects.toThrow(
+        'context.manifest.entry is required'
+      );
+    });
+
+    it('throws TypeError when manifest.entry is undefined [EC-7]', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        entry: undefined,
+      } as unknown as BuildContext['manifest'];
+      const ctx = makeContext({ manifest });
+      await expect(build('local', ctx)).rejects.toThrow(TypeError);
     });
   });
 
