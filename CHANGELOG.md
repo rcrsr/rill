@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LLM structured output via `generate()`** — Provider-agnostic `generate(prompt, options)` function for all three LLM extensions. Accepts rill schema dicts, returns typed 6-key dict (`data`, `raw`, `model`, `usage`, `stop_reason`, `id`). Shared `buildJsonSchema` utility handles rill-to-JSON-Schema conversion for 6 types with nested dict, list, and enum support. 119 tests across shared, Anthropic, OpenAI, and Gemini packages
+
 - **@rcrsr/rill-host** — Production HTTP server for rill agents via `createAgentHost(manifest, options?)`. 12 routes including `/run`, `/stop`, `/healthz`, `/readyz`, `/metrics`, `/sessions`. Session manager with TTL pruning, abort, and concurrency cap. Prometheus metrics, graceful SIGTERM drain, SSE event streaming
 
 - **@rcrsr/rill-compose** — Manifest-driven agent composition via `agent.json`. CLI builds 4 targets: `container` (Dockerfile + node_modules), `lambda` (zip), `worker` (single ESM file), `local` (unbundled). Programmatic API via `composeAgent(manifest)`
