@@ -1,4 +1,4 @@
-# rill-compose: Manifest-Based Agent Composition
+# Compose
 
 *Assemble and deploy rill agents from agent.json manifests*
 

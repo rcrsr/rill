@@ -18,7 +18,7 @@
 - [Strings](https://rill.run/docs/data/strings/): String methods for text manipulation
 - [Host Integration](https://rill.run/docs/integration/host/): Embedding rill in applications
 - [Agent Host](https://rill.run/docs/integration/agent-host/): Production HTTP server for rill agents
-- [rill-compose](https://rill.run/docs/integration/compose/): Manifest-based agent composition API and CLI
+- [Compose](https://rill.run/docs/integration/compose/): Manifest-based agent composition API and CLI
 - [Host API Reference](https://rill.run/docs/reference/host-api/): Complete TypeScript API exports
 - [Developing Extensions](https://rill.run/docs/integration/extensions/): Writing reusable host function packages
 - [Modules](https://rill.run/docs/integration/modules/): Convention for host-provided module systems

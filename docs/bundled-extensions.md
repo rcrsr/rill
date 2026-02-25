@@ -232,4 +232,4 @@ External extensions ship as separate npm packages. Install and integrate as need
 
 - [Developing Extensions](integration-extensions.md) — Writing custom extensions
 - [Host Integration](integration-host.md) — Embedding API
-- [rill-compose](integration-compose.md) — Declaring extensions in agent.json manifests
+- [Compose](integration-compose.md) — Declaring extensions in agent.json manifests

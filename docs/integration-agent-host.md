@@ -192,4 +192,4 @@ Every request propagates the `X-Correlation-ID` header value into the session re
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports for `@rcrsr/rill` |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects with `rill-compose init` |
-| [rill-compose](integration-compose.md) | Manifest format, validateManifest, and composeAgent API |
+| [Compose](integration-compose.md) | Manifest format, validateManifest, and composeAgent API |

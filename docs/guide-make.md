@@ -834,5 +834,5 @@ These patterns cause broken projects or runtime errors. Avoid them.
 
 | Document | Description |
 |----------|-------------|
-| [rill-compose](integration-compose.md) | Manifest format and programmatic composition API |
+| [Compose](integration-compose.md) | Manifest format and programmatic composition API |
 | [Agent Host](integration-agent-host.md) | Production HTTP server for rill agents |
