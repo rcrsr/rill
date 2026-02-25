@@ -23,9 +23,9 @@
   "dependencies": {
     "@rcrsr/rill": "workspace:^",
     "@rcrsr/rill-host": "workspace:^",
-    "zod": "^4.0.0",
-    "archiver": "^7.0.0",
-    "esbuild": "^0.27.0"
+    "archiver": "^7.0.1",
+    "esbuild": "^0.27.3",
+    "zod": "^4.3.6"
   },
   "files": [
     "dist"

@@ -162,13 +162,15 @@ export function createPineconeExtension(
             const index = client.Index(factoryIndex);
 
             // Call Pinecone API
-            await index.namespace(factoryNamespace).upsert([
-              {
-                id,
-                values: Array.from(vector.data),
-                metadata,
-              },
-            ]);
+            await index.namespace(factoryNamespace).upsert({
+              records: [
+                {
+                  id,
+                  values: Array.from(vector.data),
+                  metadata,
+                },
+              ],
+            });
 
             // Build and return result
             return {
@@ -233,13 +235,15 @@ export function createPineconeExtension(
 
             try {
               // Call Pinecone API
-              await index.namespace(factoryNamespace).upsert([
-                {
-                  id,
-                  values: Array.from(vector.data),
-                  metadata,
-                },
-              ]);
+              await index.namespace(factoryNamespace).upsert({
+                records: [
+                  {
+                    id,
+                    values: Array.from(vector.data),
+                    metadata,
+                  },
+                ],
+              });
 
               succeeded++;
             } catch (error: unknown) {
@@ -424,7 +428,7 @@ export function createPineconeExtension(
             // Call Pinecone API
             const response = await index
               .namespace(factoryNamespace)
-              .fetch([id]);
+              .fetch({ ids: [id] });
 
             // EC-7: ID not found
             if (!response.records || response.records[id] === undefined) {
@@ -479,7 +483,7 @@ export function createPineconeExtension(
 
             // Call Pinecone API
             const ns = factoryNamespace || '';
-            await index.namespace(ns).deleteOne(id);
+            await index.namespace(ns).deleteOne({ id });
 
             // Build and return result
             return {
@@ -516,7 +520,7 @@ export function createPineconeExtension(
 
             try {
               // Call Pinecone API
-              await index.namespace(factoryNamespace).deleteOne(id);
+              await index.namespace(factoryNamespace).deleteOne({ id });
 
               succeeded++;
             } catch (error: unknown) {

@@ -587,15 +587,9 @@ describe('Collection lifecycle operations', () => {
         { name: 'collection-3' },
       ]);
 
-      const result = (await ext.list_collections.fn([], ctx)) as Array<
-        Record<string, unknown>
-      >;
+      const result = await ext.list_collections.fn([], ctx);
 
-      expect(result).toEqual([
-        { name: 'collection-1' },
-        { name: 'collection-2' },
-        { name: 'collection-3' },
-      ]);
+      expect(result).toEqual(['collection-1', 'collection-2', 'collection-3']);
     });
 
     it('lists no collections (AC-30)', async () => {

@@ -225,16 +225,18 @@ describe('Vector CRUD operations', () => {
 
       expect(upsertResult['id']).toBe('doc-1');
       expect(upsertResult['success']).toBe(true);
-      expect(mockUpsert).toHaveBeenCalledWith([
-        expect.objectContaining({
-          id: 'doc-1',
-          metadata,
-        }),
-      ]);
+      expect(mockUpsert).toHaveBeenCalledWith({
+        records: [
+          expect.objectContaining({
+            id: 'doc-1',
+            metadata,
+          }),
+        ],
+      });
       // Verify values array is present (Float32Array conversion may have precision differences)
       const callArgs = mockUpsert.mock.calls[0]?.[0];
       expect(callArgs).toBeDefined();
-      expect(callArgs[0]?.values).toHaveLength(4);
+      expect(callArgs.records[0]?.values).toHaveLength(4);
 
       // Get vector back
       const getResult = (await ext.get.fn(['doc-1'], ctx)) as Record<
@@ -568,7 +570,7 @@ describe('Vector CRUD operations', () => {
 
       expect(result['id']).toBe('doc-1');
       expect(result['deleted']).toBe(true);
-      expect(mockDeleteOne).toHaveBeenCalledWith('doc-1');
+      expect(mockDeleteOne).toHaveBeenCalledWith({ id: 'doc-1' });
     });
 
     it('deletes batch of vectors', async () => {

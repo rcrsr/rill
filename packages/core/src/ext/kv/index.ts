@@ -415,7 +415,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
       params: [
         { name: 'mount', type: 'string', description: 'Mount name' },
         { name: 'key', type: 'string', description: 'Key to set' },
-        { name: 'value', type: 'string', description: 'Value to store' },
+        { name: 'value', type: 'any', description: 'Value to store' },
       ],
       fn: set,
       description: 'Set value with validation',

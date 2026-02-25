@@ -31,6 +31,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Variable method calls returned null** — `$var.len`, `$var.trim`, and other built-in methods on variables returned `null` instead of invoking the method. Literal syntax (`[0,1,2].len`) worked correctly. Root cause: `evaluateVariableAsync` treated access chain fields as dict lookups, falling through to `null` for non-dict values. Fix checks `BUILTIN_METHODS` before dict field access and synthesizes a `MethodCallNode` to invoke the method
 
+- **kv::set rejected non-string values** — `set` function declared `value` parameter as type `'string'` but the kv contract accepts any serializable value. Changed to type `'any'`
+
+### Dependencies
+
+- **Node 22** — esbuild targets and Dockerfile base images updated from Node 20 to Node 22
+- **chromadb** 1.10.5 → 3.3.1 — Updated `Where` and `CollectionMetadata` type casts, `listCollections()` returns collection names instead of objects
+- **@pinecone-database/pinecone** 3.0.3 → 7.1.0 — `upsert`, `fetch`, and `deleteOne` migrated to options-object API
+- **@anthropic-ai/sdk** 0.74.0 → 0.78.0
+- **openai** 6.18.0 → 6.25.0
+- **@google/genai** 1.40.0 → 1.42.0
+- **@modelcontextprotocol/sdk** 1.26.0 → 1.27.1
+- **@aws-sdk/client-s3** 3.989.0 → 3.997.0
+- **better-sqlite3** 11.10.0 → 12.6.2
+- **@qdrant/js-client-rest** 1.16.2 → 1.17.0
+- **tailwindcss** 4.1.18 → 4.2.1, **@tailwindcss/vite** 4.1.18 → 4.2.1
+- **@typescript-eslint/\*** 8.54.0 → 8.56.1, **eslint** 9.39.2 → 10.0.2
+- Patch updates across @codemirror/\*, @types/node, @types/react, happy-dom, vite, and others
+
 ## [0.8.6] - 2026-02-15
 
 ### Added

@@ -3,7 +3,7 @@
  * Creates extension instance with config validation and SDK lifecycle management.
  */
 
-import { ChromaClient } from 'chromadb';
+import { ChromaClient, type Where, type CollectionMetadata } from 'chromadb';
 import {
   RuntimeError,
   emitExtensionEvent,
@@ -279,14 +279,14 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
           const queryRequest: {
             queryEmbeddings: number[][];
             nResults: number;
-            where?: Record<string, unknown>;
+            where?: Where;
           } = {
             queryEmbeddings: [Array.from(vector.data)],
             nResults: k,
           };
 
           if (Object.keys(filter).length > 0) {
-            queryRequest.where = filter;
+            queryRequest.where = filter as Where;
           }
 
           // Call ChromaDB API
@@ -615,7 +615,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
           // Call ChromaDB API
           await client.createCollection({
             name,
-            metadata,
+            metadata: metadata as CollectionMetadata,
           });
 
           // Build result
@@ -713,7 +713,7 @@ export function createChromaExtension(config: ChromaConfig): ExtensionResult {
           checkDisposed(disposalState, 'chroma');
 
           // Call ChromaDB API
-          const names = await client.listCollections();
+          const names = (await client.listCollections()).map((c) => c.name);
 
           // Emit success event
           const duration = Date.now() - startTime;

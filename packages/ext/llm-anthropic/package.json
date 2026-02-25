@@ -29,10 +29,10 @@
   "devDependencies": {
     "@rcrsr/rill": "workspace:^",
     "@rcrsr/rill-ext-llm-shared": "workspace:^",
-    "@types/node": "^25.2.3",
+    "@types/node": "^25.3.0",
     "dts-bundle-generator": "^9.5.1",
-    "tsup": "^8.5.0",
-    "undici-types": "^7.21.0"
+    "tsup": "^8.5.1",
+    "undici-types": "^7.22.0"
   },
   "files": [
     "dist"
@@ -50,6 +50,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0"
+    "@anthropic-ai/sdk": "^0.78.0"
   }
 }
