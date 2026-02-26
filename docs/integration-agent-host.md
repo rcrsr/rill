@@ -213,6 +213,7 @@ Pass options as the second argument to `createAgentHost(agent, options)`.
 | `sessionTtl` | `number` | `3600000` ms | Retention time for completed session records |
 | `maxConcurrentSessions` | `number` | `10` | Maximum simultaneous running sessions |
 | `responseTimeout` | `number` | `30000` ms | Time before `POST /run` returns `state: "running"` |
+| `stateBackend` | `StateBackend` | `createMemoryBackend()` | Persistent storage backend for checkpoint and session state. See [State Backends](integration-state-backends.md). |
 
 ## Observability
 

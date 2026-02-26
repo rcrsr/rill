@@ -15,6 +15,7 @@ import type {
 } from '@rcrsr/rill-compose';
 export type { AgentCard, AgentCapabilities, AgentSkill };
 import { AgentHostError } from './errors.js';
+import { createMemoryBackend } from './memory-backend.js';
 import { SessionManager } from './session.js';
 import {
   getMetricsText,
@@ -31,10 +32,12 @@ import type {
   AgentHostOptions,
   LifecyclePhase,
   LogLevel,
+  PersistedSessionState,
   RunRequest,
   RunResponse,
   HealthStatus,
   SessionRecord,
+  StateBackend,
 } from './types.js';
 
 // ============================================================
@@ -74,6 +77,7 @@ export interface ComposedAgent {
   context: import('@rcrsr/rill').RuntimeContext;
   card: AgentCard;
   dispose(): Promise<void>;
+  extensions: Record<string, import('@rcrsr/rill').ExtensionResult>;
 }
 
 // ============================================================
@@ -86,12 +90,15 @@ export interface AgentHost {
   stop(): Promise<void>;
   health(): HealthStatus;
   metrics(): Promise<string>;
-  sessions(): SessionRecord[];
+  sessions(): Promise<SessionRecord[]>;
   listen(port?: number): Promise<void>;
   close(): Promise<void>;
   // RouteHost extensions
   abortSession(id: string): boolean;
-  getSession(id: string): SessionRecord | undefined;
+  getSession(id: string): Promise<SessionRecord | undefined>;
+  // Checkpoint extension lifecycle
+  collectExtensionState(): Promise<Record<string, unknown>>;
+  applyExtensionState(state: Record<string, unknown>): Promise<void>;
 }
 
 // ============================================================
@@ -130,6 +137,45 @@ export function createAgentHost(
     sessionTtl: cfg.sessionTtl,
   });
 
+  const backend: StateBackend = options?.stateBackend ?? createMemoryBackend();
+
+  // Tracks all session IDs ever written to the backend, so sessions() can
+  // fetch persisted sessions that are no longer in the in-process SessionManager.
+  const persistedSessionIds = new Set<string>();
+
+  // ----------------------------------------------------------
+  // Persist a session record to the backend (fire-and-forget).
+  // ----------------------------------------------------------
+  async function persistSession(record: SessionRecord): Promise<void> {
+    persistedSessionIds.add(record.id);
+    const persisted: PersistedSessionState = {
+      sessionId: record.id,
+      agentName: composedAgent.card.name,
+      state: record.state,
+      startTime: record.startTime,
+      lastActivity: Date.now(),
+      metadata: {},
+    };
+    await backend.putSession(record.id, persisted);
+  }
+
+  // ----------------------------------------------------------
+  // Map a PersistedSessionState back to a SessionRecord.
+  // In-process-only fields are set to zero/empty values.
+  // ----------------------------------------------------------
+  function mapToSessionRecord(p: PersistedSessionState): SessionRecord {
+    return {
+      id: p.sessionId,
+      state: p.state,
+      startTime: p.startTime,
+      durationMs: undefined,
+      stepCount: 0,
+      variables: {},
+      trigger: undefined,
+      correlationId: '',
+    };
+  }
+
   const startTime = Date.now();
 
   let phase: LifecyclePhase = 'ready';
@@ -148,6 +194,48 @@ export function createAgentHost(
     sseStore.eventBuffers.set(sessionId, buf);
     const subscriber = sseStore.subscribers.get(sessionId);
     if (subscriber !== undefined) subscriber(payload);
+  }
+
+  // ============================================================
+  // EXTENSION SUSPEND / RESTORE HELPERS (AC-33 – AC-37, EC-21 – EC-23)
+  // ============================================================
+
+  /**
+   * Collect extension state by calling suspend() on each implementing extension.
+   * Extensions without suspend are skipped (AC-35).
+   * Throws if suspend() returns a non-JSON-serializable value (AC-37 / EC-21).
+   * Throws if suspend() itself throws (EC-22).
+   */
+  async function collectExtensionState(): Promise<Record<string, unknown>> {
+    const state: Record<string, unknown> = {};
+    for (const [alias, ext] of Object.entries(composedAgent.extensions)) {
+      if (typeof ext.suspend !== 'function') continue;
+      const value = await Promise.resolve(ext.suspend());
+      try {
+        JSON.stringify(value);
+      } catch {
+        throw new Error(
+          `Extension "${alias}": suspend() returned non-JSON-serializable value`
+        );
+      }
+      state[alias] = value;
+    }
+    return state;
+  }
+
+  /**
+   * Apply saved extension state by calling restore(state) on each implementing extension.
+   * Extensions without restore are skipped (AC-36).
+   * Throws if restore() throws (EC-23).
+   */
+  async function applyExtensionState(
+    state: Record<string, unknown>
+  ): Promise<void> {
+    for (const [alias, ext] of Object.entries(composedAgent.extensions)) {
+      if (typeof ext.restore !== 'function') continue;
+      const savedState = state[alias];
+      await Promise.resolve(ext.restore(savedState));
+    }
   }
 
   // ============================================================
@@ -188,6 +276,9 @@ export function createAgentHost(
       );
 
       sessionsActive.inc();
+
+      // Persist initial 'running' state (AC-29, AC-30)
+      void persistSession(record);
 
       // Build per-session AbortController
       const sessionController = sessionManager.getController(sessionId);
@@ -275,6 +366,8 @@ export function createAgentHost(
           record.value = result.value;
           record.variables = result.variables;
 
+          void persistSession(record);
+
           sessionsActive.dec();
           sessionsTotal
             .labels({ state: 'completed', trigger: input.trigger ?? 'api' })
@@ -314,6 +407,8 @@ export function createAgentHost(
           record.state = 'failed';
           record.durationMs = durationMs;
           record.error = err instanceof Error ? err.message : String(err);
+
+          void persistSession(record);
 
           console.error(`[host] session ${sessionId} failed: ${record.error}`);
 
@@ -406,6 +501,12 @@ export function createAgentHost(
         }
       }
 
+      try {
+        await backend.close();
+      } catch {
+        // Best-effort close
+      }
+
       log('info', `[host] ${composedAgent.card.name} stopped`, cfg.logLevel);
     },
 
@@ -430,9 +531,23 @@ export function createAgentHost(
 
     // ----------------------------------------------------------
     // IR-7: sessions()
+    // AC-29: reads from configured backend
+    // AC-31: restored sessions appear in list after host restart
     // ----------------------------------------------------------
-    sessions(): SessionRecord[] {
-      return sessionManager.list();
+    async sessions(): Promise<SessionRecord[]> {
+      const inMemory = sessionManager.list();
+      const inMemoryIds = new Set(inMemory.map((s) => s.id));
+
+      const extra: SessionRecord[] = [];
+      for (const id of persistedSessionIds) {
+        if (!inMemoryIds.has(id)) {
+          const p = await backend.getSession(id);
+          if (p !== null) {
+            extra.push(mapToSessionRecord(p));
+          }
+        }
+      }
+      return [...inMemory, ...extra];
     },
 
     // ----------------------------------------------------------
@@ -444,6 +559,13 @@ export function createAgentHost(
       }
 
       const listenPort = port ?? cfg.port;
+
+      try {
+        await backend.connect();
+      } catch {
+        throw new AgentHostError('state backend connection failed', 'init');
+      }
+
       const app = new Hono();
 
       registerRoutes(app, host, composedAgent!.card, sseStore);
@@ -496,8 +618,23 @@ export function createAgentHost(
       return sessionManager.abort(id);
     },
 
-    getSession(id: string): SessionRecord | undefined {
-      return sessionManager.get(id);
+    async getSession(id: string): Promise<SessionRecord | undefined> {
+      const inMemory = sessionManager.get(id);
+      if (inMemory !== undefined) return inMemory;
+      const p = await backend.getSession(id);
+      if (p !== null) return mapToSessionRecord(p);
+      return undefined;
+    },
+
+    // ----------------------------------------------------------
+    // Extension suspend / restore (AC-33 – AC-37, EC-21 – EC-23)
+    // ----------------------------------------------------------
+    collectExtensionState(): Promise<Record<string, unknown>> {
+      return collectExtensionState();
+    },
+
+    applyExtensionState(state: Record<string, unknown>): Promise<void> {
+      return applyExtensionState(state);
     },
   };
 

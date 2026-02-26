@@ -14,7 +14,11 @@ import { randomUUID } from 'node:crypto';
 import { build as esbuild } from 'esbuild';
 import { ComposeError } from '../errors.js';
 import { generateAgentCard } from '../card.js';
-import { assertOutputWritable, buildResolvedManifest } from './helpers.js';
+import {
+  assertOutputWritable,
+  buildResolvedManifest,
+  generateStateBackendSnippet,
+} from './helpers.js';
 import type { TargetBuilder, BuildContext, BuildResult } from './index.js';
 
 // ============================================================
@@ -81,8 +85,21 @@ function generateHostEntry(context: BuildContext): string {
     );
   }
 
+  const stateSnippet = generateStateBackendSnippet(
+    manifest.deploy?.stateBackend
+  );
+
+  if (stateSnippet !== null) {
+    importLines.push(stateSnippet.importLine);
+  }
+
   const importBlock =
     importLines.length > 0 ? '\n' + importLines.join('\n') : '';
+
+  const createHostLine =
+    stateSnippet !== null
+      ? `const stateBackend = ${stateSnippet.instantiation};\nconst host = createAgentHost(agent, { port: ${port}, logLevel, stateBackend });`
+      : `const host = createAgentHost(agent, { port: ${port}, logLevel });`;
 
   return `import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -117,7 +134,7 @@ const agent = {
   }
 };
 const logLevel = process.env.LOG_LEVEL ?? 'info';
-const host = createAgentHost(agent, { port: ${port}, logLevel });
+${createHostLine}
 await host.listen(${port});
 `;
 }

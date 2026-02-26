@@ -56,11 +56,11 @@ export interface RouteHost {
   stop(): Promise<void>;
   health(): HealthStatus;
   metrics(): Promise<string>;
-  sessions(): SessionRecord[];
+  sessions(): Promise<SessionRecord[]>;
   /** Delegates to SessionManager.abort(). Returns false if not found or already terminal. */
   abortSession(id: string): boolean;
   /** Delegates to SessionManager.get(). Returns undefined if not found or TTL elapsed. */
-  getSession(id: string): SessionRecord | undefined;
+  getSession(id: string): Promise<SessionRecord | undefined>;
 }
 
 // ============================================================
@@ -207,13 +207,19 @@ export function registerRoutes(
   // AC-21: 409 when session is already completed/failed
   // AC-20: 404 when session not found
   // ----------------------------------------------------------
-  app.post('/sessions/:id/abort', (c) => {
+  app.post('/sessions/:id/abort', async (c) => {
     const id = c.req.param('id');
     if (!id) {
       return c.json({ error: 'session not found' }, 404);
     }
 
-    const session = host.getSession(id);
+    let session: SessionRecord | undefined;
+    try {
+      session = await host.getSession(id);
+    } catch {
+      return c.json({ error: 'internal error' }, 500);
+    }
+
     if (session === undefined) {
       return c.json({ error: 'session not found' }, 404);
     }
@@ -301,21 +307,33 @@ export function registerRoutes(
   // ----------------------------------------------------------
   // GET /sessions
   // ----------------------------------------------------------
-  app.get('/sessions', (c) => {
-    return c.json(host.sessions(), 200);
+  app.get('/sessions', async (c) => {
+    let records: SessionRecord[];
+    try {
+      records = await host.sessions();
+    } catch {
+      return c.json({ error: 'internal error' }, 500);
+    }
+    return c.json(records, 200);
   });
 
   // ----------------------------------------------------------
   // GET /sessions/:id
   // AC-20: 404 for unknown ID
   // ----------------------------------------------------------
-  app.get('/sessions/:id', (c) => {
+  app.get('/sessions/:id', async (c) => {
     const id = c.req.param('id');
     if (!id) {
       return c.json({ error: 'session not found' }, 404);
     }
 
-    const session = host.getSession(id);
+    let session: SessionRecord | undefined;
+    try {
+      session = await host.getSession(id);
+    } catch {
+      return c.json({ error: 'internal error' }, 500);
+    }
+
     if (session === undefined) {
       return c.json({ error: 'session not found' }, 404);
     }
@@ -328,13 +346,19 @@ export function registerRoutes(
   // AC-9: emits step, capture, done events
   // AC-33: late connect receives buffered done event
   // ----------------------------------------------------------
-  app.get('/sessions/:id/stream', (c) => {
+  app.get('/sessions/:id/stream', async (c) => {
     const id = c.req.param('id');
     if (!id) {
       return c.json({ error: 'session not found' }, 404);
     }
 
-    const session = host.getSession(id);
+    let session: SessionRecord | undefined;
+    try {
+      session = await host.getSession(id);
+    } catch {
+      return c.json({ error: 'internal error' }, 500);
+    }
+
     if (session === undefined) {
       return c.json({ error: 'session not found' }, 404);
     }

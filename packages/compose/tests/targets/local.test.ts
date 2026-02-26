@@ -249,6 +249,113 @@ describe('LocalBuilder', () => {
   });
 
   // ============================================================
+  // IC-10: stateBackend wiring in generated host.ts
+  // ============================================================
+
+  describe('stateBackend wiring [IC-10]', () => {
+    it('omits stateBackend import when deploy.stateBackend is absent', async () => {
+      await build('local', makeContext());
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).not.toContain('stateBackend');
+    });
+
+    it('generates memory backend import when type is memory', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: { type: 'memory' as const },
+        },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain(
+        "import { createMemoryBackend } from '@rcrsr/rill-host'"
+      );
+      expect(content).toContain('createMemoryBackend()');
+    });
+
+    it('passes stateBackend to createAgentHost when memory type is configured', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: { type: 'memory' as const },
+        },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain('stateBackend');
+    });
+
+    it('generates file backend import when type is file', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: {
+            type: 'file' as const,
+            config: { dir: '/tmp/state' },
+          },
+        },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain(
+        "import { createFileBackend } from '@rcrsr/rill-state-fs'"
+      );
+      expect(content).toContain('createFileBackend({"dir":"/tmp/state"})');
+    });
+
+    it('generates sqlite backend import when type is sqlite', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: {
+            type: 'sqlite' as const,
+            config: { filePath: '/tmp/state.db' },
+          },
+        },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain(
+        "import { createSqliteBackend } from '@rcrsr/rill-state-sqlite'"
+      );
+      expect(content).toContain(
+        'createSqliteBackend({"filePath":"/tmp/state.db"})'
+      );
+    });
+
+    it('generates redis backend import when type is redis', async () => {
+      const manifest = {
+        ...VALID_MANIFEST,
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: {
+            type: 'redis' as const,
+            config: { url: 'redis://localhost' },
+          },
+        },
+      } as unknown as BuildContext['manifest'];
+      await build('local', makeContext({ manifest }));
+      const content = readFileSync(join(outputDir, 'host.ts'), 'utf-8');
+      expect(content).toContain(
+        "import { createRedisBackend } from '@rcrsr/rill-state-redis'"
+      );
+      expect(content).toContain(
+        'createRedisBackend({"url":"redis://localhost"})'
+      );
+    });
+  });
+
+  // ============================================================
   // EC-22: Output directory not writable
   // ============================================================
 

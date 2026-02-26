@@ -57,10 +57,12 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 ```typescript
 type ExtensionResult = Record<string, HostFunctionDefinition> & {
   dispose?: () => void | Promise<void>;
+  suspend?: () => unknown;
+  restore?: (state: unknown) => void;
 };
 ```
 
-Each key (except `dispose`) maps a function name to a `HostFunctionDefinition`. The runtime registers these as callable host functions.
+Each key (except `dispose`, `suspend`, and `restore`) maps a function name to a `HostFunctionDefinition`. The runtime registers these as callable host functions.
 
 ### ExtensionFactory Type
 
@@ -186,6 +188,49 @@ try {
 - Must be idempotent (safe to call multiple times)
 - Should not throw — log warnings for cleanup failures
 - Always call `dispose()` in a `finally` block
+
+## Checkpoint Lifecycle
+
+Extensions persist state across checkpoint save and restore by implementing `suspend()` and `restore()` on `ExtensionResult`.
+
+```typescript
+type ExtensionResult = Record<string, HostFunctionDefinition> & {
+  dispose?: () => void | Promise<void>;
+  suspend?: () => unknown;
+  restore?: (state: unknown) => void;
+};
+```
+
+When the host saves a checkpoint, it calls `suspend()` on each extension that implements it. The return value must be JSON-serializable. The host throws if `JSON.stringify(suspend())` fails.
+
+When the host restores a checkpoint, it calls `restore(state)` on each extension that implements it. The `state` argument is the exact value returned by the prior `suspend()` call.
+
+Extensions without `suspend` are excluded from `extensionState` in the checkpoint. Extensions without `restore` are skipped during restore.
+
+```typescript
+function createCounterExtension(): ExtensionResult {
+  let count = 0;
+
+  return {
+    increment: {
+      params: [],
+      fn: () => ++count,
+      description: 'Increment counter',
+      returnType: 'number',
+    },
+    suspend: () => ({ count }),
+    restore: (state) => {
+      const s = state as { count: number };
+      count = s.count;
+    },
+    dispose: () => {
+      count = 0;
+    },
+  };
+}
+```
+
+See [State Backends](integration-state-backends.md) for checkpoint storage infrastructure.
 
 ## Package Structure
 

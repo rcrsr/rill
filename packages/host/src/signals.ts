@@ -4,8 +4,6 @@
  * Register once during listen(). Not idempotent.
  */
 
-import type { SessionRecord } from './types.js';
-
 // ============================================================
 // MINIMAL HOST INTERFACE
 // ============================================================
@@ -17,7 +15,6 @@ import type { SessionRecord } from './types.js';
  */
 interface SignalHost {
   stop(): Promise<void>;
-  sessions(): SessionRecord[];
 }
 
 // ============================================================

@@ -372,7 +372,7 @@ describe('AgentHost sessions integration', () => {
 
     const response = await host.run({});
 
-    const session = host.getSession(response.sessionId);
+    const session = await host.getSession(response.sessionId);
     expect(session).toBeDefined();
     expect(session?.id).toBe(response.sessionId);
   });
@@ -428,7 +428,7 @@ describe('AgentHost sessions integration', () => {
 
     const response: RunResponse = await host.run({});
 
-    const session = host.getSession(response.sessionId);
+    const session = await host.getSession(response.sessionId);
     expect(session).toBeDefined();
     expect(session?.correlationId).toBe(response.correlationId);
   });
@@ -442,7 +442,7 @@ describe('AgentHost sessions integration', () => {
     const r1 = await host.run({});
     const r2 = await host.run({});
 
-    const all = host.sessions();
+    const all = await host.sessions();
     const ids = all.map((s) => s.id);
 
     expect(ids).toContain(r1.sessionId);

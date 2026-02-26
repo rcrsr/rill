@@ -1,6 +1,46 @@
 import { accessSync, mkdirSync, constants } from 'node:fs';
 import { ComposeError } from '../errors.js';
 import type { BuildContext, ResolvedManifest } from './index.js';
+import type { ManifestStateBackendConfig } from '../schema.js';
+
+// ============================================================
+// STATE BACKEND CODE GENERATION
+// ============================================================
+
+/**
+ * Returns import line and instantiation expression for state backend.
+ * Returns null when no stateBackend is configured (caller uses default).
+ */
+export function generateStateBackendSnippet(
+  stateBackend: ManifestStateBackendConfig | undefined
+): { importLine: string; instantiation: string } | null {
+  if (stateBackend === undefined) return null;
+
+  switch (stateBackend.type) {
+    case 'memory':
+      return {
+        importLine: "import { createMemoryBackend } from '@rcrsr/rill-host';",
+        instantiation: 'createMemoryBackend()',
+      };
+    case 'file':
+      return {
+        importLine: "import { createFileBackend } from '@rcrsr/rill-state-fs';",
+        instantiation: `createFileBackend(${JSON.stringify(stateBackend.config ?? {})})`,
+      };
+    case 'sqlite':
+      return {
+        importLine:
+          "import { createSqliteBackend } from '@rcrsr/rill-state-sqlite';",
+        instantiation: `createSqliteBackend(${JSON.stringify(stateBackend.config ?? {})})`,
+      };
+    case 'redis':
+      return {
+        importLine:
+          "import { createRedisBackend } from '@rcrsr/rill-state-redis';",
+        instantiation: `createRedisBackend(${JSON.stringify(stateBackend.config ?? {})})`,
+      };
+  }
+}
 
 // ============================================================
 // SHARED TARGET BUILDER HELPERS

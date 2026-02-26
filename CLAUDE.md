@@ -8,6 +8,9 @@ rill uses pnpm workspaces with the following package organization:
 | `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
 | `packages/ext/claude-code` | `@rcrsr/rill-ext-claude-code` | Claude Code integration extension |
 | `packages/host` | `@rcrsr/rill-host` | Agent HTTP server with lifecycle, sessions, and metrics |
+| `packages/state-fs` | `@rcrsr/rill-state-fs` | File-based state backend |
+| `packages/state-sqlite` | `@rcrsr/rill-state-sqlite` | SQLite state backend |
+| `packages/state-redis` | `@rcrsr/rill-state-redis` | Redis state backend |
 
 ## Commands
 

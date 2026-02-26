@@ -11,10 +11,12 @@ interface RuntimeContextLike {
 
 /**
  * Result object returned by extension factories.
- * Contains host function definitions with optional cleanup.
+ * Contains host function definitions with optional cleanup and session lifecycle hooks.
  */
 export type ExtensionResult = Record<string, HostFunctionDefinition> & {
   dispose?: () => void | Promise<void>;
+  suspend?: () => unknown;
+  restore?: (state: unknown) => void;
 };
 
 /**

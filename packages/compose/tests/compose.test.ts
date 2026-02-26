@@ -569,4 +569,48 @@ describe('composeAgent', () => {
       expect(agent.modules['utils']!['answer']).toBe(42);
     });
   });
+
+  // ============================================================
+  // IC-10: stateBackendConfig pass-through
+  // ============================================================
+
+  describe('IC-10: stateBackendConfig pass-through', () => {
+    it('returns stateBackendConfig matching file backend when deploy.stateBackend is file type', async () => {
+      writeEntryFile(testDir);
+      const manifest = makeManifest({
+        deploy: {
+          stateBackend: { type: 'file', config: { dir: '/tmp' } },
+        },
+      });
+
+      const agent = await composeAgent(manifest, makeOptions());
+
+      expect(agent.stateBackendConfig).toEqual({
+        type: 'file',
+        config: { dir: '/tmp' },
+      });
+    });
+
+    it('returns stateBackendConfig.type === memory when deploy.stateBackend is memory type', async () => {
+      writeEntryFile(testDir);
+      const manifest = makeManifest({
+        deploy: {
+          stateBackend: { type: 'memory' },
+        },
+      });
+
+      const agent = await composeAgent(manifest, makeOptions());
+
+      expect(agent.stateBackendConfig?.type).toBe('memory');
+    });
+
+    it('returns stateBackendConfig === undefined when manifest has no deploy field', async () => {
+      writeEntryFile(testDir);
+      const manifest = makeManifest();
+
+      const agent = await composeAgent(manifest, makeOptions());
+
+      expect(agent.stateBackendConfig).toBeUndefined();
+    });
+  });
 });

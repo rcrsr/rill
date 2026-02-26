@@ -194,7 +194,7 @@ describe('sessions()', () => {
     const host = await createTestHost();
     hostsToClean.push(host);
 
-    const sessions = host.sessions();
+    const sessions = await host.sessions();
 
     expect(Array.isArray(sessions)).toBe(true);
     expect(sessions).toHaveLength(0);
@@ -206,7 +206,7 @@ describe('sessions()', () => {
 
     await host.run({});
 
-    const sessions = host.sessions();
+    const sessions = await host.sessions();
     expect(sessions).toHaveLength(1);
     const record = sessions[0];
     expect(record).toBeDefined();

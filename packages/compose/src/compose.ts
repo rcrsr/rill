@@ -7,6 +7,7 @@ export type {
   ManifestExtension,
   ManifestHostOptions,
   ManifestDeployOptions,
+  ManifestStateBackendConfig,
 } from './schema.js';
 export { validateManifest } from './schema.js';
 export type { ExtensionFactory } from '@rcrsr/rill';
@@ -27,13 +28,14 @@ import {
   type RuntimeContext,
   type RillValue,
   type HostFunctionDefinition,
+  type ExtensionResult,
   hoistExtension,
   createRuntimeContext,
   parse,
   execute,
 } from '@rcrsr/rill';
 import { ComposeError } from './errors.js';
-import type { AgentManifest } from './schema.js';
+import type { AgentManifest, ManifestStateBackendConfig } from './schema.js';
 import { interpolateEnv } from './interpolate.js';
 import { resolveExtensions } from './resolve.js';
 import { type AgentCard, generateAgentCard } from './card.js';
@@ -53,6 +55,8 @@ export interface ComposedAgent {
   readonly modules: Record<string, Record<string, RillValue>>;
   dispose(): Promise<void>;
   readonly card: AgentCard;
+  readonly extensions: Record<string, ExtensionResult>;
+  readonly stateBackendConfig?: ManifestStateBackendConfig | undefined;
 }
 
 // ============================================================
@@ -215,9 +219,10 @@ export async function composeAgent(
   // hoist each extension and collect functions
   const disposeHandlers: Array<() => void | Promise<void>> = [];
   let mergedFunctions: Record<string, HostFunctionDefinition> = {};
+  const extensions: Record<string, ExtensionResult> = {};
 
   for (const ext of resolved) {
-    let instance;
+    let instance: ExtensionResult;
     try {
       instance = ext.factory(ext.config);
     } catch (err) {
@@ -227,6 +232,8 @@ export async function composeAgent(
         'init'
       );
     }
+
+    extensions[ext.alias] = instance;
 
     const hoisted = hoistExtension(ext.namespace, instance);
     mergedFunctions = { ...mergedFunctions, ...hoisted.functions };
@@ -292,6 +299,8 @@ export async function composeAgent(
     ast,
     modules,
     card,
+    extensions,
+    stateBackendConfig: manifest.deploy?.stateBackend,
     async dispose(): Promise<void> {
       for (const handler of reverseDispose) {
         try {

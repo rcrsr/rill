@@ -1,7 +1,11 @@
 import { cpSync, mkdirSync, writeFileSync, globSync } from 'node:fs';
 import path from 'node:path';
 import { generateAgentCard } from '../card.js';
-import { assertOutputWritable, buildResolvedManifest } from './helpers.js';
+import {
+  assertOutputWritable,
+  buildResolvedManifest,
+  generateStateBackendSnippet,
+} from './helpers.js';
 import type { TargetBuilder, BuildContext, BuildResult } from './index.js';
 
 // ============================================================
@@ -21,18 +25,29 @@ function generateHostEntry(context: BuildContext): string {
   }
 
   const port = context.manifest.deploy?.port ?? 3000;
+  const stateSnippet = generateStateBackendSnippet(
+    context.manifest.deploy?.stateBackend
+  );
+
+  const stateBackendImportLine =
+    stateSnippet !== null ? `\n${stateSnippet.importLine}` : '';
+
+  const createHostLine =
+    stateSnippet !== null
+      ? `const stateBackend = ${stateSnippet.instantiation};\nconst host = createAgentHost(agent, { port: ${port}, logLevel, stateBackend });`
+      : `const host = createAgentHost(agent, { port: ${port}, logLevel });`;
 
   return `import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateManifest, composeAgent } from '@rcrsr/rill-compose';
-import { createAgentHost, type LogLevel } from '@rcrsr/rill-host';
+import { createAgentHost, type LogLevel } from '@rcrsr/rill-host';${stateBackendImportLine}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const manifest = validateManifest(JSON.parse(readFileSync(join(__dirname, 'agent.json'), 'utf-8')));
 const agent = await composeAgent(manifest, { basePath: __dirname });
 const logLevel = (process.env.LOG_LEVEL ?? 'info') as LogLevel;
-const host = createAgentHost(agent, { port: ${port}, logLevel });
+${createHostLine}
 await host.listen(${port});
 `;
 }

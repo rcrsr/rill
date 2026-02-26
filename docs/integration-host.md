@@ -946,8 +946,11 @@ try {
 
 ## See Also
 
-- [Host API Reference](ref-host-api.md) — Complete TypeScript API reference and exports
-- [Extensions](integration-extensions.md) — Reusable function packages
-- [Modules](integration-modules.md) — Module convention
-- [Reference](ref-language.md) — Language specification
+| Document | Description |
+|----------|-------------|
+| [State Backends](integration-state-backends.md) | Persistent storage for checkpoints and session state |
+| [Host API Reference](ref-host-api.md) | Complete TypeScript API reference and exports |
+| [Extensions](integration-extensions.md) | Reusable function packages |
+| [Modules](integration-modules.md) | Module convention |
+| [Reference](ref-language.md) | Language specification |
 
