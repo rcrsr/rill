@@ -47,10 +47,10 @@ export type InputParamDescriptor = {
   default?: unknown;
 };
 
-export type OutputDescriptor = {
+export type OutputSchema = {
   type: 'string' | 'number' | 'bool' | 'list' | 'dict';
   description?: string | undefined;
-  fields?: Record<string, OutputDescriptor> | undefined;
+  fields?: Record<string, OutputSchema> | undefined;
 };
 
 // ============================================================
@@ -66,12 +66,12 @@ export const inputParamDescriptorSchema = z
   })
   .strict();
 
-export const outputDescriptorSchema: z.ZodType<OutputDescriptor> = z.lazy(() =>
+export const outputSchemaSchema: z.ZodType<OutputSchema> = z.lazy(() =>
   z
     .object({
       type: z.enum(['string', 'number', 'bool', 'list', 'dict']),
       description: z.string().optional(),
-      fields: z.record(z.string(), outputDescriptorSchema).optional(),
+      fields: z.record(z.string(), outputSchemaSchema).optional(),
     })
     .strict()
 );
@@ -142,7 +142,7 @@ const agentManifestSchema = z
     host: manifestHostOptionsSchema.optional(),
     deploy: manifestDeployOptionsSchema.optional(),
     input: inputSchemaSchema.optional(),
-    output: outputDescriptorSchema.optional(),
+    output: outputSchemaSchema.optional(),
     env: z.array(envSourceSchema).optional(),
   })
   .strict();

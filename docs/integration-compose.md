@@ -51,7 +51,7 @@ await agent.dispose();
 | `description` | string | no | — | Agent description for A2A discovery |
 | `skills` | AgentSkill[] | no | `[]` | Agent skill declarations |
 | `input` | Record\<string, InputParamDescriptor\> | no | `{}` | Named input parameters with type and validation rules |
-| `output` | OutputDescriptor | no | — | Expected output type descriptor for discovery and tooling |
+| `output` | OutputSchema | no | — | Expected output type descriptor for discovery and tooling |
 | `host` | ManifestHostOptions | no | — | Runtime configuration |
 | `deploy` | ManifestDeployOptions | no | — | Deployment configuration |
 
@@ -100,7 +100,7 @@ await agent.dispose();
 | `description` | string | no | no | Human-readable description for discovery and tooling |
 | `default` | JSON value | no | yes | Value used when the parameter is omitted; must match `type` |
 
-### OutputDescriptor Fields
+### OutputSchema Fields
 
 `output` describes the shape of the value the agent returns. The host does not validate runtime output against this descriptor — it exists for discovery and tooling only.
 
@@ -108,9 +108,9 @@ await agent.dispose();
 |-------|------|----------|-------------|
 | `type` | `'string' \| 'number' \| 'bool' \| 'list' \| 'dict'` | yes | Rill type of the output value |
 | `description` | string | no | Human-readable description for discovery and tooling |
-| `fields` | Record\<string, OutputDescriptor\> | no | Sub-descriptors for each key when `type` is `'dict'` |
+| `fields` | Record\<string, OutputSchema\> | no | Sub-descriptors for each key when `type` is `'dict'` |
 
-`OutputDescriptor` omits `required` and `default` — those fields apply to input parameters only.
+`OutputSchema` omits `required` and `default` — those fields apply to input parameters only.
 
 ### JSON-to-rill Type Mapping
 

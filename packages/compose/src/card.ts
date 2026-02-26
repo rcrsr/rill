@@ -1,4 +1,4 @@
-import type { AgentManifest, InputSchema, OutputDescriptor } from './schema.js';
+import type { AgentManifest, InputSchema, OutputSchema } from './schema.js';
 
 // ============================================================
 // AGENT CARD TYPES
@@ -38,7 +38,7 @@ export interface AgentCard {
   readonly defaultInputModes: readonly string[];
   readonly defaultOutputModes: readonly string[];
   readonly input?: InputSchema | undefined;
-  readonly output?: OutputDescriptor | undefined;
+  readonly output?: OutputSchema | undefined;
 }
 
 // ============================================================

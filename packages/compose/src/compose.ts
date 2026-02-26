@@ -9,7 +9,7 @@ export type {
   ManifestDeployOptions,
   InputParamDescriptor,
   InputSchema,
-  OutputDescriptor,
+  OutputSchema,
   EnvSource,
 } from './schema.js';
 export { validateManifest } from './schema.js';
