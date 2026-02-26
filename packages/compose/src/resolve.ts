@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import type { ExtensionFactory } from '@rcrsr/rill';
 import { ComposeError } from './errors.js';
 import type { ManifestExtension } from './schema.js';
@@ -123,11 +124,11 @@ async function resolveNpm(
   manifestDir: string
 ): Promise<ResolvedExtension> {
   const packageName = extension.package;
-  const baseUrl = pathToFileURL(manifestDir + '/').href;
+  const require = createRequire(manifestDir + '/package.json');
 
-  let resolvedUrl: string;
+  let resolvedFilePath: string;
   try {
-    resolvedUrl = import.meta.resolve(packageName, baseUrl);
+    resolvedFilePath = require.resolve(packageName);
   } catch {
     throw new ComposeError(
       `Extension package not found: ${packageName}. Run pnpm add ${packageName}`,
@@ -135,8 +136,8 @@ async function resolveNpm(
     );
   }
 
-  const resolvedFilePath = fileURLToPath(resolvedUrl);
   const resolvedVersion = readInstalledVersion(resolvedFilePath);
+  const resolvedUrl = pathToFileURL(resolvedFilePath).href;
 
   const mod = await import(resolvedUrl);
   const factory = extractFactory(mod, packageName);
@@ -255,7 +256,7 @@ export interface ResolvedExtension {
  * Strategies:
  * - `local`: paths starting with `./` or `../`, resolved relative to manifestDir
  * - `builtin`: `@rcrsr/rill/ext/<name>` sub-path exports
- * - `npm`: all other package names, resolved via import.meta.resolve
+ * - `npm`: all other package names, resolved via createRequire relative to manifestDir
  *
  * @param extensions - Record of alias → ManifestExtension from the manifest
  * @param options - Resolution options including manifest directory path
