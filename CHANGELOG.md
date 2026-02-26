@@ -15,21 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **@rcrsr/rill-compose** — Manifest-driven agent composition via `agent.json`. CLI builds 4 targets: `container` (Dockerfile + node_modules), `lambda` (zip), `worker` (single ESM file), `local` (unbundled). Programmatic API via `composeAgent(manifest)`
 
-
 ### Removed
 
 - **@rcrsr/rill-create-agent** — Replaced by `rill-compose init`. `packages/create-agent/` deleted from monorepo
-
-### Breaking Changes
-
-- **State backend system removed** — The pluggable `StateBackend` interface and all related APIs have been deleted from `@rcrsr/rill-host`. The following are no longer exported:
-  - `StateBackend` interface
-  - `createMemoryBackend` function
-  - `PersistedSessionState`, `CheckpointData`, `CheckpointSummary` types
-  - `AgentHostOptions.stateBackend` field
-  - `AgentHost.collectExtensionState()` and `AgentHost.applyExtensionState()` methods
-  - `ComposedAgent.stateBackendConfig` field
-- **State backend packages deprecated** — `@rcrsr/rill-state-fs`, `@rcrsr/rill-state-sqlite`, and `@rcrsr/rill-state-redis` are deprecated and will no longer receive updates. Remove these packages from your dependencies.
 
 ### Changed
 
@@ -40,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Variable method calls returned null** — `$var.len`, `$var.trim`, and other built-in methods on variables returned `null` instead of invoking the method. Literal syntax (`[0,1,2].len`) worked correctly. Root cause: `evaluateVariableAsync` treated access chain fields as dict lookups, falling through to `null` for non-dict values. Fix checks `BUILTIN_METHODS` before dict field access and synthesizes a `MethodCallNode` to invoke the method
 
 - **kv::set rejected non-string values** — `set` function declared `value` parameter as type `'string'` but the kv contract accepts any serializable value. Changed to type `'any'`
+
+- **AgentHost.listen() port error handling** — `listen()` now wraps EADDRINUSE socket errors in `AgentHostError('port in use', 'init')` per error contract EC-4. Previously threw raw Node socket error instead of structured agent error
 
 ### Dependencies
 
