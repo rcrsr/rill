@@ -11,11 +11,7 @@ import {
   type FormatOptions,
   type CallFrame,
 } from '../../src/cli-error-formatter.js';
-import type {
-  SourceSpan,
-  SourceLocation,
-} from '@rcrsr/rill';
-import type { SourceSnippet } from '../../src/cli-error-enrichment.js';
+import type { SourceSpan } from '@rcrsr/rill';
 
 describe('formatError', () => {
   describe('IR-5: Human format with header and location', () => {
@@ -263,8 +259,8 @@ describe('formatError', () => {
       expect(diagnostic.source).toBe('rill');
       expect(diagnostic.code).toBe('RILL-R005');
       expect(diagnostic.range).toEqual({
-        start: { line: 4, character: 10 }, // LSP uses 0-based lines
-        end: { line: 4, character: 13 },
+        start: { line: 4, character: 9 }, // LSP uses 0-based lines and characters
+        end: { line: 4, character: 12 },
       });
       expect(diagnostic.suggestions).toEqual(['Did you mean `$begin`?']);
     });
@@ -300,8 +296,8 @@ describe('formatError', () => {
       expect(diagnostic.callStack).toHaveLength(1);
       expect(diagnostic.callStack[0]).toEqual({
         location: {
-          start: { line: 9, character: 5 }, // 0-based
-          end: { line: 9, character: 15 },
+          start: { line: 9, character: 4 }, // 0-based
+          end: { line: 9, character: 14 },
         },
         functionName: 'myFunction',
         context: 'in each body',

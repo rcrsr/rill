@@ -190,11 +190,11 @@ function formatErrorJson(error: EnrichedError, options: FormatOptions): string {
     diagnostic.range = {
       start: {
         line: error.span.start.line - 1, // LSP uses 0-based line numbers
-        character: error.span.start.column,
+        character: error.span.start.column - 1, // LSP uses 0-based character positions
       },
       end: {
         line: error.span.end.line - 1, // LSP uses 0-based line numbers
-        character: error.span.end.column,
+        character: error.span.end.column - 1, // LSP uses 0-based character positions
       },
     };
   }
@@ -221,11 +221,11 @@ function formatErrorJson(error: EnrichedError, options: FormatOptions): string {
         location: {
           start: {
             line: frame.location.start.line - 1,
-            character: frame.location.start.column,
+            character: frame.location.start.column - 1,
           },
           end: {
             line: frame.location.end.line - 1,
-            character: frame.location.end.column,
+            character: frame.location.end.column - 1,
           },
         },
       };
