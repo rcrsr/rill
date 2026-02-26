@@ -279,6 +279,60 @@ describe('buildJsonSchema', () => {
   });
 
   // ============================================================
+  // additionalProperties: false (OpenAI strict mode / Groq requirement)
+  // ============================================================
+
+  describe('additionalProperties: false on all object types', () => {
+    it('sets additionalProperties: false on top-level schema', () => {
+      const result = buildJsonSchema({ name: 'string' });
+      expect(result.additionalProperties).toBe(false);
+    });
+
+    it('sets additionalProperties: false on empty schema', () => {
+      const result = buildJsonSchema({});
+      expect(result.additionalProperties).toBe(false);
+    });
+
+    it('sets additionalProperties: false on nested dict property', () => {
+      const result = buildJsonSchema({
+        addr: {
+          type: 'dict',
+          properties: { city: 'string', zip: 'number' },
+        },
+      });
+      expect(result.properties['addr']?.additionalProperties).toBe(false);
+    });
+
+    it('sets additionalProperties: false on deeply nested dict', () => {
+      const result = buildJsonSchema({
+        level1: {
+          type: 'dict',
+          properties: {
+            level2: {
+              type: 'dict',
+              properties: { value: 'string' },
+            },
+          },
+        },
+      });
+      const level1 = result.properties['level1'];
+      expect(level1?.additionalProperties).toBe(false);
+      expect(level1?.properties?.['level2']?.additionalProperties).toBe(false);
+    });
+
+    it('does not set additionalProperties on non-object property types', () => {
+      const result = buildJsonSchema({ name: 'string', count: 'number' });
+      expect(result.properties['name']?.additionalProperties).toBeUndefined();
+      expect(result.properties['count']?.additionalProperties).toBeUndefined();
+    });
+
+    it('does not set additionalProperties on dict property without nested properties', () => {
+      const result = buildJsonSchema({ meta: 'dict' });
+      expect(result.properties['meta']?.additionalProperties).toBeUndefined();
+    });
+  });
+
+  // ============================================================
   // EC-1: UNSUPPORTED TYPE THROWS RILL-R004 (AC-19, AC-20)
   // ============================================================
 

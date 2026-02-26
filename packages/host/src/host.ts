@@ -315,6 +315,8 @@ export function createAgentHost(
           record.durationMs = durationMs;
           record.error = err instanceof Error ? err.message : String(err);
 
+          console.error(`[host] session ${sessionId} failed: ${record.error}`);
+
           sessionsActive.dec();
           sessionsTotal
             .labels({ state: 'failed', trigger: input.trigger ?? 'api' })
@@ -531,7 +533,7 @@ async function deliverCallback(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[rill-host] callback delivery failed: ${msg}`);
+    console.error(`[host] callback delivery failed: ${msg}`);
     record.error = `callback delivery failed: ${msg}`;
   }
 }

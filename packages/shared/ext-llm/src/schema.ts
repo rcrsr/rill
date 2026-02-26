@@ -24,6 +24,7 @@ export interface JsonSchemaProperty {
   properties?: Record<string, JsonSchemaProperty> | undefined;
   required?: string[] | undefined;
   enum?: string[] | undefined;
+  additionalProperties?: false | undefined;
 }
 
 /**
@@ -33,6 +34,7 @@ export interface JsonSchemaObject {
   type: 'object';
   properties: Record<string, JsonSchemaProperty>;
   required: string[];
+  additionalProperties: false;
 }
 
 /** Map from rill type names to JSON Schema type strings. */
@@ -121,6 +123,7 @@ function buildProperty(
       const subSchema = buildJsonSchema(nestedProps as Record<string, unknown>);
       property.properties = subSchema.properties;
       property.required = subSchema.required;
+      property.additionalProperties = false;
     }
   }
 
@@ -166,5 +169,5 @@ export function buildJsonSchema(
     required.push(key);
   }
 
-  return { type: 'object', properties, required };
+  return { type: 'object', properties, required, additionalProperties: false };
 }

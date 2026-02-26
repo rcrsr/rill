@@ -163,6 +163,10 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
         record.durationMs = durationMs;
         record.error = err instanceof Error ? err.message : String(err);
 
+        console.error(
+          `[rill-host] session ${sessionId} failed: ${record.error}`
+        );
+
         sessionsActive.dec();
         sessionsTotal
           .labels({ state: 'failed', trigger: input.trigger ?? 'api' })
