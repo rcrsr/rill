@@ -10,6 +10,7 @@ export type {
   InputParamDescriptor,
   InputSchema,
   OutputDescriptor,
+  EnvSource,
 } from './schema.js';
 export { validateManifest } from './schema.js';
 export type { ExtensionFactory } from '@rcrsr/rill';
@@ -41,6 +42,7 @@ import type { AgentManifest } from './schema.js';
 import { interpolateEnv } from './interpolate.js';
 import { resolveExtensions } from './resolve.js';
 import { type AgentCard, generateAgentCard } from './card.js';
+import { loadEnv } from './env.js';
 
 // ============================================================
 // PUBLIC INTERFACES
@@ -199,7 +201,7 @@ export async function composeAgent(
 ): Promise<ComposedAgent> {
   const basePath = options?.basePath ?? process.cwd();
   const env: Record<string, string> =
-    options?.env ?? (process.env as Record<string, string>);
+    options?.env ?? loadEnv(manifest.env, basePath);
 
   // Step 2: Interpolate env placeholders in extension configs
   const interpolatedExtensions: typeof manifest.extensions = {};

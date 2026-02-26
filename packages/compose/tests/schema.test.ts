@@ -729,4 +729,93 @@ describe('validateManifest', () => {
       expect(result.input?.['token']?.default).toBeNull();
     });
   });
+
+  // ============================================================
+  // ENV SOURCES VALIDATION
+  // ============================================================
+
+  describe('env sources validation', () => {
+    it('accepts manifest without env field', () => {
+      const result = validateManifest(VALID_MANIFEST);
+      expect(result.env).toBeUndefined();
+    });
+
+    it('accepts empty env array', () => {
+      const result = validateManifest({ ...VALID_MANIFEST, env: [] });
+      expect(result.env).toEqual([]);
+    });
+
+    it('accepts process source', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        env: [{ type: 'process' }],
+      });
+      expect(result.env).toEqual([{ type: 'process' }]);
+    });
+
+    it('accepts dotenv source with path', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        env: [{ type: 'dotenv', path: '.env' }],
+      });
+      expect(result.env).toEqual([{ type: 'dotenv', path: '.env' }]);
+    });
+
+    it('accepts multiple sources in order', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        env: [
+          { type: 'process' },
+          { type: 'dotenv', path: '.env' },
+          { type: 'dotenv', path: '.env.local' },
+        ],
+      });
+      expect(result.env).toHaveLength(3);
+    });
+
+    it('rejects unknown source type', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          env: [{ type: 'vault', url: 'https://vault' }],
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('rejects dotenv source without path', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          env: [{ type: 'dotenv' }],
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('rejects unknown fields on process source', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          env: [{ type: 'process', extra: true }],
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('rejects unknown fields on dotenv source', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          env: [{ type: 'dotenv', path: '.env', extra: true }],
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('rejects env as non-array', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          env: { type: 'process' },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+  });
 });

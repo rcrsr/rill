@@ -84,6 +84,19 @@ export const inputSchemaSchema = z.record(
 export type InputSchema = z.infer<typeof inputSchemaSchema>;
 
 // ============================================================
+// ENV SOURCE SCHEMAS
+// ============================================================
+
+export type EnvSource =
+  | { readonly type: 'process' }
+  | { readonly type: 'dotenv'; readonly path: string };
+
+const envSourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('process') }).strict(),
+  z.object({ type: z.literal('dotenv'), path: z.string() }).strict(),
+]);
+
+// ============================================================
 // AGENT SKILL SCHEMA
 // ============================================================
 
@@ -130,6 +143,7 @@ const agentManifestSchema = z
     deploy: manifestDeployOptionsSchema.optional(),
     input: inputSchemaSchema.optional(),
     output: outputDescriptorSchema.optional(),
+    env: z.array(envSourceSchema).optional(),
   })
   .strict();
 
@@ -142,6 +156,7 @@ export type ManifestHostOptions = z.infer<typeof manifestHostOptionsSchema>;
 export type ManifestDeployOptions = z.infer<typeof manifestDeployOptionsSchema>;
 export type AgentSkill = z.infer<typeof agentSkillSchema>;
 export type AgentManifest = z.infer<typeof agentManifestSchema>;
+// EnvSource is declared above as a standalone type (not derived from zod) for better readability.
 
 /**
  * Deployment target environment for an agent build.

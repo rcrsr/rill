@@ -4,6 +4,7 @@
   "runtime": "@rcrsr/rill@*",
   "entry": "scripts/main.rill",
   "description": "Analyze customer feedback with structured output and response drafting",
+  "env": [{ "type": "process" }, { "type": "dotenv", "path": ".env" }],
   "input": {
     "feedback": {
       "type": "string",

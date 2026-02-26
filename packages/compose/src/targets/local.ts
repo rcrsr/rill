@@ -1,4 +1,10 @@
-import { cpSync, mkdirSync, writeFileSync, globSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  globSync,
+} from 'node:fs';
 import path from 'node:path';
 import { generateAgentCard } from '../card.js';
 import { assertOutputWritable, buildResolvedManifest } from './helpers.js';
@@ -127,6 +133,20 @@ const localBuilder: TargetBuilder = {
 
     // Copy assets (warn on 0 matches, non-blocking)
     copyAssets(manifest, manifestDir, outputDir);
+
+    // Copy dotenv files referenced in manifest.env sources
+    if (manifest.env) {
+      for (const source of manifest.env) {
+        if (source.type === 'dotenv') {
+          const src = path.join(manifestDir, source.path);
+          if (existsSync(src)) {
+            const dest = path.join(outputDir, source.path);
+            mkdirSync(path.dirname(dest), { recursive: true });
+            cpSync(src, dest);
+          }
+        }
+      }
+    }
 
     // Write generated host.ts as-is (no esbuild; users run with tsx)
     writeFileSync(path.join(outputDir, 'host.ts'), hostSource, 'utf-8');
