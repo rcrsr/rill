@@ -1,4 +1,4 @@
-import type { RillTypeName, RillValue } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 
 /**
  * Log verbosity for AgentHost.
@@ -60,7 +60,6 @@ export interface AgentHostOptions {
   readonly maxConcurrentSessions?: number | undefined;
   readonly responseTimeout?: number | undefined;
   readonly logLevel?: LogLevel | undefined;
-  readonly stateBackend?: StateBackend | undefined;
 }
 
 /**
@@ -104,62 +103,3 @@ export type HostErrorPhase =
   | 'capacity'
   | 'session'
   | 'signal';
-
-/**
- * Full checkpoint data captured at a specific execution step.
- */
-export interface CheckpointData {
-  readonly id: string;
-  readonly sessionId: string;
-  readonly agentName: string;
-  readonly timestamp: number;
-  readonly stepIndex: number;
-  readonly totalSteps: number;
-  readonly pipeResult: RillValue;
-  readonly variables: Record<string, RillValue>;
-  readonly variableTypes: Record<string, RillTypeName>;
-  readonly extensionState: Record<string, unknown>;
-}
-
-/**
- * Lightweight checkpoint summary for listing without full payload.
- */
-export interface CheckpointSummary {
-  readonly id: string;
-  readonly sessionId: string;
-  readonly agentName: string;
-  readonly timestamp: number;
-  readonly stepIndex: number;
-  readonly totalSteps: number;
-}
-
-/**
- * Persisted state for a session, stored by a StateBackend.
- */
-export interface PersistedSessionState {
-  readonly sessionId: string;
-  readonly agentName: string;
-  readonly state: SessionState;
-  readonly startTime: number;
-  readonly lastActivity: number;
-  readonly metadata: Record<string, unknown>;
-}
-
-/**
- * Pluggable backend for persisting session and checkpoint state.
- */
-export interface StateBackend {
-  connect(): Promise<void>;
-  close(): Promise<void>;
-
-  saveCheckpoint(checkpoint: CheckpointData): Promise<void>;
-  loadCheckpoint(sessionId: string): Promise<CheckpointData | null>;
-  listCheckpoints(
-    agentName: string,
-    options?: { limit?: number }
-  ): Promise<CheckpointSummary[]>;
-  deleteCheckpoint(id: string): Promise<void>;
-
-  getSession(sessionId: string): Promise<PersistedSessionState | null>;
-  putSession(sessionId: string, state: PersistedSessionState): Promise<void>;
-}

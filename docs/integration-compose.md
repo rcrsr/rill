@@ -76,7 +76,6 @@ await agent.dispose();
 |-------|------|---------|-------------|
 | `port` | number | none | HTTP port for deployment |
 | `healthPath` | string | `"/health"` | Health check endpoint path |
-| `stateBackend` | string | none | State backend identifier |
 
 ### AgentSkill Fields
 

@@ -48,7 +48,6 @@ describe('validateManifest', () => {
         deploy: {
           port: 8080,
           healthPath: '/ping',
-          stateBackend: { type: 'file', config: { dir: '/tmp/state' } },
         },
       });
       expect(result.name).toBe('my-agent');
@@ -728,106 +727,6 @@ describe('validateManifest', () => {
         },
       });
       expect(result.input?.['token']?.default).toBeNull();
-    });
-  });
-
-  // ============================================================
-  // STATE BACKEND VALIDATION [IR-16]
-  // ============================================================
-
-  describe('stateBackend validation [IR-16]', () => {
-    it('accepts object form with type "file" and config', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        deploy: { stateBackend: { type: 'file', config: { dir: '/data' } } },
-      });
-      expect(result.deploy?.stateBackend).toEqual({
-        type: 'file',
-        config: { dir: '/data' },
-      });
-    });
-
-    it('accepts object form with type "sqlite" and config', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        deploy: {
-          stateBackend: {
-            type: 'sqlite',
-            config: { path: '/db/state.sqlite' },
-          },
-        },
-      });
-      expect(result.deploy?.stateBackend?.type).toBe('sqlite');
-    });
-
-    it('accepts object form with type "redis" and config', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        deploy: {
-          stateBackend: {
-            type: 'redis',
-            config: { url: 'redis://localhost:6379' },
-          },
-        },
-      });
-      expect(result.deploy?.stateBackend?.type).toBe('redis');
-    });
-
-    it('accepts object form with type "memory" and no config', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        deploy: { stateBackend: { type: 'memory' } },
-      });
-      expect(result.deploy?.stateBackend).toEqual({ type: 'memory' });
-    });
-
-    it('accepts legacy string "memory" and coerces to object form', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        deploy: { stateBackend: 'memory' },
-      });
-      expect(result.deploy?.stateBackend).toEqual({ type: 'memory' });
-    });
-
-    it('rejects object form with type "file" when config is missing', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          deploy: { stateBackend: { type: 'file' } },
-        })
-      ).toThrow(ManifestValidationError);
-    });
-
-    it('rejects object form with type "sqlite" when config is missing', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          deploy: { stateBackend: { type: 'sqlite' } },
-        })
-      ).toThrow(ManifestValidationError);
-    });
-
-    it('rejects object form with type "redis" when config is missing', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          deploy: { stateBackend: { type: 'redis' } },
-        })
-      ).toThrow(ManifestValidationError);
-    });
-
-    it('rejects an invalid type string', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          deploy: { stateBackend: { type: 'dynamo', config: {} } },
-        })
-      ).toThrow(ManifestValidationError);
-    });
-
-    it('leaves stateBackend undefined when deploy.stateBackend is omitted', () => {
-      const result = validateManifest({ ...VALID_MANIFEST, deploy: {} });
-      expect(result.deploy?.stateBackend).toBeUndefined();
     });
   });
 });

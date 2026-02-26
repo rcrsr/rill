@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **State backends** — Pluggable `StateBackend` interface in `@rcrsr/rill-host` for persisting checkpoints and sessions across restarts. Three packages: `@rcrsr/rill-state-fs` (file-based), `@rcrsr/rill-state-sqlite` (WAL mode, schema migration), `@rcrsr/rill-state-redis` (TTL, secondary index). Defaults to in-memory. Extension suspend/restore contract on `ExtensionResult`. Compose manifest wiring via `deploy.stateBackend`
-
 - **LLM structured output via `generate()`** — Provider-agnostic `generate(prompt, options)` function for all three LLM extensions. Accepts rill schema dicts, returns typed 6-key dict (`data`, `raw`, `model`, `usage`, `stop_reason`, `id`). Shared `buildJsonSchema` utility handles rill-to-JSON-Schema conversion for 6 types with nested dict, list, and enum support. 119 tests across shared, Anthropic, OpenAI, and Gemini packages
 
 - **@rcrsr/rill-host** — Production HTTP server for rill agents via `createAgentHost(manifest, options?)`. 12 routes including `/run`, `/stop`, `/healthz`, `/readyz`, `/metrics`, `/sessions`. Session manager with TTL pruning, abort, and concurrency cap. Prometheus metrics, graceful SIGTERM drain, SSE event streaming
@@ -21,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **@rcrsr/rill-create-agent** — Replaced by `rill-compose init`. `packages/create-agent/` deleted from monorepo
+
+### Breaking Changes
+
+- **State backend system removed** — The pluggable `StateBackend` interface and all related APIs have been deleted from `@rcrsr/rill-host`. The following are no longer exported:
+  - `StateBackend` interface
+  - `createMemoryBackend` function
+  - `PersistedSessionState`, `CheckpointData`, `CheckpointSummary` types
+  - `AgentHostOptions.stateBackend` field
+  - `AgentHost.collectExtensionState()` and `AgentHost.applyExtensionState()` methods
+  - `ComposedAgent.stateBackendConfig` field
+- **State backend packages deprecated** — `@rcrsr/rill-state-fs`, `@rcrsr/rill-state-sqlite`, and `@rcrsr/rill-state-redis` are deprecated and will no longer receive updates. Remove these packages from your dependencies.
 
 ### Changed
 

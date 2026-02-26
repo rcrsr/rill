@@ -11,10 +11,6 @@ export type {
   RunResponse,
   HealthStatus,
   HostErrorPhase,
-  StateBackend,
-  CheckpointData,
-  CheckpointSummary,
-  PersistedSessionState,
 } from './types.js';
 
 // ============================================================
@@ -33,11 +29,6 @@ export type {
   AgentSkill,
 } from './host.js';
 export { createAgentHost } from './host.js';
-
-// ============================================================
-// STATE BACKEND
-// ============================================================
-export { createMemoryBackend } from './memory-backend.js';
 
 // ============================================================
 // SERVERLESS HANDLER

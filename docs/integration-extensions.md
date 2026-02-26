@@ -189,23 +189,11 @@ try {
 - Should not throw — log warnings for cleanup failures
 - Always call `dispose()` in a `finally` block
 
-## Checkpoint Lifecycle
+## State Persistence
 
-Extensions persist state across checkpoint save and restore by implementing `suspend()` and `restore()` on `ExtensionResult`.
+Extensions that hold in-memory state can implement `suspend()` and `restore()` on `ExtensionResult` to participate in host-managed state snapshots.
 
-```typescript
-type ExtensionResult = Record<string, HostFunctionDefinition> & {
-  dispose?: () => void | Promise<void>;
-  suspend?: () => unknown;
-  restore?: (state: unknown) => void;
-};
-```
-
-When the host saves a checkpoint, it calls `suspend()` on each extension that implements it. The return value must be JSON-serializable. The host throws if `JSON.stringify(suspend())` fails.
-
-When the host restores a checkpoint, it calls `restore(state)` on each extension that implements it. The `state` argument is the exact value returned by the prior `suspend()` call.
-
-Extensions without `suspend` are excluded from `extensionState` in the checkpoint. Extensions without `restore` are skipped during restore.
+`suspend()` returns a JSON-serializable snapshot of extension state. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
 
 ```typescript
 function createCounterExtension(): ExtensionResult {
@@ -230,7 +218,7 @@ function createCounterExtension(): ExtensionResult {
 }
 ```
 
-See [State Backends](integration-state-backends.md) for checkpoint storage infrastructure.
+Extensions without `suspend` are excluded from state snapshots. Extensions without `restore` are skipped during restore.
 
 ## Package Structure
 

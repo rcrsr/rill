@@ -13,6 +13,7 @@
  *   EC-12  create() at capacity throws AgentHostError('session limit reached', 'capacity')
  *   EC-13  abort() on missing ID returns false
  *   EC-14  abort() on completed session returns false
+ *   AC-19  list() at max concurrent sessions returns all records
  *   AC-28  session queryable at sessionTtl - 1 ms; gone after prune at sessionTtl + 1 ms
  *   AC-32  abort("nonexistent-id") returns false
  *   AC-35  responseTimeout fires before execution → state 'running'
@@ -239,6 +240,27 @@ describe('SessionManager', () => {
 
       expect(sessions).toHaveLength(1);
       expect(sessions[0]?.state).toBe('failed');
+    });
+
+    it('returns all records when host is at maxConcurrentSessions capacity (AC-19)', () => {
+      const maxConcurrentSessions = 3;
+      const manager = new SessionManager({
+        maxConcurrentSessions,
+        sessionTtl: 3600000,
+      });
+
+      // Fill to exactly the capacity limit.
+      const created = Array.from({ length: maxConcurrentSessions }, (_, i) =>
+        manager.create({}, `corr-ac19-${i}`)
+      );
+
+      const listed = manager.list();
+
+      expect(listed).toHaveLength(maxConcurrentSessions);
+      const listedIds = listed.map((s) => s.id);
+      for (const record of created) {
+        expect(listedIds).toContain(record.id);
+      }
     });
   });
 

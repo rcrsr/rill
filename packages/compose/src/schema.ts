@@ -29,29 +29,10 @@ const manifestHostOptionsSchema = z
   })
   .strict();
 
-export const manifestStateBackendConfigSchema = z.preprocess(
-  (val) => (val === 'memory' ? { type: 'memory' } : val),
-  z
-    .object({
-      type: z.enum(['memory', 'file', 'sqlite', 'redis']),
-      config: z.record(z.string(), z.unknown()).optional(),
-    })
-    .superRefine((data, ctx) => {
-      if (data.type !== 'memory' && data.config === undefined) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['config'],
-          message: `config is required when type is "${data.type}"`,
-        });
-      }
-    })
-);
-
 const manifestDeployOptionsSchema = z
   .object({
     port: z.number().optional(),
     healthPath: z.string().default('/health'),
-    stateBackend: manifestStateBackendConfigSchema.optional(),
   })
   .strict();
 
@@ -158,9 +139,6 @@ const agentManifestSchema = z
 
 export type ManifestExtension = z.infer<typeof manifestExtensionSchema>;
 export type ManifestHostOptions = z.infer<typeof manifestHostOptionsSchema>;
-export type ManifestStateBackendConfig = z.infer<
-  typeof manifestStateBackendConfigSchema
->;
 export type ManifestDeployOptions = z.infer<typeof manifestDeployOptionsSchema>;
 export type AgentSkill = z.infer<typeof agentSkillSchema>;
 export type AgentManifest = z.infer<typeof agentManifestSchema>;

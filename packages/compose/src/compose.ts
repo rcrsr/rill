@@ -7,7 +7,6 @@ export type {
   ManifestExtension,
   ManifestHostOptions,
   ManifestDeployOptions,
-  ManifestStateBackendConfig,
   InputParamDescriptor,
   InputSchema,
   OutputDescriptor,
@@ -38,7 +37,7 @@ import {
   execute,
 } from '@rcrsr/rill';
 import { ComposeError } from './errors.js';
-import type { AgentManifest, ManifestStateBackendConfig } from './schema.js';
+import type { AgentManifest } from './schema.js';
 import { interpolateEnv } from './interpolate.js';
 import { resolveExtensions } from './resolve.js';
 import { type AgentCard, generateAgentCard } from './card.js';
@@ -59,7 +58,6 @@ export interface ComposedAgent {
   dispose(): Promise<void>;
   readonly card: AgentCard;
   readonly extensions: Record<string, ExtensionResult>;
-  readonly stateBackendConfig?: ManifestStateBackendConfig | undefined;
 }
 
 // ============================================================
@@ -303,7 +301,6 @@ export async function composeAgent(
     modules,
     card,
     extensions,
-    stateBackendConfig: manifest.deploy?.stateBackend,
     async dispose(): Promise<void> {
       for (const handler of reverseDispose) {
         try {

@@ -29,15 +29,13 @@ await host.listen(3000);
 
 ## Lifecycle
 
-The host transitions through phases in order. `PAUSED` is not available.
+The host transitions through phases in order.
 
 | Phase | Description |
 |-------|-------------|
 | `READY` | Host created. Accepts requests. No sessions running yet. |
 | `RUNNING` | First session started. Transitions automatically on first `run()`. |
 | `STOPPED` | `stop()` called. Drains active sessions, then closes. |
-
-> **Blocked**: Requires core stepper serialization. Not available in current release.
 
 ## HTTP Endpoints
 
@@ -48,10 +46,6 @@ The host transitions through phases in order. `PAUSED` is not available.
 | `POST` | `/run` | Start a script session | 200 `RunResponse` | 400, 429, 503 |
 | `POST` | `/stop` | Initiate graceful shutdown | 202 | 503 |
 | `POST` | `/sessions/{id}/abort` | Abort a running session | 200 | 404, 409 |
-| `POST` | `/sessions/{id}/pause` | Pause a session | 501 | — |
-| `POST` | `/sessions/{id}/resume` | Resume a paused session | 501 | — |
-
-> **Blocked**: Requires core stepper serialization. Not available in current release.
 
 ### Observability Endpoints
 
@@ -136,7 +130,6 @@ Example response:
 | `POST /sessions/{id}/abort` | Session not found | 404 | `{"error": string}` |
 | `GET /sessions/{id}` | TTL elapsed | 404 | `{"error": string}` |
 | `GET /sessions/{id}/stream` | Session not found | 404 | `{"error": string}` |
-| `POST /sessions/{id}/pause` | Blocked endpoint | 501 | `{"error": "not implemented"}` |
 
 ### POST /run Param Validation
 
@@ -191,7 +184,6 @@ interface RunResponse {
 | State | Description |
 |-------|-------------|
 | `running` | Execution in progress |
-| `paused` | Reserved for future use. Not reachable in current release. |
 | `completed` | Script finished successfully |
 | `failed` | Script threw an error or was aborted |
 
@@ -239,7 +231,6 @@ Pass options as the second argument to `createAgentHost(agent, options)`.
 | `sessionTtl` | `number` | `3600000` ms | Retention time for completed session records |
 | `maxConcurrentSessions` | `number` | `10` | Maximum simultaneous running sessions |
 | `responseTimeout` | `number` | `30000` ms | Time before `POST /run` returns `state: "running"` |
-| `stateBackend` | `StateBackend` | `createMemoryBackend()` | Persistent storage backend for checkpoint and session state. See [State Backends](integration-state-backends.md). |
 
 ## Observability
 

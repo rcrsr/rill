@@ -319,9 +319,10 @@ describe('listen()', () => {
       await hostB.close().catch(() => undefined);
     }
 
-    expect(thrown).toBeDefined();
-    const err = thrown as { code?: string };
-    expect(err.code).toBe('EADDRINUSE');
+    expect(thrown).toBeInstanceOf(AgentHostError);
+    const err = thrown as AgentHostError;
+    expect(err.message).toBe('port in use');
+    expect(err.phase).toBe('init');
   });
 
   it('listen() with no options falls back to DEFAULTS.port; EADDRINUSE propagates (EC-10)', async () => {
@@ -352,9 +353,10 @@ describe('listen()', () => {
       }
     }
 
-    expect(thrown).toBeDefined();
-    const err = thrown as { code?: string };
-    expect(err.code).toBe('EADDRINUSE');
+    expect(thrown).toBeInstanceOf(AgentHostError);
+    const err = thrown as AgentHostError;
+    expect(err.message).toBe('port in use');
+    expect(err.phase).toBe('init');
   });
 });
 

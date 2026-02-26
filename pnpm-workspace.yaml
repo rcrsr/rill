@@ -7,7 +7,4 @@ packages:
   - 'packages/web'
   - 'packages/compose'
   - 'packages/host'
-  - 'packages/state-fs'
-  - 'packages/state-sqlite'
-  - 'packages/state-redis'
   - 'demo/*'

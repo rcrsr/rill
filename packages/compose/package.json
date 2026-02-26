@@ -27,11 +27,6 @@
     "esbuild": "^0.27.3",
     "zod": "^4.3.6"
   },
-  "devDependencies": {
-    "@rcrsr/rill-state-fs": "workspace:^",
-    "@rcrsr/rill-state-redis": "workspace:^",
-    "@rcrsr/rill-state-sqlite": "workspace:^"
-  },
   "files": [
     "dist"
   ],

@@ -41,7 +41,6 @@
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects with `rill-compose init` |
-| [State Backends](integration-state-backends.md) | Persistent storage backends for checkpoints and sessions |
 
 ## Extensions
 
@@ -71,7 +70,6 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 7. **Composing from manifests?** See [Compose](integration-compose.md)
 8. **Packaging functions?** See [Extensions](integration-extensions.md)
 9. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
-10. **Persisting state?** Read [State Backends](integration-state-backends.md)
 
 ## Design Principles
 
