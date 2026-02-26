@@ -58,10 +58,10 @@ export function toLspDiagnostic(error: RillError): LspDiagnostic {
 
   // Convert span to LSP range (zero-based positions)
   // EC-11: Missing span returns diagnostic with null range
-  const range = error.location
+  const range = error.span
     ? {
-        start: sourceLocationToLspPosition(error.location),
-        end: sourceLocationToLspPosition(error.location),
+        start: sourceLocationToLspPosition(error.span.start),
+        end: sourceLocationToLspPosition(error.span.end),
       }
     : null;
 

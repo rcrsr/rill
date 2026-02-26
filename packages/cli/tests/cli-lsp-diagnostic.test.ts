@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { toLspDiagnostic } from '../src/cli-lsp-diagnostic.js';
-import { RillError, RuntimeError } from '@rcrsr/rill';
+import { RillError, RuntimeError, type SourceSpan } from '@rcrsr/rill';
 
 describe('CLI LSP Diagnostic', () => {
   describe('toLspDiagnostic', () => {
@@ -196,6 +196,28 @@ describe('CLI LSP Diagnostic', () => {
       expect(diagnostic.range).toEqual({
         start: { line: 4, character: 9 },
         end: { line: 4, character: 9 },
+      });
+    });
+
+    // IR-10: fromNode error produces proper non-zero-width LSP range
+    it('produces non-zero-width range for error created via fromNode', () => {
+      const span: SourceSpan = {
+        start: { line: 3, column: 5, offset: 20 },
+        end: { line: 3, column: 10, offset: 25 },
+      };
+      const node = { span };
+      const error = RuntimeError.fromNode(
+        'RILL-R005',
+        'Variable foo is not defined',
+        node,
+        { name: 'foo' }
+      );
+
+      const diagnostic = toLspDiagnostic(error);
+
+      expect(diagnostic.range).toEqual({
+        start: { line: 2, character: 4 }, // 1-based line 3, col 5 -> 0-based line 2, char 4
+        end: { line: 2, character: 9 }, // 1-based line 3, col 10 -> 0-based line 2, char 9
       });
     });
   });

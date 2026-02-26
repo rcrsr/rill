@@ -34,6 +34,7 @@ export interface RillErrorData {
   readonly helpUrl?: string | undefined;
   readonly message: string;
   readonly location?: SourceLocation | undefined;
+  readonly span?: SourceSpan | undefined;
   readonly context?: Record<string, unknown> | undefined;
 }
 
@@ -108,6 +109,7 @@ export class RillError extends Error {
   readonly errorId: string;
   readonly helpUrl: string | undefined;
   readonly location?: SourceLocation | undefined;
+  readonly span?: SourceSpan | undefined;
   readonly context?: Record<string, unknown> | undefined;
 
   constructor(data: RillErrorData) {
@@ -121,14 +123,18 @@ export class RillError extends Error {
       throw new TypeError(`Unknown error ID: ${data.errorId}`);
     }
 
-    const locationStr = data.location
-      ? ` at ${data.location.line}:${data.location.column}`
+    const location = data.location ?? data.span?.start;
+    const span =
+      data.span ?? (location ? { start: location, end: location } : undefined);
+    const locationStr = location
+      ? ` at ${location.line}:${location.column}`
       : '';
     super(`${data.message}${locationStr}`);
     this.name = 'RillError';
     this.errorId = data.errorId;
     this.helpUrl = data.helpUrl;
-    this.location = data.location;
+    this.location = location;
+    this.span = span;
     this.context = data.context;
   }
 
@@ -139,6 +145,7 @@ export class RillError extends Error {
       helpUrl: this.helpUrl,
       message: this.message.replace(/ at \d+:\d+$/, ''), // Strip location suffix
       location: this.location,
+      span: this.span,
       context: this.context,
     };
   }
@@ -191,7 +198,8 @@ export class RuntimeError extends RillError {
     errorId: string,
     message: string,
     location?: SourceLocation,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
+    span?: SourceSpan
   ) {
     // Validate errorId exists in registry
     const definition = ERROR_REGISTRY.get(errorId);
@@ -210,6 +218,7 @@ export class RuntimeError extends RillError {
       helpUrl: helpUrl || undefined,
       message,
       location,
+      span,
       context,
     });
     this.name = 'RuntimeError';
@@ -222,7 +231,13 @@ export class RuntimeError extends RillError {
     node?: { span: SourceSpan },
     context?: Record<string, unknown>
   ): RuntimeError {
-    return new RuntimeError(errorId, message, node?.span.start, context);
+    return new RuntimeError(
+      errorId,
+      message,
+      node?.span.start,
+      context,
+      node?.span
+    );
   }
 }
 

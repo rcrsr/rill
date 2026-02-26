@@ -226,15 +226,8 @@ export function enrichError(
     throw new TypeError('Source must be valid UTF-8');
   }
 
-  // Extract span from error location
-  let span: SourceSpan | undefined;
-  if (error.location) {
-    // Create a minimal span from the location (single character)
-    span = {
-      start: error.location,
-      end: error.location,
-    };
-  }
+  // Use span directly from error (populated by RillError constructor)
+  const span = error.span;
 
   // Extract source snippet if we have a span
   let sourceSnippet: SourceSnippet | undefined;

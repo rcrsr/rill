@@ -421,6 +421,7 @@ describe('RuntimeError Constructor Validation (Task 1.4)', () => {
       expect(error).toBeInstanceOf(RuntimeError);
       expect(error.errorId).toBe('RILL-R001');
       expect(error.location).toEqual(span.start);
+      expect(error.span).toEqual(span);
     });
 
     it('accepts optional context parameter', () => {
@@ -444,6 +445,7 @@ describe('RuntimeError Constructor Validation (Task 1.4)', () => {
       const error = RuntimeError.fromNode('RILL-R001', 'Test error');
 
       expect(error.location).toBeUndefined();
+      expect(error.span).toBeUndefined();
     });
   });
 
