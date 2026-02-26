@@ -175,7 +175,7 @@ describe('Rill Runtime: Step Execution', () => {
       }
 
       const result = stepper.getResult();
-      expect(result.value).toBe('final');
+      expect(result.result).toBe('final');
     });
 
     it('includes all captured variables', async () => {

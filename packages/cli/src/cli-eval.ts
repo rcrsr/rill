@@ -115,12 +115,12 @@ async function main(): Promise<void> {
 
     if (command.mode === 'eval') {
       const result = await evaluateExpression(command.expression);
-      const { code, message } = determineExitCode(result.value);
+      const { code, message } = determineExitCode(result.result);
 
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(formatOutput(result.value));
+        console.log(formatOutput(result.result));
       }
       process.exit(code);
     }

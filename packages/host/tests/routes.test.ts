@@ -13,7 +13,6 @@
  *   AC-18  POST /run at capacity → 429
  *   AC-20  GET /sessions/:id unknown ID → 404
  *   AC-21  POST /sessions/:id/abort on completed session → 409
- *   AC-22  POST /sessions/:id/pause → 501
  *   AC-23  GET /readyz when phase=init → 503
  *   AC-24  GET /healthz during stopped phase → 503
  *   AC-33  SSE late connect receives buffered done event
@@ -58,7 +57,7 @@ const COMPLETED_SESSION: SessionRecord = {
   variables: {},
   trigger: 'http',
   correlationId: 'corr-1',
-  value: 'done',
+  result: 'done',
 };
 
 const RUNNING_SESSION: SessionRecord = {
@@ -76,7 +75,7 @@ const RUN_RESPONSE: RunResponse = {
   sessionId: 'sess-abc',
   correlationId: 'corr-abc',
   state: 'completed',
-  value: 42,
+  result: 42,
   durationMs: 100,
 };
 
@@ -508,41 +507,6 @@ describe('registerRoutes', () => {
       });
 
       expect(res.status).toBe(409);
-    });
-  });
-
-  // --------------------------------------------------------
-  // POST /sessions/:id/pause  (AC-22)
-  // --------------------------------------------------------
-  describe('POST /sessions/:id/pause', () => {
-    it('returns 501 with not implemented error (AC-22)', async () => {
-      const app = makeApp(makeHost());
-
-      const res = await app.request('/sessions/any-id/pause', {
-        method: 'POST',
-      });
-
-      expect(res.status).toBe(501);
-      expect(await jsonBody(res)).toMatchObject({
-        error: 'not implemented',
-        reason: 'awaiting core stepper serialization',
-      });
-    });
-  });
-
-  // --------------------------------------------------------
-  // POST /sessions/:id/resume
-  // --------------------------------------------------------
-  describe('POST /sessions/:id/resume', () => {
-    it('returns 501 with not implemented error', async () => {
-      const app = makeApp(makeHost());
-
-      const res = await app.request('/sessions/any-id/resume', {
-        method: 'POST',
-      });
-
-      expect(res.status).toBe(501);
-      expect(await jsonBody(res)).toMatchObject({ error: 'not implemented' });
     });
   });
 

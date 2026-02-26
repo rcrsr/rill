@@ -108,7 +108,7 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     const duration = performance.now() - startTime;
 
     // Format result: final value only
-    const formattedValue = formatResult(executionResult.value);
+    const formattedValue = formatResult(executionResult.result);
 
     return {
       status: 'success',

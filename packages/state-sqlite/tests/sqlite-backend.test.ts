@@ -37,7 +37,7 @@ function makeCheckpoint(overrides?: Partial<CheckpointData>): CheckpointData {
     timestamp: 1000,
     stepIndex: 0,
     totalSteps: 5,
-    pipeValue: null,
+    pipeResult: null,
     variables: {},
     variableTypes: {},
     extensionState: {},
@@ -238,7 +238,7 @@ describe('createSqliteBackend', () => {
       expect(loaded!.timestamp).toBe(checkpoint.timestamp);
       expect(loaded!.stepIndex).toBe(checkpoint.stepIndex);
       expect(loaded!.totalSteps).toBe(checkpoint.totalSteps);
-      expect(loaded!.pipeValue).toBe(checkpoint.pipeValue);
+      expect(loaded!.pipeResult).toBe(checkpoint.pipeResult);
       expect(loaded!.variables).toEqual(checkpoint.variables);
       expect(loaded!.variableTypes).toEqual(checkpoint.variableTypes);
       expect(loaded!.extensionState).toEqual(checkpoint.extensionState);
@@ -246,11 +246,11 @@ describe('createSqliteBackend', () => {
       await backend.close();
     });
 
-    it('preserves non-null pipeValue across save and load (AC-1, AC-2)', async () => {
+    it('preserves non-null pipeResult across save and load (AC-1, AC-2)', async () => {
       const backend = createSqliteBackend(config);
       await backend.connect();
       const checkpoint = makeCheckpoint({
-        pipeValue: 'hello',
+        pipeResult: 'hello',
         variables: { x: 42 },
         variableTypes: { x: 'number' },
         extensionState: { kv: { count: 3 } },
@@ -260,7 +260,7 @@ describe('createSqliteBackend', () => {
 
       const loaded = await backend.loadCheckpoint(checkpoint.sessionId);
 
-      expect(loaded!.pipeValue).toBe('hello');
+      expect(loaded!.pipeResult).toBe('hello');
       expect(loaded!.variables).toEqual({ x: 42 });
       expect(loaded!.variableTypes).toEqual({ x: 'number' });
       expect(loaded!.extensionState).toEqual({ kv: { count: 3 } });
@@ -376,7 +376,7 @@ describe('createSqliteBackend', () => {
       expect(summary).toHaveProperty('timestamp');
       expect(summary).toHaveProperty('stepIndex');
       expect(summary).toHaveProperty('totalSteps');
-      expect(summary).not.toHaveProperty('pipeValue');
+      expect(summary).not.toHaveProperty('pipeResult');
       expect(summary).not.toHaveProperty('variables');
 
       await backend.close();

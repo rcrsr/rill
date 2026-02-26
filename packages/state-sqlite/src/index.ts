@@ -39,7 +39,7 @@ interface SessionRow {
 }
 
 interface CheckpointDataJson {
-  pipeValue: CheckpointData['pipeValue'];
+  pipeResult: CheckpointData['pipeResult'];
   variables: CheckpointData['variables'];
   variableTypes: CheckpointData['variableTypes'];
   extensionState: CheckpointData['extensionState'];
@@ -114,7 +114,7 @@ export function createSqliteBackend(config: SqliteBackendConfig): StateBackend {
       const instance = getDb();
 
       const data: CheckpointDataJson = {
-        pipeValue: checkpoint.pipeValue,
+        pipeResult: checkpoint.pipeResult,
         variables: checkpoint.variables,
         variableTypes: checkpoint.variableTypes,
         extensionState: checkpoint.extensionState,
@@ -163,7 +163,7 @@ export function createSqliteBackend(config: SqliteBackendConfig): StateBackend {
         timestamp: row.timestamp,
         stepIndex: row.step_index,
         totalSteps: row.total_steps,
-        pipeValue: data.pipeValue,
+        pipeResult: data.pipeResult,
         variables: data.variables,
         variableTypes: data.variableTypes,
         extensionState: data.extensionState,

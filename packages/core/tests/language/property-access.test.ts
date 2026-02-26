@@ -4,7 +4,7 @@ import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 async function run(code: string) {
   const ctx = createRuntimeContext({});
   const result = await execute(parse(code), ctx);
-  return result.value;
+  return result.result;
 }
 
 describe('implicit $ property access bug', () => {

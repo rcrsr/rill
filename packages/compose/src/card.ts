@@ -1,4 +1,4 @@
-import type { AgentManifest } from './schema.js';
+import type { AgentManifest, InputSchema, OutputDescriptor } from './schema.js';
 
 // ============================================================
 // AGENT CARD TYPES
@@ -37,6 +37,8 @@ export interface AgentCard {
   readonly skills: readonly AgentSkill[];
   readonly defaultInputModes: readonly string[];
   readonly defaultOutputModes: readonly string[];
+  readonly input?: InputSchema | undefined;
+  readonly output?: OutputDescriptor | undefined;
 }
 
 // ============================================================
@@ -67,5 +69,7 @@ export function generateAgentCard(manifest: AgentManifest): AgentCard {
     skills: manifest.skills ?? [],
     defaultInputModes: ['application/json'],
     defaultOutputModes: ['application/json'],
+    ...(manifest.input !== undefined ? { input: manifest.input } : {}),
+    ...(manifest.output !== undefined ? { output: manifest.output } : {}),
   };
 }

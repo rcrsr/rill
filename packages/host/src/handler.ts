@@ -134,7 +134,7 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
         executionDurationSeconds.observe(durationMs / 1000);
         record.state = 'completed';
         record.durationMs = durationMs;
-        record.value = result.value;
+        record.result = result.result;
         record.variables = result.variables;
 
         sessionsActive.dec();
@@ -146,7 +146,7 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
           sessionId,
           correlationId,
           state: 'completed',
-          value: result.value,
+          result: result.result,
           durationMs,
         });
 

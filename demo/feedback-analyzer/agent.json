@@ -4,6 +4,23 @@
   "runtime": "@rcrsr/rill@*",
   "entry": "scripts/main.rill",
   "description": "Analyze customer feedback with structured output and response drafting",
+  "input": {
+    "feedback": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "output": {
+    "type": "dict",
+    "fields": {
+      "sentiment": { "type": "string" },
+      "issues": { "type": "list" },
+      "urgency": { "type": "string" },
+      "category": { "type": "string" },
+      "response": { "type": "string" },
+      "usage": { "type": "dict" }
+    }
+  },
   "extensions": {
     "llm": {
       "package": "@rcrsr/rill-ext-openai",

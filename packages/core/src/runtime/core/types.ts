@@ -179,8 +179,8 @@ export interface RuntimeOptions {
 
 /** Result of script execution */
 export interface ExecutionResult {
-  /** Final value returned by the script */
-  value: RillValue;
+  /** Final result returned by the script */
+  result: RillValue;
   /** All captured variables */
   variables: Record<string, RillValue>;
 }

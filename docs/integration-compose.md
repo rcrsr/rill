@@ -50,6 +50,8 @@ await agent.dispose();
 | `assets` | string[] | no | `[]` | Additional asset paths to include |
 | `description` | string | no | — | Agent description for A2A discovery |
 | `skills` | AgentSkill[] | no | `[]` | Agent skill declarations |
+| `input` | Record\<string, InputParamDescriptor\> | no | `{}` | Named input parameters with type and validation rules |
+| `output` | OutputDescriptor | no | — | Expected output type descriptor for discovery and tooling |
 | `host` | ManifestHostOptions | no | — | Runtime configuration |
 | `deploy` | ManifestDeployOptions | no | — | Deployment configuration |
 
@@ -88,6 +90,41 @@ await agent.dispose();
 | `inputModes` | string[] | no | Supported input MIME types |
 | `outputModes` | string[] | no | Supported output MIME types |
 
+### InputParamDescriptor Fields
+
+`input` maps parameter names to descriptors. The host validates each call argument against its descriptor before executing the entry script.
+
+| Field | Type | Required | Input only | Description |
+|-------|------|----------|------------|-------------|
+| `type` | `'string' \| 'number' \| 'bool' \| 'list' \| 'dict'` | yes | no | Rill type the value must match |
+| `required` | boolean | no | yes | Whether callers must supply this parameter; defaults to `false` |
+| `description` | string | no | no | Human-readable description for discovery and tooling |
+| `default` | JSON value | no | yes | Value used when the parameter is omitted; must match `type` |
+
+### OutputDescriptor Fields
+
+`output` describes the shape of the value the agent returns. The host does not validate runtime output against this descriptor — it exists for discovery and tooling only.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `'string' \| 'number' \| 'bool' \| 'list' \| 'dict'` | yes | Rill type of the output value |
+| `description` | string | no | Human-readable description for discovery and tooling |
+| `fields` | Record\<string, OutputDescriptor\> | no | Sub-descriptors for each key when `type` is `'dict'` |
+
+`OutputDescriptor` omits `required` and `default` — those fields apply to input parameters only.
+
+### JSON-to-rill Type Mapping
+
+The `type` field uses rill type names. This table shows how each name maps to a JSON input value and a JavaScript runtime check.
+
+| Rill Type | JavaScript Check | JSON Input |
+|-----------|-----------------|------------|
+| `string` | `typeof v === 'string'` | `"text"` |
+| `number` | `typeof v === 'number'` | `42` |
+| `bool` | `typeof v === 'boolean'` | `true` |
+| `list` | `Array.isArray(v)` | `[1, 2]` |
+| `dict` | plain object (`typeof v === 'object' && !Array.isArray(v)`) | `{"k": "v"}` |
+
 ### Example agent.json
 
 ```json
@@ -97,6 +134,28 @@ await agent.dispose();
   "runtime": "@rcrsr/rill@^0.8.0",
   "entry": "main.rill",
   "description": "An agent that answers questions using a knowledge base",
+  "input": {
+    "question": {
+      "type": "string",
+      "required": true,
+      "description": "The question to answer"
+    },
+    "language": {
+      "type": "string",
+      "required": false,
+      "description": "Response language code",
+      "default": "en"
+    }
+  },
+  "output": {
+    "type": "dict",
+    "description": "Answer with supporting metadata",
+    "fields": {
+      "answer": { "type": "string" },
+      "confidence": { "type": "number" },
+      "sources": { "type": "list" }
+    }
+  },
   "skills": [
     {
       "id": "answer-question",

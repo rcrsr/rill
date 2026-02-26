@@ -7,6 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import type { InputSchema } from '@rcrsr/rill-compose';
 import type { AgentCard } from './host.js';
 import type {
   LifecyclePhase,
@@ -15,6 +16,148 @@ import type {
   HealthStatus,
   SessionRecord,
 } from './types.js';
+
+// ============================================================
+// INPUT VALIDATION TYPES
+// ============================================================
+
+/**
+ * A single field-level issue found by validateInputParams().
+ */
+export interface InputValidationIssue {
+  readonly param: string;
+  readonly message: string;
+}
+
+/**
+ * Response body shape for a 400 returned when input params fail validation.
+ */
+export interface InputValidationErrorBody {
+  readonly error: 'invalid params';
+  readonly fields: readonly InputValidationIssue[];
+}
+
+// ============================================================
+// INPUT VALIDATION HELPERS
+// ============================================================
+
+/**
+ * Maps a JavaScript runtime value to its Rill type name.
+ * Returns the same set of names used in InputParamDescriptor.type,
+ * except booleans map to "boolean" (the JS name) for error messages.
+ */
+function jsTypeLabel(value: unknown): string {
+  if (typeof value === 'string') return 'string';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  if (Array.isArray(value)) return 'list';
+  if (typeof value === 'object' && value !== null) return 'dict';
+  return typeof value;
+}
+
+/**
+ * Returns true when the provided value satisfies the Rill type declared in
+ * the schema descriptor.
+ */
+function matchesRillType(
+  value: unknown,
+  rillType: 'string' | 'number' | 'bool' | 'list' | 'dict'
+): boolean {
+  switch (rillType) {
+    case 'string':
+      return typeof value === 'string';
+    case 'number':
+      return typeof value === 'number';
+    case 'bool':
+      return typeof value === 'boolean';
+    case 'list':
+      return Array.isArray(value);
+    case 'dict':
+      return (
+        typeof value === 'object' && value !== null && !Array.isArray(value)
+      );
+  }
+}
+
+/**
+ * Converts a Rill type name to the label used in error messages.
+ * bool → "boolean"; all others are unchanged.
+ */
+function rillTypeLabel(
+  rillType: 'string' | 'number' | 'bool' | 'list' | 'dict'
+): string {
+  return rillType === 'bool' ? 'boolean' : rillType;
+}
+
+/**
+ * Validates params against an InputSchema.
+ *
+ * - Returns [] when all required params are present and all types match.
+ * - Returns ALL failures in a single call — does NOT short-circuit.
+ * - Checks required params first, then type mismatches (both can appear).
+ * - Issues appear in manifest declaration order (key order of inputSchema).
+ * - Missing optional params produce NO issue.
+ * - Extra params not in inputSchema produce NO issue (permissive mode).
+ * - undefined params is treated as {} — all required params missing.
+ * - null for a required param fails the required check.
+ */
+export function validateInputParams(
+  params: Record<string, unknown> | undefined,
+  inputSchema: InputSchema
+): InputValidationIssue[] {
+  const resolved: Record<string, unknown> = params ?? {};
+  const issues: InputValidationIssue[] = [];
+
+  for (const [param, descriptor] of Object.entries(inputSchema)) {
+    const provided = Object.prototype.hasOwnProperty.call(resolved, param);
+    const value = resolved[param];
+
+    // Required check: param absent, or present with null value
+    if (descriptor.required === true) {
+      if (!provided || value === null) {
+        issues.push({ param, message: 'required' });
+        continue; // type check is meaningless without a value
+      }
+    }
+
+    // Type check: only when param is actually present and not null
+    if (provided && value !== null && value !== undefined) {
+      if (!matchesRillType(value, descriptor.type)) {
+        const expected = rillTypeLabel(descriptor.type);
+        const got = jsTypeLabel(value);
+        issues.push({ param, message: `expected ${expected}, got ${got}` });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Returns a new params object with defaults from inputSchema injected for
+ * absent keys. Never mutates the original params object.
+ *
+ * - Caller-provided values always take precedence.
+ * - Params not in inputSchema pass through unchanged.
+ * - null is a valid default and will be injected.
+ */
+export function injectDefaults(
+  params: Record<string, unknown>,
+  inputSchema: InputSchema
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...params };
+
+  for (const [param, descriptor] of Object.entries(inputSchema)) {
+    if (
+      descriptor.default !== undefined &&
+      !Object.prototype.hasOwnProperty.call(result, param)
+    ) {
+      result[param] = descriptor.default;
+    }
+  }
+
+  return result;
+}
 
 // ============================================================
 // SSE EVENT TYPES
@@ -92,12 +235,14 @@ function resolveCorrelationId(headerValue: string | undefined): string {
  * @param host - Minimal host interface
  * @param card - AgentCard for /.well-known/agent-card.json
  * @param sseStore - Shared SSE event buffers and subscriber callbacks
+ * @param inputSchema - Optional input parameter schema for POST /run validation
  */
 export function registerRoutes(
   app: Hono,
   host: RouteHost,
   card: AgentCard,
-  sseStore: SseStore
+  sseStore: SseStore,
+  inputSchema?: InputSchema | undefined
 ): void {
   // ----------------------------------------------------------
   // POST /run
@@ -169,6 +314,26 @@ export function registerRoutes(
       }
     }
 
+    // Validate and inject defaults when inputSchema has keys (IR-5, EC-11, EC-12, EC-13, AC-6)
+    if (inputSchema !== undefined && Object.keys(inputSchema).length > 0) {
+      const issues = validateInputParams(
+        raw['params'] as Record<string, unknown> | undefined,
+        inputSchema
+      );
+      if (issues.length > 0) {
+        const body: InputValidationErrorBody = {
+          error: 'invalid params',
+          fields: issues,
+        };
+        c.header('X-Correlation-ID', correlationId);
+        return c.json(body, 400);
+      }
+      raw['params'] = injectDefaults(
+        (raw['params'] as Record<string, unknown>) ?? {},
+        inputSchema
+      );
+    }
+
     const input: RunRequest = raw as RunRequest;
 
     let response: RunResponse;
@@ -235,30 +400,6 @@ export function registerRoutes(
     }
 
     return c.json({ sessionId: id, state: 'failed' as const }, 200);
-  });
-
-  // ----------------------------------------------------------
-  // POST /sessions/:id/pause  — blocked (AC-22)
-  // POST /sessions/:id/resume — blocked
-  // ----------------------------------------------------------
-  app.post('/sessions/:id/pause', (c) => {
-    return c.json(
-      {
-        error: 'not implemented',
-        reason: 'awaiting core stepper serialization',
-      },
-      501
-    );
-  });
-
-  app.post('/sessions/:id/resume', (c) => {
-    return c.json(
-      {
-        error: 'not implemented',
-        reason: 'awaiting core stepper serialization',
-      },
-      501
-    );
   });
 
   // ----------------------------------------------------------
@@ -385,7 +526,7 @@ export function registerRoutes(
         const doneData = JSON.stringify({
           sessionId: id,
           state: session.state,
-          ...(session.value !== undefined && { value: session.value }),
+          ...(session.result !== undefined && { result: session.result }),
           ...(session.error !== undefined && { error: session.error }),
         });
         await stream.writeSSE({ event: 'done', data: doneData });

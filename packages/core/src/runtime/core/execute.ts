@@ -199,12 +199,12 @@ export function createStepper(
           );
         }
         return {
-          value: context.pipeValue,
+          result: context.pipeValue,
           variables: collectVariables(),
         };
       }
       return {
-        value: lastValue,
+        result: lastValue,
         variables: collectVariables(),
       };
     },

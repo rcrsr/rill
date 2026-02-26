@@ -25,7 +25,7 @@ const ctx = createRuntimeContext({
 });
 
 const result = await execute(ast, ctx);
-console.log(result.value);
+console.log(result.result);
 ```
 
 ## RuntimeOptions
@@ -555,7 +555,7 @@ const ctx = createRuntimeContext({
 interface StepStartEvent {
   index: number;      // Statement index (0-based)
   total: number;      // Total statements
-  pipeValue: RillValue;
+  pipeResult: RillValue;
 }
 
 interface StepEndEvent {
@@ -608,7 +608,7 @@ while (!stepper.done) {
 }
 
 const final = stepper.getResult();
-console.log('Final value:', final.value);
+console.log('Final value:', final.result);
 console.log('Variables:', final.variables);
 ```
 
@@ -633,7 +633,7 @@ interface StepResult {
 }
 
 interface ExecutionResult {
-  value: RillValue;
+  result: RillValue;
   variables: Record<string, RillValue>;
 }
 ```

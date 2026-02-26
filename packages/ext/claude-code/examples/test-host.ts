@@ -166,7 +166,7 @@ async function main(): Promise<void> {
     console.error(`[test-host] Done in ${elapsed}s`);
 
     // Print result to stderr (stdout reserved for log output)
-    console.error(`[test-host] Result: ${formatOutput(result.value)}`);
+    console.error(`[test-host] Result: ${formatOutput(result.result)}`);
 
     // Cleanup
     dispose?.();

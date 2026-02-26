@@ -31,7 +31,7 @@ export async function run(
   options: TestOptions = {}
 ): Promise<RillValue> {
   const { ast, ctx } = setup(source, options);
-  return (await execute(ast, ctx)).value;
+  return (await execute(ast, ctx)).result;
 }
 
 /** Execute and return full result with variables */

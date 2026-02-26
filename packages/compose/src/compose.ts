@@ -8,6 +8,9 @@ export type {
   ManifestHostOptions,
   ManifestDeployOptions,
   ManifestStateBackendConfig,
+  InputParamDescriptor,
+  InputSchema,
+  OutputDescriptor,
 } from './schema.js';
 export { validateManifest } from './schema.js';
 export type { ExtensionFactory } from '@rcrsr/rill';

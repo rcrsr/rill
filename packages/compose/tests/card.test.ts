@@ -263,7 +263,7 @@ describe('generateAgentCard', () => {
       expect(JSON.stringify(card)).not.toContain('gpt-4');
     });
 
-    it('card shape contains only the eight A2A fields', () => {
+    it('card shape contains only the base A2A fields when no input/output in manifest', () => {
       const card = generateAgentCard(MINIMAL_MANIFEST);
       const keys = Object.keys(card).sort();
       expect(keys).toEqual([
@@ -276,6 +276,100 @@ describe('generateAgentCard', () => {
         'url',
         'version',
       ]);
+    });
+  });
+
+  // ============================================================
+  // INPUT / OUTPUT IN CARD [AC-2, AC-3, EC-7]
+  // ============================================================
+
+  describe('input and output fields in card [AC-2, AC-3, EC-7]', () => {
+    // AC-2: card includes input and output when manifest declares them
+    it('includes input field when manifest declares input [AC-2]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        input: {
+          query: { type: 'string', required: true },
+          limit: { type: 'number' },
+        },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card).toHaveProperty('input');
+      expect(card.input?.['query']?.type).toBe('string');
+      expect(card.input?.['limit']?.type).toBe('number');
+    });
+
+    it('includes output field when manifest declares output [AC-2]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        output: { type: 'dict', description: 'Result' },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card).toHaveProperty('output');
+      expect(card.output?.type).toBe('dict');
+    });
+
+    it('includes both input and output when manifest declares both [AC-2]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        input: { score: { type: 'number', required: true } },
+        output: { type: 'string' },
+      };
+      const card = generateAgentCard(manifest);
+      expect(card).toHaveProperty('input');
+      expect(card).toHaveProperty('output');
+    });
+
+    // AC-3: card OMITS input/output when manifest omits them (no undefined key)
+    it('does not set input key at all when manifest omits input [AC-3]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(Object.prototype.hasOwnProperty.call(card, 'input')).toBe(false);
+    });
+
+    it('does not set output key at all when manifest omits output [AC-3]', () => {
+      const card = generateAgentCard(MINIMAL_MANIFEST);
+      expect(Object.prototype.hasOwnProperty.call(card, 'output')).toBe(false);
+    });
+
+    it('card keys include input and output when both declared', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        input: { q: { type: 'string' } },
+        output: { type: 'number' },
+      };
+      const card = generateAgentCard(manifest);
+      const keys = Object.keys(card).sort();
+      expect(keys).toContain('input');
+      expect(keys).toContain('output');
+    });
+
+    // EC-7: does not throw for any valid manifest
+    it('does not throw for manifest with input only [EC-7]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        input: { q: { type: 'string' } },
+      };
+      expect(() => generateAgentCard(manifest)).not.toThrow();
+    });
+
+    it('does not throw for manifest with output only [EC-7]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        output: { type: 'list' },
+      };
+      expect(() => generateAgentCard(manifest)).not.toThrow();
+    });
+
+    it('does not throw for manifest with both input and output [EC-7]', () => {
+      const manifest: AgentManifest = {
+        ...MINIMAL_MANIFEST,
+        input: { x: { type: 'bool', required: true } },
+        output: {
+          type: 'dict',
+          fields: { result: { type: 'string' } },
+        },
+      };
+      expect(() => generateAgentCard(manifest)).not.toThrow();
     });
   });
 

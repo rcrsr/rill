@@ -50,7 +50,7 @@ function makeCheckpoint(overrides?: Partial<CheckpointData>): CheckpointData {
     timestamp: 1000,
     stepIndex: 0,
     totalSteps: 5,
-    pipeValue: null,
+    pipeResult: null,
     variables: {},
     variableTypes: {},
     extensionState: {},
@@ -152,7 +152,7 @@ describe('createRedisBackend — boundary conditions', () => {
       extensionState: {},
       variables: { n: 7 },
       variableTypes: { n: 'number' },
-      pipeValue: 'result',
+      pipeResult: 'result',
     });
 
     await backend.saveCheckpoint(checkpoint);
@@ -164,7 +164,7 @@ describe('createRedisBackend — boundary conditions', () => {
     expect(loaded!.extensionState).toEqual({});
     expect(loaded!.variables).toEqual({ n: 7 });
     expect(loaded!.variableTypes).toEqual({ n: 'number' });
-    expect(loaded!.pipeValue).toBe('result');
+    expect(loaded!.pipeResult).toBe('result');
 
     await backend.close();
   });

@@ -363,7 +363,7 @@ export function createAgentHost(
 
           record.state = 'completed';
           record.durationMs = durationMs;
-          record.value = result.value;
+          record.result = result.result;
           record.variables = result.variables;
 
           void persistSession(record);
@@ -376,7 +376,7 @@ export function createAgentHost(
           pushSseEvent(sessionId, 'done', {
             sessionId,
             state: 'completed',
-            value: result.value,
+            result: result.result,
             durationMs,
           });
 
@@ -386,7 +386,7 @@ export function createAgentHost(
               sessionId,
               correlationId,
               state: 'completed',
-              value: result.value,
+              result: result.result,
               durationMs,
             };
             void deliverCallback(input.callback, response, record);
@@ -396,7 +396,7 @@ export function createAgentHost(
             sessionId,
             correlationId,
             state: 'completed' as const,
-            value: result.value,
+            result: result.result,
             durationMs,
           };
         },
@@ -568,7 +568,13 @@ export function createAgentHost(
 
       const app = new Hono();
 
-      registerRoutes(app, host, composedAgent!.card, sseStore);
+      registerRoutes(
+        app,
+        host,
+        composedAgent!.card,
+        sseStore,
+        composedAgent!.card.input
+      );
       registerSignalHandlers(host, cfg.drainTimeout);
 
       await new Promise<void>((resolve, reject) => {

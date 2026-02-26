@@ -14,7 +14,6 @@
  *   AC-18  POST /run at capacity returns 429
  *   AC-20  GET /sessions/:id unknown ID returns 404
  *   AC-21  POST /sessions/:id/abort on completed session returns 409
- *   AC-22  POST /sessions/:id/pause returns 501
  *   AC-23  GET /readyz when phase is init returns 503
  *   AC-24  GET /healthz when stopped returns 503
  *   AC-27  10 concurrent POST /run succeed; 11th returns 429
@@ -64,7 +63,7 @@ const COMPLETED_SESSION: SessionRecord = {
   variables: {},
   trigger: 'api',
   correlationId: 'corr-x',
-  value: 1,
+  result: 1,
 };
 
 const RUNNING_SESSION: SessionRecord = {
@@ -82,7 +81,7 @@ const DEFAULT_RUN_RESPONSE: RunResponse = {
   sessionId: 'sess-mock',
   correlationId: 'corr-mock',
   state: 'completed',
-  value: 1,
+  result: 1,
   durationMs: 50,
 };
 
@@ -393,24 +392,6 @@ describe('host HTTP routes', () => {
   });
 
   // --------------------------------------------------------
-  // AC-22: POST /sessions/:id/pause → 501
-  // --------------------------------------------------------
-  describe('AC-22: POST /sessions/:id/pause', () => {
-    it('returns 501 with not-implemented error (AC-22)', async () => {
-      const app = makeApp(makeMockHost());
-
-      const res = await app.request('/sessions/any/pause', {
-        method: 'POST',
-      });
-
-      expect(res.status).toBe(501);
-      const body = (await res.json()) as { error: string; reason: string };
-      expect(body.error).toBe('not implemented');
-      expect(body.reason).toBe('awaiting core stepper serialization');
-    });
-  });
-
-  // --------------------------------------------------------
   // AC-23: GET /readyz when phase is init returns 503
   // --------------------------------------------------------
   describe('AC-23: GET /readyz when init', () => {
@@ -571,7 +552,7 @@ describe('host HTTP routes', () => {
         { event: 'step', data: JSON.stringify({ index: 0, value: 1 }) },
         {
           event: 'done',
-          data: JSON.stringify({ sessionId, state: 'completed', value: 1 }),
+          data: JSON.stringify({ sessionId, state: 'completed', result: 1 }),
         },
       ]);
 

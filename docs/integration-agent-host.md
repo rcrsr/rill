@@ -138,6 +138,32 @@ Example response:
 | `GET /sessions/{id}/stream` | Session not found | 404 | `{"error": string}` |
 | `POST /sessions/{id}/pause` | Blocked endpoint | 501 | `{"error": "not implemented"}` |
 
+### POST /run Param Validation
+
+The host validates `params` against the manifest `input` schema before creating a session.
+
+| Condition | HTTP Status | Behavior |
+|-----------|-------------|----------|
+| Missing required param | 400 | Returns error body with `fields` listing the param |
+| Type mismatch | 400 | Returns error body with `fields` listing the param |
+| Missing optional param with default | 200 | Default value injected before execution |
+| Extra undeclared param | 200 | Param passes through to the script unchanged |
+| No `input` declared in manifest | 200 | No validation performed |
+
+Validation error response body:
+
+```json
+{
+  "error": "invalid params",
+  "fields": [
+    { "param": "feedback", "message": "required" },
+    { "param": "score", "message": "expected number, got string" }
+  ]
+}
+```
+
+Behavioral constraints: validation runs before session creation; `fields` lists params in manifest declaration order; defaults inject before execution; extra params pass through.
+
 ## Invocation Model
 
 ```typescript
@@ -153,7 +179,7 @@ interface RunResponse {
   readonly sessionId: string;
   readonly correlationId: string;
   readonly state: 'running' | 'completed' | 'failed';
-  readonly value?: RillValue | undefined;
+  readonly result?: RillValue | undefined;
   readonly durationMs?: number | undefined;
 }
 ```
@@ -180,7 +206,7 @@ Connect to `GET /sessions/{id}/stream` to receive real-time execution events. La
 | `step` | `sessionId`, `index`, `total`, `value`, `durationMs` | One script statement completed |
 | `capture` | `sessionId`, `name`, `value` | Variable captured with `=>` |
 | `error` | `sessionId`, `error` | Execution error occurred |
-| `done` | `sessionId`, `state`, `value?`, `error?`, `durationMs` | Session terminal state reached |
+| `done` | `sessionId`, `state`, `result?`, `error?`, `durationMs` | Session terminal state reached |
 
 ## Programmatic API
 

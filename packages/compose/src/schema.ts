@@ -56,6 +56,53 @@ const manifestDeployOptionsSchema = z
   .strict();
 
 // ============================================================
+// INPUT / OUTPUT DESCRIPTOR TYPES (declared before schemas for z.lazy annotation)
+// ============================================================
+
+export type InputParamDescriptor = {
+  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
+  required?: boolean | undefined;
+  description?: string | undefined;
+  default?: unknown;
+};
+
+export type OutputDescriptor = {
+  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
+  description?: string | undefined;
+  fields?: Record<string, OutputDescriptor> | undefined;
+};
+
+// ============================================================
+// INPUT / OUTPUT DESCRIPTOR SCHEMAS
+// ============================================================
+
+export const inputParamDescriptorSchema = z
+  .object({
+    type: z.enum(['string', 'number', 'bool', 'list', 'dict']),
+    required: z.boolean().optional(),
+    description: z.string().optional(),
+    default: z.unknown().optional(),
+  })
+  .strict();
+
+export const outputDescriptorSchema: z.ZodType<OutputDescriptor> = z.lazy(() =>
+  z
+    .object({
+      type: z.enum(['string', 'number', 'bool', 'list', 'dict']),
+      description: z.string().optional(),
+      fields: z.record(z.string(), outputDescriptorSchema).optional(),
+    })
+    .strict()
+);
+
+export const inputSchemaSchema = z.record(
+  z.string(),
+  inputParamDescriptorSchema
+);
+
+export type InputSchema = z.infer<typeof inputSchemaSchema>;
+
+// ============================================================
 // AGENT SKILL SCHEMA
 // ============================================================
 
@@ -100,6 +147,8 @@ const agentManifestSchema = z
     skills: z.array(agentSkillSchema).default([]),
     host: manifestHostOptionsSchema.optional(),
     deploy: manifestDeployOptionsSchema.optional(),
+    input: inputSchemaSchema.optional(),
+    output: outputDescriptorSchema.optional(),
   })
   .strict();
 

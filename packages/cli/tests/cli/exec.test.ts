@@ -9,11 +9,7 @@ import {
   formatError,
   determineExitCode,
 } from '../../src/cli-shared.js';
-import {
-  ParseError,
-  RuntimeError,
-  callable,
-} from '@rcrsr/rill';
+import { ParseError, RuntimeError, callable } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -222,19 +218,19 @@ describe('rill-exec', () => {
     it('executes simple script', async () => {
       const script = await writeScript('simple.rill', '"hello"');
       const result = await executeScript(script, []);
-      expect(result.value).toBe('hello');
+      expect(result.result).toBe('hello');
     });
 
     it('passes arguments as $ list', async () => {
       const script = await writeScript('args.rill', '$');
       const result = await executeScript(script, ['arg1', 'arg2']);
-      expect(result.value).toEqual(['arg1', 'arg2']);
+      expect(result.result).toEqual(['arg1', 'arg2']);
     });
 
     it('keeps arguments as strings', async () => {
       const script = await writeScript('type.rill', '$[0] -> type');
       const result = await executeScript(script, ['42']);
-      expect(result.value).toBe('string');
+      expect(result.result).toBe('string');
     });
 
     it('throws for non-existent file', async () => {
@@ -257,13 +253,13 @@ describe('rill-exec', () => {
       const script = await writeScript('empty.rill', '');
       const result = await executeScript(script, []);
       // Empty script returns initial pipe value (args list)
-      expect(result.value).toEqual([]);
+      expect(result.result).toEqual([]);
     });
 
     it('handles closure return', async () => {
       const script = await writeScript('closure.rill', '|x| { $x }');
       const result = await executeScript(script, []);
-      expect(formatOutput(result.value)).toBe('[closure]');
+      expect(formatOutput(result.result)).toBe('[closure]');
     });
   });
 
@@ -472,7 +468,7 @@ describe('rill-exec', () => {
         const result = await executeScript(entryScript, []);
 
         // Verify the final exported value is accessible through the chain
-        expect(result.value).toBe('level-10');
+        expect(result.result).toBe('level-10');
       } finally {
         await fs.rm(moduleDir, { recursive: true, force: true });
       }
@@ -528,7 +524,7 @@ describe('rill-exec', () => {
 
         // Should execute without circular dependency errors
         const result = await executeScript(entryScript, []);
-        expect(result.value).toBe(10);
+        expect(result.result).toBe(10);
       } finally {
         await fs.rm(moduleDir, { recursive: true, force: true });
       }

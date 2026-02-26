@@ -488,6 +488,250 @@ describe('validateManifest', () => {
   });
 
   // ============================================================
+  // INPUT / OUTPUT SCHEMA VALIDATION [AC-1, AC-10, AC-11, AC-16, AC-20, EC-1..EC-6]
+  // ============================================================
+
+  describe('input/output schema validation', () => {
+    // AC-1: valid manifest with input and output fields accepted
+    it('accepts manifest with input and output fields [AC-1]', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        input: {
+          query: {
+            type: 'string',
+            required: true,
+            description: 'Search query',
+          },
+          limit: { type: 'number', required: false },
+        },
+        output: { type: 'dict', description: 'Result set' },
+      });
+      expect(result.input?.['query']?.type).toBe('string');
+      expect(result.input?.['limit']?.type).toBe('number');
+      expect(result.output?.type).toBe('dict');
+    });
+
+    // EC-6: absent input/output returns undefined — no error
+    it('returns undefined for input when omitted [EC-6]', () => {
+      const result = validateManifest(VALID_MANIFEST);
+      expect(result.input).toBeUndefined();
+    });
+
+    it('returns undefined for output when omitted [EC-6]', () => {
+      const result = validateManifest(VALID_MANIFEST);
+      expect(result.output).toBeUndefined();
+    });
+
+    // AC-16: input: {} accepted (empty input valid)
+    it('accepts empty input object [AC-16]', () => {
+      const result = validateManifest({ ...VALID_MANIFEST, input: {} });
+      expect(result.input).toEqual({});
+    });
+
+    // EC-1: invalid type name in input descriptor throws ManifestValidationError
+    it('throws ManifestValidationError for invalid type in input descriptor [EC-1, AC-10]', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { type: 'integer' } },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('includes path manifest.input.feedback.type for invalid type name [EC-1, AC-10]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { type: 'integer' } },
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.input.feedback.type'
+        );
+        expect(issue).toBeDefined();
+      }
+    });
+
+    // EC-2: missing type in input descriptor throws ManifestValidationError
+    it('throws ManifestValidationError for missing type in input descriptor [EC-2]', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { required: true } },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('includes path manifest.input.feedback.type for missing type [EC-2]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { required: true } },
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.input.feedback.type'
+        );
+        expect(issue).toBeDefined();
+      }
+    });
+
+    // AC-11 / EC-3: unrecognized field in input descriptor
+    it('throws ManifestValidationError for unknown field in input descriptor [AC-11, EC-3]', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { type: 'string', badField: true } },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('includes path manifest.input.feedback.badField for unknown field [AC-11, EC-3]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          input: { feedback: { type: 'string', badField: true } },
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.input.feedback.badField'
+        );
+        expect(issue).toBeDefined();
+        expect(issue?.message).toContain('unknown field');
+      }
+    });
+
+    // EC-4: invalid type name in output throws ManifestValidationError
+    it('throws ManifestValidationError for invalid type name in output [EC-4]', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          output: { type: 'object' },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('includes path manifest.output.type for invalid output type [EC-4]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          output: { type: 'object' },
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find((i) => i.path === 'manifest.output.type');
+        expect(issue).toBeDefined();
+      }
+    });
+
+    // EC-5: unrecognized field in output throws ManifestValidationError
+    it('throws ManifestValidationError for unknown field in output [EC-5]', () => {
+      expect(() =>
+        validateManifest({
+          ...VALID_MANIFEST,
+          output: { type: 'string', badField: 'x' },
+        })
+      ).toThrow(ManifestValidationError);
+    });
+
+    it('includes path manifest.output.badField for unknown output field [EC-5]', () => {
+      try {
+        validateManifest({
+          ...VALID_MANIFEST,
+          output: { type: 'string', badField: 'x' },
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ManifestValidationError);
+        const err = e as ManifestValidationError;
+        const issue = err.issues.find(
+          (i) => i.path === 'manifest.output.badField'
+        );
+        expect(issue).toBeDefined();
+        expect(issue?.message).toContain('unknown field');
+      }
+    });
+
+    // AC-20: recursive output.fields accepted
+    it('accepts recursive output.fields [AC-20]', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        output: {
+          type: 'dict',
+          description: 'Nested result',
+          fields: {
+            name: { type: 'string' },
+            score: {
+              type: 'dict',
+              fields: {
+                value: { type: 'number' },
+                label: { type: 'string' },
+              },
+            },
+          },
+        },
+      });
+      expect(result.output?.type).toBe('dict');
+      expect(result.output?.fields?.['name']?.type).toBe('string');
+      expect(result.output?.fields?.['score']?.fields?.['value']?.type).toBe(
+        'number'
+      );
+    });
+
+    // All five valid types accepted in input descriptor
+    it('accepts all valid type values in input descriptor', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        input: {
+          a: { type: 'string' },
+          b: { type: 'number' },
+          c: { type: 'bool' },
+          d: { type: 'list' },
+          e: { type: 'dict' },
+        },
+      });
+      expect(result.input?.['a']?.type).toBe('string');
+      expect(result.input?.['b']?.type).toBe('number');
+      expect(result.input?.['c']?.type).toBe('bool');
+      expect(result.input?.['d']?.type).toBe('list');
+      expect(result.input?.['e']?.type).toBe('dict');
+    });
+
+    // default field accepted in input descriptor
+    it('accepts default field in input descriptor', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        input: {
+          limit: { type: 'number', default: 10 },
+        },
+      });
+      expect(result.input?.['limit']?.default).toBe(10);
+    });
+
+    // null default accepted in input descriptor
+    it('accepts null default in input descriptor', () => {
+      const result = validateManifest({
+        ...VALID_MANIFEST,
+        input: {
+          token: { type: 'string', default: null },
+        },
+      });
+      expect(result.input?.['token']?.default).toBeNull();
+    });
+  });
+
+  // ============================================================
   // STATE BACKEND VALIDATION [IR-16]
   // ============================================================
 

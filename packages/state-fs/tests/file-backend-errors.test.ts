@@ -41,7 +41,7 @@ function makeCheckpoint(overrides?: Partial<CheckpointData>): CheckpointData {
     timestamp: 1000,
     stepIndex: 0,
     totalSteps: 5,
-    pipeValue: null,
+    pipeResult: null,
     variables: {},
     variableTypes: {},
     extensionState: {},

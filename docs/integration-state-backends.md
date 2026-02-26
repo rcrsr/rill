@@ -147,7 +147,7 @@ interface CheckpointData {
   readonly timestamp: number;
   readonly stepIndex: number;
   readonly totalSteps: number;
-  readonly pipeValue: RillValue;
+  readonly pipeResult: RillValue;
   readonly variables: Record<string, RillValue>;
   readonly variableTypes: Record<string, RillTypeName>;
   readonly extensionState: Record<string, unknown>;

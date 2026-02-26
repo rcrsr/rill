@@ -359,13 +359,13 @@ Examples:
           source,
         });
 
-        const { code, message } = determineExitCode(result.value);
+        const { code, message } = determineExitCode(result.result);
 
         // Output message if present, otherwise output the result value
         if (message !== undefined) {
           console.log(message);
         } else {
-          console.log(formatOutput(result.value));
+          console.log(formatOutput(result.result));
         }
 
         // Exit with computed code

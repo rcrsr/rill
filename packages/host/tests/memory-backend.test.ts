@@ -42,7 +42,7 @@ function makeCheckpoint(overrides?: Partial<CheckpointData>): CheckpointData {
     timestamp: 1000,
     stepIndex: 0,
     totalSteps: 5,
-    pipeValue: null,
+    pipeResult: null,
     variables: {},
     variableTypes: {},
     extensionState: { some: 'state' },
@@ -85,7 +85,7 @@ describe('createMemoryBackend', () => {
       expect(loaded!.timestamp).toBe(checkpoint.timestamp);
       expect(loaded!.stepIndex).toBe(checkpoint.stepIndex);
       expect(loaded!.totalSteps).toBe(checkpoint.totalSteps);
-      expect(loaded!.pipeValue).toBe(checkpoint.pipeValue);
+      expect(loaded!.pipeResult).toBe(checkpoint.pipeResult);
       expect(loaded!.variables).toEqual(checkpoint.variables);
       expect(loaded!.variableTypes).toEqual(checkpoint.variableTypes);
       expect(loaded!.extensionState).toEqual(checkpoint.extensionState);

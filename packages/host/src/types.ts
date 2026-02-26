@@ -9,19 +9,11 @@ import type { RillTypeName, RillValue } from '@rcrsr/rill';
  */
 export type LogLevel = 'silent' | 'info' | 'debug';
 
-/**
- * Lifecycle phases for the AgentHost process.
- *
- * 'paused' is excluded — blocked pending core stepper serialization.
- */
+/** Lifecycle phases for the AgentHost process. */
 export type LifecyclePhase = 'init' | 'ready' | 'running' | 'stopped';
 
-/**
- * States a session can be in.
- *
- * 'paused' is retained for forward compatibility only.
- */
-export type SessionState = 'running' | 'paused' | 'completed' | 'failed';
+/** States a session can be in. */
+export type SessionState = 'running' | 'completed' | 'failed';
 
 /**
  * Persistent record for a single script execution session.
@@ -41,7 +33,7 @@ export interface SessionRecord {
   /** Execution or delivery error */
   error?: string | undefined;
   /** Set when state === 'completed' */
-  value?: RillValue | undefined;
+  result?: RillValue | undefined;
 }
 
 /**
@@ -89,7 +81,7 @@ export interface RunResponse {
   readonly sessionId: string;
   readonly correlationId: string;
   readonly state: 'running' | 'completed' | 'failed';
-  readonly value?: RillValue | undefined;
+  readonly result?: RillValue | undefined;
   readonly durationMs?: number | undefined;
 }
 
@@ -123,7 +115,7 @@ export interface CheckpointData {
   readonly timestamp: number;
   readonly stepIndex: number;
   readonly totalSteps: number;
-  readonly pipeValue: RillValue;
+  readonly pipeResult: RillValue;
   readonly variables: Record<string, RillValue>;
   readonly variableTypes: Record<string, RillTypeName>;
   readonly extensionState: Record<string, unknown>;

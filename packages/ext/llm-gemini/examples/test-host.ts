@@ -140,7 +140,7 @@ async function main(): Promise<void> {
     const result = await execute(ast, ctx);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.error(`[test-host] Done in ${elapsed}s`);
-    console.error(`[test-host] Result: ${formatOutput(result.value)}`);
+    console.error(`[test-host] Result: ${formatOutput(result.result)}`);
 
     dispose?.();
   } catch (error: unknown) {

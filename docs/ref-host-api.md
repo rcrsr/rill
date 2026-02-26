@@ -65,7 +65,7 @@ const ctx = createRuntimeContext({
 try {
   const ast = parse(script);
   const result = await execute(ast, ctx);
-  console.log('Result:', result.value);
+  console.log('Result:', result.result);
   console.log('Variables:', result.variables);
 } catch (err) {
   if (err instanceof AbortError) {

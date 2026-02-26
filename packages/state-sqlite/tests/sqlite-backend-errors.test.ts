@@ -33,7 +33,7 @@ function makeCheckpoint(overrides?: Partial<CheckpointData>): CheckpointData {
     timestamp: 1000,
     stepIndex: 0,
     totalSteps: 5,
-    pipeValue: null,
+    pipeResult: null,
     variables: {},
     variableTypes: {},
     extensionState: {},
@@ -187,7 +187,7 @@ describe('createSqliteBackend — error cases', () => {
         extensionState: {},
         variables: { count: 7 },
         variableTypes: { count: 'number' },
-        pipeValue: 'result',
+        pipeResult: 'result',
       });
 
       await backend.saveCheckpoint(checkpoint);
@@ -200,7 +200,7 @@ describe('createSqliteBackend — error cases', () => {
       // Other fields must be intact alongside the empty extensionState.
       expect(loaded!.variables).toEqual({ count: 7 });
       expect(loaded!.variableTypes).toEqual({ count: 'number' });
-      expect(loaded!.pipeValue).toBe('result');
+      expect(loaded!.pipeResult).toBe('result');
 
       await backend.close();
     });
