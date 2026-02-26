@@ -39,6 +39,23 @@ export function createFileBackend(config: FileBackendConfig): StateBackend {
     fs.renameSync(tmpPath, finalPath);
   }
 
+  function indexPath(): string {
+    return path.join(checkpointsDir, 'sessions-index.json');
+  }
+
+  function loadIndex(): Record<string, string> {
+    try {
+      const raw = fs.readFileSync(indexPath(), 'utf-8');
+      return JSON.parse(raw) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
+  function saveIndex(index: Record<string, string>): void {
+    writeAtomic(indexPath(), JSON.stringify(index));
+  }
+
   return {
     async connect(): Promise<void> {
       if (connected) return;
@@ -54,19 +71,21 @@ export function createFileBackend(config: FileBackendConfig): StateBackend {
     async saveCheckpoint(checkpoint: CheckpointData): Promise<void> {
       const filePath = checkpointPath(checkpoint.id);
       writeAtomic(filePath, JSON.stringify(checkpoint));
+      const index = loadIndex();
+      index[checkpoint.sessionId] = checkpoint.id;
+      saveIndex(index);
     },
 
     async loadCheckpoint(sessionId: string): Promise<CheckpointData | null> {
-      const files = fs.readdirSync(checkpointsDir);
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        const raw = fs.readFileSync(path.join(checkpointsDir, file), 'utf-8');
-        const data = JSON.parse(raw) as CheckpointData;
-        if (data.sessionId === sessionId) {
-          return data;
-        }
+      const index = loadIndex();
+      const id = index[sessionId];
+      if (id === undefined) return null;
+      try {
+        const raw = fs.readFileSync(checkpointPath(id), 'utf-8');
+        return JSON.parse(raw) as CheckpointData;
+      } catch {
+        return null;
       }
-      return null;
     },
 
     async listCheckpoints(
@@ -77,7 +96,7 @@ export function createFileBackend(config: FileBackendConfig): StateBackend {
       const results: CheckpointSummary[] = [];
 
       for (const file of files) {
-        if (!file.endsWith('.json')) continue;
+        if (!file.endsWith('.json') || file === 'sessions-index.json') continue;
         const raw = fs.readFileSync(path.join(checkpointsDir, file), 'utf-8');
         const data = JSON.parse(raw) as CheckpointData;
         if (data.agentName === agentName) {
@@ -102,6 +121,17 @@ export function createFileBackend(config: FileBackendConfig): StateBackend {
     },
 
     async deleteCheckpoint(id: string): Promise<void> {
+      try {
+        const raw = fs.readFileSync(checkpointPath(id), 'utf-8');
+        const data = JSON.parse(raw) as CheckpointData;
+        const index = loadIndex();
+        if (index[data.sessionId] === id) {
+          delete index[data.sessionId];
+          saveIndex(index);
+        }
+      } catch {
+        // file already gone or unreadable — no index entry to clean up
+      }
       try {
         fs.unlinkSync(checkpointPath(id));
       } catch (err) {

@@ -475,6 +475,82 @@ describe('containerBuilder', () => {
   });
 
   // ============================================================
+  // IC-10: stateBackend wiring in generated host.js
+  // ============================================================
+
+  describe('stateBackend wiring [IC-10]', () => {
+    it('omits stateBackend when deploy.stateBackend is absent', async () => {
+      await containerBuilder.build(makeContext());
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).not.toContain('const stateBackend');
+    });
+
+    it('wires memory backend into host.js', async () => {
+      const manifest = makeManifest({
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: { type: 'memory' },
+        },
+      } as unknown as AgentManifest);
+
+      await containerBuilder.build(makeContext(manifest));
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).toContain('stateBackend');
+    });
+
+    it('wires file backend into host.js', async () => {
+      const manifest = makeManifest({
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: { type: 'file', config: { dir: '/tmp/state' } },
+        },
+      } as unknown as AgentManifest);
+
+      await containerBuilder.build(makeContext(manifest));
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).toContain('stateBackend');
+    });
+
+    it('wires sqlite backend into host.js', async () => {
+      const manifest = makeManifest({
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: {
+            type: 'sqlite',
+            config: { filePath: '/tmp/state.db' },
+          },
+        },
+      } as unknown as AgentManifest);
+
+      await containerBuilder.build(makeContext(manifest));
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).toContain('stateBackend');
+    });
+
+    it('wires redis backend into host.js', async () => {
+      const manifest = makeManifest({
+        deploy: {
+          port: 3000,
+          healthPath: '/health',
+          stateBackend: { type: 'redis', config: { url: 'redis://localhost' } },
+        },
+      } as unknown as AgentManifest);
+
+      await containerBuilder.build(makeContext(manifest));
+
+      const hostJs = readFileSync(join(outputDir, 'host.js'), 'utf-8');
+      expect(hostJs).toContain('stateBackend');
+    });
+  });
+
+  // ============================================================
   // AC-31: CONCURRENT BUILDS TO DIFFERENT OUTPUT DIRS
   // ============================================================
 

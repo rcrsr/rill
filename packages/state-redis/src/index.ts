@@ -53,20 +53,25 @@ function throwFirstPipelineError(
 // ============================================================
 
 function buildRedisClient(config: RedisBackendConfig): Redis {
-  if (config.url !== undefined) {
-    return new Redis(config.url, {
-      lazyConnect: true,
-      ...(config.keyPrefix !== undefined && { keyPrefix: config.keyPrefix }),
-    });
-  }
-
-  return new Redis({
-    ...(config.host !== undefined && { host: config.host }),
-    ...(config.port !== undefined && { port: config.port }),
-    ...(config.password !== undefined && { password: config.password }),
-    ...(config.keyPrefix !== undefined && { keyPrefix: config.keyPrefix }),
-    lazyConnect: true,
-  });
+  const redis =
+    config.url !== undefined
+      ? new Redis(config.url, {
+          lazyConnect: true,
+          ...(config.keyPrefix !== undefined && {
+            keyPrefix: config.keyPrefix,
+          }),
+        })
+      : new Redis({
+          ...(config.host !== undefined && { host: config.host }),
+          ...(config.port !== undefined && { port: config.port }),
+          ...(config.password !== undefined && { password: config.password }),
+          ...(config.keyPrefix !== undefined && {
+            keyPrefix: config.keyPrefix,
+          }),
+          lazyConnect: true,
+        });
+  if (typeof redis.setMaxListeners === 'function') redis.setMaxListeners(20);
+  return redis;
 }
 
 export function createRedisBackend(config: RedisBackendConfig): StateBackend {

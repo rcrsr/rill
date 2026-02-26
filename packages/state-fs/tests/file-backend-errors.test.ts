@@ -151,19 +151,23 @@ describe('createFileBackend error and boundary paths', () => {
   // ============================================================
 
   describe('corrupt JSON', () => {
-    it('throws a parse error when a checkpoint file contains invalid JSON (EC-13)', async () => {
+    it('returns null when index points to a corrupt checkpoint file (EC-13)', async () => {
       const backend = createFileBackend(config);
       await backend.connect();
 
-      // Write a corrupt file directly, bypassing the backend.
+      // Write a corrupt file and a matching index entry so loadCheckpoint
+      // tries to read it.
       writeFileSync(
         join(tmpDir, 'checkpoints', 'chk-corrupt.json'),
         '{ not valid json }'
       );
-
-      await expect(backend.loadCheckpoint('sess-001')).rejects.toThrow(
-        SyntaxError
+      writeFileSync(
+        join(tmpDir, 'checkpoints', 'sessions-index.json'),
+        JSON.stringify({ 'sess-001': 'chk-corrupt' })
       );
+
+      const result = await backend.loadCheckpoint('sess-001');
+      expect(result).toBeNull();
     });
   });
 
