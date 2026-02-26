@@ -9,17 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **State backends** — Pluggable `StateBackend` interface in `@rcrsr/rill-host` for persisting checkpoints and sessions across restarts. Three packages: `@rcrsr/rill-state-fs` (file-based), `@rcrsr/rill-state-sqlite` (WAL mode, schema migration), `@rcrsr/rill-state-redis` (TTL, secondary index). Defaults to in-memory. Extension suspend/restore contract on `ExtensionResult`. Compose manifest wiring via `deploy.stateBackend`
+
 - **LLM structured output via `generate()`** — Provider-agnostic `generate(prompt, options)` function for all three LLM extensions. Accepts rill schema dicts, returns typed 6-key dict (`data`, `raw`, `model`, `usage`, `stop_reason`, `id`). Shared `buildJsonSchema` utility handles rill-to-JSON-Schema conversion for 6 types with nested dict, list, and enum support. 119 tests across shared, Anthropic, OpenAI, and Gemini packages
 
 - **@rcrsr/rill-host** — Production HTTP server for rill agents via `createAgentHost(manifest, options?)`. 12 routes including `/run`, `/stop`, `/healthz`, `/readyz`, `/metrics`, `/sessions`. Session manager with TTL pruning, abort, and concurrency cap. Prometheus metrics, graceful SIGTERM drain, SSE event streaming
 
 - **@rcrsr/rill-compose** — Manifest-driven agent composition via `agent.json`. CLI builds 4 targets: `container` (Dockerfile + node_modules), `lambda` (zip), `worker` (single ESM file), `local` (unbundled). Programmatic API via `composeAgent(manifest)`
 
-- **rill-compose init** — `rill-compose init <name> --extensions anthropic,qdrant` scaffolds a project with `agent.json`, starter script, `.env.example`, and `package.json`. Replaces `npx @rcrsr/rill-create-agent`
-
-- **Extension resolution strategies** — `agent.json` extensions resolve from npm packages, local paths (`./`), or built-in sub-paths (`@rcrsr/rill/ext/fs`). Namespace collision detection prevents duplicate function prefixes
-
-- **Worker target compatibility checking** — Detects native C++ addons and restricted Node.js built-ins (`fs`, `net`, `dns`, `tls`) before bundling for Cloudflare Workers
 
 ### Removed
 
