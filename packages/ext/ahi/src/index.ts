@@ -391,6 +391,7 @@ function createRegistryModeExtension(
       ctrl.abort();
     }
     inFlight.clear();
+    client.dispose();
   };
 
   const result: ExtensionResult = { ...functions };

@@ -9,6 +9,10 @@ export default defineConfig({
         __dirname,
         '../../compose/src/compose.ts'
       ),
+      '@rcrsr/rill-registry-client': path.resolve(
+        __dirname,
+        '../../registry-client/src/index.ts'
+      ),
     },
   },
   test: {
