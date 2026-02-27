@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.ext.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [
+    { "path": "../../core" },
+    { "path": "../../compose" },
+    { "path": "../../registry-client" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}

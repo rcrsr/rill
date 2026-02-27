@@ -181,6 +181,88 @@ The `type` field uses rill type names. This table shows how each name maps to a 
 
 ---
 
+## AHI Extension in Manifests
+
+The Agent-to-Host Interface (AHI) extension (`@rcrsr/rill-ext-ahi`) lets a rill agent call other agents by name. Configure it in the `extensions` block of `agent.json`.
+
+### Static URL Mode
+
+Use static URL mode when agent endpoints are fixed at deploy time.
+
+```json
+{
+  "extensions": {
+    "ahi": {
+      "package": "@rcrsr/rill-ext-ahi",
+      "config": {
+        "agents": {
+          "parser": { "url": "http://parser-agent:8080" },
+          "classifier": { "url": "${CLASSIFIER_URL}" }
+        },
+        "timeout": 10000
+      }
+    }
+  }
+}
+```
+
+The `agents` value is a dict mapping agent names to objects with a `url` field. The `${VAR}` syntax is supported for environment variable interpolation (see [Environment Interpolation](#environment-interpolation)).
+
+### Registry Mode
+
+Use registry mode when agent endpoints are resolved at runtime from a service registry.
+
+```json
+{
+  "extensions": {
+    "ahi": {
+      "package": "@rcrsr/rill-ext-ahi",
+      "config": {
+        "registry": "http://registry:8080",
+        "agents": ["parser", "classifier"],
+        "timeout": 10000
+      }
+    }
+  }
+}
+```
+
+In registry mode, `agents` is a string array of agent names. The AHI extension resolves each name to an endpoint via the registry at call time.
+
+### AHI Config Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agents` | `Record<string, {url: string}>` or `string[]` | Static URL dict (static mode) or agent name list (registry mode) |
+| `registry` | string | Registry base URL; required in registry mode |
+| `timeout` | number | Per-call timeout in ms (default: 30000) |
+
+### `ahiDependencies` and Self-Registration
+
+When `RILL_REGISTRY_URL` is set, the host self-registers after binding its port. If `extensions.ahi.config.agents` is a string array (registry mode), those names populate the `dependencies` field of the registration payload. The registry uses this to track which agents depend on which other agents.
+
+```json
+{
+  "extensions": {
+    "ahi": {
+      "package": "@rcrsr/rill-ext-ahi",
+      "config": {
+        "registry": "http://registry:8080",
+        "agents": ["parser", "classifier"]
+      }
+    }
+  }
+}
+```
+
+With the manifest above and `RILL_REGISTRY_URL` set, the host registers with `dependencies: ["parser", "classifier"]`.
+
+If `agents` is a dict (static mode), `dependencies` is an empty array — static-mode agents declare their endpoints directly and do not require registry resolution.
+
+See [Agent Host](integration-agent-host.md) for full self-registration behavior.
+
+---
+
 ## API Reference
 
 ### validateManifest(json)

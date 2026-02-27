@@ -1,4 +1,6 @@
 import type { RillValue } from '@rcrsr/rill';
+import type { AgentManifest } from '@rcrsr/rill-compose';
+export type { AgentManifest };
 
 /**
  * Log verbosity for AgentHost.
@@ -60,6 +62,18 @@ export interface AgentHostOptions {
   readonly maxConcurrentSessions?: number | undefined;
   readonly responseTimeout?: number | undefined;
   readonly logLevel?: LogLevel | undefined;
+  /**
+   * Original agent manifest passed to composeAgent().
+   * When provided alongside RILL_REGISTRY_URL, enables AHI dependency
+   * extraction from manifest.extensions.ahi.config.agents.
+   */
+  readonly manifest?: AgentManifest | undefined;
+  /**
+   * Override the endpoint URL registered with the registry.
+   * Defaults to `http://localhost:<port>` when absent.
+   * Set to a LAN IP or public hostname for multi-host deployments.
+   */
+  readonly registryEndpoint?: string | undefined;
 }
 
 /**
@@ -69,7 +83,18 @@ export interface RunRequest {
   readonly params?: Record<string, unknown>;
   readonly sessionId?: string | undefined;
   readonly timeout?: number | undefined;
-  readonly trigger?: 'http' | 'queue' | 'cron' | 'agent' | 'api' | 'manual';
+  readonly trigger?:
+    | 'http'
+    | 'queue'
+    | 'cron'
+    | 'agent'
+    | 'api'
+    | 'manual'
+    | {
+        readonly type: 'agent';
+        readonly agentName: string;
+        readonly sessionId: string;
+      };
   readonly callback?: string | undefined;
 }
 

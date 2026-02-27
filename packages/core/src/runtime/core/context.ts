@@ -178,6 +178,7 @@ export function createRuntimeContext(
     maxCallStackDepth: options.maxCallStackDepth ?? 100,
     annotationStack: [],
     callStack: [],
+    metadata: options.metadata,
   };
 }
 
@@ -202,6 +203,7 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     maxCallStackDepth: parent.maxCallStackDepth,
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
+    metadata: parent.metadata,
   };
 }
 

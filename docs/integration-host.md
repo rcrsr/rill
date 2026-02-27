@@ -229,7 +229,7 @@ The `fn` property in `HostFunctionDefinition` uses the `CallableFn` type:
 ```typescript
 type CallableFn = (
   args: RillValue[],
-  ctx: RuntimeContext,
+  ctx: RuntimeContextLike,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
 ```
@@ -237,8 +237,38 @@ type CallableFn = (
 | Parameter | Description |
 |-----------|-------------|
 | `args` | Positional arguments passed to the function (already validated against `params`) |
-| `ctx` | Runtime context with variables, pipeValue, etc. |
+| `ctx` | Runtime context with variables, pipeValue, and session metadata |
 | `location` | Source location of the call site (for error reporting) |
+
+### Session Metadata in Host Functions
+
+Host functions receive session metadata via `ctx.metadata: Record<string, string> | undefined`.
+
+When running under `rill-host`, the runtime populates these keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `correlationId` | `string` | Unique per-session UUID for distributed tracing |
+| `sessionId` | `string` | Session record ID |
+| `agentName` | `string` | Name of the running agent |
+| `timeoutDeadline` | `string` | Absolute deadline as Unix timestamp in ms |
+
+Read metadata in a host function:
+
+```typescript
+functions: {
+  trace: {
+    params: [{ name: 'msg', type: 'string' }],
+    fn: (args, ctx) => {
+      const correlationId = ctx.metadata?.correlationId ?? 'unknown';
+      console.log(`[${correlationId}] ${args[0]}`);
+      return args[0];
+    },
+  },
+}
+```
+
+`ctx.metadata` is `undefined` when the script runs outside `rill-host` (e.g., direct `execute()` calls).
 
 ## Host Function Type Declarations
 
@@ -720,19 +750,10 @@ console.log('Runtime:', {
 });
 ```
 
-**VERSION Constant:**
-- Type: `string`
-- Format: Semver (e.g., `"0.5.0"`, `"1.0.0-beta.1"`)
-- Use: Display in logs, error messages, diagnostics
-
-**VERSION_INFO Constant:**
-- Type: `VersionInfo`
-- Fields:
-  - `major: number` - Major version (breaking changes)
-  - `minor: number` - Minor version (new features)
-  - `patch: number` - Patch version (bug fixes)
-  - `prerelease?: string` - Prerelease tag if present
-- Use: Programmatic version comparison, compatibility checks
+| Constant | Type | Use |
+|----------|------|-----|
+| `VERSION` | `string` | Semver string for display in logs and error messages |
+| `VERSION_INFO` | `VersionInfo` | Structured `major`/`minor`/`patch`/`prerelease` for programmatic comparison |
 
 **Version Comparison Example:**
 
@@ -943,6 +964,26 @@ try {
 | `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
+
+## Agent Registry
+
+Set `RILL_REGISTRY_URL` to enable automatic self-registration with a service registry.
+
+```shell
+RILL_REGISTRY_URL=http://registry.internal:8080 node server.js
+```
+
+When `RILL_REGISTRY_URL` is set, `rill-host` follows this lifecycle:
+
+| Event | Action |
+|-------|--------|
+| `listen()` binds port | Registers with the registry immediately after port is bound |
+| Every 30s while running | Sends a heartbeat to the registry |
+| `stop()` drain begins | Calls `deregister()` before draining connections |
+
+If the registry is unreachable at startup, `rill-host` logs a warning and `listen()` resolves normally. The host continues running without registration.
+
+See [Agent Host](integration-agent-host.md#invocation-model) for the extended trigger object form used in agent-to-agent invocation.
 
 ## See Also
 

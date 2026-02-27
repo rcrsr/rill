@@ -119,6 +119,14 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
         observability,
         signal: controller.signal,
         maxCallStackDepth: baseContext.maxCallStackDepth,
+        metadata: {
+          correlationId,
+          sessionId: record.id,
+          agentName: agent.card.name,
+          ...(input.timeout !== undefined && {
+            timeoutDeadline: String(Date.now() + input.timeout),
+          }),
+        },
       });
 
       for (const [name, fn] of baseContext.functions) {
@@ -139,7 +147,13 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
 
         sessionsActive.dec();
         sessionsTotal
-          .labels({ state: 'completed', trigger: input.trigger ?? 'api' })
+          .labels({
+            state: 'completed',
+            trigger:
+              typeof input.trigger === 'object'
+                ? input.trigger.type
+                : (input.trigger ?? 'api'),
+          })
           .inc();
 
         const responseBody = JSON.stringify({
@@ -169,7 +183,13 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
 
         sessionsActive.dec();
         sessionsTotal
-          .labels({ state: 'failed', trigger: input.trigger ?? 'api' })
+          .labels({
+            state: 'failed',
+            trigger:
+              typeof input.trigger === 'object'
+                ? input.trigger.type
+                : (input.trigger ?? 'api'),
+          })
           .inc();
 
         const errorMessage = err instanceof Error ? err.message : String(err);

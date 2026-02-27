@@ -277,6 +277,58 @@ describe('registerRoutes', () => {
       expect(res.status).toBe(400);
     });
 
+    it('accepts string agent trigger (IC-14 backward compat)', async () => {
+      const app = makeApp(makeHost());
+
+      const res = await app.request('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger: 'agent' }),
+      });
+
+      expect(res.status).toBe(200);
+    });
+
+    it('accepts object agent trigger (IC-14)', async () => {
+      const app = makeApp(makeHost());
+
+      const res = await app.request('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger: { type: 'agent', agentName: 'caller', sessionId: 'abc' },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+    });
+
+    it('returns 400 for object trigger with wrong type field (IC-14)', async () => {
+      const app = makeApp(makeHost());
+
+      const res = await app.request('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger: { type: 'http', agentName: 'caller', sessionId: 'abc' },
+        }),
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for object trigger missing agentName (IC-14)', async () => {
+      const app = makeApp(makeHost());
+
+      const res = await app.request('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger: { type: 'agent', sessionId: 'abc' } }),
+      });
+
+      expect(res.status).toBe(400);
+    });
+
     it('returns 400 for non-positive timeout', async () => {
       const app = makeApp(makeHost());
 

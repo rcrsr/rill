@@ -164,7 +164,11 @@ interface RunRequest {
   readonly params?: Record<string, unknown>;
   readonly sessionId?: string | undefined;
   readonly timeout?: number | undefined;
-  readonly trigger?: 'http' | 'queue' | 'cron' | 'agent' | 'api' | 'manual';
+  readonly trigger?: 'http' | 'queue' | 'cron' | 'agent' | 'api' | 'manual' | {
+    type: 'agent';
+    agentName: string;
+    sessionId: string;
+  };
   readonly callback?: string | undefined;
 }
 
@@ -178,6 +182,43 @@ interface RunResponse {
 ```
 
 `POST /run` returns `state: "running"` when execution exceeds `responseTimeout`. The session continues in the background. Use `GET /sessions/{id}/stream` to receive completion events.
+
+### RunRequest Trigger Field
+
+The `trigger` field accepts a string or an object:
+
+```typescript
+// String form (all trigger types)
+type TriggerString = 'http' | 'queue' | 'cron' | 'agent' | 'api' | 'manual';
+
+// Object form (agent-to-agent invocation only)
+type TriggerObject = {
+  type: 'agent';
+  agentName: string;
+  sessionId: string;
+};
+
+type Trigger = TriggerString | TriggerObject;
+```
+
+The string `'agent'` remains valid for backward compatibility. Use the object form when the calling agent's name and session ID must propagate for tracing:
+
+```typescript
+const response = await fetch('http://agent-b:3000/run', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    trigger: {
+      type: 'agent',
+      agentName: 'agent-a',
+      sessionId: currentSessionId,
+    },
+    input: { query: 'summarize this' },
+  }),
+});
+```
+
+The receiving agent's host functions can read `ctx.metadata.correlationId` to link the two sessions in traces.
 
 ## Session Management
 

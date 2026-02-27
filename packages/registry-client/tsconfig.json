@@ -4,10 +4,6 @@
     "rootDir": "./src",
     "outDir": "./dist"
   },
-  "references": [
-    { "path": "../core" },
-    { "path": "../compose" },
-    { "path": "../registry-client" }
-  ],
+  "references": [{ "path": "../compose" }],
   "include": ["src/**/*"]
 }

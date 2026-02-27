@@ -100,6 +100,20 @@ importers:
 
   packages/core: {}
 
+  packages/ext/ahi:
+    dependencies:
+      '@rcrsr/rill-compose':
+        specifier: workspace:^
+        version: link:../../compose
+    devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../../core
+    optionalDependencies:
+      '@rcrsr/rill-registry-client':
+        specifier: workspace:^
+        version: link:../../registry-client
+
   packages/ext/claude-code:
     dependencies:
       node-pty:
@@ -435,6 +449,19 @@ importers:
       prom-client:
         specifier: ^15.1.3
         version: 15.1.3
+    devDependencies:
+      '@rcrsr/rill-compose':
+        specifier: workspace:^
+        version: link:../compose
+      '@rcrsr/rill-ext-ahi':
+        specifier: workspace:^
+        version: link:../ext/ahi
+    optionalDependencies:
+      '@rcrsr/rill-registry-client':
+        specifier: workspace:^
+        version: link:../registry-client
+
+  packages/registry-client:
     devDependencies:
       '@rcrsr/rill-compose':
         specifier: workspace:^

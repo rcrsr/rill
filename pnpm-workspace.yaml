@@ -7,4 +7,5 @@ packages:
   - 'packages/web'
   - 'packages/compose'
   - 'packages/host'
+  - 'packages/registry-client'
   - 'demo/*'

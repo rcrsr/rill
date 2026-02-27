@@ -153,6 +153,8 @@ export interface RuntimeContext {
    * Managed by evaluator; pushed on function entry, popped on exit.
    */
   readonly callStack: import('../../types.js').CallFrame[];
+  /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
+  readonly metadata?: Record<string, string> | undefined;
 }
 
 /** Options for creating a runtime context */
@@ -175,6 +177,8 @@ export interface RuntimeOptions {
   requireDescriptions?: boolean;
   /** Maximum call stack depth (default: 100) */
   maxCallStackDepth?: number;
+  /** Arbitrary string metadata passed through to the runtime context */
+  metadata?: Record<string, string>;
 }
 
 /** Result of script execution */

@@ -33,11 +33,11 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Host Integration](integration-host.md) | Embedding rill in applications |
+| [Host Integration](integration-host.md) | Embedding rill in applications, including registry self-registration and `ctx.metadata` |
 | [Agent Host](integration-agent-host.md) | Production HTTP server for rill agents |
-| [Compose](integration-compose.md) | Manifest-based agent composition API and CLI |
+| [Compose](integration-compose.md) | Manifest-based agent composition API, CLI, and AHI extension config |
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports |
-| [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
+| [Developing Extensions](integration-extensions.md) | Writing reusable host function packages, including the AHI extension for agent-to-agent calls |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | `rill-exec`, `rill-eval`, `rill-check` commands |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects with `rill-compose init` |
@@ -69,7 +69,8 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 6. **Deploying agents?** Read [Agent Host](integration-agent-host.md)
 7. **Composing from manifests?** See [Compose](integration-compose.md)
 8. **Packaging functions?** See [Extensions](integration-extensions.md)
-9. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
+9. **Agent-to-agent calls?** See [Developing Extensions](integration-extensions.md) for the AHI extension
+10. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
 
 ## Design Principles
 

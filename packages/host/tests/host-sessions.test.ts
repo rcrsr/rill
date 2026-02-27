@@ -107,6 +107,36 @@ describe('SessionManager', () => {
 
       expect(record.trigger).toBe('cron');
     });
+
+    it('stores string agent trigger (IC-14 backward compat)', () => {
+      const manager = new SessionManager({
+        maxConcurrentSessions: 5,
+        sessionTtl: 3600000,
+      });
+
+      const record = manager.create({ trigger: 'agent' }, 'corr-agent-str');
+
+      expect(record.trigger).toBe('agent');
+    });
+
+    it('stores object agent trigger (IC-14)', () => {
+      const manager = new SessionManager({
+        maxConcurrentSessions: 5,
+        sessionTtl: 3600000,
+      });
+
+      const objectTrigger = {
+        type: 'agent' as const,
+        agentName: 'caller',
+        sessionId: 'abc',
+      };
+      const record = manager.create(
+        { trigger: objectTrigger },
+        'corr-agent-obj'
+      );
+
+      expect(record.trigger).toEqual(objectTrigger);
+    });
   });
 
   // --------------------------------------------------------

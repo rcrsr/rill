@@ -284,12 +284,20 @@ export function registerRoutes(
       'api',
       'manual',
     ]);
-    if (
-      raw['trigger'] !== undefined &&
-      (typeof raw['trigger'] !== 'string' || !validTriggers.has(raw['trigger']))
-    ) {
-      c.header('X-Correlation-ID', correlationId);
-      return c.json({ error: 'invalid request' }, 400);
+    if (raw['trigger'] !== undefined) {
+      const t = raw['trigger'];
+      const isValidString = typeof t === 'string' && validTriggers.has(t);
+      const isValidObject =
+        typeof t === 'object' &&
+        t !== null &&
+        !Array.isArray(t) &&
+        (t as Record<string, unknown>)['type'] === 'agent' &&
+        typeof (t as Record<string, unknown>)['agentName'] === 'string' &&
+        typeof (t as Record<string, unknown>)['sessionId'] === 'string';
+      if (!isValidString && !isValidObject) {
+        c.header('X-Correlation-ID', correlationId);
+        return c.json({ error: 'invalid request' }, 400);
+      }
     }
 
     // Validate timeout

@@ -4,12 +4,11 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@rcrsr/rill': path.resolve(__dirname, '../core/src/index.ts'),
+      '@rcrsr/rill': path.resolve(__dirname, '../../core/src/index.ts'),
       '@rcrsr/rill-compose': path.resolve(
         __dirname,
-        '../compose/src/compose.ts'
+        '../../compose/src/compose.ts'
       ),
-      '@rcrsr/rill-ext-ahi': path.resolve(__dirname, '../ext/ahi/src/index.ts'),
     },
   },
   test: {

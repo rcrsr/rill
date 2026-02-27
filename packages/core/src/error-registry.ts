@@ -829,6 +829,142 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
 
+  // AHI Extension Errors (RILL-R027–RILL-R034)
+  {
+    errorId: 'RILL-R027',
+    category: 'runtime',
+    description: 'ahi extension: validation failed (HTTP 400)',
+    messageTemplate: '{message}',
+    cause: 'Downstream agent rejected the request with HTTP 400.',
+    resolution: 'Check request parameters match the downstream agent schema.',
+    examples: [
+      {
+        description: 'Missing required parameter',
+        code: 'ahi::parser([])  # Agent expects a non-empty params dict',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R028',
+    category: 'runtime',
+    description: 'ahi extension: agent unreachable (HTTP 404)',
+    messageTemplate: '{message}',
+    cause: 'Downstream agent endpoint returned HTTP 404.',
+    resolution: 'Verify the agent URL is correct and the agent is deployed.',
+    examples: [
+      {
+        description: 'Wrong agent path',
+        code: '# Agent configured with stale URL pointing to removed route',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R029',
+    category: 'runtime',
+    description: 'ahi extension: downstream exec failed',
+    messageTemplate: '{message}',
+    cause: 'Downstream agent returned HTTP 500.',
+    resolution: 'Check downstream agent logs for the root cause.',
+    examples: [
+      {
+        description: 'Unhandled error in downstream agent',
+        code: 'ahi::parser([input: $text])  # Downstream agent crashes',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R030',
+    category: 'runtime',
+    description: 'ahi extension: timeout exceeded',
+    messageTemplate: '{message}',
+    cause: 'HTTP request to downstream agent exceeded configured timeout.',
+    resolution:
+      'Increase the AHI extension timeout or reduce downstream latency.',
+    examples: [
+      {
+        description: 'Slow downstream agent',
+        code: '# createAhiExtension({ agents: { slow: { url: "..." } }, timeout: 5000 })',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R031',
+    category: 'runtime',
+    description: 'ahi extension: connection refused',
+    messageTemplate: '{message}',
+    cause:
+      'Network error contacting downstream agent (DNS failure, connection refused).',
+    resolution:
+      'Verify the agent URL, ensure the agent is running, and check network access.',
+    examples: [
+      {
+        description: 'Agent not running',
+        code: '# Agent configured with http://localhost:4001 but service is down',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R032',
+    category: 'runtime',
+    description: 'ahi extension: rate limited (HTTP 429)',
+    messageTemplate: '{message}',
+    cause: 'Downstream agent returned HTTP 429 (rate limited).',
+    resolution:
+      'Reduce request frequency or increase rate limits on the downstream agent.',
+    examples: [
+      {
+        description: 'Too many concurrent requests',
+        code: 'ahi::parser([input: $text])  # Agent enforces per-second request quota',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R033',
+    category: 'runtime',
+    description: 'ahi extension: extension disposed',
+    messageTemplate: '{message}',
+    cause: 'AHI extension has been disposed; no further calls are permitted.',
+    resolution:
+      'Do not call AHI functions after the extension has been disposed.',
+    examples: [
+      {
+        description: 'Call after dispose',
+        code: '# Host called extension.dispose() then continued running script',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R034',
+    category: 'runtime',
+    description: 'ahi extension: downstream HTTP error',
+    messageTemplate: '{message}',
+    cause: 'Downstream agent returned an unexpected HTTP error status code.',
+    resolution:
+      'Check the downstream agent for details about the error status.',
+    examples: [
+      {
+        description: 'HTTP 503 Service Unavailable',
+        code: 'ahi::parser([input: $text])  # Downstream returns 503',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R035',
+    category: 'runtime',
+    description: 'ahi extension: agent unresolvable',
+    messageTemplate: '{message}',
+    cause:
+      'Registry could not resolve the symbolic agent name at boot or on first call.',
+    resolution:
+      'Verify the agent is registered in the registry and the registry URL is correct.',
+    examples: [
+      {
+        description: 'Agent not registered',
+        code: '# createAhiExtension({ agents: ["parser"], registry: "http://registry:8080" })\n# Registry has no entry for "parser"',
+      },
+    ],
+  },
+
   // Check Errors (RILL-C0xx)
   {
     errorId: 'RILL-C001',

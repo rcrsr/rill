@@ -37,6 +37,7 @@ interface RuntimeContextLike {
   readonly parent?: RuntimeContextLike | undefined;
   readonly variables: Map<string, RillValue>;
   pipeValue: RillValue;
+  readonly metadata?: Record<string, string> | undefined;
 }
 
 /**

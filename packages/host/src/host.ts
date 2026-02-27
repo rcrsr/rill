@@ -124,6 +124,8 @@ export function createAgentHost(
       options?.maxConcurrentSessions ?? DEFAULTS.maxConcurrentSessions,
     responseTimeout: options?.responseTimeout ?? DEFAULTS.responseTimeout,
     logLevel: options?.logLevel ?? DEFAULTS.logLevel,
+    manifest: options?.manifest,
+    registryEndpoint: options?.registryEndpoint,
   };
 
   const sessionManager = new SessionManager({
@@ -136,6 +138,13 @@ export function createAgentHost(
   let phase: LifecyclePhase = 'ready';
   const composedAgent = agent;
   let httpServer: ServerType | undefined;
+
+  // Registry lifecycle state (IC-13)
+  let registryClient:
+    | import('@rcrsr/rill-registry-client').RegistryClient
+    | undefined;
+  let heartbeatHandle: ReturnType<typeof setInterval> | undefined;
+  let registrationComplete = false;
 
   const sseStore: SseStore = {
     eventBuffers: new Map<string, SseEvent[]>(),
@@ -251,6 +260,14 @@ export function createAgentHost(
             log('info', `[rill] ${msg}`, cfg.logLevel);
           },
         },
+        metadata: {
+          correlationId,
+          sessionId,
+          agentName: composedAgent.card.name,
+          ...(input.timeout !== undefined && {
+            timeoutDeadline: String(Date.now() + input.timeout),
+          }),
+        },
       });
 
       // Override the builtin-only functions map with the full composedAgent
@@ -278,7 +295,13 @@ export function createAgentHost(
 
           sessionsActive.dec();
           sessionsTotal
-            .labels({ state: 'completed', trigger: input.trigger ?? 'api' })
+            .labels({
+              state: 'completed',
+              trigger:
+                typeof input.trigger === 'object'
+                  ? input.trigger.type
+                  : (input.trigger ?? 'api'),
+            })
             .inc();
 
           pushSseEvent(sessionId, 'done', {
@@ -320,7 +343,13 @@ export function createAgentHost(
 
           sessionsActive.dec();
           sessionsTotal
-            .labels({ state: 'failed', trigger: input.trigger ?? 'api' })
+            .labels({
+              state: 'failed',
+              trigger:
+                typeof input.trigger === 'object'
+                  ? input.trigger.type
+                  : (input.trigger ?? 'api'),
+            })
             .inc();
 
           pushSseEvent(sessionId, 'done', {
@@ -392,6 +421,32 @@ export function createAgentHost(
       log('info', `[host] ${composedAgent.card.name} stopping`, cfg.logLevel);
 
       phase = 'stopped';
+
+      // Registry: deregister before drain begins (AC-35).
+      // If register() never completed, skip deregister (AC-42).
+      if (registryClient !== undefined && registrationComplete) {
+        if (heartbeatHandle !== undefined) {
+          clearInterval(heartbeatHandle);
+          heartbeatHandle = undefined;
+        }
+        try {
+          await registryClient.deregister(composedAgent.card.name);
+        } catch (err) {
+          // AC-38: deregister failure is non-fatal — warn and proceed.
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[host] registry deregister failed: ${msg}`);
+        }
+        await registryClient.dispose();
+        registryClient = undefined;
+      } else if (registryClient !== undefined) {
+        // register() did not complete — still dispose the client.
+        if (heartbeatHandle !== undefined) {
+          clearInterval(heartbeatHandle);
+          heartbeatHandle = undefined;
+        }
+        await registryClient.dispose();
+        registryClient = undefined;
+      }
 
       // Drain: wait for active sessions up to drainTimeout
       const drainEnd = Date.now() + cfg.drainTimeout;
@@ -476,6 +531,53 @@ export function createAgentHost(
         `[host] ${composedAgent.card.name} listening on http://localhost:${listenPort}`,
         cfg.logLevel
       );
+
+      // Registry integration (IC-13): activate when RILL_REGISTRY_URL is set.
+      // AC-41: no RILL_REGISTRY_URL → no-op.
+      const registryUrl = process.env['RILL_REGISTRY_URL'];
+      if (registryUrl !== undefined && registryUrl !== '') {
+        // AC-37: extract AHI agent dependencies from manifest extensions.
+        const ahiAgents = cfg.manifest?.extensions?.['ahi']?.config?.['agents'];
+        const ahiDependencies: string[] =
+          Array.isArray(ahiAgents) &&
+          ahiAgents.every((a): a is string => typeof a === 'string')
+            ? ahiAgents
+            : [];
+
+        const { createRegistryClient } =
+          await import('@rcrsr/rill-registry-client');
+        const client = createRegistryClient({ url: registryUrl });
+        registryClient = client;
+
+        const payload = {
+          name: composedAgent.card.name,
+          version: composedAgent.card.version,
+          endpoint: cfg.registryEndpoint ?? `http://localhost:${listenPort}`,
+          card: composedAgent.card,
+          dependencies: ahiDependencies,
+        };
+
+        // AC-33: call register() after port bind.
+        // AC-36/AC-39: network errors and HTTP 409 are warnings, not fatal.
+        try {
+          await client.register(payload);
+          registrationComplete = true;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[host] registry registration failed: ${msg}`);
+        }
+
+        // AC-34: heartbeat every 30 s while listening.
+        // AC-40: heartbeat failures are logged by the client; intervals continue.
+        heartbeatHandle = setInterval(() => {
+          void client
+            .heartbeat(composedAgent.card.name)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              console.warn(`[host] registry heartbeat failed: ${msg}`);
+            });
+        }, 30_000);
+      }
     },
 
     // ----------------------------------------------------------
