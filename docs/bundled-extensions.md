@@ -217,6 +217,7 @@ External extensions ship as separate npm packages. Install and integrate as need
 | Extension | Package | Namespace | Description |
 |-----------|---------|-----------|-------------|
 | [claude-code](extension-claude-code.md) | `@rcrsr/rill-ext-claude-code` | `claude_code` | Claude Code CLI integration |
+| [ahi](integration-extensions.md#ahi-extension-rcsrrill-ext-ahi) | `@rcrsr/rill-ext-ahi` | `ahi` | Agent-to-agent invocation |
 | [fs-s3](extension-fs-s3.md) | `@rcrsr/rill-ext-fs-s3` | `fs` | S3-compatible object storage backend |
 | [kv-redis](extension-kv-redis.md) | `@rcrsr/rill-ext-kv-redis` | `kv` | Redis key-value storage backend |
 | [kv-sqlite](extension-kv-sqlite.md) | `@rcrsr/rill-ext-kv-sqlite` | `kv` | SQLite key-value storage backend |
