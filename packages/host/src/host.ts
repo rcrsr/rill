@@ -16,17 +16,10 @@ import type {
 export type { AgentCard, AgentCapabilities, AgentSkill };
 import { AgentHostError } from './errors.js';
 import { SessionManager } from './session.js';
-import {
-  getMetricsText,
-  sessionsTotal,
-  sessionsActive,
-  executionDurationSeconds,
-  hostCallsTotal,
-  stepsTotal,
-} from './metrics.js';
+import { createMetrics } from './metrics.js';
 import { registerSignalHandlers } from './signals.js';
 import { registerRoutes } from './routes.js';
-import type { SseEvent, SseStore } from './routes.js';
+import type { RouteHost, SseEvent, SseStore } from './routes.js';
 import type {
   AgentHostOptions,
   LifecyclePhase,
@@ -84,6 +77,13 @@ export interface ComposedAgent {
 export interface AgentHost {
   readonly phase: LifecyclePhase;
   run(input: RunRequest): Promise<RunResponse>;
+  /**
+   * Run a specific agent by name.
+   * Used by ComposedHarness.bindHost() for in-process AHI routing.
+   *
+   * EC-6: agentName not in map → AgentHostError('agent "<name>" not found', 'init')
+   */
+  runForAgent(agentName: string, input: RunRequest): Promise<RunResponse>;
   stop(): Promise<void>;
   health(): HealthStatus;
   metrics(): Promise<string>;
@@ -96,11 +96,11 @@ export interface AgentHost {
 }
 
 // ============================================================
-// FACTORY
+// FACTORY OVERLOADS
 // ============================================================
 
 /**
- * Create an AgentHost ready to listen().
+ * Create an AgentHost for a single pre-composed agent.
  * Accepts a pre-composed agent; no init() step required.
  *
  * EC-1: agent null/undefined → TypeError('agent is required')
@@ -108,11 +108,45 @@ export interface AgentHost {
 export function createAgentHost(
   agent: ComposedAgent,
   options?: AgentHostOptions
+): AgentHost;
+
+/**
+ * Create an AgentHost for multiple pre-composed agents.
+ * Routes are mounted under /:agentName/ prefix.
+ *
+ * EC-6: empty agents map → AgentHostError('agents map must not be empty', 'init')
+ */
+// eslint-disable-next-line no-redeclare
+export function createAgentHost(
+  agents: Map<string, ComposedAgent>,
+  options?: AgentHostOptions
+): AgentHost;
+
+// eslint-disable-next-line no-redeclare
+export function createAgentHost(
+  agentOrAgents: ComposedAgent | Map<string, ComposedAgent>,
+  options?: AgentHostOptions
 ): AgentHost {
-  if (agent == null) {
-    throw new TypeError('agent is required');
+  // ----------------------------------------------------------
+  // Dispatch: single-agent vs multi-agent
+  // ----------------------------------------------------------
+  let agentsMap: Map<string, ComposedAgent>;
+  if (agentOrAgents instanceof Map) {
+    agentsMap = agentOrAgents;
+    if (agentsMap.size === 0) {
+      throw new AgentHostError('agents map must not be empty', 'init');
+    }
+  } else {
+    if (agentOrAgents == null) {
+      throw new TypeError('agent is required');
+    }
+    const agent = agentOrAgents;
+    agentsMap = new Map([[agent.card.name, agent]]);
   }
 
+  // ----------------------------------------------------------
+  // Configuration
+  // ----------------------------------------------------------
   const cfg = {
     port: options?.port ?? DEFAULTS.port,
     healthPath: options?.healthPath ?? DEFAULTS.healthPath,
@@ -128,18 +162,26 @@ export function createAgentHost(
     registryEndpoint: options?.registryEndpoint,
   };
 
+  // ----------------------------------------------------------
+  // Per-host metrics bundle (AC-16, AC-17)
+  // ----------------------------------------------------------
+  const metrics = createMetrics();
+
+  // ----------------------------------------------------------
+  // Shared session manager (single global cap, per-agent filtering)
+  // ----------------------------------------------------------
   const sessionManager = new SessionManager({
     maxConcurrentSessions: cfg.maxConcurrentSessions,
     sessionTtl: cfg.sessionTtl,
+    agentCaps: options?.agentCaps,
   });
 
   const startTime = Date.now();
 
   let phase: LifecyclePhase = 'ready';
-  const composedAgent = agent;
   let httpServer: ServerType | undefined;
 
-  // Registry lifecycle state (IC-13)
+  // Registry lifecycle state
   let registryClient:
     | import('@rcrsr/rill-registry-client').RegistryClient
     | undefined;
@@ -161,6 +203,256 @@ export function createAgentHost(
   }
 
   // ============================================================
+  // INTERNAL EXECUTION ENGINE
+  // ============================================================
+
+  /**
+   * Core execution logic for a single agent run.
+   * Called by both single-agent and per-agent route handlers.
+   */
+  async function runForAgent(
+    input: RunRequest,
+    composedAgent: ComposedAgent
+  ): Promise<RunResponse> {
+    if (phase === 'stopped') {
+      throw new AgentHostError('host stopped', 'lifecycle');
+    }
+
+    sessionManager.prune();
+
+    const correlationId = input.correlationId ?? randomUUID();
+    const agentName = composedAgent.card.name;
+    // SessionManager.create() throws AgentHostError('session limit reached', 'capacity')
+    const record = sessionManager.create(input, correlationId, agentName);
+    const sessionId = record.id;
+
+    // Transition on first run
+    if (phase === 'ready') {
+      phase = 'running';
+    }
+
+    log(
+      'debug',
+      `[host] session ${sessionId} started (trigger: ${input.trigger ?? 'api'})`,
+      cfg.logLevel
+    );
+
+    metrics.sessionsActive.labels({ agent: agentName }).inc();
+
+    // Build per-session AbortController
+    const sessionController = sessionManager.getController(sessionId);
+    const controller = sessionController!;
+
+    // Build observability callbacks wired to metrics + SSE
+    const observability: ObservabilityCallbacks = {
+      onStepEnd(event) {
+        metrics.stepsTotal.inc();
+        record.stepCount++;
+        pushSseEvent(sessionId, 'step', {
+          sessionId,
+          index: event.index,
+          total: event.total,
+          value: event.value,
+          durationMs: event.durationMs,
+        });
+      },
+      onHostCall(event) {
+        metrics.hostCallsTotal.labels({ function: event.name }).inc();
+      },
+      onCapture(event) {
+        pushSseEvent(sessionId, 'capture', {
+          sessionId,
+          name: event.name,
+          value: event.value,
+        });
+      },
+      onError(event) {
+        pushSseEvent(sessionId, 'error', {
+          sessionId,
+          error: event.error.message,
+        });
+      },
+    };
+
+    // Create a session-scoped context with session params, signal, and
+    // observability. Then overlay the composedAgent's full functions map
+    // (including host extensions) so all registered callables are available.
+    const baseContext = composedAgent.context;
+    const sessionContext = createRuntimeContext({
+      ...(input.params !== undefined && {
+        variables: input.params as Record<
+          string,
+          import('@rcrsr/rill').RillValue
+        >,
+      }),
+      ...(baseContext.timeout !== undefined && {
+        timeout: baseContext.timeout,
+      }),
+      observability,
+      signal: controller.signal,
+      maxCallStackDepth: baseContext.maxCallStackDepth,
+      callbacks: {
+        onLog: (value: import('@rcrsr/rill').RillValue) => {
+          const msg = typeof value === 'string' ? value : JSON.stringify(value);
+          log('info', `[rill] ${msg}`, cfg.logLevel);
+        },
+      },
+      metadata: {
+        correlationId,
+        sessionId,
+        agentName,
+        ...(input.timeout !== undefined && {
+          timeoutDeadline: String(Date.now() + input.timeout),
+        }),
+      },
+    });
+
+    // Override the builtin-only functions map with the full composedAgent
+    // functions map (host extensions included).
+    for (const [name, fn] of baseContext.functions) {
+      sessionContext.functions.set(name, fn);
+    }
+
+    const executionStart = Date.now();
+
+    // responseTimeout race: if execute() exceeds responseTimeout ms, return
+    // state='running' immediately while execution continues async.
+    let resolved = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    const executePromise = execute(composedAgent.ast, sessionContext).then(
+      (result) => {
+        const durationMs = Date.now() - executionStart;
+        metrics.executionDurationSeconds
+          .labels({ agent: agentName })
+          .observe(durationMs / 1000);
+
+        record.state = 'completed';
+        record.durationMs = durationMs;
+        record.result = result.result;
+        record.variables = result.variables;
+
+        metrics.sessionsActive.labels({ agent: agentName }).dec();
+        metrics.sessionsTotal
+          .labels({
+            state: 'completed',
+            trigger:
+              typeof input.trigger === 'object'
+                ? input.trigger.type
+                : (input.trigger ?? 'api'),
+            agent: agentName,
+          })
+          .inc();
+
+        pushSseEvent(sessionId, 'done', {
+          sessionId,
+          state: 'completed',
+          result: result.result,
+          durationMs,
+        });
+
+        // Deliver callback if specified
+        if (input.callback !== undefined) {
+          const response: RunResponse = {
+            sessionId,
+            correlationId,
+            state: 'completed',
+            result: result.result,
+            durationMs,
+          };
+          void deliverCallback(input.callback, response, record);
+        }
+
+        return {
+          sessionId,
+          correlationId,
+          state: 'completed' as const,
+          result: result.result,
+          durationMs,
+        };
+      },
+      (err: unknown) => {
+        const durationMs = Date.now() - executionStart;
+        metrics.executionDurationSeconds
+          .labels({ agent: agentName })
+          .observe(durationMs / 1000);
+
+        record.state = 'failed';
+        record.durationMs = durationMs;
+        record.error = err instanceof Error ? err.message : String(err);
+
+        console.error(`[host] session ${sessionId} failed: ${record.error}`);
+
+        metrics.sessionsActive.labels({ agent: agentName }).dec();
+        metrics.sessionsTotal
+          .labels({
+            state: 'failed',
+            trigger:
+              typeof input.trigger === 'object'
+                ? input.trigger.type
+                : (input.trigger ?? 'api'),
+            agent: agentName,
+          })
+          .inc();
+
+        pushSseEvent(sessionId, 'done', {
+          sessionId,
+          state: 'failed',
+          error: record.error,
+          durationMs,
+        });
+
+        // Deliver callback if specified
+        if (input.callback !== undefined) {
+          const response: RunResponse = {
+            sessionId,
+            correlationId,
+            state: 'failed',
+            durationMs,
+          };
+          void deliverCallback(input.callback, response, record);
+        }
+
+        return {
+          sessionId,
+          correlationId,
+          state: 'failed' as const,
+          durationMs,
+        };
+      }
+    );
+
+    const timeoutPromise = new Promise<RunResponse>((resolve) => {
+      timeoutHandle = setTimeout(() => {
+        resolve({
+          sessionId,
+          correlationId,
+          state: 'running',
+        });
+      }, cfg.responseTimeout);
+    });
+
+    const winner = await Promise.race([
+      executePromise.then((r) => {
+        resolved = true;
+        if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+        return r as RunResponse;
+      }),
+      timeoutPromise,
+    ]);
+
+    if (!resolved) {
+      // Timeout won — execution continues in background (executePromise keeps running).
+      // Suppress unhandled rejection on executePromise.
+      executePromise.catch(() => {
+        // already handled inside executePromise chain
+      });
+    }
+
+    return winner;
+  }
+
+  // ============================================================
   // AgentHost IMPLEMENTATION
   // ============================================================
 
@@ -171,242 +463,31 @@ export function createAgentHost(
 
     // ----------------------------------------------------------
     // IR-3: run()
+    // Single-agent mode: routes to the only agent.
+    // Multi-agent mode: also routes to the only agent (wrapping
+    // already put one agent in the map). For multi-agent mode
+    // callers use per-agent RouteHost adapters via runForAgent().
     // ----------------------------------------------------------
     async run(input: RunRequest): Promise<RunResponse> {
-      if (phase === 'stopped') {
-        throw new AgentHostError('host stopped', 'lifecycle');
+      // In single-agent or direct-call mode, pick the first (only) agent.
+      const composedAgent = agentsMap.values().next().value as ComposedAgent;
+      return runForAgent(input, composedAgent);
+    },
+
+    // ----------------------------------------------------------
+    // runForAgent(): per-agent routing for in-process AHI
+    // Used by ComposedHarness.bindHost() to route directly to the
+    // correct ComposedAgent without HTTP overhead.
+    // ----------------------------------------------------------
+    async runForAgent(
+      agentName: string,
+      input: RunRequest
+    ): Promise<RunResponse> {
+      const composedAgent = agentsMap.get(agentName);
+      if (composedAgent === undefined) {
+        throw new AgentHostError(`agent "${agentName}" not found`, 'init');
       }
-
-      // EC-6: capacity check — SessionManager.create() also checks but we
-      // validate phase first and delegate the capacity error to SessionManager.
-      sessionManager.prune();
-
-      const correlationId = randomUUID();
-      // SessionManager.create() throws AgentHostError('session limit reached', 'capacity')
-      const record = sessionManager.create(input, correlationId);
-      const sessionId = record.id;
-
-      // Transition on first run
-      if (phase === 'ready') {
-        phase = 'running';
-      }
-
-      log(
-        'debug',
-        `[host] session ${sessionId} started (trigger: ${input.trigger ?? 'api'})`,
-        cfg.logLevel
-      );
-
-      sessionsActive.inc();
-
-      // Build per-session AbortController
-      const sessionController = sessionManager.getController(sessionId);
-      // sessionController is always defined for a newly created session.
-      // Use non-null assertion after verifying this invariant from session.ts.
-      const controller = sessionController!;
-
-      // Build observability callbacks wired to metrics + SSE
-      const observability: ObservabilityCallbacks = {
-        onStepEnd(event) {
-          stepsTotal.inc();
-          record.stepCount++;
-          pushSseEvent(sessionId, 'step', {
-            sessionId,
-            index: event.index,
-            total: event.total,
-            value: event.value,
-            durationMs: event.durationMs,
-          });
-        },
-        onHostCall(event) {
-          hostCallsTotal.labels({ function: event.name }).inc();
-        },
-        onCapture(event) {
-          pushSseEvent(sessionId, 'capture', {
-            sessionId,
-            name: event.name,
-            value: event.value,
-          });
-        },
-        onError(event) {
-          pushSseEvent(sessionId, 'error', {
-            sessionId,
-            error: event.error.message,
-          });
-        },
-      };
-
-      // Create a session-scoped context with session params, signal, and
-      // observability. Then overlay the composedAgent's full functions map
-      // (including host extensions) so all registered callables are available.
-      const baseContext = composedAgent!.context;
-      const sessionContext = createRuntimeContext({
-        ...(input.params !== undefined && {
-          variables: input.params as Record<
-            string,
-            import('@rcrsr/rill').RillValue
-          >,
-        }),
-        ...(baseContext.timeout !== undefined && {
-          timeout: baseContext.timeout,
-        }),
-        observability,
-        signal: controller.signal,
-        maxCallStackDepth: baseContext.maxCallStackDepth,
-        callbacks: {
-          onLog: (value: import('@rcrsr/rill').RillValue) => {
-            const msg =
-              typeof value === 'string' ? value : JSON.stringify(value);
-            log('info', `[rill] ${msg}`, cfg.logLevel);
-          },
-        },
-        metadata: {
-          correlationId,
-          sessionId,
-          agentName: composedAgent.card.name,
-          ...(input.timeout !== undefined && {
-            timeoutDeadline: String(Date.now() + input.timeout),
-          }),
-        },
-      });
-
-      // Override the builtin-only functions map with the full composedAgent
-      // functions map (host extensions included).
-      for (const [name, fn] of baseContext.functions) {
-        sessionContext.functions.set(name, fn);
-      }
-
-      const executionStart = Date.now();
-
-      // responseTimeout race: if execute() exceeds responseTimeout ms, return
-      // state='running' immediately while execution continues async.
-      let resolved = false;
-      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-
-      const executePromise = execute(composedAgent!.ast, sessionContext).then(
-        (result) => {
-          const durationMs = Date.now() - executionStart;
-          executionDurationSeconds.observe(durationMs / 1000);
-
-          record.state = 'completed';
-          record.durationMs = durationMs;
-          record.result = result.result;
-          record.variables = result.variables;
-
-          sessionsActive.dec();
-          sessionsTotal
-            .labels({
-              state: 'completed',
-              trigger:
-                typeof input.trigger === 'object'
-                  ? input.trigger.type
-                  : (input.trigger ?? 'api'),
-            })
-            .inc();
-
-          pushSseEvent(sessionId, 'done', {
-            sessionId,
-            state: 'completed',
-            result: result.result,
-            durationMs,
-          });
-
-          // Deliver callback if specified
-          if (input.callback !== undefined) {
-            const response: RunResponse = {
-              sessionId,
-              correlationId,
-              state: 'completed',
-              result: result.result,
-              durationMs,
-            };
-            void deliverCallback(input.callback, response, record);
-          }
-
-          return {
-            sessionId,
-            correlationId,
-            state: 'completed' as const,
-            result: result.result,
-            durationMs,
-          };
-        },
-        (err: unknown) => {
-          const durationMs = Date.now() - executionStart;
-          executionDurationSeconds.observe(durationMs / 1000);
-
-          record.state = 'failed';
-          record.durationMs = durationMs;
-          record.error = err instanceof Error ? err.message : String(err);
-
-          console.error(`[host] session ${sessionId} failed: ${record.error}`);
-
-          sessionsActive.dec();
-          sessionsTotal
-            .labels({
-              state: 'failed',
-              trigger:
-                typeof input.trigger === 'object'
-                  ? input.trigger.type
-                  : (input.trigger ?? 'api'),
-            })
-            .inc();
-
-          pushSseEvent(sessionId, 'done', {
-            sessionId,
-            state: 'failed',
-            error: record.error,
-            durationMs,
-          });
-
-          // Deliver callback if specified
-          if (input.callback !== undefined) {
-            const response: RunResponse = {
-              sessionId,
-              correlationId,
-              state: 'failed',
-              durationMs,
-            };
-            void deliverCallback(input.callback, response, record);
-          }
-
-          return {
-            sessionId,
-            correlationId,
-            state: 'failed' as const,
-            durationMs,
-          };
-        }
-      );
-
-      const timeoutPromise = new Promise<RunResponse>((resolve) => {
-        timeoutHandle = setTimeout(() => {
-          resolve({
-            sessionId,
-            correlationId,
-            state: 'running',
-          });
-        }, cfg.responseTimeout);
-      });
-
-      const winner = await Promise.race([
-        executePromise.then((r) => {
-          resolved = true;
-          if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
-          return r as RunResponse;
-        }),
-        timeoutPromise,
-      ]);
-
-      if (!resolved) {
-        // Timeout won — execution continues in background (executePromise keeps running).
-        // Suppress unhandled rejection on executePromise.
-        executePromise.catch(() => {
-          // already handled inside executePromise chain
-        });
-      }
-
-      return winner;
+      return runForAgent(input, composedAgent);
     },
 
     // ----------------------------------------------------------
@@ -418,7 +499,8 @@ export function createAgentHost(
         return;
       }
 
-      log('info', `[host] ${composedAgent.card.name} stopping`, cfg.logLevel);
+      const agentNames = Array.from(agentsMap.keys()).join(', ');
+      log('info', `[host] ${agentNames} stopping`, cfg.logLevel);
 
       phase = 'stopped';
 
@@ -430,7 +512,9 @@ export function createAgentHost(
           heartbeatHandle = undefined;
         }
         try {
-          await registryClient.deregister(composedAgent.card.name);
+          for (const [agentName] of agentsMap) {
+            await registryClient.deregister(agentName);
+          }
         } catch (err) {
           // AC-38: deregister failure is non-fatal — warn and proceed.
           const msg = err instanceof Error ? err.message : String(err);
@@ -454,7 +538,8 @@ export function createAgentHost(
         await new Promise<void>((resolve) => setTimeout(resolve, 50));
       }
 
-      if (composedAgent !== undefined) {
+      // Dispose all agents
+      for (const composedAgent of agentsMap.values()) {
         try {
           await composedAgent.dispose();
         } catch {
@@ -462,7 +547,7 @@ export function createAgentHost(
         }
       }
 
-      log('info', `[host] ${composedAgent.card.name} stopped`, cfg.logLevel);
+      log('info', `[host] ${agentNames} stopped`, cfg.logLevel);
     },
 
     // ----------------------------------------------------------
@@ -481,11 +566,12 @@ export function createAgentHost(
     // IR-6: metrics()
     // ----------------------------------------------------------
     async metrics(): Promise<string> {
-      return getMetricsText();
+      return metrics.getMetricsText();
     },
 
     // ----------------------------------------------------------
     // IR-7: sessions()
+    // Returns ALL sessions across all agents.
     // ----------------------------------------------------------
     async sessions(): Promise<SessionRecord[]> {
       return sessionManager.list();
@@ -500,16 +586,108 @@ export function createAgentHost(
       }
 
       const listenPort = port ?? cfg.port;
-
       const app = new Hono();
 
-      registerRoutes(
-        app,
-        host,
-        composedAgent!.card,
-        sseStore,
-        composedAgent!.card.input
-      );
+      // ----------------------------------------------------------
+      // Multi-agent routing: mount per-agent sub-apps
+      // Each sub-app gets its own RouteHost adapter that:
+      //   - runs the correct ComposedAgent
+      //   - filters sessions to that agent only
+      // ----------------------------------------------------------
+      for (const [agentName, composedAgent] of agentsMap) {
+        const agentRouteHost: RouteHost = {
+          get phase() {
+            return phase;
+          },
+          async run(input: RunRequest): Promise<RunResponse> {
+            return runForAgent(input, composedAgent);
+          },
+          stop(): Promise<void> {
+            return host.stop();
+          },
+          health(): HealthStatus {
+            return host.health();
+          },
+          async metrics(): Promise<string> {
+            return host.metrics();
+          },
+          async sessions(): Promise<SessionRecord[]> {
+            return sessionManager
+              .list()
+              .filter((s) => s.agentName === agentName);
+          },
+          abortSession(id: string): boolean {
+            return sessionManager.abort(id);
+          },
+          async getSession(id: string): Promise<SessionRecord | undefined> {
+            return sessionManager.get(id);
+          },
+        };
+
+        const agentApp = new Hono();
+        registerRoutes(
+          agentApp,
+          agentRouteHost,
+          composedAgent.card,
+          sseStore,
+          composedAgent.card.input
+        );
+        app.route(`/${agentName}`, agentApp);
+
+        // AC-15 spec: GET /.well-known/:agentName/agent-card.json
+        // Registered on the main app, not the sub-app.
+        app.get(`/.well-known/${agentName}/agent-card.json`, (c) => {
+          if (phase !== 'ready' && phase !== 'running') {
+            return c.json({ error: 'service unavailable' }, 503);
+          }
+          return c.json(composedAgent.card, 200);
+        });
+      }
+
+      // ----------------------------------------------------------
+      // Process-level flat routes (no agent prefix).
+      // These are registered on the main app directly.
+      // Must be registered BEFORE the /:agentName/* catch-all so Hono
+      // matches /healthz, /readyz, /metrics, /stop before the wildcard.
+      // ----------------------------------------------------------
+      const processRouteHost: RouteHost = {
+        get phase() {
+          return phase;
+        },
+        async run(input: RunRequest): Promise<RunResponse> {
+          return host.run(input);
+        },
+        stop(): Promise<void> {
+          return host.stop();
+        },
+        health(): HealthStatus {
+          return host.health();
+        },
+        async metrics(): Promise<string> {
+          return host.metrics();
+        },
+        async sessions(): Promise<SessionRecord[]> {
+          return host.sessions();
+        },
+        abortSession(id: string): boolean {
+          return sessionManager.abort(id);
+        },
+        async getSession(id: string): Promise<SessionRecord | undefined> {
+          return sessionManager.get(id);
+        },
+      };
+
+      // Register process-level routes (healthz, readyz, metrics, stop) on
+      // the main app. These are flat (no agent prefix).
+      registerProcessRoutes(app, processRouteHost);
+
+      // ----------------------------------------------------------
+      // Unknown agent catch-all — must come AFTER known agent routes
+      // AND after process-level routes.
+      // AC-11: Unknown agent name → HTTP 404 (do not leak agent names).
+      // ----------------------------------------------------------
+      app.all('/:agentName/*', (c) => c.json({ error: 'not_found' }, 404));
+
       registerSignalHandlers(host, cfg.drainTimeout);
 
       await new Promise<void>((resolve, reject) => {
@@ -526,17 +704,16 @@ export function createAgentHost(
         });
       });
 
+      const agentNames = Array.from(agentsMap.keys()).join(', ');
       log(
         'info',
-        `[host] ${composedAgent.card.name} listening on http://localhost:${listenPort}`,
+        `[host] ${agentNames} listening on http://localhost:${listenPort}`,
         cfg.logLevel
       );
 
-      // Registry integration (IC-13): activate when RILL_REGISTRY_URL is set.
-      // AC-41: no RILL_REGISTRY_URL → no-op.
+      // Registry integration: register each agent individually.
       const registryUrl = process.env['RILL_REGISTRY_URL'];
       if (registryUrl !== undefined && registryUrl !== '') {
-        // AC-37: extract AHI agent dependencies from manifest extensions.
         const ahiAgents = cfg.manifest?.extensions?.['ahi']?.config?.['agents'];
         const ahiDependencies: string[] =
           Array.isArray(ahiAgents) &&
@@ -549,33 +726,34 @@ export function createAgentHost(
         const client = createRegistryClient({ url: registryUrl });
         registryClient = client;
 
-        const payload = {
-          name: composedAgent.card.name,
-          version: composedAgent.card.version,
-          endpoint: cfg.registryEndpoint ?? `http://localhost:${listenPort}`,
-          card: composedAgent.card,
-          dependencies: ahiDependencies,
-        };
+        for (const [, composedAgent] of agentsMap) {
+          const payload = {
+            name: composedAgent.card.name,
+            version: composedAgent.card.version,
+            endpoint: cfg.registryEndpoint ?? `http://localhost:${listenPort}`,
+            card: composedAgent.card,
+            dependencies: ahiDependencies,
+          };
 
-        // AC-33: call register() after port bind.
-        // AC-36/AC-39: network errors and HTTP 409 are warnings, not fatal.
-        try {
-          await client.register(payload);
-          registrationComplete = true;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.warn(`[host] registry registration failed: ${msg}`);
+          try {
+            await client.register(payload);
+            registrationComplete = true;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[host] registry registration failed: ${msg}`);
+          }
         }
 
-        // AC-34: heartbeat every 30 s while listening.
-        // AC-40: heartbeat failures are logged by the client; intervals continue.
+        // Heartbeat for all agents
         heartbeatHandle = setInterval(() => {
-          void client
-            .heartbeat(composedAgent.card.name)
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              console.warn(`[host] registry heartbeat failed: ${msg}`);
-            });
+          for (const [, composedAgent] of agentsMap) {
+            void client
+              .heartbeat(composedAgent.card.name)
+              .catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.warn(`[host] registry heartbeat failed: ${msg}`);
+              });
+          }
         }, 30_000);
       }
     },
@@ -616,6 +794,54 @@ export function createAgentHost(
   };
 
   return host;
+}
+
+// ============================================================
+// PROCESS-LEVEL ROUTE REGISTRATION
+// ============================================================
+
+/**
+ * Registers flat process-level routes on the main Hono app.
+ * These have no agent prefix: /healthz, /readyz, /metrics, /stop.
+ * They operate across all agents.
+ */
+function registerProcessRoutes(app: Hono, host: RouteHost): void {
+  app.get('/healthz', (c) => {
+    const status: HealthStatus = host.health();
+    if (status.phase === 'stopped') {
+      return c.json({ error: 'service unavailable' }, 503);
+    }
+    return c.json(status, 200);
+  });
+
+  app.get('/readyz', (c) => {
+    const ph = host.phase;
+    if (ph !== 'ready' && ph !== 'running') {
+      return c.json({ error: 'service unavailable' }, 503);
+    }
+    return c.json({ ready: true }, 200);
+  });
+
+  app.get('/metrics', async (c) => {
+    let text: string;
+    try {
+      text = await host.metrics();
+    } catch {
+      return c.json({ error: 'internal error' }, 500);
+    }
+    return c.text(text, 200, {
+      'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+    });
+  });
+
+  app.post('/stop', (c) => {
+    const ph = host.phase;
+    if (ph !== 'ready' && ph !== 'running') {
+      return c.json({ error: 'service unavailable' }, 503);
+    }
+    void host.stop();
+    return c.json({ message: 'shutdown initiated' }, 202);
+  });
 }
 
 // ============================================================

@@ -8,13 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { execute, createRuntimeContext } from '@rcrsr/rill';
 import type { ObservabilityCallbacks } from '@rcrsr/rill';
 import { SessionManager } from './session.js';
-import {
-  sessionsTotal,
-  sessionsActive,
-  executionDurationSeconds,
-  hostCallsTotal,
-  stepsTotal,
-} from './metrics.js';
+import { createMetrics } from './metrics.js';
 import type { ComposedAgent } from './host.js';
 import type { RunRequest } from './types.js';
 
@@ -74,6 +68,8 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
     sessionTtl: DEFAULTS.sessionTtl,
   });
 
+  const metrics = createMetrics();
+
   return async function handler(
     event: APIGatewayEvent,
     _context: LambdaContext
@@ -87,21 +83,25 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
     const correlationId = randomUUID();
 
     try {
-      const record = sessionManager.create(input, correlationId);
+      const record = sessionManager.create(
+        input,
+        correlationId,
+        agent.card.name
+      );
       const sessionId = record.id;
 
-      sessionsActive.inc();
+      metrics.sessionsActive.labels({ agent: agent.card.name }).inc();
 
       const sessionController = sessionManager.getController(sessionId);
       const controller = sessionController!;
 
       const observability: ObservabilityCallbacks = {
         onStepEnd() {
-          stepsTotal.inc();
+          metrics.stepsTotal.inc();
           record.stepCount++;
         },
         onHostCall(event) {
-          hostCallsTotal.labels({ function: event.name }).inc();
+          metrics.hostCallsTotal.labels({ function: event.name }).inc();
         },
       };
 
@@ -139,20 +139,23 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
         const result = await execute(agent.ast, sessionContext);
         const durationMs = Date.now() - executionStart;
 
-        executionDurationSeconds.observe(durationMs / 1000);
+        metrics.executionDurationSeconds
+          .labels({ agent: agent.card.name })
+          .observe(durationMs / 1000);
         record.state = 'completed';
         record.durationMs = durationMs;
         record.result = result.result;
         record.variables = result.variables;
 
-        sessionsActive.dec();
-        sessionsTotal
+        metrics.sessionsActive.labels({ agent: agent.card.name }).dec();
+        metrics.sessionsTotal
           .labels({
             state: 'completed',
             trigger:
               typeof input.trigger === 'object'
                 ? input.trigger.type
                 : (input.trigger ?? 'api'),
+            agent: agent.card.name,
           })
           .inc();
 
@@ -172,7 +175,9 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
       } catch (err: unknown) {
         const durationMs = Date.now() - executionStart;
 
-        executionDurationSeconds.observe(durationMs / 1000);
+        metrics.executionDurationSeconds
+          .labels({ agent: agent.card.name })
+          .observe(durationMs / 1000);
         record.state = 'failed';
         record.durationMs = durationMs;
         record.error = err instanceof Error ? err.message : String(err);
@@ -181,14 +186,15 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
           `[rill-host] session ${sessionId} failed: ${record.error}`
         );
 
-        sessionsActive.dec();
-        sessionsTotal
+        metrics.sessionsActive.labels({ agent: agent.card.name }).dec();
+        metrics.sessionsTotal
           .labels({
             state: 'failed',
             trigger:
               typeof input.trigger === 'object'
                 ? input.trigger.type
                 : (input.trigger ?? 'api'),
+            agent: agent.card.name,
           })
           .inc();
 

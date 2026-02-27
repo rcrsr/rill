@@ -6,7 +6,7 @@
  * Registry mode (Phase 4): agents array resolved via a registry service.
  */
 
-import type { ExtensionResult } from '@rcrsr/rill';
+import type { ExtensionResult, HostFunctionDefinition } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { isDict, RuntimeError } from '@rcrsr/rill';
 import type { InputSchema } from '@rcrsr/rill-compose';
@@ -512,3 +512,135 @@ export function createAhiExtension(
 }
 
 export default createAhiExtension;
+
+// ============================================================
+// IN-PROCESS RUNNER INTERFACE
+// ============================================================
+
+/**
+ * Interface for an in-process agent host accepted by createInProcessFunction.
+ * Aliased from AgentRunner in @rcrsr/rill-compose to avoid duplication (AC-20).
+ */
+import type { AgentRunner as InProcessRunner } from '@rcrsr/rill-compose';
+export type { InProcessRunner };
+
+// ============================================================
+// IN-PROCESS CALL (TASK 3.2)
+// ============================================================
+
+/**
+ * Create a CallableFn that invokes a target agent in-process via runner.
+ *
+ * IR-9: Calls runner.runForAgent() with caller trigger metadata and
+ * propagated timeout deadline. Maps capacity errors to RILL-R032 and
+ * failed state to RILL-R029.
+ *
+ * @param runner - In-process agent runner
+ * @param targetAgentName - Name of the target agent to invoke
+ * @param defaultTimeout - Default timeout in ms (0 = unlimited)
+ */
+function createInProcessCallFn(
+  runner: InProcessRunner,
+  targetAgentName: string,
+  defaultTimeout: number
+): (
+  args: RillValue[],
+  ctx: { readonly metadata?: Record<string, string> | undefined }
+) => Promise<RillValue> {
+  return async (
+    args: RillValue[],
+    ctx: { readonly metadata?: Record<string, string> | undefined }
+  ): Promise<RillValue> => {
+    const params = extractParams(args);
+    const metadata = ctx.metadata ?? {};
+
+    const callerAgentName = metadata['agentName'] ?? '';
+    const callerSessionId = metadata['sessionId'] ?? '';
+    const callerCorrelationId = metadata['correlationId'];
+
+    // AC-5 / AC-22: propagate remaining budget when it is less than the
+    // configured default. Mirror the same logic used in invokeAgent().
+    const deadlineRaw = metadata['timeoutDeadline'];
+    const deadlineMs =
+      deadlineRaw !== undefined ? parseInt(deadlineRaw, 10) : undefined;
+
+    let effectiveTimeout = defaultTimeout;
+    if (deadlineMs !== undefined && !isNaN(deadlineMs)) {
+      const remaining = deadlineMs - Date.now();
+      if (defaultTimeout === 0 || remaining < defaultTimeout) {
+        effectiveTimeout = remaining > 0 ? remaining : 1;
+      }
+    }
+
+    let response: {
+      state: 'running' | 'completed' | 'failed';
+      result?: RillValue | undefined;
+    };
+
+    try {
+      response = await runner.runForAgent(targetAgentName, {
+        params,
+        correlationId: callerCorrelationId,
+        trigger: {
+          type: 'agent',
+          agentName: callerAgentName,
+          sessionId: callerSessionId,
+        },
+        timeout: effectiveTimeout,
+      });
+    } catch (err) {
+      // EC-12: capacity error from host → RILL-R032 rate limited
+      // Duck-type check: ahi cannot import AgentHostError directly.
+      if (
+        err instanceof Error &&
+        (('phase' in err &&
+          (err as unknown as { phase: string }).phase === 'capacity') ||
+          err.message.includes('capacity'))
+      ) {
+        throw new RuntimeError('RILL-R032', 'AHI: rate limited');
+      }
+      throw err;
+    }
+
+    // EC-13: downstream execution failed → RILL-R029
+    if (response.state === 'failed') {
+      throw new RuntimeError('RILL-R029', 'AHI: downstream execution failed');
+    }
+
+    return response.result ?? null;
+  };
+}
+
+// ============================================================
+// IN-PROCESS FUNCTION FACTORY (TASK 3.3)
+// ============================================================
+
+/**
+ * Create a HostFunctionDefinition for in-process AHI invocation.
+ *
+ * IC-13: Used by bindHost() in compose.ts to register ahi::<name>
+ * functions that bypass HTTP and call the agent directly.
+ *
+ * @param runner - In-process agent runner (AgentRunner-compatible)
+ * @param targetAgentName - Name of the target agent
+ * @param timeout - Default request timeout in ms (0 = unlimited)
+ * @returns HostFunctionDefinition ready for registration
+ */
+export function createInProcessFunction(
+  runner: InProcessRunner,
+  targetAgentName: string,
+  timeout: number
+): HostFunctionDefinition {
+  return {
+    params: [
+      {
+        name: 'params',
+        type: 'any',
+        description: `Parameters forwarded to agent ${targetAgentName}`,
+      },
+    ],
+    fn: createInProcessCallFn(runner, targetAgentName, timeout),
+    description: `Invoke AHI agent in-process: ${targetAgentName}`,
+    returnType: 'any',
+  };
+}

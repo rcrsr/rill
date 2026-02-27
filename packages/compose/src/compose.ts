@@ -11,8 +11,14 @@ export type {
   InputSchema,
   OutputSchema,
   EnvSource,
+  HarnessManifest,
+  HarnessAgentEntry,
 } from './schema.js';
-export { validateManifest } from './schema.js';
+export {
+  validateManifest,
+  validateHarnessManifest,
+  detectManifestType,
+} from './schema.js';
 export type { ExtensionFactory } from '@rcrsr/rill';
 export type { AgentCard, AgentCapabilities, AgentSkill } from './card.js';
 export type { ResolvedExtension, ResolveOptions } from './resolve.js';
@@ -36,9 +42,16 @@ import {
   createRuntimeContext,
   parse,
   execute,
+  RuntimeError,
+  callable,
+  isDict,
 } from '@rcrsr/rill';
 import { ComposeError } from './errors.js';
-import type { AgentManifest } from './schema.js';
+import type {
+  AgentManifest,
+  HarnessManifest,
+  HarnessAgentEntry,
+} from './schema.js';
 import { interpolateEnv } from './interpolate.js';
 import { resolveExtensions } from './resolve.js';
 import { type AgentCard, generateAgentCard } from './card.js';
@@ -60,6 +73,52 @@ export interface ComposedAgent {
   dispose(): Promise<void>;
   readonly card: AgentCard;
   readonly extensions: Record<string, ExtensionResult>;
+}
+
+/**
+ * Minimal run request for in-process agent invocation.
+ * Mirrors the subset of @rcrsr/rill-host RunRequest used by bindHost.
+ */
+interface InProcessRunRequest {
+  readonly params?: Record<string, unknown>;
+  /** Caller-provided correlation ID forwarded for in-process AHI chains (AC-20). */
+  readonly correlationId?: string | undefined;
+  readonly timeout?: number | undefined;
+  readonly trigger?:
+    | string
+    | {
+        readonly type: 'agent';
+        readonly agentName: string;
+        readonly sessionId: string;
+      };
+}
+
+/**
+ * Minimal run response for in-process agent invocation.
+ * Mirrors the subset of @rcrsr/rill-host RunResponse used by bindHost.
+ */
+interface InProcessRunResponse {
+  readonly state: 'running' | 'completed' | 'failed';
+  readonly result?: RillValue | undefined;
+}
+
+/**
+ * Minimal interface for per-agent in-process routing.
+ * Implemented by AgentHost from @rcrsr/rill-host.
+ * Defined locally to avoid a circular package dependency.
+ */
+export interface AgentRunner {
+  runForAgent(
+    agentName: string,
+    input: InProcessRunRequest
+  ): Promise<InProcessRunResponse>;
+}
+
+export interface ComposedHarness {
+  readonly agents: Map<string, ComposedAgent>;
+  readonly sharedExtensions: Record<string, ExtensionResult>;
+  bindHost(host: AgentRunner): void;
+  dispose(): Promise<void>;
 }
 
 // ============================================================
@@ -182,6 +241,64 @@ async function loadCustomFunctions(
 }
 
 // ============================================================
+// INTERNAL: INSTANTIATE EXTENSIONS
+// ============================================================
+
+/**
+ * Instantiate resolved extensions into ExtensionResult instances.
+ * Returns merged functions, per-alias extension results, and dispose handlers.
+ * On instantiation failure, disposes already-instantiated extensions before throwing (EC-5).
+ */
+async function instantiateExtensions(
+  resolved: Awaited<ReturnType<typeof resolveExtensions>>,
+  alreadyDispose?: Array<() => void | Promise<void>>
+): Promise<{
+  functions: Record<string, HostFunctionDefinition>;
+  extensions: Record<string, ExtensionResult>;
+  disposeHandlers: Array<() => void | Promise<void>>;
+}> {
+  const disposeHandlers: Array<() => void | Promise<void>> = [];
+  let mergedFunctions: Record<string, HostFunctionDefinition> = {};
+  const extensions: Record<string, ExtensionResult> = {};
+
+  for (const ext of resolved) {
+    let instance: ExtensionResult;
+    try {
+      instance = ext.factory(ext.config);
+    } catch (err) {
+      // EC-5: dispose already-instantiated extensions before throwing
+      const toDispose = [
+        ...(alreadyDispose ?? []),
+        ...disposeHandlers,
+      ].reverse();
+      for (const handler of toDispose) {
+        try {
+          await handler();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ComposeError(
+        `Extension ${ext.alias} failed to initialize: ${msg}`,
+        'init'
+      );
+    }
+
+    extensions[ext.alias] = instance;
+
+    const hoisted = hoistExtension(ext.namespace, instance);
+    mergedFunctions = { ...mergedFunctions, ...hoisted.functions };
+
+    if (hoisted.dispose !== undefined) {
+      disposeHandlers.push(hoisted.dispose);
+    }
+  }
+
+  return { functions: mergedFunctions, extensions, disposeHandlers };
+}
+
+// ============================================================
 // COMPOSE AGENT
 // ============================================================
 
@@ -220,31 +337,9 @@ export async function composeAgent(
 
   // Steps 4–6: Detect namespace collisions (delegated to resolveExtensions above),
   // hoist each extension and collect functions
-  const disposeHandlers: Array<() => void | Promise<void>> = [];
-  let mergedFunctions: Record<string, HostFunctionDefinition> = {};
-  const extensions: Record<string, ExtensionResult> = {};
-
-  for (const ext of resolved) {
-    let instance: ExtensionResult;
-    try {
-      instance = ext.factory(ext.config);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new ComposeError(
-        `Extension ${ext.alias} failed to initialize: ${msg}`,
-        'init'
-      );
-    }
-
-    extensions[ext.alias] = instance;
-
-    const hoisted = hoistExtension(ext.namespace, instance);
-    mergedFunctions = { ...mergedFunctions, ...hoisted.functions };
-
-    if (hoisted.dispose !== undefined) {
-      disposeHandlers.push(hoisted.dispose);
-    }
-  }
+  const { functions, extensions, disposeHandlers } =
+    await instantiateExtensions(resolved);
+  let mergedFunctions = functions;
 
   // Compile and merge custom functions (EC-6, EC-7)
   if (Object.keys(manifest.functions).length > 0) {
@@ -305,6 +400,303 @@ export async function composeAgent(
     extensions,
     async dispose(): Promise<void> {
       for (const handler of reverseDispose) {
+        try {
+          await handler();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+    },
+  };
+}
+
+// ============================================================
+// COMPOSE HARNESS
+// ============================================================
+
+/**
+ * Builds a synthetic AgentManifest from a HarnessAgentEntry for card generation.
+ * Uses placeholder values for required manifest fields not present in the entry.
+ */
+function buildSyntheticManifest(entry: HarnessAgentEntry): AgentManifest {
+  return {
+    name: entry.name,
+    version: '0.0.0',
+    runtime: '@rcrsr/rill@*',
+    entry: entry.entry,
+    modules: entry.modules ?? {},
+    extensions: entry.extensions ?? {},
+    functions: {},
+    assets: [],
+    skills: [],
+    ...(entry.input !== undefined ? { input: entry.input } : {}),
+    ...(entry.output !== undefined ? { output: entry.output } : {}),
+  };
+}
+
+/**
+ * Compose a harness from a HarnessManifest.
+ * Instantiates shared extensions once, then composes each agent with merged
+ * shared + per-agent functions. Returns a ComposedHarness ready to bind to a host.
+ *
+ * @param manifest - Validated harness manifest
+ * @param options - Optional basePath (defaults to cwd) and env overrides
+ * @returns ComposedHarness with agents map, sharedExtensions, bindHost(), and dispose()
+ * @throws ComposeError on any composition failure (EC-5)
+ */
+export async function composeHarness(
+  manifest: HarnessManifest,
+  options?: ComposeOptions
+): Promise<ComposedHarness> {
+  const basePath = options?.basePath ?? process.cwd();
+  // HarnessManifest has no env sources field; use options.env or process.env
+  const env: Record<string, string> =
+    options?.env ?? (process.env as Record<string, string>);
+
+  // Step 2: Interpolate env placeholders in shared extension configs
+  const interpolatedShared: typeof manifest.shared = {};
+  for (const [alias, ext] of Object.entries(manifest.shared)) {
+    interpolatedShared[alias] = {
+      ...ext,
+      config: interpolateConfig(ext.config, env),
+    };
+  }
+
+  // Step 3: Resolve and instantiate shared extensions once
+  const resolvedShared = await resolveExtensions(interpolatedShared, {
+    manifestDir: basePath,
+    env,
+  });
+
+  const {
+    functions: sharedFunctions,
+    extensions: sharedExtensions,
+    disposeHandlers: sharedDisposeHandlers,
+  } = await instantiateExtensions(resolvedShared);
+
+  // Step 4: Compose each agent
+  const agents = new Map<string, ComposedAgent>();
+  const agentDisposeHandlers: Array<() => Promise<void>> = [];
+
+  for (const agentEntry of manifest.agents) {
+    // Step 4a: Resolve and instantiate per-agent extensions
+    const perAgentExtDefs = agentEntry.extensions ?? {};
+    const interpolatedPerAgent: typeof perAgentExtDefs = {};
+    for (const [alias, ext] of Object.entries(perAgentExtDefs)) {
+      interpolatedPerAgent[alias] = {
+        ...ext,
+        config: interpolateConfig(ext.config, env),
+      };
+    }
+
+    const resolvedPerAgent = await resolveExtensions(interpolatedPerAgent, {
+      manifestDir: basePath,
+      env,
+    });
+
+    const {
+      functions: perAgentFunctions,
+      extensions: perAgentExtensions,
+      disposeHandlers: perAgentExtDisposeHandlers,
+    } = await instantiateExtensions(resolvedPerAgent, sharedDisposeHandlers);
+
+    // Step 4b: Merge shared + per-agent functions; per-agent overrides shared
+    const mergedFunctions: Record<string, HostFunctionDefinition> = {
+      ...sharedFunctions,
+      ...perAgentFunctions,
+    };
+
+    // Step 4c: Parse entry .rill file and load modules
+    const entryAbsPath = path.resolve(basePath, agentEntry.entry);
+    if (!existsSync(entryAbsPath)) {
+      // EC-5: dispose already-instantiated before throwing
+      const toDispose = [
+        ...[...perAgentExtDisposeHandlers].reverse(),
+        ...[...sharedDisposeHandlers].reverse(),
+      ];
+      for (const handler of toDispose) {
+        try {
+          await handler();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+      throw new ComposeError(
+        `Entry file not found: ${entryAbsPath}`,
+        'compilation'
+      );
+    }
+    const entrySource = readFileSync(entryAbsPath, 'utf-8');
+    const ast = parse(entrySource);
+
+    // Step 4d: Create RuntimeContext with merged function map
+    const context = createRuntimeContext({ functions: mergedFunctions });
+
+    // Load modules
+    const modules: Record<string, Record<string, RillValue>> = {};
+    for (const [alias, relPath] of Object.entries(agentEntry.modules ?? {})) {
+      const absPath = path.resolve(basePath, relPath);
+      if (!existsSync(absPath)) {
+        // EC-5: dispose already-instantiated before throwing
+        const toDispose = [
+          ...[...perAgentExtDisposeHandlers].reverse(),
+          ...[...sharedDisposeHandlers].reverse(),
+        ];
+        for (const handler of toDispose) {
+          try {
+            await handler();
+          } catch {
+            // Ignore individual dispose errors
+          }
+        }
+        throw new ComposeError(
+          `Module file not found: ${alias} -> ${absPath}`,
+          'compilation'
+        );
+      }
+      const source = readFileSync(absPath, 'utf-8');
+      const moduleAst = parse(source);
+      const result = await execute(moduleAst, context);
+      modules[alias] = result.variables;
+    }
+
+    // Step 4e: Generate AgentCard from agent-level fields
+    const syntheticManifest = buildSyntheticManifest(agentEntry);
+    const card = generateAgentCard(syntheticManifest);
+
+    // Step 4f: Construct ComposedAgent
+    const allExtensions: Record<string, ExtensionResult> = {
+      ...sharedExtensions,
+      ...perAgentExtensions,
+    };
+
+    const reversePerAgentDispose = [...perAgentExtDisposeHandlers].reverse();
+    const agentDispose = async (): Promise<void> => {
+      for (const handler of reversePerAgentDispose) {
+        try {
+          await handler();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+    };
+
+    agentDisposeHandlers.push(agentDispose);
+
+    agents.set(agentEntry.name, {
+      context,
+      ast,
+      modules,
+      card,
+      extensions: allExtensions,
+      dispose: agentDispose,
+    });
+  }
+
+  // Build ComposedHarness
+  let disposed = false;
+
+  return {
+    agents,
+    sharedExtensions,
+
+    bindHost(host: AgentRunner): void {
+      // AC-28: no-op after dispose()
+      if (disposed) return;
+
+      // Build the set of agent names present in this harness
+      const harnessAgentNames = new Set(agents.keys());
+
+      // For each agent, scan its registered functions for ahi:: keys
+      for (const [callerAgentName, agent] of agents) {
+        for (const [fnKey] of agent.context.functions) {
+          if (!fnKey.startsWith('ahi::')) continue;
+
+          const targetName = fnKey.slice('ahi::'.length);
+
+          // Resolution order 1: target is in the harness → in-process shortcut
+          if (!harnessAgentNames.has(targetName)) continue;
+
+          const inProcessFn = callable(
+            async (args, ctx): Promise<RillValue> => {
+              // Extract params from args[0] if it is a dict
+              const firstArg = args[0];
+              const params: Record<string, unknown> =
+                firstArg !== undefined && isDict(firstArg)
+                  ? (firstArg as Record<string, unknown>)
+                  : {};
+
+              // Extract caller context from metadata
+              const meta = ctx.metadata;
+              const callerSessionId = meta?.['sessionId'];
+              const callerCorrelationId = meta?.['correlationId'];
+              const timeoutDeadlineStr = meta?.['timeoutDeadline'];
+
+              // Compute effectiveTimeout: if deadline set, use max(1, deadline - now), else 0 (no timeout)
+              let effectiveTimeout = 0;
+              if (timeoutDeadlineStr !== undefined) {
+                const deadline = Number(timeoutDeadlineStr);
+                effectiveTimeout = Math.max(1, deadline - Date.now());
+              }
+
+              const request: InProcessRunRequest = {
+                params,
+                correlationId: callerCorrelationId,
+                trigger: {
+                  type: 'agent',
+                  agentName: callerAgentName,
+                  sessionId: callerSessionId ?? '',
+                },
+                timeout: effectiveTimeout === 0 ? undefined : effectiveTimeout,
+              };
+
+              let response: InProcessRunResponse;
+              try {
+                response = await host.runForAgent(targetName, request);
+              } catch (err) {
+                // Duck-type AgentHostError capacity check (avoids value import / circular dep)
+                if (
+                  err instanceof Error &&
+                  'phase' in err &&
+                  (err as { phase: unknown }).phase === 'capacity'
+                ) {
+                  throw new RuntimeError('RILL-R032', 'AHI: rate limited');
+                }
+                throw err;
+              }
+
+              if (response.state === 'failed') {
+                throw new RuntimeError(
+                  'RILL-R029',
+                  'AHI: downstream execution failed'
+                );
+              }
+
+              return response.result ?? null;
+            }
+          );
+
+          agent.context.functions.set(fnKey, inProcessFn);
+        }
+      }
+    },
+
+    async dispose(): Promise<void> {
+      if (disposed) return;
+      disposed = true;
+
+      // Dispose per-agent extensions first (one agent at a time)
+      for (const agentDispose of agentDisposeHandlers) {
+        try {
+          await agentDispose();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+
+      // Then dispose shared extensions in reverse declaration order
+      const reverseSharedDispose = [...sharedDisposeHandlers].reverse();
+      for (const handler of reverseSharedDispose) {
         try {
           await handler();
         } catch {

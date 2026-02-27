@@ -27,6 +27,40 @@ const host = createAgentHost(agent);
 await host.listen(3000);
 ```
 
+## Multi-Agent Mode
+
+`createAgentHost` accepts a `Map<string, ComposedAgent>` to run multiple agents in a single process.
+
+```typescript
+import { validateManifest, composeAgent } from '@rcrsr/rill-compose';
+import { createAgentHost } from '@rcrsr/rill-host';
+
+const agentA = await composeAgent(validateManifest(manifestA), { basePath: import.meta.dirname });
+const agentB = await composeAgent(validateManifest(manifestB), { basePath: import.meta.dirname });
+
+const agents = new Map([
+  ['agent-a', agentA],
+  ['agent-b', agentB],
+]);
+
+const host = createAgentHost(agents, { maxConcurrentSessions: 20 });
+await host.listen(3000);
+```
+
+`createAgentHost` uses `instanceof Map` to detect the multi-agent overload. Single-agent mode wraps the single `ComposedAgent` in a `Map` keyed by `agent.card.name` and delegates to the same multi-agent path internally.
+
+```typescript
+// Single-agent overload (existing)
+export function createAgentHost(agent: ComposedAgent, options?: AgentHostOptions): AgentHost;
+
+// Multi-agent overload (new)
+export function createAgentHost(agents: Map<string, ComposedAgent>, options?: AgentHostOptions): AgentHost;
+```
+
+In multi-agent mode, each agent's routes mount under `/:agentName/`. Process-level endpoints (`/healthz`, `/readyz`, `/metrics`, `/stop`) remain flat with no prefix.
+
+`GET /readyz` returns HTTP 503 until all agents have finished composing. After all agents are ready, it returns HTTP 200.
+
 ## Lifecycle
 
 The host transitions through phases in order.
@@ -39,32 +73,52 @@ The host transitions through phases in order.
 
 ## HTTP Endpoints
 
-### Lifecycle Endpoints
+### Single-Agent Routes
 
 | Method | Path | Description | Success | Error |
 |--------|------|-------------|---------|-------|
 | `POST` | `/run` | Start a script session | 200 `RunResponse` | 400, 429, 503 |
+| `POST` | `/sessions/{id}/abort` | Abort a running session | 200 | 404 |
+| `GET` | `/sessions` | All session records | 200 `SessionRecord[]` | — |
+| `GET` | `/sessions/{id}` | Single session record | 200 `SessionRecord` | 404 |
+| `GET` | `/sessions/{id}/stream` | SSE event stream | 200 text/event-stream | 404 |
+| `GET` | `/.well-known/agent-card.json` | Agent capability card | 200 `AgentCard` | — |
+
+### Multi-Agent Routes
+
+Multi-agent mode mounts each agent's routes under a `/:agentName/` prefix.
+
+| Method | Path | Description | Success | Error |
+|--------|------|-------------|---------|-------|
+| `POST` | `/:agentName/run` | Start a session for a named agent | 200 `RunResponse` | 400, 404, 429 |
+| `POST` | `/:agentName/sessions/:id/abort` | Abort a session for a named agent | 200 | 404 |
+| `GET` | `/:agentName/sessions` | All sessions for a named agent | 200 `SessionRecord[]` | 404 |
+| `GET` | `/:agentName/sessions/:id` | Single session for a named agent | 200 `SessionRecord` | 404 |
+| `GET` | `/:agentName/sessions/:id/stream` | SSE stream for a named agent | 200 text/event-stream | 404 |
+| `GET` | `/.well-known/:agentName/agent-card.json` | Named agent capability card | 200 `AgentCard` | 404 |
+
+Unknown `:agentName` values return HTTP 404 with body `{"error":"not_found"}`. The response does not leak registered agent names.
+
+### Process-Level Endpoints
+
+These endpoints are always flat (no agent prefix) in both single-agent and multi-agent modes.
+
+| Method | Path | Description | Success | Error |
+|--------|------|-------------|---------|-------|
+| `GET` | `/healthz` | Health snapshot | 200 `HealthStatus` | — |
+| `GET` | `/readyz` | Readiness probe | 200 or 503 | — |
+| `GET` | `/metrics` | Prometheus metrics text | 200 text/plain | — |
 | `POST` | `/stop` | Initiate graceful shutdown | 202 | 503 |
-| `POST` | `/sessions/{id}/abort` | Abort a running session | 200 | 404, 409 |
 
-### Observability Endpoints
-
-| Method | Path | Description | Success |
-|--------|------|-------------|---------|
-| `GET` | `/healthz` | Health snapshot | 200 `HealthStatus` |
-| `GET` | `/readyz` | Readiness probe | 200 `{"ready":true}` |
-| `GET` | `/metrics` | Prometheus metrics text | 200 text/plain |
-| `GET` | `/sessions` | All session records | 200 `SessionRecord[]` |
-| `GET` | `/sessions/{id}` | Single session record | 200 `SessionRecord` |
-| `GET` | `/sessions/{id}/stream` | SSE event stream | 200 text/event-stream |
+`GET /readyz` returns HTTP 200 when the host is ready to accept requests. In multi-agent mode, it returns HTTP 503 with body `{"status":"not_ready"}` until all agents have finished composing. In single-agent mode, it returns HTTP 200 as before.
 
 ### Discovery Endpoint
 
-| Method | Path | Description | Success |
-|--------|------|-------------|---------|
-| `GET` | `/.well-known/agent-card.json` | Agent capability card | 200 `AgentCard` |
+| Method | Path | Description | Success | Error |
+|--------|------|-------------|---------|-------|
+| `GET` | `/.well-known/agent-card.json` | Agent capability card (single-agent) | 200 `AgentCard` | — |
 
-`GET /.well-known/agent-card.json` returns an A2A-compliant `AgentCard` JSON object describing the agent's identity and capabilities.
+`GET /.well-known/agent-card.json` returns an A2A-compliant `AgentCard` JSON object describing the agent's identity and capabilities. In multi-agent mode, use `GET /.well-known/:agentName/agent-card.json` instead.
 
 ```typescript
 interface AgentCapabilities {
@@ -107,7 +161,7 @@ interface AgentCard {
 
 Example response:
 
-```typescript
+```json
 {
   "name": "my-agent",
   "description": "...",
@@ -122,6 +176,8 @@ Example response:
 
 ### Error Contracts
 
+#### Single-Agent
+
 | Endpoint | Error Condition | HTTP Status | Response Shape |
 |----------|----------------|-------------|----------------|
 | `POST /run` | Host not READY or RUNNING | 503 | `{"error": string}` |
@@ -130,6 +186,20 @@ Example response:
 | `POST /sessions/{id}/abort` | Session not found | 404 | `{"error": string}` |
 | `GET /sessions/{id}` | TTL elapsed | 404 | `{"error": string}` |
 | `GET /sessions/{id}/stream` | Session not found | 404 | `{"error": string}` |
+
+#### Multi-Agent
+
+| Endpoint | Error Condition | HTTP Status | Response Body |
+|----------|----------------|-------------|---------------|
+| `POST /:agentName/run` | Unknown agent name | 404 | `{"error": "not_found"}` |
+| `POST /:agentName/run` | Per-agent capacity exceeded | 429 | `{"error": "capacity_exceeded", "agent": string}` |
+| `POST /:agentName/run` | Global capacity exceeded | 429 | `{"error": "capacity_exceeded"}` |
+| `POST /:agentName/run` | Invalid request body | 400 | `{"error": "validation_error", "detail": string}` |
+| `GET /:agentName/sessions/:id` | Session not found | 404 | `{"error": "not_found"}` |
+| `POST /:agentName/sessions/:id/abort` | Session not found | 404 | `{"error": "not_found"}` |
+| `GET /readyz` | Not all agents composed | 503 | `{"status": "not_ready"}` |
+
+Unknown `:agentName` responses use `{"error":"not_found"}` regardless of whether the name is close to a registered agent. This prevents leaking registered agent names through error messages.
 
 ### POST /run Param Validation
 
@@ -230,6 +300,33 @@ The receiving agent's host functions can read `ctx.metadata.correlationId` to li
 
 `maxConcurrentSessions` caps the number of sessions in `running` state. Requests that exceed the cap return 429. `sessionTtl` controls how long completed or failed session records remain queryable. After the TTL elapses, `GET /sessions/{id}` returns 404.
 
+### SessionRecord
+
+Every session record carries an `agentName` field identifying which agent owns the session.
+
+```typescript
+interface SessionRecord {
+  readonly sessionId: string;
+  readonly agentName: string;  // agent card.name; equals host agent name in single-agent mode
+  readonly state: 'running' | 'completed' | 'failed';
+  readonly trigger: string;
+  readonly correlationId: string;
+  readonly startedAt: number;
+  readonly durationMs?: number | undefined;
+  readonly result?: RillValue | undefined;
+  readonly error?: string | undefined;
+}
+```
+
+### Per-Agent Concurrency Caps
+
+`SessionManager.create()` enforces two capacity checks in order:
+
+1. **Global cap** — checks `maxConcurrentSessions` across all agents. Exceeded → `AgentHostError` code `'capacity'` → HTTP 429 with `{"error":"capacity_exceeded"}`.
+2. **Per-agent cap** — checks the cap for the specific agent. Exceeded → `AgentHostError` code `'capacity'` → HTTP 429 with `{"error":"capacity_exceeded","agent":string}`.
+
+Configure per-agent caps via `agents[].maxConcurrency` in the multi-agent options. When absent, the default is `Math.floor(host.maxConcurrency / agents.size)`. In single-agent mode, `agentName` equals the agent's `card.name` and only the global cap applies.
+
 ## SSE Streaming
 
 Connect to `GET /sessions/{id}/stream` to receive real-time execution events. Late-connecting clients receive all buffered events immediately.
@@ -260,7 +357,9 @@ Call `run()` or `listen()` after creating the host. Call `close()` to stop the H
 
 ## Configuration
 
-Pass options as the second argument to `createAgentHost(agent, options)`.
+Pass options as the second argument to `createAgentHost(agent, options)` or `createAgentHost(agents, options)`.
+
+### AgentHostOptions
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -270,21 +369,43 @@ Pass options as the second argument to `createAgentHost(agent, options)`.
 | `metricsPath` | `string` | `'/metrics'` | Path for the Prometheus metrics endpoint |
 | `drainTimeout` | `number` | `30000` ms | Max time to wait for sessions during shutdown |
 | `sessionTtl` | `number` | `3600000` ms | Retention time for completed session records |
-| `maxConcurrentSessions` | `number` | `10` | Maximum simultaneous running sessions |
+| `maxConcurrentSessions` | `number` | `10` | Maximum simultaneous running sessions (global cap) |
 | `responseTimeout` | `number` | `30000` ms | Time before `POST /run` returns `state: "running"` |
+
+### Per-Agent Concurrency (Multi-Agent)
+
+Set `maxConcurrency` per agent entry when creating a multi-agent host:
+
+```typescript
+const host = createAgentHost(agents, {
+  maxConcurrentSessions: 20,
+  agents: {
+    'agent-a': { maxConcurrency: 12 },
+    'agent-b': { maxConcurrency: 8 },
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `agents[name].maxConcurrency` | `number` | `Math.floor(maxConcurrentSessions / agents.size)` | Per-agent running session cap |
+
+When `agents[name].maxConcurrency` is absent, the cap is distributed evenly across all agents. The global cap from `maxConcurrentSessions` still applies after the per-agent check passes.
 
 ## Observability
 
-All metrics use a dedicated Prometheus registry. Scrape `GET /metrics` for the text/plain exposition format.
+Each `AgentHost` instance uses its own `prom-client` `Registry` instance. Two `AgentHost` instances running in the same process do not share a registry, so metric registration does not collide. Scrape `GET /metrics` for the text/plain exposition format.
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `rill_sessions_total` | Counter | `state`, `trigger` | Total sessions created |
-| `rill_sessions_active` | Gauge | — | Sessions currently running |
-| `rill_execution_duration_seconds` | Histogram | — | Script execution duration |
+| `rill_sessions_total` | Counter | `state`, `trigger`, `agent` | Total sessions created |
+| `rill_sessions_active` | Gauge | `agent` | Sessions currently running |
+| `rill_execution_duration_seconds` | Histogram | `agent` | Script execution duration |
 | `rill_host_calls_total` | Counter | `function` | Host function invocations |
 | `rill_host_call_errors_total` | Counter | `function` | Failed host function calls |
 | `rill_steps_total` | Counter | — | Total steps executed across all sessions |
+
+The `agent` label value equals `card.name` for that agent. In single-agent mode, it equals the single agent's `card.name`. Existing Prometheus queries that omit the `agent` label continue to aggregate correctly across all agents.
 
 ## Signal Handling
 

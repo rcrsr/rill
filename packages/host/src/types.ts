@@ -22,6 +22,8 @@ export type SessionState = 'running' | 'completed' | 'failed';
  */
 export interface SessionRecord {
   readonly id: string;
+  /** Which agent owns this session */
+  readonly agentName: string;
   state: SessionState;
   /** Date.now() at creation */
   readonly startTime: number;
@@ -74,6 +76,11 @@ export interface AgentHostOptions {
    * Set to a LAN IP or public hostname for multi-host deployments.
    */
   readonly registryEndpoint?: string | undefined;
+  /**
+   * Per-agent concurrency caps. Keys are agent names; values are max concurrent sessions.
+   * Only used in multi-agent mode (createAgentHost with Map).
+   */
+  readonly agentCaps?: Map<string, number> | undefined;
 }
 
 /**
@@ -81,6 +88,8 @@ export interface AgentHostOptions {
  */
 export interface RunRequest {
   readonly params?: Record<string, unknown>;
+  /** Caller-provided correlation ID forwarded for in-process AHI chains (AC-20). */
+  readonly correlationId?: string | undefined;
   readonly sessionId?: string | undefined;
   readonly timeout?: number | undefined;
   readonly trigger?:

@@ -148,6 +148,36 @@ const agentManifestSchema = z
   .strict();
 
 // ============================================================
+// HARNESS SCHEMAS
+// ============================================================
+
+export const harnessAgentEntrySchema = z
+  .object({
+    name: z.string(),
+    entry: z.string(),
+    modules: z.record(z.string(), z.string()).optional(),
+    extensions: z.record(z.string(), manifestExtensionSchema).optional(),
+    maxConcurrency: z.number().optional(),
+    input: inputSchemaSchema.optional(),
+    output: outputSchemaSchema.optional(),
+  })
+  .strict();
+
+export const harnessManifestSchema = z
+  .object({
+    host: z
+      .object({
+        port: z.number().optional(),
+        maxConcurrency: z.number().optional(),
+      })
+      .strict()
+      .optional(),
+    shared: z.record(z.string(), manifestExtensionSchema).default({}),
+    agents: z.array(harnessAgentEntrySchema).min(1),
+  })
+  .strict();
+
+// ============================================================
 // EXPORTED TYPES
 // ============================================================
 
@@ -156,6 +186,8 @@ export type ManifestHostOptions = z.infer<typeof manifestHostOptionsSchema>;
 export type ManifestDeployOptions = z.infer<typeof manifestDeployOptionsSchema>;
 export type AgentSkill = z.infer<typeof agentSkillSchema>;
 export type AgentManifest = z.infer<typeof agentManifestSchema>;
+export type HarnessAgentEntry = z.infer<typeof harnessAgentEntrySchema>;
+export type HarnessManifest = z.infer<typeof harnessManifestSchema>;
 // EnvSource is declared above as a standalone type (not derived from zod) for better readability.
 
 /**
@@ -212,6 +244,91 @@ function zodIssueToManifestIssue(issue: z.core.$ZodIssue): ManifestIssue {
 
   // custom issues (semver, runtime format) carry their message directly
   return { path, message: `${path}: ${issue.message}` };
+}
+
+// ============================================================
+// MANIFEST TYPE DETECTION
+// ============================================================
+
+/**
+ * Detects whether raw input is an agent manifest or a harness manifest.
+ * Returns 'harness' if raw is an object containing an 'agents' key.
+ * Returns 'agent' for all other inputs including null, undefined, and primitives.
+ * Never throws.
+ */
+export function detectManifestType(raw: unknown): 'agent' | 'harness' {
+  if (typeof raw === 'object' && raw !== null && 'agents' in raw) {
+    return 'harness';
+  }
+  return 'agent';
+}
+
+// ============================================================
+// VALIDATE HARNESS MANIFEST
+// ============================================================
+
+/**
+ * Parses and validates raw JSON against the HarnessManifest zod schema.
+ * After schema validation, runs custom refinements:
+ *   - Duplicate agent names (EC-2)
+ *   - Per-agent maxConcurrency sum exceeds host cap (EC-3)
+ *   - Namespace collision between shared and per-agent extensions (EC-4)
+ * Returns the validated manifest on success.
+ * Throws ManifestValidationError with structured field paths on failure.
+ */
+export function validateHarnessManifest(raw: unknown): HarnessManifest {
+  const result = harnessManifestSchema.safeParse(raw);
+
+  if (!result.success) {
+    const issues: ManifestIssue[] = result.error.issues.map(
+      zodIssueToManifestIssue
+    );
+    const firstPath = issues[0]?.path ?? 'manifest';
+    const firstMessage = issues[0]?.message ?? 'manifest validation failed';
+    throw new ManifestValidationError(firstMessage, issues, firstPath);
+  }
+
+  const manifest = result.data;
+
+  // EC-2: Duplicate agent names
+  const seen = new Set<string>();
+  for (const agent of manifest.agents) {
+    if (seen.has(agent.name)) {
+      const path = 'manifest.agents';
+      const message = `Duplicate agent name: '${agent.name}'`;
+      throw new ManifestValidationError(message, [{ path, message }], path);
+    }
+    seen.add(agent.name);
+  }
+
+  // EC-3: Sum of per-agent maxConcurrency exceeds host.maxConcurrency
+  const hostCap = manifest.host?.maxConcurrency;
+  if (hostCap !== undefined) {
+    const sum = manifest.agents.reduce(
+      (acc, a) => acc + (a.maxConcurrency ?? 0),
+      0
+    );
+    if (sum > hostCap) {
+      const path = 'manifest.host.maxConcurrency';
+      const message = `Sum of agent maxConcurrency (${sum}) exceeds host.maxConcurrency (${hostCap})`;
+      throw new ManifestValidationError(message, [{ path, message }], path);
+    }
+  }
+
+  // EC-4: Namespace collision between shared extensions and per-agent extensions
+  const sharedKeys = new Set(Object.keys(manifest.shared));
+  for (const agent of manifest.agents) {
+    if (!agent.extensions) continue;
+    for (const ns of Object.keys(agent.extensions)) {
+      if (sharedKeys.has(ns)) {
+        const path = `manifest.agents.${agent.name}.extensions.${ns}`;
+        const message = `Namespace collision on extension '${ns}' between shared and agent '${agent.name}'`;
+        throw new ManifestValidationError(message, [{ path, message }], path);
+      }
+    }
+  }
+
+  return manifest;
 }
 
 // ============================================================

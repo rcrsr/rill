@@ -23,6 +23,7 @@ interface SessionEntry {
 export interface SessionManagerConfig {
   readonly maxConcurrentSessions: number;
   readonly sessionTtl: number;
+  readonly agentCaps?: Map<string, number> | undefined;
 }
 
 // ============================================================
@@ -54,22 +55,50 @@ export class SessionManager {
     return count;
   }
 
+  /**
+   * Number of running sessions owned by the given agent.
+   * Returns 0 for unknown agent names. Never throws [EC-10].
+   */
+  activeCountFor(agentName: string): number {
+    let count = 0;
+    for (const entry of this.sessions.values()) {
+      if (
+        entry.record.state === 'running' &&
+        entry.record.agentName === agentName
+      ) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   // ============================================================
   // CREATE
   // ============================================================
 
   /**
    * Creates and stores a new session.
-   * Throws AgentHostError('capacity') if the concurrency limit is reached.
+   * Throws AgentHostError('capacity') if the global concurrency limit is
+   * reached [EC-8] or the per-agent cap is exceeded [EC-9].
    */
-  create(request: RunRequest, correlationId: string): SessionRecord {
+  create(
+    request: RunRequest,
+    correlationId: string,
+    agentName: string = ''
+  ): SessionRecord {
     if (this.activeCount >= this.config.maxConcurrentSessions) {
+      throw new AgentHostError('session limit reached', 'capacity');
+    }
+
+    const agentCap = this.config.agentCaps?.get(agentName);
+    if (agentCap !== undefined && this.activeCountFor(agentName) >= agentCap) {
       throw new AgentHostError('session limit reached', 'capacity');
     }
 
     const id = randomUUID();
     const record: SessionRecord = {
       id,
+      agentName,
       state: 'running',
       startTime: Date.now(),
       durationMs: undefined,

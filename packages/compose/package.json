@@ -5,12 +5,12 @@
   "bin": {
     "rill-compose": "./dist/cli.js"
   },
-  "main": "dist/compose.js",
-  "types": "dist/compose.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/compose.d.ts",
-      "default": "./dist/compose.js"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {

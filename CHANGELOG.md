@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-agent harness** — Run N agents in one `rill-host` process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
 - **@rcrsr/rill-ext-ahi** - AHI extension for agent-to-agent HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-registry-client`
 - **@rcrsr/rill-host** — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown
 - **@rcrsr/rill-compose** — Manifest-driven agent composition. CLI builds container, lambda, worker, and local targets from `agent.json`

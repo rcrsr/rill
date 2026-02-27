@@ -231,6 +231,57 @@ External extensions ship as separate npm packages. Install and integrate as need
 
 All three LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. See each provider's doc for usage.
 
+---
+
+## AHI In-Process Shortcut
+
+When agents are co-located in a harness, AHI calls between them bypass the HTTP layer entirely. The `ComposedHarness.bindHost(host)` method replaces the HTTP-calling function with a direct `host.run()` call for each co-located target.
+
+Call `bindHost()` after `createAgentHost()` returns:
+
+```typescript
+import { composeHarness, validateHarnessManifest } from '@rcrsr/rill-compose';
+import { createAgentHost } from '@rcrsr/rill-host';
+
+const manifest = validateHarnessManifest(json);
+const harness = await composeHarness(manifest, { basePath: import.meta.dirname });
+const host = createAgentHost(harness.agents);
+
+// Wire in-process shortcuts AFTER host is created
+harness.bindHost(host);
+
+await host.listen(8080);
+```
+
+### Resolution Order
+
+For each AHI call, the extension resolves the target in this order:
+
+| Priority | Condition | Transport |
+|----------|-----------|-----------|
+| 1 | Target agent name exists in the harness | In-process via `host.run()` (no network socket) |
+| 2 | Target agent has a static URL in config | HTTP call |
+| 3 | Registry mode | Registry resolution → HTTP call |
+
+### Error Mapping
+
+In-process calls produce the same error codes as the HTTP path:
+
+| Condition | Error Code |
+|-----------|------------|
+| `AgentHostError('capacity')` (concurrency cap reached) | RILL-R032 |
+| `response.state === 'failed'` | RILL-R029 |
+
+### Concurrency and Security
+
+In-process calls go through `host.run()`. All existing session isolation guarantees apply, including per-agent concurrency caps. The shortcut does not bypass capacity enforcement.
+
+`bindHost()` is not idempotent. Calling it twice overwrites the previously injected functions. Call it once after `createAgentHost()`.
+
+`bindHost()` never throws. It silently skips agents with no AHI config.
+
+See [Developing Extensions](integration-extensions.md) for full AHI extension documentation.
+
 ## See Also
 
 - [Developing Extensions](integration-extensions.md) — Writing custom extensions

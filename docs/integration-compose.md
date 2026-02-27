@@ -263,6 +263,106 @@ See [Agent Host](integration-agent-host.md) for full self-registration behavior.
 
 ---
 
+## Harness Manifests
+
+A harness manifest runs multiple rill agents in one process. Use it instead of `agent.json` when agents share infrastructure (LLM client, database, key-value store) and you want a single deployment unit.
+
+The `agents` key distinguishes a harness manifest from a single-agent manifest. `detectManifestType()` reads this key to select the correct validation path.
+
+### HarnessManifest Schema
+
+```typescript
+interface HarnessManifest {
+  readonly host?: {
+    port?: number;
+    maxConcurrency?: number;
+  };
+  readonly shared?: Record<string, ManifestExtension>;
+  readonly agents: HarnessAgentEntry[];
+}
+
+interface HarnessAgentEntry {
+  readonly name: string;
+  readonly entry: string;
+  readonly modules?: Record<string, string>;
+  readonly extensions?: Record<string, ManifestExtension>;
+  readonly maxConcurrency?: number;
+  readonly input?: InputSchema;
+  readonly output?: OutputSchema;
+}
+```
+
+### Field Reference
+
+| Field | Type | Required | Constraint |
+|-------|------|----------|------------|
+| `host.port` | number | No | Process-level HTTP port |
+| `host.maxConcurrency` | number | No | Global session cap for all agents |
+| `shared` | Record\<string, ManifestExtension\> | No | Extensions instantiated once, shared across all agents |
+| `agents` | HarnessAgentEntry[] | Yes | Minimum 1 element |
+| `agents[].name` | string | Yes | Unique within the harness; used in routing and metrics |
+| `agents[].entry` | string | Yes | Relative path to `.rill` file |
+| `agents[].modules` | Record\<string, string\> | No | Per-agent module map |
+| `agents[].extensions` | Record\<string, ManifestExtension\> | No | Per-agent extensions (additive to shared) |
+| `agents[].maxConcurrency` | number | No | Per-agent session cap |
+| `agents[].input` | InputSchema | No | Per-agent input contract |
+| `agents[].output` | OutputSchema | No | Per-agent output contract |
+
+**Defaults:**
+
+- `host` is optional. Omitting it applies no port or concurrency defaults at the manifest level.
+- `shared` defaults to `{}` when absent. Agents receive no shared extensions.
+- `agents[].maxConcurrency` defaults to `Math.floor(host.maxConcurrency / agents.length)` when `host.maxConcurrency` is set and the per-agent cap is absent. When `host.maxConcurrency` is also absent, no per-agent cap is enforced.
+
+`validateHarnessManifest()` throws on namespace collisions across shared + per-agent extensions and when per-agent cap sums exceed `host.maxConcurrency`.
+
+### Example harness.json
+
+```json
+{
+  "host": {
+    "port": 8080,
+    "maxConcurrency": 30
+  },
+  "shared": {
+    "llm": {
+      "package": "@rcrsr/rill-ext-anthropic",
+      "config": { "model": "claude-sonnet-4-20250514" }
+    },
+    "kv": {
+      "package": "@rcrsr/rill-ext-kv-sqlite",
+      "config": { "mounts": { "state": "${STATE_DIR}/kv.db" } }
+    }
+  },
+  "agents": [
+    {
+      "name": "classifier",
+      "entry": "classify.rill",
+      "maxConcurrency": 10
+    },
+    {
+      "name": "resolver",
+      "entry": "resolve.rill",
+      "maxConcurrency": 5,
+      "extensions": {
+        "vectors": {
+          "package": "@rcrsr/rill-ext-qdrant",
+          "config": { "url": "${QDRANT_URL}" }
+        }
+      }
+    },
+    {
+      "name": "summarizer",
+      "entry": "summarize.rill"
+    }
+  ]
+}
+```
+
+The `resolver` agent adds its own `vectors` extension on top of the shared `llm` and `kv` extensions. The `summarizer` agent receives only the shared extensions.
+
+---
+
 ## API Reference
 
 ### validateManifest(json)
@@ -304,6 +404,87 @@ Resolves extensions, compiles custom functions, loads modules, and parses the en
 | `dispose()` | Promise\<void\> | Releases all extension resources in reverse declaration order |
 
 Throws `ComposeError` on any composition failure.
+
+### detectManifestType(raw)
+
+```typescript
+export function detectManifestType(raw: unknown): 'agent' | 'harness';
+```
+
+Returns `'harness'` if `raw` is an object containing an `agents` key. Returns `'agent'` for all other inputs including non-objects and `null`. Never throws.
+
+The CLI and host API call `detectManifestType()` first, then route to `validateManifest()` or `validateHarnessManifest()`.
+
+### validateHarnessManifest(raw)
+
+```typescript
+export function validateHarnessManifest(raw: unknown): HarnessManifest;
+```
+
+Validates `raw` against the `HarnessManifest` zod schema. Returns the validated manifest on success.
+
+Throws `ManifestValidationError` on:
+
+| Condition | Example |
+|-----------|---------|
+| Missing required fields | `agents` array absent |
+| Duplicate agent names | Two entries with `name: "classifier"` |
+| Per-agent cap sum exceeds `host.maxConcurrency` | Sum of `maxConcurrency` values exceeds global cap |
+| Namespace collision across shared + per-agent extensions | Same extension key in `shared` and `agents[].extensions` |
+
+### composeHarness(manifest, options?)
+
+```typescript
+export async function composeHarness(
+  manifest: HarnessManifest,
+  options?: ComposeOptions
+): Promise<ComposedHarness>;
+```
+
+Assembles all agents in a harness manifest into a single `ComposedHarness`.
+
+**Composition sequence:**
+
+1. Validate the harness manifest (zod).
+2. Load env sources; interpolate `${VAR}` tokens in all extension configs.
+3. Resolve and instantiate `shared` extensions once.
+4. For each agent in `agents[]`:
+   - Resolve and instantiate per-agent extensions.
+   - Merge shared + per-agent extensions. Per-agent overrides shared on namespace collision.
+   - Parse the entry `.rill` file and load modules.
+   - Create `RuntimeContext` with the merged function map.
+   - Generate `AgentCard` from agent-level fields.
+   - Construct `ComposedAgent`.
+5. Return `ComposedHarness` with `agents: Map<string, ComposedAgent>`.
+
+Throws `ComposeError` if any extension fails to resolve or instantiate. Disposes already-instantiated extensions before throwing.
+
+**ComposedHarness interface:**
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `agents` | Map\<string, ComposedAgent\> | All composed agents keyed by name |
+| `sharedExtensions` | Record\<string, ExtensionResult\> | Shared extension instances |
+| `bindHost(host)` | void | Wires in-process shortcut functions for co-located agents |
+| `dispose()` | Promise\<void\> | Releases all extension resources |
+
+`bindHost(host)` must be called after `createAgentHost()` returns. Calling `dispose()` before `bindHost()` is safe.
+
+**Quick start:**
+
+```typescript
+import { readFileSync } from 'node:fs';
+import { detectManifestType, validateHarnessManifest, composeHarness } from '@rcrsr/rill-compose';
+
+const json = JSON.parse(readFileSync('./harness.json', 'utf-8'));
+if (detectManifestType(json) !== 'harness') throw new Error('Not a harness manifest');
+
+const manifest = validateHarnessManifest(json);
+const harness = await composeHarness(manifest, { basePath: import.meta.dirname });
+
+// harness.agents is a Map<string, ComposedAgent>
+await harness.dispose();
+```
 
 ### resolveExtensions(extensions, options)
 
