@@ -370,7 +370,7 @@ function createRegistryModeExtension(
       return invokeAgent(entry.endpoint, timeout, args, ctx, inFlight);
     };
 
-    functions[`ahi::${agentName}`] = {
+    functions[agentName] = {
       params: [
         {
           name: 'params',
@@ -465,7 +465,7 @@ export function createAhiExtension(
     // Capture agent state for this closure
     const agentUrl = agent.url;
 
-    functions[`ahi::${name}`] = {
+    functions[name] = {
       params: [
         {
           name: 'params',

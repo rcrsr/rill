@@ -69,9 +69,7 @@ async function callAhi(
   args: RillValue[],
   metadata?: Record<string, string>
 ): Promise<RillValue> {
-  const fnDef = (ext as Record<string, HostFunctionDefinition>)[
-    `ahi::${agentName}`
-  ];
+  const fnDef = (ext as Record<string, HostFunctionDefinition>)[agentName];
   return fnDef.fn(args, { metadata: metadata ?? makeCtx().metadata });
 }
 
@@ -90,20 +88,18 @@ describe('AHI static mode — boundary and registration', () => {
         agents: { parser: { url: 'http://parser:8080' } },
       });
 
-      expect((ext as Record<string, unknown>)['ahi::unknown']).toBeUndefined();
+      expect((ext as Record<string, unknown>)['unknown']).toBeUndefined();
     });
 
-    it('ahi::formatter is not registered when config only declares parser', () => {
+    it('formatter is not registered when config only declares parser', () => {
       const ext = createAhiExtension({
         agents: { parser: { url: 'http://parser:8080' } },
       });
 
-      expect(
-        (ext as Record<string, unknown>)['ahi::formatter']
-      ).toBeUndefined();
+      expect((ext as Record<string, unknown>)['formatter']).toBeUndefined();
     });
 
-    it('only the declared agent names appear as ahi:: keys', () => {
+    it('only the declared agent names appear as function keys', () => {
       const ext = createAhiExtension({
         agents: {
           parser: { url: 'http://parser:8080' },
@@ -111,11 +107,9 @@ describe('AHI static mode — boundary and registration', () => {
         },
       });
 
-      const ahiKeys = Object.keys(ext).filter(
-        (k) => k.startsWith('ahi::') && k !== 'dispose'
-      );
+      const fnKeys = Object.keys(ext).filter((k) => k !== 'dispose');
 
-      expect(ahiKeys.sort()).toEqual(['ahi::parser', 'ahi::writer']);
+      expect(fnKeys.sort()).toEqual(['parser', 'writer']);
     });
   });
 

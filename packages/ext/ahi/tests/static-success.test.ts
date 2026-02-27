@@ -76,9 +76,7 @@ async function callAhi(
   args: RillValue[],
   metadata: Record<string, string>
 ): Promise<RillValue> {
-  const fnDef = (ext as Record<string, HostFunctionDefinition>)[
-    `ahi::${agentName}`
-  ];
+  const fnDef = (ext as Record<string, HostFunctionDefinition>)[agentName];
   return fnDef.fn(args, { metadata });
 }
 

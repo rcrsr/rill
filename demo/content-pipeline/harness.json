@@ -1,0 +1,78 @@
+{
+  "host": {
+    "port": 4002,
+    "maxConcurrency": 15
+  },
+  "shared": {
+    "llm": {
+      "package": "@rcrsr/rill-ext-openai",
+      "config": {
+        "api_key": "${GROQ_API_KEY}",
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "base_url": "https://api.groq.com/openai/v1"
+      }
+    }
+  },
+  "agents": [
+    {
+      "name": "classifier",
+      "entry": "scripts/classify.rill",
+      "maxConcurrency": 5,
+      "input": {
+        "text": { "type": "string", "required": true }
+      },
+      "output": {
+        "type": "dict",
+        "fields": {
+          "category": { "type": "string" },
+          "topics": { "type": "list" },
+          "language": { "type": "string" },
+          "confidence": { "type": "number" }
+        }
+      }
+    },
+    {
+      "name": "summarizer",
+      "entry": "scripts/summarize.rill",
+      "maxConcurrency": 5,
+      "input": {
+        "text": { "type": "string", "required": true }
+      },
+      "output": {
+        "type": "dict",
+        "fields": {
+          "summary": { "type": "string" },
+          "key_points": { "type": "list" },
+          "word_count": { "type": "number" }
+        }
+      }
+    },
+    {
+      "name": "orchestrator",
+      "entry": "scripts/orchestrate.rill",
+      "maxConcurrency": 5,
+      "extensions": {
+        "ahi": {
+          "package": "@rcrsr/rill-ext-ahi",
+          "config": {
+            "agents": {
+              "classifier": { "url": "http://localhost:4002" },
+              "summarizer": { "url": "http://localhost:4002" }
+            },
+            "timeout": 25000
+          }
+        }
+      },
+      "input": {
+        "text": { "type": "string", "required": true }
+      },
+      "output": {
+        "type": "dict",
+        "fields": {
+          "classification": { "type": "dict" },
+          "summary": { "type": "dict" }
+        }
+      }
+    }
+  ]
+}

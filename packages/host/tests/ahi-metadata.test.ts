@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parse, createRuntimeContext } from '@rcrsr/rill';
+import { parse, createRuntimeContext, hoistExtension } from '@rcrsr/rill';
 import type { HostFunctionDefinition } from '@rcrsr/rill';
 import { createAhiExtension } from '@rcrsr/rill-ext-ahi';
 import type { ComposedAgent, AgentHost } from '../src/index.js';
@@ -88,15 +88,13 @@ describe('AHI extension forwards X-Correlation-ID (AC-3)', () => {
     // Arrange: stub fetch to capture outgoing headers
     const captured = stubFetchCapturingHeaders();
 
-    // Extract functions from AHI extension result.
-    // createAhiExtension returns keys already prefixed as "ahi::<name>".
-    // Omit the non-function "dispose" key before passing to createRuntimeContext.
+    // Extract functions from AHI extension result via hoistExtension.
+    // The factory returns unprefixed keys; hoistExtension adds the "ahi::" namespace.
     const ahiExt = createAhiExtension({
       agents: { downstream: { url: 'http://downstream:8080' } },
     });
-    const ahiFunctions = Object.fromEntries(
-      Object.entries(ahiExt).filter(([key]) => key !== 'dispose')
-    ) as Record<string, HostFunctionDefinition>;
+    const hoisted = hoistExtension('ahi', ahiExt);
+    const ahiFunctions = hoisted.functions;
 
     const agent = makeAhiAgent(ahiFunctions);
 

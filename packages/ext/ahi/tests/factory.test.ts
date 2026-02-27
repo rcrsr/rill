@@ -89,7 +89,7 @@ describe('createAhiExtension', () => {
         agents: { parser: { url: 'http://localhost:4001' } },
       });
 
-      expect('ahi::parser' in result).toBe(true);
+      expect('parser' in result).toBe(true);
     });
 
     it('registered function has valid HostFunctionDefinition shape', () => {
@@ -97,7 +97,7 @@ describe('createAhiExtension', () => {
         agents: { parser: { url: 'http://localhost:4001' } },
       });
 
-      const fn = result['ahi::parser'];
+      const fn = result['parser'];
       expect(fn).toBeDefined();
       expect(typeof fn.fn).toBe('function');
       expect(Array.isArray(fn.params)).toBe(true);
@@ -111,8 +111,8 @@ describe('createAhiExtension', () => {
         },
       });
 
-      expect('ahi::parser' in result).toBe(true);
-      expect('ahi::writer' in result).toBe(true);
+      expect('parser' in result).toBe(true);
+      expect('writer' in result).toBe(true);
     });
 
     it('registered function is async', () => {
@@ -120,7 +120,7 @@ describe('createAhiExtension', () => {
         agents: { parser: { url: 'http://localhost:4001' } },
       });
 
-      const fn = result['ahi::parser']!;
+      const fn = result['parser']!;
       // fn returns a Promise (async function)
       const returnValue = fn.fn([], {} as never, undefined);
       expect(returnValue).toBeInstanceOf(Promise);

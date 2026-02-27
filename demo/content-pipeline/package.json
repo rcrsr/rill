@@ -1,0 +1,19 @@
+{
+  "name": "rill-demo-content-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx host.ts",
+    "dev": "GROQ_API_KEY=${GROQ_API_KEY} tsx host.ts"
+  },
+  "dependencies": {
+    "@rcrsr/rill-compose": "workspace:*",
+    "@rcrsr/rill-host": "workspace:*",
+    "@rcrsr/rill-ext-openai": "workspace:*",
+    "@rcrsr/rill-ext-ahi": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}

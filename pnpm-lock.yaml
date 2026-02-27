@@ -42,6 +42,25 @@ importers:
         specifier: ^2.8.2
         version: 2.8.2
 
+  demo/content-pipeline:
+    dependencies:
+      '@rcrsr/rill-compose':
+        specifier: workspace:*
+        version: link:../../packages/compose
+      '@rcrsr/rill-ext-ahi':
+        specifier: workspace:*
+        version: link:../../packages/ext/ahi
+      '@rcrsr/rill-ext-openai':
+        specifier: workspace:*
+        version: link:../../packages/ext/llm-openai
+      '@rcrsr/rill-host':
+        specifier: workspace:*
+        version: link:../../packages/host
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+
   demo/data-cruncher:
     dependencies:
       '@rcrsr/rill-compose':

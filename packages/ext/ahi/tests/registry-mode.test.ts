@@ -128,9 +128,7 @@ async function callAhi(
   args: RillValue[] = [],
   metadata?: Record<string, string>
 ): Promise<RillValue> {
-  const fnDef = (ext as Record<string, HostFunctionDefinition>)[
-    `ahi::${agentName}`
-  ];
+  const fnDef = (ext as Record<string, HostFunctionDefinition>)[agentName];
   return fnDef.fn(args, { metadata: metadata ?? makeCtx().metadata });
 }
 
@@ -200,8 +198,8 @@ describe('AHI registry mode', () => {
         registry: 'http://registry:8080',
       });
 
-      expect('ahi::parser' in ext).toBe(true);
-      expect('ahi::formatter' in ext).toBe(true);
+      expect('parser' in ext).toBe(true);
+      expect('formatter' in ext).toBe(true);
     });
   });
 
@@ -313,10 +311,9 @@ describe('AHI registry mode', () => {
       await Promise.resolve();
       warnSpy.mockRestore();
 
-      expect('ahi::parser' in ext).toBe(true);
+      expect('parser' in ext).toBe(true);
       expect(
-        typeof (ext as Record<string, HostFunctionDefinition>)['ahi::parser']!
-          .fn
+        typeof (ext as Record<string, HostFunctionDefinition>)['parser']!.fn
       ).toBe('function');
     });
   });

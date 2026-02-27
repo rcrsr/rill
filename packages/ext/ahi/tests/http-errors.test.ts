@@ -32,7 +32,7 @@ async function callDownstream(
   ext: ReturnType<typeof createAhiExtension>,
   args: RillValue[] = []
 ): Promise<RillValue> {
-  const fn = (ext as Record<string, unknown>)['ahi::downstream'] as {
+  const fn = (ext as Record<string, unknown>)['downstream'] as {
     fn: (
       args: RillValue[],
       ctx: { metadata: Record<string, string> }
@@ -293,7 +293,7 @@ describe('AHI error mapping', () => {
 
       const ext = makeExt();
 
-      const fn = (ext as Record<string, unknown>)['ahi::downstream'] as {
+      const fn = (ext as Record<string, unknown>)['downstream'] as {
         fn: (
           args: RillValue[],
           ctx: { metadata: Record<string, string> }

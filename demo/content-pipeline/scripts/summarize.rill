@@ -1,0 +1,13 @@
+# Summarizer — extract summary and key points from text
+# Params: $text
+
+$text -> assert (.len > 0) "text param is required"
+
+[
+  summary: [type: "string", description: "2-3 sentence summary of the text"],
+  key_points: [type: "list", items: "string", description: "3-5 key points as bullet strings"],
+  word_count: [type: "number", description: "Word count of the original text"]
+] => $schema
+
+llm::generate("Summarize the following text. Provide a brief summary, key points, and the word count of the original.\n\nText:\n{$text}", [schema: $schema])
+  -> .data
