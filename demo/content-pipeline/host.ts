@@ -1,11 +1,15 @@
-// Hand-written host entry — rill-compose CLI does not support harness manifests.
+// Hand-written host entry — rill-agent-bundle CLI does not support harness manifests.
 // This file replaces the generated dist/host.ts from single-agent builds.
 
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateHarnessManifest, composeHarness } from '@rcrsr/rill-compose';
-import { createAgentHost, type LogLevel } from '@rcrsr/rill-host';
+import {
+  composeHarness,
+  createAgentHost,
+  type LogLevel,
+} from '@rcrsr/rill-agent-harness';
+import { validateHarnessManifest } from '@rcrsr/rill-agent-shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

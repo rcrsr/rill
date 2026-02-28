@@ -12,16 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-agent harness** — Run N agents in one `rill-host` process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
 - **@rcrsr/rill-ext-ahi** - AHI extension for agent-to-agent HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-registry-client`
 - **@rcrsr/rill-host** — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown
-- **@rcrsr/rill-compose** — Manifest-driven agent composition. CLI builds container, lambda, worker, and local targets from `agent.json`
+- **@rcrsr/rill-agent-bundle** — Manifest-driven agent composition. CLI builds container, lambda, worker, and local targets from `agent.json`
+- **@rcrsr/rill-agent-run** — CLI entry point for running bundled agents locally
 - **LLM `generate()` function** — Provider-agnostic structured output for Anthropic, OpenAI, and Gemini extensions. Rill schema dicts convert to JSON Schema automatically
 
 ### Removed
 
-- **@rcrsr/rill-create-agent** — Replaced by `rill-compose init`
+- **@rcrsr/rill-create-agent** — Replaced by `rill-agent-bundle init`
 
 ### Changed
 
-- **Agent bootstrapping docs** — Reference `rill-compose init` instead of `rill-create-agent`
+- **Agent bootstrapping docs** — Reference `rill-agent-bundle init` instead of `rill-create-agent`
 
 ### Fixed
 

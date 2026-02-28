@@ -7,9 +7,12 @@ rill uses pnpm workspaces with the following package organization:
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
 | `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
 | `packages/ext/claude-code` | `@rcrsr/rill-ext-claude-code` | Claude Code integration extension |
-| `packages/ext/ahi` | `@rcrsr/rill-ext-ahi` | Agent-to-agent invocation extension |
-| `packages/registry-client` | `@rcrsr/rill-registry-client` | Service registry protocol client |
-| `packages/host` | `@rcrsr/rill-host` | Agent HTTP server with lifecycle, sessions, and metrics |
+| `packages/agent/shared` | `@rcrsr/rill-agent-shared` | Shared types and utilities for agent packages |
+| `packages/agent/registry` | `@rcrsr/rill-agent-registry` | Service registry protocol client |
+| `packages/agent/ahi` | `@rcrsr/rill-agent-ext-ahi` | Agent-to-agent invocation extension |
+| `packages/agent/harness` | `@rcrsr/rill-agent-harness` | Agent HTTP server with lifecycle, sessions, and metrics |
+| `packages/agent/bundle` | `@rcrsr/rill-agent-bundle` | Build tool for assembling agents from manifests into deployable bundles |
+| `packages/agent/run` | `@rcrsr/rill-agent-run` | CLI entry point for running agent bundles |
 
 ## Commands
 
@@ -31,9 +34,9 @@ pnpm run -r check        # Complete validation (build, test, lint)
 Run from repository root for a single package:
 
 ```bash
-pnpm --filter @rcrsr/rill build         # Build core package only
-pnpm --filter @rcrsr/rill-cli test      # Test CLI package only
-pnpm --filter @rcrsr/rill-ext-example typecheck  # Typecheck example extension
+pnpm --filter @rcrsr/rill build                  # Build core package only
+pnpm --filter @rcrsr/rill-cli test               # Test CLI package only
+pnpm --filter @rcrsr/rill-agent-harness typecheck  # Typecheck agent harness
 ```
 
 Or navigate to a package directory and run directly:

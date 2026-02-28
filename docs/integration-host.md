@@ -244,7 +244,7 @@ type CallableFn = (
 
 Host functions receive session metadata via `ctx.metadata: Record<string, string> | undefined`.
 
-When running under `rill-host`, the runtime populates these keys:
+When running under `rill-agent-harness`, the runtime populates these keys:
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -268,7 +268,7 @@ functions: {
 }
 ```
 
-`ctx.metadata` is `undefined` when the script runs outside `rill-host` (e.g., direct `execute()` calls).
+`ctx.metadata` is `undefined` when the script runs outside `rill-agent-harness` (e.g., direct `execute()` calls).
 
 ## Host Function Type Declarations
 
@@ -973,7 +973,7 @@ Set `RILL_REGISTRY_URL` to enable automatic self-registration with a service reg
 RILL_REGISTRY_URL=http://registry.internal:8080 node server.js
 ```
 
-When `RILL_REGISTRY_URL` is set, `rill-host` follows this lifecycle:
+When `RILL_REGISTRY_URL` is set, `rill-agent-harness` follows this lifecycle:
 
 | Event | Action |
 |-------|--------|
@@ -981,9 +981,9 @@ When `RILL_REGISTRY_URL` is set, `rill-host` follows this lifecycle:
 | Every 30s while running | Sends a heartbeat to the registry |
 | `stop()` drain begins | Calls `deregister()` before draining connections |
 
-If the registry is unreachable at startup, `rill-host` logs a warning and `listen()` resolves normally. The host continues running without registration.
+If the registry is unreachable at startup, `rill-agent-harness` logs a warning and `listen()` resolves normally. The host continues running without registration.
 
-See [Agent Host](integration-agent-host.md#invocation-model) for the extended trigger object form used in agent-to-agent invocation.
+See [Agent Host](agent-harness.md) for the extended trigger object form used in agent-to-agent invocation.
 
 ## See Also
 

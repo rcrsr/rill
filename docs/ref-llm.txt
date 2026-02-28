@@ -17,13 +17,13 @@
 - [Iterators](https://rill.run/docs/data/iterators/): Lazy sequences with `range`, `repeat`, `.first()`
 - [Strings](https://rill.run/docs/data/strings/): String methods for text manipulation
 - [Host Integration](https://rill.run/docs/integration/host/): Embedding rill in applications
-- [Agent Host](https://rill.run/docs/integration/agent-host/): Production HTTP server for rill agents
-- [Compose](https://rill.run/docs/integration/compose/): Manifest-based agent composition API and CLI
+- [Agent Host](https://rill.run/docs/agent/harness/): Production HTTP server for rill agents
+- [Compose](https://rill.run/docs/agent/bundle/): Manifest-based agent composition API and CLI
 - [Host API Reference](https://rill.run/docs/reference/host-api/): Complete TypeScript API exports
 - [Developing Extensions](https://rill.run/docs/integration/extensions/): Writing reusable host function packages
 - [Modules](https://rill.run/docs/integration/modules/): Convention for host-provided module systems
 - [CLI Tools](https://rill.run/docs/integration/cli/): `rill-exec`, `rill-eval`, `rill-check` commands
-- [Creating Rill Apps](https://rill.run/docs/guide/make/): Bootstrap new rill projects with `rill-compose init`
+- [Creating Rill Apps](https://rill.run/docs/guide/make/): Bootstrap new rill projects with `rill-agent-bundle init`
 - [Error Reference](https://rill.run/docs/reference/errors/): Error codes and resolution
 
 ## Essentials

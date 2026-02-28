@@ -43,8 +43,12 @@
       "@rcrsr/rill-ext-claude-code": [
         "./packages/ext/claude-code/src/index.ts"
       ],
-      "@rcrsr/rill-compose": ["./packages/compose/src/compose.ts"],
-      "@rcrsr/rill-host": ["./packages/host/src/index.ts"]
+      "@rcrsr/rill-agent-shared": ["./packages/agent/shared/src/index.ts"],
+      "@rcrsr/rill-agent-registry": ["./packages/agent/registry/src/index.ts"],
+      "@rcrsr/rill-agent-ext-ahi": ["./packages/agent/ahi/src/index.ts"],
+      "@rcrsr/rill-agent-harness": ["./packages/agent/harness/src/index.ts"],
+      "@rcrsr/rill-agent-bundle": ["./packages/agent/bundle/src/index.ts"],
+      "@rcrsr/rill-agent-run": ["./packages/agent/run/src/index.ts"]
     }
   }
 }

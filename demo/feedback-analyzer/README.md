@@ -21,7 +21,7 @@ export GROQ_API_KEY="gsk_..."
 
 ```bash
 cd demo/feedback-analyzer
-pnpm build   # rill-compose agent.json --target local --output dist/
+pnpm build   # rill-agent-bundle agent.json --target local --output dist/
 pnpm start   # tsx dist/host.ts
 ```
 
@@ -80,7 +80,7 @@ curl http://localhost:4001/.well-known/agent-card.json
 
 - **Structured output**: `llm::generate()` extracts typed fields (sentiment, issues, urgency, category) from free text
 - **Response drafting**: `llm::message()` drafts an empathetic reply using the extracted analysis
-- **Manifest-driven composition**: `rill-compose` builds the agent from `agent.json` into `dist/`
+- **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`
 - **Generated host entry**: `dist/host.ts` is generated — no hand-written server code
 - **SSE observability**: `log` calls emit real-time events on `/sessions/{id}/stream`
 

@@ -348,4 +348,4 @@ const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ })
 - [Host Integration](integration-host.md) — Embedding guide and runtime configuration
 - [Extensions](integration-extensions.md) — Reusable function packages
 - [Modules](integration-modules.md) — Module convention
-- [Compose](integration-compose.md) — Manifest format and composeAgent API for @rcrsr/rill-compose
+- [Compose](agent-bundle.md) — Manifest format and composeAgent API for @rcrsr/rill-agent-harness

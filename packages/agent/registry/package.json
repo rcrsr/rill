@@ -1,0 +1,38 @@
+{
+  "name": "@rcrsr/rill-agent-registry",
+  "version": "0.8.6",
+  "description": "rill registry client for publishing and resolving packages",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "peerDependencies": {
+    "@rcrsr/rill-agent-shared": "workspace:^"
+  },
+  "devDependencies": {
+    "@rcrsr/rill-agent-shared": "workspace:^"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/agent/registry"
+  },
+  "homepage": "https://rill.run",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,67 @@
+import type {
+  AgentManifest,
+  AgentSkill,
+  InputSchema,
+  OutputSchema,
+} from './schema.js';
+
+// ============================================================
+// AGENT CARD TYPES
+// ============================================================
+
+/**
+ * Transport capabilities declared by an agent.
+ */
+export interface AgentCapabilities {
+  readonly streaming: boolean;
+  readonly pushNotifications: boolean;
+}
+
+/**
+ * A2A-compliant agent card describing identity, capabilities, and skills.
+ */
+export interface AgentCard {
+  readonly name: string;
+  readonly description: string;
+  readonly version: string;
+  readonly url: string;
+  readonly capabilities: AgentCapabilities;
+  readonly skills: readonly AgentSkill[];
+  readonly defaultInputModes: readonly string[];
+  readonly defaultOutputModes: readonly string[];
+  readonly input?: InputSchema | undefined;
+  readonly output?: OutputSchema | undefined;
+}
+
+// ============================================================
+// GENERATE AGENT CARD
+// ============================================================
+
+/**
+ * Produces an A2A-compliant AgentCard from a validated manifest.
+ *
+ * Pure function — no I/O, no side effects, does not throw for any valid
+ * AgentManifest. Call validateManifest() before calling this function.
+ *
+ * @param manifest - Validated agent manifest
+ * @returns A2A-compliant AgentCard
+ */
+export function generateAgentCard(manifest: AgentManifest): AgentCard {
+  const url =
+    manifest.deploy?.port !== undefined
+      ? `http://localhost:${manifest.deploy.port}`
+      : '';
+
+  return {
+    name: manifest.name,
+    description: manifest.description ?? '',
+    version: manifest.version,
+    url,
+    capabilities: { streaming: false, pushNotifications: false },
+    skills: manifest.skills ?? [],
+    defaultInputModes: ['application/json'],
+    defaultOutputModes: ['application/json'],
+    ...(manifest.input !== undefined ? { input: manifest.input } : {}),
+    ...(manifest.output !== undefined ? { output: manifest.output } : {}),
+  };
+}

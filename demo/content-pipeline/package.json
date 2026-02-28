@@ -8,10 +8,10 @@
     "dev": "GROQ_API_KEY=${GROQ_API_KEY} tsx host.ts"
   },
   "dependencies": {
-    "@rcrsr/rill-compose": "workspace:*",
-    "@rcrsr/rill-host": "workspace:*",
+    "@rcrsr/rill-agent-harness": "workspace:*",
+    "@rcrsr/rill-agent-shared": "workspace:*",
     "@rcrsr/rill-ext-openai": "workspace:*",
-    "@rcrsr/rill-ext-ahi": "workspace:*"
+    "@rcrsr/rill-agent-ext-ahi": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

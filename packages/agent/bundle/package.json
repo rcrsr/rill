@@ -1,0 +1,33 @@
+{
+  "name": "@rcrsr/rill-agent-bundle",
+  "version": "0.8.6",
+  "type": "module",
+  "bin": {
+    "rill-agent-bundle": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "@rcrsr/rill-agent-harness": "workspace:^",
+    "@rcrsr/rill-agent-shared": "workspace:^",
+    "esbuild": "^0.27.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

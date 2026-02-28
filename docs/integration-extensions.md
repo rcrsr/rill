@@ -442,14 +442,14 @@ fn: async (args, ctx) => {
 **Examples:** The [qdrant](extension-vectordb-qdrant.md), [pinecone](extension-vectordb-pinecone.md), and [chroma](extension-vectordb-chroma.md) extensions show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
 
 
-## AHI Extension (`@rcrsr/rill-ext-ahi`)
+## AHI Extension (`@rcrsr/rill-agent-ext-ahi`)
 
 *Agent-to-agent Host Invocation (AHI) lets rill scripts call remote agents over HTTP.*
 
 Install the package:
 
 ```typescript
-import { createAhiExtension } from '@rcrsr/rill-ext-ahi';
+import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
 ```
 
 The factory registers one `ahi::<name>` host function per configured agent. Scripts call remote agents the same way they call any host function.
@@ -459,7 +459,7 @@ The factory registers one `ahi::<name>` host function per configured agent. Scri
 Use static URL mode when agent endpoints are known at build time:
 
 ```typescript
-import { createAhiExtension } from '@rcrsr/rill-ext-ahi';
+import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
 
 const ext = createAhiExtension({
   agents: {
@@ -477,7 +477,7 @@ const ext = createAhiExtension({
 Use registry mode when agent endpoints are resolved at boot from a central registry:
 
 ```typescript
-import { createAhiExtension } from '@rcrsr/rill-ext-ahi';
+import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
 
 const ext = createAhiExtension({
   registry: 'http://registry:8080',

@@ -53,7 +53,7 @@
       "maxConcurrency": 5,
       "extensions": {
         "ahi": {
-          "package": "@rcrsr/rill-ext-ahi",
+          "package": "@rcrsr/rill-agent-ext-ahi",
           "config": {
             "agents": {
               "classifier": { "url": "http://localhost:4002" },

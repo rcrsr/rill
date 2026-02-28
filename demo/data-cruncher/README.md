@@ -15,7 +15,7 @@ pnpm run -r build
 
 ```bash
 cd demo/data-cruncher
-pnpm build   # rill-compose agent.json --target local --output dist/
+pnpm build   # rill-agent-bundle agent.json --target local --output dist/
 pnpm start   # tsx dist/host.ts
 ```
 
@@ -61,7 +61,7 @@ curl http://localhost:3000/.well-known/agent-card.json
 
 ## What it demonstrates
 
-- **Manifest-driven composition**: `rill-compose` builds the agent from `agent.json` into `dist/`
+- **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`
 - **Generated host entry**: `dist/host.ts` is generated — no hand-written server code
 - **Builtin extension loading**: The `kv` extension loads through the named-export pipeline
 - **Pipe-based data processing**: `fold`, `map`, `filter` operators in `main.rill`
