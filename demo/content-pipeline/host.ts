@@ -6,16 +6,27 @@ import {
   createAgentHost,
   type LogLevel,
 } from '@rcrsr/rill-agent-harness';
-import { validateHarnessManifest } from '@rcrsr/rill-agent-shared';
+import {
+  validateHarnessManifest,
+  interpolateConfigDeep,
+} from '@rcrsr/rill-agent-shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const raw = JSON.parse(readFileSync(join(__dirname, 'harness.json'), 'utf-8'));
 const manifest = validateHarnessManifest(raw);
 
+const rawConfig = JSON.parse(
+  readFileSync(join(__dirname, 'config.json'), 'utf-8')
+);
+const config = interpolateConfigDeep(
+  rawConfig,
+  process.env as Record<string, string>
+);
+
 const harness = await composeHarness(manifest, {
   basePath: __dirname,
-  config: {},
+  config,
 });
 
 const port = manifest.host?.port ?? 4002;

@@ -22,19 +22,19 @@ export GROQ_API_KEY="gsk_..."
 ```bash
 cd demo/feedback-analyzer
 pnpm build   # rill-agent-bundle build agent.json
-pnpm start   # rill-agent-run dist/ feedback-analyzer --param feedback='...'
+pnpm start   # rill-agent-run dist/ feedback-analyzer --config config.json
 ```
 
 Or run directly:
 
 ```bash
-rill-agent-run dist/ feedback-analyzer --param feedback='The onboarding was confusing and I almost gave up twice.'
+rill-agent-run dist/ feedback-analyzer --config config.json --param feedback='The onboarding was confusing and I almost gave up twice.'
 ```
 
 Or pipe input via stdin:
 
 ```bash
-echo '{"feedback":"The onboarding was confusing and I almost gave up twice."}' | rill-agent-run dist/ feedback-analyzer
+echo '{"feedback":"The onboarding was confusing and I almost gave up twice."}' | rill-agent-run dist/ feedback-analyzer --config config.json
 ```
 
 Example output:
@@ -50,6 +50,32 @@ Example output:
 }
 ```
 
+## Runtime configuration
+
+Extension config is supplied at runtime via `--config`, not embedded in the manifest.
+
+`config.json` provides the `llm` extension its API credentials and model:
+
+```json
+{
+  "llm": {
+    "api_key": "${GROQ_API_KEY}",
+    "model": "openai/gpt-oss-20b",
+    "base_url": "https://api.groq.com/openai/v1"
+  }
+}
+```
+
+`${GROQ_API_KEY}` interpolates from `process.env` at runtime. Export the variable before running.
+
+Pass inline JSON instead of a file:
+
+```bash
+rill-agent-run dist/ feedback-analyzer \
+  --config '{"llm":{"api_key":"'"$GROQ_API_KEY"'","model":"llama-3.3-70b-versatile","base_url":"https://api.groq.com/openai/v1"}}' \
+  --param feedback='Great product!'
+```
+
 ## Verify bundle
 
 ```bash
@@ -58,6 +84,8 @@ pnpm check   # rill-agent-bundle check --platform node dist/
 
 ## What it demonstrates
 
+- **Runtime extension config**: `--config` supplies API keys and model settings at run time
+- **Environment interpolation**: `${GROQ_API_KEY}` resolves from `process.env` in config values
 - **Structured output**: `llm::generate()` extracts typed fields (sentiment, issues, urgency, category) from free text
 - **Response drafting**: `llm::message()` drafts an empathetic reply using the extracted analysis
 - **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`

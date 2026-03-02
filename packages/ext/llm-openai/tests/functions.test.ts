@@ -122,7 +122,7 @@ describe('message() function', () => {
 
       expect(mockCreate).toHaveBeenCalledWith({
         model: 'gpt-4-turbo',
-        max_tokens: 4096,
+        max_completion_tokens: 4096,
         temperature: 0.7,
         messages: [{ role: 'user', content: 'What is 2+2?' }],
       });
@@ -145,7 +145,7 @@ describe('message() function', () => {
 
       expect(mockCreate).toHaveBeenCalledWith({
         model: 'gpt-4-turbo',
-        max_tokens: 4096,
+        max_completion_tokens: 4096,
         temperature: 0.7,
         messages: [
           { role: 'system', content: 'You are helpful.' },
@@ -194,7 +194,7 @@ describe('message() function', () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          max_tokens: 2000,
+          max_completion_tokens: 2000,
         })
       );
     });
@@ -214,7 +214,7 @@ describe('message() function', () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          max_tokens: 4096,
+          max_completion_tokens: 4096,
         })
       );
     });
@@ -443,7 +443,7 @@ describe('messages() function', () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          max_tokens: 2000,
+          max_completion_tokens: 2000,
         })
       );
     });
@@ -1584,8 +1584,10 @@ describe('generate() function', () => {
         ctx
       );
 
-      const callArgs = mockCreate.mock.calls[0][0] as { max_tokens: number };
-      expect(callArgs.max_tokens).toBe(128);
+      const callArgs = mockCreate.mock.calls[0][0] as {
+        max_completion_tokens: number;
+      };
+      expect(callArgs.max_completion_tokens).toBe(128);
     });
 
     // AC-11: messages option prepends context

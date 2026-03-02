@@ -16,16 +16,36 @@ pnpm run -r build
 ```bash
 cd demo/data-cruncher
 pnpm build   # rill-agent-bundle build agent.json
-pnpm start   # pipes JSON params to rill-agent-run
+pnpm start   # pipes JSON params to rill-agent-run with --config
 ```
 
 Or run directly:
 
 ```bash
-echo '{"numbers":[4,7,2,9,1,8,3]}' | rill-agent-run dist/ demo-agent
+echo '{"numbers":[4,7,2,9,1,8,3]}' | rill-agent-run dist/ demo-agent --config config.json
 ```
 
 Returns computed statistics: count, sum, mean, min, max, variance, above_mean, squared, and a persistent run counter.
+
+## Runtime configuration
+
+Extension config is supplied at runtime via `--config`, not embedded in the manifest.
+
+`config.json` provides the `kv` extension its store path:
+
+```json
+{
+  "kv": {
+    "store": "./data/state.json"
+  }
+}
+```
+
+Pass inline JSON instead of a file:
+
+```bash
+echo '{"numbers":[1,2,3]}' | rill-agent-run dist/ demo-agent --config '{"kv":{"store":"./data/state.json"}}'
+```
 
 ## Verify bundle
 
@@ -35,6 +55,7 @@ pnpm check   # rill-agent-bundle check --platform node dist/
 
 ## What it demonstrates
 
+- **Runtime extension config**: `--config` supplies extension settings at run time
 - **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`
 - **CLI execution**: `rill-agent-run` executes the bundle as a one-shot CLI command
 - **Builtin extension loading**: The `kv` extension loads through the named-export pipeline

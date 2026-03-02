@@ -35,7 +35,7 @@ import type { OpenAIExtensionConfig } from './types.js';
 // CONSTANTS
 // ============================================================
 
-const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_MAX_COMPLETION_TOKENS = 4096;
 
 // ============================================================
 // ERROR DETECTION
@@ -101,7 +101,7 @@ export function createOpenAIExtension(
   // Extract config values for use in functions
   const factoryModel = config.model;
   const factoryTemperature = config.temperature;
-  const factoryMaxTokens = config.max_tokens ?? DEFAULT_MAX_TOKENS;
+  const factoryMaxTokens = config.max_tokens ?? DEFAULT_MAX_COMPLETION_TOKENS;
   const factorySystem = config.system;
   const factoryEmbedModel = config.embed_model;
 
@@ -184,7 +184,7 @@ export function createOpenAIExtension(
           // Call OpenAI API
           const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
             model: factoryModel,
-            max_tokens: maxTokens,
+            max_completion_tokens: maxTokens,
             messages: apiMessages,
           };
 
@@ -348,7 +348,7 @@ export function createOpenAIExtension(
           // Call OpenAI API
           const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
             model: factoryModel,
-            max_tokens: maxTokens,
+            max_completion_tokens: maxTokens,
             messages: apiMessages,
           };
 
@@ -796,7 +796,7 @@ export function createOpenAIExtension(
             ): Promise<unknown> => {
               const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
                 model: factoryModel,
-                max_tokens: maxTokens,
+                max_completion_tokens: maxTokens,
                 messages: msgs as OpenAI.ChatCompletionMessageParam[],
                 tools: tools as OpenAI.ChatCompletionTool[],
                 tool_choice: 'auto' as const,
@@ -1110,7 +1110,7 @@ export function createOpenAIExtension(
           // Call OpenAI API with native structured output via json_schema response_format
           const apiParams: OpenAI.ChatCompletionCreateParamsNonStreaming = {
             model: factoryModel,
-            max_tokens: maxTokens,
+            max_completion_tokens: maxTokens,
             messages: apiMessages,
             response_format: {
               type: 'json_schema',

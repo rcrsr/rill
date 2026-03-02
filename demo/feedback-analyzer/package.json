@@ -6,7 +6,7 @@
   "scripts": {
     "build": "rill-agent-bundle build agent.json",
     "check": "rill-agent-bundle check --platform node dist/",
-    "start": "rill-agent-run dist/ feedback-analyzer --param feedback='The onboarding was confusing'"
+    "start": "rill-agent-run dist/ feedback-analyzer --config config.json --param feedback='The onboarding was confusing'"
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:*",
