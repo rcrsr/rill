@@ -48,9 +48,7 @@ tool(
     ($op == "add") ? ($a + $b)
       ! ($op == "subtract") ? ($a - $b)
       ! ($op == "multiply") ? ($a * $b)
-      ! ($op == "divide") ? (
-        ($b == 0) ? "Error: division by zero" ! ($a / $b)
-      )
+      ! ($op == "divide") ? (($b == 0) ? "Error: division by zero" ! ($a / $b))
       ! "Unknown operation: {$operation}. Use add, subtract, multiply, or divide."
   }
 ) => $calc_tool

@@ -1,6 +1,6 @@
 {
   "llm": {
-    "api_key": "${OPENAI_API_KEY}",
+    "api_key": "${GROQ_API_KEY}",
     "model": "openai/gpt-oss-20b",
     "base_url": "https://api.groq.com/openai/v1"
   }
