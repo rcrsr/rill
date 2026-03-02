@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { executeAgent } from './executor.js';
+import { executeAgent, type LogLevel } from './executor.js';
 import { loadBundle } from './loader.js';
 import { loadConfig } from './load-config.js';
 
@@ -68,7 +68,10 @@ async function main(): Promise<void> {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (
-      (arg === '--param' || arg === '--timeout' || arg === '--config') &&
+      (arg === '--param' ||
+        arg === '--timeout' ||
+        arg === '--config' ||
+        arg === '--log-level') &&
       i + 1 < args.length
     ) {
       flagsWithValues.add(i);
@@ -86,7 +89,7 @@ async function main(): Promise<void> {
   // bundle-dir is required
   if (bundleDir === undefined || bundleDir === '') {
     process.stderr.write(
-      'Error: bundle-dir is required\nUsage: rill-agent-run <bundle-dir> [agent-name] [--param key=value]... [--timeout <ms>] [--config <path|json>]\n'
+      'Error: bundle-dir is required\nUsage: rill-agent-run <bundle-dir> [agent-name] [--param key=value]... [--timeout <ms>] [--config <path|json>] [--log-level silent|info|debug]\n'
     );
     process.exit(1);
   }
@@ -113,6 +116,15 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+
+  // Parse log level: --log-level flag overrides LOG_LEVEL env var
+  const logLevelStr =
+    parseFlag(args, '--log-level') ?? process.env['LOG_LEVEL'] ?? 'info';
+  const logLevel: LogLevel = (
+    ['silent', 'info', 'debug'] as LogLevel[]
+  ).includes(logLevelStr as LogLevel)
+    ? (logLevelStr as LogLevel)
+    : 'info';
 
   // Build params: start from stdin if piped, then overlay --param flags
   let baseParams: Record<string, unknown> = {};
@@ -158,6 +170,7 @@ async function main(): Promise<void> {
       timeout,
       agentName: resolvedName,
       config,
+      logLevel,
     });
 
     // AC-42, AC-56: write JSON-encoded result to stdout

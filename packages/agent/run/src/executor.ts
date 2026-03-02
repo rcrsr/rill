@@ -5,10 +5,13 @@ import { type ComposedHandler } from '@rcrsr/rill-agent-shared';
 // PUBLIC TYPES
 // ============================================================
 
+export type LogLevel = 'silent' | 'info' | 'debug';
+
 export interface ExecuteOptions {
   readonly timeout?: number | undefined;
   readonly agentName: string;
   readonly config?: Record<string, Record<string, unknown>> | undefined;
+  readonly logLevel?: LogLevel | undefined;
 }
 
 export interface ExecuteResult {
@@ -39,12 +42,21 @@ export async function executeAgent(
       ? options.timeout
       : undefined;
 
+  const logLevel = options?.logLevel ?? 'info';
+  const onLog =
+    logLevel === 'silent'
+      ? (): void => {}
+      : (value: RillValue): void => {
+          const msg = typeof value === 'string' ? value : JSON.stringify(value);
+          process.stderr.write(msg + '\n');
+        };
+
   const start = Date.now();
 
   // EC-23, EC-24, EC-25: all errors re-thrown as-is
   const response = await handler(
     { params, timeout },
-    { agentName: options.agentName, config: options.config ?? {} }
+    { agentName: options.agentName, config: options.config ?? {}, onLog }
   );
 
   const durationMs = Date.now() - start;

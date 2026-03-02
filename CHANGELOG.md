@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agent bundle CLI** (`@rcrsr/rill-agent-bundle`) — Manifest-driven agent composition with `build`, `init`, and `check` subcommands. Compiles `agent.json` manifests into deployable bundles with SHA-256 checksums, platform compatibility checking, and esbuild-compiled custom functions. Env sources load variables from process.env and .env files
 - **Agent run CLI** (`@rcrsr/rill-agent-run`) — Execute bundled agents in-process with param injection, stdin support, and timeout control
 - **Agent shared types** (`@rcrsr/rill-agent-shared`) — Consolidated types, schemas, error classes, and A2A-compatible agent card generation. IO contracts validate `input`/`output` schemas declared in `agent.json` at runtime
-- **Agent build CLI** (`@rcrsr/rill-agent-build`) — `rill-agent-build --harness <type> <bundle-dir>` generates ESM harness entry points for http, stdio, gateway, and worker transports. Harness subpath exports (`/http`, `/stdio`, `/gateway`, `/worker`) added to `@rcrsr/rill-agent-harness` for per-transport imports
-- **Agent proxy** (`@rcrsr/rill-agent-proxy`) — `rill-agent-proxy --bundles <dir>` routes HTTP requests to agent bundles by spawning each as a child process per request. Enforces global and per-agent concurrency limits, mediates AHI agent-to-agent calls via NDJSON protocol, and exposes Prometheus metrics
+- **Agent harness reorganization** — `@rcrsr/rill-agent-harness` internals extracted into `core/` subdirectory (errors, execution, input, metrics, session, signals, types). Shared NDJSON protocol types (StdioRunMessage, StdioRunResult, StdioAhiRequest, StdioAhiResponse, AhiBinding) moved to `@rcrsr/rill-agent-shared`. Four transport subpath exports added (`/http`, `/stdio`, `/gateway`, `/worker`) enabling per-transport imports without bundling unused transports
+- **Agent build CLI** (`@rcrsr/rill-agent-build`) — `rill-agent-build --harness <type> <bundle-dir>` generates ESM harness entry points from bundle manifests. Supports http, stdio, gateway, and worker transports. Programmatic `generateHarness(options)` API. Five error contracts for invalid inputs, bad manifests, and write failures
+- **Agent proxy** (`@rcrsr/rill-agent-proxy`) — `rill-agent-proxy --bundles <dir>` scans bundle directories, spawns child agent processes, and routes HTTP/NDJSON stdio requests. Features include hot-reload catalog scanning, per-agent concurrency limits, AHI mediation, 8 HTTP endpoints (`/run`, `/catalog`, `/healthz`, `/readyz`, `/metrics`, `/stop`, `/sessions`, `/sessions/list`), and Prometheus-compatible metrics. Programmatic `createProxy(config)` API
 - **LLM `generate()` function** — Provider-agnostic structured output for Anthropic, OpenAI, and Gemini extensions. Rill schema dicts convert to JSON Schema automatically
 - **Content pipeline demo** — Multi-agent pipeline with classifier, summarizer, and orchestrator agents under `demo/content-pipeline/`
 
@@ -43,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tool loop error detail** — Consecutive error message now includes last tool name and error for debuggability
 - **Tool 3-arg form** — `tool(name, description, |typed_params| { body })` extracts param metadata from closure, eliminating redundant params dict
 - **Gemini tool loop context** — Gemini extension now passes RuntimeContext to `executeToolLoop`, enabling ScriptCallable tools
+- **rill-agent-run log routing** — Script `log` output now routes to stderr (not stdout). Supports `LOG_LEVEL` env var and `--log-level silent|info|debug` flag. `HandlerContext.onLog` callback threads log control from caller into generated bundle handlers
 
 ### Dependencies
 
