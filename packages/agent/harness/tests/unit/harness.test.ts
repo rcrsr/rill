@@ -23,7 +23,7 @@ import { createServer } from 'node:net';
 import { describe, it, expect, afterEach } from 'vitest';
 import { createAgentHost } from '../../src/index.js';
 import { AgentHostError } from '../../src/index.js';
-import { SessionManager } from '../../src/session.js';
+import { SessionManager } from '../../src/core/session.js';
 import type { AgentHost } from '../../src/index.js';
 import type { ComposedAgent } from '../../src/index.js';
 import { mockComposedAgent } from '../helpers/host.js';

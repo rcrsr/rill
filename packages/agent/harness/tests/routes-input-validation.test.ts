@@ -18,9 +18,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
-import { registerRoutes } from '../src/routes.js';
-import type { RouteHost, SseStore } from '../src/routes.js';
-import type { InputValidationErrorBody } from '../src/routes.js';
+import { registerRoutes } from '../src/http/routes.js';
+import type { RouteHost, SseStore } from '../src/http/routes.js';
+import type { InputValidationErrorBody } from '../src/http/routes.js';
 import type { AgentCard } from '../src/index.js';
 import type {
   LifecyclePhase,
@@ -28,7 +28,7 @@ import type {
   SessionRecord,
   RunRequest,
   RunResponse,
-} from '../src/types.js';
+} from '../src/core/types.js';
 import type { InputSchema } from '@rcrsr/rill-agent-shared';
 
 // ============================================================

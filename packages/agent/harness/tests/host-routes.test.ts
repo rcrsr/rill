@@ -25,15 +25,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import type { AgentCard } from '../src/index.js';
-import { registerRoutes } from '../src/routes.js';
-import type { RouteHost, SseStore } from '../src/routes.js';
+import { registerRoutes } from '../src/http/routes.js';
+import type { RouteHost, SseStore } from '../src/http/routes.js';
 import type {
   LifecyclePhase,
   HealthStatus,
   SessionRecord,
   RunRequest,
   RunResponse,
-} from '../src/types.js';
+} from '../src/core/types.js';
 import { createTestHost } from './helpers/host.js';
 import type { AgentHost } from '../src/index.js';
 

@@ -47,3 +47,11 @@ export type {
 } from './runner.js';
 
 export { checkTargetCompatibility } from './compat.js';
+
+export type {
+  AhiBinding,
+  StdioRunMessage,
+  StdioRunResult,
+  StdioAhiRequest,
+  StdioAhiResponse,
+} from './protocol.js';

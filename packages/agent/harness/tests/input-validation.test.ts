@@ -25,8 +25,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateInputParams, injectDefaults } from '../src/routes.js';
-import type { InputValidationIssue } from '../src/routes.js';
+import { validateInputParams, injectDefaults } from '../src/core/input.js';
+import type { InputValidationIssue } from '../src/core/input.js';
 import type { InputSchema } from '@rcrsr/rill-agent-shared';
 
 // ============================================================

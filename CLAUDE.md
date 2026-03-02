@@ -13,6 +13,8 @@ rill uses pnpm workspaces with the following package organization:
 | `packages/agent/harness` | `@rcrsr/rill-agent-harness` | Agent HTTP server with lifecycle, sessions, and metrics |
 | `packages/agent/bundle` | `@rcrsr/rill-agent-bundle` | Build tool for assembling agents from manifests into deployable bundles |
 | `packages/agent/run` | `@rcrsr/rill-agent-run` | CLI entry point for running agent bundles |
+| `packages/agent/build` | `@rcrsr/rill-agent-build` | CLI for generating harness entry points (`rill-agent-build`) |
+| `packages/agent/proxy` | `@rcrsr/rill-agent-proxy` | Multi-agent routing proxy (`rill-agent-proxy`) |
 
 ## Commands
 

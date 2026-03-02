@@ -11,12 +11,12 @@ export type {
   RunResponse,
   HealthStatus,
   HostErrorPhase,
-} from './types.js';
+} from './core/types.js';
 
 // ============================================================
 // ERRORS
 // ============================================================
-export { AgentHostError } from './errors.js';
+export { AgentHostError } from './core/errors.js';
 
 // ============================================================
 // AGENT HOST
@@ -46,3 +46,9 @@ export { createAgentHandler } from './handler.js';
 // ============================================================
 export type { ComposeOptions, ComposedHarness } from './compose.js';
 export { composeAgent, composeHarness } from './compose.js';
+
+// ============================================================
+// DISPATCH (stdio transport entry point)
+// ============================================================
+export type { DispatchOptions, DispatchResult } from './core/execution.js';
+export { dispatch } from './core/execution.js';

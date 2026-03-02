@@ -15,10 +15,10 @@ import type {
   ComposedAgent,
 } from '@rcrsr/rill-agent-shared';
 export type { AgentCard, AgentCapabilities, AgentSkill, ComposedAgent };
-import { AgentHostError } from './errors.js';
-import { SessionManager } from './session.js';
-import { createMetrics } from './metrics.js';
-import { registerSignalHandlers } from './signals.js';
+import { AgentHostError } from './core/errors.js';
+import { SessionManager } from './core/session.js';
+import { createMetrics } from './core/metrics.js';
+import { registerSignalHandlers } from './core/signals.js';
 import { registerRoutes } from './routes.js';
 import type { RouteHost, SseEvent, SseStore } from './routes.js';
 import type {
@@ -29,7 +29,7 @@ import type {
   RunResponse,
   HealthStatus,
   SessionRecord,
-} from './types.js';
+} from './core/types.js';
 
 // ============================================================
 // DEFAULTS

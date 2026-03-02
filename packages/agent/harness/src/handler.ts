@@ -7,10 +7,10 @@
 import { randomUUID } from 'node:crypto';
 import { execute, createRuntimeContext } from '@rcrsr/rill';
 import type { ObservabilityCallbacks } from '@rcrsr/rill';
-import { SessionManager } from './session.js';
-import { createMetrics } from './metrics.js';
+import { SessionManager } from './core/session.js';
+import { createMetrics } from './core/metrics.js';
 import type { ComposedAgent } from './host.js';
-import type { RunRequest } from './types.js';
+import type { RunRequest } from './core/types.js';
 
 // ============================================================
 // SERVERLESS INTERFACES

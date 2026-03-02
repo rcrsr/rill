@@ -45,6 +45,8 @@
 | Topic | Description |
 |-------|-------------|
 | [Harness](agent-harness.md) | Production HTTP server for rill agents |
+| [Build CLI](agent-build.md) | Generate harness entry points for rill agent bundles |
+| [Proxy](agent-proxy.md) | Multi-agent routing proxy for rill agent bundles |
 | [Bundle CLI](agent-bundle.md) | Build agents into self-contained bundles |
 | [Run CLI](agent-run.md) | Execute bundled agents from the command line |
 | [Shared Types](agent-shared.md) | Shared agent types, validation, and card generation |
@@ -74,10 +76,12 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](integration-host.md)
 6. **Deploying agents?** See [Harness](agent-harness.md)
-7. **Composing from manifests?** See [Bundle CLI](agent-bundle.md)
-8. **Packaging functions?** See [Extensions](integration-extensions.md)
-9. **Agent-to-agent calls?** See [Developing Extensions](integration-extensions.md) for the AHI extension
-10. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
+7. **Generating entry points?** See [Build CLI](agent-build.md)
+8. **Routing multiple agents?** See [Proxy](agent-proxy.md)
+9. **Composing from manifests?** See [Bundle CLI](agent-bundle.md)
+10. **Packaging functions?** See [Extensions](integration-extensions.md)
+11. **Agent-to-agent calls?** See [Developing Extensions](integration-extensions.md) for the AHI extension
+12. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
 
 ## Design Principles
 

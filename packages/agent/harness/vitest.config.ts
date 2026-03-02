@@ -18,6 +18,22 @@ export default defineConfig({
         '../ahi/src/index.ts'
       ),
       '@rcrsr/rill-agent-harness': path.resolve(__dirname, './src/index.ts'),
+      '@rcrsr/rill-agent-harness/http': path.resolve(
+        __dirname,
+        './src/http/index.ts'
+      ),
+      '@rcrsr/rill-agent-harness/stdio': path.resolve(
+        __dirname,
+        './src/stdio/index.ts'
+      ),
+      '@rcrsr/rill-agent-harness/gateway': path.resolve(
+        __dirname,
+        './src/gateway/index.ts'
+      ),
+      '@rcrsr/rill-agent-harness/worker': path.resolve(
+        __dirname,
+        './src/worker/index.ts'
+      ),
     },
   },
   test: {

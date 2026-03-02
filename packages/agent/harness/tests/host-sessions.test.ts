@@ -21,8 +21,8 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { SessionManager } from '../src/session.js';
-import { AgentHostError } from '../src/errors.js';
+import { SessionManager } from '../src/core/session.js';
+import { AgentHostError } from '../src/core/errors.js';
 import type { AgentHost, RunResponse } from '../src/index.js';
 import { createTestHost } from './helpers/host.js';
 

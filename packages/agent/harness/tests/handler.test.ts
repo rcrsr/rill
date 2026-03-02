@@ -183,7 +183,7 @@ describe('metrics registry reuse (AC-7)', () => {
   it('increments shared registry metrics after handler invocation', async () => {
     // Both createAgentHost and createAgentHandler import from the same metrics.js
     // module. createMetrics() provides access to the MetricsBundle API.
-    const { createMetrics } = await import('../src/metrics.js');
+    const { createMetrics } = await import('../src/core/metrics.js');
 
     const agent = await mockComposedAgent();
     const handler = createAgentHandler(agent);

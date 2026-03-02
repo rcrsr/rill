@@ -12,8 +12,8 @@
  */
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { registerSignalHandlers } from '../src/signals.js';
-import type { SessionRecord } from '../src/types.js';
+import { registerSignalHandlers } from '../src/core/signals.js';
+import type { SessionRecord } from '../src/core/types.js';
 
 // ============================================================
 // HELPERS
