@@ -505,15 +505,18 @@ Parser.prototype.parsePostfixExprBase = function (
 Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+  skipNewlines(this.state);
 
   const args: ExpressionNode[] = [];
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
     args.push(this.parsePipeChain());
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
+      skipNewlines(this.state);
       args.push(this.parsePipeChain());
     }
   }
+  skipNewlines(this.state);
 
   const rparen = expect(
     this.state,

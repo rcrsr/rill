@@ -223,6 +223,77 @@ $parts -> each { "{$}!" }`;
       expect(await run(script)).toBe('no');
     });
 
+    describe('Multi-line Function Call Arguments', () => {
+      it('newline after opening paren in host call', async () => {
+        const script = `identity(
+"hello")`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline after comma in multi-arg closure call', async () => {
+        const script = `|a, b| { $a + $b } => $add
+$add(10,
+20)`;
+        expect(await run(script)).toBe(30);
+      });
+
+      it('multiple newlines between args in closure call', async () => {
+        const script = `|a, b, c| { $a + $b + $c } => $sum
+$sum(1,
+
+2,
+
+3)`;
+        expect(await run(script)).toBe(6);
+      });
+
+      it('newline after opening paren in closure call', async () => {
+        const script = `|x| { $x } => $fn
+$fn(
+"world")`;
+        expect(await run(script)).toBe('world');
+      });
+
+      it('newline after opening paren in method call', async () => {
+        const script = `"hello world".split(
+" ") -> .head`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline before closing paren in host call', async () => {
+        const script = `identity(
+"hello"
+)`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline before closing paren in closure call', async () => {
+        const script = `|a, b| { $a + $b } => $add
+$add(
+10,
+20
+)`;
+        expect(await run(script)).toBe(30);
+      });
+
+      it('newline before closing paren in method call', async () => {
+        const script = `"hello world".split(
+" "
+) -> .head`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('fully expanded multi-line call', async () => {
+        const script = `|a, b, c| { $a + $b + $c } => $sum
+$sum(
+  1,
+  2,
+  3
+)`;
+        expect(await run(script)).toBe(6);
+      });
+    });
+
     describe('Conditional Block Boundaries', () => {
       it('parses consecutive conditionals with blocks as separate statements', async () => {
         // Regression test: Two consecutive (cond) ? { block } conditionals

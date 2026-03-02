@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LSP column numbers** — `formatErrorJson` outputs 0-based columns for LSP compatibility
 - **OpenAI `max_completion_tokens`** — API calls send `max_completion_tokens` instead of deprecated `max_tokens`
 - **Demo runtime config** — Demos supply extension config via `--config` flag and `ComposeOptions.config`
+- **Multi-line function calls** — Parser now skips newlines after `(`, after each `,`, and before `)` in all call forms (host, closure, method, invoke)
 
 ### Dependencies
 

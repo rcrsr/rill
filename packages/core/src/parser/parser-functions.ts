@@ -16,7 +16,15 @@ import type {
   TypeCheckNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan, peek } from './state.js';
+import {
+  check,
+  advance,
+  expect,
+  current,
+  makeSpan,
+  peek,
+  skipNewlines,
+} from './state.js';
 import {
   VALID_TYPE_NAMES,
   parseTypeName,
@@ -45,13 +53,16 @@ declare module './parser.js' {
 
 Parser.prototype.parseArgumentList = function (this: Parser): ExpressionNode[] {
   const args: ExpressionNode[] = [];
+  skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
     args.push(this.parseExpression());
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
+      skipNewlines(this.state);
       args.push(this.parseExpression());
     }
   }
+  skipNewlines(this.state);
   return args;
 };
 
