@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     });
 
     // AC-42, AC-56: write JSON-encoded result to stdout
-    process.stdout.write(JSON.stringify(result) + '\n');
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     process.exit(0);
   } catch (err) {
     // AC-46: write error to stderr, exit 1
