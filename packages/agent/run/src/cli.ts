@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { executeAgent } from './executor.js';
 import { loadBundle } from './loader.js';
+import { loadConfig } from './load-config.js';
 
 // ============================================================
 // ARG PARSING HELPERS
@@ -66,7 +67,10 @@ async function main(): Promise<void> {
   const flagsWithValues = new Set<number>();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
-    if ((arg === '--param' || arg === '--timeout') && i + 1 < args.length) {
+    if (
+      (arg === '--param' || arg === '--timeout' || arg === '--config') &&
+      i + 1 < args.length
+    ) {
       flagsWithValues.add(i);
       flagsWithValues.add(i + 1);
       i += 1;
@@ -82,7 +86,7 @@ async function main(): Promise<void> {
   // bundle-dir is required
   if (bundleDir === undefined || bundleDir === '') {
     process.stderr.write(
-      'Error: bundle-dir is required\nUsage: rill-agent-run <bundle-dir> [agent-name] [--param key=value]... [--timeout <ms>]\n'
+      'Error: bundle-dir is required\nUsage: rill-agent-run <bundle-dir> [agent-name] [--param key=value]... [--timeout <ms>] [--config <path|json>]\n'
     );
     process.exit(1);
   }
@@ -94,6 +98,19 @@ async function main(): Promise<void> {
     const parsed = parseInt(timeoutStr, 10);
     if (!isNaN(parsed)) {
       timeout = parsed;
+    }
+  }
+
+  // Parse --config flag: file path or inline JSON, interpolated against process.env
+  let config: Record<string, Record<string, unknown>> | undefined;
+  const configStr = parseFlag(args, '--config');
+  if (configStr !== undefined) {
+    try {
+      config = loadConfig(configStr);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`Error: ${msg}\n`);
+      process.exit(1);
     }
   }
 
@@ -140,6 +157,7 @@ async function main(): Promise<void> {
     const { result } = await executeAgent(handler, params, {
       timeout,
       agentName: resolvedName,
+      config,
     });
 
     // AC-42, AC-56: write JSON-encoded result to stdout

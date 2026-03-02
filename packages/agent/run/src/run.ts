@@ -11,7 +11,7 @@ import { loadBundle } from './loader.js';
 export interface RunOptions {
   readonly params?: Record<string, unknown> | undefined;
   readonly timeout?: number | undefined;
-  readonly env?: Record<string, string> | undefined;
+  readonly config?: Record<string, Record<string, unknown>> | undefined;
 }
 
 export interface RunResult {
@@ -48,7 +48,11 @@ export async function runAgent(
     const { result, durationMs } = await executeAgent(
       handler,
       options?.params ?? {},
-      { timeout: options?.timeout, agentName: resolvedName }
+      {
+        timeout: options?.timeout,
+        agentName: resolvedName,
+        config: options?.config ?? {},
+      }
     );
 
     return { result, exitCode: 0, durationMs };

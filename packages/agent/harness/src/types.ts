@@ -77,6 +77,13 @@ export interface AgentHostOptions {
    */
   readonly registryEndpoint?: string | undefined;
   /**
+   * Per-extension config passed at compose time.
+   * Keys are extension aliases; values are config objects.
+   * When provided alongside RILL_REGISTRY_URL, `config['ahi']['agents']`
+   * is used for AHI dependency extraction during registry registration.
+   */
+  readonly config?: Record<string, Record<string, unknown>> | undefined;
+  /**
    * Per-agent concurrency caps. Keys are agent names; values are max concurrent sessions.
    * Only used in multi-agent mode (createAgentHost with Map).
    */

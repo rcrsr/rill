@@ -15,7 +15,7 @@ const manifest = validateHarnessManifest(raw);
 
 const harness = await composeHarness(manifest, {
   basePath: __dirname,
-  env: process.env as Record<string, string>,
+  config: {},
 });
 
 const port = manifest.host?.port ?? 4002;

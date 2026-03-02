@@ -7,10 +7,7 @@
   "skills": [],
   "extensions": {
     "kv": {
-      "package": "@rcrsr/rill/ext/kv",
-      "config": {
-        "store": "./data/state.json"
-      }
+      "package": "@rcrsr/rill/ext/kv"
     }
   },
   "host": {

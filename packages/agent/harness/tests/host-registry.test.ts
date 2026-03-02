@@ -341,16 +341,16 @@ describe('AC-37: ahiDependencies extracted from manifest ahi config agents', () 
       extensions: {
         ahi: {
           package: '@rcrsr/rill-agent-ext-ahi',
-          config: {
-            agents: ['parser', 'formatter'],
-          },
         },
       },
       functions: {},
       assets: [],
     };
 
-    const host = await createTestHost({ manifest });
+    const host = await createTestHost({
+      manifest,
+      config: { ahi: { agents: ['parser', 'formatter'] } },
+    });
     hostsToClean.push(host);
 
     await host.listen(0);
@@ -443,16 +443,16 @@ describe('AC-37: ahiDependencies extracted from manifest ahi config agents', () 
       extensions: {
         ahi: {
           package: '@rcrsr/rill-agent-ext-ahi',
-          config: {
-            agents: ['parser'],
-          },
         },
       },
       functions: {},
       assets: [],
     };
 
-    const host = await createTestHost({ manifest });
+    const host = await createTestHost({
+      manifest,
+      config: { ahi: { agents: ['parser'] } },
+    });
     hostsToClean.push(host);
 
     await host.listen(0);

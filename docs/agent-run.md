@@ -15,7 +15,7 @@ npm install @rcrsr/rill-agent-run
 ## CLI
 
 ```bash
-rill-agent-run <bundle-dir> <agent-name> [--param key=value]... [--timeout <ms>]
+rill-agent-run <bundle-dir> <agent-name> [--param key=value]... [--timeout <ms>] [--config <file-or-json>]
 ```
 
 ### Arguments
@@ -31,12 +31,15 @@ rill-agent-run <bundle-dir> <agent-name> [--param key=value]... [--timeout <ms>]
 |--------|-------------|
 | `--param key=value` | Pass a named input parameter. Repeat for multiple parameters. |
 | `--timeout <ms>` | Abort execution after the given number of milliseconds. |
+| `--config <file-or-json>` | Path to config JSON file, or inline JSON string. Supports `${VAR}` interpolation. |
 
 ### Examples
 
 ```bash
 rill-agent-run dist/ classifier --param text="hello world"
 rill-agent-run dist/ summarizer --param url=https://example.com --timeout 5000
+rill-agent-run dist/ my-agent --config config.json
+rill-agent-run dist/ my-agent --config '{"llm":{"api_key":"${GROQ_API_KEY}","model":"llama-4"}}'
 ```
 
 ## Input Sources
@@ -106,7 +109,7 @@ Loads the bundle, composes the named agent, injects parameters, and executes the
 |--------|------|-------------|
 | `params` | `Record<string, unknown>` | Named input parameters passed to the agent |
 | `timeout` | `number` | Abort execution after this many milliseconds |
-| `env` | `Record<string, string>` | Environment variables for `${VAR}` interpolation in extension config |
+| `config` | `Record<string, Record<string, unknown>>` | Extension config keyed by alias. When omitted, treated as `{}`. |
 
 ### RunResult
 
@@ -124,11 +127,33 @@ import { runAgent } from '@rcrsr/rill-agent-run';
 const result = await runAgent('./dist', 'classifier', {
   params: { text: 'hello world' },
   timeout: 5000,
+  config: {
+    llm: { api_key: process.env.GROQ_API_KEY, model: 'llama-4' }
+  },
 });
 
 console.log(result.result);
 console.log(`Completed in ${result.durationMs}ms`);
 ```
+
+## Config
+
+The `--config` flag accepts a file path or inline JSON string.
+
+```bash
+# Config file
+rill-agent-run dist/ my-agent --config config.json
+rill-agent-run dist/ my-agent --config ./prod.json
+
+# Inline JSON
+rill-agent-run dist/ my-agent --config '{"llm": {"api_key": "${GROQ_API_KEY}"}}'
+```
+
+Config is keyed by extension alias. Each value is the config object passed to that extension.
+
+`${VAR}` patterns in config values are interpolated against `process.env` after JSON parsing. Unset variables are retained as-is — they are not replaced with empty strings.
+
+When `--config` is omitted, config defaults to `{}`.
 
 ## See Also
 

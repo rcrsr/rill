@@ -8,7 +8,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { RuntimeError } from '../../error-classes.js';
-import type { ExtensionResult } from '../../runtime/ext/extensions.js';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+} from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import {
   type MountConfig,
@@ -33,6 +36,10 @@ export interface FsConfig {
 
 // Re-export MountConfig for consumers
 export type { MountConfig };
+
+export const configSchema: ExtensionConfigSchema = {
+  mounts: { type: 'string', required: true },
+};
 
 // ============================================================
 // FACTORY

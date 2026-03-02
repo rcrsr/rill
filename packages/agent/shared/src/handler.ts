@@ -43,6 +43,8 @@ export interface HandlerContext {
   readonly correlationId?: string | undefined;
   /** Caller-provided session ID. */
   readonly sessionId?: string | undefined;
+  /** Agent configuration keyed by section name. */
+  readonly config: Record<string, Record<string, unknown>>;
 }
 
 // ============================================================

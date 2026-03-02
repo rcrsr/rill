@@ -7,12 +7,20 @@
 
 import crypto from 'node:crypto';
 import { RuntimeError } from '../../error-classes.js';
-import type { ExtensionResult } from '../../runtime/ext/extensions.js';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+} from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 
 // ============================================================
 // TYPES
 // ============================================================
+
+export const configSchema: ExtensionConfigSchema = {
+  defaultAlgorithm: { type: 'string' },
+  hmacKey: { type: 'string', secret: true },
+};
 
 /** Crypto extension configuration */
 export interface CryptoConfig {

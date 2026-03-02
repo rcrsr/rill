@@ -29,7 +29,7 @@ function packageAlias(packageName: string): string {
 
 /**
  * Builds the extensions record for agent.json from an array of package names.
- * Each entry uses the basename as alias and an empty config object.
+ * Each entry uses the basename as alias.
  */
 function buildExtensionsRecord(
   extensions: readonly string[]
@@ -37,7 +37,7 @@ function buildExtensionsRecord(
   const result: Record<string, ManifestExtension> = {};
   for (const pkg of extensions) {
     const alias = packageAlias(pkg);
-    result[alias] = { package: pkg, config: {} };
+    result[alias] = { package: pkg };
   }
   return result;
 }

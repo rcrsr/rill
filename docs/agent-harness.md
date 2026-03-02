@@ -21,11 +21,16 @@ import { composeAgent, createAgentHost } from '@rcrsr/rill-agent-harness';
 
 const json = JSON.parse(readFileSync('./agent.json', 'utf-8'));
 const manifest = validateManifest(json);
-const agent = await composeAgent(manifest, { basePath: import.meta.dirname });
+const agent = await composeAgent(manifest, {
+  basePath: import.meta.dirname,
+  config: {},
+});
 const host = createAgentHost(agent);
 
 await host.listen(3000);
 ```
+
+`config` is required. It holds extension configuration keyed by extension alias. Pass an empty object when the agent uses no extensions. Resolve environment variables before passing config — `composeAgent` does not interpolate `${VAR}` placeholders.
 
 ## Multi-Agent Mode
 
@@ -35,8 +40,14 @@ await host.listen(3000);
 import { validateManifest } from '@rcrsr/rill-agent-shared';
 import { composeAgent, createAgentHost } from '@rcrsr/rill-agent-harness';
 
-const agentA = await composeAgent(validateManifest(manifestA), { basePath: import.meta.dirname });
-const agentB = await composeAgent(validateManifest(manifestB), { basePath: import.meta.dirname });
+const agentA = await composeAgent(validateManifest(manifestA), {
+  basePath: import.meta.dirname,
+  config: {},
+});
+const agentB = await composeAgent(validateManifest(manifestB), {
+  basePath: import.meta.dirname,
+  config: {},
+});
 
 const agents = new Map([
   ['agent-a', agentA],

@@ -39,3 +39,30 @@ export function interpolateEnv(
 
   return { value: result, unresolved };
 }
+
+/**
+ * Walks a nested config object and interpolates `${VAR}` patterns in every
+ * string value using `interpolateEnv`.
+ *
+ * Non-string values are passed through unchanged. Unset variables retain their
+ * literal `${VAR}` pattern in the output (matching `interpolateEnv` behavior).
+ *
+ * Returns a new object; the original config is not mutated.
+ */
+export function interpolateConfigDeep(
+  config: Record<string, Record<string, unknown>>,
+  env: Record<string, string | undefined>
+): Record<string, Record<string, unknown>> {
+  const result: Record<string, Record<string, unknown>> = {};
+  for (const section of Object.keys(config)) {
+    const inner = config[section] ?? {};
+    const interpolated: Record<string, unknown> = {};
+    for (const key of Object.keys(inner)) {
+      const val = inner[key];
+      interpolated[key] =
+        typeof val === 'string' ? interpolateEnv(val, env).value : val;
+    }
+    result[section] = interpolated;
+  }
+  return result;
+}

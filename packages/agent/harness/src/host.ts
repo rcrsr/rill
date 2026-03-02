@@ -149,6 +149,7 @@ export function createAgentHost(
     logLevel: options?.logLevel ?? DEFAULTS.logLevel,
     manifest: options?.manifest,
     registryEndpoint: options?.registryEndpoint,
+    config: options?.config,
   };
 
   // ----------------------------------------------------------
@@ -703,7 +704,7 @@ export function createAgentHost(
       // Registry integration: register each agent individually.
       const registryUrl = process.env['RILL_REGISTRY_URL'];
       if (registryUrl !== undefined && registryUrl !== '') {
-        const ahiAgents = cfg.manifest?.extensions?.['ahi']?.config?.['agents'];
+        const ahiAgents = cfg.config?.['ahi']?.['agents'];
         const ahiDependencies: string[] =
           Array.isArray(ahiAgents) &&
           ahiAgents.every((a): a is string => typeof a === 'string')

@@ -7,7 +7,10 @@
  */
 
 import { RuntimeError } from '../../error-classes.js';
-import type { ExtensionResult } from '../../runtime/ext/extensions.js';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+} from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import {
   isDict,
@@ -25,6 +28,10 @@ import {
 // ============================================================
 // TYPE DEFINITIONS
 // ============================================================
+
+export const configSchema: ExtensionConfigSchema = {
+  endpoints: { type: 'string', required: true },
+};
 
 /** Parameter definition for endpoint */
 export interface EndpointParam {

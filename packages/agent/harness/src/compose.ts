@@ -23,11 +23,11 @@ import {
   type InProcessRunRequest,
   type InProcessRunResponse,
   type ComposedAgent,
+  type ResolvedExtension,
   ComposeError,
   resolveExtensions,
+  extractConfigSchema,
   generateAgentCard,
-  interpolateEnv,
-  loadEnv,
 } from '@rcrsr/rill-agent-shared';
 
 // ============================================================
@@ -36,7 +36,7 @@ import {
 
 export interface ComposeOptions {
   readonly basePath?: string | undefined;
-  readonly env?: Record<string, string> | undefined;
+  readonly config: Record<string, Record<string, unknown>>;
 }
 
 export interface ComposedHarness {
@@ -49,24 +49,6 @@ export interface ComposedHarness {
 // ============================================================
 // INTERNAL HELPERS
 // ============================================================
-
-/**
- * Apply interpolateEnv to all string values in an extension config object.
- */
-function interpolateConfig(
-  config: Record<string, unknown>,
-  env: Record<string, string | undefined>
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(config)) {
-    if (typeof value === 'string') {
-      result[key] = interpolateEnv(value, env).value;
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
 
 /**
  * Compile a TypeScript custom function file using esbuild.
@@ -175,7 +157,9 @@ async function loadCustomFunctions(
  * On instantiation failure, disposes already-instantiated extensions before throwing (EC-5).
  */
 async function instantiateExtensions(
-  resolved: Awaited<ReturnType<typeof resolveExtensions>>,
+  resolved: Array<
+    ResolvedExtension & { readonly config: Record<string, unknown> }
+  >,
   alreadyDispose?: Array<() => void | Promise<void>>
 ): Promise<{
   functions: Record<string, HostFunctionDefinition>;
@@ -315,36 +299,45 @@ export function bindHost(
 
 /**
  * Compose an agent from an AgentManifest.
- * Resolves extensions, compiles custom functions, loads modules,
- * and parses the entry script — returning a ComposedAgent ready to execute.
+ * Resolves extensions, validates config schemas, compiles custom functions,
+ * loads modules, and parses the entry script — returning a ComposedAgent ready
+ * to execute.
  *
  * @param manifest - Validated agent manifest
- * @param options - Optional basePath (defaults to cwd) and env overrides
+ * @param options - Required: basePath (defaults to cwd) and config per extension alias
  * @returns ComposedAgent with context, AST, modules, card, and dispose()
  * @throws ComposeError on any composition failure
  */
 export async function composeAgent(
   manifest: AgentManifest,
-  options?: ComposeOptions
+  options: ComposeOptions
 ): Promise<ComposedAgent> {
-  const basePath = options?.basePath ?? process.cwd();
-  const env: Record<string, string> =
-    options?.env ?? loadEnv(manifest.env, basePath);
+  const basePath = options.basePath ?? process.cwd();
 
-  // Step 2: Interpolate env placeholders in extension configs
-  const interpolatedExtensions: typeof manifest.extensions = {};
-  for (const [alias, ext] of Object.entries(manifest.extensions)) {
-    interpolatedExtensions[alias] = {
-      ...ext,
-      config: interpolateConfig(ext.config, env),
-    };
-  }
-
-  // Step 3: Resolve extensions (handles EC-3, EC-4, EC-5)
-  const resolved = await resolveExtensions(interpolatedExtensions, {
+  // Step 2: Resolve extensions (handles EC-3, EC-4, EC-5)
+  const resolvedRaw = await resolveExtensions(manifest.extensions, {
     manifestDir: basePath,
-    env,
   });
+
+  // Step 3: Validate config schemas and attach config slices to resolved extensions
+  const missingFields: string[] = [];
+  const resolved = resolvedRaw.map((ext) => {
+    const schema = extractConfigSchema(ext.mod, ext.packageName);
+    const configSlice = options.config[ext.alias] ?? {};
+    for (const [field, descriptor] of Object.entries(schema)) {
+      if (descriptor.required === true && !(field in configSlice)) {
+        missingFields.push(`${ext.alias}.${field}`);
+      }
+    }
+    return { ...ext, config: configSlice };
+  });
+
+  if (missingFields.length > 0) {
+    throw new ComposeError(
+      `Missing required config fields: ${missingFields.join(', ')}`,
+      'resolution'
+    );
+  }
 
   // Steps 4–6: Detect namespace collisions (delegated to resolveExtensions above),
   // hoist each extension and collect functions
@@ -451,33 +444,39 @@ function buildSyntheticManifest(entry: HarnessAgentEntry): AgentManifest {
  * shared + per-agent functions. Returns a ComposedHarness ready to bind to a host.
  *
  * @param manifest - Validated harness manifest
- * @param options - Optional basePath (defaults to cwd) and env overrides
+ * @param options - Required: basePath (defaults to cwd) and config per extension alias
  * @returns ComposedHarness with agents map, sharedExtensions, bindHost(), and dispose()
  * @throws ComposeError on any composition failure (EC-5)
  */
 export async function composeHarness(
   manifest: HarnessManifest,
-  options?: ComposeOptions
+  options: ComposeOptions
 ): Promise<ComposedHarness> {
-  const basePath = options?.basePath ?? process.cwd();
-  // HarnessManifest has no env sources field; use options.env or process.env
-  const env: Record<string, string> =
-    options?.env ?? (process.env as Record<string, string>);
+  const basePath = options.basePath ?? process.cwd();
 
-  // Step 2: Interpolate env placeholders in shared extension configs
-  const interpolatedShared: typeof manifest.shared = {};
-  for (const [alias, ext] of Object.entries(manifest.shared)) {
-    interpolatedShared[alias] = {
-      ...ext,
-      config: interpolateConfig(ext.config, env),
-    };
-  }
-
-  // Step 3: Resolve and instantiate shared extensions once
-  const resolvedShared = await resolveExtensions(interpolatedShared, {
+  // Step 3: Resolve shared extensions, validate config schemas, attach config slices
+  const resolvedSharedRaw = await resolveExtensions(manifest.shared, {
     manifestDir: basePath,
-    env,
   });
+
+  const sharedMissingFields: string[] = [];
+  const resolvedShared = resolvedSharedRaw.map((ext) => {
+    const schema = extractConfigSchema(ext.mod, ext.packageName);
+    const configSlice = options.config[ext.alias] ?? {};
+    for (const [field, descriptor] of Object.entries(schema)) {
+      if (descriptor.required === true && !(field in configSlice)) {
+        sharedMissingFields.push(`${ext.alias}.${field}`);
+      }
+    }
+    return { ...ext, config: configSlice };
+  });
+
+  if (sharedMissingFields.length > 0) {
+    throw new ComposeError(
+      `Missing required config fields: ${sharedMissingFields.join(', ')}`,
+      'resolution'
+    );
+  }
 
   const {
     functions: sharedFunctions,
@@ -492,18 +491,38 @@ export async function composeHarness(
   for (const agentEntry of manifest.agents) {
     // Step 4a: Resolve and instantiate per-agent extensions
     const perAgentExtDefs = agentEntry.extensions ?? {};
-    const interpolatedPerAgent: typeof perAgentExtDefs = {};
-    for (const [alias, ext] of Object.entries(perAgentExtDefs)) {
-      interpolatedPerAgent[alias] = {
-        ...ext,
-        config: interpolateConfig(ext.config, env),
-      };
-    }
 
-    const resolvedPerAgent = await resolveExtensions(interpolatedPerAgent, {
+    const resolvedPerAgentRaw = await resolveExtensions(perAgentExtDefs, {
       manifestDir: basePath,
-      env,
     });
+
+    const perAgentMissingFields: string[] = [];
+    const resolvedPerAgent = resolvedPerAgentRaw.map((ext) => {
+      const schema = extractConfigSchema(ext.mod, ext.packageName);
+      const configSlice = options.config[ext.alias] ?? {};
+      for (const [field, descriptor] of Object.entries(schema)) {
+        if (descriptor.required === true && !(field in configSlice)) {
+          perAgentMissingFields.push(`${ext.alias}.${field}`);
+        }
+      }
+      return { ...ext, config: configSlice };
+    });
+
+    if (perAgentMissingFields.length > 0) {
+      // EC-5: dispose already-instantiated shared extensions before throwing
+      const toDispose = [...sharedDisposeHandlers].reverse();
+      for (const handler of toDispose) {
+        try {
+          await handler();
+        } catch {
+          // Ignore individual dispose errors
+        }
+      }
+      throw new ComposeError(
+        `Missing required config fields: ${perAgentMissingFields.join(', ')}`,
+        'resolution'
+      );
+    }
 
     const {
       functions: perAgentFunctions,

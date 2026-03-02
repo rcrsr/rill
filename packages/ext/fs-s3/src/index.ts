@@ -14,7 +14,7 @@ import {
   type GetObjectCommandOutput,
 } from '@aws-sdk/client-s3';
 import type { S3FsConfig, S3FsMountConfig } from './types.js';
-import type { RillValue } from '@rcrsr/rill';
+import type { ExtensionConfigSchema, RillValue } from '@rcrsr/rill';
 
 // ============================================================
 // PUBLIC TYPES
@@ -266,7 +266,7 @@ export function createS3FsExtension(config: S3FsConfig) {
       // EC-8: File not found
       if (error && typeof error === 'object' && 'name' in error) {
         if ((error as { name: string }).name === 'NoSuchKey') {
-          throw new Error(`file not found: ${filePath}`);
+          throw new Error(`file not found: ${filePath}`, { cause: error });
         }
       }
       throw error;
@@ -555,7 +555,7 @@ export function createS3FsExtension(config: S3FsConfig) {
     } catch (error) {
       if (error && typeof error === 'object' && 'name' in error) {
         if ((error as { name: string }).name === 'NotFound') {
-          throw new Error(`file not found: ${filePath}`);
+          throw new Error(`file not found: ${filePath}`, { cause: error });
         }
       }
       throw error;
@@ -826,6 +826,17 @@ export function createS3FsExtension(config: S3FsConfig) {
     dispose,
   };
 }
+
+// ============================================================
+// CONFIG SCHEMA
+// ============================================================
+
+export const configSchema: ExtensionConfigSchema = {
+  region: { type: 'string', required: true },
+  endpoint: { type: 'string' },
+  forcePathStyle: { type: 'boolean' },
+  mounts: { type: 'string' },
+};
 
 // ============================================================
 // VERSION

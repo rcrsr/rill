@@ -8,7 +8,6 @@ export type {
   InputParamDescriptor,
   InputSchema,
   OutputSchema,
-  EnvSource,
   BuildTarget,
   AgentSkill,
 } from './schema.js';
@@ -28,12 +27,10 @@ export { generateAgentCard } from './card.js';
 export type { ComposedAgent } from './composed-agent.js';
 
 export type { InterpolationResult } from './interpolate.js';
-export { interpolateEnv } from './interpolate.js';
-
-export { loadEnv } from './env.js';
+export { interpolateEnv, interpolateConfigDeep } from './interpolate.js';
 
 export type { ResolvedExtension, ResolveOptions } from './resolve.js';
-export { resolveExtensions } from './resolve.js';
+export { resolveExtensions, extractConfigSchema } from './resolve.js';
 
 export type {
   RunRequest,

@@ -51,7 +51,6 @@ function makeLocalExtension(
     namespace,
     strategy: 'local',
     factory,
-    config: {},
   };
 }
 
@@ -68,7 +67,6 @@ function makeNpmExtension(namespace: string): ResolvedExtension {
     namespace,
     strategy: 'npm',
     factory,
-    config: {},
   };
 }
 
@@ -85,7 +83,6 @@ function makeBuiltinExtension(namespace: string): ResolvedExtension {
     namespace,
     strategy: 'builtin',
     factory,
-    config: {},
   };
 }
 

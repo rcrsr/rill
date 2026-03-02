@@ -4,7 +4,6 @@
   "runtime": "@rcrsr/rill@*",
   "entry": "scripts/main.rill",
   "description": "Analyze customer feedback with structured output and response drafting",
-  "env": [{ "type": "process" }, { "type": "dotenv", "path": ".env" }],
   "input": {
     "feedback": {
       "type": "string",
@@ -24,12 +23,7 @@
   },
   "extensions": {
     "llm": {
-      "package": "@rcrsr/rill-ext-openai",
-      "config": {
-        "api_key": "${GROQ_API_KEY}",
-        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-        "base_url": "https://api.groq.com/openai/v1"
-      }
+      "package": "@rcrsr/rill-ext-openai"
     }
   },
   "host": {

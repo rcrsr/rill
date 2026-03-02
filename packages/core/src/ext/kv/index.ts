@@ -5,7 +5,10 @@
  * Supports both open mode (any key/value) and declared mode (schema-defined keys only).
  */
 
-import type { ExtensionResult } from '../../runtime/ext/extensions.js';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+} from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import { RuntimeError } from '../../error-classes.js';
 import { isDict } from '../../runtime/core/callable.js';
@@ -55,6 +58,11 @@ export interface KvConfig {
 
 // Re-export SchemaEntry for consumers
 export type { SchemaEntry };
+
+export const configSchema: ExtensionConfigSchema = {
+  store: { type: 'string' },
+  mounts: { type: 'string' },
+};
 
 // ============================================================
 // FACTORY

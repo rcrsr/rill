@@ -60,7 +60,6 @@ To validate a manifest and compose an agent for programmatic use, import from `@
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `package` | string | yes | npm package name, `@rcrsr/rill/ext/<name>`, or relative path |
-| `config` | Record\<string, unknown\> | no | Extension-specific config; supports `${VAR}` interpolation |
 
 ### ManifestHostOptions Fields
 
@@ -166,8 +165,7 @@ The `type` field uses rill type names. This table shows how each name maps to a 
   ],
   "extensions": {
     "llm": {
-      "package": "@rcrsr/rill-ext-anthropic",
-      "config": { "api_key": "${ANTHROPIC_API_KEY}" }
+      "package": "@rcrsr/rill-ext-anthropic"
     },
     "kv": {
       "package": "@rcrsr/rill/ext/kv"
@@ -193,20 +191,13 @@ Use static URL mode when agent endpoints are fixed at deploy time.
 {
   "extensions": {
     "ahi": {
-      "package": "@rcrsr/rill-agent-ext-ahi",
-      "config": {
-        "agents": {
-          "parser": { "url": "http://parser-agent:8080" },
-          "classifier": { "url": "${CLASSIFIER_URL}" }
-        },
-        "timeout": 10000
-      }
+      "package": "@rcrsr/rill-agent-ext-ahi"
     }
   }
 }
 ```
 
-The `agents` value is a dict mapping agent names to objects with a `url` field. The `${VAR}` syntax is supported for environment variable interpolation (see [Environment Interpolation](#environment-interpolation)).
+The AHI config (`agents` map, `timeout`) is no longer embedded in the manifest. Pass it at runtime via `--config ahi=...` or the `config` option to `composeAgent`. See [Agent Run](agent-run.md) for config flag usage.
 
 ### Registry Mode
 
@@ -216,18 +207,13 @@ Use registry mode when agent endpoints are resolved at runtime from a service re
 {
   "extensions": {
     "ahi": {
-      "package": "@rcrsr/rill-agent-ext-ahi",
-      "config": {
-        "registry": "http://registry:8080",
-        "agents": ["parser", "classifier"],
-        "timeout": 10000
-      }
+      "package": "@rcrsr/rill-agent-ext-ahi"
     }
   }
 }
 ```
 
-In registry mode, `agents` is a string array of agent names. The AHI extension resolves each name to an endpoint via the registry at call time.
+In registry mode, `agents` is a string array of agent names. The AHI extension resolves each name to an endpoint via the registry at call time. Pass the registry URL and agent list at runtime via `--config` or `composeAgent`'s `config` option.
 
 ### AHI Config Fields
 
@@ -239,23 +225,19 @@ In registry mode, `agents` is a string array of agent names. The AHI extension r
 
 ### `ahiDependencies` and Self-Registration
 
-When `RILL_REGISTRY_URL` is set, the host self-registers after binding its port. If `extensions.ahi.config.agents` is a string array (registry mode), those names populate the `dependencies` field of the registration payload. The registry uses this to track which agents depend on which other agents.
+When `RILL_REGISTRY_URL` is set, the host self-registers after binding its port. If the runtime config `agents` field is a string array (registry mode), those names populate the `dependencies` field of the registration payload. The registry uses this to track which agents depend on which other agents.
 
 ```json
 {
   "extensions": {
     "ahi": {
-      "package": "@rcrsr/rill-agent-ext-ahi",
-      "config": {
-        "registry": "http://registry:8080",
-        "agents": ["parser", "classifier"]
-      }
+      "package": "@rcrsr/rill-agent-ext-ahi"
     }
   }
 }
 ```
 
-With the manifest above and `RILL_REGISTRY_URL` set, the host registers with `dependencies: ["parser", "classifier"]`.
+With the manifest above and `RILL_REGISTRY_URL` set, the host registers with `dependencies: ["parser", "classifier"]` when the runtime config provides `agents` as a string array.
 
 If `agents` is a dict (static mode), `dependencies` is an empty array — static-mode agents declare their endpoints directly and do not require registry resolution.
 
@@ -326,12 +308,10 @@ interface HarnessAgentEntry {
   },
   "shared": {
     "llm": {
-      "package": "@rcrsr/rill-ext-anthropic",
-      "config": { "model": "claude-sonnet-4-20250514" }
+      "package": "@rcrsr/rill-ext-anthropic"
     },
     "kv": {
-      "package": "@rcrsr/rill-ext-kv-sqlite",
-      "config": { "mounts": { "state": "${STATE_DIR}/kv.db" } }
+      "package": "@rcrsr/rill-ext-kv-sqlite"
     }
   },
   "agents": [
@@ -346,8 +326,7 @@ interface HarnessAgentEntry {
       "maxConcurrency": 5,
       "extensions": {
         "vectors": {
-          "package": "@rcrsr/rill-ext-qdrant",
-          "config": { "url": "${QDRANT_URL}" }
+          "package": "@rcrsr/rill-ext-qdrant"
         }
       }
     },
@@ -405,7 +384,7 @@ Resolves extensions, compiles custom functions, loads modules, and parses the en
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `basePath` | string | `process.cwd()` | Base directory for resolving relative paths in manifest |
-| `env` | Record\<string, string\> | `process.env` | Environment variables for `${VAR}` interpolation |
+| `config` | `Record<string, Record<string, unknown>>` | required | Extension config keyed by extension alias |
 
 > **Note:** Always pass `basePath: import.meta.dirname` (or `__dirname`) when the manifest lives in a different directory than the process working directory. Entry and module paths resolve relative to `basePath`.
 
@@ -462,7 +441,7 @@ Assembles all agents in a harness manifest into a single `ComposedHarness`.
 **Composition sequence:**
 
 1. Validate the harness manifest (zod).
-2. Load env sources; interpolate `${VAR}` tokens in all extension configs.
+2. Validate provided config against each extension's `configSchema`.
 3. Resolve and instantiate `shared` extensions once.
 4. For each agent in `agents[]`:
    - Resolve and instantiate per-agent extensions.
@@ -499,7 +478,7 @@ const json = JSON.parse(readFileSync('./harness.json', 'utf-8'));
 if (detectManifestType(json) !== 'harness') throw new Error('Not a harness manifest');
 
 const manifest = validateHarnessManifest(json);
-const harness = await composeHarness(manifest, { basePath: import.meta.dirname });
+const harness = await composeHarness(manifest, { basePath: import.meta.dirname, config: {} });
 
 // harness.agents is a Map<string, ComposedAgent>
 await harness.dispose();
@@ -531,7 +510,6 @@ Loads extension factories from package references. Auto-detects resolution strat
 | Option | Type | Description |
 |--------|------|-------------|
 | `manifestDir` | string | Directory for resolving local extension paths |
-| `env` | Record\<string, string\> | Environment variables for interpolation |
 
 Throws `ComposeError` (phase: `'resolution'`) if a package is not found or a namespace collision occurs.
 
@@ -557,11 +535,9 @@ Throws `ComposeError` (phase: `'init'`) if the directory exists, the name is inv
 
 ## Environment Interpolation
 
-String values in `extensions[*].config` support `${VAR_NAME}` syntax. `composeAgent` substitutes values from `process.env` (or `options.env`). Only uppercase identifiers matching `[A-Z_][A-Z0-9_]*` are substituted. Unresolved variables remain as-is in the config.
+Extension config is no longer embedded in manifests. Pass config at runtime via the `--config` flag (CLI) or the `config` option to `composeAgent`.
 
-```json
-"config": { "api_key": "${ANTHROPIC_API_KEY}" }
-```
+Config values support `${VAR_NAME}` interpolation when loaded from a file or inline JSON string. The CLI applies interpolation against `process.env` before passing config to `composeAgent`. Only uppercase identifiers matching `[A-Z_][A-Z0-9_]*` are substituted. Unresolved variables remain as-is.
 
 ---
 

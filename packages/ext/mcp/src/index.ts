@@ -23,6 +23,16 @@ export type {
 export { createMcpExtension } from './factory.js';
 
 // ============================================================
+// CONFIG SCHEMA
+// ============================================================
+
+import type { ExtensionConfigSchema } from '@rcrsr/rill';
+
+export const configSchema: ExtensionConfigSchema = {
+  timeout: { type: 'number' },
+};
+
+// ============================================================
 // ERROR UTILITIES
 // ============================================================
 export {

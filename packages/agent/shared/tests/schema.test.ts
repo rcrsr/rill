@@ -48,7 +48,6 @@ describe('validateManifest', () => {
           llm: {
             package: '@rcrsr/rill-ext-llm',
             version: '1.0.0',
-            config: { model: 'gpt-4' },
           },
         },
         functions: { greet: 'host.greet' },
@@ -337,14 +336,6 @@ describe('validateManifest', () => {
       expect(result.deploy?.healthPath).toBe('/health');
     });
 
-    it('applies extension.config default of empty object', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        extensions: { llm: { package: '@rcrsr/rill-ext-llm' } },
-      });
-      expect(result.extensions?.['llm']?.config).toEqual({});
-    });
-
     it('applies skills default of empty array', () => {
       const result = validateManifest(VALID_MANIFEST);
       expect(result.skills).toEqual([]);
@@ -352,52 +343,14 @@ describe('validateManifest', () => {
   });
 
   // ============================================================
-  // ENV SOURCES VALIDATION
+  // ENV FIELD REMOVED
   // ============================================================
 
-  describe('env sources validation', () => {
-    it('accepts manifest without env field', () => {
-      const result = validateManifest(VALID_MANIFEST);
-      expect(result.env).toBeUndefined();
-    });
-
-    it('accepts empty env array', () => {
-      const result = validateManifest({ ...VALID_MANIFEST, env: [] });
-      expect(result.env).toEqual([]);
-    });
-
-    it('accepts process source', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        env: [{ type: 'process' }],
-      });
-      expect(result.env).toEqual([{ type: 'process' }]);
-    });
-
-    it('accepts dotenv source with path', () => {
-      const result = validateManifest({
-        ...VALID_MANIFEST,
-        env: [{ type: 'dotenv', path: '.env' }],
-      });
-      expect(result.env).toEqual([{ type: 'dotenv', path: '.env' }]);
-    });
-
-    it('rejects unknown source type', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          env: [{ type: 'vault', url: 'https://vault' }],
-        })
-      ).toThrow(ManifestValidationError);
-    });
-
-    it('rejects dotenv source without path', () => {
-      expect(() =>
-        validateManifest({
-          ...VALID_MANIFEST,
-          env: [{ type: 'dotenv' }],
-        })
-      ).toThrow(ManifestValidationError);
+  describe('env field removed', () => {
+    it('rejects manifest with env field as unknown field', () => {
+      expect(() => validateManifest({ ...VALID_MANIFEST, env: [] })).toThrow(
+        ManifestValidationError
+      );
     });
   });
 });

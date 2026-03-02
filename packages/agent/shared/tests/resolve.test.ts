@@ -7,7 +7,11 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { resolveExtensions, type ResolveOptions } from '../src/resolve.js';
+import {
+  resolveExtensions,
+  extractConfigSchema,
+  type ResolveOptions,
+} from '../src/resolve.js';
 import { ComposeError } from '../src/errors.js';
 import type { ManifestExtension } from '../src/schema.js';
 
@@ -62,11 +66,8 @@ function makeOptions(dir: string): ResolveOptions {
   return { manifestDir: dir };
 }
 
-function makeExt(
-  pkg: string,
-  config?: Record<string, unknown>
-): ManifestExtension {
-  return { package: pkg, config: config ?? {} };
+function makeExt(pkg: string): ManifestExtension {
+  return { package: pkg };
 }
 
 // ============================================================
@@ -97,26 +98,6 @@ describe('resolveExtensions', () => {
       expect(result[0]!.namespace).toBe('myExt');
       expect(result[0]!.strategy).toBe('local');
       expect(typeof result[0]!.factory).toBe('function');
-    });
-
-    it('populates config from manifest [AC-23]', async () => {
-      writeFactoryFile(testDir, 'ext.mjs');
-      const extensions = { myExt: makeExt('./ext.mjs', { key: 'value' }) };
-
-      const result = await resolveExtensions(extensions, makeOptions(testDir));
-
-      expect(result[0]!.config).toEqual({ key: 'value' });
-    });
-
-    it('defaults config to {} when not specified', async () => {
-      writeFactoryFile(testDir, 'ext.mjs');
-      const extensions = {
-        myExt: { package: './ext.mjs' } as ManifestExtension,
-      };
-
-      const result = await resolveExtensions(extensions, makeOptions(testDir));
-
-      expect(result[0]!.config).toEqual({});
     });
 
     it('resolves path with traversal segments correctly [AC-32]', async () => {
@@ -482,9 +463,7 @@ describe('resolveExtensions', () => {
   describe('resolved extension shape', () => {
     it('populates all required fields for local extension', async () => {
       writeFactoryFile(testDir, 'ext.mjs');
-      const extensions = {
-        myExt: { package: './ext.mjs', config: { k: 1 } } as ManifestExtension,
-      };
+      const extensions = { myExt: makeExt('./ext.mjs') };
 
       const result = await resolveExtensions(extensions, makeOptions(testDir));
       const ext = result[0]!;
@@ -493,7 +472,6 @@ describe('resolveExtensions', () => {
       expect(ext.namespace).toBe('myExt');
       expect(ext.strategy).toBe('local');
       expect(typeof ext.factory).toBe('function');
-      expect(ext.config).toEqual({ k: 1 });
       // resolvedVersion is not set for local strategy
       expect(ext.resolvedVersion).toBeUndefined();
     });
@@ -512,6 +490,88 @@ describe('resolveExtensions', () => {
       const result = await resolveExtensions(extensions, makeOptions(testDir));
 
       expect(result.map((e) => e.alias)).toEqual(['first', 'second', 'third']);
+    });
+  });
+
+  // ============================================================
+  // extractConfigSchema [IR-4]
+  // ============================================================
+
+  describe('extractConfigSchema', () => {
+    // IR-4: valid configSchema export returns the schema
+    it('returns configSchema when module exports a plain object [IR-4]', () => {
+      const schema = { apiKey: { type: 'string', required: true } };
+      const mod = { configSchema: schema };
+
+      const result = extractConfigSchema(mod, 'my-extension');
+
+      expect(result).toBe(schema);
+    });
+
+    // EC-1: missing configSchema export throws correct error
+    it('throws when configSchema export is missing [EC-1]', () => {
+      const mod = { factory: () => ({}) };
+
+      expect(() => extractConfigSchema(mod, 'my-extension')).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    // EC-2: non-object configSchema throws same error as EC-1
+    it('throws when configSchema is a string [EC-2]', () => {
+      const mod = { configSchema: 'not-an-object' };
+
+      expect(() => extractConfigSchema(mod, 'my-extension')).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    it('throws when configSchema is a number [EC-2]', () => {
+      const mod = { configSchema: 42 };
+
+      expect(() => extractConfigSchema(mod, 'my-extension')).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    it('throws when configSchema is an array [EC-2]', () => {
+      const mod = { configSchema: ['field1'] };
+
+      expect(() => extractConfigSchema(mod, 'my-extension')).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    it('throws when configSchema is null [EC-2]', () => {
+      const mod = { configSchema: null };
+
+      expect(() => extractConfigSchema(mod, 'my-extension')).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    it('throws when mod is not an object [EC-1]', () => {
+      expect(() =>
+        extractConfigSchema('not-an-object', 'my-extension')
+      ).toThrow(
+        "Extension 'my-extension' does not export configSchema. All extensions must export configSchema."
+      );
+    });
+
+    it('includes packageName in error message', () => {
+      const mod = {};
+
+      expect(() => extractConfigSchema(mod, '@scope/my-pkg')).toThrow(
+        "Extension '@scope/my-pkg' does not export configSchema."
+      );
+    });
+
+    it('returns empty object schema when configSchema is empty object [IR-4]', () => {
+      const mod = { configSchema: {} };
+
+      const result = extractConfigSchema(mod, 'my-extension');
+
+      expect(result).toEqual({});
     });
   });
 });

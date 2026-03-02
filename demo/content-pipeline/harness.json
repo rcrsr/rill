@@ -11,12 +11,7 @@
       "maxConcurrency": 5,
       "extensions": {
         "llm": {
-          "package": "@rcrsr/rill-ext-openai",
-          "config": {
-            "api_key": "${GROQ_API_KEY}",
-            "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-            "base_url": "https://api.groq.com/openai/v1"
-          }
+          "package": "@rcrsr/rill-ext-openai"
         }
       },
       "input": {
@@ -38,12 +33,7 @@
       "maxConcurrency": 5,
       "extensions": {
         "llm": {
-          "package": "@rcrsr/rill-ext-openai",
-          "config": {
-            "api_key": "${GROQ_API_KEY}",
-            "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-            "base_url": "https://api.groq.com/openai/v1"
-          }
+          "package": "@rcrsr/rill-ext-openai"
         }
       },
       "input": {
@@ -64,14 +54,7 @@
       "maxConcurrency": 5,
       "extensions": {
         "ahi": {
-          "package": "@rcrsr/rill-agent-ext-ahi",
-          "config": {
-            "agents": {
-              "classifier": { "url": "http://localhost:4002" },
-              "summarizer": { "url": "http://localhost:4002" }
-            },
-            "timeout": 25000
-          }
+          "package": "@rcrsr/rill-agent-ext-ahi"
         }
       },
       "input": {

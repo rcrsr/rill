@@ -39,7 +39,7 @@ export async function mockComposedAgent(): Promise<ComposedAgent> {
       functions: {},
       assets: [],
     },
-    { basePath: FIXTURE_DIR }
+    { basePath: FIXTURE_DIR, config: {} }
   );
 }
 

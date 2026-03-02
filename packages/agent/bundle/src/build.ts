@@ -26,7 +26,6 @@ import { computeChecksum } from './checksum.js';
 
 export interface BundleBuildOptions {
   readonly outputDir?: string | undefined;
-  readonly env?: Record<string, string> | undefined;
 }
 
 export interface BundleResult {
@@ -179,9 +178,26 @@ async function buildAgentFiles(
   // Inside the bundle the file is always copied as 'entry.rill', so the
   // stored manifest must reflect that name for composeAgent/composeHarness to load it.
   const agentJsonPath = path.join(agentOutDir, 'agent.json');
-  const bundledManifest = {
-    ...(agent.originalManifest as Record<string, unknown>),
+  // Sanitize extensions: retain only the 'package' key per entry (AC-2)
+  const rawManifest = agent.originalManifest as Record<string, unknown>;
+  const rawExtensions = rawManifest['extensions'] as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  const sanitizedExtensions: Record<string, { package: string }> | undefined =
+    rawExtensions !== undefined
+      ? Object.fromEntries(
+          Object.entries(rawExtensions).map(([alias, ext]) => [
+            alias,
+            { package: ext['package'] as string },
+          ])
+        )
+      : undefined;
+  const bundledManifest: Record<string, unknown> = {
+    ...rawManifest,
     entry: 'entry.rill',
+    ...(sanitizedExtensions !== undefined
+      ? { extensions: sanitizedExtensions }
+      : {}),
   };
   await writeFile(
     agentJsonPath,
@@ -289,6 +305,7 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  };`,
         `  const composed = await composeHarness(harnessManifest, {`,
         `    basePath: path.join(__dirname, 'agents', ${JSON.stringify(name)}),`,
+        `    config: _context.config ?? {},`,
         `  });`,
         `  const agent = composed.agents.get(agentManifest.name);`,
         `  if (!agent) throw new Error('Agent not found in composed harness');`,
@@ -327,6 +344,7 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  const manifest = JSON.parse(manifestSrc);`,
         `  const composed = await composeAgent(manifest, {`,
         `    basePath: path.join(__dirname, 'agents', ${JSON.stringify(name)}),`,
+        `    config: _context.config ?? {},`,
         `  });`,
         `  let result;`,
         `  try {`,
@@ -362,7 +380,7 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
  * generates handlers.js and bundle.json.
  *
  * @param manifestPath - Absolute or relative path to the manifest JSON file
- * @param options - Optional outputDir (default: 'dist/') and env overrides
+ * @param options - Optional outputDir (default: 'dist/')
  * @returns BundleResult with output path, manifest, and checksum
  * @throws ComposeError for file/resolution/compilation/bundling failures
  * @throws ManifestValidationError for invalid manifest content
@@ -374,7 +392,6 @@ export async function buildBundle(
   const absManifestPath = path.resolve(manifestPath);
   const manifestDir = path.dirname(absManifestPath);
   const outputDir = path.resolve(options?.outputDir ?? 'dist');
-  const env = options?.env;
 
   // EC-10: Manifest not found
   if (!existsSync(absManifestPath)) {
@@ -425,7 +442,7 @@ export async function buildBundle(
     });
 
     // Step 3: Validate extensions load (DR-1 — do NOT instantiate)
-    const resolveOpts = { manifestDir, ...(env !== undefined ? { env } : {}) };
+    const resolveOpts = { manifestDir };
     // Validate shared extensions
     if (Object.keys(harness.shared).length > 0) {
       await resolveExtensions(harness.shared, resolveOpts);
@@ -458,11 +475,7 @@ export async function buildBundle(
 
     // Step 3: Validate extensions load (DR-1 — do NOT instantiate)
     if (Object.keys(manifest.extensions).length > 0) {
-      const resolveOpts = {
-        manifestDir,
-        ...(env !== undefined ? { env } : {}),
-      };
-      await resolveExtensions(manifest.extensions, resolveOpts);
+      await resolveExtensions(manifest.extensions, { manifestDir });
     }
   }
 

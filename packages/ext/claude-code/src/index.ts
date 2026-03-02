@@ -56,3 +56,16 @@ export { spawnClaudeCli } from './process.js';
 // ============================================================
 
 export { createClaudeCodeExtension } from './factory.js';
+
+// ============================================================
+// CONFIG SCHEMA
+// ============================================================
+
+import type { ExtensionConfigSchema } from '@rcrsr/rill';
+
+export const configSchema: ExtensionConfigSchema = {
+  binaryPath: { type: 'string' },
+  defaultTimeout: { type: 'number' },
+  dangerouslySkipPermissions: { type: 'boolean' },
+  settingSources: { type: 'string' },
+};

@@ -6,7 +6,11 @@
  * Registry mode (Phase 4): agents array resolved via a registry service.
  */
 
-import type { ExtensionResult, HostFunctionDefinition } from '@rcrsr/rill';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+  HostFunctionDefinition,
+} from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { isDict, RuntimeError } from '@rcrsr/rill';
 import type { InputSchema } from '@rcrsr/rill-agent-shared';
@@ -511,7 +515,14 @@ export function createAhiExtension(
   return result;
 }
 
-export default createAhiExtension;
+// ============================================================
+// CONFIG SCHEMA
+// ============================================================
+export const configSchema: ExtensionConfigSchema = {
+  agents: { type: 'string' },
+  registry: { type: 'string' },
+  timeout: { type: 'number' },
+};
 
 // ============================================================
 // IN-PROCESS RUNNER INTERFACE

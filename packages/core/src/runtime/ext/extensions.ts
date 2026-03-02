@@ -35,6 +35,23 @@ export interface HoistedExtension {
 export type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionResult;
 
 /**
+ * Descriptor for a single configuration field in an extension schema.
+ * The secret flag is advisory: harness tooling uses it to mask or omit values.
+ * It does not affect runtime behavior.
+ */
+export interface ConfigFieldDescriptor {
+  readonly type: 'string' | 'number' | 'boolean';
+  readonly required?: boolean;
+  readonly secret?: boolean;
+}
+
+/**
+ * Schema definition for extension configuration.
+ * Maps field names to their descriptors.
+ */
+export type ExtensionConfigSchema = Record<string, ConfigFieldDescriptor>;
+
+/**
  * Contract type for kv extension implementations.
  * Enforces exact function structure for compile-time verification.
  *

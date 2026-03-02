@@ -2,9 +2,41 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { ExtensionFactory } from '@rcrsr/rill';
+import type { ExtensionConfigSchema, ExtensionFactory } from '@rcrsr/rill';
 import { ComposeError } from './errors.js';
 import type { ManifestExtension } from './schema.js';
+
+// ============================================================
+// CONFIG SCHEMA EXTRACTION
+// ============================================================
+
+/**
+ * Extracts the configSchema export from a loaded extension module.
+ * Throws if the export is missing or not a plain object.
+ */
+export function extractConfigSchema(
+  mod: unknown,
+  packageName: string
+): ExtensionConfigSchema {
+  if (mod !== null && typeof mod === 'object') {
+    const record = mod as Record<string, unknown>;
+    if ('configSchema' in record) {
+      const schema = record['configSchema'];
+      if (
+        schema !== null &&
+        typeof schema === 'object' &&
+        !Array.isArray(schema)
+      ) {
+        return schema as ExtensionConfigSchema;
+      }
+    }
+  }
+
+  throw new ComposeError(
+    `Extension '${packageName}' does not export configSchema. All extensions must export configSchema.`,
+    'resolution'
+  );
+}
 
 // ============================================================
 // VALID BUILT-IN NAMES
@@ -147,8 +179,9 @@ async function resolveNpm(
     namespace: alias,
     strategy: 'npm',
     factory,
+    packageName,
+    mod,
     resolvedVersion,
-    config: extension.config ?? {},
   };
 }
 
@@ -192,8 +225,9 @@ async function resolveLocal(
     namespace: alias,
     strategy: 'local',
     factory,
+    packageName: packageField,
+    mod,
     resolvedPath,
-    config: extension.config ?? {},
   };
 }
 
@@ -222,7 +256,8 @@ async function resolveBuiltin(
     namespace: alias,
     strategy: 'builtin',
     factory,
-    config: extension.config ?? {},
+    packageName: packageField,
+    mod,
   };
 }
 
@@ -232,7 +267,6 @@ async function resolveBuiltin(
 
 export interface ResolveOptions {
   readonly manifestDir: string;
-  readonly env?: Record<string, string> | undefined;
 }
 
 export interface ResolvedExtension {
@@ -240,10 +274,11 @@ export interface ResolvedExtension {
   readonly namespace: string;
   readonly strategy: 'npm' | 'local' | 'builtin';
   readonly factory: ExtensionFactory<unknown>;
+  readonly packageName: string;
+  readonly mod: unknown;
   readonly resolvedVersion?: string | undefined;
   /** Absolute file path for local-strategy extensions. Used by builders to bundle the source. */
   readonly resolvedPath?: string | undefined;
-  readonly config: Record<string, unknown>;
 }
 
 // ============================================================

@@ -5,7 +5,10 @@
  * Each declared command becomes a function with argument validation and process isolation.
  */
 
-import type { ExtensionResult } from '../../runtime/ext/extensions.js';
+import type {
+  ExtensionResult,
+  ExtensionConfigSchema,
+} from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import {
   type CommandConfig,
@@ -16,6 +19,10 @@ import {
 // ============================================================
 // TYPES
 // ============================================================
+
+export const configSchema: ExtensionConfigSchema = {
+  commands: { type: 'string', required: true },
+};
 
 /** exec extension configuration */
 export interface ExecConfig {

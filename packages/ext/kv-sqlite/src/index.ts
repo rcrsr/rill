@@ -3,6 +3,8 @@
  * Provides key-value storage operations using SQLite backend.
  */
 
+import type { ExtensionConfigSchema } from '@rcrsr/rill';
+
 // ============================================================
 // PUBLIC TYPES
 // ============================================================
@@ -16,6 +18,14 @@ export type {
 // FACTORY
 // ============================================================
 export { createSqliteKvExtension } from './factory.js';
+
+// ============================================================
+// CONFIG SCHEMA
+// ============================================================
+
+export const configSchema: ExtensionConfigSchema = {
+  mounts: { type: 'string' },
+};
 
 // ============================================================
 // VERSION

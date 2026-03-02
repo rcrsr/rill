@@ -97,6 +97,8 @@ export { BreakSignal, ReturnSignal } from './core/signals.js';
 export type { ExtensionEvent } from './core/types.js';
 
 export type {
+  ConfigFieldDescriptor,
+  ExtensionConfigSchema,
   ExtensionFactory,
   ExtensionResult,
   FsExtensionContract,
