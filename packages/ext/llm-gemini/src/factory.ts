@@ -15,11 +15,15 @@ import {
   RuntimeError,
   emitExtensionEvent,
   createVector,
+  invokeCallable,
   isVector,
   isCallable,
   type ExtensionResult,
+  type RillCallable,
   type RillValue,
   type RuntimeContext,
+  type ApplicationCallable,
+  type CallableParam,
 } from '@rcrsr/rill';
 import {
   validateApiKey,
@@ -713,8 +717,43 @@ export function createGeminiExtension(
               );
             }
 
-            // Use the callable as-is (Gemini tests don't enhance with params)
-            toolsDict[name] = toolFnValue;
+            // Extract description for tool descriptor
+            const description =
+              typeof descriptor['description'] === 'string'
+                ? descriptor['description']
+                : '';
+
+            let enhancedCallable: RillValue = toolFnValue;
+
+            if (
+              description &&
+              isCallable(toolFnValue) &&
+              (toolFnValue as RillCallable).kind === 'script'
+            ) {
+              // 3-arg tool form: no explicit params dict, but closure has typed params.
+              // Wrap ScriptCallable as ApplicationCallable to carry description through.
+              const capturedToolFn = toolFnValue as RillCallable;
+              const scriptParams =
+                'params' in capturedToolFn &&
+                Array.isArray(capturedToolFn.params)
+                  ? (capturedToolFn.params as CallableParam[])
+                  : [];
+              enhancedCallable = {
+                __type: 'callable',
+                kind: 'application' as const,
+                params: scriptParams,
+                fn: (callArgs, callCtx) =>
+                  invokeCallable(
+                    capturedToolFn,
+                    callArgs,
+                    callCtx as RuntimeContext
+                  ),
+                description,
+                isProperty: false,
+              } as ApplicationCallable;
+            }
+
+            toolsDict[name] = enhancedCallable;
           }
 
           // Extract options with defaults
@@ -875,6 +914,34 @@ export function createGeminiExtension(
               });
             },
 
+            // Extract the model's content from Gemini response for conversation history
+            formatAssistantMessage: (response: unknown): unknown => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('candidates' in response)
+              ) {
+                return null;
+              }
+
+              const candidates = (response as { candidates?: unknown[] })
+                .candidates;
+              if (!Array.isArray(candidates) || candidates.length === 0) {
+                return null;
+              }
+
+              const candidate = candidates[0];
+              if (
+                !candidate ||
+                typeof candidate !== 'object' ||
+                !('content' in candidate)
+              ) {
+                return null;
+              }
+
+              return (candidate as { content: unknown }).content;
+            },
+
             // Format tool results into Gemini message format
             formatToolResult: (
               toolResults: Array<{
@@ -925,7 +992,8 @@ export function createGeminiExtension(
                 ...data,
               });
             },
-            maxTurns
+            maxTurns,
+            ctx
           );
 
           // Extract response data

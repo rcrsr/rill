@@ -7,8 +7,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   RuntimeError,
   emitExtensionEvent,
+  invokeCallable,
   isCallable,
   type ExtensionResult,
+  type RillCallable,
   type RillValue,
   type RuntimeContext,
   type ApplicationCallable,
@@ -682,15 +684,49 @@ export function createAnthropicExtension(
                 return param;
               });
 
-              // Create enhanced ApplicationCallable with params metadata
-              const baseCallable = toolFnValue as ApplicationCallable;
+              // Create enhanced ApplicationCallable with params metadata.
+              // Use invokeCallable wrapper so ScriptCallable (kind: 'script') is
+              // handled correctly — ScriptCallable has no .fn property.
+              const capturedToolFn = toolFnValue as RillCallable;
               enhancedCallable = {
                 __type: 'callable',
                 kind: 'application' as const,
                 params,
-                fn: baseCallable.fn,
+                fn: (callArgs, callCtx) =>
+                  invokeCallable(
+                    capturedToolFn,
+                    callArgs,
+                    callCtx as RuntimeContext
+                  ),
                 description,
-                isProperty: baseCallable.isProperty ?? false,
+                isProperty:
+                  (toolFnValue as ApplicationCallable).isProperty ?? false,
+              } as ApplicationCallable;
+            } else if (
+              description &&
+              isCallable(toolFnValue) &&
+              (toolFnValue as RillCallable).kind === 'script'
+            ) {
+              // 3-arg tool form: no explicit params dict, but closure has typed params.
+              // Wrap ScriptCallable as ApplicationCallable to carry description through.
+              const capturedToolFn = toolFnValue as RillCallable;
+              const scriptParams =
+                'params' in capturedToolFn &&
+                Array.isArray(capturedToolFn.params)
+                  ? (capturedToolFn.params as CallableParam[])
+                  : [];
+              enhancedCallable = {
+                __type: 'callable',
+                kind: 'application' as const,
+                params: scriptParams,
+                fn: (callArgs, callCtx) =>
+                  invokeCallable(
+                    capturedToolFn,
+                    callArgs,
+                    callCtx as RuntimeContext
+                  ),
+                description,
+                isProperty: false,
               } as ApplicationCallable;
             }
 
@@ -829,6 +865,21 @@ export function createAnthropicExtension(
                 name: block.name,
                 input: block.input as object,
               }));
+            },
+
+            // Extract assistant message from Anthropic response for conversation history
+            formatAssistantMessage: (response: unknown): unknown => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('role' in response) ||
+                !('content' in response)
+              ) {
+                return null;
+              }
+
+              const r = response as { role: unknown; content: unknown };
+              return { role: r.role, content: r.content };
             },
 
             // Format tool results into Anthropic message format

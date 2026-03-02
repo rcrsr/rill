@@ -228,14 +228,29 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
    * Create a tool descriptor from a closure or host function.
    *
    * Call signatures:
-   * - tool(name, description, params, closure) - 4 args, arg[3] callable
+   * - tool(name, description, closure) - 3 args, arg[2] callable (params from closure)
+   * - tool(name, description, params, closure) - 4 args, arg[3] callable (explicit params)
    * - tool("host_fn::name") - 1 arg, string with :: separator
    * - tool("host_fn::name", overrides) - 2 args, string + dict
    *
-   * Returns dict: { name, description, params, fn }
+   * Returns dict: { name, description, fn } or { name, description, params, fn }
    */
   tool: (args, ctx, location) => {
-    // Signature 1: tool(name, description, params, closure) - 4 args
+    // Signature 1a: tool(name, description, closure) - 3 args, params from closure
+    const thirdArg = args[2];
+    if (args.length === 3 && thirdArg !== undefined && isCallable(thirdArg)) {
+      const name = args[0] ?? '';
+      const description = args[1] ?? '';
+      const fn = thirdArg;
+
+      return {
+        name,
+        description,
+        fn,
+      } as Record<string, RillValue>;
+    }
+
+    // Signature 1b: tool(name, description, params, closure) - 4 args
     if (args.length === 4) {
       const name = args[0] ?? '';
       const description = args[1] ?? '';

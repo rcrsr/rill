@@ -16,6 +16,7 @@ import type {
   SourceLocation,
   StatementNode,
 } from '../../../types.js';
+import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types.js';
 import type { RillValue } from '../values.js';
 import { getEvaluator } from './evaluator.js';
@@ -140,4 +141,29 @@ export function getAnnotation(
 ): RillValue | undefined {
   const evaluator = getEvaluator(ctx);
   return evaluator.getAnnotation(key);
+}
+
+/**
+ * Invoke any callable (script, runtime, or application) with positional arguments.
+ *
+ * Dispatches to the evaluator's invokeCallable which handles all callable kinds:
+ * - ScriptCallable: executes the Rill closure body in a new scope
+ * - RuntimeCallable: calls the native fn directly
+ * - ApplicationCallable: calls the native fn with optional validation
+ *
+ * @param callable - The callable to invoke
+ * @param args - Positional arguments
+ * @param ctx - The runtime context
+ * @param location - Optional call site location for error reporting
+ */
+export async function invokeCallable(
+  callable: RillCallable,
+  args: RillValue[],
+  ctx: RuntimeContext,
+  location?: SourceLocation
+): Promise<RillValue> {
+  const evaluator = getEvaluator(ctx);
+  // Access protected method via type assertion (same pattern as checkAborted, etc.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (evaluator as any).invokeCallable(callable, args, location);
 }

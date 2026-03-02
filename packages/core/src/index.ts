@@ -40,6 +40,7 @@ export {
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,
+  invokeCallable,
   isApplicationCallable,
   isTuple,
   isCallable,

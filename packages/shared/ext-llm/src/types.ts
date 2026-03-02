@@ -107,7 +107,14 @@ export interface ToolLoopCallbacks {
   ) => Array<{ id: string; name: string; input: object }> | null;
 
   /**
-   * Format tool results into provider-specific message format
+   * Extract the assistant message from a provider response for conversation history.
+   * Called after extractToolCalls to preserve the assistant's tool-call request.
+   */
+  formatAssistantMessage: (response: unknown) => unknown;
+
+  /**
+   * Format tool results into provider-specific message format.
+   * Returns a single message or an array of messages to append.
    */
   formatToolResult: (
     toolResults: Array<{
@@ -116,7 +123,7 @@ export interface ToolLoopCallbacks {
       result: RillValue;
       error?: string;
     }>
-  ) => unknown;
+  ) => unknown | unknown[];
 }
 
 /**

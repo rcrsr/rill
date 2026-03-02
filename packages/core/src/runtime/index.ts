@@ -137,6 +137,12 @@ export { getCallStack, pushCallFrame, popCallFrame } from './core/context.js';
 export { createStepper, execute } from './core/execute.js';
 
 // ============================================================
+// CALLABLE INVOCATION
+// ============================================================
+
+export { invokeCallable } from './core/eval/index.js';
+
+// ============================================================
 // INTROSPECTION API
 // ============================================================
 

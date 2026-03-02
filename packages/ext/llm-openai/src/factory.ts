@@ -8,9 +8,11 @@ import {
   RuntimeError,
   emitExtensionEvent,
   createVector,
+  invokeCallable,
   isCallable,
   isVector,
   type ExtensionResult,
+  type RillCallable,
   type RillValue,
   type RuntimeContext,
   type ApplicationCallable,
@@ -688,15 +690,49 @@ export function createOpenAIExtension(
                 return param;
               });
 
-              // Create enhanced ApplicationCallable with params metadata
-              const baseCallable = toolFnValue as ApplicationCallable;
+              // Create enhanced ApplicationCallable with params metadata.
+              // Use invokeCallable wrapper so ScriptCallable (kind: 'script') is
+              // handled correctly — ScriptCallable has no .fn property.
+              const capturedToolFn = toolFnValue as RillCallable;
               enhancedCallable = {
                 __type: 'callable',
                 kind: 'application' as const,
                 params,
-                fn: baseCallable.fn,
+                fn: (callArgs, callCtx) =>
+                  invokeCallable(
+                    capturedToolFn,
+                    callArgs,
+                    callCtx as RuntimeContext
+                  ),
                 description,
-                isProperty: baseCallable.isProperty ?? false,
+                isProperty:
+                  (toolFnValue as ApplicationCallable).isProperty ?? false,
+              } as ApplicationCallable;
+            } else if (
+              description &&
+              isCallable(toolFnValue) &&
+              (toolFnValue as RillCallable).kind === 'script'
+            ) {
+              // 3-arg tool form: no explicit params dict, but closure has typed params.
+              // Wrap ScriptCallable as ApplicationCallable to carry description through.
+              const capturedToolFn = toolFnValue as RillCallable;
+              const scriptParams =
+                'params' in capturedToolFn &&
+                Array.isArray(capturedToolFn.params)
+                  ? (capturedToolFn.params as CallableParam[])
+                  : [];
+              enhancedCallable = {
+                __type: 'callable',
+                kind: 'application' as const,
+                params: scriptParams,
+                fn: (callArgs, callCtx) =>
+                  invokeCallable(
+                    capturedToolFn,
+                    callArgs,
+                    callCtx as RuntimeContext
+                  ),
+                description,
+                isProperty: false,
               } as ApplicationCallable;
             }
 
@@ -890,6 +926,33 @@ export function createOpenAIExtension(
                   input: parsedArgs,
                 };
               });
+            },
+
+            // Extract assistant message (with tool_calls) from OpenAI response
+            formatAssistantMessage: (response: unknown): unknown => {
+              if (
+                !response ||
+                typeof response !== 'object' ||
+                !('choices' in response)
+              ) {
+                return null;
+              }
+
+              const choices = (response as { choices: unknown[] }).choices;
+              if (!Array.isArray(choices) || choices.length === 0) {
+                return null;
+              }
+
+              const choice = choices[0];
+              if (
+                !choice ||
+                typeof choice !== 'object' ||
+                !('message' in choice)
+              ) {
+                return null;
+              }
+
+              return (choice as { message: unknown }).message;
             },
 
             // Format tool results into OpenAI message format

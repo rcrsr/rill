@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OpenAI `max_completion_tokens`** — API calls send `max_completion_tokens` instead of deprecated `max_tokens`
 - **Demo runtime config** — Demos supply extension config via `--config` flag and `ComposeOptions.config`
 - **Multi-line function calls** — Parser now skips newlines after `(`, after each `,`, and before `)` in all call forms (host, closure, method, invoke)
+- **Tool loop multi-turn messaging** — Assistant messages now appended before tool results; array tool results spread correctly for OpenAI protocol
+- **ScriptCallable tool invocation** — Extensions use `invokeCallable` to execute script closures; `executeToolCall` handles `kind: 'script'` with full RuntimeContext
+- **Tool loop error detail** — Consecutive error message now includes last tool name and error for debuggability
+- **Tool 3-arg form** — `tool(name, description, |typed_params| { body })` extracts param metadata from closure, eliminating redundant params dict
+- **Gemini tool loop context** — Gemini extension now passes RuntimeContext to `executeToolLoop`, enabling ScriptCallable tools
 
 ### Dependencies
 

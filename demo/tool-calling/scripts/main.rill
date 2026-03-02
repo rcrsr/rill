@@ -9,8 +9,7 @@ $question -> assert (.len > 0) "question param is required"
 tool(
   "get_weather",
   "Get the current weather for a city",
-  [city: "string"],
-  {
+  |city: string| {
     # Simulated weather data keyed by city
     [
       paris: "18C, partly cloudy, humidity 65%",
@@ -29,8 +28,7 @@ tool(
 tool(
   "convert_temperature",
   "Convert a temperature between Celsius and Fahrenheit",
-  [value: "number", from_unit: "string"],
-  {
+  |value: number, from_unit: string| {
     $from_unit -> .lower => $unit
     ($unit == "c") ? (($value * 9 / 5) + 32 -> "{$}F")
       ! ($unit == "f") ? (($value - 32) * 5 / 9 -> "{$}C")
@@ -42,8 +40,7 @@ tool(
 tool(
   "calculate",
   "Perform basic arithmetic: add, subtract, multiply, divide",
-  [a: "number", b: "number", operation: "string"],
-  {
+  |a: number, b: number, operation: string| {
     $operation -> .lower => $op
     ($op == "add") ? ($a + $b)
       ! ($op == "subtract") ? ($a - $b)

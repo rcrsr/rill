@@ -4,11 +4,13 @@
  */
 
 import {
+  invokeCallable,
   isCallable,
   isDict,
   RuntimeError,
   type RillCallable,
   type RillValue,
+  type RuntimeContext,
 } from '@rcrsr/rill';
 import type { ToolLoopCallbacks, ToolLoopResult } from './types.js';
 import { buildJsonSchema } from './schema.js';
@@ -73,11 +75,16 @@ async function executeToolCall(
 
   const callable = toolFn;
 
-  // Only RuntimeCallable and ApplicationCallable have .fn property
-  if (callable.kind !== 'runtime' && callable.kind !== 'application') {
+  // ScriptCallable has no .fn property — requires invokeCallable with a full RuntimeContext.
+  // RuntimeCallable and ApplicationCallable use .fn directly and only need RuntimeContextLike.
+  if (
+    callable.kind !== 'runtime' &&
+    callable.kind !== 'application' &&
+    callable.kind !== 'script'
+  ) {
     throw new RuntimeError(
       'RILL-R004',
-      `Invalid tool input for ${toolName}: tool must be application or runtime callable`
+      `Invalid tool input for ${toolName}: tool must be application, runtime, or script callable`
     );
   }
 
@@ -86,8 +93,13 @@ async function executeToolCall(
     // LLM providers send params as dict, but Rill callables expect positional args
     let args: RillValue[];
 
-    if (callable.kind === 'application' && callable.params) {
-      // Extract param order from metadata (added in task 2.1)
+    if (
+      (callable.kind === 'application' || callable.kind === 'script') &&
+      callable.params &&
+      callable.params.length > 0
+    ) {
+      // Extract param order from metadata
+      // Works for both ApplicationCallable (host fns) and ScriptCallable (closures)
       const params = callable.params;
       const inputDict = toolInput as Record<string, RillValue>;
       args = params.map((param) => {
@@ -104,7 +116,19 @@ async function executeToolCall(
       args = [toolInput as Record<string, RillValue>];
     }
 
-    // Invoke the tool function with positional args and context
+    // Invoke the tool with its arguments.
+    // ScriptCallable requires a full RuntimeContext via invokeCallable.
+    // Runtime/Application callables use .fn with the minimal context.
+    if (callable.kind === 'script') {
+      if (!context) {
+        throw new RuntimeError(
+          'RILL-R004',
+          `Invalid tool input for ${toolName}: script callable requires a runtime context`
+        );
+      }
+      return await invokeCallable(callable, args, context as RuntimeContext);
+    }
+
     // If no context provided, create minimal context-like object for callable signature
     const ctx: RuntimeContextLike = context ?? {
       parent: undefined,
@@ -212,9 +236,14 @@ export async function executeToolLoop(
       required: string[];
     };
 
-    if (callable.kind === 'application' && callable.params) {
+    if (
+      (callable.kind === 'application' || callable.kind === 'script') &&
+      callable.params &&
+      callable.params.length > 0
+    ) {
       // Build a descriptor dict for buildJsonSchema.
       // null typeName means untyped param; use 'string' as fallback.
+      // Works for both ApplicationCallable (host fns) and ScriptCallable (closures).
       const descriptor: Record<string, unknown> = {};
       const paramsWithDefaults = new Set<string>();
 
@@ -388,17 +417,27 @@ export async function executeToolLoop(
         if (consecutiveErrors >= maxErrors) {
           throw new RuntimeError(
             'RILL-R004',
-            `Tool execution failed: ${maxErrors} consecutive errors`
+            `Tool execution failed: ${maxErrors} consecutive errors (last: ${name}: ${originalError})`
           );
         }
       }
     }
 
+    // Append assistant message (with tool calls) to history
+    const assistantMessage = callbacks.formatAssistantMessage(response);
+    if (assistantMessage != null) {
+      currentMessages.push(assistantMessage);
+    }
+
     // Format tool results into provider-specific message format
     const toolResultMessage = callbacks.formatToolResult(toolResults);
 
-    // Append tool results to message history for next iteration
-    currentMessages.push(toolResultMessage);
+    // Append tool results — handle both single message and array of messages
+    if (Array.isArray(toolResultMessage)) {
+      currentMessages.push(...toolResultMessage);
+    } else {
+      currentMessages.push(toolResultMessage);
+    }
   }
 
   // Max turns reached - return final response

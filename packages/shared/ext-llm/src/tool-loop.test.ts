@@ -38,6 +38,7 @@ function createMockCallbacks(overrides?: Partial<ToolLoopCallbacks>) {
       usage: { input_tokens: 100, output_tokens: 50 },
     })),
     extractToolCalls: vi.fn(() => null),
+    formatAssistantMessage: vi.fn(() => ({ role: 'assistant', content: '' })),
     formatToolResult: vi.fn((results) => ({
       role: 'user',
       content: results,
@@ -739,6 +740,71 @@ describe('executeToolLoop', () => {
       ]);
     });
 
+    it('generates JSON Schema from ScriptCallable params', async () => {
+      // ScriptCallable with typed params (from tool 3-arg form) builds correct schema
+      const scriptTool: RillValue = {
+        __type: 'callable',
+        kind: 'script',
+        params: [
+          {
+            name: 'city',
+            typeName: 'string',
+            defaultValue: null,
+            annotations: {},
+          },
+          {
+            name: 'count',
+            typeName: 'number',
+            defaultValue: null,
+            annotations: {},
+          },
+          {
+            name: 'optional_flag',
+            typeName: 'bool',
+            defaultValue: true,
+            annotations: {},
+          },
+        ],
+        body: {} as never, // Not invoked in schema-build step
+        definingScope: {} as never,
+        annotations: {},
+        paramAnnotations: {},
+        description: 'Weather lookup tool',
+      };
+
+      const tools = { get_weather: scriptTool };
+
+      const buildTools = vi.fn((tools) => tools);
+      const callbacks = createMockCallbacks({
+        buildTools,
+        extractToolCalls: vi.fn(() => null),
+      });
+
+      await executeToolLoop(
+        [{ role: 'user', content: 'Test' }],
+        tools,
+        3,
+        callbacks,
+        vi.fn()
+      );
+
+      const toolDescriptors = buildTools.mock.calls[0]?.[0];
+      expect(toolDescriptors).toHaveLength(1);
+
+      const descriptor = toolDescriptors[0];
+      expect(descriptor.name).toBe('get_weather');
+      expect(descriptor.input_schema.type).toBe('object');
+      expect(descriptor.input_schema.properties['city']).toEqual({
+        type: 'string',
+      });
+      expect(descriptor.input_schema.properties['count']).toEqual({
+        type: 'number',
+      });
+      // optional_flag has a default value — not in required
+      expect(descriptor.input_schema.required).toEqual(['city', 'count']);
+      expect(descriptor.input_schema.required).not.toContain('optional_flag');
+    });
+
     it('generates JSON Schema from ApplicationCallable params', async () => {
       // AC-5, IC-11: Tool descriptors include params metadata
       const toolFn: RillValue = {
@@ -1333,9 +1399,10 @@ describe('executeToolLoop', () => {
       const mockCallAPI = vi.fn(async (messages: unknown[]) => {
         // Verify messages grow with each call
         if (apiCallCount === 1) {
-          // Second call should have tool result message appended
-          expect(messages).toHaveLength(2);
-          expect((messages[1] as { role: string }).role).toBe('tool');
+          // Second call should have assistant message + tool result message appended
+          expect(messages).toHaveLength(3);
+          expect((messages[1] as { role: string }).role).toBe('assistant');
+          expect((messages[2] as { role: string }).role).toBe('tool');
         }
         return {
           content: 'response',
