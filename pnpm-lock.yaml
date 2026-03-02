@@ -100,6 +100,24 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ext/llm-openai
 
+  demo/tool-calling:
+    dependencies:
+      '@rcrsr/rill':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rcrsr/rill-agent-bundle':
+        specifier: workspace:*
+        version: link:../../packages/agent/bundle
+      '@rcrsr/rill-agent-harness':
+        specifier: workspace:*
+        version: link:../../packages/agent/harness
+      '@rcrsr/rill-agent-run':
+        specifier: workspace:*
+        version: link:../../packages/agent/run
+      '@rcrsr/rill-ext-openai':
+        specifier: workspace:*
+        version: link:../../packages/ext/llm-openai
+
   packages/agent/ahi:
     dependencies:
       '@rcrsr/rill-agent-registry':

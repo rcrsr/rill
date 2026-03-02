@@ -1,0 +1,32 @@
+{
+  "name": "tool-calling",
+  "version": "0.1.0",
+  "runtime": "@rcrsr/rill@*",
+  "entry": "scripts/main.rill",
+  "description": "Demonstrates LLM tool calling with weather, temperature, and calculator tools",
+  "input": {
+    "question": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "output": {
+    "type": "dict",
+    "fields": {
+      "answer": { "type": "string" },
+      "turns": { "type": "number" },
+      "usage": { "type": "dict" }
+    }
+  },
+  "extensions": {
+    "llm": {
+      "package": "@rcrsr/rill-ext-openai"
+    }
+  },
+  "host": {
+    "timeout": 30000
+  },
+  "deploy": {
+    "port": 4003
+  }
+}

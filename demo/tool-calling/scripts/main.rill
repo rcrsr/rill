@@ -1,0 +1,75 @@
+# Tool Calling — LLM picks and invokes tools to answer questions
+# Params: $question (user question string)
+# Extension: llm (OpenAI via tool_loop)
+
+# Validate input
+$question -> assert (.len > 0) "question param is required"
+
+# Tool 1: Look up current weather for a city
+tool(
+  "get_weather",
+  "Get the current weather for a city",
+  [city: "string"],
+  {
+    # Simulated weather data keyed by city
+    [
+      paris: "18C, partly cloudy, humidity 65%",
+      london: "12C, rainy, humidity 82%",
+      tokyo: "24C, sunny, humidity 45%",
+      new_york: "20C, clear skies, humidity 55%",
+      sydney: "27C, warm and breezy, humidity 40%"
+    ] => $data
+
+    $city -> .lower -> .trim => $key
+    $data[$key] ?? "No weather data for {$city}"
+  }
+) => $weather_tool
+
+# Tool 2: Convert between temperature units
+tool(
+  "convert_temperature",
+  "Convert a temperature between Celsius and Fahrenheit",
+  [value: "number", from_unit: "string"],
+  {
+    $from_unit -> .lower => $unit
+    ($unit == "c") ? (($value * 9 / 5) + 32 -> "{$}F")
+      ! ($unit == "f") ? (($value - 32) * 5 / 9 -> "{$}C")
+      ! "Unknown unit: {$from_unit}. Use 'C' or 'F'."
+  }
+) => $convert_tool
+
+# Tool 3: Simple calculator
+tool(
+  "calculate",
+  "Perform basic arithmetic: add, subtract, multiply, divide",
+  [a: "number", b: "number", operation: "string"],
+  {
+    $operation -> .lower => $op
+    ($op == "add") ? ($a + $b)
+      ! ($op == "subtract") ? ($a - $b)
+      ! ($op == "multiply") ? ($a * $b)
+      ! ($op == "divide") ? (
+        ($b == 0) ? "Error: division by zero" ! ($a / $b)
+      )
+      ! "Unknown operation: {$operation}. Use add, subtract, multiply, or divide."
+  }
+) => $calc_tool
+
+# Run the tool loop — LLM decides which tools to call
+llm::tool_loop($question, [
+  tools: [$weather_tool, $convert_tool, $calc_tool],
+  max_turns: 5,
+  system: "You are a helpful assistant with access to weather, temperature conversion, and calculator tools. Use tools to answer questions accurately. Be concise."
+]) => $result
+
+"completed in {$result.turns} turn(s), used {$result.usage.input + $result.usage.output} tokens" -> log
+
+# Return structured result
+[
+  answer: $result.content,
+  turns: $result.turns,
+  usage: [
+    input_tokens: $result.usage.input,
+    output_tokens: $result.usage.output
+  ]
+]
