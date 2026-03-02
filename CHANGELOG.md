@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AgentHost.listen() port errors** — EADDRINUSE now wrapped in `AgentHostError('port in use', 'init')` per EC-4
 - **Registry client teardown** — Dispose registry client on extension teardown to prevent resource leaks
 - **LSP column numbers** — `formatErrorJson` outputs 0-based columns for LSP compatibility
+- **OpenAI `max_completion_tokens`** — API calls send `max_completion_tokens` instead of deprecated `max_tokens`
+- **Demo runtime config** — Demos supply extension config via `--config` flag and `ComposeOptions.config`
 
 ### Dependencies
 
