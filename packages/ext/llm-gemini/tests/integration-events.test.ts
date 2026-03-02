@@ -102,6 +102,8 @@ describe('extension event emission', () => {
       });
       expect(typeof events[0]?.['duration']).toBe('number');
       expect(events[0]?.['duration']).toBeGreaterThanOrEqual(0);
+      expect(events[0]?.['request']).toBeDefined();
+      expect(events[0]?.['content']).toBeDefined();
     });
 
     it('emits gemini:error event on API failure', async () => {
@@ -173,6 +175,8 @@ describe('extension event emission', () => {
       });
       expect(typeof events[0]?.['duration']).toBe('number');
       expect(events[0]?.['duration']).toBeGreaterThanOrEqual(0);
+      expect(events[0]?.['request']).toBeDefined();
+      expect(events[0]?.['content']).toBeDefined();
     });
 
     it('emits gemini:error event on API failure', async () => {
@@ -450,6 +454,8 @@ describe('extension event emission', () => {
         usage: { input: 0, output: 0 },
       });
       expect(typeof toolLoopEvents[0]?.['total_duration']).toBe('number');
+      expect(toolLoopEvents[0]?.['request']).toBeDefined();
+      expect(toolLoopEvents[0]?.['content']).toBeDefined();
     });
 
     it('emits gemini:error event on API failure', async () => {

@@ -1438,4 +1438,177 @@ describe('executeToolLoop', () => {
       expect(mockCallAPI).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('hallucinated tool name sanitization', () => {
+    it('sanitizes hallucinated tool name and successfully invokes the tool', async () => {
+      // Tool call with hallucinated suffix is sanitized so the correct tool is invoked
+      const convertFn = vi.fn(() => 212);
+      const tools = {
+        convert_temperature: createMockTool(convertFn),
+      };
+
+      let apiCallCount = 0;
+      const callbacks = createMockCallbacks({
+        extractToolCalls: vi.fn(() => {
+          apiCallCount++;
+          return apiCallCount === 1
+            ? [
+                {
+                  id: 'call_1',
+                  name: 'convert_temperature<|channel|>commentary',
+                  input: { value: 100 },
+                },
+              ]
+            : null;
+        }),
+      });
+
+      const result = await executeToolLoop(
+        [{ role: 'user', content: 'Convert 100C to F' }],
+        tools,
+        3,
+        callbacks,
+        vi.fn()
+      );
+
+      // Tool must be invoked with the sanitized name, not treated as unknown
+      expect(convertFn).toHaveBeenCalledTimes(1);
+      expect(result.toolCalls).toHaveLength(1);
+      expect(result.toolCalls[0]?.name).toBe('convert_temperature');
+      expect(result.toolCalls[0]?.result).toBe(212);
+    });
+
+    it('patches response object before formatAssistantMessage receives it', async () => {
+      // formatAssistantMessage must see the sanitized name, not the hallucinated one
+      const tools = {
+        convert_temperature: createMockTool(() => 212),
+      };
+
+      // Simulate an OpenAI-shaped raw response that callAPI returns
+      const openAIResponse = {
+        choices: [
+          {
+            message: {
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: {
+                    name: 'convert_temperature<|channel|>commentary',
+                    arguments: '{"value":100}',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: { input_tokens: 100, output_tokens: 50 },
+      };
+
+      let apiCallCount = 0;
+      const mockFormatAssistantMessage = vi.fn(() => ({
+        role: 'assistant',
+        content: '',
+      }));
+
+      const callbacks = createMockCallbacks({
+        callAPI: vi.fn(async () => openAIResponse),
+        formatAssistantMessage: mockFormatAssistantMessage,
+        extractToolCalls: vi.fn(() => {
+          apiCallCount++;
+          return apiCallCount === 1
+            ? [
+                {
+                  id: 'call_1',
+                  name: 'convert_temperature<|channel|>commentary',
+                  input: { value: 100 },
+                },
+              ]
+            : null;
+        }),
+      });
+
+      await executeToolLoop(
+        [{ role: 'user', content: 'Convert 100C to F' }],
+        tools,
+        3,
+        callbacks,
+        vi.fn()
+      );
+
+      // formatAssistantMessage is called with the response object, which must be patched
+      expect(mockFormatAssistantMessage).toHaveBeenCalled();
+      const receivedResponse = mockFormatAssistantMessage.mock.calls[0]?.[0] as
+        | typeof openAIResponse
+        | undefined;
+      const toolCallName =
+        receivedResponse?.choices[0]?.message?.tool_calls[0]?.function?.name;
+      expect(toolCallName).toBe('convert_temperature');
+    });
+
+    it('does not modify clean tool names without invalid characters', async () => {
+      // Names containing only [a-zA-Z0-9_-] must pass through unchanged
+      const cleanFn = vi.fn(() => 'ok');
+      const tools = {
+        clean_tool_name: createMockTool(cleanFn),
+      };
+
+      let apiCallCount = 0;
+      const mockFormatAssistantMessage = vi.fn(() => ({
+        role: 'assistant',
+        content: '',
+      }));
+
+      const openAIResponse = {
+        choices: [
+          {
+            message: {
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: {
+                    name: 'clean_tool_name',
+                    arguments: '{}',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: { input_tokens: 50, output_tokens: 20 },
+      };
+
+      const callbacks = createMockCallbacks({
+        callAPI: vi.fn(async () => openAIResponse),
+        formatAssistantMessage: mockFormatAssistantMessage,
+        extractToolCalls: vi.fn(() => {
+          apiCallCount++;
+          return apiCallCount === 1
+            ? [{ id: 'call_1', name: 'clean_tool_name', input: {} }]
+            : null;
+        }),
+      });
+
+      const result = await executeToolLoop(
+        [{ role: 'user', content: 'Test' }],
+        tools,
+        3,
+        callbacks,
+        vi.fn()
+      );
+
+      // Tool must be invoked normally
+      expect(cleanFn).toHaveBeenCalledTimes(1);
+      expect(result.toolCalls[0]?.name).toBe('clean_tool_name');
+
+      // Response object must not be mutated — name remains as-is
+      const receivedResponse = mockFormatAssistantMessage.mock.calls[0]?.[0] as
+        | typeof openAIResponse
+        | undefined;
+      const toolCallName =
+        receivedResponse?.choices[0]?.message?.tool_calls[0]?.function?.name;
+      expect(toolCallName).toBe('clean_tool_name');
+    });
+  });
 });

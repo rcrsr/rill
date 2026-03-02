@@ -236,6 +236,8 @@ export function createAnthropicExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiParams.messages,
+            content,
           });
 
           return result as RillValue;
@@ -402,6 +404,8 @@ export function createAnthropicExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiMessages,
+            content,
           });
 
           return result as RillValue;
@@ -965,6 +969,8 @@ export function createAnthropicExtension(
             turns: result.turns,
             total_duration: duration,
             usage: result.usage,
+            request: messages,
+            content,
           });
 
           return result as RillValue;
@@ -1132,6 +1138,8 @@ export function createAnthropicExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiMessages,
+            content: raw,
           });
 
           return result as RillValue;

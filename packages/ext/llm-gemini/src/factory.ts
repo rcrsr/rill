@@ -290,6 +290,8 @@ export function createGeminiExtension(
             duration,
             model: factoryModel,
             usage: result.usage,
+            request: contents,
+            content,
           });
 
           return result as RillValue;
@@ -473,6 +475,8 @@ export function createGeminiExtension(
             duration,
             model: factoryModel,
             usage: result.usage,
+            request: contents,
+            content,
           });
 
           return result as RillValue;
@@ -1024,6 +1028,8 @@ export function createGeminiExtension(
             turns: result.turns,
             total_duration: duration,
             usage: result.usage,
+            request: contents,
+            content,
           });
 
           return result as RillValue;
@@ -1214,6 +1220,8 @@ export function createGeminiExtension(
             duration,
             model: factoryModel,
             usage: generateResult.usage,
+            request: contents,
+            content: raw,
           });
 
           return generateResult as RillValue;

@@ -105,6 +105,8 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
       expect(typeof event.duration).toBe('number');
       expect(event.duration).toBeGreaterThanOrEqual(0);
       expect(typeof event.timestamp).toBe('string');
+      expect(event.request).toBeDefined();
+      expect(event.content).toBeDefined();
     });
   });
 
@@ -157,6 +159,8 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
       expect(typeof event.duration).toBe('number');
       expect(event.duration).toBeGreaterThanOrEqual(0);
       expect(typeof event.timestamp).toBe('string');
+      expect(event.request).toBeDefined();
+      expect(event.content).toBeDefined();
     });
   });
 
@@ -503,6 +507,8 @@ describe('Anthropic Extension Integration Tests - Event Emission', () => {
       expect(typeof event.total_duration).toBe('number');
       expect(event.total_duration).toBeGreaterThanOrEqual(0);
       expect(typeof event.timestamp).toBe('string');
+      expect(event.request).toBeDefined();
+      expect(event.content).toBeDefined();
     });
 
     it('includes accumulated usage from multiple turns', async () => {

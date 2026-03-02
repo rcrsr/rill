@@ -225,6 +225,8 @@ export function createOpenAIExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiMessages,
+            content,
           });
 
           return result as RillValue;
@@ -396,6 +398,8 @@ export function createOpenAIExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiMessages,
+            content,
           });
 
           return result as RillValue;
@@ -1059,6 +1063,8 @@ export function createOpenAIExtension(
             turns: loopResult.turns,
             total_duration: duration,
             usage: result.usage,
+            request: messages,
+            content,
           });
 
           return result as RillValue;
@@ -1231,6 +1237,8 @@ export function createOpenAIExtension(
             duration,
             model: response.model,
             usage: result.usage,
+            request: apiMessages,
+            content: raw,
           });
 
           return result as RillValue;

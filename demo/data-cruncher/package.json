@@ -6,7 +6,7 @@
   "scripts": {
     "build": "rill-agent-bundle build agent.json",
     "check": "rill-agent-bundle check --platform node dist/",
-    "start": "echo '{\"numbers\":[4,7,2,9,1,8,3]}' | rill-agent-run dist/ demo-agent --config config.json"
+    "start": "echo '{\"numbers\":[4,7,2,9,1,8,3]}' | rill-agent-run dist/ demo-agent --config config.json --log-level info"
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:*",

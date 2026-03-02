@@ -104,6 +104,8 @@ describe('extension event emission', () => {
       });
       expect(typeof events[0]?.['duration']).toBe('number');
       expect(events[0]?.['duration']).toBeGreaterThanOrEqual(0);
+      expect(events[0]?.['request']).toBeDefined();
+      expect(events[0]?.['content']).toBeDefined();
     });
 
     it('emits openai:error event on API failure', async () => {
@@ -174,6 +176,8 @@ describe('extension event emission', () => {
       });
       expect(typeof events[0]?.['duration']).toBe('number');
       expect(events[0]?.['duration']).toBeGreaterThanOrEqual(0);
+      expect(events[0]?.['request']).toBeDefined();
+      expect(events[0]?.['content']).toBeDefined();
     });
 
     it('emits openai:error event on API failure', async () => {

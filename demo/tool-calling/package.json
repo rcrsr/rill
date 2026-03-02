@@ -6,7 +6,7 @@
   "scripts": {
     "build": "rill-agent-bundle build agent.json",
     "check": "rill-agent-bundle check --platform node dist/",
-    "start": "rill-agent-run dist/ tool-calling --config config.json --param question='What is the weather in Paris and Tokyo? Convert the Paris temperature to Fahrenheit.'"
+    "start": "rill-agent-run dist/ tool-calling --config config.json --log-level info --param question='What is the weather in Paris and Tokyo? Convert the Paris temperature to Fahrenheit.'"
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:*",

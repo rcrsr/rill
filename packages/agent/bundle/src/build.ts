@@ -313,7 +313,8 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  try {`,
         `    // Create a params-scoped context, copying extension functions from the composed context`,
         `    const _onLog = _context.onLog ?? ((v) => { process.stderr.write((typeof v === 'string' ? v : JSON.stringify(v)) + '\\n'); });`,
-        `    const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog } });`,
+        `    const _onLogEvent = _context.onLogEvent ?? ((e) => { process.stderr.write(JSON.stringify(e) + '\\n'); });
+    const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog, onLogEvent: _onLogEvent } });`,
         `    for (const [fnName, fn] of agent.context.functions) {`,
         `      execContext.functions.set(fnName, fn);`,
         `    }`,
@@ -351,7 +352,8 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  try {`,
         `    // Create a params-scoped context, copying extension functions from the composed context`,
         `    const _onLog = _context.onLog ?? ((v) => { process.stderr.write((typeof v === 'string' ? v : JSON.stringify(v)) + '\\n'); });`,
-        `    const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog } });`,
+        `    const _onLogEvent = _context.onLogEvent ?? ((e) => { process.stderr.write(JSON.stringify(e) + '\\n'); });
+    const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog, onLogEvent: _onLogEvent } });`,
         `    for (const [fnName, fn] of composed.context.functions) {`,
         `      execContext.functions.set(fnName, fn);`,
         `    }`,

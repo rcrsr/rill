@@ -1,4 +1,4 @@
-import { type RillValue } from '@rcrsr/rill';
+import { type RillValue, type ExtensionEvent } from '@rcrsr/rill';
 import { type ComposedHandler } from '@rcrsr/rill-agent-shared';
 
 // ============================================================
@@ -50,13 +50,24 @@ export async function executeAgent(
           const msg = typeof value === 'string' ? value : JSON.stringify(value);
           process.stderr.write(msg + '\n');
         };
+  const onLogEvent =
+    logLevel === 'silent'
+      ? undefined
+      : (event: ExtensionEvent): void => {
+          process.stderr.write(JSON.stringify(event) + '\n');
+        };
 
   const start = Date.now();
 
   // EC-23, EC-24, EC-25: all errors re-thrown as-is
   const response = await handler(
     { params, timeout },
-    { agentName: options.agentName, config: options.config ?? {}, onLog }
+    {
+      agentName: options.agentName,
+      config: options.config ?? {},
+      onLog,
+      onLogEvent,
+    }
   );
 
   const durationMs = Date.now() - start;

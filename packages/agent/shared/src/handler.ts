@@ -1,4 +1,4 @@
-import type { RillValue } from '@rcrsr/rill';
+import type { RillValue, ExtensionEvent } from '@rcrsr/rill';
 
 // ============================================================
 // RUN REQUEST / RESPONSE
@@ -47,6 +47,8 @@ export interface HandlerContext {
   readonly config: Record<string, Record<string, unknown>>;
   /** Optional log callback. Receives the value passed to `log` in scripts. */
   readonly onLog?: ((value: RillValue) => void) | undefined;
+  /** Optional extension event callback. Receives structured events from extensions. */
+  readonly onLogEvent?: ((event: ExtensionEvent) => void) | undefined;
 }
 
 // ============================================================

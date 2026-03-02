@@ -153,6 +153,108 @@ async function executeToolCall(
 }
 
 // ============================================================
+// TOOL NAME SANITIZATION
+// ============================================================
+
+/**
+ * Sanitize an LLM-generated tool call name by stripping characters that are
+ * invalid in any supported provider's tool name format.
+ * Handles hallucinated suffixes like `<|channel|>commentary`.
+ *
+ * @param name - Raw tool call name from LLM response
+ * @returns Sanitized name containing only [a-zA-Z0-9_-] characters
+ */
+function sanitizeToolName(name: string): string {
+  const match = name.match(/^[a-zA-Z0-9_-]*/);
+  const sanitized = match ? match[0] : '';
+  return sanitized.length > 0 ? sanitized : name;
+}
+
+/**
+ * Patch tool call names in a provider response object in-place.
+ * Uses duck-typing to handle OpenAI, Anthropic, and Gemini response formats.
+ * Called before formatAssistantMessage so the patched names flow into conversation history.
+ *
+ * @param response - Raw provider API response
+ * @param nameMap - Map from original (hallucinated) name to sanitized name
+ */
+function patchResponseToolCallNames(
+  response: unknown,
+  nameMap: Map<string, string>
+): void {
+  if (!nameMap.size || !response || typeof response !== 'object') return;
+  const resp = response as Record<string, unknown>;
+
+  // OpenAI: choices[N].message.tool_calls[N].function.name
+  if (Array.isArray(resp['choices'])) {
+    for (const choice of resp['choices'] as unknown[]) {
+      const msg = (choice as Record<string, unknown>)?.['message'];
+      const tcs = (msg as Record<string, unknown>)?.['tool_calls'];
+      if (Array.isArray(tcs)) {
+        for (const tc of tcs as unknown[]) {
+          const fn = (tc as Record<string, unknown>)?.['function'];
+          if (
+            fn &&
+            typeof (fn as Record<string, unknown>)['name'] === 'string'
+          ) {
+            const orig = (fn as Record<string, unknown>)['name'] as string;
+            const san = nameMap.get(orig);
+            if (san !== undefined)
+              (fn as Record<string, unknown>)['name'] = san;
+          }
+        }
+      }
+    }
+  }
+
+  // Anthropic: content[N].name (where type === 'tool_use')
+  if (Array.isArray(resp['content'])) {
+    for (const block of resp['content'] as unknown[]) {
+      const b = block as Record<string, unknown>;
+      if (b?.['type'] === 'tool_use' && typeof b?.['name'] === 'string') {
+        const orig = b['name'] as string;
+        const san = nameMap.get(orig);
+        if (san !== undefined) b['name'] = san;
+      }
+    }
+  }
+
+  // Gemini flattened view: functionCalls[N].name
+  if (Array.isArray(resp['functionCalls'])) {
+    for (const fc of resp['functionCalls'] as unknown[]) {
+      const f = fc as Record<string, unknown>;
+      if (typeof f?.['name'] === 'string') {
+        const orig = f['name'] as string;
+        const san = nameMap.get(orig);
+        if (san !== undefined) f['name'] = san;
+      }
+    }
+  }
+
+  // Gemini canonical: candidates[N].content.parts[N].functionCall.name
+  if (Array.isArray(resp['candidates'])) {
+    for (const cand of resp['candidates'] as unknown[]) {
+      const content = (cand as Record<string, unknown>)?.['content'];
+      const parts = (content as Record<string, unknown>)?.['parts'];
+      if (Array.isArray(parts)) {
+        for (const part of parts as unknown[]) {
+          const fc = (part as Record<string, unknown>)?.['functionCall'];
+          if (
+            fc &&
+            typeof (fc as Record<string, unknown>)['name'] === 'string'
+          ) {
+            const orig = (fc as Record<string, unknown>)['name'] as string;
+            const san = nameMap.get(orig);
+            if (san !== undefined)
+              (fc as Record<string, unknown>)['name'] = san;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
 // ORCHESTRATION
 // ============================================================
 
@@ -336,7 +438,22 @@ export async function executeToolLoop(
     }
 
     // Extract tool calls from response
-    const toolCalls = callbacks.extractToolCalls(response);
+    const rawToolCalls = callbacks.extractToolCalls(response);
+
+    // Sanitize tool call names to handle LLM hallucinations like
+    // 'convert_temperature<|channel|>commentary' → 'convert_temperature'
+    const nameMap = new Map<string, string>();
+    const toolCalls =
+      rawToolCalls?.map((tc) => {
+        const sanitized = sanitizeToolName(tc.name);
+        if (sanitized !== tc.name) nameMap.set(tc.name, sanitized);
+        return sanitized !== tc.name ? { ...tc, name: sanitized } : tc;
+      }) ?? null;
+
+    // Patch the response in-place so formatAssistantMessage returns sanitized names
+    if (nameMap.size > 0) {
+      patchResponseToolCallNames(response, nameMap);
+    }
 
     // If no tool calls, loop complete
     if (toolCalls === null || toolCalls.length === 0) {
