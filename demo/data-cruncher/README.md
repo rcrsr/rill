@@ -15,65 +15,39 @@ pnpm run -r build
 
 ```bash
 cd demo/data-cruncher
-pnpm build   # rill-agent-bundle agent.json --target local --output dist/
-pnpm start   # tsx dist/host.ts
+pnpm build   # rill-agent-bundle build agent.json
+pnpm start   # pipes JSON params to rill-agent-run
 ```
 
-The server starts on `http://localhost:3000`.
-
-## Endpoints
-
-### Run the agent
+Or run directly:
 
 ```bash
-curl -X POST http://localhost:3000/run \
-  -H 'Content-Type: application/json' \
-  -d '{"params": {"numbers": [4, 7, 2, 9, 1, 8, 3]}}'
+echo '{"numbers":[4,7,2,9,1,8,3]}' | rill-agent-run dist/ demo-agent
 ```
 
 Returns computed statistics: count, sum, mean, min, max, variance, above_mean, squared, and a persistent run counter.
 
-### Health check
+## Verify bundle
 
 ```bash
-curl http://localhost:3000/healthz
-```
-
-### List sessions
-
-```bash
-curl http://localhost:3000/sessions
-```
-
-### SSE stream for a session
-
-```bash
-curl -N http://localhost:3000/sessions/{id}/stream
-```
-
-Replace `{id}` with a session ID from the `/run` or `/sessions` response.
-
-### Agent card
-
-```bash
-curl http://localhost:3000/.well-known/agent-card.json
+pnpm check   # rill-agent-bundle check --platform node dist/
 ```
 
 ## What it demonstrates
 
 - **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`
-- **Generated host entry**: `dist/host.ts` is generated — no hand-written server code
+- **CLI execution**: `rill-agent-run` executes the bundle as a one-shot CLI command
 - **Builtin extension loading**: The `kv` extension loads through the named-export pipeline
 - **Pipe-based data processing**: `fold`, `map`, `filter` operators in `main.rill`
-- **SSE observability**: `log` calls emit real-time events on `/sessions/{id}/stream`
-- **Session management**: Each `/run` request creates a tracked session with lifecycle state
 
 ## Build output
 
 ```
 dist/
-  host.ts                      # Generated server entry (run with tsx)
-  agent.json                   # Resolved manifest
-  scripts/main.rill            # Copied entry script
+  bundle.json                  # Bundle manifest
+  handlers.js                  # Compiled handler entry
+  agents/
+    demo-agent/
+      scripts/main.rill        # Copied entry script
   .well-known/agent-card.json  # Agent discovery card
 ```

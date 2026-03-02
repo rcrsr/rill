@@ -44,12 +44,18 @@ importers:
 
   demo/content-pipeline:
     dependencies:
+      '@rcrsr/rill-agent-bundle':
+        specifier: workspace:*
+        version: link:../../packages/agent/bundle
       '@rcrsr/rill-agent-ext-ahi':
         specifier: workspace:*
         version: link:../../packages/agent/ahi
       '@rcrsr/rill-agent-harness':
         specifier: workspace:*
         version: link:../../packages/agent/harness
+      '@rcrsr/rill-agent-run':
+        specifier: workspace:*
+        version: link:../../packages/agent/run
       '@rcrsr/rill-agent-shared':
         specifier: workspace:*
         version: link:../../packages/agent/shared
@@ -62,20 +68,37 @@ importers:
         version: 4.21.0
 
   demo/data-cruncher:
-    devDependencies:
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
+    dependencies:
+      '@rcrsr/rill':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rcrsr/rill-agent-bundle':
+        specifier: workspace:*
+        version: link:../../packages/agent/bundle
+      '@rcrsr/rill-agent-harness':
+        specifier: workspace:*
+        version: link:../../packages/agent/harness
+      '@rcrsr/rill-agent-run':
+        specifier: workspace:*
+        version: link:../../packages/agent/run
 
   demo/feedback-analyzer:
     dependencies:
+      '@rcrsr/rill':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rcrsr/rill-agent-bundle':
+        specifier: workspace:*
+        version: link:../../packages/agent/bundle
+      '@rcrsr/rill-agent-harness':
+        specifier: workspace:*
+        version: link:../../packages/agent/harness
+      '@rcrsr/rill-agent-run':
+        specifier: workspace:*
+        version: link:../../packages/agent/run
       '@rcrsr/rill-ext-openai':
         specifier: workspace:*
         version: link:../../packages/ext/llm-openai
-    devDependencies:
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
 
   packages/agent/ahi:
     dependencies:

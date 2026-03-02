@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "echo 'feedback-analyzer demo requires migration to agent harness'",
-    "dev": "echo 'feedback-analyzer demo requires migration to agent harness'"
+    "build": "rill-agent-bundle build agent.json",
+    "check": "rill-agent-bundle check --platform node dist/",
+    "start": "rill-agent-run dist/ feedback-analyzer --param feedback='The onboarding was confusing'"
   },
   "dependencies": {
-    "@rcrsr/rill-ext-openai": "workspace:*"
-  },
-  "devDependencies": {
-    "tsx": "^4.21.0"
+    "@rcrsr/rill": "workspace:*",
+    "@rcrsr/rill-agent-harness": "workspace:*",
+    "@rcrsr/rill-ext-openai": "workspace:*",
+    "@rcrsr/rill-agent-bundle": "workspace:*",
+    "@rcrsr/rill-agent-run": "workspace:*"
   }
 }

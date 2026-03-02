@@ -25,6 +25,8 @@ export { ComposeError, ManifestValidationError } from './errors.js';
 export type { AgentCard, AgentCapabilities } from './card.js';
 export { generateAgentCard } from './card.js';
 
+export type { ComposedAgent } from './composed-agent.js';
+
 export type { InterpolationResult } from './interpolate.js';
 export { interpolateEnv } from './interpolate.js';
 

@@ -1,6 +1,3 @@
-// Hand-written host entry — rill-agent-bundle CLI does not support harness manifests.
-// This file replaces the generated dist/host.ts from single-agent builds.
-
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

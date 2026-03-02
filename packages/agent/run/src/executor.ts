@@ -7,7 +7,7 @@ import { type ComposedHandler } from '@rcrsr/rill-agent-shared';
 
 export interface ExecuteOptions {
   readonly timeout?: number | undefined;
-  readonly agentName?: string | undefined;
+  readonly agentName: string;
 }
 
 export interface ExecuteResult {
@@ -31,7 +31,7 @@ export interface ExecuteResult {
 export async function executeAgent(
   handler: ComposedHandler,
   params: Record<string, unknown>,
-  options?: ExecuteOptions | undefined
+  options: ExecuteOptions
 ): Promise<ExecuteResult> {
   const timeout =
     options?.timeout !== undefined && options.timeout > 0
@@ -43,7 +43,7 @@ export async function executeAgent(
   // EC-23, EC-24, EC-25: all errors re-thrown as-is
   const response = await handler(
     { params, timeout },
-    { agentName: options?.agentName ?? '' }
+    { agentName: options.agentName }
   );
 
   const durationMs = Date.now() - start;

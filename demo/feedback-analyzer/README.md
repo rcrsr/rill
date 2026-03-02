@@ -21,23 +21,23 @@ export GROQ_API_KEY="gsk_..."
 
 ```bash
 cd demo/feedback-analyzer
-pnpm build   # rill-agent-bundle agent.json --target local --output dist/
-pnpm start   # tsx dist/host.ts
+pnpm build   # rill-agent-bundle build agent.json
+pnpm start   # rill-agent-run dist/ feedback-analyzer --param feedback='...'
 ```
 
-The server starts on `http://localhost:4001`.
-
-## Endpoints
-
-### Run the agent
+Or run directly:
 
 ```bash
-curl -X POST http://localhost:4001/run \
-  -H 'Content-Type: application/json' \
-  -d '{"params": {"feedback": "The onboarding was confusing and I almost gave up twice."}}'
+rill-agent-run dist/ feedback-analyzer --param feedback='The onboarding was confusing and I almost gave up twice.'
 ```
 
-Example response:
+Or pipe input via stdin:
+
+```bash
+echo '{"feedback":"The onboarding was confusing and I almost gave up twice."}' | rill-agent-run dist/ feedback-analyzer
+```
+
+Example output:
 
 ```json
 {
@@ -50,30 +50,10 @@ Example response:
 }
 ```
 
-### Health check
+## Verify bundle
 
 ```bash
-curl http://localhost:4001/healthz
-```
-
-### List sessions
-
-```bash
-curl http://localhost:4001/sessions
-```
-
-### SSE stream for a session
-
-```bash
-curl -N http://localhost:4001/sessions/{id}/stream
-```
-
-Replace `{id}` with a session ID from the `/run` or `/sessions` response.
-
-### Agent card
-
-```bash
-curl http://localhost:4001/.well-known/agent-card.json
+pnpm check   # rill-agent-bundle check --platform node dist/
 ```
 
 ## What it demonstrates
@@ -81,15 +61,16 @@ curl http://localhost:4001/.well-known/agent-card.json
 - **Structured output**: `llm::generate()` extracts typed fields (sentiment, issues, urgency, category) from free text
 - **Response drafting**: `llm::message()` drafts an empathetic reply using the extracted analysis
 - **Manifest-driven composition**: `rill-agent-bundle` builds the agent from `agent.json` into `dist/`
-- **Generated host entry**: `dist/host.ts` is generated — no hand-written server code
-- **SSE observability**: `log` calls emit real-time events on `/sessions/{id}/stream`
+- **CLI execution**: `rill-agent-run` executes the bundle as a one-shot CLI command
 
 ## Build output
 
 ```
 dist/
-  host.ts                      # Generated server entry (run with tsx)
-  agent.json                   # Resolved manifest
-  scripts/main.rill            # Copied entry script
+  bundle.json                  # Bundle manifest
+  handlers.js                  # Compiled handler entry
+  agents/
+    feedback-analyzer/
+      scripts/main.rill        # Copied entry script
   .well-known/agent-card.json  # Agent discovery card
 ```

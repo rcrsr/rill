@@ -4,8 +4,6 @@ import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { build as esbuild, type BuildFailure } from 'esbuild';
 import {
-  type ScriptNode,
-  type RuntimeContext,
   type RillValue,
   type HostFunctionDefinition,
   type ExtensionResult,
@@ -21,10 +19,10 @@ import {
   type AgentManifest,
   type HarnessManifest,
   type HarnessAgentEntry,
-  type AgentCard,
   type AgentRunner,
   type InProcessRunRequest,
   type InProcessRunResponse,
+  type ComposedAgent,
   ComposeError,
   resolveExtensions,
   generateAgentCard,
@@ -39,15 +37,6 @@ import {
 export interface ComposeOptions {
   readonly basePath?: string | undefined;
   readonly env?: Record<string, string> | undefined;
-}
-
-export interface ComposedAgent {
-  readonly context: RuntimeContext;
-  readonly ast: ScriptNode;
-  readonly modules: Record<string, Record<string, RillValue>>;
-  dispose(): Promise<void>;
-  readonly card: AgentCard;
-  readonly extensions: Record<string, ExtensionResult>;
 }
 
 export interface ComposedHarness {

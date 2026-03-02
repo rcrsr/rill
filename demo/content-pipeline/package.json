@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "rill-agent-bundle build harness.json",
+    "check": "rill-agent-bundle check --platform node dist/",
     "start": "tsx host.ts",
     "dev": "GROQ_API_KEY=${GROQ_API_KEY} tsx host.ts"
   },
@@ -11,7 +13,9 @@
     "@rcrsr/rill-agent-harness": "workspace:*",
     "@rcrsr/rill-agent-shared": "workspace:*",
     "@rcrsr/rill-ext-openai": "workspace:*",
-    "@rcrsr/rill-agent-ext-ahi": "workspace:*"
+    "@rcrsr/rill-agent-ext-ahi": "workspace:*",
+    "@rcrsr/rill-agent-bundle": "workspace:*",
+    "@rcrsr/rill-agent-run": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

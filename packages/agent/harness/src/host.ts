@@ -12,8 +12,9 @@ import type {
   AgentCard,
   AgentCapabilities,
   AgentSkill,
+  ComposedAgent,
 } from '@rcrsr/rill-agent-shared';
-export type { AgentCard, AgentCapabilities, AgentSkill };
+export type { AgentCard, AgentCapabilities, AgentSkill, ComposedAgent };
 import { AgentHostError } from './errors.js';
 import { SessionManager } from './session.js';
 import { createMetrics } from './metrics.js';
@@ -56,18 +57,6 @@ function log(level: 'info' | 'debug', msg: string, logLevel: LogLevel): void {
   if (LOG_PRIORITY[level] <= LOG_PRIORITY[logLevel]) {
     console.log(msg);
   }
-}
-
-// ============================================================
-// COMPOSED AGENT INTERFACES
-// ============================================================
-
-export interface ComposedAgent {
-  ast: import('@rcrsr/rill').ScriptNode;
-  context: import('@rcrsr/rill').RuntimeContext;
-  card: AgentCard;
-  dispose(): Promise<void>;
-  extensions: Record<string, import('@rcrsr/rill').ExtensionResult>;
 }
 
 // ============================================================

@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multi-agent harness** — Run N agents in one `rill-host` process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
-- **@rcrsr/rill-ext-ahi** - AHI extension for agent-to-agent HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-registry-client`
-- **@rcrsr/rill-host** — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown
-- **@rcrsr/rill-agent-bundle** — Manifest-driven agent composition. CLI builds container, lambda, worker, and local targets from `agent.json`
-- **@rcrsr/rill-agent-run** — CLI entry point for running bundled agents locally
+- **Agent harness** (`@rcrsr/rill-agent-harness`) — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown. Multi-agent mode runs N agents in one process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
+- **Agent-to-agent invocation** (`@rcrsr/rill-agent-ext-ahi`) — AHI extension for HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-agent-registry`
+- **Agent bundle CLI** (`@rcrsr/rill-agent-bundle`) — Manifest-driven agent composition with `build`, `init`, and `check` subcommands. Compiles `agent.json` manifests into deployable bundles with SHA-256 checksums, platform compatibility checking, and esbuild-compiled custom functions. Env sources load variables from process.env and .env files
+- **Agent run CLI** (`@rcrsr/rill-agent-run`) — Execute bundled agents in-process with param injection, stdin support, and timeout control
+- **Agent shared types** (`@rcrsr/rill-agent-shared`) — Consolidated types, schemas, error classes, and A2A-compatible agent card generation. IO contracts validate `input`/`output` schemas declared in `agent.json` at runtime
 - **LLM `generate()` function** — Provider-agnostic structured output for Anthropic, OpenAI, and Gemini extensions. Rill schema dicts convert to JSON Schema automatically
+- **Content pipeline demo** — Multi-agent pipeline with classifier, summarizer, and orchestrator agents under `demo/content-pipeline/`
 
 ### Removed
 
@@ -23,12 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Agent bootstrapping docs** — Reference `rill-agent-bundle init` instead of `rill-create-agent`
+- **OutputDescriptor → OutputSchema** — Renamed for consistency across agent packages
 
 ### Fixed
 
 - **Variable method calls returned null** — `$var.len`, `$var.trim` fell through to null because `evaluateVariableAsync` treated access chains as dict lookups. Fix checks `BUILTIN_METHODS` first
 - **kv::set rejected non-string values** — Changed `value` parameter type from `'string'` to `'any'`
 - **AgentHost.listen() port errors** — EADDRINUSE now wrapped in `AgentHostError('port in use', 'init')` per EC-4
+- **Registry client teardown** — Dispose registry client on extension teardown to prevent resource leaks
+- **LSP column numbers** — `formatErrorJson` outputs 0-based columns for LSP compatibility
 
 ### Dependencies
 
