@@ -647,6 +647,64 @@ Single-line comments start with `#`:
 
 ---
 
+## Newlines
+
+**Invariant: whitespace is insignificant inside a syntactic continuation.**
+
+Newlines are statement terminators. A newline ends a statement unless the parser is inside a syntactic continuation — any position where the preceding token cannot end a valid statement.
+
+### Continuation tokens
+
+A newline after any of these continues the current statement:
+
+| Class | Tokens |
+|-------|--------|
+| Binary arithmetic | `+` `-` `*` `/` `%` |
+| Logical | `&&` `\|\|` |
+| Comparison | `==` `!=` `<` `>` `<=` `>=` |
+| Pipe / capture | `->` `=>` |
+| Conditional | `?` `!` |
+| Member access | `.` `.?` |
+| Type annotation | `:` |
+| Spread | `...` |
+| Annotation | `^` |
+| Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` `shape(` |
+
+Continuation tokens also act as **line-start continuations** — placing them at the beginning of the next line continues the previous statement:
+
+```rill
+"hello"
+  => $greeting
+  -> .upper
+  -> .trim
+
+($count > 0)
+  ? "yes"
+  ! "no"
+
+$x
+  + $y
+  + $z
+```
+
+### Statement-start tokens
+
+These always begin a new statement:
+
+| Token | Starts |
+|-------|--------|
+| `$` | Variable reference or closure call |
+| identifier | Host function call |
+| `@` | Loop |
+| `\|` `\|\|` | Closure definition |
+| literals | String, number, bool, tuple, dict |
+
+### Disjoint sets
+
+The two token classes are disjoint. No token is both a continuation token and a statement-start token. This makes the grammar unambiguous with one token of lookahead — no symbol table, no backtracking.
+
+---
+
 ## Grammar
 
 The complete formal grammar is in [grammar.ebnf](ref-grammar.ebnf).
