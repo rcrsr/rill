@@ -8,6 +8,7 @@ export type RillTypeName =
   | 'dict'
   | 'tuple'
   | 'vector'
+  | 'shape'
   | 'any';
 
 /**

@@ -588,6 +588,15 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseMethodCall(null);
   }
 
+  // Shape literal: shape(...)
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(this.state).value === 'shape' &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    return this.parseShapeLiteral();
+  }
+
   // Function call with parens
   if (isHostCall(this.state)) {
     return this.parseHostCall();

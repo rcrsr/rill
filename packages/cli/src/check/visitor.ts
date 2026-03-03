@@ -324,6 +324,36 @@ export function visitNode(
       }
       break;
 
+    case 'ShapeLiteral':
+      for (const field of node.fields) {
+        visitNode(field, context, visitor);
+      }
+      for (const spread of node.spreads) {
+        visitNode(spread, context, visitor);
+      }
+      break;
+
+    case 'ShapeField':
+      if (typeof node.fieldType === 'object') {
+        visitNode(node.fieldType, context, visitor);
+      }
+      break;
+
+    case 'VarTypeAssertion':
+    case 'VarTypeCheck':
+      if (node.operand) {
+        visitNode(node.operand, context, visitor);
+      }
+      break;
+
+    case 'ShapeAssertion':
+    case 'ShapeCheck':
+      if (node.operand) {
+        visitNode(node.operand, context, visitor);
+      }
+      visitNode(node.shape, context, visitor);
+      break;
+
     default: {
       // Exhaustive check: if we reach here, a node type is missing
       const _exhaustive: never = node;

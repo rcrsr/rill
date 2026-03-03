@@ -6,8 +6,30 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RuntimeError } from '@rcrsr/rill';
+import { type RillShape, type ShapeFieldSpec, RuntimeError } from '@rcrsr/rill';
 import { buildJsonSchema } from '../src/schema.js';
+
+// ============================================================
+// HELPER: construct a frozen RillShape for testing
+// ============================================================
+
+function makeShape(
+  fields: Record<string, Partial<ShapeFieldSpec> & { typeName: string }>
+): RillShape {
+  const fullFields: Record<string, ShapeFieldSpec> = {};
+  for (const [name, partial] of Object.entries(fields)) {
+    fullFields[name] = {
+      typeName: partial.typeName,
+      optional: partial.optional ?? false,
+      nestedShape: partial.nestedShape,
+      annotations: partial.annotations ?? {},
+    };
+  }
+  return Object.freeze({
+    __rill_shape: true as const,
+    fields: Object.freeze(fullFields),
+  }) as RillShape;
+}
 
 // ============================================================
 // ALL 6 RILL TYPES (AC-15, AC-30)
@@ -442,6 +464,108 @@ describe('buildJsonSchema', () => {
       expect(() =>
         buildJsonSchema({ n: { type: 'number', enum: [1, 2] } })
       ).toThrow('enum is only valid for string type');
+    });
+  });
+
+  // ============================================================
+  // AC-30, AC-31, AC-32, EC-8: RillShape input (IR-6)
+  // ============================================================
+
+  describe('RillShape input (IR-6)', () => {
+    // AC-30: basic field type mapping
+    it('AC-30: string field maps to JSON Schema type "string"', () => {
+      const result = buildJsonSchema(
+        makeShape({ name: { typeName: 'string' } })
+      );
+      expect(result.properties['name']?.type).toBe('string');
+    });
+
+    it('AC-30: number field maps to JSON Schema type "number"', () => {
+      const result = buildJsonSchema(
+        makeShape({ count: { typeName: 'number' } })
+      );
+      expect(result.properties['count']?.type).toBe('number');
+    });
+
+    it('AC-30: bool field maps to JSON Schema type "boolean"', () => {
+      const result = buildJsonSchema(
+        makeShape({ active: { typeName: 'bool' } })
+      );
+      expect(result.properties['active']?.type).toBe('boolean');
+    });
+
+    it('AC-30: shape field produces type "object" with properties', () => {
+      const nested = makeShape({ city: { typeName: 'string' } });
+      const result = buildJsonSchema(
+        makeShape({ addr: { typeName: 'shape', nestedShape: nested } })
+      );
+      expect(result.properties['addr']?.type).toBe('object');
+      expect(result.properties['addr']?.properties?.['city']?.type).toBe(
+        'string'
+      );
+    });
+
+    // AC-31: enum annotation
+    it('AC-31: enum annotation produces enum array in JSON Schema', () => {
+      const result = buildJsonSchema(
+        makeShape({
+          status: {
+            typeName: 'string',
+            annotations: { enum: ['active', 'inactive'] },
+          },
+        })
+      );
+      expect(result.properties['status']?.enum).toEqual(['active', 'inactive']);
+    });
+
+    // AC-32: optional fields
+    it('AC-32: optional:false field appears in required array', () => {
+      const result = buildJsonSchema(
+        makeShape({ name: { typeName: 'string', optional: false } })
+      );
+      expect(result.required).toContain('name');
+    });
+
+    it('AC-32: optional:true field does NOT appear in required array', () => {
+      const result = buildJsonSchema(
+        makeShape({ name: { typeName: 'string', optional: true } })
+      );
+      expect(result.required).not.toContain('name');
+    });
+
+    it('AC-32: mixed required/optional produces correct required array', () => {
+      const result = buildJsonSchema(
+        makeShape({
+          required_field: { typeName: 'string', optional: false },
+          optional_field: { typeName: 'number', optional: true },
+        })
+      );
+      expect(result.required).toContain('required_field');
+      expect(result.required).not.toContain('optional_field');
+      expect(result.required).toHaveLength(1);
+    });
+
+    // EC-8: closure/tuple throw RuntimeError RILL-R004
+    it('EC-8: closure field type throws RuntimeError RILL-R004', () => {
+      let thrown: RuntimeError | undefined;
+      try {
+        buildJsonSchema(makeShape({ fn: { typeName: 'closure' } }));
+      } catch (e) {
+        thrown = e as RuntimeError;
+      }
+      expect(thrown).toBeInstanceOf(RuntimeError);
+      expect(thrown?.errorId).toBe('RILL-R004');
+    });
+
+    it('EC-8: tuple field type throws RuntimeError RILL-R004', () => {
+      let thrown: RuntimeError | undefined;
+      try {
+        buildJsonSchema(makeShape({ t: { typeName: 'tuple' } }));
+      } catch (e) {
+        thrown = e as RuntimeError;
+      }
+      expect(thrown).toBeInstanceOf(RuntimeError);
+      expect(thrown?.errorId).toBe('RILL-R004');
     });
   });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type RillShape, type ShapeFieldSpec, RuntimeError } from '@rcrsr/rill';
 import { ManifestValidationError, type ManifestIssue } from './errors.js';
 
 // ============================================================
@@ -81,6 +82,104 @@ export const inputSchemaSchema = z.record(
 );
 
 export type InputSchema = z.infer<typeof inputSchemaSchema>;
+
+// ============================================================
+// SHAPE SERIALIZATION
+// ============================================================
+
+/**
+ * Maps a ShapeFieldSpec typeName to the InputParamDescriptor type union.
+ * Throws RuntimeError RILL-R004 for closure or tuple (not representable in manifest format).
+ */
+function shapeTypeToInputType(
+  typeName: string
+): 'string' | 'number' | 'bool' | 'list' | 'dict' {
+  switch (typeName) {
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'bool':
+      return 'bool';
+    case 'list':
+      return 'list';
+    case 'closure':
+      throw new RuntimeError(
+        'RILL-R004',
+        `shape field type 'closure' not representable in manifest`
+      );
+    case 'tuple':
+      throw new RuntimeError(
+        'RILL-R004',
+        `shape field type 'tuple' not representable in manifest`
+      );
+    // shape, dict, vector, any all map to dict or string
+    default:
+      return 'dict';
+  }
+}
+
+/**
+ * Converts a RillShape to an InputSchema (Record<string, InputParamDescriptor>).
+ * Iterates shape.fields and maps each ShapeFieldSpec to an InputParamDescriptor.
+ * Throws RuntimeError RILL-R004 if any field uses closure or tuple type.
+ */
+export function rillShapeToInputSchema(shape: RillShape): InputSchema {
+  const result: InputSchema = {};
+
+  for (const [name, field] of Object.entries(
+    shape.fields as Record<string, ShapeFieldSpec>
+  )) {
+    const type = shapeTypeToInputType(field.typeName);
+    const descriptor: InputParamDescriptor = { type };
+
+    if (!field.optional) {
+      descriptor.required = true;
+    }
+
+    const desc = field.annotations['description'];
+    if (typeof desc === 'string') {
+      descriptor.description = desc;
+    }
+
+    if ('default' in field.annotations) {
+      descriptor.default = field.annotations['default'];
+    }
+
+    result[name] = descriptor;
+  }
+
+  return result;
+}
+
+/**
+ * Converts a RillShape to an OutputSchema.
+ * Recursively serializes nested shapes into fields records.
+ * Throws RuntimeError RILL-R004 if any field uses closure or tuple type.
+ */
+export function rillShapeToOutputSchema(shape: RillShape): OutputSchema {
+  const fields: Record<string, OutputSchema> = {};
+
+  for (const [name, field] of Object.entries(
+    shape.fields as Record<string, ShapeFieldSpec>
+  )) {
+    const type = shapeTypeToInputType(field.typeName);
+    const entry: OutputSchema = { type };
+
+    const desc = field.annotations['description'];
+    if (typeof desc === 'string') {
+      entry.description = desc;
+    }
+
+    if (field.typeName === 'shape' && field.nestedShape !== undefined) {
+      entry.fields = rillShapeToOutputSchema(field.nestedShape).fields;
+    }
+
+    fields[name] = entry;
+  }
+
+  return { type: 'dict', fields };
+}
 
 // ============================================================
 // AGENT SKILL SCHEMA

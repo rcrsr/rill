@@ -22,6 +22,7 @@ export const VALID_TYPE_NAMES = [
   'dict',
   'tuple',
   'vector',
+  'shape',
   'any',
 ] as const;
 

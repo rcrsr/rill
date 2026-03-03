@@ -28,7 +28,10 @@ import {
   resolveExtensions,
   extractConfigSchema,
   generateAgentCard,
+  rillShapeToInputSchema,
+  rillShapeToOutputSchema,
 } from '@rcrsr/rill-agent-shared';
+import type { RillShape } from '@rcrsr/rill';
 
 // ============================================================
 // PUBLIC INTERFACES
@@ -37,6 +40,8 @@ import {
 export interface ComposeOptions {
   readonly basePath?: string | undefined;
   readonly config: Record<string, Record<string, unknown>>;
+  readonly inputShape?: RillShape | undefined;
+  readonly outputShape?: RillShape | undefined;
 }
 
 export interface ComposedHarness {
@@ -314,6 +319,16 @@ export async function composeAgent(
 ): Promise<ComposedAgent> {
   const basePath = options.basePath ?? process.cwd();
 
+  // Serialize RillShape options to InputSchema/OutputSchema if provided
+  const effectiveInput =
+    options.inputShape !== undefined
+      ? rillShapeToInputSchema(options.inputShape)
+      : manifest.input;
+  const effectiveOutput =
+    options.outputShape !== undefined
+      ? rillShapeToOutputSchema(options.outputShape)
+      : manifest.output;
+
   // Step 2: Resolve extensions (handles EC-3, EC-4, EC-5)
   const resolvedRaw = await resolveExtensions(manifest.extensions, {
     manifestDir: basePath,
@@ -391,7 +406,12 @@ export async function composeAgent(
   const entrySource = readFileSync(entryAbsPath, 'utf-8');
   const ast = parse(entrySource);
 
-  const card = generateAgentCard(manifest);
+  const manifestWithShapes: AgentManifest = {
+    ...manifest,
+    ...(effectiveInput !== undefined ? { input: effectiveInput } : {}),
+    ...(effectiveOutput !== undefined ? { output: effectiveOutput } : {}),
+  };
+  const card = generateAgentCard(manifestWithShapes);
 
   // Step 10: dispose() in reverse declaration order
   const reverseDispose = [...disposeHandlers].reverse();

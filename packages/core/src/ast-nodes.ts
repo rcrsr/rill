@@ -235,7 +235,12 @@ export type PrimaryNode =
   | GroupedExprNode
   | SpreadNode
   | TypeAssertionNode
-  | TypeCheckNode;
+  | TypeCheckNode
+  | ShapeLiteralNode
+  | VarTypeAssertionNode
+  | VarTypeCheckNode
+  | ShapeAssertionNode
+  | ShapeCheckNode;
 
 export type PipeTargetNode =
   | HostCallNode
@@ -257,6 +262,11 @@ export type PipeTargetNode =
   | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
+  | ShapeLiteralNode
+  | VarTypeAssertionNode
+  | VarTypeCheckNode
+  | ShapeAssertionNode
+  | ShapeCheckNode
   | EachExprNode
   | MapExprNode
   | FoldExprNode
@@ -342,6 +352,37 @@ export interface DictEntryNode extends BaseNode {
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
+}
+
+/**
+ * Shape literal: shape { field: type, ...spreads }
+ * Describes a structural type constraint with named fields.
+ *
+ * Examples:
+ *   shape { name: string, age: number }
+ *   shape { name: string, address: shape { city: string } }
+ *   shape { name: string, ...$baseShape }
+ */
+export interface ShapeLiteralNode extends BaseNode {
+  readonly type: 'ShapeLiteral';
+  readonly fields: ShapeFieldNode[];
+  readonly spreads: ExpressionNode[];
+}
+
+/**
+ * A single field declaration inside a shape literal.
+ * Examples:
+ *   name: string
+ *   age?: number
+ *   ^(label: "City") city: string
+ *   address: shape { city: string }
+ */
+export interface ShapeFieldNode extends BaseNode {
+  readonly type: 'ShapeField';
+  readonly name: string;
+  readonly fieldType: RillTypeName | ShapeLiteralNode;
+  readonly optional: boolean;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 // ============================================================
@@ -851,6 +892,86 @@ export interface TypeCheckNode extends BaseNode {
   readonly typeName: RillTypeName;
 }
 
+/**
+ * Variable type assertion: expr:$TypeVar
+ * Asserts that the expression matches the type bound to the given variable.
+ * Returns the value unchanged if assertion passes, errors on mismatch.
+ *
+ * Examples:
+ *   $val -> :$MyShape        # assert pipe value matches shape in $MyShape
+ *   fetchData():$Schema      # assert result matches type in $Schema
+ *
+ * When operand is null, it acts on the implicit $:
+ *   :$T ≡ $:$T
+ */
+export interface VarTypeAssertionNode extends BaseNode {
+  readonly type: 'VarTypeAssertion';
+  /** The expression to assert (null for bare :$T which uses $) */
+  readonly operand: PostfixExprNode | null;
+  /** Name of the variable holding the expected type/shape */
+  readonly varName: string;
+}
+
+/**
+ * Variable type check: expr:?$TypeVar
+ * Checks if the expression matches the type bound to the given variable.
+ * Returns true if types match, false otherwise.
+ *
+ * Examples:
+ *   $val -> :?$MyShape       # does pipe value match shape in $MyShape?
+ *   fetchData():?$Schema     # does result match type in $Schema?
+ *
+ * When operand is null, it checks the implicit $:
+ *   :?$T ≡ $:?$T
+ */
+export interface VarTypeCheckNode extends BaseNode {
+  readonly type: 'VarTypeCheck';
+  /** The expression to check (null for bare :?$T which uses $) */
+  readonly operand: PostfixExprNode | null;
+  /** Name of the variable holding the expected type/shape */
+  readonly varName: string;
+}
+
+/**
+ * Shape assertion: expr:shape { ... }
+ * Asserts that the expression matches an inline shape literal.
+ * Returns the value unchanged if assertion passes, errors on mismatch.
+ *
+ * Examples:
+ *   fetchData():shape { name: string, age: number }
+ *   $val -> :shape { id: number }
+ *
+ * When operand is null, it acts on the implicit $:
+ *   :shape { ... } ≡ $:shape { ... }
+ */
+export interface ShapeAssertionNode extends BaseNode {
+  readonly type: 'ShapeAssertion';
+  /** The expression to assert (null for bare :shape { } which uses $) */
+  readonly operand: PostfixExprNode | null;
+  /** The inline shape literal describing the expected structure */
+  readonly shape: ShapeLiteralNode;
+}
+
+/**
+ * Shape check: expr:?shape { ... }
+ * Checks if the expression matches an inline shape literal.
+ * Returns true if the structure matches, false otherwise.
+ *
+ * Examples:
+ *   fetchData():?shape { name: string, age: number }
+ *   $val -> :?shape { id: number }
+ *
+ * When operand is null, it checks the implicit $:
+ *   :?shape { ... } ≡ $:?shape { ... }
+ */
+export interface ShapeCheckNode extends BaseNode {
+  readonly type: 'ShapeCheck';
+  /** The expression to check (null for bare :?shape { } which uses $) */
+  readonly operand: PostfixExprNode | null;
+  /** The inline shape literal describing the expected structure */
+  readonly shape: ShapeLiteralNode;
+}
+
 export type SimplePrimaryNode =
   | LiteralNode
   | VariableNode
@@ -909,6 +1030,12 @@ export type ASTNode =
   | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
+  | ShapeLiteralNode
+  | ShapeFieldNode
+  | VarTypeAssertionNode
+  | VarTypeCheckNode
+  | ShapeAssertionNode
+  | ShapeCheckNode
   | AnnotatedStatementNode
   | NamedArgNode
   | SpreadArgNode

@@ -35,7 +35,7 @@ export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import type { RillValue } from './values.js';
-import { formatValue, inferType, isTuple } from './values.js';
+import { formatValue, inferType, isShape, isTuple } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -220,14 +220,15 @@ export function callable(
   };
 }
 
-/** Type guard for dict (plain object, not array, not callable, not tuple) */
+/** Type guard for dict (plain object, not array, not callable, not tuple, not shape) */
 export function isDict(value: RillValue): value is Record<string, RillValue> {
   return (
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
     !isCallable(value) &&
-    !isTuple(value)
+    !isTuple(value) &&
+    !isShape(value)
   );
 }
 

@@ -10,10 +10,16 @@ import type {
   HostCallNode,
   MethodCallNode,
   PipeInvokeNode,
+  PostfixExprNode,
   PrimaryNode,
+  ShapeAssertionNode,
+  ShapeCheckNode,
+  ShapeLiteralNode,
   SourceSpan,
   TypeAssertionNode,
   TypeCheckNode,
+  VarTypeAssertionNode,
+  VarTypeCheckNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
@@ -39,11 +45,23 @@ declare module './parser.js' {
     parseClosureCall(): ClosureCallNode;
     parsePipeInvoke(): PipeInvokeNode;
     parseMethodCall(receiverSpan?: SourceSpan | null): MethodCallNode;
-    parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
+    parseTypeOperation():
+      | TypeAssertionNode
+      | TypeCheckNode
+      | VarTypeAssertionNode
+      | VarTypeCheckNode
+      | ShapeAssertionNode
+      | ShapeCheckNode;
     parsePostfixTypeOperation(
       primary: PrimaryNode,
       start: { line: number; column: number; offset: number }
-    ): TypeAssertionNode | TypeCheckNode;
+    ):
+      | TypeAssertionNode
+      | TypeCheckNode
+      | VarTypeAssertionNode
+      | VarTypeCheckNode
+      | ShapeAssertionNode
+      | ShapeCheckNode;
   }
 }
 
@@ -212,7 +230,13 @@ Parser.prototype.parseMethodCall = function (
 
 Parser.prototype.parseTypeOperation = function (
   this: Parser
-): TypeAssertionNode | TypeCheckNode {
+):
+  | TypeAssertionNode
+  | TypeCheckNode
+  | VarTypeAssertionNode
+  | VarTypeCheckNode
+  | ShapeAssertionNode
+  | ShapeCheckNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
@@ -221,32 +245,66 @@ Parser.prototype.parseTypeOperation = function (
     advance(this.state);
   }
 
-  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
-
-  const span = makeSpan(start, current(this.state).span.end);
-
-  if (isCheck) {
+  // Disambiguation: $identifier → variable shape reference
+  if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+    advance(this.state); // consume $
+    const nameToken = expect(
+      this.state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected variable name after $'
+    );
+    const span = makeSpan(start, current(this.state).span.end);
+    if (isCheck) {
+      return {
+        type: 'VarTypeCheck',
+        operand: null,
+        varName: nameToken.value,
+        span,
+      };
+    }
     return {
-      type: 'TypeCheck',
+      type: 'VarTypeAssertion',
       operand: null,
-      typeName,
+      varName: nameToken.value,
       span,
     };
   }
 
-  return {
-    type: 'TypeAssertion',
-    operand: null,
-    typeName,
-    span,
-  };
+  // Disambiguation: shape followed by ( → inline shape validation
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(this.state).value === 'shape' &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    const shape: ShapeLiteralNode = this.parseShapeLiteral();
+    const span = makeSpan(start, current(this.state).span.end);
+    if (isCheck) {
+      return { type: 'ShapeCheck', operand: null, shape, span };
+    }
+    return { type: 'ShapeAssertion', operand: null, shape, span };
+  }
+
+  // Default: plain type name → existing TypeAssertion / TypeCheck
+  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+  const span = makeSpan(start, current(this.state).span.end);
+
+  if (isCheck) {
+    return { type: 'TypeCheck', operand: null, typeName, span };
+  }
+  return { type: 'TypeAssertion', operand: null, typeName, span };
 };
 
 Parser.prototype.parsePostfixTypeOperation = function (
   this: Parser,
   primary: PrimaryNode,
   start: { line: number; column: number; offset: number }
-): TypeAssertionNode | TypeCheckNode {
+):
+  | TypeAssertionNode
+  | TypeCheckNode
+  | VarTypeAssertionNode
+  | VarTypeCheckNode
+  | ShapeAssertionNode
+  | ShapeCheckNode {
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
@@ -254,31 +312,57 @@ Parser.prototype.parsePostfixTypeOperation = function (
     advance(this.state);
   }
 
-  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
-
-  const operand = {
+  const makeOperand = (): PostfixExprNode => ({
     type: 'PostfixExpr' as const,
     primary,
     methods: [],
     defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
-  };
+  });
 
-  const span = makeSpan(start, current(this.state).span.end);
-
-  if (isCheck) {
+  // Disambiguation: $identifier → variable shape reference
+  if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+    advance(this.state); // consume $
+    const nameToken = expect(
+      this.state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected variable name after $'
+    );
+    const operand = makeOperand();
+    const span = makeSpan(start, current(this.state).span.end);
+    if (isCheck) {
+      return { type: 'VarTypeCheck', operand, varName: nameToken.value, span };
+    }
     return {
-      type: 'TypeCheck',
+      type: 'VarTypeAssertion',
       operand,
-      typeName,
+      varName: nameToken.value,
       span,
     };
   }
 
-  return {
-    type: 'TypeAssertion',
-    operand,
-    typeName,
-    span,
-  };
+  // Disambiguation: shape followed by ( → inline shape validation
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(this.state).value === 'shape' &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    const shape: ShapeLiteralNode = this.parseShapeLiteral();
+    const operand = makeOperand();
+    const span = makeSpan(start, current(this.state).span.end);
+    if (isCheck) {
+      return { type: 'ShapeCheck', operand, shape, span };
+    }
+    return { type: 'ShapeAssertion', operand, shape, span };
+  }
+
+  // Default: plain type name → existing TypeAssertion / TypeCheck
+  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+  const operand = makeOperand();
+  const span = makeSpan(start, current(this.state).span.end);
+
+  if (isCheck) {
+    return { type: 'TypeCheck', operand, typeName, span };
+  }
+  return { type: 'TypeAssertion', operand, typeName, span };
 };

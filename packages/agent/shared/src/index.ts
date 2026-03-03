@@ -16,6 +16,8 @@ export {
   validateManifest,
   validateHarnessManifest,
   detectManifestType,
+  rillShapeToInputSchema,
+  rillShapeToOutputSchema,
 } from './schema.js';
 
 export type { ComposePhase, ManifestIssue } from './errors.js';

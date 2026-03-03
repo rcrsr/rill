@@ -37,7 +37,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Capture | `=>` |
 | Spread | `@` (sequential), `*` (tuple) |
 | Extraction | `*<>` (destructure), `/<>` (slice) |
-| Type | `:type` (assert), `:?type` (check) |
+| Type | `:type` (assert), `:?type` (check), `:$var` (shape assert), `:?$var` (shape check), `:shape(...)` (inline assert), `:?shape(...)` (inline check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type` |
@@ -84,9 +84,10 @@ See [Collections](topic-collections.md) for detailed documentation.
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
+| Shape | `shape(field: type)` | `shape(name: string)` | Shape value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `any`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -143,6 +144,23 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?($expr)` | Existence check (computed) |
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
+
+### Shape Validation
+
+Validate a dict against a shape. All forms use the `:` type position.
+
+| Syntax | Behavior | On Mismatch |
+|--------|----------|-------------|
+| `value -> :$shape` | Assert: dict matches shape in `$shape` | Halts with `RILL-R004` |
+| `value -> :?$shape` | Check: dict matches shape in `$shape` | Returns `false` |
+| `value -> :shape(field: type)` | Assert: dict matches inline shape | Halts with `RILL-R004` |
+| `value -> :?shape(field: type)` | Check: dict matches inline shape | Returns `false` |
+| `value -> :shape` | Assert: value is a shape type | Halts with `RILL-R004` |
+| `value -> :?shape` | Check: value is a shape type | Returns `false` |
+
+Disambiguation after `:` (and optional `?`): `$` → variable shape reference; `shape` followed by `(` → inline shape literal; `shape` without `(` → plain type assertion.
+
+See [Types](topic-types.md) for shape literal syntax and validation examples.
 
 ### Dispatch
 
@@ -274,6 +292,7 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
+| `to_shape(dict)` | Convert dict descriptor to shape value |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 

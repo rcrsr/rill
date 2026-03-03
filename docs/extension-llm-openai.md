@@ -120,6 +120,53 @@ $result.usage.input     # Input tokens
 $result.usage.output    # Output tokens
 ```
 
+**generate with a RillShape schema:**
+
+Pass a `shape(...)` value as `schema` to use field annotations and optional fields:
+
+```rill
+shape(
+  ^("Full name") name: string,
+  ^(description: "Age in years") age: number,
+  active: bool?
+) => $my_shape
+
+openai::generate("Extract user info: Alice, 30, active", [
+  schema: $my_shape,
+  system: "Extract structured data from the input.",
+]) => $result
+$result.data.name    # Extracted name field
+$result.data.age     # Extracted age field
+$result.data.active  # Extracted active field (optional)
+```
+
+The extension converts the shape to a JSON Schema object via `buildJsonSchema()` before sending to the provider. Field `description` and `enum` annotations map to JSON Schema `description` and `enum` properties.
+
+Shape fields using `closure` or `tuple` type are not representable in JSON Schema and throw:
+
+```text
+# Error: generate schema field 'fn' uses unsupported type 'closure'
+shape(fn: closure) => $bad_shape
+openai::generate("prompt", [schema: $bad_shape])
+```
+
+Use `to_shape()` to build a shape from a dict descriptor at runtime:
+
+```rill
+to_shape([
+  name: "string",
+  age: [type: "number", description: "Age in years"],
+  active: "bool",
+]) => $schema
+
+openai::generate("Extract user info: Alice, 30, active", [
+  schema: $schema,
+]) => $result
+$result.data.name    # Extracted name
+$result.data.age     # Extracted age
+$result.data.active  # Extracted active flag
+```
+
 ### Per-Call Options
 
 | Option | Type | Applies To | Description |
@@ -130,7 +177,7 @@ $result.usage.output    # Output tokens
 | `max_turns` | number | tool_loop | Limit LLM round-trips |
 | `max_errors` | number | tool_loop | Consecutive error limit (default: 3) |
 | `messages` | list | tool_loop, generate | Prepend conversation history |
-| `schema` | dict | generate (required) | Field-to-type mapping for structured output |
+| `schema` | dict or shape | generate (required) | Dict descriptor (legacy) or `RillShape` value for structured output |
 
 ## Result Dict
 
@@ -188,8 +235,9 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 **Generate errors**:
 
 - Missing schema → `RuntimeError RILL-R004: generate requires 'schema' option`
-- Unsupported type in schema → `RuntimeError RILL-R004` before HTTP call
-- JSON parse failure → `RuntimeError RILL-R004` with original parse error detail
+- Unsupported type in schema → `RuntimeError RILL-R004: unsupported schema type '{type}'`
+- Shape field with `closure` or `tuple` type → `RuntimeError RILL-R004: generate schema field '{name}' uses unsupported type '{type}'`
+- JSON parse failure → `RuntimeError RILL-R004: generate response parse failed: {detail}`
 
 ## Events
 

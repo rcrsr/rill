@@ -16,6 +16,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
+| Shape | `shape(field: type)` | `shape(name: string, age: number)` |
 
 **Key principles:**
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
@@ -472,6 +473,213 @@ $vec -> each { $ * 2 }
 
 ---
 
+## Shape
+
+A shape describes the expected structure of a dict — field names mapped to types with optional metadata. Shapes are first-class values with their own type.
+
+### Shape Literals
+
+```rill
+# Basic shape literal
+shape(name: string, age: number) => $s
+$s -> :?shape
+# Result: true
+
+$s -> :?dict
+# Result: false
+```
+
+### Optional Fields
+
+Append `?` to a field type to mark it optional:
+
+```rill
+shape(name: string, tag: string?) => $s
+[name: "Alice"] -> :$s
+# Result: [name: "Alice"]
+
+[name: "Alice", tag: "admin"] -> :$s
+# Result: [name: "Alice", tag: "admin"]
+```
+
+### Nested Shapes
+
+Use `shape(field: type)` or the `(field: type)` shorthand for nested structure:
+
+```rill
+# Explicit nested shape
+shape(meta: shape(ts: number)) => $s
+[meta: [ts: 5]] -> :$s
+# Result: [meta: [ts: 5]]
+
+# Shorthand — desugars to the same nested shape
+shape(meta: (ts: number)) => $s
+[meta: [ts: 5]] -> :$s
+# Result: [meta: [ts: 5]]
+```
+
+Nested validation errors report the full dot-separated path:
+
+```text
+shape(user: (address: (zip: string))) => $s
+[user: [address: [:]]] -> :$s
+# Error: missing required field "user.address.zip"
+```
+
+### Spread Composition
+
+Use `...` to inline all fields from a base shape:
+
+```rill
+shape(x: number) => $base
+shape(...$base, age: number) => $composed
+[x: 5, age: 30] -> :$composed
+# Result: [x: 5, age: 30]
+```
+
+Annotations from the source shape carry through to the composed shape.
+
+### Shape Validation
+
+Six forms cover dict validation and shape type assertions:
+
+| Form | Syntax | Behavior |
+|------|--------|----------|
+| Variable ref (assert) | `:$varName` | Halts on mismatch |
+| Variable ref (check) | `:?$varName` | Returns bool, never throws |
+| Inline literal (assert) | `:shape(field: type)` | Halts on mismatch |
+| Inline literal (check) | `:?shape(field: type)` | Returns bool, never throws |
+| Type assertion | `:shape` | Returns value if it is a shape type, halts otherwise |
+| Type check | `:?shape` | Returns `true` if value is a shape type, `false` otherwise |
+
+**Disambiguation:** After `:` (and optional `?`), `$` signals a variable shape reference, `shape` followed by `(` signals an inline shape literal, and `shape` without `(` is a plain type assertion on the value itself — checking whether the value is a shape, not validating dict contents against one.
+
+**Assert form:** Halts execution with `RILL-R004` on mismatch. Returns the dict unchanged on success.
+
+```rill
+shape(name: string, age: number) => $s
+[name: "Alice", age: 30] -> :$s
+# Result: [name: "Alice", age: 30]
+```
+
+Extra undeclared fields pass — validation is lenient:
+
+```rill
+shape(name: string) => $s
+[name: "Alice", extra: 99] -> :$s
+# Result: [name: "Alice", extra: 99]
+```
+
+Failure cases use `text` fences because they halt:
+
+```text
+shape(name: string) => $s
+[:] -> :$s
+# Error: Shape assertion failed: missing required field "name"
+
+[name: 42] -> :$s
+# Error: Shape assertion failed: field "name" expected string, got number
+
+42 -> :$s
+# Error: Shape assertion failed: expected dict, got number
+```
+
+**Check form:** Returns `true` or `false`, never halts:
+
+```rill
+shape(name: string) => $s
+[name: "Alice"] -> :?$s
+# Result: true
+
+[:] -> :?$s
+# Result: false
+```
+
+**Inline form:** Shape literal directly in type position:
+
+```rill
+[x: 5] -> :shape(x: number)
+# Result: [x: 5]
+
+[x: 5] -> :?shape(x: number)
+# Result: true
+
+[x: "hello"] -> :?shape(x: number)
+# Result: false
+```
+
+### Annotations on Shape Fields
+
+Attach metadata to individual fields using `^(...)` before the field name:
+
+```rill
+shape(^(enum: ["admin", "user"]) role: string) => $s
+[role: "admin"] -> :$s
+# Result: [role: "admin"]
+```
+
+The `enum` annotation enforces allowed values during both assert and check:
+
+```rill
+shape(^(enum: ["admin", "user"]) role: string) => $s
+[role: "guest"] -> :?$s
+# Result: false
+```
+
+Supported annotation keys:
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `description` | `string` | Human-readable field description |
+| `enum` | `list` | Allowed values — enforced during assert and check |
+| `default` | any | Default value hint for host tooling (metadata only) |
+
+### `to_shape()` Built-in
+
+Convert a dict descriptor to a shape value. Useful for building shapes programmatically:
+
+```rill
+# String field spec: "typeName" or "typeName?"
+to_shape([name: "string", count: "number?"]) => $s
+[name: "Alice"] -> :$s
+# Result: [name: "Alice"]
+
+# Dict with type key: type + annotations
+to_shape([role: [type: "string", enum: ["admin", "user"]]]) => $s
+[role: "admin"] -> :$s
+# Result: [role: "admin"]
+
+# Dict without type key: recursive nested shape
+to_shape([address: [street: "string", city: "string"]]) => $s
+[address: [street: "Main St", city: "Springfield"]] -> :$s
+# Result: [address: [street: "Main St", city: "Springfield"]]
+
+# Shape passthrough: returns unchanged
+shape(name: string) => $original
+to_shape($original) -> :?shape
+# Result: true
+```
+
+### Shape vs Dict
+
+Shapes and dicts are distinct types with different runtime behavior:
+
+| Property | Dict | Shape |
+|----------|------|-------|
+| `type` built-in | `"dict"` | `"shape"` |
+| `:?dict` check | `true` | `false` |
+| `:?shape` check | `false` | `true` |
+
+```rill
+[name: "Alice"] -> type
+# Result: "dict"
+
+shape(name: string) -> type
+# Result: "shape"
+```
+
+---
+
 ## Type Assertions
 
 Use type assertions to validate values at runtime.
@@ -511,7 +719,7 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `any`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`
 
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures.
 
@@ -612,6 +820,7 @@ Type annotations validate on assignment and prevent accidental type changes:
 |----------|-------------|
 | `type` | Returns type name as string |
 | `json` | Convert to JSON string |
+| `to_shape` | Convert dict descriptor to shape value |
 
 ```rill
 42 -> type                      # "number"
@@ -626,6 +835,14 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
 app::embed("test") -> type      # "vector"
+```
+
+```rill
+shape(name: string) -> type     # "shape"
+```
+
+```rill
+to_shape([name: "string", age: "number"]) -> type   # "shape"
 ```
 
 **`json` closure handling:**

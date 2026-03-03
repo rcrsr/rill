@@ -42,6 +42,25 @@ export interface RillVector {
   readonly model: string;
 }
 
+/**
+ * Shape field specification - describes a single field in a shape type.
+ */
+export interface ShapeFieldSpec {
+  typeName: string;
+  optional: boolean;
+  nestedShape: RillShape | undefined;
+  annotations: Record<string, RillValue>;
+}
+
+/**
+ * Shape type - represents a structural type declaration.
+ * Used to describe the expected shape of a dict value.
+ */
+export interface RillShape {
+  readonly __rill_shape: true;
+  readonly fields: Record<string, ShapeFieldSpec>;
+}
+
 /** Any value that can flow through Rill */
 export type RillValue =
   | string
@@ -52,7 +71,8 @@ export type RillValue =
   | { [key: string]: RillValue }
   | CallableMarker
   | RillTuple
-  | RillVector;
+  | RillVector
+  | RillShape;
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -71,6 +91,16 @@ export function isVector(value: RillValue): value is RillVector {
     value !== null &&
     '__rill_vector' in value &&
     value.__rill_vector === true
+  );
+}
+
+/** Type guard for RillShape */
+export function isShape(value: unknown): value is RillShape {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_shape' in value &&
+    (value as RillShape).__rill_shape === true
   );
 }
 
@@ -117,6 +147,7 @@ export function inferType(value: RillValue): RillTypeName {
   if (isTuple(value)) return 'tuple';
   if (isVector(value)) return 'vector';
   if (Array.isArray(value)) return 'list';
+  if (isShape(value)) return 'shape';
   if (
     typeof value === 'object' &&
     '__type' in value &&

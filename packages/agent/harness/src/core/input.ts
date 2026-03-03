@@ -5,7 +5,11 @@
  * can reuse the same parameter validation and default-injection logic.
  */
 
-import type { InputSchema } from '@rcrsr/rill-agent-shared';
+import type { RillShape } from '@rcrsr/rill';
+import {
+  type InputSchema,
+  rillShapeToInputSchema,
+} from '@rcrsr/rill-agent-shared';
 
 // ============================================================
 // INPUT VALIDATION TYPES
@@ -139,4 +143,16 @@ export function injectDefaults(
   }
 
   return result;
+}
+
+/**
+ * Validates params against a RillShape by first converting it to an InputSchema.
+ * Delegates to validateInputParams() after serialization.
+ */
+export function validateInputParamsFromShape(
+  params: Record<string, unknown> | undefined,
+  shape: RillShape
+): InputValidationIssue[] {
+  const inputSchema = rillShapeToInputSchema(shape);
+  return validateInputParams(params, inputSchema);
 }

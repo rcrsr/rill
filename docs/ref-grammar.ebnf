@@ -157,6 +157,7 @@ error-statement = "error" , string ;
 postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } ;
 
 primary       = literal
+              | shape-literal       (* shape(...) — inline shape validation value *)
               | variable
               | closure-call
               | host-call
@@ -527,13 +528,20 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    - Postfix: 42:number, (expr):type - binds tighter than method calls
    - Pipe target: -> :type - asserts on pipe value ($)
 
+   Disambiguation after ":":
+   - "$" identifier  → variable shape reference (type-target → shape-validation)
+   - "shape" "("     → inline shape literal (type-target → shape-validation)
+   - else            → existing type-name flow
+
    Examples:
    42:number                       -- postfix assertion
    (1 + 2):number                  -- postfix on grouped expr
    (($ < 5) @ ($ + 1)):number      -- postfix on loop result
    "hello" -> :string              -- pipe target assertion
-   $val -> :dict -> .keys          -- assert then continue chain *)
-type-assertion = ":" , type-name ;
+   $val -> :dict -> .keys          -- assert then continue chain
+   $val -> :shape(name: string)    -- inline shape assertion
+   $val -> :$myShape               -- variable shape assertion *)
+type-assertion = ":" , type-target ;
 
 (* Type check: check if value is a specific type, returns bool.
    Can be used as postfix (expr:?type) or pipe target (-> :?type).
@@ -541,10 +549,56 @@ type-assertion = ":" , type-name ;
    Examples:
    42:?number                      -- true (postfix)
    "hello":?number                 -- false (postfix)
-   $val -> :?list ? process()      -- conditional on type *)
-type-check    = ":" , "?" , type-name ;
+   $val -> :?list ? process()      -- conditional on type
+   $val -> :?shape(name: string)   -- true if matches shape *)
+type-check    = ":" , "?" , type-target ;
 
-type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "any" ;
+type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "shape" | "any" ;
+
+(* type-target selects the assertion/check subject.
+   Disambiguation (after ":" and optional "?"):
+   - "$" identifier → shape-validation (variable shape ref)
+   - "shape" "("    → shape-validation (inline shape literal)
+   - else           → type-name (existing primitive/collection types) *)
+type-target   = type-name
+              | shape-validation
+              | "$" , identifier ;
+
+(* shape-validation wraps a shape-literal for use in type positions. *)
+shape-validation = shape-literal ;
+
+(* shape-literal: structural shape for inline validation.
+   "shape" is NOT a reserved keyword. The parser recognizes it
+   contextually when "shape" identifier is followed by "(".
+
+   Examples:
+   shape(name: string, age: number)         -- required fields
+   shape(name: string, email: string?)      -- optional field
+   shape(name: string, addr: (street: string, city: string))  -- nested group
+   shape(name: string, ...expr)             -- spread: inline all fields from expr
+
+   Spread inlines all fields from the source shape expression.
+   The spread expression must evaluate to a shape at runtime. *)
+shape-literal = "shape" , "(" , [ shape-field , { "," , shape-field } ] , [ "," , "..." , expression ] , ")" ;
+
+(* shape-field: a single named field with its type constraint.
+   Optional annotation (e.g. ^("description")) provides field metadata. *)
+shape-field   = [ annotation ] , identifier , ":" , shape-type ;
+
+(* shape-type: the type constraint for a shape field.
+   Appending "?" marks the field as optional (value may be absent).
+   Alternatives:
+   - Primitive/collection type name, optionally optional
+   - Nested inline shape literal, optionally optional
+   - Nested shape group (shorthand "(...)"), optionally optional *)
+shape-type    = type-name , [ "?" ]
+              | shape-literal , [ "?" ]
+              | shape-group , [ "?" ] ;
+
+(* shape-group: shorthand for a nested shape using "(...)".
+   Desugars to ShapeLiteralNode at parse time.
+   (street: string, city: string)  ≡  shape(street: string, city: string) *)
+shape-group   = "(" , shape-field , { "," , shape-field } , ")" ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)

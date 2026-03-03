@@ -70,14 +70,18 @@ export {
 
 export type {
   RillIterator,
+  RillShape,
   RillTuple,
   RillValue,
   RillVector,
+  ShapeFieldSpec,
 } from './core/values.js';
 
 export {
   createVector,
+  inferType,
   isRillIterator,
+  isShape,
   isTuple,
   isVector,
   isReservedMethod,

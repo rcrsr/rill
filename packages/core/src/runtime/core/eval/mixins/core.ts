@@ -303,6 +303,74 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateTypeCheck(primary, checkValue);
         }
 
+        case 'VarTypeAssertion': {
+          if (!primary.operand) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'Postfix var type assertion requires operand',
+              primary.span.start
+            );
+          }
+          const varAssertValue = await this.evaluatePostfixExpr(
+            primary.operand
+          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateVarTypeAssertion(
+            primary,
+            varAssertValue
+          );
+        }
+
+        case 'VarTypeCheck': {
+          if (!primary.operand) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'Postfix var type check requires operand',
+              primary.span.start
+            );
+          }
+          const varCheckValue = await this.evaluatePostfixExpr(primary.operand);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateVarTypeCheck(primary, varCheckValue);
+        }
+
+        case 'ShapeAssertion': {
+          if (!primary.operand) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'Postfix shape assertion requires operand',
+              primary.span.start
+            );
+          }
+          const shapeAssertValue = await this.evaluatePostfixExpr(
+            primary.operand
+          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateShapeAssertion(
+            primary,
+            shapeAssertValue
+          );
+        }
+
+        case 'ShapeCheck': {
+          if (!primary.operand) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'Postfix shape check requires operand',
+              primary.span.start
+            );
+          }
+          const shapeCheckValue = await this.evaluatePostfixExpr(
+            primary.operand
+          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateShapeCheck(primary, shapeCheckValue);
+        }
+
+        case 'ShapeLiteral':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateShapeLiteral(primary);
+
         default:
           throw new RuntimeError(
             'RILL-R004',
@@ -465,6 +533,22 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'TypeCheck':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateTypeCheck(target, input);
+
+        case 'VarTypeAssertion':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateVarTypeAssertion(target, input);
+
+        case 'VarTypeCheck':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateVarTypeCheck(target, input);
+
+        case 'ShapeAssertion':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateShapeAssertion(target, input);
+
+        case 'ShapeCheck':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateShapeCheck(target, input);
 
         case 'EachExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
