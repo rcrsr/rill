@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dict-form tools for tool_loop** — Tools declared as plain dicts instead of `tool()` calls. Script tools use annotated closures `^("desc") |params| { body }`; host functions use bare `ns::name` references. Fewer concepts, less boilerplate, same capabilities
+
 ### Added
 
+- **Shape type** — Structural contract type with literal syntax `shape(name: string, age: number)`, inline validation (`:shape(...)`), variable validation (`:$var`), and spread composition. Public API exports `isShape()`, `RillShape`, `ShapeFieldSpec`, `inferType`
 - **Agent harness** (`@rcrsr/rill-agent-harness`) — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown. Multi-agent mode runs N agents in one process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
 - **Agent-to-agent invocation** (`@rcrsr/rill-agent-ext-ahi`) — AHI extension for HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-agent-registry`
 - **Agent bundle CLI** (`@rcrsr/rill-agent-bundle`) — Manifest-driven agent composition with `build`, `init`, and `check` subcommands. Compiles `agent.json` manifests into deployable bundles with SHA-256 checksums, platform compatibility checking, and esbuild-compiled custom functions. Env sources load variables from process.env and .env files
