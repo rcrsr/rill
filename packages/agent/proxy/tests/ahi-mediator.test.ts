@@ -467,3 +467,65 @@ describe('createAhiHandler', () => {
     });
   });
 });
+
+describe('AC-61: circular A→B→A stays bounded', () => {
+  it('handles circular AHI calls A→B→A — two handler invocations, two spawn calls, both resolve', async () => {
+    // Catalog has both agent-a and agent-b
+    const entryA = makeMockEntry('agent-a');
+    const entryB = makeMockEntry('agent-b');
+    const catalog: Catalog = {
+      entries: new Map([
+        ['agent-a', entryA],
+        ['agent-b', entryB],
+      ]),
+      get: (name) =>
+        name === 'agent-a' ? entryA : name === 'agent-b' ? entryB : undefined,
+      refresh: vi.fn(),
+    };
+
+    // spawn resolves immediately for both calls (simulating bounded concurrency)
+    const spawnFn = vi
+      .fn()
+      .mockResolvedValueOnce(makeRunResult({ from: 'agent-b' })) // A→B
+      .mockResolvedValueOnce(makeRunResult({ from: 'agent-a' })); // B→A
+
+    const processManager: ProcessManager = {
+      spawn: spawnFn,
+      active: vi.fn().mockReturnValue([]),
+      activeCount: 0,
+    };
+
+    const handler = createAhiHandler(
+      catalog,
+      processManager,
+      5000,
+      'corr-root'
+    );
+    const { child: childA, capturedStdinLines: linesA } = makeMockChild();
+    const { child: childB, capturedStdinLines: linesB } = makeMockChild();
+
+    // A calls B, B calls A back (circular) — both invocations are sequential in this unit test
+    await handler(childA, makeAhiRequest('agent-b', { id: 'req-a-to-b' }));
+    await handler(childB, makeAhiRequest('agent-a', { id: 'req-b-to-a' }));
+
+    await waitForLine(linesA);
+    await waitForLine(linesB);
+
+    // Two spawn calls total — bounded (no infinite loop)
+    expect(spawnFn).toHaveBeenCalledTimes(2);
+
+    // A received the result from B
+    const resultA = linesA()[0];
+    expect(resultA!.method).toBe('ahi.result');
+    expect(resultA!.id).toBe('req-a-to-b');
+    expect(resultA!.result).toEqual({ from: 'agent-b' });
+    expect(resultA!.error).toBeUndefined();
+
+    // B received the result from A
+    const resultB = linesB()[0];
+    expect(resultB!.method).toBe('ahi.result');
+    expect(resultB!.id).toBe('req-b-to-a');
+    expect(resultB!.result).toEqual({ from: 'agent-a' });
+    expect(resultB!.error).toBeUndefined();
+  });
+});

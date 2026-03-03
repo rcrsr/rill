@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { serve, type ServerType } from '@hono/node-server';
 import type {
+  AgentCard,
   ComposedHandler,
   ComposedHandlerMap,
   RunRequest,
@@ -32,6 +33,7 @@ export interface HttpHarnessOptions {
   readonly sessionTtl?: number | undefined;
   readonly registryUrl?: string | undefined;
   readonly logLevel?: 'silent' | 'info' | 'debug' | undefined;
+  readonly cards?: Map<string, AgentCard> | undefined;
 }
 
 /**
@@ -133,6 +135,7 @@ export function createHttpHarness(
 ): HttpHarness {
   const port = options?.port ?? DEFAULT_PORT;
   const hostname = options?.host ?? DEFAULT_HOST;
+  const cards = options?.cards;
 
   const app = new Hono();
 
@@ -177,6 +180,20 @@ export function createHttpHarness(
         return c.json({ error: result.error }, result.status as 429 | 500);
       }
       return c.json(result.response, 200);
+    });
+
+    app.get(`/:agentName/card`, (c) => {
+      const routeName = c.req.param('agentName');
+      if (routeName !== name) {
+        return c.json({ error: 'not found' }, 404);
+      }
+
+      const card = cards?.get(name);
+      if (card === undefined) {
+        return c.json({ error: 'not found' }, 404);
+      }
+
+      return c.json(card, 200);
     });
   }
 

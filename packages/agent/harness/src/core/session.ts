@@ -5,7 +5,8 @@
 
 import { randomUUID } from 'node:crypto';
 import { AgentHostError } from './errors.js';
-import type { RunRequest, SessionRecord } from './types.js';
+import type { RunRequest } from '@rcrsr/rill-agent-shared';
+import type { SessionRecord } from './types.js';
 
 // ============================================================
 // INTERNAL STATE

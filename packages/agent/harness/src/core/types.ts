@@ -32,7 +32,14 @@ export interface SessionRecord {
   /** Incremented per onStepEnd */
   stepCount: number;
   variables: Record<string, RillValue>;
-  readonly trigger: RunRequest['trigger'];
+  readonly trigger?:
+    | string
+    | {
+        readonly type: 'agent';
+        readonly agentName: string;
+        readonly sessionId: string;
+      }
+    | undefined;
   readonly correlationId: string;
   /** Execution or delivery error */
   error?: string | undefined;

@@ -17,7 +17,7 @@ import type {
 } from '@rcrsr/rill-agent-shared';
 import type { SessionManager } from './session.js';
 import type { MetricsBundle } from './metrics.js';
-import type { RunRequest as LocalRunRequest, SessionState } from './types.js';
+import type { SessionState } from './types.js';
 
 // ============================================================
 // DISPATCH OPTIONS
@@ -64,11 +64,7 @@ export async function dispatch(
   const correlationId = request.correlationId ?? randomUUID();
 
   // Create session — throws AgentHostError('session limit reached') at capacity
-  const record = sessionManager.create(
-    request as unknown as LocalRunRequest,
-    correlationId,
-    agentName
-  );
+  const record = sessionManager.create(request, correlationId, agentName);
   const sessionId = record.id;
 
   metrics?.sessionsActive.labels({ agent: agentName }).inc();
