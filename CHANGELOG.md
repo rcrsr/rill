@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Annotation system overhaul** — Annotations precede params (`|^("desc") name: type|`), loops accept `^(limit: N)`, `vector`/`any` types added, return type declarations (`|x| -> string {}`), auto-`description` shorthand
 - **Agent bootstrapping docs** — Reference `rill-agent-bundle init` instead of `rill-create-agent`
 - **OutputDescriptor → OutputSchema** — Renamed for consistency across agent packages
 
