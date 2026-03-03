@@ -6,16 +6,16 @@
 $feedback -> assert (.len > 0) "feedback param is required"
 
 # Structured schema for analysis results
-[
-  sentiment: [type: "string", enum: ["positive", "negative", "mixed"], description: "Overall sentiment"],
-  issues: [type: "list", items: "string", description: "Specific issues mentioned"],
-  urgency: [type: "string", enum: ["low", "medium", "high"], description: "How urgent the feedback is"],
-  category: [type: "string", enum: ["onboarding", "billing", "performance", "support", "other"], description: "Feedback category"]
-] => $schema
+shape(
+  ^("Overall sentiment", enum: ["positive", "negative", "mixed"]) sentiment: string,
+  ^("Specific issues mentioned") issues: list,
+  ^("How urgent the feedback is", enum: ["low", "medium", "high"]) urgency: string,
+  ^("Feedback category", enum: ["onboarding", "billing", "performance", "support", "other"]) category: string
+) => $schema
 
 # Step 1: Extract structured analysis via generate()
 llm::generate("Analyze this customer feedback: {$feedback}", [schema: $schema]) => $analysis
-  -> .data => $data
+  -> .data -> :$schema => $data
   -> "analyzed: sentiment={.sentiment}, urgency={.urgency}, category={.category}" -> log
 
 # Step 2: Draft a response using message()
