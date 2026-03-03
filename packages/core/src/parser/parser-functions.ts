@@ -18,8 +18,6 @@ import type {
   SourceSpan,
   TypeAssertionNode,
   TypeCheckNode,
-  VarTypeAssertionNode,
-  VarTypeCheckNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
@@ -31,11 +29,8 @@ import {
   peek,
   skipNewlines,
 } from './state.js';
-import {
-  VALID_TYPE_NAMES,
-  parseTypeName,
-  isIdentifierOrKeyword,
-} from './helpers.js';
+import { isIdentifierOrKeyword } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -48,20 +43,12 @@ declare module './parser.js' {
     parseTypeOperation():
       | TypeAssertionNode
       | TypeCheckNode
-      | VarTypeAssertionNode
-      | VarTypeCheckNode
       | ShapeAssertionNode
       | ShapeCheckNode;
     parsePostfixTypeOperation(
       primary: PrimaryNode,
       start: { line: number; column: number; offset: number }
-    ):
-      | TypeAssertionNode
-      | TypeCheckNode
-      | VarTypeAssertionNode
-      | VarTypeCheckNode
-      | ShapeAssertionNode
-      | ShapeCheckNode;
+    ): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode;
   }
 }
 
@@ -230,13 +217,7 @@ Parser.prototype.parseMethodCall = function (
 
 Parser.prototype.parseTypeOperation = function (
   this: Parser
-):
-  | TypeAssertionNode
-  | TypeCheckNode
-  | VarTypeAssertionNode
-  | VarTypeCheckNode
-  | ShapeAssertionNode
-  | ShapeCheckNode {
+): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
@@ -245,7 +226,7 @@ Parser.prototype.parseTypeOperation = function (
     advance(this.state);
   }
 
-  // Disambiguation: $identifier → variable shape reference
+  // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
     const nameToken = expect(
@@ -253,21 +234,12 @@ Parser.prototype.parseTypeOperation = function (
       TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
+    const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
     const span = makeSpan(start, current(this.state).span.end);
     if (isCheck) {
-      return {
-        type: 'VarTypeCheck',
-        operand: null,
-        varName: nameToken.value,
-        span,
-      };
+      return { type: 'TypeCheck', operand: null, typeRef, span };
     }
-    return {
-      type: 'VarTypeAssertion',
-      operand: null,
-      varName: nameToken.value,
-      span,
-    };
+    return { type: 'TypeAssertion', operand: null, typeRef, span };
   }
 
   // Disambiguation: shape followed by ( → inline shape validation
@@ -285,26 +257,22 @@ Parser.prototype.parseTypeOperation = function (
   }
 
   // Default: plain type name → existing TypeAssertion / TypeCheck
-  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+  const typeRef = parseTypeRef(this.state);
+  if (typeRef.kind !== 'static')
+    throw new Error('Unreachable: $ already handled above');
   const span = makeSpan(start, current(this.state).span.end);
 
   if (isCheck) {
-    return { type: 'TypeCheck', operand: null, typeName, span };
+    return { type: 'TypeCheck', operand: null, typeRef, span };
   }
-  return { type: 'TypeAssertion', operand: null, typeName, span };
+  return { type: 'TypeAssertion', operand: null, typeRef, span };
 };
 
 Parser.prototype.parsePostfixTypeOperation = function (
   this: Parser,
   primary: PrimaryNode,
   start: { line: number; column: number; offset: number }
-):
-  | TypeAssertionNode
-  | TypeCheckNode
-  | VarTypeAssertionNode
-  | VarTypeCheckNode
-  | ShapeAssertionNode
-  | ShapeCheckNode {
+): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode {
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
@@ -320,7 +288,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
     span: makeSpan(start, current(this.state).span.end),
   });
 
-  // Disambiguation: $identifier → variable shape reference
+  // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
     const nameToken = expect(
@@ -328,17 +296,13 @@ Parser.prototype.parsePostfixTypeOperation = function (
       TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
+    const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
     const operand = makeOperand();
     const span = makeSpan(start, current(this.state).span.end);
     if (isCheck) {
-      return { type: 'VarTypeCheck', operand, varName: nameToken.value, span };
+      return { type: 'TypeCheck', operand, typeRef, span };
     }
-    return {
-      type: 'VarTypeAssertion',
-      operand,
-      varName: nameToken.value,
-      span,
-    };
+    return { type: 'TypeAssertion', operand, typeRef, span };
   }
 
   // Disambiguation: shape followed by ( → inline shape validation
@@ -357,12 +321,14 @@ Parser.prototype.parsePostfixTypeOperation = function (
   }
 
   // Default: plain type name → existing TypeAssertion / TypeCheck
-  const typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+  const typeRef = parseTypeRef(this.state);
+  if (typeRef.kind !== 'static')
+    throw new Error('Unreachable: $ already handled above');
   const operand = makeOperand();
   const span = makeSpan(start, current(this.state).span.end);
 
   if (isCheck) {
-    return { type: 'TypeCheck', operand, typeName, span };
+    return { type: 'TypeCheck', operand, typeRef, span };
   }
-  return { type: 'TypeAssertion', operand, typeName, span };
+  return { type: 'TypeAssertion', operand, typeRef, span };
 };

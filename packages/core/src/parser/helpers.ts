@@ -12,24 +12,14 @@ import type {
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
+import { VALID_TYPE_NAMES } from '../constants.js';
 
 // ============================================================
 // VALID TYPE NAMES
 // ============================================================
 
 /** @internal */
-export const VALID_TYPE_NAMES = [
-  'string',
-  'number',
-  'bool',
-  'closure',
-  'list',
-  'dict',
-  'tuple',
-  'vector',
-  'shape',
-  'any',
-] as const;
+export { VALID_TYPE_NAMES };
 
 /**
  * Valid return type names for closure return type annotations.

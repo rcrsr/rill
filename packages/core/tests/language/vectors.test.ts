@@ -9,10 +9,10 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Vector Type', () => {
-  describe('type() function [AC-9]', () => {
+  describe('.^type.^name operator [AC-9]', () => {
     it('returns "vector" for vector values', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'test-model');
-      const actual = await run('get_vector() => $v\ntype($v)', {
+      const actual = await run('get_vector() => $v\n$v.^type.^name', {
         functions: {
           get_vector: {
             params: [],

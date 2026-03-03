@@ -131,7 +131,7 @@ $math.constants.pi      # 3.14159
 
 # Standard dict operations work
 $math -> .keys          # ["double", "triple", "clamp", "constants"]
-$math -> type           # "dict"
+$math.^type             # dict
 ```
 
 This aligns with rill's existing patterns:

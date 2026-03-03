@@ -495,7 +495,7 @@ See [Closures](topic-closures.md) for parameter annotation examples and patterns
 
 ## Return Type Declarations
 
-The `-> type` syntax after the closing `|` attaches return type metadata to a closure. Return types are **not enforced at runtime** — they are metadata for host applications and tooling.
+The `-> type` syntax after the closing `|` attaches return type metadata to a closure. Return types are **not enforced at runtime** — they are metadata for host applications and tooling. This `-> type` annotation is distinct from `type` as a value expression (e.g. `$val.^type`). The old `type()` builtin function has been removed; use the `.^type` accessor to read a value's type at runtime.
 
 **Syntax:** `|params| -> returnType { body }`
 

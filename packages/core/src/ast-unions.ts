@@ -53,8 +53,6 @@ export type NodeType =
   | 'TypeCheck'
   | 'ShapeLiteral'
   | 'ShapeField'
-  | 'VarTypeAssertion'
-  | 'VarTypeCheck'
   | 'ShapeAssertion'
   | 'ShapeCheck'
   | 'AnnotatedStatement'

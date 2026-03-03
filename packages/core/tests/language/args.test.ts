@@ -11,22 +11,22 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   describe('Spread operator *', () => {
     describe('Prefix form: *expr', () => {
       it('creates tuple from list literal', async () => {
-        const result = await run('type(*[1, 2, 3])');
+        const result = await run('*[1, 2, 3] => $t\n$t.^type.^name');
         expect(result).toBe('tuple');
       });
 
       it('creates tuple from dict literal', async () => {
-        const result = await run('type(*[x: 1, y: 2])');
+        const result = await run('*[x: 1, y: 2] => $t\n$t.^type.^name');
         expect(result).toBe('tuple');
       });
 
       it('creates tuple from list variable', async () => {
-        const result = await run('[1, 2] => $t\ntype(*$t)');
+        const result = await run('[1, 2] => $t\n*$t => $u\n$u.^type.^name');
         expect(result).toBe('tuple');
       });
 
       it('creates tuple from dict variable', async () => {
-        const result = await run('[a: 1] => $d\ntype(*$d)');
+        const result = await run('[a: 1] => $d\n*$d => $u\n$u.^type.^name');
         expect(result).toBe('tuple');
       });
 
@@ -42,12 +42,12 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     describe('Pipe target form: -> *', () => {
       it('converts pipe value to tuple', async () => {
-        const result = await run('[1, 2, 3] -> * -> type');
+        const result = await run('[1, 2, 3] -> * => $t\n$t.^type.^name');
         expect(result).toBe('tuple');
       });
 
       it('works in pipeline', async () => {
-        const result = await run('[1, 2] -> * -> type');
+        const result = await run('[1, 2] -> * => $t\n$t.^type.^name');
         expect(result).toBe('tuple');
       });
     });
@@ -190,7 +190,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     it('stores tuple in variable', async () => {
       const result = await run(`
         *[1, 2, 3] => $myTuple
-        type($myTuple)
+        $myTuple.^type.^name
       `);
       expect(result).toBe('tuple');
     });
@@ -207,7 +207,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     it('supports type annotation', async () => {
       const result = await run(`
         *[1, 2] => $a:tuple
-        type($a)
+        $a.^type.^name
       `);
       expect(result).toBe('tuple');
     });
@@ -233,7 +233,7 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
       const result = await run(`
         [1, 2] => $list
         *[1, 2] => $tuple
-        type($list) -> .eq(type($tuple))
+        $list.^type.^name -> .eq($tuple.^type.^name)
       `);
       expect(result).toBe(false);
     });
@@ -258,33 +258,33 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   });
 
   describe('Global functions', () => {
-    describe('type()', () => {
+    describe('.^type.^name operator', () => {
       it('returns "tuple" for spread tuple value', async () => {
-        expect(await run('type(*[1, 2])')).toBe('tuple');
+        expect(await run('*[1, 2] => $t\n$t.^type.^name')).toBe('tuple');
       });
 
       it('returns "list" for list', async () => {
-        expect(await run('type([1, 2])')).toBe('list');
+        expect(await run('[1, 2] => $v\n$v.^type.^name')).toBe('list');
       });
 
       it('returns "dict" for dict', async () => {
-        expect(await run('type([a: 1])')).toBe('dict');
+        expect(await run('[a: 1] => $v\n$v.^type.^name')).toBe('dict');
       });
 
       it('returns "string" for string', async () => {
-        expect(await run('type("hello")')).toBe('string');
+        expect(await run('"hello" => $v\n$v.^type.^name')).toBe('string');
       });
 
       it('returns "number" for number', async () => {
-        expect(await run('type(42)')).toBe('number');
+        expect(await run('42 => $v\n$v.^type.^name')).toBe('number');
       });
 
       it('returns "bool" for boolean', async () => {
-        expect(await run('type(true)')).toBe('bool');
+        expect(await run('true => $v\n$v.^type.^name')).toBe('bool');
       });
 
       it('returns "closure" for closure', async () => {
-        expect(await run('|| { 1 } => $fn\ntype($fn)')).toBe('closure');
+        expect(await run('|| { 1 } => $fn\n$fn.^type.^name')).toBe('closure');
       });
     });
 

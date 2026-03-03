@@ -1,5 +1,9 @@
 import type { SourceSpan } from './source-location.js';
-import type { RillFunctionReturnType, RillTypeName } from './value-types.js';
+import type {
+  RillFunctionReturnType,
+  RillTypeName,
+  TypeRef,
+} from './value-types.js';
 
 interface BaseNode {
   readonly span: SourceSpan;
@@ -52,7 +56,7 @@ export interface ClosureNode extends BaseNode {
 export interface ClosureParamNode extends BaseNode {
   readonly type: 'ClosureParam';
   readonly name: string;
-  readonly typeName: RillTypeName | null; // null = untyped
+  readonly typeRef: TypeRef | null; // null = untyped
   readonly defaultValue: LiteralNode | null;
   readonly annotations?: AnnotationArg[] | undefined; // Parameter-level annotations (default: empty array)
 }
@@ -131,8 +135,8 @@ export interface SpreadArgNode extends BaseNode {
 export interface CaptureNode extends BaseNode {
   readonly type: 'Capture';
   readonly name: string;
-  /** Optional explicit type annotation: $name:string */
-  readonly typeName: RillTypeName | null;
+  /** Optional explicit type annotation: $name:type or $name:$t */
+  readonly typeRef: TypeRef | null;
 }
 
 /**
@@ -239,10 +243,9 @@ export type PrimaryNode =
   | TypeAssertionNode
   | TypeCheckNode
   | ShapeLiteralNode
-  | VarTypeAssertionNode
-  | VarTypeCheckNode
   | ShapeAssertionNode
-  | ShapeCheckNode;
+  | ShapeCheckNode
+  | TypeNameExprNode;
 
 export type PipeTargetNode =
   | HostCallNode
@@ -266,8 +269,6 @@ export type PipeTargetNode =
   | TypeAssertionNode
   | TypeCheckNode
   | ShapeLiteralNode
-  | VarTypeAssertionNode
-  | VarTypeCheckNode
   | ShapeAssertionNode
   | ShapeCheckNode
   | EachExprNode
@@ -383,7 +384,7 @@ export interface ShapeLiteralNode extends BaseNode {
 export interface ShapeFieldNode extends BaseNode {
   readonly type: 'ShapeField';
   readonly name: string;
-  readonly fieldType: RillTypeName | ShapeLiteralNode;
+  readonly fieldType: TypeRef | ShapeLiteralNode;
   readonly optional: boolean;
   readonly annotations?: AnnotationArg[] | undefined;
 }
@@ -891,8 +892,8 @@ export interface TypeAssertionNode extends BaseNode {
   readonly type: 'TypeAssertion';
   /** The expression to assert (null for bare :type which uses $) */
   readonly operand: PostfixExprNode | null;
-  /** The expected type */
-  readonly typeName: RillTypeName;
+  /** The expected type reference (static or dynamic) */
+  readonly typeRef: TypeRef;
 }
 
 /**
@@ -913,48 +914,8 @@ export interface TypeCheckNode extends BaseNode {
   readonly type: 'TypeCheck';
   /** The expression to check (null for bare :?type which uses $) */
   readonly operand: PostfixExprNode | null;
-  /** The type to check for */
-  readonly typeName: RillTypeName;
-}
-
-/**
- * Variable type assertion: expr:$TypeVar
- * Asserts that the expression matches the type bound to the given variable.
- * Returns the value unchanged if assertion passes, errors on mismatch.
- *
- * Examples:
- *   $val -> :$MyShape        # assert pipe value matches shape in $MyShape
- *   fetchData():$Schema      # assert result matches type in $Schema
- *
- * When operand is null, it acts on the implicit $:
- *   :$T ≡ $:$T
- */
-export interface VarTypeAssertionNode extends BaseNode {
-  readonly type: 'VarTypeAssertion';
-  /** The expression to assert (null for bare :$T which uses $) */
-  readonly operand: PostfixExprNode | null;
-  /** Name of the variable holding the expected type/shape */
-  readonly varName: string;
-}
-
-/**
- * Variable type check: expr:?$TypeVar
- * Checks if the expression matches the type bound to the given variable.
- * Returns true if types match, false otherwise.
- *
- * Examples:
- *   $val -> :?$MyShape       # does pipe value match shape in $MyShape?
- *   fetchData():?$Schema     # does result match type in $Schema?
- *
- * When operand is null, it checks the implicit $:
- *   :?$T ≡ $:?$T
- */
-export interface VarTypeCheckNode extends BaseNode {
-  readonly type: 'VarTypeCheck';
-  /** The expression to check (null for bare :?$T which uses $) */
-  readonly operand: PostfixExprNode | null;
-  /** Name of the variable holding the expected type/shape */
-  readonly varName: string;
+  /** The type reference to check for (static or dynamic) */
+  readonly typeRef: TypeRef;
 }
 
 /**
@@ -995,6 +956,21 @@ export interface ShapeCheckNode extends BaseNode {
   readonly operand: PostfixExprNode | null;
   /** The inline shape literal describing the expected structure */
   readonly shape: ShapeLiteralNode;
+}
+
+/**
+ * Type name expression: a bare type keyword used as a first-class value.
+ * Produces a type value that can be passed to type assertion/check operators
+ * or stored in variables.
+ *
+ * Examples:
+ *   string          # the type value for 'string'
+ *   number -> :type # assert the result is of kind 'type'
+ */
+export interface TypeNameExprNode extends BaseNode {
+  readonly type: 'TypeNameExpr';
+  /** The rill type name this expression represents */
+  readonly typeName: RillTypeName;
 }
 
 export type SimplePrimaryNode =
@@ -1058,8 +1034,6 @@ export type ASTNode =
   | TypeCheckNode
   | ShapeLiteralNode
   | ShapeFieldNode
-  | VarTypeAssertionNode
-  | VarTypeCheckNode
   | ShapeAssertionNode
   | ShapeCheckNode
   | AnnotatedStatementNode
@@ -1071,4 +1045,5 @@ export type ASTNode =
   | FoldExprNode
   | FilterExprNode
   | RecoveryErrorNode
-  | ErrorNode;
+  | ErrorNode
+  | TypeNameExprNode;

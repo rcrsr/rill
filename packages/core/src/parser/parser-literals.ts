@@ -18,10 +18,10 @@ import type {
   ListSpreadNode,
   BodyNode,
   RillFunctionReturnType,
-  RillTypeName,
   SourceLocation,
   StringLiteralNode,
   TupleNode,
+  TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { tokenize } from '../lexer/index.js';
@@ -35,11 +35,11 @@ import {
 } from './state.js';
 import {
   isDictStart,
-  VALID_TYPE_NAMES,
   VALID_RETURN_TYPES,
   parseTypeName,
   isNegativeNumber,
 } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -627,14 +627,14 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     'Expected parameter name'
   );
 
-  let typeName: RillTypeName | null = null;
+  let typeRef: TypeRef | null = null;
   let defaultValue: LiteralNode | null = null;
 
   skipNewlines(this.state);
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     skipNewlines(this.state);
-    typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+    typeRef = parseTypeRef(this.state);
   }
 
   skipNewlines(this.state);
@@ -647,7 +647,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   return {
     type: 'ClosureParam',
     name: nameToken.value,
-    typeName,
+    typeRef,
     defaultValue,
     annotations,
     span: makeSpan(start, current(this.state).span.end),

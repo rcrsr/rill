@@ -23,8 +23,10 @@ import type {
   PipeTargetNode,
   PostfixExprNode,
   PrimaryNode,
+  RillTypeName,
   SourceLocation,
   SourceSpan,
+  TypeNameExprNode,
   UnaryExprNode,
   VariableNode,
 } from '../types.js';
@@ -53,8 +55,8 @@ import {
   parseBareHostCall,
   isDictStart,
   VALID_TYPE_NAMES,
-  parseTypeName,
 } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 /** Constructs valid as both primary expressions and pipe targets */
 type CommonConstruct =
@@ -617,6 +619,22 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseShapeLiteral();
   }
 
+  // Type name expression: bare type name in expression position (e.g. `number`, `string`)
+  // Must come after shape(...) check to avoid capturing `shape` when followed by LPAREN.
+  // Invalid type names fall through to the host call path (EC-6).
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    VALID_TYPE_NAMES.includes(current(this.state).value as RillTypeName) &&
+    this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
+  ) {
+    const token = advance(this.state);
+    return {
+      type: 'TypeNameExpr',
+      typeName: token.value as RillTypeName,
+      span: token.span,
+    } satisfies TypeNameExprNode;
+  }
+
   // Function call with parens
   if (isHostCall(this.state)) {
     return this.parseHostCall();
@@ -906,16 +924,16 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
     'Expected variable name'
   );
 
-  let typeName: CaptureNode['typeName'] = null;
+  let typeRef: CaptureNode['typeRef'] = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+    typeRef = parseTypeRef(this.state);
   }
 
   return {
     type: 'Capture',
     name: nameToken.value,
-    typeName,
+    typeRef,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

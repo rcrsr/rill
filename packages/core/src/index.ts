@@ -51,6 +51,7 @@ export {
   isRuntimeCallable,
   isScriptCallable,
   isShape,
+  isTypeValue,
   isVector,
   type KvExtensionContract,
   type LlmExtensionContract,
@@ -67,6 +68,7 @@ export {
   type RillIterator,
   type RillShape,
   type RillTuple,
+  type RillTypeValue,
   type RillValue,
   type RillVector,
   type ShapeFieldSpec,
@@ -98,6 +100,11 @@ export {
   getHelpUrl,
   createError,
 } from './types.js';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+export { VALID_TYPE_NAMES } from './constants.js';
 
 // ============================================================
 // SYNTAX HIGHLIGHTING

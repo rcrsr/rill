@@ -293,7 +293,7 @@ describe('Rill Language: Error Statement', () => {
     it('works with type checks in message', async () => {
       const script = `
         42 => $val
-        error "Value {$val} is {type($val)}"
+        error "Value {$val} is {$val.^type.^name}"
       `;
       await expect(run(script)).rejects.toThrow('Value 42 is number');
     });

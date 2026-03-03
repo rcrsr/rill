@@ -173,6 +173,7 @@ postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } 
 
 primary       = literal
               | shape-literal       (* shape(...) — inline shape validation value *)
+              | type-name           (* type name as value — produces type value e.g. string, number *)
               | variable
               | closure-call
               | host-call
@@ -233,7 +234,7 @@ literal       = string | number | bool | list | dict | closure ;
 
 closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , literal ]
               | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
-param-type    = type-name ;  (* all type names accepted for closure params *)
+param-type    = type-ref ;  (* all type names and type variables accepted for closure params *)
 body   = block | grouped-expr | postfix-expr ;
 closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , [ "->" , return-type ] , body ;
               (* Return type is metadata only — NOT enforced at runtime.
@@ -346,7 +347,7 @@ digits        = digit , { digit } ;
    "hello" => $name           -- $name is now type-locked to string
    5 => $name                 -- ERROR: $name was previously string *)
 capture       = "$" , identifier , [ ":" , capture-type ] ;
-capture-type  = type-name ;  (* all type names accepted for captures *)
+capture-type  = type-ref ;  (* all type names and type variables accepted for captures *)
 
 (* ============================================================ *)
 (* HOST FUNCTIONS                                               *)
@@ -359,7 +360,6 @@ host-name = identifier , { "::" , identifier } ;
                  rill is a vanilla language. The host provides all domain functions.
 
                  Core global functions (built-in):
-                 - type($value)  -- returns type name: "string", "number", "bool", "closure", "list", "dict", "tuple"
                  - log($value)   -- logs value using .str, returns value unchanged (passthrough)
                  - json($value)  -- converts any value to JSON string
                  - identity($value) -- returns value unchanged
@@ -379,7 +379,7 @@ arguments     = expression , { "," , expression } ;
    In pipe: "x -> .str" passes x as receiver to str method.
    In conditional: ".empty ? then ! else" tests $.empty for truthiness.
    Pipe semantics: "$ -> fn" ≡ "fn($)" — piped value becomes first arg.
-   Global functions (type, log, json) are not methods — use as: "x -> log" *)
+   Global functions (log, json) are not methods — use as: "x -> log" *)
 
 method-call   = "." , method-name , [ "(" , [ arguments ] , ")" ] ;
 
@@ -568,16 +568,19 @@ type-assertion = ":" , type-target ;
    $val -> :?shape(name: string)   -- true if matches shape *)
 type-check    = ":" , "?" , type-target ;
 
-type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "shape" | "any" ;
+type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "shape" | "any" | "type" ;
+
+(* type-ref: a type reference used in assertion, shape, param, and capture positions.
+   Either a primitive/collection type name or a variable holding a type value. *)
+type-ref      = type-name | "$" , identifier ;
 
 (* type-target selects the assertion/check subject.
    Disambiguation (after ":" and optional "?"):
-   - "$" identifier → shape-validation (variable shape ref)
+   - "$" identifier → shape-validation (variable shape ref) OR type-ref
    - "shape" "("    → shape-validation (inline shape literal)
-   - else           → type-name (existing primitive/collection types) *)
-type-target   = type-name
-              | shape-validation
-              | "$" , identifier ;
+   - else           → type-ref (type name or variable) *)
+type-target   = type-ref
+              | shape-validation ;
 
 (* shape-validation wraps a shape-literal for use in type positions. *)
 shape-validation = shape-literal ;
@@ -606,7 +609,7 @@ shape-field   = [ annotation ] , identifier , ":" , shape-type ;
    - Primitive/collection type name, optionally optional
    - Nested inline shape literal, optionally optional
    - Nested shape group (shorthand "(...)"), optionally optional *)
-shape-type    = type-name , [ "?" ]
+shape-type    = type-ref , [ "?" ]
               | shape-literal , [ "?" ]
               | shape-group , [ "?" ] ;
 
@@ -761,7 +764,7 @@ block         = "{" , statement , { statement } , "}" ;
                  EXPRESSION POSITION (creates closure):
                  - { body } => $fn                  -- stored as closure
                  - [key: { body }]                  -- dict value is closure
-                 - type({ body })                   -- arg is closure
+                 - log({ body })                    -- arg is closure
                  Block creates ScriptCallable with implicit $ parameter.
 
                  PIPE TARGET (creates then invokes):

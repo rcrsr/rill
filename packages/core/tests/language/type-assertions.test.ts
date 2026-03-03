@@ -174,8 +174,8 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('identity("test") -> :string')).toBe('test');
     });
 
-    it('asserts type() function returns string', async () => {
-      expect(await run('type(42) -> :string')).toBe('number');
+    it('asserts .^type.^name returns string', async () => {
+      expect(await run('42 => $v\n$v.^type.^name -> :string')).toBe('number');
     });
   });
 

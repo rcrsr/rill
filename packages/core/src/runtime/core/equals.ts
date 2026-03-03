@@ -159,11 +159,20 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'Spread':
       return spreadEquals(a, b as SpreadNode);
 
-    case 'Capture':
-      return (
-        a.name === (b as typeof a).name &&
-        a.typeName === (b as typeof a).typeName
-      );
+    case 'Capture': {
+      const bCapture = b as typeof a;
+      if (a.name !== bCapture.name) return false;
+      const aRef = a.typeRef;
+      const bRef = bCapture.typeRef;
+      if (aRef === null && bRef === null) return true;
+      if (aRef === null || bRef === null) return false;
+      if (aRef.kind !== bRef.kind) return false;
+      if (aRef.kind === 'static' && bRef.kind === 'static')
+        return aRef.typeName === bRef.typeName;
+      if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic')
+        return aRef.varName === bRef.varName;
+      return false;
+    }
 
     case 'Break':
     case 'Return':
@@ -459,7 +468,18 @@ function closureEquals(a: ClosureNode, b: ClosureNode): boolean {
 
 function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
   if (a.name !== b.name) return false;
-  if (a.typeName !== b.typeName) return false;
+  // Compare typeRef: both null, or same kind and same value
+  if (a.typeRef === null && b.typeRef === null) {
+    // both untyped — ok
+  } else if (a.typeRef === null || b.typeRef === null) {
+    return false;
+  } else if (a.typeRef.kind !== b.typeRef.kind) {
+    return false;
+  } else if (a.typeRef.kind === 'static' && b.typeRef.kind === 'static') {
+    if (a.typeRef.typeName !== b.typeRef.typeName) return false;
+  } else if (a.typeRef.kind === 'dynamic' && b.typeRef.kind === 'dynamic') {
+    if (a.typeRef.varName !== b.typeRef.varName) return false;
+  }
   return nullableEquals(a.defaultValue, b.defaultValue);
 }
 

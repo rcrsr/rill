@@ -576,11 +576,11 @@ $list.join (", ")
 # global functions: foo($) -> foo
 # good
 "hello" -> log -> .upper
-42 -> type
+$val.^type
 
 # avoid
 "hello" -> log($) -> .upper
-42 -> type($)
+$val.^type()
 
 # closures: $fn($) -> $fn
 # good

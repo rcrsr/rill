@@ -329,37 +329,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateTypeCheck(primary, checkValue);
         }
 
-        case 'VarTypeAssertion': {
-          if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
-              'Postfix var type assertion requires operand',
-              primary.span.start
-            );
-          }
-          const varAssertValue = await this.evaluatePostfixExpr(
-            primary.operand
-          );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVarTypeAssertion(
-            primary,
-            varAssertValue
-          );
-        }
-
-        case 'VarTypeCheck': {
-          if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
-              'Postfix var type check requires operand',
-              primary.span.start
-            );
-          }
-          const varCheckValue = await this.evaluatePostfixExpr(primary.operand);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVarTypeCheck(primary, varCheckValue);
-        }
-
         case 'ShapeAssertion': {
           if (!primary.operand) {
             throw new RuntimeError(
@@ -396,6 +365,12 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'ShapeLiteral':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateShapeLiteral(primary);
+
+        case 'TypeNameExpr':
+          return Object.freeze({
+            __rill_type: true as const,
+            typeName: primary.typeName,
+          });
 
         default:
           throw new RuntimeError(
@@ -565,14 +540,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'TypeCheck':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateTypeCheck(target, input);
-
-        case 'VarTypeAssertion':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVarTypeAssertion(target, input);
-
-        case 'VarTypeCheck':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVarTypeCheck(target, input);
 
         case 'ShapeAssertion':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -75,8 +75,8 @@ import {
 } from '../../callable.js';
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
-import type { RillValue, RillTuple } from '../../values.js';
-import { inferType, isTuple } from '../../values.js';
+import type { RillValue, RillTuple, RillTypeValue } from '../../values.js';
+import { inferType, isTypeValue, isTuple } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
@@ -902,6 +902,20 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       key: string,
       location: SourceLocation
     ): Promise<RillValue> {
+      // IR-2: .^type returns a RillTypeValue for any rill value
+      if (key === 'type') {
+        const typeValue: RillTypeValue = Object.freeze({
+          __rill_type: true as const,
+          typeName: inferType(value),
+        });
+        return typeValue;
+      }
+
+      // IR-3: .name on type values returns the typeName string
+      if (isTypeValue(value) && key === 'name') {
+        return value.typeName;
+      }
+
       // Only ScriptCallable supports annotation reflection
       if (!isScriptCallable(value)) {
         throw new RuntimeError(

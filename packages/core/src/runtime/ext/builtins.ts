@@ -10,7 +10,11 @@
 import type { CallableFn } from '../core/callable.js';
 import { callable, isCallable, isDict } from '../core/callable.js';
 import type { RillMethod, RuntimeContext } from '../core/types.js';
-import { RuntimeError, type SourceLocation } from '../../types.js';
+import {
+  RuntimeError,
+  type RillTypeName,
+  type SourceLocation,
+} from '../../types.js';
 import {
   deepEquals,
   formatValue,
@@ -24,24 +28,14 @@ import {
   type RillVector,
   type ShapeFieldSpec,
 } from '../core/values.js';
+import { VALID_TYPE_NAMES } from '../../constants.js';
 
 // ============================================================
 // SHAPE HELPERS
 // ============================================================
 
 /** Valid Rill type names accepted by to_shape() */
-const VALID_TYPE_NAMES = new Set([
-  'string',
-  'number',
-  'bool',
-  'list',
-  'dict',
-  'closure',
-  'tuple',
-  'vector',
-  'shape',
-  'any',
-]);
+const validTypeNamesSet = new Set(VALID_TYPE_NAMES);
 
 /**
  * Convert a dict value to a RillShape.
@@ -80,7 +74,7 @@ function builtinToShape(
         typeName = typeName.slice(0, -1);
         optional = true;
       }
-      if (!VALID_TYPE_NAMES.has(typeName)) {
+      if (!validTypeNamesSet.has(typeName as RillTypeName)) {
         throw new RuntimeError(
           'RILL-R004',
           `to_shape() field spec at "${key}" has invalid format`,
@@ -112,7 +106,10 @@ function builtinToShape(
       if ('type' in value) {
         // Case (b): dict with `type` key — type + annotations [AC-26]
         const rawType = value['type'];
-        if (typeof rawType !== 'string' || !VALID_TYPE_NAMES.has(rawType)) {
+        if (
+          typeof rawType !== 'string' ||
+          !validTypeNamesSet.has(rawType as RillTypeName)
+        ) {
           throw new RuntimeError(
             'RILL-R004',
             `to_shape() field spec at "${key}" has invalid format`,
@@ -264,9 +261,6 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
 
   /** Identity function - returns its argument */
   identity: (args) => args[0] ?? null,
-
-  /** Return the type name of a value */
-  type: (args) => inferType(args[0] ?? null),
 
   /** Log a value and return it unchanged (passthrough) */
   log: (args, ctx) => {

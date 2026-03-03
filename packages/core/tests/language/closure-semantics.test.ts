@@ -15,7 +15,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-1: captured block has closure type', async () => {
       const script = `
         { "result" } => $a
-        type($a)
+        $a.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });
@@ -79,7 +79,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-8: dict values have distinct types (closure, eager, literal)', async () => {
       const script = `
         [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
-        [type($d.a), $d.b, $d.c]
+        [$d.a.^type.^name, $d.b, $d.c]
       `;
       expect(await run(script)).toEqual(['closure', 10, 42]);
     });
@@ -181,7 +181,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Note: Empty blocks { } are disallowed by parser. Use minimal block with empty string.
       const script = `
         { "" } => $a
-        type($a)
+        $a.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });
@@ -205,15 +205,15 @@ describe('Rill Runtime: Closure Semantics', () => {
       `;
       const result = await run(script);
       expect(result).toHaveProperty('y');
-      expect(await run('type($result.y)', { variables: { result } })).toBe(
-        'closure'
-      );
+      expect(
+        await run('$result.y.^type.^name', { variables: { result } })
+      ).toBe('closure');
     });
 
     it('AC-16: block-closure in list', async () => {
       const script = `
         [{ $ + 1 }, { $ + 2 }] => $list
-        [type($list[0]), type($list[1])]
+        [$list[0].^type.^name, $list[1].^type.^name]
       `;
       expect(await run(script)).toEqual(['closure', 'closure']);
     });
@@ -230,7 +230,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Note: ||{ 42 } is property-style (isProperty: true), auto-invokes on access
       const script = `
         [a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        [type($d.a), type($d.b), type($d.c), type($d.d)]
+        [$d.a.^type.^name, $d.b.^type.^name, $d.c.^type.^name, $d.d.^type.^name]
       `;
       expect(await run(script)).toEqual([
         'closure', // block-closure: no auto-invoke
@@ -448,6 +448,40 @@ describe('Rill Runtime: Closure Semantics', () => {
         const errorId = (err as { errorId: string }).errorId;
         expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
+    });
+  });
+
+  describe('AC-12: Closure Param Dynamic Type Resolution via $t', () => {
+    it('AC-12 success: $t bound to string — closure accepts string argument', async () => {
+      const script = `
+        string => $t
+        |val: $t| { $val } => $f
+        $f("hello")
+      `;
+      expect(await run(script)).toBe('hello');
+    });
+
+    it('AC-12 rejection: $t bound to number — closure rejects string argument', async () => {
+      const script = `
+        number => $t
+        |val: $t| { $val } => $f
+        $f("hello")
+      `;
+      await expect(run(script)).rejects.toThrow(
+        'Parameter type mismatch: val expects number, got string'
+      );
+    });
+
+    it('AC-12 creation-time capture: $t reassigned after closure creation — closure uses type from creation time', async () => {
+      // Closure was created when $t held string; later reassigning $t to number
+      // must not change the closure's captured parameter type.
+      const script = `
+        string => $t
+        |val: $t| { $val } => $f
+        number => $t
+        $f("hello")
+      `;
+      expect(await run(script)).toBe('hello');
     });
   });
 

@@ -354,7 +354,7 @@ describe('Rill Language: Shape Type', () => {
           42 => $myVar
           [name: "Alice"] -> :$myVar
         `)
-      ).rejects.toThrow('$myVar is not a shape');
+      ).rejects.toThrow('$myVar is not a valid type reference');
     });
 
     it('EC-7: :$var where $var is undefined throws (AC-35)', async () => {
@@ -362,7 +362,7 @@ describe('Rill Language: Shape Type', () => {
         run(`
           [name: "Alice"] -> :$undeclared
         `)
-      ).rejects.toThrow('is not a shape');
+      ).rejects.toThrow('$undeclared');
     });
 
     it('missing required nested field reports full dot-separated path (AC-38)', async () => {
@@ -460,6 +460,54 @@ describe('Rill Language: Shape Type', () => {
           [:] -> :$s
         `)
       ).rejects.toThrow('missing required field');
+    });
+  });
+
+  // ============================================================
+  // Variable in Field Type Position (AC-11, AC-25)
+  // ============================================================
+
+  describe('Variable in Field Type Position', () => {
+    it('shape(val: $t) resolves $t at creation time — string type passes string value (AC-11)', async () => {
+      const result = await run(`
+        string => $t
+        shape(val: $t) => $s
+        [val: "hello"] -> :$s
+      `);
+      expect(result).toEqual({ val: 'hello' });
+    });
+
+    it('shape(val: $t) resolves $t at creation time — number type rejects string value (AC-11)', async () => {
+      await expect(
+        run(`
+          number => $t
+          shape(val: $t) => $s
+          [val: "hello"] -> :$s
+        `)
+      ).rejects.toThrow('expected number, got string');
+    });
+
+    it('reassigning $t before second shape — first shape locked to string, accepts string value (AC-25)', async () => {
+      const result = await run(`
+        string => $t
+        shape(val: $t) => $s1
+        number => $t
+        shape(val: $t) => $s2
+        [val: "hello"] -> :$s1
+      `);
+      expect(result).toEqual({ val: 'hello' });
+    });
+
+    it('reassigning $t before second shape — second shape locked to number, rejects string value (AC-25)', async () => {
+      await expect(
+        run(`
+          string => $t
+          shape(val: $t) => $s1
+          number => $t
+          shape(val: $t) => $s2
+          [val: "hello"] -> :$s2
+        `)
+      ).rejects.toThrow('expected number, got string');
     });
   });
 

@@ -61,6 +61,15 @@ export interface RillShape {
   readonly fields: Record<string, ShapeFieldSpec>;
 }
 
+/**
+ * Type value - represents a first-class type name at runtime.
+ * Created when a type name expression (e.g. `string`, `number`) is evaluated.
+ */
+export interface RillTypeValue {
+  readonly __rill_type: true;
+  readonly typeName: RillTypeName;
+}
+
 /** Any value that can flow through Rill */
 export type RillValue =
   | string
@@ -72,7 +81,8 @@ export type RillValue =
   | CallableMarker
   | RillTuple
   | RillVector
-  | RillShape;
+  | RillShape
+  | RillTypeValue;
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -101,6 +111,16 @@ export function isShape(value: unknown): value is RillShape {
     value !== null &&
     '__rill_shape' in value &&
     (value as RillShape).__rill_shape === true
+  );
+}
+
+/** Type guard for RillTypeValue */
+export function isTypeValue(value: RillValue): value is RillTypeValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_type' in value &&
+    (value as RillTypeValue).__rill_type === true
   );
 }
 
@@ -148,6 +168,7 @@ export function inferType(value: RillValue): RillTypeName {
   if (isVector(value)) return 'vector';
   if (Array.isArray(value)) return 'list';
   if (isShape(value)) return 'shape';
+  if (isTypeValue(value)) return 'type';
   if (
     typeof value === 'object' &&
     '__type' in value &&
@@ -269,6 +290,14 @@ export function deepEquals(a: RillValue, b: RillValue): boolean {
       if (aVal !== bVal) return false;
     }
     return true;
+  }
+
+  // Check for type values (first-class type names)
+  const aIsTypeValue = isTypeValue(a);
+  const bIsTypeValue = isTypeValue(b);
+  if (aIsTypeValue !== bIsTypeValue) return false;
+  if (aIsTypeValue && bIsTypeValue) {
+    return a.typeName === b.typeName;
   }
 
   // Check for arrays (lists)

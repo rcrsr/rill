@@ -34,6 +34,7 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
+  RillTypeName,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -45,7 +46,12 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { formatValue, isReservedMethod, isVector } from '../../values.js';
+import {
+  formatValue,
+  isReservedMethod,
+  isTypeValue,
+  isVector,
+} from '../../values.js';
 import {
   isCallable,
   type ScriptCallable,
@@ -959,9 +965,29 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             param.defaultValue
           );
         }
+
+        // Resolve typeRef at closure-creation time (AC-12).
+        // Dynamic refs ($var) are resolved against the current context now,
+        // so the closure captures the concrete type, not the variable reference.
+        let resolvedTypeName: RillTypeName | null = null;
+        if (param.typeRef !== null) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const resolved = (this as any).resolveTypeRef(
+            param.typeRef,
+            (name: string) => getVariable(this.ctx, name)
+          );
+          if (!isTypeValue(resolved)) {
+            throw new RuntimeError(
+              'RILL-R004',
+              `Closure parameter '${param.name}' type must be a type value, not a shape`
+            );
+          }
+          resolvedTypeName = resolved.typeName;
+        }
+
         params.push({
           name: param.name,
-          typeName: param.typeName,
+          typeName: resolvedTypeName,
           defaultValue,
           annotations: paramAnnotations[param.name] ?? {},
         });

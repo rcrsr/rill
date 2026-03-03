@@ -199,15 +199,20 @@ $myArgs -> $fmt()       # "1-2-3"
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
 ```
 
-### Type Checking with Global Functions
+### Type Checking with `.^type`
 
 ```rill
-# Use type() to inspect values
-42 -> type              # "number"
-"hello" -> type         # "string"
-[1, 2] -> type          # "list"
-*[1, 2] -> type         # "tuple"
-[a: 1] -> type          # "dict"
+# Use .^type to inspect values
+42 => $x
+$x.^type == number      # true
+"hello" => $s
+$s.^type == string      # true
+[1, 2] => $l
+$l.^type == list        # true
+*[1, 2] => $t
+$t.^type == tuple       # true
+[a: 1] => $d
+$d.^type == dict        # true
 
 # Use json() to serialize
 [name: "test", count: 42] -> json

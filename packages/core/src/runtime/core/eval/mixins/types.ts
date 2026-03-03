@@ -25,14 +25,24 @@ import type {
   AnnotationArg,
   RillTypeName,
   SourceLocation,
-  VarTypeAssertionNode,
-  VarTypeCheckNode,
   ShapeAssertionNode,
   ShapeCheckNode,
+  TypeRef,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue, RillShape, ShapeFieldSpec } from '../../values.js';
-import { inferType, checkType, isShape, deepEquals } from '../../values.js';
+import type {
+  RillValue,
+  RillShape,
+  RillTypeValue,
+  ShapeFieldSpec,
+} from '../../values.js';
+import {
+  inferType,
+  checkType,
+  isShape,
+  isTypeValue,
+  deepEquals,
+} from '../../values.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -59,6 +69,45 @@ import type { EvaluatorBase } from '../base.js';
  */
 function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class TypesEvaluator extends Base {
+    /**
+     * Resolve a TypeRef to a RillTypeValue or RillShape [IR-1].
+     *
+     * Static refs return a frozen RillTypeValue directly.
+     * Dynamic refs call getVariable, then dispatch on the result:
+     * - RillTypeValue → return as-is
+     * - RillShape → return as-is
+     * - Otherwise → throw RILL-R004
+     *
+     * EC-1: Variable not found → undefined from getVariable → RILL-R005.
+     * EC-2/EC-3: Non-type, non-shape value → RILL-R004.
+     */
+    resolveTypeRef(
+      typeRef: TypeRef,
+      getVariable: (name: string) => RillValue | undefined
+    ): RillTypeValue | RillShape {
+      if (typeRef.kind === 'static') {
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: typeRef.typeName,
+        });
+      }
+
+      const result = getVariable(typeRef.varName);
+      if (result === undefined) {
+        throw new RuntimeError(
+          'RILL-R005',
+          `Variable $${typeRef.varName} is not defined`
+        );
+      }
+      if (isTypeValue(result)) return result;
+      if (isShape(result)) return result;
+
+      throw new RuntimeError(
+        'RILL-R004',
+        `Variable $${typeRef.varName} is not a valid type reference (got ${inferType(result)})`
+      );
+    }
+
     /**
      * Assert that a value is of the expected type.
      * Returns the value unchanged if assertion passes, throws on mismatch.
@@ -197,7 +246,14 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           await (this as any).evaluatePostfixExpr(node.operand)
         : input;
 
-      return this.assertType(value, node.typeName, node.span.start);
+      const resolved = this.resolveTypeRef(node.typeRef, (name) =>
+        getVariable(this.ctx, name)
+      );
+      if (isTypeValue(resolved)) {
+        return this.assertType(value, resolved.typeName, node.span.start);
+      }
+      this.validateAgainstShape(value, resolved, '', node.span.start);
+      return value;
     }
 
     /**
@@ -215,7 +271,18 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           await (this as any).evaluatePostfixExpr(node.operand)
         : input;
 
-      return checkType(value, node.typeName);
+      const resolved = this.resolveTypeRef(node.typeRef, (name) =>
+        getVariable(this.ctx, name)
+      );
+      if (isTypeValue(resolved)) {
+        return checkType(value, resolved.typeName);
+      }
+      try {
+        this.validateAgainstShape(value, resolved, '', node.span.start);
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     /**
@@ -251,12 +318,21 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let typeName: string;
         let nestedShape: RillShape | undefined;
 
-        if (typeof field.fieldType === 'string') {
-          // RillTypeName scalar (e.g. 'string', 'number', 'bool', 'shape', ...)
-          typeName = field.fieldType;
-          nestedShape = undefined;
+        if ('kind' in field.fieldType) {
+          // TypeRef — resolve at shape-creation time
+          const resolved = this.resolveTypeRef(field.fieldType, (name) =>
+            getVariable(this.ctx, name)
+          );
+          if (isTypeValue(resolved)) {
+            typeName = resolved.typeName;
+            nestedShape = undefined;
+          } else {
+            // isShape(resolved) — dynamic reference resolved to a shape
+            typeName = 'shape';
+            nestedShape = resolved;
+          }
         } else {
-          // Nested ShapeLiteralNode — recurse
+          // ShapeLiteralNode — inline nested shape syntax
           typeName = 'shape';
           nestedShape = await this.evaluateShapeLiteral(field.fieldType);
         }
@@ -321,64 +397,6 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const value = await (this as any).evaluatePostfixExpr(node.operand);
       return this.evaluateTypeCheck(node, value);
-    }
-
-    /**
-     * Evaluate variable type assertion: expr:$varName or :$varName [IR-2].
-     *
-     * Resolves the variable, validates it holds a shape [EC-7], then
-     * validates the input value against that shape. Returns input unchanged.
-     */
-    async evaluateVarTypeAssertion(
-      node: VarTypeAssertionNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      const value = node.operand
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluatePostfixExpr(node.operand)
-        : input;
-
-      const shapeValue = getVariable(this.ctx, node.varName);
-      if (!isShape(shapeValue)) {
-        const gotType =
-          shapeValue === undefined ? 'undefined' : inferType(shapeValue);
-        throw new RuntimeError(
-          'RILL-R004',
-          `Variable $${node.varName} is not a shape (got ${gotType})`,
-          node.span.start
-        );
-      }
-
-      this.validateAgainstShape(value, shapeValue, '', node.span.start);
-      return value;
-    }
-
-    /**
-     * Evaluate variable type check: expr:?$varName or :?$varName [IR-2].
-     *
-     * Same resolution logic as evaluateVarTypeAssertion but never throws.
-     * Returns true on success, false on any error [AC-11].
-     */
-    async evaluateVarTypeCheck(
-      node: VarTypeCheckNode,
-      input: RillValue
-    ): Promise<boolean> {
-      try {
-        const value = node.operand
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (this as any).evaluatePostfixExpr(node.operand)
-          : input;
-
-        const shapeValue = getVariable(this.ctx, node.varName);
-        if (!isShape(shapeValue)) {
-          return false;
-        }
-
-        this.validateAgainstShape(value, shapeValue, '', node.span.start);
-        return true;
-      } catch {
-        return false;
-      }
     }
 
     /**

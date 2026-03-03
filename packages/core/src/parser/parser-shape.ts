@@ -7,12 +7,12 @@ import { Parser } from './parser.js';
 import type {
   AnnotationArg,
   ExpressionNode,
-  RillTypeName,
   ShapeFieldNode,
   ShapeLiteralNode,
   SourceLocation,
+  TypeRef,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
+import { TOKEN_TYPES } from '../types.js';
 import {
   check,
   advance,
@@ -21,14 +21,14 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import { VALID_TYPE_NAMES } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
     parseShapeLiteral(): ShapeLiteralNode;
     parseShapeField(): ShapeFieldNode;
-    parseShapeType(): RillTypeName | ShapeLiteralNode;
+    parseShapeType(): TypeRef | ShapeLiteralNode;
     parseShapeGroup(start: SourceLocation): ShapeLiteralNode;
   }
 }
@@ -152,7 +152,7 @@ Parser.prototype.parseShapeField = function (this: Parser): ShapeFieldNode {
  */
 Parser.prototype.parseShapeType = function (
   this: Parser
-): RillTypeName | ShapeLiteralNode {
+): TypeRef | ShapeLiteralNode {
   // Nested shape literal: shape(...)
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
@@ -168,22 +168,8 @@ Parser.prototype.parseShapeType = function (
     return this.parseShapeGroup(start);
   }
 
-  // Plain type name: string, number, bool, etc.
-  const typeToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected type name'
-  );
-
-  if (!VALID_TYPE_NAMES.includes(typeToken.value as RillTypeName)) {
-    throw new ParseError(
-      'RILL-P003',
-      `Invalid type: ${typeToken.value} (expected: ${VALID_TYPE_NAMES.join(', ')})`,
-      typeToken.span.start
-    );
-  }
-
-  return typeToken.value as RillTypeName;
+  // Static type name or dynamic $var reference
+  return parseTypeRef(this.state);
 };
 
 // ============================================================

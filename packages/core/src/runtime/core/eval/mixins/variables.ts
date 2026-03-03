@@ -41,7 +41,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType } from '../../values.js';
+import { inferType, isTypeValue } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -761,12 +761,17 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Calls setVariable for type checking and fires observability callback.
      */
     protected evaluateCapture(node: CaptureNode, input: RillValue): RillValue {
-      this.setVariable(
-        node.name,
-        input,
-        node.typeName ?? undefined,
-        node.span.start
-      );
+      let explicitType: RillTypeName | undefined;
+      if (node.typeRef !== null) {
+        // Resolve TypeRef at binding time (AC-13)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const resolved = (this as any).resolveTypeRef(
+          node.typeRef,
+          (name: string) => getVariable(this.ctx, name) as RillValue
+        );
+        explicitType = isTypeValue(resolved) ? resolved.typeName : 'shape';
+      }
+      this.setVariable(node.name, input, explicitType, node.span.start);
       this.ctx.observability.onCapture?.({ name: node.name, value: input });
       return input;
     }

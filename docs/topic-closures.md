@@ -119,7 +119,7 @@ Block-closures check type at runtime:
 ```rill
 { $ + 1 } => $fn
 
-type($fn)             # "closure"
+$fn.^type == closure  # true
 $fn(5)                # 6
 $fn("text")           # Error: Cannot add string and number
 ```
@@ -158,7 +158,7 @@ $result                # 6 (number, already computed)
 
 # Deferred: braces create closure
 { $ + 1 } => $addOne
-type($addOne)          # "closure"
+$addOne.^type == closure  # true
 
 # Practical difference
 (5 + 1) => $six        # 6 (immediate)
@@ -719,7 +719,7 @@ $get_user.^cache          # true
 
 ## Return Type Syntax
 
-Add `-> type` after the closing `|` to declare the expected return type. Return types are metadata only — the runtime does not enforce them.
+Add a return type annotation after the closing `|` using `-> typename` (e.g., `-> string`, `-> number`). Return types are metadata only — the runtime does not enforce them. Note: `-> type` in this position is a return type annotation, not a call to the `.^type` extraction operator.
 
 ```rill
 |x: number| -> string { "{$x}" } => $fn

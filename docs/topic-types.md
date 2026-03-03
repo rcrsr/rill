@@ -17,6 +17,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 | Shape | `shape(field: type)` | `shape(name: string, age: number)` |
+| Type | type name expression | `number`, `dict`, `type` |
 
 **Key principles:**
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
@@ -666,16 +667,19 @@ Shapes and dicts are distinct types with different runtime behavior:
 
 | Property | Dict | Shape |
 |----------|------|-------|
-| `type` built-in | `"dict"` | `"shape"` |
+| `.^type` | `dict` (type value) | `shape` (type value) |
+| `.^name` (on `.^type` result) | `"dict"` | `"shape"` |
 | `:?dict` check | `true` | `false` |
 | `:?shape` check | `false` | `true` |
 
 ```rill
-[name: "Alice"] -> type
-# Result: "dict"
+[name: "Alice"] => $p
+$p.^type == dict
+# Result: true
 
-shape(name: string) -> type
-# Result: "shape"
+shape(name: string) => $s
+$s.^type == shape
+# Result: true
 ```
 
 ---
@@ -719,7 +723,7 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`, `type`
 
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures.
 
@@ -814,35 +818,142 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ---
 
-## Global Type Functions
+## Type Values
+
+rill has a 11th runtime type named `type`. A type value represents a rill type itself.
+
+### `.^type` Operator
+
+`.^type` returns the type value for any rill value. Use it on variables:
+
+```rill
+42 => $n
+$n.^type == number
+# Result: true
+
+"hello" => $s
+$s.^type == string
+# Result: true
+
+[1, 2] => $l
+$l.^type == list
+# Result: true
+
+[a: 1] => $d
+$d.^type == dict
+# Result: true
+```
+
+```rill
+*[1, 2] => $t
+$t.^type == tuple
+# Result: true
+
+||{ $ } => $fn
+$fn.^type == closure
+# Result: true
+```
+
+```rill
+app::embed("hello world") => $vec
+$vec.^type == vector
+# Result: true
+```
+
+```rill
+shape(name: string) => $shp
+$shp.^type == shape
+# Result: true
+```
+
+### Type Name Expressions
+
+All 11 type names are valid expressions that produce type values:
+
+```rill
+string => $st
+$st.^type == type
+# Result: true
+
+number => $nt
+$nt.^type == type
+# Result: true
+
+type => $tt
+$tt.^type == type
+# Result: true
+```
+
+### `.^name` Property
+
+Every type value has a `.^name` annotation that returns its string name:
+
+```rill
+42 => $n
+$n.^type => $tv
+$tv.^name
+# Result: "number"
+
+"hello" => $s
+$s.^type => $tv
+$tv.^name
+# Result: "string"
+```
+
+Bare type names also support `.^name` via a variable:
+
+```rill
+dict => $t
+$t.^name
+# Result: "dict"
+
+number => $t
+$t.^name
+# Result: "number"
+```
+
+### Type Value Equality
+
+Type values compare with `==` and `!=`:
+
+```rill
+42 => $n
+$n.^type == number
+# Result: true
+
+42 => $n
+$n.^type == string
+# Result: false
+
+"hello" => $a
+"world" => $b
+$a.^type == $b.^type
+# Result: true
+```
+
+The type of a type value is `type`:
+
+```rill
+42 => $n
+$n.^type => $tv
+$tv.^type == type
+# Result: true
+
+type => $t
+$t.^type == type
+# Result: true
+```
+
+### Global Type Utilities
 
 | Function | Description |
 |----------|-------------|
-| `type` | Returns type name as string |
 | `json` | Convert to JSON string |
 | `to_shape` | Convert dict descriptor to shape value |
 
 ```rill
-42 -> type                      # "number"
-"hello" -> type                 # "string"
-[1, 2] -> type                  # "list"
-*[1, 2] -> type                 # "tuple"
-[a: 1] -> type                  # "dict"
-||{ $ } -> type                 # "closure"
-
-[a: 1, b: 2] -> json            # '{"a":1,"b":2}'
-```
-
-```rill
-app::embed("test") -> type      # "vector"
-```
-
-```rill
-shape(name: string) -> type     # "shape"
-```
-
-```rill
-to_shape([name: "string", age: "number"]) -> type   # "shape"
+[a: 1, b: 2] -> json
+# Result: '{"a":1,"b":2}'
 ```
 
 **`json` closure handling:**

@@ -176,4 +176,21 @@ $v`;
       expect(result.variables['n']).toBe(42);
     });
   });
+
+  describe('Dynamic Type Reference (AC-13)', () => {
+    it('AC-13 success: $t = string, capture accepts string value', async () => {
+      expect(await run('string => $t\n"hello" => $x:$t\n$x')).toBe('hello');
+    });
+
+    it('AC-13 rejection: $t = number, capture rejects string value', async () => {
+      await expect(run('number => $t\n"hello" => $x:$t')).rejects.toThrow();
+    });
+
+    it('AC-13 capture-time resolution: $t reassigned after capture executes', async () => {
+      // $x:$t is resolved when the capture runs; reassigning $t afterward has no effect
+      expect(
+        await run('string => $t\n"hello" => $x:$t\nnumber => $t\n$x')
+      ).toBe('hello');
+    });
+  });
 });

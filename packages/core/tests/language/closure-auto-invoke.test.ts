@@ -93,9 +93,10 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       // Outer closure invoked, returns inner closure (not auto-invoked again)
       const script = `
         || { |x|($x + 1) } => $outer
-        5 -> type($outer)
+        $outer() => $inner
+        $inner.^type.^name
       `;
-      // When $ is bound (5 ->), $outer is auto-invoked, returning inner closure
+      // Invoking $outer returns the inner closure; check its type
       expect(await run(script)).toBe('closure');
     });
 
@@ -128,7 +129,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       `;
       // $data.y missing, evaluates $fallback, but returns closure (not invoked)
       const result = await run(script);
-      expect(await run('type($result)', { variables: { result } })).toBe(
+      expect(await run('$result.^type.^name', { variables: { result } })).toBe(
         'closure'
       );
     });
@@ -302,7 +303,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       const script = `
         |x|($x + 1) => $add
         $add => $captured
-        type($captured)
+        $captured.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });
@@ -317,10 +318,10 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
     });
 
     it('function call argument does not auto-invoke', async () => {
-      // Closure passed as argument, not auto-invoked
+      // Closure referenced in expression context, not auto-invoked
       const script = `
         |x|($x + 1) => $add
-        type($add)
+        $add.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });

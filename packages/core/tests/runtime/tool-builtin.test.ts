@@ -10,9 +10,11 @@
  *
  * Error Cases:
  * - AC-7:  tool() call produces "Unknown function: tool" error
+ * - AC-8:  type() builtin removed; calling it produces "Unknown function: type" error (EC-7)
  * - AC-11: Unknown host reference throws "Function 'ns::name' not found" (EC-4)
  * - EC-5:  ^("...") before non-closure does NOT throw
  * - EC-6:  Malformed annotation syntax ^( without closing ) produces parse error
+ * - EC-7:  Calling type() after removal produces RILL-R006 (unknown function)
  */
 
 import { describe, expect, it } from 'vitest';
@@ -125,6 +127,16 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
     it('throws unknown function error for zero-arg tool() call', async () => {
       await expect(run(`tool()`)).rejects.toThrow('Unknown function: tool');
+    });
+  });
+
+  describe('AC-8 / EC-7: type() builtin removed; calling it produces unknown-function error', () => {
+    it('throws unknown function error when type() is called with an argument', async () => {
+      await expect(run(`type(42)`)).rejects.toThrow('Unknown function: type');
+    });
+
+    it('throws unknown function error when type() is called via pipe', async () => {
+      await expect(run(`42 -> type`)).rejects.toThrow('Unknown function: type');
     });
   });
 

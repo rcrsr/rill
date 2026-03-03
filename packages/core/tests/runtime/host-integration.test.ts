@@ -7,11 +7,11 @@ import {
   AbortError,
   callable,
   createRuntimeContext,
-  execute,
   isApplicationCallable,
   isCallable,
   isScriptCallable,
   parse,
+  type HostFunctionDefinition,
   type RillValue,
   type SourceLocation,
 } from '@rcrsr/rill';
@@ -83,10 +83,10 @@ describe('Rill Runtime: Host Integration', () => {
       expect(result).toBe('fetched:url');
     });
 
-    it('custom function overrides built-in function', async () => {
-      const result = await run('type("hello")', {
+    it('custom function is callable alongside built-in functions', async () => {
+      const result = await run('my_type("hello")', {
         functions: {
-          type: {
+          my_type: {
             params: [{ name: 'value', type: 'string' }],
             fn: () => 'custom-type',
           },
@@ -135,7 +135,7 @@ describe('Rill Runtime: Host Integration', () => {
 
     it('location is undefined for internal calls', async () => {
       // Built-in functions should still work
-      const result = await run('"hello" -> type');
+      const result = await run('"hello" => $v\n$v.^type.^name');
       expect(result).toBe('string');
     });
   });
