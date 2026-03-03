@@ -159,8 +159,6 @@ $result                # 6 (number, already computed)
 # Deferred: braces create closure
 { $ + 1 } => $addOne
 type($addOne)          # "closure"
-5 -> $addOne           # 6
-10 -> $addOne          # 11 (invoked later with different value)
 
 # Practical difference
 (5 + 1) => $six        # 6 (immediate)
@@ -168,6 +166,10 @@ type($addOne)          # "closure"
 
 $six                   # 6
 10 -> $fn              # 11
+
+# Same closure, reused with different inputs
+5 -> $addOne           # 6
+10 -> $addOne          # 11
 ```
 
 Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
@@ -563,19 +565,19 @@ Parameters can have their own annotations using `^(key: value)` syntax after the
 Parameter annotations appear in a specific order:
 
 ```text
-|paramName: type ^(annotations) = default| body
+|^(annotations) paramName: type = default| body
 ```
 
 **Ordering rules:**
-1. Parameter name (required)
-2. Type annotation with `:` (optional)
-3. Parameter annotations with `^()` (optional)
+1. Parameter annotations with `^()` (optional)
+2. Parameter name (required)
+3. Type annotation with `:` (optional)
 4. Default value with `=` (optional)
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) => $validate
-|name: string ^(required: true) = "guest"|($name) => $greet
-|count ^(cache: true) = 0|($count) => $process
+|^(min: 0, max: 100) x: number|($x) => $validate
+|^(required: true) name: string = "guest"|($name) => $greet
+|^(cache: true) count = 0|($count) => $process
 ```
 
 ### Access Pattern
@@ -583,7 +585,7 @@ Parameter annotations appear in a specific order:
 Parameter annotations are accessed via `.params.paramName.__annotations.key`:
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
+|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -602,7 +604,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 Use parameter annotations to specify constraints:
 
 ```rill
-|value: number ^(min: 0, max: 100)|($value) => $bounded
+|^(min: 0, max: 100) value: number|($value) => $bounded
 
 $bounded.params.value.__annotations.min  # 0
 $bounded.params.value.__annotations.max  # 100
@@ -620,7 +622,7 @@ $bounded.params.value.__annotations.max  # 100
   } ! ""
 } => $validate
 
-|x: number ^(min: 0, max: 10)|($x) => $ranged
+|^(min: 0, max: 10) x: number|($x) => $ranged
 $validate($ranged, 15)  # "Value 15 above max 10"
 ```
 
@@ -629,7 +631,7 @@ $validate($ranged, 15)  # "Value 15 above max 10"
 Mark parameters that should trigger caching behavior:
 
 ```rill
-|key: string ^(cache: true)|($key) => $fetch
+|^(cache: true) key: string|($key) => $fetch
 
 $fetch.params.key.__annotations.cache  # true
 ```
@@ -639,7 +641,7 @@ $fetch.params.key.__annotations.cache  # true
 Attach formatting metadata to parameters:
 
 ```rill
-|timestamp: string ^(format: "ISO8601")|($timestamp) => $formatDate
+|^(format: "ISO8601") timestamp: string|($timestamp) => $formatDate
 
 $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 ```
@@ -649,7 +651,7 @@ $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 Parameters can have multiple annotations:
 
 ```rill
-|email: string ^(required: true, pattern: ".*@.*", maxLength: 100)|($email) => $validateEmail
+|^(required: true, pattern: ".*@.*", maxLength: 100) email: string|($email) => $validateEmail
 
 $validateEmail.params.email.__annotations.required    # true
 $validateEmail.params.email.__annotations.pattern     # ".*@.*"
@@ -669,7 +671,7 @@ Use parameter annotations to drive runtime behavior:
   } -> filter { !$ -> .empty }
 } => $getRequiredParams
 
-|x, y: string ^(required: true), z|($x) => $fn
+|x, ^(required: true) y: string, z|($x) => $fn
 $getRequiredParams($fn)  # ["Parameter y is required"]
 ```
 
@@ -678,10 +680,66 @@ $getRequiredParams($fn)  # ["Parameter y is required"]
 Use existence check `.?__annotations` to determine if a parameter has annotations:
 
 ```rill
-|x: number ^(min: 0), y: string|($x + $y) => $fn
+|^(min: 0) x: number, y: string|($x + $y) => $fn
 
 $fn.params.x.?__annotations  # true
 $fn.params.y.?__annotations  # false
+```
+
+---
+
+## Description Shorthand
+
+A bare string in `^(...)` expands to `description: <string>`. This shorthand works in all three annotation positions.
+
+```rill
+^("Get current weather for a city")
+|city: string|($city) => $weather
+$weather.^description    # "Get current weather for a city"
+```
+
+The shorthand is equivalent to the explicit key form:
+
+```rill
+^(description: "Get current weather for a city")
+|city: string|($city) => $weather
+$weather.^description    # "Get current weather for a city"
+```
+
+Mix explicit keys with the shorthand in the same annotation:
+
+```rill
+^("Fetch user profile", cache: true)
+|id: string|($id) => $get_user
+$get_user.^description    # "Fetch user profile"
+$get_user.^cache          # true
+```
+
+---
+
+## Return Type Syntax
+
+Add `-> type` after the closing `|` to declare the expected return type. Return types are metadata only — the runtime does not enforce them.
+
+```rill
+|x: number| -> string { "{$x}" } => $fn
+$fn(42)    # "42" (string from interpolation)
+```
+
+Valid return types: `string`, `number`, `bool`, `list`, `dict`, `any`, `vector`.
+
+The function runs regardless of the actual return type:
+
+```rill
+|x: number| -> string { $x * 2 } => $double
+$double(5)    # 10 (returns number despite -> string declaration)
+```
+
+Return type metadata is available to host applications via the TypeScript `getFunctions()` API. It is not accessible via rill script syntax.
+
+```rill
+|a: number, b: number| -> number { $a + $b } => $add
+$add(3, 4)    # 7
 ```
 
 ---
@@ -741,6 +799,27 @@ Annotation values are evaluated at closure creation:
 ^(limit: $base * 10) |x|($x) => $fn
 $fn.^limit  # 100
 ```
+
+### Scope Rule: Direct Annotation Only
+
+Annotations apply only to the closure directly targeted by `^(...)`. Closures nested inside an annotated statement do not inherit the annotation.
+
+```rill
+# Direct annotation: works
+^("doubles input") { $ * 2 } => $fn
+$fn.^description    # "doubles input"
+```
+
+```text
+# Nested closure does NOT inherit outer annotation
+^(version: 2)
+"" -> {
+  |x|($x) => $fn
+}
+$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+Only the closure immediately following `^(...)` carries the annotation.
 
 ### Error Cases
 

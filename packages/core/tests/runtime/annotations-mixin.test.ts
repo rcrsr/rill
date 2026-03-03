@@ -11,7 +11,7 @@ import { EvaluatorBase } from '../../src/runtime/core/eval/base.js';
 import { AnnotationsMixin } from '../../src/runtime/core/eval/mixins/annotations.js';
 import { createRuntimeContext } from '../../src/runtime/index.js';
 import { RuntimeError } from '@rcrsr/rill';
-import type { StatementNode, AnnotatedStatementNode } from '@rcrsr/rill';
+import type { StatementNode } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('AnnotationsMixin', () => {
@@ -52,12 +52,11 @@ describe('AnnotationsMixin', () => {
   describe('getIterationLimit', () => {
     it('returns annotation limit when set', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 100 });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(100);
+      expect(evaluator.getIterationLimit({ limit: 100 })).toBe(100);
     });
 
     it('returns default when limit not set', () => {
@@ -71,12 +70,11 @@ describe('AnnotationsMixin', () => {
 
     it('floors fractional limits', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 100.7 });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(100);
+      expect(evaluator.getIterationLimit({ limit: 100.7 })).toBe(100);
     });
 
     it('returns default for non-positive limits', () => {
@@ -85,22 +83,19 @@ describe('AnnotationsMixin', () => {
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      ctx.annotationStack.push({ limit: 0 });
-      expect(evaluator.getIterationLimit()).toBe(10000);
-
-      ctx.annotationStack.pop();
-      ctx.annotationStack.push({ limit: -5 });
-      expect(evaluator.getIterationLimit()).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: 0 })).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: -5 })).toBe(10000);
     });
 
     it('returns default for non-numeric limits', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 'not a number' });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: 'not a number' })).toBe(
+        10000
+      );
     });
   });
 

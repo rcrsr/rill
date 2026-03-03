@@ -83,7 +83,12 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const valueType = inferType(value);
 
       // Check explicit type annotation matches value
-      if (explicitType !== undefined && explicitType !== valueType) {
+      // 'any' type bypasses type checking: accepts any value by definition
+      if (
+        explicitType !== undefined &&
+        explicitType !== 'any' &&
+        explicitType !== valueType
+      ) {
         throw new RuntimeError(
           'RILL-R001',
           `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
@@ -113,7 +118,11 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Check if variable already has a locked type in current scope
       const lockedType = this.ctx.variableTypes.get(name);
-      if (lockedType !== undefined && lockedType !== valueType) {
+      if (
+        lockedType !== undefined &&
+        lockedType !== 'any' &&
+        lockedType !== valueType
+      ) {
         throw new RuntimeError(
           'RILL-R001',
           `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,

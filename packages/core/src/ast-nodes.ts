@@ -1,5 +1,5 @@
 import type { SourceSpan } from './source-location.js';
-import type { RillTypeName } from './value-types.js';
+import type { RillFunctionReturnType, RillTypeName } from './value-types.js';
 
 interface BaseNode {
   readonly span: SourceSpan;
@@ -39,6 +39,7 @@ export interface ClosureNode extends BaseNode {
   readonly type: 'Closure';
   readonly params: ClosureParamNode[];
   readonly body: BodyNode;
+  readonly returnType?: RillFunctionReturnType | undefined;
 }
 
 /**
@@ -51,7 +52,7 @@ export interface ClosureNode extends BaseNode {
 export interface ClosureParamNode extends BaseNode {
   readonly type: 'ClosureParam';
   readonly name: string;
-  readonly typeName: 'string' | 'number' | 'bool' | null; // null = untyped
+  readonly typeName: RillTypeName | null; // null = untyped
   readonly defaultValue: LiteralNode | null;
   readonly annotations?: AnnotationArg[] | undefined; // Parameter-level annotations (default: empty array)
 }
@@ -586,6 +587,7 @@ export interface WhileLoopNode extends BaseNode {
   readonly type: 'WhileLoop';
   readonly condition: ExpressionNode; // must evaluate to boolean
   readonly body: BodyNode;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 export interface DoWhileLoopNode extends BaseNode {
@@ -593,6 +595,7 @@ export interface DoWhileLoopNode extends BaseNode {
   readonly input: ExpressionNode | null; // null = implied $
   readonly body: BodyNode;
   readonly condition: BodyNode;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 export interface BlockNode extends BaseNode {
@@ -643,6 +646,7 @@ export interface EachExprNode extends BaseNode {
    * or when no accumulator is used.
    */
   readonly accumulator: ExpressionNode | null;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -664,6 +668,7 @@ export interface MapExprNode extends BaseNode {
   readonly type: 'MapExpr';
   /** The body to execute for each element (in parallel) */
   readonly body: IteratorBody;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -687,6 +692,7 @@ export interface FoldExprNode extends BaseNode {
    * null when using inline closure (accumulator is in closure params).
    */
   readonly accumulator: ExpressionNode | null;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -706,6 +712,7 @@ export interface FilterExprNode extends BaseNode {
   readonly type: 'FilterExpr';
   /** The predicate body to evaluate for each element */
   readonly body: IteratorBody;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 // ============================================================

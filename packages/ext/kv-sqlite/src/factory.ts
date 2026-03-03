@@ -76,7 +76,8 @@ export function createSqliteKvExtension(
           mkdirSync(dbDir, { recursive: true });
         } catch (error: unknown) {
           throw new Error(
-            `Failed to create directory for database path "${dbPath}": ${error instanceof Error ? error.message : String(error)}`
+            `Failed to create directory for database path "${dbPath}": ${error instanceof Error ? error.message : String(error)}`,
+            { cause: error }
           );
         }
       }
@@ -118,7 +119,8 @@ export function createSqliteKvExtension(
         throw error;
       }
       throw new Error(
-        `Failed to initialize SQLite database for mount "${mountName}": ${String(error)}`
+        `Failed to initialize SQLite database for mount "${mountName}": ${String(error)}`,
+        { cause: error }
       );
     }
   }

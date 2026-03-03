@@ -98,12 +98,14 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
 statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
               (* pipe-chain includes optional terminator: capture | "break" | "return" *)
 
-(* Annotations: ^(key: value, ...) prefix modifying statement behavior.
-   Common use: loop limits via ^(limit: N).
+(* Annotations: ^(key: value, ...) placed at operator level before a loop body.
+   Common use: loop limits via expr @ ^(limit: N) { body }.
    annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
    annotation-arg = identifier , ":" , literal ;
 *)
-annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
+annotation    = "^" , "(" , annotation-args , ")" ;
+annotation-args = string , { "," , annotation-arg }   (* description shorthand: bare string expands to description: <string> *)
+              | [ annotation-arg , { "," , annotation-arg } ] ;
 annotation-arg = identifier , ":" , literal ;
 
 (* ============================================================ *)
@@ -213,11 +215,15 @@ literal       = string | number | bool | list | dict | closure ;
    - "value" -> $fn()  -- pipe value as first arg
    - *[1, 2] -> $fn()  -- tuple unpacking at invocation *)
 
-closure-param    = identifier , [ ":" , param-type ] , [ "=" , literal ]
-              | identifier , "=" , literal ;   (* type inferred from default *)
-param-type    = "string" | "number" | "bool" ;  (* primitives only for closure params *)
+closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , literal ]
+              | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
+param-type    = type-name ;  (* all type names accepted for closure params *)
 body   = block | grouped-expr | postfix-expr ;
-closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body ;
+closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , [ "->" , return-type ] , body ;
+              (* Return type is metadata only — NOT enforced at runtime.
+                 |x: number| -> string { "{$x}" }  -- declares string return type
+                 Metadata accessible via $fn.returnType at runtime. *)
+return-type   = "string" | "number" | "bool" | "list" | "dict" | "any" | "vector" ;
 
 string        = '"' , { char | escape | brace-escape | interpolation } , '"'
               | '"""' , { char | escape | brace-escape | interpolation } , '"""' ;
@@ -324,7 +330,7 @@ digits        = digit , { digit } ;
    "hello" => $name           -- $name is now type-locked to string
    5 => $name                 -- ERROR: $name was previously string *)
 capture       = "$" , identifier , [ ":" , capture-type ] ;
-capture-type  = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
+capture-type  = type-name ;  (* all type names accepted for captures *)
 
 (* ============================================================ *)
 (* HOST FUNCTIONS                                               *)
@@ -538,7 +544,7 @@ type-assertion = ":" , type-name ;
    $val -> :?list ? process()      -- conditional on type *)
 type-check    = ":" , "?" , type-name ;
 
-type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" ;
+type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "any" ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)
@@ -584,8 +590,11 @@ else-clause   = conditional | body ;
      [a: 1, b: 2] -> each { $.key }     -- iterate over dict entries
      $items -> each { process($) }      -- iterate over variable *)
 
-loop          = [ body ] , "@" , body , [ "?" , body ] ;
+loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
               (* First body: input (condition for while, iterable for for-each)
+                 Optional annotation: placed between @ and body, attaches metadata to this evaluation.
+                   0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+                   @ ^(limit: 5) { app::prompt("Retry?") } ? (.contains("RETRY"))
                  Second body: loop body
                  Third body (after ?): do-while condition *)
 
@@ -634,42 +643,48 @@ iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
                  Note: variable not listed separately since postfix-expr -> primary -> variable
                  .method shorthand applies method to each element: ["a","b"] -> map .upper *)
 
-each-expr     = "each" , [ "(" , expression , ")" ] , iterator-body ;
+each-expr     = "each" , [ "(" , expression , ")" ] , [ annotation ] , iterator-body ;
               (* Sequential iteration returning list of all body results.
                  Optional (expression) provides initial accumulator value.
                  With accumulator: $@ is accumulator, $ is current element.
                  Supports break for early termination.
-                 [1, 2, 3] -> each { $ * 2 }       -- [2, 4, 6]
-                 [1, 2, 3] -> each(0) { $@ + $ }   -- [1, 3, 6] *)
+                 Optional annotation before body attaches operational metadata.
+                 [1, 2, 3] -> each { $ * 2 }              -- [2, 4, 6]
+                 [1, 2, 3] -> each(0) { $@ + $ }          -- [1, 3, 6]
+                 [1, 2, 3] -> each ^(limit: 1000) { $ }   -- with annotation *)
 
-map-expr      = "map" , iterator-body ;
+map-expr      = "map" , [ annotation ] , iterator-body ;
               (* Parallel iteration returning list of all body results.
                  Executes all iterations concurrently via Promise.all.
                  Order is preserved despite parallel execution.
                  No accumulator (parallel has no "previous" value).
                  No break support.
-                 [1, 2, 3] -> map { $ * 2 }        -- [2, 4, 6]
-                 $urls -> map |url| fetch($url)   -- concurrent fetch *)
+                 Optional annotation before body controls concurrency limit.
+                 [1, 2, 3] -> map { $ * 2 }               -- [2, 4, 6]
+                 $urls -> map |url| fetch($url)            -- concurrent fetch
+                 $urls -> map ^(limit: 10) { fetch($) }   -- limit concurrency *)
 
-fold-expr     = "fold" , ( "(" , expression , ")" , iterator-body | closure | variable ) ;
+fold-expr     = "fold" , ( "(" , expression , ")" , [ annotation ] , iterator-body | closure | variable ) ;
               (* Sequential reduction returning final accumulated value.
                  Requires accumulator (reduction semantics need initial value).
                  Block form: (init) { body } where $@ is accumulator.
                  Closure form: |x, acc = init| body.
                  Variable form: $fn where closure defines accumulator.
                  No break support.
-                 [1, 2, 3] -> fold(0) { $@ + $ }          -- 6
-                 [1, 2, 3] -> fold |x, s = 0| ($s + $x)   -- 6 *)
+                 [1, 2, 3] -> fold(0) { $@ + $ }                    -- 6
+                 [1, 2, 3] -> fold ^(limit: 20) |x, s = 0| ($s + $x) -- with annotation *)
 
-filter-expr   = "filter" , iterator-body ;
+filter-expr   = "filter" , [ annotation ] , iterator-body ;
               (* Parallel filtering returning elements where predicate is true.
                  Predicate MUST return boolean (true or false).
                  Non-boolean values will cause a runtime error.
                  Executes all predicates concurrently via Promise.all.
                  Order is preserved despite parallel execution.
                  No accumulator (each element evaluated independently).
-                 [1, 2, 3, 4, 5] -> filter { $ > 2 }    -- [3, 4, 5]
-                 $users -> filter |u| ($u.active)      -- active users (must be bool) *)
+                 Optional annotation before body attaches operational metadata.
+                 [1, 2, 3, 4, 5] -> filter { $ > 2 }          -- [3, 4, 5]
+                 $users -> filter |u| ($u.active)              -- active users
+                 $users -> filter ^(limit: 50) { $.active }   -- with annotation *)
 
 block         = "{" , statement , { statement } , "}" ;
               (* Block expression semantics depend on context:

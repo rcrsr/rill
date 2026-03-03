@@ -25,7 +25,13 @@
  * - Mutation occurs before host function receives args, maintaining immutability contract
  */
 
-import type { BodyNode, SourceLocation } from '../../types.js';
+import type {
+  BodyNode,
+  RillFunctionReturnType,
+  RillTypeName,
+  SourceLocation,
+} from '../../types.js';
+export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import type { RillValue } from './values.js';
@@ -58,34 +64,13 @@ export type CallableFn = (
  */
 export interface CallableParam {
   readonly name: string;
-  readonly typeName:
-    | 'string'
-    | 'number'
-    | 'bool'
-    | 'list'
-    | 'dict'
-    | 'vector'
-    | 'any'
-    | null;
+  readonly typeName: RillTypeName | null;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
   /** Human-readable parameter description (optional, from host functions) */
   readonly description?: string;
 }
-
-/**
- * Return type declaration for host-provided functions.
- * Limited to 6 primitive types plus 'any' (default).
- */
-export type RillFunctionReturnType =
-  | 'string'
-  | 'number'
-  | 'bool'
-  | 'list'
-  | 'dict'
-  | 'vector'
-  | 'any';
 
 /**
  * Parameter metadata for host-provided functions.
@@ -162,6 +147,8 @@ export interface ScriptCallable extends CallableBase {
   readonly annotations: Record<string, RillValue>;
   /** Evaluated parameter annotations keyed by parameter name */
   readonly paramAnnotations: Record<string, Record<string, RillValue>>;
+  /** Declared return type (from closure definition, e.g., |x|: string body) */
+  readonly returnType?: RillFunctionReturnType | undefined;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */

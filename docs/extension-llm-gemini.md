@@ -219,6 +219,18 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 | `gemini:tool_result` | Tool returns during loop |
 | `gemini:error` | Any operation fails |
 
+### Completion Event Fields
+
+Completion events (`gemini:message`, `gemini:messages`, `gemini:tool_loop`, `gemini:generate`) include these fields:
+
+| Field | Description |
+|-------|-------------|
+| `duration` | Request duration in milliseconds (`total_duration` for `tool_loop`) |
+| `model` | Model identifier used for the request |
+| `usage` | Token usage object (`input` and `output` counts) |
+| `request` | Messages array sent to the provider API |
+| `content` | Response text from the provider |
+
 ## Test Host
 
 A runnable example at `packages/ext/gemini/examples/test-host.ts` demonstrates integration:

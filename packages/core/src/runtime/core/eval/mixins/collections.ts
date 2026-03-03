@@ -371,6 +371,15 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return [];
       }
 
+      // Check for iteration limit annotation at operator level (node.annotations).
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
+
       // Get initial accumulator value if present
       let accumulator: RillValue | null = null;
       if (node.accumulator) {
@@ -389,9 +398,19 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const results: RillValue[] = [];
+      let iterCount = 0;
 
       try {
         for (const element of elements) {
+          iterCount++;
+          if (iterCount > maxIter) {
+            throw new RuntimeError(
+              'RILL-R010',
+              `Each loop exceeded ${maxIter} iterations`,
+              node.span.start,
+              { limit: maxIter, iterations: iterCount }
+            );
+          }
           this.checkAborted(node);
 
           // Create child context for this iteration
@@ -451,14 +470,19 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return [];
       }
 
-      // Check for concurrency limit annotation
-      const limitAnnotation = this.ctx.annotationStack.at(-1)?.['limit'];
-      const concurrencyLimit =
-        typeof limitAnnotation === 'number' && limitAnnotation > 0
-          ? Math.floor(limitAnnotation)
-          : Infinity;
+      // Check for concurrency limit annotation at operator level (node.annotations).
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const concurrencyLimit = (this as any).getIterationLimit(
+        operatorAnnotations
+      );
+      const hasExplicitLimit = operatorAnnotations?.['limit'] !== undefined;
 
-      if (concurrencyLimit === Infinity) {
+      if (!hasExplicitLimit) {
         // No limit: all in parallel
         // Create separate evaluator instance for each element to avoid late binding
         const promises = elements.map((element) => {
@@ -559,12 +583,31 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
+      // Check for iteration limit annotation at operator level (node.annotations).
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
+
       // Empty collection: return initial accumulator
       if (elements.length === 0) {
         return accumulator;
       }
 
+      let iterCount = 0;
       for (const element of elements) {
+        iterCount++;
+        if (iterCount > maxIter) {
+          throw new RuntimeError(
+            'RILL-R010',
+            `Fold loop exceeded ${maxIter} iterations`,
+            node.span.start,
+            { limit: maxIter, iterations: iterCount }
+          );
+        }
         this.checkAborted(node);
 
         // Create child context for this iteration
@@ -610,9 +653,20 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return [];
       }
 
-      // Evaluate predicate for all elements in parallel
-      // Create separate evaluator instance for each element to avoid late binding
-      const predicatePromises = elements.map(async (element) => {
+      // Check for concurrency limit annotation at operator level (node.annotations).
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const concurrencyLimit = (this as any).getIterationLimit(
+        operatorAnnotations
+      );
+      const hasExplicitLimit = operatorAnnotations?.['limit'] !== undefined;
+
+      /** Run the predicate for a single element and return keep/discard result. */
+      const runPredicate = async (element: RillValue) => {
         this.checkAborted(node);
         const elementCtx = createChildContext(this.ctx);
         elementCtx.pipeValue = element;
@@ -632,12 +686,25 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
         return { element, keep: result };
-      });
+      };
 
-      const results = await Promise.all(predicatePromises);
+      if (!hasExplicitLimit) {
+        // No limit: all in parallel
+        const results = await Promise.all(elements.map(runPredicate));
+        return results.filter((r) => r.keep).map((r) => r.element);
+      }
 
-      // Filter elements where predicate was true
-      return results.filter((r) => r.keep).map((r) => r.element);
+      // With limit: process in batches
+      const kept: RillValue[] = [];
+      for (let i = 0; i < elements.length; i += concurrencyLimit) {
+        this.checkAborted(node);
+        const batch = elements.slice(i, i + concurrencyLimit);
+        const batchResults = await Promise.all(batch.map(runPredicate));
+        for (const r of batchResults) {
+          if (r.keep) kept.push(r.element);
+        }
+      }
+      return kept;
     }
   };
 }

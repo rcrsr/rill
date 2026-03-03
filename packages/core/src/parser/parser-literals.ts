@@ -17,6 +17,8 @@ import type {
   LiteralNode,
   ListSpreadNode,
   BodyNode,
+  RillFunctionReturnType,
+  RillTypeName,
   SourceLocation,
   StringLiteralNode,
   TupleNode,
@@ -33,7 +35,8 @@ import {
 } from './state.js';
 import {
   isDictStart,
-  FUNC_PARAM_TYPES,
+  VALID_TYPE_NAMES,
+  VALID_RETURN_TYPES,
   parseTypeName,
   isNegativeNumber,
 } from './helpers.js';
@@ -558,11 +561,18 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     params.push(this.parseClosureParam());
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
+      skipNewlines(this.state);
       params.push(this.parseClosureParam());
     }
   }
 
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+
+  let returnType: RillFunctionReturnType | undefined = undefined;
+  if (check(this.state, TOKEN_TYPES.ARROW)) {
+    advance(this.state);
+    returnType = parseTypeName(this.state, VALID_RETURN_TYPES);
+  }
 
   const body = this.parseBody();
 
@@ -570,6 +580,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     type: 'Closure',
     params,
     body,
+    returnType,
     span: makeSpan(start, body.span.end),
   };
 };
@@ -595,27 +606,29 @@ Parser.prototype.parseBody = function (this: Parser): BodyNode {
 
 Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   const start = current(this.state).span.start;
+
+  let annotations: AnnotationArg[] | undefined = undefined;
+
+  // Parse parameter annotations before the name: ^(annots) name : type = default
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const nameToken = expect(
     this.state,
     TOKEN_TYPES.IDENTIFIER,
     'Expected parameter name'
   );
 
-  let typeName: 'string' | 'number' | 'bool' | null = null;
+  let typeName: RillTypeName | null = null;
   let defaultValue: LiteralNode | null = null;
-  let annotations: AnnotationArg[] | undefined = undefined;
 
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    typeName = parseTypeName(this.state, FUNC_PARAM_TYPES);
-  }
-
-  // Parse parameter annotations (after type, before default)
-  if (check(this.state, TOKEN_TYPES.CARET)) {
-    advance(this.state); // consume ^
-    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
-    annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+    typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
   }
 
   if (check(this.state, TOKEN_TYPES.ASSIGN)) {

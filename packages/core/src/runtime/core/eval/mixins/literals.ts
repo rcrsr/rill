@@ -80,12 +80,13 @@ async function captureClosureAnnotations(
   annotations: Record<string, RillValue>;
   paramAnnotations: Record<string, Record<string, RillValue>>;
 }> {
-  // Capture closure-level annotations from annotation stack
-  // When a closure is created within an annotated statement like:
+  // Capture closure-level annotations from immediateAnnotation field [IR-7].
+  // When a closure is created within a directly-annotated statement like:
   // ^(doc: "test") |x|($x * 2) :> $fn
-  // The annotation stack contains the evaluated annotations from the statement
-  const annotations: Record<string, RillValue> =
-    ctx.annotationStack.at(-1) ?? {};
+  // immediateAnnotation holds the evaluated annotations set by executeAnnotatedStatement.
+  // Consumed once: cleared after capture to prevent unintended re-use.
+  const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
+  ctx.immediateAnnotation = undefined;
 
   // Capture parameter-level annotations
   const paramAnnotations: Record<string, Record<string, RillValue>> = {};
@@ -977,6 +978,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isProperty,
         annotations,
         paramAnnotations,
+        returnType: node.returnType,
       };
     }
 
@@ -1001,6 +1003,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         },
       ];
 
+      const annotations = this.ctx.immediateAnnotation ?? {};
+      this.ctx.immediateAnnotation = undefined;
+
       return {
         __type: 'callable',
         kind: 'script',
@@ -1008,7 +1013,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         body: node,
         definingScope,
         isProperty: false,
-        annotations: {}, // Block closures: no annotation support (expression-position blocks)
+        annotations,
         paramAnnotations: {}, // Block closures have no parameter annotations
       };
     }

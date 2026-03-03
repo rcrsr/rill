@@ -163,7 +163,8 @@ export function loadConfig(cwd: string): CheckConfig | null {
     fileContent = readFileSync(configPath, 'utf-8');
   } catch (err) {
     throw new Error(
-      `[RILL-C003] Invalid configuration: failed to read file (${err instanceof Error ? err.message : String(err)})`
+      `[RILL-C003] Invalid configuration: failed to read file (${err instanceof Error ? err.message : String(err)})`,
+      { cause: err }
     );
   }
 
@@ -173,7 +174,8 @@ export function loadConfig(cwd: string): CheckConfig | null {
     parsedData = JSON.parse(fileContent);
   } catch (err) {
     throw new Error(
-      `[RILL-C003] Invalid configuration: invalid JSON (${err instanceof Error ? err.message : String(err)})`
+      `[RILL-C003] Invalid configuration: invalid JSON (${err instanceof Error ? err.message : String(err)})`,
+      { cause: err }
     );
   }
 

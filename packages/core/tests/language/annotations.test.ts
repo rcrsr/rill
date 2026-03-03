@@ -4,12 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  parse,
-  ParseError,
-  isScriptCallable,
-  type ScriptCallable,
-} from '@rcrsr/rill';
+import { parse, ParseError, isScriptCallable } from '@rcrsr/rill';
 import { run, runFull } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Annotations', () => {
@@ -30,8 +25,8 @@ describe('Rill Runtime: Annotations', () => {
       }
     });
 
-    it('parses parameter annotations |x ^(min: 0)| (AC-5)', () => {
-      const ast = parse('|x: number ^(min: 0)|{ $x }');
+    it('parses parameter annotations |^(min: 0) x| (AC-5)', () => {
+      const ast = parse('|^(min: 0) x: number|{ $x }');
       expect(ast.statements).toHaveLength(1);
       const stmt = ast.statements[0];
       expect(stmt?.type).toBe('Statement');
@@ -117,8 +112,8 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('throws error on missing ( after ^ in parameter (EC-2)', () => {
-      // Error case: ^min without parentheses
-      const source = '|x ^min|{ $x }';
+      // Error case: ^min without parentheses (new syntax: annotation precedes param)
+      const source = '|^min x|{ $x }';
 
       try {
         parse(source);
@@ -131,8 +126,8 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('throws error on missing ) in parameter annotation (EC-3)', () => {
-      // Error case: unclosed annotation
-      const source = '|x ^(min: 0|{ $x }';
+      // Error case: unclosed annotation (new syntax: annotation precedes param)
+      const source = '|^(min: 0 x|{ $x }';
 
       try {
         parse(source);
@@ -147,17 +142,17 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Limit Annotation', () => {
     it('allows loops within limit', async () => {
-      // Uses $ as accumulator (block scoping: variables don't leak)
+      // Uses operator-level annotation: @^(limit: N) { body }
       const script = `
-        ^(limit: 5) 0 -> ($ < 3) @ { $ + 1 }
+        0 -> ($ < 3) @^(limit: 5) { $ + 1 }
       `;
       expect(await run(script)).toBe(3);
     });
 
     it('throws when while loop exceeds limit', async () => {
-      // Uses $ as accumulator
+      // Operator-level annotation directly on the loop operator
       const script = `
-        ^(limit: 3) 0 -> ($ < 100) @ { $ + 1 }
+        0 -> ($ < 100) @^(limit: 3) { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
     });
@@ -165,7 +160,7 @@ describe('Rill Runtime: Annotations', () => {
     it('includes iteration count in error context when limit exceeded', async () => {
       // Verify AC-13: error context contains limit and iteration count
       const script = `
-        ^(limit: 5) 0 -> ($ < 100) @ { $ + 1 }
+        0 -> ($ < 100) @^(limit: 5) { $ + 1 }
       `;
       try {
         await run(script);
@@ -194,7 +189,6 @@ describe('Rill Runtime: Annotations', () => {
 
     it('uses default limit when not specified', async () => {
       // This should succeed because default is 10000
-      // Uses $ as accumulator
       const script = `
         0 -> ($ < 100) @ { $ + 1 }
       `;
@@ -202,33 +196,33 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('allows for-each loops within limit', async () => {
+      // Operator-level annotation on each
       const script = `
-        ^(limit: 10) [1, 2, 3] -> each { $ }
+        [1, 2, 3] -> each^(limit: 10) { $ }
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
     it('ignores non-positive limit values', async () => {
-      // Should use default instead of 0 or negative
-      // Uses $ as accumulator
+      // Operator-level non-positive limit falls back to default (10000)
       const script = `
-        ^(limit: -5) 0 -> ($ < 100) @ { $ + 1 }
+        0 -> ($ < 100) @^(limit: -5) { $ + 1 }
       `;
       expect(await run(script)).toBe(100);
     });
 
     it('floors fractional limit values', async () => {
-      // Uses $ as accumulator
+      // Operator-level fractional limit is floored
       const script = `
-        ^(limit: 3.9) 0 -> ($ < 100) @ { $ + 1 }
+        0 -> ($ < 100) @^(limit: 3.9) { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
     });
 
     it('preserves limit behavior with multiple annotations (AC-8)', async () => {
-      // Multiple annotations should not affect limit enforcement
+      // Multiple operator-level annotations
       const script = `
-        ^(limit: 50, meta: "test") 0 -> ($ < 100) @ { $ + 1 }
+        0 -> ($ < 100) @^(limit: 50, meta: "test") { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 50 iterations/);
     });
@@ -236,22 +230,20 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Annotation Inheritance', () => {
     it('inner annotations override outer', async () => {
-      // Inner limit of 2 should take precedence
-      // Uses $ as accumulator
+      // Inner operator-level limit of 2 on the loop
       const script = `
-        ^(limit: 100) "" -> {
-          ^(limit: 2) 0 -> ($ < 10) @ { $ + 1 }
+        "" -> {
+          0 -> ($ < 10) @^(limit: 2) { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 2 iterations/);
     });
 
     it('inner scope inherits outer annotations', async () => {
-      // This test verifies that limit applies in nested scopes
-      // Uses $ as accumulator
+      // Operator-level annotation on the loop enforces the limit
       const script = `
-        ^(limit: 3) "" -> {
-          0 -> ($ < 10) @ { $ + 1 }
+        "" -> {
+          0 -> ($ < 10) @^(limit: 3) { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
@@ -422,7 +414,7 @@ describe('Rill Runtime: Annotations', () => {
     describe('Parameter Annotation Reflection (AC-5)', () => {
       it('accesses parameter annotations via __annotations', async () => {
         const script = `
-          |x: number ^(min: 0, max: 100)| { $x } => $fn
+          |^(min: 0, max: 100) x: number| { $x } => $fn
           $fn.params.x.__annotations.min
         `;
         expect(await run(script)).toBe(0);
@@ -430,7 +422,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('accesses multiple parameter annotations via __annotations', async () => {
         const script = `
-          |x: number ^(min: 0, max: 100)| { $x } => $fn
+          |^(min: 0, max: 100) x: number| { $x } => $fn
           [$fn.params.x.__annotations.min, $fn.params.x.__annotations.max]
         `;
         expect(await run(script)).toEqual([0, 100]);
@@ -438,7 +430,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('supports coalescing for missing parameter annotation field', async () => {
         const script = `
-          |x: number ^(min: 0)| { $x } => $fn
+          |^(min: 0) x: number| { $x } => $fn
           $fn.params.x.__annotations.max ?? 100
         `;
         expect(await run(script)).toBe(100);
@@ -446,7 +438,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('handles multiple params with different annotations', async () => {
         const script = `
-          |x: number ^(min: 0), y: string ^(required: true)| { $x } => $fn
+          |^(min: 0) x: number, ^(required: true) y: string| { $x } => $fn
           [$fn.params.x.__annotations.min, $fn.params.y.__annotations.required]
         `;
         expect(await run(script)).toEqual([0, true]);
@@ -485,7 +477,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('includes annotations in params dict', async () => {
         const script = `
-          |x: number ^(min: 0, max: 100)| { $x } => $fn
+          |^(min: 0, max: 100) x: number| { $x } => $fn
           $fn.params.x.__annotations
         `;
         const result = await run(script);
@@ -494,7 +486,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('returns params with mixed annotation presence', async () => {
         const script = `
-          |x: number ^(min: 0), y: string| { $x } => $fn
+          |^(min: 0) x: number, y: string| { $x } => $fn
           $fn.params
         `;
         const result = await run(script);
@@ -575,10 +567,77 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
+    describe('Type System Expansion (AC-8, BC-3, EC-8)', () => {
+      it('parses closure type in param position (AC-8)', () => {
+        const ast = parse('|x: closure| { $x }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('parses list type in param position (AC-8)', () => {
+        const ast = parse('|x: list| { $x }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('parses dict type in param position (AC-8)', () => {
+        const ast = parse('|x: dict| { $x }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('parses vector type in param position (AC-8)', () => {
+        const ast = parse('|x: vector| { $x }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('parses any type in param position (AC-8)', () => {
+        const ast = parse('|x: any| { $x }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('accepts any value type with $x:any capture (BC-3)', async () => {
+        expect(await run('"hello" => $x:any\n$x')).toBe('hello');
+        expect(await run('42 => $x:any\n$x')).toBe(42);
+        expect(await run('true => $x:any\n$x')).toBe(true);
+        expect(await run('[1, 2] => $x:any\n$x')).toEqual([1, 2]);
+        expect(await run('[a: 1] => $x:any\n$x')).toEqual({ a: 1 });
+      });
+
+      it('rejects invalid type name in param position (EC-8)', () => {
+        try {
+          parse('|x: invalid| { $x }');
+          expect.fail('Should have thrown ParseError');
+        } catch (err) {
+          expect(err).toBeInstanceOf(ParseError);
+        }
+      });
+    });
+
+    describe('Description Shorthand (AC-9)', () => {
+      it('bare string expands to description annotation', async () => {
+        const script = `
+          ^("text") |x|($x) => $fn
+          $fn.^description
+        `;
+        expect(await run(script)).toBe('text');
+      });
+
+      it('bare string with additional named args sets description and other keys', async () => {
+        const script = `
+          ^("text", cache: true) |x|($x) => $fn
+          [$fn.^description, $fn.^cache]
+        `;
+        expect(await run(script)).toEqual(['text', true]);
+      });
+    });
+
     describe('Combined Reflection Operations', () => {
       it('accesses both closure and param annotations', async () => {
         const script = `
-          ^(doc: "test function") |x: number ^(min: 0)| { $x } => $fn
+          ^(doc: "test function") |^(min: 0) x: number| { $x } => $fn
           [$fn.^doc, $fn.params.x.__annotations.min]
         `;
         expect(await run(script)).toEqual(['test function', 0]);
@@ -602,10 +661,173 @@ describe('Rill Runtime: Annotations', () => {
 
       it('uses param annotation in arithmetic', async () => {
         const script = `
-          |x: number ^(min: 0, max: 100)| { $x } => $fn
+          |^(min: 0, max: 100) x: number| { $x } => $fn
           $fn.params.x.__annotations.max - $fn.params.x.__annotations.min
         `;
         expect(await run(script)).toBe(100);
+      });
+    });
+  });
+
+  describe('Parser Bug Fixes', () => {
+    it('parses annotation after newline before closure (AC-1)', async () => {
+      const script = `^("desc")\n|x| { $x } => $fn\n$fn.^description`;
+      expect(await run(script)).toBe('desc');
+    });
+
+    it('parses multi-line parameter list (AC-3)', async () => {
+      const script = `|x: string,\ny: number| { "{$x}: {$y}" } => $fn\n$fn("hello", 42)`;
+      expect(await run(script)).toBe('hello: 42');
+    });
+
+    it('parses multi-line function call arguments (AC-4)', async () => {
+      const script = `log(\n  "hello",\n  42\n)`;
+      await expect(run(script)).resolves.not.toThrow();
+    });
+
+    it('throws parse error for annotation with no target (BC-1)', () => {
+      try {
+        parse('^(key: "val")');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+      }
+    });
+
+    it('throws parse error for annotation followed by newlines then EOF (EC-1)', () => {
+      try {
+        parse('^(key: "val")\n');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+      }
+    });
+
+    it('throws parse error for invalid token after newline in param list (EC-3)', () => {
+      try {
+        parse('|x: string,\n @| { $x }');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+      }
+    });
+  });
+
+  describe('Operator-Level Annotations', () => {
+    // IR-8: Operator-level ^(...) syntax — placed directly before operator body,
+    // not at statement level. Phase 2 adds parser support only; Phase 3 (Task 3.3)
+    // will implement runtime enforcement of operator-level limits.
+
+    describe('While loop (@) with operator-level annotation', () => {
+      it('parses ^(limit:) before while body without error', () => {
+        // Syntax: value -> (cond) @ ^(limit: N) { body }
+        const ast = parse('0 -> ($ < 3) @ ^(limit: 100) { $ + 1 }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('executes while loop with operator-level annotation (limit not enforced in Phase 2)', async () => {
+        // Runtime does not yet read operator-level limit; loop runs to natural end.
+        const result = await run('0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }');
+        expect(result).toBe(50);
+      });
+    });
+
+    describe('each with operator-level annotation', () => {
+      it('parses ^(limit:) before each body without error', () => {
+        const ast = parse('[1, 2, 3] -> each ^(limit: 10) { $ }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('executes each with operator-level annotation and produces correct result', async () => {
+        const result = await run('[1, 2, 3] -> each ^(limit: 10) { $ }');
+        expect(result).toEqual([1, 2, 3]);
+      });
+    });
+
+    describe('map with operator-level annotation', () => {
+      it('parses ^(limit:) before map body without error', () => {
+        const ast = parse('[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('executes map with operator-level annotation and doubles each element', async () => {
+        const result = await run('[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+        expect(result).toEqual([2, 4, 6]);
+      });
+    });
+
+    describe('fold with operator-level annotation', () => {
+      it('parses ^(limit:) before fold body without error', () => {
+        // fold uses closure form with default accumulator so ^(...) can precede the body
+        const ast = parse(
+          '[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
+        );
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('executes fold with operator-level annotation and sums elements', async () => {
+        // fold(init) prefix conflicts with ^(...) placement; use closure form instead
+        const result = await run(
+          '[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
+        );
+        expect(result).toBe(6);
+      });
+    });
+
+    describe('filter with operator-level annotation', () => {
+      it('parses ^(limit:) before filter body without error', () => {
+        const ast = parse('[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('executes filter with operator-level annotation and returns matching elements', async () => {
+        const result = await run(
+          '[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }'
+        );
+        expect(result).toEqual([3, 4]);
+      });
+    });
+
+    describe('AC-6 / EC-5: Statement-level ^(limit:) before operator (silently ignored)', () => {
+      // AC-6 / EC-5: ^(limit:) at statement level (not operator-level) is silently ignored.
+      // The statement-level annotation applies to the outermost statement, not the operator.
+      // Phase 3 (Task 3.3) will implement runtime enforcement of operator-level limits.
+      // For now, verify: statement-level limit enforces on the whole statement, and the
+      // operator itself runs with default iteration limit.
+
+      it('statement-level ^(limit:) before each — still runs each to completion', async () => {
+        // Statement annotation wraps the full pipe chain; each uses default limit.
+        const result = await run('^(limit: 1000) [1, 2, 3] -> each { $ }');
+        expect(result).toEqual([1, 2, 3]);
+      });
+
+      it('statement-level ^(limit:) before while — still runs while to natural end', async () => {
+        // Statement annotation does not restrict operator iteration count.
+        const result = await run('^(limit: 1000) 0 -> ($ < 5) @ { $ + 1 }');
+        expect(result).toBe(5);
+      });
+    });
+
+    describe('EC-7: Invalid annotation key for operator context — parse-level acceptance', () => {
+      // EC-7: Runtime enforcement of invalid operator annotation keys is not implemented in Phase 2.
+      // Phase 2 only adds parser support. The parser accepts any key in ^(...) operator annotations.
+      // This test verifies the parser does not reject unknown keys (runtime error is Phase 3 scope).
+
+      it('parses unknown annotation key on each without error', () => {
+        const ast = parse('[1, 2, 3] -> each ^(invalid_key: 99) { $ }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
+      });
+
+      it('parses unknown annotation key on map without error', () => {
+        const ast = parse('[1, 2, 3] -> map ^(unknown: true) { $ }');
+        expect(ast.statements).toHaveLength(1);
+        expect(ast.statements[0]?.type).toBe('Statement');
       });
     });
   });
@@ -704,7 +926,7 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('has empty closure annotations when only param annotations exist', async () => {
-        const result = await runFull('|x: number ^(min: 0)|{ $x } => $fn');
+        const result = await runFull('|^(min: 0) x: number|{ $x } => $fn');
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -717,7 +939,7 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('Parameter Annotations', () => {
       it('captures parameter annotations (AC-5)', async () => {
-        const result = await runFull('|x: number ^(min: 0)|{ $x } => $fn');
+        const result = await runFull('|^(min: 0) x: number|{ $x } => $fn');
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -729,7 +951,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('captures multiple parameter annotations', async () => {
         const result = await runFull(
-          '|x: number ^(min: 0, max: 100)|{ $x } => $fn'
+          '|^(min: 0, max: 100) x: number|{ $x } => $fn'
         );
         const fn = result.variables['fn'];
 
@@ -742,7 +964,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('captures annotations for multiple parameters', async () => {
         const result = await runFull(
-          '|x: number ^(min: 0), y: string ^(required: true)|{ $x } => $fn'
+          '|^(min: 0) x: number, ^(required: true) y: string|{ $x } => $fn'
         );
         const fn = result.variables['fn'];
 
@@ -755,7 +977,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('evaluates parameter annotation values', async () => {
         const result = await runFull(
-          '5 => $limit\n|x: number ^(max: $limit * 2)|{ $x } => $fn'
+          '5 => $limit\n|^(max: $limit * 2) x: number|{ $x } => $fn'
         );
         const fn = result.variables['fn'];
 
@@ -766,7 +988,7 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('propagates error from parameter annotation evaluation (AC-11, EC-7)', async () => {
-        const script = '|x: number ^(min: $undefined)|{ $x }';
+        const script = '|^(min: $undefined) x: number|{ $x }';
         await expect(run(script)).rejects.toThrow(/undefined variable/i);
       });
 
@@ -784,6 +1006,146 @@ describe('Rill Runtime: Annotations', () => {
           expect(fn.paramAnnotations).toEqual({});
         }
       });
+    });
+  });
+
+  describe('Annotation Consistency E2E', () => {
+    it('annotation after newline + description shorthand parses and runs (AC-1, AC-9)', async () => {
+      // ^("desc") on one line, closure with return type on next line
+      // Combines: AC-1 (annotation after newline), AC-9 (bare string shorthand), IR-12 (return type)
+      const script = `^("desc")\n|x: string| -> number { $x -> .len } => $fn\n$fn.^description`;
+      expect(await run(script)).toBe('desc');
+    });
+
+    it('annotated closure with return type actually executes (IR-12)', async () => {
+      // Return type is metadata only, not enforced — closure runs normally
+      const script = `^("desc")\n|x: string| -> number { $x -> .len } => $fn\n$fn("hello")`;
+      expect(await run(script)).toBe(5);
+    });
+
+    it('multi-line params with expanded types parse without error (AC-3, AC-8)', async () => {
+      // Multi-line parameter list using closure and dict types (AC-8 expanded types)
+      const ast = parse('|^("a") x: closure,\n^("b") y: dict| { $x }');
+      expect(ast.statements).toHaveLength(1);
+      expect(ast.statements[0]?.type).toBe('Statement');
+    });
+
+    it('block-closure annotation + operator-level limit run without error (AC-2, IR-8)', async () => {
+      // Block-closure carries ^("loop") annotation; .^description returns "loop"
+      const script = `^("loop") { 1 } => $b\n$b.^description`;
+      expect(await run(script)).toBe('loop');
+    });
+
+    it('operator-level limit on each with block-closure runs without error (IR-8)', async () => {
+      // Combines operator-level annotation (IR-8) with each collection operator
+      const result = await run('[1, 2, 3] -> each ^(limit: 10) { $ * 2 }');
+      expect(result).toEqual([2, 4, 6]);
+    });
+
+    it('return type + param annotation combined — closure runs and param annotation accessible (IR-12, AC-9)', async () => {
+      // Closure with both return type metadata and param annotation
+      // AC-9: ^("num") on param expands to description: "num"
+      const script = `|^("num") x: number| -> string { "{$x}" } => $fn\n$fn.params.x.__annotations.description`;
+      expect(await run(script)).toBe('num');
+    });
+
+    it('return type + param annotation combined — closure executes correctly (IR-12)', async () => {
+      // Verify the closure body actually runs with return type declared
+      const script = `|^("num") x: number| -> string { "{$x}" } => $fn\n$fn(42)`;
+      expect(await run(script)).toBe('42');
+    });
+  });
+
+  describe('Phase 3 Breaking Changes', () => {
+    it('block-closure carries annotation (AC-2)', async () => {
+      // ^("...") shorthand sets description annotation on a block-closure (no params)
+      const script = `^("doubles input") { $ * 2 } => $fn\n$fn.^description`;
+      expect(await run(script)).toBe('doubles input');
+    });
+
+    it('block-closure carries named annotation (AC-2)', async () => {
+      // Named annotation key on a block-closure
+      const script = `^(label: "my fn") { $ + 1 } => $fn\n$fn.^label`;
+      expect(await run(script)).toBe('my fn');
+    });
+
+    it('old param annotation syntax produces parse error (AC-5)', () => {
+      // |name: type ^(key: val)| is no longer valid syntax
+      expect(() =>
+        parse('|city: string ^(description: "City name")| { $city }')
+      ).toThrow(ParseError);
+    });
+
+    it('old param annotation syntax error message (EC-4)', () => {
+      // EC-4: same syntax, verify it throws ParseError
+      expect(() => parse('|name: string ^(required: true)| { }')).toThrow(
+        ParseError
+      );
+    });
+
+    it('annotation does not inherit to nested block-closure (AC-7)', async () => {
+      // Outer statement annotated; inner block-closure defined in same script is not
+      const script = `
+        ^(version: 2) |x|($x * 2) => $fn
+        { $ + 1 } => $inner
+        $inner.^version
+      `;
+      await expect(run(script)).rejects.toThrow(
+        /Annotation 'version' not found/
+      );
+    });
+
+    it('only inner (second) annotation attaches when two precede one closure (BC-2)', async () => {
+      // Two consecutive ^(...) before one closure: only the immediately preceding annotation attaches
+      const script = `
+        ^(first: 1) ^(second: 2) |x|($x) => $fn
+        $fn.^second
+      `;
+      expect(await run(script)).toBe(2);
+    });
+
+    it('outer (first) annotation does not attach to closure when two annotations present (BC-2)', async () => {
+      // The outer annotation is discarded; only the inner annotation attaches
+      const script = `
+        ^(first: 1) ^(second: 2) |x|($x) => $fn
+        $fn.^first
+      `;
+      await expect(run(script)).rejects.toThrow(/Annotation 'first' not found/);
+    });
+
+    it('unannotated block-closure .^key errors (EC-2)', async () => {
+      // Block-closure with no annotation: accessing .^key throws
+      const script = `
+        { $ * 2 } => $fn
+        $fn.^description
+      `;
+      await expect(run(script)).rejects.toThrow(
+        /Annotation 'description' not found/
+      );
+    });
+
+    it('nested closure annotation not found (EC-6)', async () => {
+      // Inner block-closure inside annotated statement scope: .^key errors
+      const script = `
+        ^(version: 2) |x|($x) => $outer
+        { $ * 3 } => $inner
+        $inner.^version
+      `;
+      await expect(run(script)).rejects.toThrow(
+        /Annotation 'version' not found/
+      );
+    });
+
+    it('return type mismatch is not enforced at runtime (EC-9)', async () => {
+      // Closure declares -> string return type but returns a number: no runtime error
+      const script = `|x: number| -> string { $x } => $fn\n$fn(42)`;
+      expect(await run(script)).toBe(42);
+    });
+
+    it('closure with return type annotation parses and runs (IR-12)', async () => {
+      // |x: number| -> string { $x } is valid syntax and executes
+      const script = `|x: number| -> string { $x } => $fn\n$fn(99)`;
+      expect(await run(script)).toBe(99);
     });
   });
 });

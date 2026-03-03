@@ -101,6 +101,7 @@ export function assertType(
     maxCallStackDepth: 100,
     annotationStack: [],
     callStack: [],
+    immediateAnnotation: undefined,
   };
 
   const evaluator = getEvaluator(minimalContext);

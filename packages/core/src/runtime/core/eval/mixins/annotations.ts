@@ -91,16 +91,19 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate annotation arguments to build annotation dict [EC-26]
       const newAnnotations = await this.evaluateAnnotations(stmt.annotations);
 
-      // Merge with inherited annotations (inner overrides outer)
-      const inherited = this.ctx.annotationStack.at(-1) ?? {};
-      const merged = { ...inherited, ...newAnnotations };
+      // No inheritance: use only the annotations declared on this statement [IR-7]
+      const merged = newAnnotations;
 
-      // Push merged annotations, execute inner statement, pop
+      // Set immediateAnnotation for closure capture before pushing to stack
+      this.ctx.immediateAnnotation = newAnnotations;
+
+      // Push annotations, execute inner statement, pop
       this.ctx.annotationStack.push(merged);
       try {
         return await this.executeStatement(stmt.statement);
       } finally {
         this.ctx.annotationStack.pop();
+        this.ctx.immediateAnnotation = undefined;
       }
     }
 
@@ -110,7 +113,7 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Errors during evaluation propagate [EC-26].
      */
-    private async evaluateAnnotations(
+    protected async evaluateAnnotations(
       annotations: AnnotationArg[]
     ): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
@@ -168,12 +171,16 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Get the iteration limit for loops from the `limit` annotation [IR-55].
+     * Get the iteration limit for loops from operator-level annotations [IR-55, IR-6].
      *
-     * Returns the default if not set or if the value is not a positive number.
+     * Reads from the provided operator-level annotations dict when given.
+     * Falls back to DEFAULT_MAX_ITERATIONS when no valid positive number is found.
+     * Statement-level annotationStack is NOT consulted (EC-5).
+     *
+     * @param operatorAnnotations - Evaluated operator-level annotations (from node.annotations)
      */
-    getIterationLimit(): number {
-      const limit = this.getAnnotation('limit');
+    getIterationLimit(operatorAnnotations?: Record<string, RillValue>): number {
+      const limit = operatorAnnotations?.['limit'];
       if (typeof limit === 'number' && limit > 0) {
         return Math.floor(limit);
       }

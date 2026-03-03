@@ -262,6 +262,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): void {
       const expectedType =
         param.typeName ?? this.inferTypeFromDefault(param.defaultValue);
+      if (expectedType === 'any') return;
       if (expectedType !== null) {
         const valueType = inferType(value);
         if (valueType !== expectedType) {

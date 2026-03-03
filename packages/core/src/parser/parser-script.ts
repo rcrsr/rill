@@ -256,24 +256,22 @@ Parser.prototype.parseAnnotatedStatement = function (
   const annotations = this.parseAnnotationArgs();
 
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  skipNewlines(this.state);
 
   // Parse the inner statement (which could also be annotated)
   const statement = this.parseStatement();
 
-  // If inner is annotated, wrap it; otherwise use directly
-  const innerStatement: StatementNode =
-    statement.type === 'AnnotatedStatement'
-      ? {
-          type: 'Statement',
-          expression: statement.statement.expression,
-          span: statement.span,
-        }
-      : statement;
+  // If inner is already annotated, return it unchanged.
+  // BC-2: The immediately-preceding annotation attaches to the closure;
+  // the outer annotation is discarded.
+  if (statement.type === 'AnnotatedStatement') {
+    return statement;
+  }
 
   return {
     type: 'AnnotatedStatement',
     annotations,
-    statement: innerStatement,
+    statement,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -310,6 +308,17 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
       expression,
       span: makeSpan(start, current(this.state).span.end),
     } satisfies SpreadArgNode;
+  }
+
+  // Description shorthand: bare string expands to description: <string>
+  if (check(this.state, TOKEN_TYPES.STRING)) {
+    const value = this.parseExpression();
+    return {
+      type: 'NamedArg',
+      name: 'description',
+      value,
+      span: makeSpan(start, current(this.state).span.end),
+    } satisfies NamedArgNode;
   }
 
   // Named argument: key: value

@@ -420,7 +420,7 @@ args: operation: string
 ---
 
 # Do-while: body runs first, then condition checked
-^(limit: 5) @ {
+@ ^(limit: 5) {
   """
 Perform: {$operation}
 

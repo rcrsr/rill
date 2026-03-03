@@ -340,7 +340,7 @@ Annotations modify how statements execute. The most common is `limit` for loops:
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)
-^(limit: 100) false -> ($ == false) @ {
+false -> ($ == false) @ ^(limit: 100) {
   check_status()
 }
 ```
@@ -414,5 +414,5 @@ $data.field ?? default      # with default
 $data.?field                # existence check
 
 # Annotations
-^(limit: 100) statement     # set iteration limit
+statement @ ^(limit: 100) { body }     # set iteration limit
 ```

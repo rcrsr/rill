@@ -120,6 +120,30 @@ const resolved = await resolveExtensions(extensions, {
 console.log(resolved.map(r => r.name));
 ```
 
+## Types Reference
+
+### HandlerContext
+
+```typescript
+interface HandlerContext {
+  readonly agentName: string;
+  readonly correlationId?: string | undefined;
+  readonly sessionId?: string | undefined;
+  readonly config: Record<string, Record<string, unknown>>;
+  readonly onLog?: ((value: RillValue) => void) | undefined;
+  readonly onLogEvent?: ((event: ExtensionEvent) => void) | undefined;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `agentName` | Agent name this handler belongs to |
+| `correlationId` | Caller-provided correlation ID for request tracing |
+| `sessionId` | Caller-provided session ID |
+| `config` | Agent configuration keyed by section name |
+| `onLog` | Optional callback for values passed to `log` in scripts |
+| `onLogEvent` | Optional callback for structured events from extensions |
+
 ## Error Classes
 
 ### ComposeError

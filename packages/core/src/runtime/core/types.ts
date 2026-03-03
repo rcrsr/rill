@@ -145,9 +145,15 @@ export interface RuntimeContext {
   /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
-   * Inner scopes inherit and can override outer annotations.
+   * Annotations do not inherit — each annotated statement carries only its own annotations.
    */
   readonly annotationStack: Record<string, RillValue>[];
+  /**
+   * Annotations for the immediate next child statement only.
+   * Set by executeAnnotatedStatement() and read by captureClosureAnnotations().
+   * Not inherited through the scope chain — cleared after one statement.
+   */
+  immediateAnnotation: Record<string, RillValue> | undefined;
   /**
    * Call stack for error context.
    * Managed by evaluator; pushed on function entry, popped on exit.

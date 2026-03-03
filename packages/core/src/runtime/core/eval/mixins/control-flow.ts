@@ -42,12 +42,6 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 
 /**
- * Default maximum iteration count for while/do-while loops.
- * Can be overridden with ^(limit: N) annotation.
- */
-const DEFAULT_MAX_ITERATIONS = 10000;
-
-/**
  * ControlFlowMixin implementation.
  *
  * Evaluates conditionals, loops, blocks, and body nodes.
@@ -73,18 +67,6 @@ const DEFAULT_MAX_ITERATIONS = 10000;
  */
 function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ControlFlowEvaluator extends Base {
-    /**
-     * Get the iteration limit for loops from the `limit` annotation.
-     * Returns the default if not set or if the value is not a positive number.
-     */
-    protected getIterationLimit(): number {
-      const limit = this.ctx.annotationStack.at(-1)?.['limit'];
-      if (typeof limit === 'number' && limit > 0) {
-        return Math.floor(limit);
-      }
-      return DEFAULT_MAX_ITERATIONS;
-    }
-
     /**
      * Evaluate conditional expression (ternary if-else).
      *
@@ -201,7 +183,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       let value = this.ctx.pipeValue;
       let iterCount = 0;
-      const maxIter = this.getIterationLimit();
+      // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
 
       try {
         let conditionResult = conditionValue;
@@ -272,11 +261,30 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       let value = this.ctx.pipeValue;
 
+      // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
+      // Statement-level annotationStack is not consulted (EC-5).
+      const operatorAnnotations = node.annotations?.length
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateAnnotations(node.annotations)
+        : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
+      let iterCount = 0;
+
       try {
         // Do-while: body executes first, then condition is checked
         // Each iteration creates a child scope (reads parent, writes local only)
         let shouldContinue = true;
         while (shouldContinue) {
+          iterCount++;
+          if (iterCount > maxIter) {
+            throw new RuntimeError(
+              'RILL-R010',
+              `Do-while loop exceeded ${maxIter} iterations`,
+              this.getNodeLocation(node),
+              { limit: maxIter, iterations: iterCount }
+            );
+          }
           this.checkAborted(node);
 
           const iterCtx = createChildContext(this.ctx);

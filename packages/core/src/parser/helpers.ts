@@ -21,10 +21,24 @@ export const VALID_TYPE_NAMES = [
   'list',
   'dict',
   'tuple',
+  'vector',
+  'any',
 ] as const;
 
-/** @internal */
-export const FUNC_PARAM_TYPES = ['string', 'number', 'bool'] as const;
+/**
+ * Valid return type names for closure return type annotations.
+ * Subset of VALID_TYPE_NAMES — excludes 'closure' and 'tuple'.
+ * @internal
+ */
+export const VALID_RETURN_TYPES = [
+  'string',
+  'number',
+  'bool',
+  'list',
+  'dict',
+  'vector',
+  'any',
+] as const;
 
 // ============================================================
 // LOOKAHEAD PREDICATES
@@ -65,7 +79,9 @@ export function isHostCall(state: ParserState): boolean {
   }
 
   // Simple case: identifier(
-  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
+  let simpleOffset = 1;
+  while (peek(state, simpleOffset).type === TOKEN_TYPES.NEWLINE) simpleOffset++;
+  if (peek(state, simpleOffset).type === TOKEN_TYPES.LPAREN) {
     return true;
   }
 
@@ -81,8 +97,13 @@ export function isHostCall(state: ParserState): boolean {
     offset++; // skip identifier/keyword
   }
 
-  // If we consumed at least one ::, check for (
-  return offset > 1 && peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  // If we consumed at least one ::, skip newlines then check for (
+  if (offset > 1) {
+    while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
+    return peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  }
+
+  return false;
 }
 
 /**
@@ -91,11 +112,11 @@ export function isHostCall(state: ParserState): boolean {
  * @internal
  */
 export function isClosureCall(state: ParserState): boolean {
-  return (
-    check(state, TOKEN_TYPES.DOLLAR) &&
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
-    peek(state, 2).type === TOKEN_TYPES.LPAREN
-  );
+  if (!check(state, TOKEN_TYPES.DOLLAR)) return false;
+  if (peek(state, 1).type !== TOKEN_TYPES.IDENTIFIER) return false;
+  let offset = 2;
+  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
+  return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
 /**
@@ -115,6 +136,7 @@ export function isClosureCallWithAccess(state: ParserState): boolean {
     offset++; // skip identifier
   }
 
+  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
   return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 

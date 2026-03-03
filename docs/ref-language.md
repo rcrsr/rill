@@ -82,8 +82,11 @@ See [Collections](topic-collections.md) for detailed documentation.
 | List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
 | Dict | `[k: v]`, `[$k: v]`, `[($e): v]` | `[output: "text"]`, `[$key: 1]` | Dict value |
 | Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
+| Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
+
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `any`
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -92,8 +95,9 @@ See [Types](topic-types.md) for detailed documentation.
 | Syntax | Description |
 |--------|-------------|
 | `\|p: type\|{ } => $fn` | Define and capture function |
+| `\|p: type\| -> rtype { }` | Define with return type metadata (host API only) |
 | `\|p = default\|{ }` | Parameter with default |
-| `\|p ^(min: 0)\|{ }` | Parameter with annotation |
+| `\|^(min: 0) p\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
 | `arg -> $fn()` | Call function with pipe value |
 | `arg -> $fn` | Pipe-style invoke |
@@ -332,6 +336,40 @@ $fn.^missing # Error: RUNTIME_UNDEFINED_ANNOTATION
 
 Annotations are metadata attached to closures during creation. They enable runtime configuration and introspection.
 
+**Scope rule:** Annotations apply only to the closure directly targeted by `^(...)`. A closure nested inside an annotated statement does not inherit the annotation.
+
+```rill
+# Direct annotation: works
+^(version: 2) |x|($x) => $fn
+$fn.^version    # 2
+```
+
+```text
+# Nested closure does NOT inherit outer annotation
+^(version: 2)
+"" -> {
+  |x|($x) => $fn
+}
+$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+### Description Shorthand
+
+A bare string in `^(...)` expands to `description: <string>`:
+
+```rill
+^("Validates user input") |input|($input) => $validate
+$validate.^description    # "Validates user input"
+```
+
+Mix the shorthand with explicit keys:
+
+```rill
+^("Fetch user profile", cache: true) |id|($id) => $get_user
+$get_user.^description    # "Fetch user profile"
+$get_user.^cache          # true
+```
+
 ### Common Use Cases
 
 **Function Metadata:**
@@ -388,14 +426,14 @@ $str.^key        # Error: Cannot access annotation on string
 
 Parameters can have their own annotations using `^(key: value)` syntax. These attach metadata to individual parameters.
 
-**Syntax:** `|paramName ^(annotation: value)| body`
+**Syntax:** `|^(annotation: value) paramName| body`
 
-**Order:** Parameter annotations appear after the type annotation (if present) and before the default value (if present).
+**Order:** Parameter annotations appear before the parameter name, before the type annotation (if present) and default value (if present).
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) => $validate
-|name: string ^(required: true) = "guest"|($name) => $greet
-|count ^(cache: true) = 0|($count) => $process
+|^(min: 0, max: 100) x: number|($x) => $validate
+|^(required: true) name: string = "guest"|($name) => $greet
+|^(cache: true) count = 0|($count) => $process
 ```
 
 **Access via `.params`:**
@@ -406,7 +444,7 @@ The `.params` property returns a dict keyed by parameter name. Each entry is a d
 - `__annotations` — Dict of parameter-level annotations if present
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
+|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -423,16 +461,50 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 
 ```rill
 # Validation metadata
-|value ^(min: 0, max: 100)|($value) => $bounded
+|^(min: 0, max: 100) value|($value) => $bounded
 
 # Caching hints
-|key ^(cache: true)|($key) => $fetch
+|^(cache: true) key|($key) => $fetch
 
 # Format specifications
-|timestamp ^(format: "ISO8601")|($timestamp) => $formatDate
+|^(format: "ISO8601") timestamp|($timestamp) => $formatDate
 ```
 
 See [Closures](topic-closures.md) for parameter annotation examples and patterns.
+
+---
+
+## Return Type Declarations
+
+The `-> type` syntax after the closing `|` attaches return type metadata to a closure. Return types are **not enforced at runtime** — they are metadata for host applications and tooling.
+
+**Syntax:** `|params| -> returnType { body }`
+
+```rill
+|x: number| -> string { "{$x}" } => $fn
+$fn(42)    # "42"
+```
+
+Valid return types:
+
+| Return Type | Description |
+|-------------|-------------|
+| `string` | String value |
+| `number` | Numeric value |
+| `bool` | Boolean value |
+| `list` | List value |
+| `dict` | Dict value |
+| `any` | Any type (unconstrained) |
+| `vector` | Vector embedding |
+
+The function executes regardless of actual return type:
+
+```rill
+|x: number| -> string { $x * 2 } => $double
+$double(5)    # 10 (returns number despite -> string declaration)
+```
+
+Return type metadata is accessible to host applications via the TypeScript `getFunctions()` introspection API. It is not directly readable in rill script syntax.
 
 ---
 
@@ -450,14 +522,37 @@ See [Types](topic-types.md) for detailed tuple documentation.
 
 ---
 
+## Operator-Level Annotations
+
+Place `^(...)` between the operator name and its body to attach metadata to that operation. Annotations apply per evaluation, not per definition.
+
+**Loops:**
+
+```rill
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+```
+
+**Collection operators:**
+
+```rill
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+```
+
+Invalid annotation keys for operator context produce a runtime error.
+
+See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md) for detailed examples.
+
 ## Runtime Limits
 
 ### Iteration Limits
 
-Loops have a default maximum of **10,000 iterations**. Override with `^(limit: N)`:
+Loops have a default maximum of **10,000 iterations**. Place `^(limit: N)` at operator level, before the body:
 
 ```rill
-^(limit: 100) 0 -> ($ < 50) @ { $ + 1 }
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
 ```
 
 ### Concurrency Limits
@@ -465,7 +560,7 @@ Loops have a default maximum of **10,000 iterations**. Override with `^(limit: N
 The `^(limit: N)` annotation also controls parallel concurrency in `map`:
 
 ```text
-^(limit: 3) $items -> map { slow_process($) }
+$items -> map ^(limit: 3) { slow_process($) }
 ```
 
 See [Host Integration](integration-host.md) for timeout and cancellation configuration.

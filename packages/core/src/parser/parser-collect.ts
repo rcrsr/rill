@@ -5,6 +5,7 @@
 
 import { Parser } from './parser.js';
 import type {
+  AnnotationArg,
   EachExprNode,
   FilterExprNode,
   FoldExprNode,
@@ -12,7 +13,7 @@ import type {
   MapExprNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, expect, current, makeSpan, peek } from './state.js';
+import { advance, check, expect, current, makeSpan, peek } from './state.js';
 import { isClosureStart, parseBareHostCall } from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
@@ -112,12 +113,21 @@ Parser.prototype.parseEachExpr = function (this: Parser): EachExprNode {
     accumulator = this.parseGrouped().expression;
   }
 
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const body = this.parseIteratorBody();
 
   return {
     type: 'EachExpr',
     body,
     accumulator,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -130,11 +140,20 @@ Parser.prototype.parseMapExpr = function (this: Parser): MapExprNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.MAP, 'Expected map');
 
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const body = this.parseIteratorBody();
 
   return {
     type: 'MapExpr',
     body,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -153,12 +172,21 @@ Parser.prototype.parseFoldExpr = function (this: Parser): FoldExprNode {
     accumulator = this.parseGrouped().expression;
   }
 
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const body = this.parseIteratorBody();
 
   return {
     type: 'FoldExpr',
     body,
     accumulator,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -171,11 +199,20 @@ Parser.prototype.parseFilterExpr = function (this: Parser): FilterExprNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.FILTER, 'Expected filter');
 
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const body = this.parseIteratorBody();
 
   return {
     type: 'FilterExpr',
     body,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

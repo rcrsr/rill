@@ -213,6 +213,18 @@ The `tool_loop` result adds `turns` (number of LLM round-trips).
 | `anthropic:tool_result` | Tool returns during loop |
 | `anthropic:error` | Any operation fails |
 
+### Completion Event Fields
+
+Completion events (`anthropic:message`, `anthropic:messages`, `anthropic:tool_loop`, `anthropic:generate`) include these fields:
+
+| Field | Description |
+|-------|-------------|
+| `duration` | Request duration in milliseconds (`total_duration` for `tool_loop`) |
+| `model` | Model identifier used for the request |
+| `usage` | Token usage object (`input` and `output` counts) |
+| `request` | Messages array sent to the provider API |
+| `content` | Response text from the provider |
+
 ## Test Host
 
 A runnable example at `packages/ext/anthropic/examples/test-host.ts` demonstrates integration:

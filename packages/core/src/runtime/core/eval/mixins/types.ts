@@ -59,6 +59,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       expected: RillTypeName,
       location?: SourceLocation
     ): RillValue {
+      if (expected === 'any') return value;
       const actual = inferType(value);
       if (actual !== expected) {
         throw new RuntimeError(

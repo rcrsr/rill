@@ -511,7 +511,43 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `any`
+
+The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures.
+
+Both types are valid in closure parameter positions, capture annotations, and type assertions:
+
+```rill
+# Closure parameter with vector type annotation
+|x: vector| { $x } => $fn
+app::embed("hello") => $v
+$fn($v)
+# Result: vector(mock-embed, 3d)
+```
+
+```rill
+# Closure parameter with any type annotation
+|x: any| { $x } => $fn
+$fn("hello")
+# Result: "hello"
+```
+
+```rill
+# Type assertion: :vector and :any
+app::embed("hello") => $v
+$v -> :vector
+# Result: vector(mock-embed, 3d)
+
+$v -> :any
+# Result: vector(mock-embed, 3d)
+```
+
+```rill
+# Capture annotation with vector type
+app::embed("hello") => $x:vector
+$x -> .model
+# Result: "mock-embed"
+```
 
 ### In Pipe Chains
 

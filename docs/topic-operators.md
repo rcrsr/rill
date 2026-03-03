@@ -620,6 +620,45 @@ Use parentheses to override precedence:
 
 ---
 
+## Operator-Level Annotations
+
+Place `^(...)` between the collection operator name and its body to attach operational metadata to that evaluation. Annotations apply per evaluation, not per definition.
+
+**Syntax:**
+
+```text
+collection -> each ^(limit: N) { body }
+collection -> map ^(limit: N) { body }
+collection -> filter ^(limit: N) { body }
+collection -> fold ^(limit: N) |acc, x=0| { body }
+```
+
+**Examples:**
+
+```rill
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+# [2, 4, 6]
+```
+
+```rill
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+# [2, 3, 4]
+```
+
+```rill
+[1, 2, 3, 4] -> filter ^(limit: 50) { $ > 2 }
+# [3, 4]
+```
+
+```rill
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+# 6
+```
+
+The `limit` key controls maximum iterations for sequential operators and maximum concurrency for parallel operators (`map`, `filter`). Invalid annotation keys produce a runtime error.
+
+---
+
 ## See Also
 
 - [Types](topic-types.md) — Type system and assertions

@@ -15,7 +15,7 @@ npm install @rcrsr/rill-agent-run
 ## CLI
 
 ```bash
-rill-agent-run <bundle-dir> <agent-name> [--param key=value]... [--timeout <ms>] [--config <file-or-json>]
+rill-agent-run <bundle-dir> [agent-name] [--param key=value]... [--timeout <ms>] [--config <file-or-json>] [--log-level silent|info|debug]
 ```
 
 ### Arguments
@@ -32,6 +32,7 @@ rill-agent-run <bundle-dir> <agent-name> [--param key=value]... [--timeout <ms>]
 | `--param key=value` | Pass a named input parameter. Repeat for multiple parameters. |
 | `--timeout <ms>` | Abort execution after the given number of milliseconds. |
 | `--config <file-or-json>` | Path to config JSON file, or inline JSON string. Supports `${VAR}` interpolation. |
+| `--log-level silent\|info\|debug` | Control log verbosity. Reads `LOG_LEVEL` env var when absent. Default: `info`. |
 
 ### Examples
 
@@ -76,7 +77,7 @@ echo '{"lang": "fr"}' | rill-agent-run dist/ my-agent --param lang=en
 | Stream | Content |
 |--------|---------|
 | stdout | Result value serialized as JSON |
-| stderr | Error messages and diagnostics |
+| stderr | Script `log` output, extension events, error messages, and diagnostics |
 
 On success, the agent's return value is written to stdout as a JSON-serialized rill value. On failure, the error message is written to stderr and nothing is written to stdout.
 

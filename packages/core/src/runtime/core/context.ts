@@ -179,6 +179,7 @@ export function createRuntimeContext(
     annotationStack: [],
     callStack: [],
     metadata: options.metadata,
+    immediateAnnotation: undefined,
   };
 }
 
@@ -204,6 +205,7 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
     metadata: parent.metadata,
+    immediateAnnotation: undefined,
   };
 }
 

@@ -101,7 +101,8 @@ export function createRedisKvExtension(
     client = new Redis(config.url);
   } catch (error: unknown) {
     throw new Error(
-      `Failed to create Redis client: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to create Redis client: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 

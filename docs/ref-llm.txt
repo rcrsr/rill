@@ -346,6 +346,23 @@ Two ways to create closures:
     |x = 0|($x + 1) => $inc_or_one     # default value
     |x: number|($x + 1) => $typed      # type annotation
 
+**Return type declarations** (metadata only, not enforced, readable via host API):
+
+    |x: number| -> string { "{$x}" } => $fn     # declares string return type
+    $fn(42)                                      # "42" (runs normally)
+
+Valid return types: string, number, bool, list, dict, any, vector.
+Return type is not accessible via rill script syntax — use host getFunctions() API.
+
+**Description shorthand** (bare string in `^(...)` expands to `description: <string>`):
+
+    ^("Get weather for city") |city: string|($city) => $weather
+    $weather.^description                        # "Get weather for city"
+
+    ^("Fetch profile", cache: true) |id|($id) => $get_user
+    $get_user.^description                       # "Fetch profile"
+    $get_user.^cache                             # true
+
 `{ body }` vs `( expr )` distinction:
 
 | Syntax | Semantics | Example |
@@ -550,10 +567,15 @@ Iterator protocol (dict with `value`, `done`, `next`):
 ## Iteration Limits
 
 Default: 10,000 iterations max for loops.
-Override: `^(limit: N)` statement.
+Override: `^(limit: N)` at operator level (between operator name and body).
 
-    ^(limit: 100) 0 -> ($ < 50) @ { $ + 1 }
-    ^(limit: 3) $items -> map { slow_process($) }  # concurrency limit
+    0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }         # while loop
+    $items -> each ^(limit: 1000) { process($) }     # each operator
+    $items -> map ^(limit: 3) { slow_process($) }    # concurrency limit
+    $items -> filter ^(limit: 50) { $ > 0 }          # filter operator
+    $items -> fold ^(limit: 20) |acc, x=0| { $acc + $x }  # fold operator
+
+Invalid annotation keys produce a runtime error.
 
 ## Script Return Values
 

@@ -179,10 +179,32 @@ initial -> (condition) @ { body }
 Use `^(limit: N)` annotation to set maximum iterations (default: 10,000):
 
 ```rill
-^(limit: 100) 0 -> ($ < 10) @ { $ + 1 }   # Runs 10 iterations, returns 10
+0 -> ($ < 10) @ ^(limit: 100) { $ + 1 }   # Runs 10 iterations, returns 10
 ```
 
 Exceeding the limit throws `RuntimeError` with code `RUNTIME_LIMIT_EXCEEDED`.
+
+### Operator-Level Annotation Position
+
+The `^(...)` annotation appears between `@` and the loop body. It attaches metadata to that specific loop evaluation, not to the body closure itself.
+
+```text
+# while-loop: annotation between @ and body
+initial -> (condition) @ ^(limit: N) { body }
+
+# do-while: annotation between @ and body
+@ ^(limit: N) { body } ? (condition)
+```
+
+```rill
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+```
+
+```rill
+@ ^(limit: 5) {
+  app::prompt("Perform operation")
+} ? (.contains("RETRY"))
+```
 
 ### Multiple State Values
 
@@ -235,7 +257,7 @@ initial -> @ { body } ? (condition)
 Do-while is ideal for retry patterns:
 
 ```rill
-^(limit: 5) @ {
+@ ^(limit: 5) {
   app::prompt("Perform operation")
 } ? (.contains("RETRY"))
 # Loop exits when result doesn't contain RETRY
@@ -244,7 +266,7 @@ Do-while is ideal for retry patterns:
 ### Loop Limit
 
 ```rill
-^(limit: 100) 0 -> @ { $ + 1 } ? ($ < 10)   # Returns 10
+0 -> @ ^(limit: 100) { $ + 1 } ? ($ < 10)   # Returns 10
 ```
 
 ---
@@ -685,7 +707,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ### Retry with Limit
 
 ```text
-^(limit: 3) @ {
+@ ^(limit: 3) {
   app::prompt("Try operation")
 } ? (.contains("RETRY"))
 
