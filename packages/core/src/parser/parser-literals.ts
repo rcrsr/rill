@@ -373,6 +373,7 @@ Parser.prototype.parseTupleElement = function (
   if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
     const start = current(this.state).span.start;
     advance(this.state); // consume ELLIPSIS
+    skipNewlines(this.state);
 
     // ELLIPSIS must be followed by an expression
     if (
@@ -545,6 +546,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
 
   if (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
+    skipNewlines(this.state);
     const body = this.parseBody();
     return {
       type: 'Closure',
@@ -555,6 +557,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   }
 
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+  skipNewlines(this.state);
 
   const params: ClosureParamNode[] = [];
   if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
@@ -567,6 +570,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   }
 
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+  skipNewlines(this.state);
 
   let returnType: RillFunctionReturnType | undefined = undefined;
   if (check(this.state, TOKEN_TYPES.ARROW)) {
@@ -626,13 +630,17 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   let typeName: RillTypeName | null = null;
   let defaultValue: LiteralNode | null = null;
 
+  skipNewlines(this.state);
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
+    skipNewlines(this.state);
     typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
   }
 
+  skipNewlines(this.state);
   if (check(this.state, TOKEN_TYPES.ASSIGN)) {
     advance(this.state);
+    skipNewlines(this.state);
     defaultValue = this.parseLiteral();
   }
 

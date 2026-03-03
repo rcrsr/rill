@@ -438,7 +438,7 @@ Parser.prototype.parsePostfixExprBase = function (
   let primary: PrimaryNode = this.parsePrimary();
 
   // Check for postfix type assertion: expr:type or expr:?type
-  if (check(this.state, TOKEN_TYPES.COLON)) {
+  if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.COLON)) {
     // Detect deprecated :> syntax before type operation
     const nextToken = peek(this.state, 1);
     if (nextToken.type === TOKEN_TYPES.GT) {
@@ -1011,6 +1011,7 @@ Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
 
   while (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
+    skipNewlines(this.state);
     const right = this.parseLogicalAnd();
     left = {
       type: 'BinaryExpr',
@@ -1030,6 +1031,7 @@ Parser.prototype.parseLogicalAnd = function (this: Parser): ArithHead {
 
   while (check(this.state, TOKEN_TYPES.AND)) {
     advance(this.state);
+    skipNewlines(this.state);
     const right = this.parseComparison();
     left = {
       type: 'BinaryExpr',
@@ -1049,6 +1051,7 @@ Parser.prototype.parseComparison = function (this: Parser): ArithHead {
 
   if (this.isComparisonOp()) {
     const opToken = advance(this.state);
+    skipNewlines(this.state);
     const op = this.tokenToComparisonOp(opToken.type);
     const right = this.parseAdditive();
     left = {
@@ -1069,6 +1072,7 @@ Parser.prototype.parseAdditive = function (this: Parser): ArithHead {
 
   while (check(this.state, TOKEN_TYPES.PLUS, TOKEN_TYPES.MINUS)) {
     const opToken = advance(this.state);
+    skipNewlines(this.state);
     const op: BinaryOp = opToken.type === TOKEN_TYPES.PLUS ? '+' : '-';
     const right = this.parseMultiplicative();
     left = {
@@ -1091,6 +1095,7 @@ Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
     check(this.state, TOKEN_TYPES.STAR, TOKEN_TYPES.SLASH, TOKEN_TYPES.PERCENT)
   ) {
     const opToken = advance(this.state);
+    skipNewlines(this.state);
     const op: BinaryOp =
       opToken.type === TOKEN_TYPES.STAR
         ? '*'
