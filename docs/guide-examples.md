@@ -719,51 +719,43 @@ $collections -> each { $ -> log }
 
 Vector search as an LLM tool within `anthropic::tool_loop`.
 
-```text
+```rill
+---
 args: user_query: string
+---
 
-# Define search tool
-tool(
-  "search_knowledge_base",
-  "Search the knowledge base for relevant information",
-  [query: "string"],
-  {
-    # Embed the query and search
-    .query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
-      "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
-    } -> .join("\n\n---\n\n")
-  }
-) => $search_tool
+# Define search tool with closure annotation
+^("Search the knowledge base for relevant information")
+|^("Search query text") query: string| {
+  $query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
+    "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
+  } -> .join("\n\n---\n\n")
+} => $search_knowledge_base
 
-# Define store tool
-tool(
-  "store_document",
-  "Store a new document in the knowledge base",
-  [id: "string", text: "string", title: "string"],
-  {
-    # Create dict, embed text, upsert
-    [
-      id: .id,
-      vector: .text -> openai::embed,
-      metadata: [title: .title, text: .text]
-    ] => $item
+# Define store tool with closure annotation
+^("Store a new document in the knowledge base")
+|^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string| {
+  [
+    id: $id,
+    vector: $text -> openai::embed,
+    metadata: [title: $title, text: $text]
+  ] => $item
 
-    $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
-    "Stored document {$item.id}"
-  }
-) => $store_tool
+  $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
+  "Stored document {$item.id}"
+} => $store_document
 
-# Run tool loop with both tools
+# Run tool loop with dict-form tools
 anthropic::tool_loop(
   "Answer the user's question. Use search_knowledge_base to find relevant information. If the user provides new information to remember, use store_document.",
   [
-    tools: [$search_tool, $store_tool],
+    tools: [search_knowledge_base: $search_knowledge_base, store_document: $store_document],
     max_turns: 10,
     user_message: $user_query
   ]
-) => $response
+) => $loop_result
 
-$response.content
+$loop_result.content
 ```
 
 ## See Also

@@ -32,7 +32,7 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { isTuple } from '../../values.js';
-import { isCallable, isDict } from '../../callable.js';
+import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -223,6 +223,32 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateHostCall(primary);
 
+        case 'HostRef':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateHostRef(primary);
+
+        case 'AnnotatedExpr': {
+          // Set immediateAnnotation before evaluating the inner primary so
+          // createClosure() can consume it via captureClosureAnnotations [IR-5].
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const annots = await (this as any).evaluateAnnotations(
+            primary.annotations
+          );
+          this.ctx.immediateAnnotation = annots;
+          try {
+            const innerResult = await this.evaluatePrimary(primary.expression);
+            if (!isScriptCallable(innerResult)) {
+              // Non-closure: annotation silently ignored [EC-5]
+              this.ctx.immediateAnnotation = undefined;
+            }
+            // ScriptCallable: immediateAnnotation was consumed by createClosure()
+            return innerResult;
+          } finally {
+            // Ensure immediateAnnotation is cleared even on error paths
+            this.ctx.immediateAnnotation = undefined;
+          }
+        }
+
         case 'ClosureCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateClosureCall(primary);
@@ -396,6 +422,12 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'HostCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateHostCall(target);
+
+        case 'HostRef':
+          // pipeValue is already set to input above; evaluateHostRef invokes
+          // with it when pipeValue is non-null [IR-4].
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateHostRef(target);
 
         case 'ClosureCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,6 +5,7 @@
 
 import { Parser } from './parser.js';
 import type {
+  AnnotatedExprNode,
   ArithHead,
   BinaryOp,
   BlockNode,
@@ -537,6 +538,25 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
 // ============================================================
 
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
+  // Expression-position annotation: ^(...) expression (IR-5)
+  if (
+    check(this.state, TOKEN_TYPES.CARET) &&
+    peek(this.state, 1).type === TOKEN_TYPES.LPAREN
+  ) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume ^
+    advance(this.state); // consume (
+    const annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+    const expression = this.parsePrimary();
+    return {
+      type: 'AnnotatedExpr',
+      annotations,
+      expression,
+      span: makeSpan(start, current(this.state).span.end),
+    } satisfies AnnotatedExprNode;
+  }
+
   // Pass keyword: pass
   if (check(this.state, TOKEN_TYPES.PASS)) {
     const token = advance(this.state);

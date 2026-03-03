@@ -223,6 +223,8 @@ export type PrimaryNode =
   | LiteralNode
   | VariableNode
   | HostCallNode
+  | HostRefNode
+  | AnnotatedExprNode
   | ClosureCallNode
   | MethodCallNode
   | ConditionalNode
@@ -244,6 +246,7 @@ export type PrimaryNode =
 
 export type PipeTargetNode =
   | HostCallNode
+  | HostRefNode
   | ClosureCallNode
   | MethodCallNode
   | PipeInvokeNode
@@ -572,6 +575,22 @@ export interface BracketAccess {
  */
 export type PropertyAccess = FieldAccess | BracketAccess;
 
+/**
+ * Annotated expression: ^(key: value, ...) expression
+ * Attaches annotation data to a primary expression value.
+ * When the expression is a closure, annotations are captured by createClosure().
+ * When the expression is a non-closure, annotations are ignored at runtime.
+ *
+ * Examples:
+ *   ^("describe it") |x| ($x * 2)    -- closure gets description annotation
+ *   ^(label: "add") app::add         -- host ref gets annotation (runtime: ignored)
+ */
+export interface AnnotatedExprNode extends BaseNode {
+  readonly type: 'AnnotatedExpr';
+  readonly annotations: AnnotationArg[];
+  readonly expression: PrimaryNode;
+}
+
 // ============================================================
 // FUNCTIONS & METHODS
 // ============================================================
@@ -580,6 +599,11 @@ export interface HostCallNode extends BaseNode {
   readonly type: 'HostCall';
   readonly name: string;
   readonly args: ExpressionNode[];
+}
+
+export interface HostRefNode extends BaseNode {
+  readonly type: 'HostRef';
+  readonly name: string;
 }
 
 export interface MethodCallNode extends BaseNode {
@@ -659,7 +683,8 @@ export type IteratorBody =
   | VariableNode // $fn
   | PostfixExprNode // $ or other simple expression
   | SpreadNode // * (spread element to tuple)
-  | HostCallNode; // greet (bare function name)
+  | HostCallNode // greet (bare function name)
+  | HostRefNode; // ns::func (namespaced host function reference)
 
 /**
  * Each expression: sequential iteration returning list of all results.
@@ -1005,6 +1030,7 @@ export type ASTNode =
   | MethodCallNode
   | InvokeNode
   | HostCallNode
+  | HostRefNode
   | ClosureCallNode
   | PipeInvokeNode
   | VariableNode
@@ -1037,6 +1063,7 @@ export type ASTNode =
   | ShapeAssertionNode
   | ShapeCheckNode
   | AnnotatedStatementNode
+  | AnnotatedExprNode
   | NamedArgNode
   | SpreadArgNode
   | EachExprNode

@@ -48,6 +48,7 @@
 
 import type {
   HostCallNode,
+  HostRefNode,
   ClosureCallNode,
   MethodCallNode,
   InvokeNode,
@@ -519,6 +520,65 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       });
 
       return result;
+    }
+
+    /**
+     * Evaluate host function reference: ns::name (no parens, namespaced).
+     *
+     * When pipeValue is null (value-capture context): returns the
+     * ApplicationCallable directly without invoking [IR-4].
+     *
+     * When pipeValue is set (pipe/branch context): invokes the callable
+     * with the pipe value as the implicit argument, consistent with how
+     * bare HostRef behaves as a pipe-stage expression [IR-4].
+     *
+     * Throws RILL-R006 when the function name is not registered [EC-4].
+     */
+    protected async evaluateHostRef(node: HostRefNode): Promise<RillValue> {
+      this.checkAborted(node);
+
+      const fn = this.ctx.functions.get(node.name);
+      if (!fn) {
+        throw new RuntimeError(
+          'RILL-R006',
+          `Function "${node.name}" not found`,
+          this.getNodeLocation(node),
+          { functionName: node.name }
+        );
+      }
+
+      // Build ApplicationCallable wrapper for raw CallableFn; pass through
+      // ApplicationCallable objects directly.
+      let appCallable: ApplicationCallable;
+      if (typeof fn === 'function') {
+        appCallable = {
+          __type: 'callable' as const,
+          kind: 'application' as const,
+          fn,
+          params: undefined,
+          isProperty: false,
+        };
+      } else {
+        appCallable = fn;
+      }
+
+      // Value-capture context: no pipe value → return callable without invoking [IR-4]
+      if (this.ctx.pipeValue === null) {
+        return appCallable as RillValue;
+      }
+
+      // Pipe/branch context: pipe value present → invoke with it as implicit argument
+      const fnHasTypedZeroParams =
+        appCallable.params !== undefined && appCallable.params.length === 0;
+      const args: RillValue[] = fnHasTypedZeroParams
+        ? []
+        : [this.ctx.pipeValue];
+      return this.invokeCallable(
+        appCallable,
+        args,
+        this.getNodeLocation(node),
+        node.name
+      );
     }
 
     /**

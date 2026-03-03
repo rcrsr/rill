@@ -573,7 +573,7 @@ All three share identical function signatures and return shapes.
 | `namespace::messages(messages)` | dict | Same shape — `messages` contains full conversation history |
 | `namespace::embed(text)` | vector | Float32Array vector for similarity search |
 | `namespace::embed_batch(texts)` | list | List of vectors |
-| `namespace::tool_loop(prompt, options)` | dict | Same shape + `turns` (number of loop iterations) |
+| `namespace::tool_loop(prompt, options)` | dict | Same shape + `turns`; `options.tools` is `dict<string, callable>` — keys are tool names, values are `ScriptCallable` or `ApplicationCallable` |
 
 **Accessing LLM results:**
 

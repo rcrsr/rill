@@ -461,7 +461,7 @@ describe('executeToolLoop', () => {
           createMockCallbacks(),
           vi.fn()
         )
-      ).rejects.toThrow("tool 'invalid_tool' must be callable function");
+      ).rejects.toThrow('tool_loop: tool "invalid_tool" is not a callable');
     });
 
     it('does not throw immediately for null tool input', async () => {
@@ -508,7 +508,7 @@ describe('executeToolLoop', () => {
           createMockCallbacks(),
           vi.fn()
         )
-      ).rejects.toThrow("tool 'tool' must be callable function");
+      ).rejects.toThrow('tool_loop: tool "tool" is not a callable');
     });
   });
 
@@ -605,7 +605,7 @@ describe('executeToolLoop', () => {
           callbacks,
           vi.fn()
         )
-      ).rejects.toThrow('tools must be a dict mapping tool names to functions');
+      ).rejects.toThrow('tool_loop: tools must be a dict of name → callable');
     });
 
     it('throws when tool value is not callable during setup', async () => {
@@ -623,7 +623,7 @@ describe('executeToolLoop', () => {
           callbacks,
           vi.fn()
         )
-      ).rejects.toThrow("tool 'invalid' must be callable function");
+      ).rejects.toThrow('tool_loop: tool "invalid" is not a callable');
     });
   });
 
@@ -1101,14 +1101,9 @@ describe('executeToolLoop', () => {
       expect(result.toolCalls[0]?.result).toBe('received: Alice, 30');
     });
 
-    it('handles runtime callables with dict input fallback', async () => {
-      // Backward compatibility: runtime callables receive dict as single arg
-      const mockFn = vi.fn((args: RillValue[]) => {
-        // Runtime callable should receive dict as single arg
-        expect(args).toHaveLength(1);
-        expect(args[0]).toEqual({ param: 'value' });
-        return 'success';
-      });
+    it('rejects runtime callables at validation (EC-3)', async () => {
+      // EC-3: RuntimeCallable (builtins) cannot be used as tools — must wrap in closure
+      const mockFn = vi.fn((args: RillValue[]) => args[0]);
 
       const toolFn: RillValue = {
         __type: 'callable',
@@ -1121,32 +1116,17 @@ describe('executeToolLoop', () => {
         runtime_tool: toolFn,
       };
 
-      let apiCallCount = 0;
-      const callbacks = createMockCallbacks({
-        extractToolCalls: vi.fn(() => {
-          // Return tool calls on first call, null on subsequent calls
-          apiCallCount++;
-          return apiCallCount === 1
-            ? [
-                {
-                  id: 'call_1',
-                  name: 'runtime_tool',
-                  input: { param: 'value' },
-                },
-              ]
-            : null;
-        }),
-      });
-
-      await executeToolLoop(
-        [{ role: 'user', content: 'Test' }],
-        tools,
-        3,
-        callbacks,
-        vi.fn()
+      await expect(
+        executeToolLoop(
+          [{ role: 'user', content: 'Test' }],
+          tools,
+          3,
+          createMockCallbacks(),
+          vi.fn()
+        )
+      ).rejects.toThrow(
+        'tool_loop: builtin "runtime_tool" cannot be used as a tool — wrap in a closure'
       );
-
-      expect(mockFn).toHaveBeenCalledTimes(1);
     });
 
     it('handles application callable without params metadata', async () => {
@@ -1609,6 +1589,388 @@ describe('executeToolLoop', () => {
       const toolCallName =
         receivedResponse?.choices[0]?.message?.tool_calls[0]?.function?.name;
       expect(toolCallName).toBe('clean_tool_name');
+    });
+  });
+
+  // ============================================================
+  // DICT-FORM VALIDATION (IC-16, AC-1 through AC-17, EC-1 through EC-3)
+  // ============================================================
+
+  describe('dict-form tools validation', () => {
+    // Shared mock ScriptCallable with annotations
+    const mockScriptCallable: RillValue = {
+      __type: 'callable' as const,
+      kind: 'script' as const,
+      params: [
+        {
+          name: 'query',
+          typeName: 'string' as const,
+          defaultValue: null,
+          annotations: {},
+        },
+      ],
+      body: {} as never,
+      definingScope: {
+        variables: new Map(),
+        pipeValue: null,
+      } as never,
+      annotations: { description: 'Search the web' },
+      paramAnnotations: { query: { description: 'Search query' } },
+      isProperty: false,
+    };
+
+    // Shared mock ApplicationCallable with description
+    const mockAppCallable: RillValue = {
+      __type: 'callable' as const,
+      kind: 'application' as const,
+      params: [
+        {
+          name: 'q',
+          typeName: 'string' as const,
+          defaultValue: null,
+          annotations: {},
+        },
+      ],
+      fn: (args: RillValue[]) => args[0],
+      description: 'My tool description',
+      isProperty: false,
+    };
+
+    // Shared mock RuntimeCallable (builtin)
+    const mockRuntimeCallable: RillValue = {
+      __type: 'callable' as const,
+      kind: 'runtime' as const,
+      fn: (args: RillValue[]) => args[0],
+      isProperty: false,
+    };
+
+    /** Terminal callbacks: API returns a response with no tool calls */
+    function createTerminalCallbacks() {
+      return createMockCallbacks({
+        extractToolCalls: vi.fn(() => null),
+        callAPI: vi.fn(async () => ({
+          content: 'done',
+          usage: { input_tokens: 10, output_tokens: 5 },
+        })),
+        formatAssistantMessage: vi.fn(() => ({
+          role: 'assistant',
+          content: 'done',
+        })),
+      });
+    }
+
+    describe('AC-1: dict-form tools accepted without error', () => {
+      it('accepts dict of name -> ApplicationCallable without throwing', async () => {
+        const tools = { search: mockAppCallable } as unknown as RillValue;
+        const emitEvent = vi.fn();
+
+        await expect(
+          executeToolLoop([], tools, 3, createTerminalCallbacks(), emitEvent, 1)
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe('AC-2: tool name comes from dict key', () => {
+      it('builds tool descriptor with name from dict key', async () => {
+        const tools = { my_tool: mockAppCallable } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+        const emitEvent = vi.fn();
+
+        await executeToolLoop([], tools, 3, callbacks, emitEvent, 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ name: string }>
+          | undefined;
+        expect(descriptors?.[0]?.name).toBe('my_tool');
+      });
+    });
+
+    describe('AC-3: ScriptCallable description from annotations', () => {
+      it('extracts description from ScriptCallable annotations field', async () => {
+        const tools = { search: mockScriptCallable } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+
+        await executeToolLoop([], tools, 3, callbacks, vi.fn(), 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ name: string; description: string }>
+          | undefined;
+        expect(descriptors?.[0]?.description).toBe('Search the web');
+      });
+    });
+
+    describe('AC-4: ApplicationCallable description from .description', () => {
+      it('extracts description from ApplicationCallable .description field', async () => {
+        const tools = { my_tool: mockAppCallable } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+
+        await executeToolLoop([], tools, 3, callbacks, vi.fn(), 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ name: string; description: string }>
+          | undefined;
+        expect(descriptors?.[0]?.description).toBe('My tool description');
+      });
+    });
+
+    describe('AC-8 / EC-1: non-dict tools throws', () => {
+      it('throws EC-1 error for string tools value', async () => {
+        await expect(
+          executeToolLoop(
+            [],
+            'not-a-dict' as unknown as RillValue,
+            3,
+            createMockCallbacks(),
+            vi.fn()
+          )
+        ).rejects.toThrow('tool_loop: tools must be a dict of name → callable');
+      });
+
+      it('throws EC-1 error for number tools value', async () => {
+        await expect(
+          executeToolLoop(
+            [],
+            42 as unknown as RillValue,
+            3,
+            createMockCallbacks(),
+            vi.fn()
+          )
+        ).rejects.toThrow('tool_loop: tools must be a dict of name → callable');
+      });
+
+      it('throws EC-1 error for array tools value', async () => {
+        await expect(
+          executeToolLoop(
+            [],
+            [] as unknown as RillValue,
+            3,
+            createMockCallbacks(),
+            vi.fn()
+          )
+        ).rejects.toThrow('tool_loop: tools must be a dict of name → callable');
+      });
+    });
+
+    describe('AC-9 / EC-2: non-callable dict value throws', () => {
+      it('throws EC-2 error with tool name in message', async () => {
+        const tools = {
+          bad: 'not-callable',
+        } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createMockCallbacks(), vi.fn())
+        ).rejects.toThrow('tool_loop: tool "bad" is not a callable');
+      });
+
+      it('includes correct tool name for number value', async () => {
+        const tools = { my_number_tool: 99 } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createMockCallbacks(), vi.fn())
+        ).rejects.toThrow('tool_loop: tool "my_number_tool" is not a callable');
+      });
+    });
+
+    describe('AC-10 / EC-3: RuntimeCallable dict value throws', () => {
+      it('throws EC-3 error with tool name in message', async () => {
+        const tools = {
+          builtin_fn: mockRuntimeCallable,
+        } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createMockCallbacks(), vi.fn())
+        ).rejects.toThrow(
+          'tool_loop: builtin "builtin_fn" cannot be used as a tool — wrap in a closure'
+        );
+      });
+
+      it('includes the correct builtin name in error message', async () => {
+        const tools = { log: mockRuntimeCallable } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createMockCallbacks(), vi.fn())
+        ).rejects.toThrow(
+          'tool_loop: builtin "log" cannot be used as a tool — wrap in a closure'
+        );
+      });
+    });
+
+    describe('AC-12: empty tools dict is valid', () => {
+      it('accepts empty dict without throwing', async () => {
+        const tools = {} as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createTerminalCallbacks(), vi.fn(), 1)
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe('AC-13: callable with no params is valid', () => {
+      it('accepts callable with empty params array', async () => {
+        const noParamsTool: RillValue = {
+          __type: 'callable' as const,
+          kind: 'application' as const,
+          params: [],
+          fn: () => 'result',
+          isProperty: false,
+        };
+        const tools = { noop: noParamsTool } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createTerminalCallbacks(), vi.fn(), 1)
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe('AC-14: ApplicationCallable with params: undefined is valid', () => {
+      it('accepts ApplicationCallable with undefined params', async () => {
+        const unparamTool: RillValue = {
+          __type: 'callable' as const,
+          kind: 'application' as const,
+          params: undefined,
+          fn: () => 'result',
+          isProperty: false,
+        };
+        const tools = { untyped: unparamTool } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createTerminalCallbacks(), vi.fn(), 1)
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe('AC-15: callable with no description produces empty string', () => {
+      it('uses empty string when ApplicationCallable has no description', async () => {
+        const noDescTool: RillValue = {
+          __type: 'callable' as const,
+          kind: 'application' as const,
+          params: [],
+          fn: () => 'result',
+          isProperty: false,
+          // No description field
+        };
+        const tools = { silent_tool: noDescTool } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+
+        await executeToolLoop([], tools, 3, callbacks, vi.fn(), 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ description: string }>
+          | undefined;
+        expect(descriptors?.[0]?.description).toBe('');
+      });
+
+      it('uses empty string when ScriptCallable has no description annotation', async () => {
+        const noDescScript: RillValue = {
+          __type: 'callable' as const,
+          kind: 'script' as const,
+          params: [],
+          body: {} as never,
+          definingScope: { variables: new Map(), pipeValue: null } as never,
+          annotations: {},
+          paramAnnotations: {},
+          isProperty: false,
+        };
+        const tools = { quiet: noDescScript } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+
+        await executeToolLoop([], tools, 3, callbacks, vi.fn(), 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ description: string }>
+          | undefined;
+        expect(descriptors?.[0]?.description).toBe('');
+      });
+    });
+
+    describe('AC-16: mixed dict of ScriptCallable and ApplicationCallable is valid', () => {
+      it('accepts dict with both ScriptCallable and ApplicationCallable entries', async () => {
+        const tools = {
+          script_tool: mockScriptCallable,
+          app_tool: mockAppCallable,
+        } as unknown as RillValue;
+
+        await expect(
+          executeToolLoop([], tools, 3, createTerminalCallbacks(), vi.fn(), 1)
+        ).resolves.toBeDefined();
+      });
+
+      it('builds correct descriptors for mixed callable types', async () => {
+        const tools = {
+          script_tool: mockScriptCallable,
+          app_tool: mockAppCallable,
+        } as unknown as RillValue;
+
+        const buildTools = vi.fn((descriptors) => descriptors);
+        const callbacks = createMockCallbacks({
+          buildTools,
+          extractToolCalls: vi.fn(() => null),
+          callAPI: vi.fn(async () => ({
+            content: 'done',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          })),
+        });
+
+        await executeToolLoop([], tools, 3, callbacks, vi.fn(), 1);
+
+        const descriptors = buildTools.mock.calls[0]?.[0] as
+          | Array<{ name: string; description: string }>
+          | undefined;
+        expect(descriptors).toHaveLength(2);
+
+        const scriptDescriptor = descriptors?.find(
+          (d) => d.name === 'script_tool'
+        );
+        const appDescriptor = descriptors?.find((d) => d.name === 'app_tool');
+
+        expect(scriptDescriptor?.description).toBe('Search the web');
+        expect(appDescriptor?.description).toBe('My tool description');
+      });
     });
   });
 });

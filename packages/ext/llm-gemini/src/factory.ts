@@ -15,15 +15,11 @@ import {
   RuntimeError,
   emitExtensionEvent,
   createVector,
-  invokeCallable,
   isVector,
-  isCallable,
+  isDict,
   type ExtensionResult,
-  type RillCallable,
   type RillValue,
   type RuntimeContext,
-  type ApplicationCallable,
-  type CallableParam,
 } from '@rcrsr/rill';
 import {
   validateApiKey,
@@ -678,87 +674,15 @@ export function createGeminiExtension(
             throw new RuntimeError('RILL-R004', 'prompt text cannot be empty');
           }
 
-          // EC-23: Validate tools option is present
-          if (!('tools' in options) || !Array.isArray(options['tools'])) {
+          // EC-23: Validate tools option is present and is a dict
+          if (!('tools' in options) || !isDict(options['tools'] as RillValue)) {
             throw new RuntimeError(
               'RILL-R004',
               "tool_loop requires 'tools' option"
             );
           }
 
-          const toolDescriptors = options['tools'] as Array<
-            Record<string, unknown>
-          >;
-
-          // Convert tool descriptors array to dict for shared tool loop
-          const toolsDict: Record<string, RillValue> = {};
-          for (const descriptor of toolDescriptors) {
-            const name =
-              typeof descriptor['name'] === 'string'
-                ? descriptor['name']
-                : null;
-
-            if (!name) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'tool descriptor missing name'
-              );
-            }
-
-            const toolFnValue = descriptor['fn'] as RillValue;
-            if (!toolFnValue) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${name}' missing fn property`
-              );
-            }
-
-            // Validate tool is callable
-            if (!isCallable(toolFnValue)) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${name}' fn must be callable`
-              );
-            }
-
-            // Extract description for tool descriptor
-            const description =
-              typeof descriptor['description'] === 'string'
-                ? descriptor['description']
-                : '';
-
-            let enhancedCallable: RillValue = toolFnValue;
-
-            if (
-              description &&
-              isCallable(toolFnValue) &&
-              (toolFnValue as RillCallable).kind === 'script'
-            ) {
-              // 3-arg tool form: no explicit params dict, but closure has typed params.
-              // Wrap ScriptCallable as ApplicationCallable to carry description through.
-              const capturedToolFn = toolFnValue as RillCallable;
-              const scriptParams =
-                'params' in capturedToolFn &&
-                Array.isArray(capturedToolFn.params)
-                  ? (capturedToolFn.params as CallableParam[])
-                  : [];
-              enhancedCallable = {
-                __type: 'callable',
-                kind: 'application' as const,
-                params: scriptParams,
-                fn: (callArgs, callCtx) =>
-                  invokeCallable(
-                    capturedToolFn,
-                    callArgs,
-                    callCtx as RuntimeContext
-                  ),
-                description,
-                isProperty: false,
-              } as ApplicationCallable;
-            }
-
-            toolsDict[name] = enhancedCallable;
-          }
+          const toolsDict = options['tools'] as RillValue;
 
           // Extract options with defaults
           const system =

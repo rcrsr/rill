@@ -7,10 +7,13 @@ import {
   invokeCallable,
   isCallable,
   isDict,
+  isRuntimeCallable,
   RuntimeError,
+  type ApplicationCallable,
   type RillCallable,
   type RillValue,
   type RuntimeContext,
+  type ScriptCallable,
 } from '@rcrsr/rill';
 import type { ToolLoopCallbacks, ToolLoopResult } from './types.js';
 import { buildJsonSchema } from './schema.js';
@@ -46,7 +49,7 @@ async function executeToolCall(
   if (!isDict(tools)) {
     throw new RuntimeError(
       'RILL-R004',
-      'tools must be a dict mapping tool names to functions'
+      'tool_loop: tools must be a dict of name → callable'
     );
   }
 
@@ -308,7 +311,7 @@ export async function executeToolLoop(
   if (!isDict(tools)) {
     throw new RuntimeError(
       'RILL-R004',
-      'tools must be a dict mapping tool names to functions'
+      'tool_loop: tools must be a dict of name → callable'
     );
   }
 
@@ -317,19 +320,34 @@ export async function executeToolLoop(
   // Build provider-specific tool format
   const toolDescriptors = Object.entries(toolsDict).map(([name, fn]) => {
     const fnValue = fn as RillValue;
-    if (!isCallable(fnValue)) {
+
+    // EC-3: RuntimeCallable (builtins) cannot be used as tools
+    if (isRuntimeCallable(fnValue)) {
       throw new RuntimeError(
         'RILL-R004',
-        `tool '${name}' must be callable function`
+        `tool_loop: builtin "${name}" cannot be used as a tool — wrap in a closure`
       );
     }
 
-    // Extract metadata from callable if available
+    // EC-2: Value must be a callable
+    if (!isCallable(fnValue)) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `tool_loop: tool "${name}" is not a callable`
+      );
+    }
+
+    // Extract description based on callable kind (IR-2, IR-3)
     const callable = fnValue as RillCallable;
-    const description =
-      callable.kind === 'application' && callable.description
-        ? callable.description
-        : '';
+    let description: string;
+    if (callable.kind === 'script') {
+      description =
+        ((callable as ScriptCallable).annotations['description'] as
+          | string
+          | undefined) ?? '';
+    } else {
+      description = (callable as ApplicationCallable).description ?? '';
+    }
 
     // Extract parameter metadata and generate JSON Schema
     let inputSchema: {
@@ -338,40 +356,59 @@ export async function executeToolLoop(
       required: string[];
     };
 
-    if (
-      (callable.kind === 'application' || callable.kind === 'script') &&
-      callable.params &&
-      callable.params.length > 0
-    ) {
-      // Build a descriptor dict for buildJsonSchema.
-      // null typeName means untyped param; use 'string' as fallback.
+    const params =
+      callable.kind === 'application'
+        ? ((callable as ApplicationCallable).params ?? [])
+        : callable.kind === 'script'
+          ? (callable as ScriptCallable).params
+          : [];
+
+    if (params.length > 0) {
+      // Build properties directly to handle null typeName as unconstrained ({}).
+      // null typeName means no type constraint — produce empty JSON Schema property.
       // Works for both ApplicationCallable (host fns) and ScriptCallable (closures).
-      const descriptor: Record<string, unknown> = {};
-      const paramsWithDefaults = new Set<string>();
+      const properties: Record<string, unknown> = {};
+      const required: string[] = [];
 
-      for (const param of callable.params) {
-        const typeEntry: Record<string, unknown> = {
-          type: param.typeName ?? 'string',
-        };
-        if (param.description) {
-          typeEntry['description'] = param.description;
+      for (const param of params) {
+        const property: Record<string, unknown> = {};
+
+        // null typeName → unconstrained ({}); otherwise map via buildJsonSchema
+        if (param.typeName !== null) {
+          const descriptor: Record<string, unknown> = {
+            [param.name]: { type: param.typeName },
+          };
+          const schema = buildJsonSchema(descriptor);
+          const built = schema.properties[param.name];
+          if (built !== undefined) {
+            Object.assign(property, built);
+          }
         }
-        descriptor[param.name] = typeEntry;
 
-        if (param.defaultValue !== null) {
-          paramsWithDefaults.add(param.name);
+        // Param description: ScriptCallable reads paramAnnotations, ApplicationCallable reads .description
+        let paramDesc: string;
+        if (callable.kind === 'script') {
+          const annot = (callable as ScriptCallable).paramAnnotations[
+            param.name
+          ];
+          paramDesc = (annot?.['description'] as string | undefined) ?? '';
+        } else {
+          paramDesc = param.description ?? '';
+        }
+        if (paramDesc) {
+          property['description'] = paramDesc;
+        }
+
+        properties[param.name] = property;
+
+        if (param.defaultValue === null) {
+          required.push(param.name);
         }
       }
 
-      // buildJsonSchema puts ALL keys in required; filter out params with defaults
-      const schema = buildJsonSchema(descriptor);
-      const required = schema.required.filter(
-        (name) => !paramsWithDefaults.has(name)
-      );
-
       inputSchema = {
         type: 'object',
-        properties: schema.properties as Record<string, unknown>,
+        properties,
         required,
       };
     } else {

@@ -94,12 +94,12 @@ $vectors.len  # Number of vectors
 **tool_loop(prompt, options?)** — Agentic tool-use loop:
 
 ```rill
-tool("get_weather", "Get current weather", [city: "string"], {
+^("Get current weather for a city") |^("City name") city: string| {
   "Weather in {$city}: 72F sunny"
-}) => $weather_tool
+} => $get_weather
 
 anthropic::tool_loop("What's the weather in Paris?", [
-  tools: [$weather_tool],
+  tools: [get_weather: $get_weather],
   max_turns: 5,
 ]) => $result
 $result.content  # Final response
@@ -181,7 +181,7 @@ $result.data.tags        # Extracted tags
 |--------|------|-----------|-------------|
 | `system` | string | message, messages, tool_loop, generate | Override system prompt |
 | `max_tokens` | number | message, messages, tool_loop, generate | Override max tokens |
-| `tools` | list | tool_loop (required) | Tool descriptors |
+| `tools` | dict | tool_loop (required) | Tool callables keyed by name |
 | `max_turns` | number | tool_loop | Limit LLM round-trips |
 | `max_errors` | number | tool_loop | Consecutive error limit (default: 3) |
 | `messages` | list | tool_loop, generate | Prepend conversation history |

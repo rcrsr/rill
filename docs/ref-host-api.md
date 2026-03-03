@@ -283,7 +283,7 @@ type LlmExtensionContract = {
 | `messages` | `(messages: list, options?: dict)` | `dict` | Multi-turn conversation |
 | `embed` | `(text: string)` | `vector` | Generate embedding vector |
 | `embed_batch` | `(texts: list)` | `list` | Batch embeddings |
-| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration |
+| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration; `options.tools` is `dict<string, ScriptCallable \| ApplicationCallable>` — keys are tool names, values are callables (`RuntimeCallable` is rejected) |
 | `generate` | `(prompt: string, options: dict)` | `dict` | Structured output extraction |
 
 **Usage:**

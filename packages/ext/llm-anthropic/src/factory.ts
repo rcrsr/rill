@@ -7,14 +7,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   RuntimeError,
   emitExtensionEvent,
-  invokeCallable,
-  isCallable,
+  isDict,
   type ExtensionResult,
-  type RillCallable,
   type RillValue,
   type RuntimeContext,
-  type ApplicationCallable,
-  type CallableParam,
 } from '@rcrsr/rill';
 import {
   validateApiKey,
@@ -591,151 +587,14 @@ export function createAnthropicExtension(
           }
 
           // EC-23: Missing tools in options raises error
-          if (!('tools' in options) || !Array.isArray(options['tools'])) {
+          if (!('tools' in options) || !isDict(options['tools'] as RillValue)) {
             throw new RuntimeError(
               'RILL-R004',
               "tool_loop requires 'tools' option"
             );
           }
 
-          const toolDescriptors = options['tools'] as Array<
-            Record<string, unknown>
-          >;
-
-          // Convert tool descriptors array to dict for shared tool loop
-          const toolsDict: Record<string, RillValue> = {};
-          for (const descriptor of toolDescriptors) {
-            const name =
-              typeof descriptor['name'] === 'string'
-                ? descriptor['name']
-                : null;
-
-            if (!name) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'tool descriptor missing name'
-              );
-            }
-
-            const toolFnValue = descriptor['fn'] as RillValue;
-            if (!toolFnValue) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${name}' missing fn property`
-              );
-            }
-
-            // Validate tool is callable
-            if (!isCallable(toolFnValue)) {
-              throw new RuntimeError(
-                'RILL-R004',
-                `tool '${name}' fn must be callable`
-              );
-            }
-
-            // Extract params metadata from descriptor and enhance callable
-            const paramsObj = descriptor['params'];
-            const description =
-              typeof descriptor['description'] === 'string'
-                ? descriptor['description']
-                : '';
-
-            let enhancedCallable: RillValue = toolFnValue;
-
-            if (
-              paramsObj &&
-              typeof paramsObj === 'object' &&
-              !Array.isArray(paramsObj)
-            ) {
-              // Convert params object to CallableParam[] format
-              const params: CallableParam[] = Object.entries(
-                paramsObj as Record<string, unknown>
-              ).map(([paramName, paramMeta]) => {
-                const meta = paramMeta as Record<string, unknown>;
-                const typeStr =
-                  typeof meta['type'] === 'string' ? meta['type'] : null;
-
-                // Map type string to RillTypeName
-                let typeName:
-                  | 'string'
-                  | 'number'
-                  | 'bool'
-                  | 'list'
-                  | 'dict'
-                  | 'vector'
-                  | null = null;
-                if (typeStr === 'string') typeName = 'string';
-                else if (typeStr === 'number') typeName = 'number';
-                else if (typeStr === 'bool' || typeStr === 'boolean')
-                  typeName = 'bool';
-                else if (typeStr === 'list' || typeStr === 'array')
-                  typeName = 'list';
-                else if (typeStr === 'dict' || typeStr === 'object')
-                  typeName = 'dict';
-                else if (typeStr === 'vector') typeName = 'vector';
-
-                const param: CallableParam = {
-                  name: paramName,
-                  typeName,
-                  defaultValue: null,
-                  annotations: {},
-                };
-                // Add description only if it exists (optional property)
-                if (typeof meta['description'] === 'string') {
-                  (param as { description?: string }).description =
-                    meta['description'];
-                }
-                return param;
-              });
-
-              // Create enhanced ApplicationCallable with params metadata.
-              // Use invokeCallable wrapper so ScriptCallable (kind: 'script') is
-              // handled correctly — ScriptCallable has no .fn property.
-              const capturedToolFn = toolFnValue as RillCallable;
-              enhancedCallable = {
-                __type: 'callable',
-                kind: 'application' as const,
-                params,
-                fn: (callArgs, callCtx) =>
-                  invokeCallable(
-                    capturedToolFn,
-                    callArgs,
-                    callCtx as RuntimeContext
-                  ),
-                description,
-                isProperty:
-                  (toolFnValue as ApplicationCallable).isProperty ?? false,
-              } as ApplicationCallable;
-            } else if (
-              description &&
-              isCallable(toolFnValue) &&
-              (toolFnValue as RillCallable).kind === 'script'
-            ) {
-              // 3-arg tool form: no explicit params dict, but closure has typed params.
-              // Wrap ScriptCallable as ApplicationCallable to carry description through.
-              const capturedToolFn = toolFnValue as RillCallable;
-              const scriptParams =
-                'params' in capturedToolFn &&
-                Array.isArray(capturedToolFn.params)
-                  ? (capturedToolFn.params as CallableParam[])
-                  : [];
-              enhancedCallable = {
-                __type: 'callable',
-                kind: 'application' as const,
-                params: scriptParams,
-                fn: (callArgs, callCtx) =>
-                  invokeCallable(
-                    capturedToolFn,
-                    callArgs,
-                    callCtx as RuntimeContext
-                  ),
-                description,
-                isProperty: false,
-              } as ApplicationCallable;
-            }
-
-            toolsDict[name] = enhancedCallable;
-          }
+          const toolsDict = options['tools'] as RillValue;
 
           // Extract options
           const system =

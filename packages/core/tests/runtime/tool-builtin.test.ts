@@ -1,256 +1,188 @@
 /**
- * Rill Runtime Tests: tool() Built-in
- * Tests for tool() built-in function that creates tool descriptors
+ * Rill Runtime Tests: Host Reference, Expression Annotations, and Related Behaviors
  *
- * Specification Mapping (conduct/specifications/phase-1-core-type-system.md):
+ * Specification Mapping (phase 2 tool_loop dict-form):
  *
  * Happy Path Criteria:
- * - AC-7: tool() creates tool descriptor from closure with name, description, params, fn
- * - AC-8: tool("host_fn::name") creates tool descriptor from host function metadata
- * - AC-30: Missing description on host function uses empty string
- * - AC-31: Missing params on host function uses empty dict
+ * - AC-5:  ns::name (no parens) resolves to ApplicationCallable
+ * - AC-6:  Expression-position ^(...) before closure attaches annotations
+ * - AC-17: ^("...") before non-closure is syntactically valid (annotation ignored)
  *
  * Error Cases:
- * - EC-27: Host function not found -> RuntimeError RILL-R004: "function '{name}' not found"
- * - EC-28: Invalid argument combination -> RuntimeError RILL-R001: "tool() invalid arguments"
+ * - AC-7:  tool() call produces "Unknown function: tool" error
+ * - AC-11: Unknown host reference throws "Function 'ns::name' not found" (EC-4)
+ * - EC-5:  ^("...") before non-closure does NOT throw
+ * - EC-6:  Malformed annotation syntax ^( without closing ) produces parse error
  */
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
-import type { RillError } from '@rcrsr/rill';
 
-describe('Rill Runtime: tool() Built-in', () => {
-  describe('Happy Path Tests', () => {
-    describe('AC-7: tool() creates tool descriptor from closure', () => {
-      it('creates descriptor with all fields from closure', async () => {
-        const result = await run(`
-          tool("greet", "Greets user", [name: "string"], |name| { "Hello " + $name })
-        `) as Record<string, unknown>;
-
-        expect(result.name).toBe('greet');
-        expect(result.description).toBe('Greets user');
-        expect(result.params).toEqual({ name: 'string' });
-        expect(result.fn).toBeDefined();
-        expect(typeof result.fn).toBe('object');
-      });
-
-      it('creates descriptor with empty params dict', async () => {
-        const result = await run(`
-          tool("noop", "Does nothing", [:], || { "done" })
-        `) as Record<string, unknown>;
-
-        expect(result.name).toBe('noop');
-        expect(result.description).toBe('Does nothing');
-        expect(result.params).toEqual({});
-        expect(result.fn).toBeDefined();
-      });
-
-      it('creates descriptor with multi-param closure', async () => {
-        const result = await run(`
-          tool("add", "Adds numbers", [a: "number", b: "number"], |a, b| { $a + $b })
-        `) as Record<string, unknown>;
-
-        expect(result.name).toBe('add');
-        expect(result.description).toBe('Adds numbers');
-        expect(result.params).toEqual({ a: 'number', b: 'number' });
-        expect(result.fn).toBeDefined();
-      });
-    });
-
-    describe('AC-8: tool() creates descriptor from host function metadata', () => {
-      it('creates descriptor from host function with metadata', async () => {
-        const result = await run(
-          `tool("greet::user")`,
-          {
-            functions: {
-              'greet::user': {
-                params: [
-                  { name: 'name', type: 'string', description: 'User name' },
-                ],
-                fn: (args) => `Hello, ${args[0]}!`,
-                description: 'Greets a user by name',
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('greet::user');
-        expect(result.description).toBe('Greets a user by name');
-        expect(result.params).toEqual({
-          name: {
-            type: 'string',
-            description: 'User name',
+describe('Rill Runtime: Host Reference and Expression Annotations', () => {
+  describe('AC-5: ns::name without parens resolves to ApplicationCallable', () => {
+    it('resolves namespaced host reference to callable', async () => {
+      const result = await run(`greet::user`, {
+        functions: {
+          'greet::user': {
+            params: [{ name: 'name', type: 'string' }],
+            fn: (args) => `Hello, ${args[0]}!`,
+            description: 'Greets a user by name',
           },
-        });
-        expect(result.fn).toBeDefined();
+        },
       });
 
-      it('creates descriptor from namespaced host function', async () => {
-        const result = await run(
-          `tool("math::add")`,
-          {
-            functions: {
-              'math::add': {
-                params: [
-                  { name: 'a', type: 'number', description: 'First number' },
-                  { name: 'b', type: 'number', description: 'Second number' },
-                ],
-                fn: (args) => (args[0] as number) + (args[1] as number),
-                description: 'Adds two numbers',
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('math::add');
-        expect(result.description).toBe('Adds two numbers');
-        expect(result.params).toEqual({
-          a: { type: 'number', description: 'First number' },
-          b: { type: 'number', description: 'Second number' },
-        });
-        expect(result.fn).toBeDefined();
-      });
-
-      it('merges overrides into host function metadata', async () => {
-        const result = await run(
-          `tool("greet::user", [description: "Custom greeting"])`,
-          {
-            functions: {
-              'greet::user': {
-                params: [{ name: 'name', type: 'string' }],
-                fn: (args) => `Hello, ${args[0]}!`,
-                description: 'Original description',
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('greet::user');
-        expect(result.description).toBe('Custom greeting'); // Override applied
-      });
-
-      it('merges params override into host function metadata', async () => {
-        const result = await run(
-          `tool("greet::user", [params: [custom: "any"]])`,
-          {
-            functions: {
-              'greet::user': {
-                params: [{ name: 'name', type: 'string' }],
-                fn: (args) => `Hello, ${args[0]}!`,
-                description: 'Greets user',
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('greet::user');
-        expect(result.params).toEqual({ custom: 'any' }); // Override replaced params
-      });
+      expect((result as Record<string, unknown>).__type).toBe('callable');
+      expect((result as Record<string, unknown>).kind).toBe('application');
     });
 
-    describe('AC-30: Missing description on host function uses empty string', () => {
-      it('uses empty string when host function has no description', async () => {
-        const result = await run(
-          `tool("undocumented::fn")`,
-          {
-            functions: {
-              'undocumented::fn': {
-                params: [],
-                fn: () => 'result',
-                // No description provided
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('undocumented::fn');
-        expect(result.description).toBe(''); // Empty string for missing description
+    it('returns callable without invoking when no pipe value', async () => {
+      const result = await run(`greet::user`, {
+        functions: {
+          'greet::user': {
+            params: [{ name: 'name', type: 'string' }],
+            fn: () => 'invoked',
+            description: 'Greets a user',
+          },
+        },
       });
+
+      // Value returned is the callable itself, not the invocation result
+      expect((result as Record<string, unknown>).__type).toBe('callable');
     });
 
-    describe('AC-31: Missing params on host function uses empty dict', () => {
-      it('uses empty dict when host function has no params', async () => {
-        const result = await run(
-          `tool("simple::fn")`,
-          {
-            functions: {
-              'simple::fn': {
-                params: [], // Empty array instead of undefined
-                fn: () => 'result',
-                description: 'A simple function',
-              },
-            },
-          }
-        ) as Record<string, unknown>;
-
-        expect(result.name).toBe('simple::fn');
-        expect(result.params).toEqual({}); // Empty dict for missing params
+    it('invokes callable when used as pipe stage', async () => {
+      const result = await run(`"World" -> greet::hello`, {
+        functions: {
+          'greet::hello': {
+            params: [{ name: 'name', type: 'string' }],
+            fn: (args) => `Hello ${args[0]}`,
+          },
+        },
       });
+
+      expect(result).toBe('Hello World');
     });
   });
 
-  describe('Error Cases', () => {
-    describe('EC-27: Host function not found', () => {
-      it('throws RILL-R004 when host function does not exist', async () => {
-        await expect(run(`tool("nonexistent::fn")`)).rejects.toThrow(
-          "function 'nonexistent::fn' not found"
-        );
+  describe('ns::name with parens is still a host call', () => {
+    it('calls host function directly when parens provided', async () => {
+      const result = await run(`greet::hello("world")`, {
+        functions: {
+          'greet::hello': {
+            params: [{ name: 'name', type: 'string' }],
+            fn: (args) => `Hello ${args[0]}`,
+          },
+        },
       });
 
-      it('throws RILL-R004 with correct error code', async () => {
-        try {
-          await run(`tool("missing::func")`);
-          expect.fail('Should have thrown error');
-        } catch (error: unknown) {
-          expect((error as RillError).errorId).toBe('RILL-R004');
-        }
-      });
+      expect(result).toBe('Hello world');
+    });
+  });
+
+  describe('AC-6: Expression-position ^(...) before closure attaches annotation', () => {
+    it('attaches description annotation to script callable', async () => {
+      const result = await run(
+        `^("Greets users") |name: string| { "Hello " + $name }`
+      );
+
+      expect((result as Record<string, unknown>).__type).toBe('callable');
+      expect((result as Record<string, unknown>).kind).toBe('script');
+      expect(
+        (
+          (result as Record<string, unknown>).annotations as Record<
+            string,
+            unknown
+          >
+        )['description']
+      ).toBe('Greets users');
     });
 
-    describe('EC-28: Invalid argument combination', () => {
-      it('throws RILL-R001 when called with zero arguments', async () => {
-        await expect(run(`tool()`)).rejects.toThrow('tool() invalid arguments');
-      });
+    it('attaches multiple annotations to script callable', async () => {
+      const result = await run(
+        `^("Search the web", cache: true) |q: string| { $q }`
+      );
 
-      it('throws RILL-R001 when called with 3 arguments', async () => {
-        await expect(run(`tool("a", "b", "c")`)).rejects.toThrow(
-          'tool() invalid arguments'
-        );
-      });
+      const annotations = (result as Record<string, unknown>)
+        .annotations as Record<string, unknown>;
+      expect(annotations['description']).toBe('Search the web');
+      expect(annotations['cache']).toBe(true);
+    });
 
-      it('throws RILL-R001 when 4th argument is not callable', async () => {
-        await expect(
-          run(`tool("name", "desc", [:], "not-a-closure")`)
-        ).rejects.toThrow('tool() invalid arguments');
-      });
+    it('annotations field is empty dict when no annotation provided', async () => {
+      const result = await run(`|x: string| { $x }`);
 
-      it('throws RILL-R001 when first arg is not namespaced string', async () => {
-        await expect(run(`tool("no-separator")`)).rejects.toThrow(
-          'tool() invalid arguments'
-        );
-      });
+      expect((result as Record<string, unknown>).__type).toBe('callable');
+      expect((result as Record<string, unknown>).annotations).toEqual({});
+    });
+  });
 
-      it('throws RILL-R001 when overrides is not a dict', async () => {
-        await expect(
-          run(`tool("fn::name", "not-a-dict")`, {
-            functions: {
-              'fn::name': {
-                params: [],
-                fn: () => 'test',
-              },
+  describe('AC-7: tool() call produces "Unknown function: tool" error', () => {
+    it('throws unknown function error when tool() is called', async () => {
+      await expect(run(`tool("name", "desc", |x| { $x })`)).rejects.toThrow(
+        'Unknown function: tool'
+      );
+    });
+
+    it('throws unknown function error for zero-arg tool() call', async () => {
+      await expect(run(`tool()`)).rejects.toThrow('Unknown function: tool');
+    });
+  });
+
+  describe('AC-11 / EC-4: Unknown host reference throws function-not-found error', () => {
+    it('throws when namespaced reference is not registered', async () => {
+      await expect(run(`unknown::fn`)).rejects.toThrow(
+        'Function "unknown::fn" not found'
+      );
+    });
+
+    it('error message includes the exact function name', async () => {
+      await expect(run(`missing::func`)).rejects.toThrow(
+        'Function "missing::func" not found'
+      );
+    });
+
+    it('throws even when other namespaces are registered', async () => {
+      await expect(
+        run(`wrong::name`, {
+          functions: {
+            'right::name': {
+              params: [],
+              fn: () => 'ok',
             },
-          })
-        ).rejects.toThrow('tool() invalid arguments');
-      });
+          },
+        })
+      ).rejects.toThrow('Function "wrong::name" not found');
+    });
+  });
 
-      it('throws RILL-R001 with correct error code', async () => {
-        try {
-          await run(`tool()`);
-          expect.fail('Should have thrown error');
-        } catch (error: unknown) {
-          expect((error as RillError).errorId).toBe('RILL-R001');
-        }
-      });
+  describe('AC-17 / EC-5: ^("...") before non-closure is syntactically valid', () => {
+    it('annotation before number literal is silently ignored', async () => {
+      const result = await run(`^("ignored") 42`);
+      expect(result).toBe(42);
+    });
+
+    it('annotation before string literal is silently ignored', async () => {
+      const result = await run(`^("desc") "hello"`);
+      expect(result).toBe('hello');
+    });
+
+    it('annotation before dict literal is silently ignored', async () => {
+      const result = await run(`^("desc") [x: 1]`);
+      expect(result).toEqual({ x: 1 });
+    });
+
+    it('no error thrown for annotation before non-closure', async () => {
+      await expect(run(`^("annotation") 99`)).resolves.toBe(99);
+    });
+  });
+
+  describe('EC-6: Malformed annotation syntax produces parse error', () => {
+    it('throws parse error for unclosed annotation paren', async () => {
+      await expect(run(`^( |x| { $x }`)).rejects.toThrow();
+    });
+
+    it('throws parse error for annotation without parens', async () => {
+      await expect(run(`^ |x| { $x }`)).rejects.toThrow();
     });
   });
 });

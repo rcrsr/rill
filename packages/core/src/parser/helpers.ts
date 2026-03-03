@@ -4,7 +4,12 @@
  * @internal This module contains internal parser utilities
  */
 
-import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
+import type {
+  BlockNode,
+  HostCallNode,
+  HostRefNode,
+  SourceSpan,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
 
@@ -372,21 +377,26 @@ export function makeBoolLiteralBlock(
 // since it depends on parseExpression
 
 // ============================================================
-// BARE HOST CALL PARSING
+// BARE HOST CALL / REF PARSING
 // ============================================================
 
 /**
  * Parse a bare function name (no parens): `func` or `ns::func` or `ns::sub::func`
- * Returns a HostCallNode with empty args.
+ * Returns a HostRefNode for namespaced names (ns::name) and a HostCallNode
+ * with empty args for simple bare identifiers (no ::).
  * @internal
  */
-export function parseBareHostCall(state: ParserState): HostCallNode {
+export function parseBareHostCall(
+  state: ParserState
+): HostCallNode | HostRefNode {
   const start = state.tokens[state.pos]!.span.start;
   let name = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier').value;
+  let hasNamespace = false;
 
   // Collect namespaced name: ident::ident::...
   while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
     state.pos++; // consume ::
+    hasNamespace = true;
 
     // After ::, accept identifier or keyword
     const token = current(state);
@@ -403,10 +413,21 @@ export function parseBareHostCall(state: ParserState): HostCallNode {
     state.pos++; // consume the identifier or keyword
   }
 
+  const span = { start, end: state.tokens[state.pos - 1]!.span.end };
+
+  // Namespaced bare identifier → host function reference (IR-4)
+  if (hasNamespace) {
+    return {
+      type: 'HostRef',
+      name,
+      span,
+    };
+  }
+
   return {
     type: 'HostCall',
     name,
     args: [],
-    span: { start, end: state.tokens[state.pos - 1]!.span.end },
+    span,
   };
 }
