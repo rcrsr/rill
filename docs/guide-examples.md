@@ -71,7 +71,9 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 |x| { $x * 2 } => $double
 [1, 2, 3, 4, 5] -> map $double
 # [2, 4, 6, 8, 10]
+```
 
+```rill
 # Map with inline block
 ["alice", "bob", "carol"] -> map { "Hello, {$}!" }
 # ["Hello, alice!", "Hello, bob!", "Hello, carol!"]
@@ -83,21 +85,29 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # Keep elements matching condition (block form)
 [1, 2, 3, 4, 5] -> filter { .gt(2) }
 # [3, 4, 5]
+```
 
+```rill
 # Filter with closure predicate
 |x| { $x % 2 == 0 } => $even
 [1, 2, 3, 4, 5, 6] -> filter $even
 # [2, 4, 6]
+```
 
+```rill
 # Filter non-empty strings
 ["hello", "", "world", ""] -> filter { !.empty }
 # ["hello", "world"]
+```
 
+```rill
 # Chain filter and map
 |x| { $x * 2 } => $dbl
 [1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
 # [6, 8, 10]
+```
 
+```rill
 # Filter structured data
 [
   [name: "alice", age: 30],

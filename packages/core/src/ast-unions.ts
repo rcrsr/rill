@@ -64,4 +64,5 @@ export type NodeType =
   | 'FoldExpr'
   | 'FilterExpr'
   | 'RecoveryError'
-  | 'Error';
+  | 'Error'
+  | 'TypeNameExpr';

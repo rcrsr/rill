@@ -456,9 +456,9 @@ Define closures for common reductions.
 |x, max = 0| (($x > $max) ? $x ! $max) => $maxer
 
 # Use with different data
-[1, 2, 3] -> fold $summer     # 6
-[3, 7, 2] -> fold $maxer      # 7
-[9, 1, 5] -> fold $maxer      # 9
+[1, 2, 3] -> fold $summer => $r1     # 6
+[3, 7, 2] -> fold $maxer => $r2      # 7
+[9, 1, 5] -> fold $maxer => $r3      # 9
 ```
 
 ### Empty Collections
@@ -645,7 +645,7 @@ Process nested structures with nested operators.
 
 ## Quick Reference
 
-```rill
+```text
 # each - sequential, all results
 [1, 2, 3] -> each { $ * 2 }           # [2, 4, 6]
 [1, 2, 3] -> each(0) { $@ + $ }       # [1, 3, 6] (running sum)

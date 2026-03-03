@@ -233,7 +233,9 @@ Terminal closures receive `$` bound to the final path key.
 ```rill
 [apple: "fruit", carrot: "vegetable"] => $lookup
 "apple" -> $lookup                    # "fruit"
+```
 
+```rill
 ["a", "b", "c"] => $items
 1 -> $items                           # "b"
 ```
@@ -670,21 +672,27 @@ A newline after any of these continues the current statement:
 | Annotation | `^` |
 | Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` `shape(` |
 
-Continuation tokens also act as **line-start continuations** — placing them at the beginning of the next line continues the previous statement:
+A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
 
 ```rill
 "hello"
   => $greeting
   -> .upper
   -> .trim
+```
 
-($count > 0)
+```rill
+(5 > 0)
   ? "yes"
   ! "no"
+```
 
-$x
-  + $y
-  + $z
+Arithmetic, logical, and comparison operators work as **trailing continuations** only — place the operator at the end of the line, not the beginning:
+
+```rill
+1 +
+  2 +
+  3
 ```
 
 ### Statement-start tokens

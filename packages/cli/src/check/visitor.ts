@@ -334,16 +334,21 @@ export function visitNode(
       break;
 
     case 'ShapeField':
-      if (typeof node.fieldType === 'object') {
+      if (typeof node.fieldType === 'object' && 'type' in node.fieldType) {
         visitNode(node.fieldType, context, visitor);
       }
       break;
 
-    case 'VarTypeAssertion':
-    case 'VarTypeCheck':
-      if (node.operand) {
-        visitNode(node.operand, context, visitor);
+    case 'TypeNameExpr':
+    case 'HostRef':
+      // Leaf nodes - no children
+      break;
+
+    case 'AnnotatedExpr':
+      for (const arg of node.annotations) {
+        visitNode(arg, context, visitor);
       }
+      visitNode(node.expression, context, visitor);
       break;
 
     case 'ShapeAssertion':
