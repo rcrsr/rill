@@ -70,6 +70,16 @@ export interface RillTypeValue {
   readonly typeName: RillTypeName;
 }
 
+/**
+ * Shape field descriptor - represents a single field definition within a shape literal.
+ * Created during shape construction to carry field name and spec before the shape is built.
+ */
+export interface RillShapeFieldDescriptor {
+  readonly __rill_field_descriptor: true;
+  readonly fieldName: string;
+  readonly spec: ShapeFieldSpec;
+}
+
 /** Any value that can flow through Rill */
 export type RillValue =
   | string
@@ -82,7 +92,8 @@ export type RillValue =
   | RillTuple
   | RillVector
   | RillShape
-  | RillTypeValue;
+  | RillTypeValue
+  | RillShapeFieldDescriptor;
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -121,6 +132,18 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
     value !== null &&
     '__rill_type' in value &&
     (value as RillTypeValue).__rill_type === true
+  );
+}
+
+/** Type guard for RillShapeFieldDescriptor */
+export function isFieldDescriptor(
+  value: RillValue
+): value is RillShapeFieldDescriptor {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_field_descriptor' in value &&
+    (value as RillShapeFieldDescriptor).__rill_field_descriptor === true
   );
 }
 
@@ -167,6 +190,7 @@ export function inferType(value: RillValue): RillTypeName {
   if (isTuple(value)) return 'tuple';
   if (isVector(value)) return 'vector';
   if (Array.isArray(value)) return 'list';
+  if (isFieldDescriptor(value)) return 'field';
   if (isShape(value)) return 'shape';
   if (isTypeValue(value)) return 'type';
   if (

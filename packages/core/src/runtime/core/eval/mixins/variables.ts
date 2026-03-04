@@ -41,7 +41,13 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType, isTypeValue } from '../../values.js';
+import {
+  inferType,
+  isShape,
+  isTypeValue,
+  isFieldDescriptor,
+} from '../../values.js';
+import { buildFieldDescriptor } from '../../field-descriptor.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -339,6 +345,30 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             value = await (this as any).evaluateMethod(methodNode, value);
+          } else if (isFieldDescriptor(value)) {
+            const spec = value.spec;
+            if (field === 'type') {
+              value = Object.freeze({
+                __rill_type: true as const,
+                typeName: spec.typeName as RillTypeName,
+              });
+            } else if (field === 'optional') {
+              value = spec.optional;
+            } else if (field === 'shape') {
+              value = spec.nestedShape ?? false;
+            } else {
+              throw new RuntimeError(
+                'RILL-R003',
+                `Field descriptor has no property "${field}"`,
+                this.getNodeLocation(node)
+              );
+            }
+          } else if (isShape(value)) {
+            value = buildFieldDescriptor(
+              value,
+              field,
+              this.getNodeLocation(node)!
+            );
           } else if (isDict(value)) {
             // Allow missing fields if there's a default value or existence check
             const allowMissing =

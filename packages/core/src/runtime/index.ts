@@ -71,6 +71,7 @@ export {
 export type {
   RillIterator,
   RillShape,
+  RillShapeFieldDescriptor,
   RillTuple,
   RillTypeValue,
   RillValue,
@@ -81,6 +82,7 @@ export type {
 export {
   createVector,
   inferType,
+  isFieldDescriptor,
   isRillIterator,
   isShape,
   isTuple,
@@ -89,6 +91,8 @@ export {
   isReservedMethod,
   RESERVED_DICT_METHODS,
 } from './core/values.js';
+
+export { buildFieldDescriptor } from './core/field-descriptor.js';
 
 // ============================================================
 // CONTROL FLOW SIGNALS

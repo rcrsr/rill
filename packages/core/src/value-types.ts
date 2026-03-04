@@ -10,7 +10,8 @@ export type RillTypeName =
   | 'vector'
   | 'shape'
   | 'any'
-  | 'type';
+  | 'type'
+  | 'field';
 
 /**
  * A reference to a type — either a static type name literal or a dynamic

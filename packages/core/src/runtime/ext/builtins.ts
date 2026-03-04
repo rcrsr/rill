@@ -29,6 +29,7 @@ import {
   type ShapeFieldSpec,
 } from '../core/values.js';
 import { VALID_TYPE_NAMES } from '../../constants.js';
+import { buildFieldDescriptor } from '../core/field-descriptor.js';
 
 // ============================================================
 // SHAPE HELPERS
@@ -699,8 +700,11 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
 
   // === Dict methods (reserved) ===
 
-  /** Get all keys of a dict as a tuple of strings */
+  /** Get all keys of a dict or shape as a tuple of strings */
   keys: (receiver) => {
+    if (isShape(receiver)) {
+      return Object.keys(receiver.fields);
+    }
     if (isDict(receiver)) {
       return Object.keys(receiver);
     }
@@ -715,8 +719,14 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     return [];
   },
 
-  /** Get all entries of a dict as a tuple of [key, value] pairs */
-  entries: (receiver) => {
+  /** Get all entries of a dict or shape as a tuple of [key, value] pairs */
+  entries: (receiver, _args, _ctx, location) => {
+    if (isShape(receiver)) {
+      return Object.keys(receiver.fields).map((name) => [
+        name,
+        buildFieldDescriptor(receiver, name, location!),
+      ]);
+    }
     if (isDict(receiver)) {
       return Object.entries(receiver).map(([k, v]) => [k, v]);
     }

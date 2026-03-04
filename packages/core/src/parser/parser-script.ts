@@ -26,6 +26,8 @@ import {
   makeSpan,
 } from './state.js';
 
+const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
+
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
@@ -327,6 +329,13 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     TOKEN_TYPES.IDENTIFIER,
     'Expected annotation name'
   );
+  if (RESERVED_ANNOTATION_KEYS.includes(nameToken.value)) {
+    throw new ParseError(
+      'RILL-P001',
+      `Annotation key "${nameToken.value}" is reserved`,
+      nameToken.span.start
+    );
+  }
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
   const value = this.parseExpression();
 

@@ -76,7 +76,12 @@ import {
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
 import type { RillValue, RillTuple, RillTypeValue } from '../../values.js';
-import { inferType, isTypeValue, isTuple } from '../../values.js';
+import {
+  inferType,
+  isFieldDescriptor,
+  isTypeValue,
+  isTuple,
+} from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
@@ -914,6 +919,21 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // IR-3: .name on type values returns the typeName string
       if (isTypeValue(value) && key === 'name') {
         return value.typeName;
+      }
+
+      // IR-2: .^key on field descriptors reads from spec.annotations
+      if (isFieldDescriptor(value)) {
+        // .^keys returns all annotation key names
+        if (key === 'keys') return Object.keys(value.spec.annotations);
+        const ann = value.spec.annotations[key];
+        if (ann === undefined) {
+          throw new RuntimeError(
+            'RILL-R003',
+            `Annotation "${key}" not found on field "${value.fieldName}"`,
+            location
+          );
+        }
+        return ann;
       }
 
       // Only ScriptCallable supports annotation reflection

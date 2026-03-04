@@ -30,4 +30,5 @@ export const VALID_TYPE_NAMES = [
   'shape',
   'any',
   'type',
+  'field',
 ] as const;

@@ -6,8 +6,6 @@
  * EC = Error Contract from the shape-type spec.
  *
  * Implementation status notes:
- * - Shape field access ($s.name, $s.keys) is not yet implemented (AC-4, AC-5).
- * - Shape field annotation reflection ($s.name.^description) is not yet implemented (AC-15, AC-16, AC-17).
  * - The "any?" field type is not yet implemented (AC-14).
  * Tests for unimplemented features use it.todo() to mark pending spec requirements.
  */
@@ -46,13 +44,21 @@ describe('Rill Language: Shape Type', () => {
       expect(result).toBe(true);
     });
 
-    it.todo(
-      'field access $s.name returns type name string "string" (AC-4) — shape field introspection not yet implemented'
-    );
+    it('field access $s.name returns a field descriptor with optional=false (AC-4)', async () => {
+      const result = await run(`
+        shape(name: string) => $s
+        $s.name.optional
+      `);
+      expect(result).toBe(false);
+    });
 
-    it.todo(
-      '$s.keys returns field names as list (AC-5) — shape field introspection not yet implemented'
-    );
+    it('$s.keys returns field names as list (AC-5)', async () => {
+      const result = await run(`
+        shape(name: string, age: number) => $s
+        $s.keys
+      `);
+      expect(result).toEqual(['name', 'age']);
+    });
 
     it('empty shape() produces valid shape value (AC-6)', async () => {
       const result = await run(`
@@ -168,17 +174,30 @@ describe('Rill Language: Shape Type', () => {
   // ============================================================
 
   describe('Annotations and Enum', () => {
-    it.todo(
-      '$s.name.^description returns description string when annotation present (AC-15) — shape field introspection not yet implemented'
-    );
+    it('$s.name.^description returns annotation string when present (AC-15)', async () => {
+      const result = await run(`
+        shape(^(description: "User name") name: string) => $s
+        $s.name.^description
+      `);
+      expect(result).toBe('User name');
+    });
 
-    it.todo(
-      '$s.role.^enum returns enum array when annotation present (AC-16) — shape field introspection not yet implemented'
-    );
+    it('$s.role.^enum returns annotation list when present (AC-16)', async () => {
+      const result = await run(`
+        shape(^(enum: ["admin", "user"]) role: string) => $s
+        $s.role.^enum
+      `);
+      expect(result).toEqual(['admin', 'user']);
+    });
 
-    it.todo(
-      '$s.name.^enum throws "annotation not found" when absent (AC-17) — shape field introspection not yet implemented'
-    );
+    it('$s.name.^enum throws annotation not found error when absent (AC-17)', async () => {
+      await expect(
+        run(`
+          shape(name: string) => $s
+          $s.name.^enum
+        `)
+      ).rejects.toThrow('Annotation "enum" not found on field "name"');
+    });
 
     it('field value not in enum fails :$shape (AC-18)', async () => {
       await expect(

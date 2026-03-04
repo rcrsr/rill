@@ -87,7 +87,7 @@ See [Collections](topic-collections.md) for detailed documentation.
 | Shape | `shape(field: type)` | `shape(name: string)` | Shape value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `field`, `any`
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -343,19 +343,36 @@ See [Operators](topic-operators.md) for detailed extraction operator documentati
 
 ## Annotation Reflection
 
-Access annotation values on closures using `.^key` syntax.
+Access annotation values using `.^key` syntax. Annotations attach to closures and field descriptors. The key `type` is special-cased and works on any value.
 
-**Type Restriction:** Annotations attach to closures only. Accessing `.^key` on primitives (string, number, boolean, list, dict) throws `RUNTIME_TYPE_ERROR`.
+### `.^key` Dispatch Table
+
+| Value | Key | Result |
+|-------|-----|--------|
+| Any value | `type` | Type value via `.^type` |
+| Type value | `name` | Type name string |
+| Closure | any other key | Closure annotation value |
+| Field descriptor | any other key | Field annotation value |
+| Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
 ```rill
 ^(min: 0, max: 100) |x|($x) => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
-$fn.^missing # Error: RUNTIME_UNDEFINED_ANNOTATION
 ```
 
-Annotations are metadata attached to closures during creation. They enable runtime configuration and introspection.
+```rill
+shape(^("User name", enum: ["alice", "bob"]) name: string) => $s
+$s.name.^description   # "User name"
+$s.name.^enum          # ["alice", "bob"]
+```
+
+```text
+$s.name.^absent   # Error: Annotation "absent" not found on field "name"
+```
+
+Annotations are metadata attached at definition time. They enable runtime configuration and introspection.
 
 **Scope rule:** Annotations apply only to the closure directly targeted by `^(...)`. A closure nested inside an annotated statement does not inherit the annotation.
 
@@ -436,12 +453,33 @@ Use default value operator for optional annotations:
 $fn.^timeout ?? 30  # 30 (uses default since annotation missing)
 ```
 
-Accessing `.^key` on non-closure values throws `RUNTIME_TYPE_ERROR`:
+Accessing `.^key` on primitives, lists, or dicts throws `RUNTIME_TYPE_ERROR`:
 
 ```text
 "hello" => $str
 $str.^key        # Error: Cannot access annotation on string
 ```
+
+### Reserved Annotation Keys
+
+The parser rejects annotation keys that conflict with built-in dispatch semantics.
+
+| Key | Status | Reason |
+|-----|--------|--------|
+| `type` | Reserved | Intercepted at evaluation time for any value |
+| `input` | Reserved | Reserved for future Closure Shapes feature |
+| `output` | Reserved | Reserved for future Closure Shapes feature |
+| `description` | User-defined | Not reserved; common metadata key |
+| `enum` | User-defined | Not reserved; common metadata key |
+| `default` | User-defined | Not reserved; common metadata key |
+
+```text
+^(type: "custom") name: string   # Error: annotation key "type" is reserved
+^(input: "text") name: string    # Error: annotation key "input" is reserved
+^(output: "text") name: string   # Error: annotation key "output" is reserved
+```
+
+The `name` key is intercepted on type values (`.^name` returns the type name string) but is not reserved — user annotations may use `name` on closures and field descriptors without restriction.
 
 ### Parameter Annotations
 

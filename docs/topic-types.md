@@ -17,6 +17,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 | Shape | `shape(field: type)` | `shape(name: string, age: number)` |
+| Field | field descriptor | `$s.fieldname` |
 | Type | type name expression | `number`, `dict`, `type` |
 
 **Key principles:**
@@ -635,6 +636,123 @@ Supported annotation keys:
 | `enum` | `list` | Allowed values — enforced during assert and check |
 | `default` | any | Default value hint for host tooling (metadata only) |
 
+Annotation keys `type`, `input`, and `output` are reserved — using them is a parse error:
+
+```text
+^(type: "custom") name: string   # Error: annotation key "type" is reserved
+```
+
+### Shape Field Access
+
+Access field names and field descriptors directly from a shape value.
+
+`.keys` returns field names in declaration order:
+
+```rill
+shape(name: string, age: number, role: string) => $s
+$s.keys   # ["name", "age", "role"]
+```
+
+`.entries` returns a list of `["fieldname", descriptor]` pairs:
+
+```rill
+shape(name: string, age: number) => $s
+$s -> .entries -> each { log($[0]) }
+# Logs: "name" then "age"
+```
+
+`.fieldname` returns the field descriptor for that field:
+
+```rill
+shape(name: string, age: number) => $s
+$s.name           # field descriptor
+$s.name.optional  # false
+$s.age.optional   # false
+
+shape(email: string?) => $s2
+$s2.email.optional  # true
+```
+
+Accessing an absent field errors:
+
+```text
+shape(name: string) => $s
+$s.missing   # Error: Shape has no field "missing"
+```
+
+### Field Descriptor
+
+A field descriptor is a first-class value with type identity `"field"`. Access it via `$shape.fieldname`.
+
+**Properties:**
+
+| Property | Returns | Description |
+|----------|---------|-------------|
+| `.type` | type value | The declared type of the field |
+| `.optional` | bool | `true` if the field is marked optional |
+| `.shape` | shape or `false` | Nested shape for shape-typed fields; `false` otherwise |
+
+`.type` returns the type value for the field:
+
+```rill
+shape(name: string, age: number) => $s
+$s.name.type      # string (type value)
+$s.name.type == string  # true
+```
+
+`.shape` returns the nested shape for shape-typed fields, or `false` for non-nested fields:
+
+```rill
+shape(user: (name: string, age: number)) => $s
+$s.user.type      # shape (type value)
+$s.user.shape     # shape(name: string, age: number)
+```
+
+```rill
+shape(name: string) => $s
+$s.name.shape     # false
+```
+
+**Annotation access:**
+
+| Expression | Returns |
+|-----------|---------|
+| `$d.^key` | Annotation value for `key` |
+| `$d.^keys` | List of annotation key names |
+
+```rill
+shape(
+  ^("User name") name: string,
+  ^("User role", enum: ["admin", "user"]) role: string
+) => $s
+
+$s.name.^description   # "User name"
+$s.role.^enum          # ["admin", "user"]
+$s.role.^description   # "User role"
+```
+
+`.^keys` returns all annotation key names on the field:
+
+```rill
+shape(^("User name", enum: ["alice", "bob"]) name: string) => $s
+$s.name.^keys   # ["description", "enum"]
+```
+
+Accessing an absent annotation key errors:
+
+```text
+shape(name: string) => $s
+$s.name.^enum   # Error: Annotation "enum" not found on field "name"
+```
+
+**Type identity:** Field descriptors have type `"field"`:
+
+```rill
+shape(name: string) => $s
+$s.name.^type == field  # true
+$s.name -> :?field      # true
+```
+
 ### `to_shape()` Built-in
 
 Convert a dict descriptor to a shape value. Useful for building shapes programmatically:
@@ -723,7 +841,7 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `any`, `type`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `field`, `any`, `type`
 
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures.
 
@@ -820,7 +938,7 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ## Type Values
 
-rill has a 11th runtime type named `type`. A type value represents a rill type itself.
+rill has an 11th runtime type named `type`. A type value represents a rill type itself.
 
 ### `.^type` Operator
 
@@ -881,6 +999,10 @@ $nt.^type == type
 
 type => $tt
 $tt.^type == type
+# Result: true
+
+field => $ft
+$ft.^type == type
 # Result: true
 ```
 

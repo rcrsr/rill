@@ -407,6 +407,51 @@ $person.name                     # "alice"
 $person.age                      # 30
 ```
 
+`.field` on a shape value returns a field descriptor — not a field value. A field descriptor exposes `.type`, `.optional`, `.shape`, and `.^key` properties.
+
+```rill
+shape(name: string, age: number) => $s
+$s.name.type      # string (the type value)
+$s.name.optional  # false (field is required)
+$s.age.type       # number
+```
+
+Access annotation values on a field descriptor with `.^key`:
+
+```rill
+shape(^(description: "User name") name: string) => $s
+$s.name.^description              # "User name"
+```
+
+Chain field descriptor access through nested shapes via `.shape`:
+
+```rill
+shape(address: (city: string, zip: string)) => $s
+$s.address.type                   # shape (type value)
+$s.address.shape.city.type        # string
+```
+
+### Shape Structural Access
+
+`.keys` and `.entries` work on shapes with the same syntax as dicts.
+
+`.keys` returns field names in declaration order:
+
+```rill
+shape(name: string, age: number, role: string) => $s
+$s -> .keys                       # ["name", "age", "role"]
+```
+
+`.entries` returns `[fieldname, descriptor]` pairs:
+
+```rill
+shape(name: string, age: number) => $s
+$s -> .entries -> each { log($[0]) }
+# Logs: "name" then "age"
+```
+
+See [Types](topic-types.md) for dict `.keys` and `.entries` documentation.
+
 ### Index Access `[n]`
 
 Access list elements (0-based, negative from end):
