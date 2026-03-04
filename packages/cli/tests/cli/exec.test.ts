@@ -224,9 +224,9 @@ describe('rill-exec', () => {
     });
 
     it('keeps arguments as strings', async () => {
-      const script = await writeScript('type.rill', '$[0] -> type');
+      const script = await writeScript('type.rill', '$[0] -> :?string');
       const result = await executeScript(script, ['42']);
-      expect(result.result).toBe('string');
+      expect(result.result).toBe(true);
     });
 
     it('throws for non-existent file', async () => {
