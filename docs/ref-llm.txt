@@ -346,13 +346,16 @@ Two ways to create closures:
     |x = 0|($x + 1) => $inc_or_one     # default value
     |x: number|($x + 1) => $typed      # type annotation
 
-**Return type declarations** (metadata only, not enforced, readable via host API):
+**Return type assertions** (enforced at runtime — RILL-R004 on mismatch):
 
-    |x: number| -> string { "{$x}" } => $fn     # declares string return type
-    $fn(42)                                      # "42" (runs normally)
+    |x: number| { "{$x}" }:string => $fn    # asserts string return type
+    $fn(42)                                  # "42" (passes assertion)
 
-Valid return types: string, number, bool, list, dict, any, vector.
-Return type is not accessible via rill script syntax — use host getFunctions() API.
+    |x: number| { $x * 2 }:string => $fn    # mismatch halts with RILL-R004
+    $fn(5)                                   # RILL-R004: expected string, got number
+
+Valid return type targets: string, number, bool, list, dict, any, vector, shape(...), $shapeVar.
+Declared return type accessible via $fn.^output annotation.
 
 **Description shorthand** (bare string in `^(...)` expands to `description: <string>`):
 

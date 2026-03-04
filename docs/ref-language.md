@@ -96,7 +96,7 @@ See [Types](topic-types.md) for detailed documentation.
 | Syntax | Description |
 |--------|-------------|
 | `\|p: type\|{ } => $fn` | Define and capture function |
-| `\|p: type\| -> rtype { }` | Define with return type metadata (host API only) |
+| `\|p: type\| { }:rtype` | Define closure with enforced return type assertion |
 | `\|p = default\|{ }` | Parameter with default |
 | `\|^(min: 0) p\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
@@ -533,37 +533,43 @@ See [Closures](topic-closures.md) for parameter annotation examples and patterns
 
 ---
 
-## Return Type Declarations
+## Return Type Assertions
 
-The `-> type` syntax after the closing `|` attaches return type metadata to a closure. Return types are **not enforced at runtime** — they are metadata for host applications and tooling. This `-> type` annotation is distinct from `type` as a value expression (e.g. `$val.^type`). The old `type()` builtin function has been removed; use the `.^type` accessor to read a value's type at runtime.
+The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
 
-**Syntax:** `|params| -> returnType { body }`
+**Syntax:** `|params| { body }:returnType`
 
 ```rill
-|x: number| -> string { "{$x}" } => $fn
+|x: number| { "{$x}" }:string => $fn
 $fn(42)    # "42"
 ```
 
-Valid return types:
+Valid return type targets:
 
-| Return Type | Description |
+| Type Target | Description |
 |-------------|-------------|
 | `string` | String value |
 | `number` | Numeric value |
 | `bool` | Boolean value |
 | `list` | List value |
 | `dict` | Dict value |
-| `any` | Any type (unconstrained) |
-| `vector` | Vector embedding |
+| `any` | Any type (no assertion) |
+| `shape(...)` | Inline shape — validates dict structure |
+| `$shapeVar` | Variable shape — validates against stored shape |
 
-The function executes regardless of actual return type:
+Mismatched return type halts with `RILL-R004`:
 
-```rill
-|x: number| -> string { $x * 2 } => $double
-$double(5)    # 10 (returns number despite -> string declaration)
+```text
+|x: number| { $x * 2 }:string => $double
+$double(5)    # RILL-R004: Type assertion failed: expected string, got number
 ```
 
-Return type metadata is accessible to host applications via the TypeScript `getFunctions()` introspection API. It is not directly readable in rill script syntax.
+Declared return type is accessible via `$fn.^output`:
+
+```rill
+|a: number, b: number| { $a + $b }:number => $add
+$add(3, 4)    # 7
+```
 
 ---
 

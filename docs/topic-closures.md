@@ -717,28 +717,28 @@ $get_user.^cache          # true
 
 ---
 
-## Return Type Syntax
+## Return Type Assertions
 
-Add a return type annotation after the closing `|` using `-> typename` (e.g., `-> string`, `-> number`). Return types are metadata only — the runtime does not enforce them. Note: `-> type` in this position is a return type annotation, not a call to the `.^type` extraction operator.
+The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
 
 ```rill
-|x: number| -> string { "{$x}" } => $fn
+|x: number| { "{$x}" }:string => $fn
 $fn(42)    # "42" (string from interpolation)
 ```
 
-Valid return types: `string`, `number`, `bool`, `list`, `dict`, `any`, `vector`.
+Valid return type targets: `string`, `number`, `bool`, `list`, `dict`, `any`, `vector`, `shape(...)`, `$shapeVar`.
 
-The function runs regardless of the actual return type:
+Mismatched return type halts with `RILL-R004`:
 
-```rill
-|x: number| -> string { $x * 2 } => $double
-$double(5)    # 10 (returns number despite -> string declaration)
+```text
+|x: number| { $x * 2 }:string => $double
+$double(5)    # RILL-R004: Type assertion failed: expected string, got number
 ```
 
-Return type metadata is available to host applications via the TypeScript `getFunctions()` API. It is not accessible via rill script syntax.
+Declared return type is accessible via `$fn.^output`. Whitespace and newlines are allowed between `}` and `:`:
 
 ```rill
-|a: number, b: number| -> number { $a + $b } => $add
+|a: number, b: number| { $a + $b }:number => $add
 $add(3, 4)    # 7
 ```
 
