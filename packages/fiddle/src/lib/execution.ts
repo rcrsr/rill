@@ -10,6 +10,7 @@ import {
   createRuntimeContext,
   execute,
   isCallable,
+  formatValue,
   ERROR_REGISTRY,
   getHelpUrl,
   VERSION,
@@ -229,5 +230,5 @@ export function formatResult(value: RillValue): string {
     return String(value);
   }
   if (isCallable(value)) return '[closure]';
-  return JSON.stringify(value, null, 2);
+  return formatValue(value);
 }

@@ -162,6 +162,14 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'Capture': {
       const bCapture = b as typeof a;
       if (a.name !== bCapture.name) return false;
+      // Compare inlineShape
+      const aShape = a.inlineShape;
+      const bShape = bCapture.inlineShape;
+      if ((aShape === null) !== (bShape === null)) return false;
+      if (aShape !== null && bShape !== null) {
+        if (!astEquals(aShape, bShape)) return false;
+      }
+      // Compare typeRef
       const aRef = a.typeRef;
       const bRef = bCapture.typeRef;
       if (aRef === null && bRef === null) return true;

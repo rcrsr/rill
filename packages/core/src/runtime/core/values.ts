@@ -250,6 +250,9 @@ export function formatValue(value: RillValue): string {
     }
     return `*[${parts.join(', ')}]`;
   }
+  if (isTypeValue(value)) {
+    return `type(${value.typeName})`;
+  }
   if (isVector(value)) {
     return `vector(${value.model}, ${value.data.length}d)`;
   }

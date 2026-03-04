@@ -21,21 +21,6 @@ import { VALID_TYPE_NAMES } from '../constants.js';
 /** @internal */
 export { VALID_TYPE_NAMES };
 
-/**
- * Valid return type names for closure return type annotations.
- * Subset of VALID_TYPE_NAMES — excludes 'closure' and 'tuple'.
- * @internal
- */
-export const VALID_RETURN_TYPES = [
-  'string',
-  'number',
-  'bool',
-  'list',
-  'dict',
-  'vector',
-  'any',
-] as const;
-
 // ============================================================
 // LOOKAHEAD PREDICATES
 // ============================================================
@@ -155,6 +140,16 @@ export function isMethodCall(state: ParserState): boolean {
   return (
     check(state, TOKEN_TYPES.DOT) &&
     peek(state, 1).type === TOKEN_TYPES.IDENTIFIER
+  );
+}
+
+/**
+ * Check for annotation access: .^identifier
+ * @internal
+ */
+export function isAnnotationAccess(state: ParserState): boolean {
+  return (
+    check(state, TOKEN_TYPES.DOT) && peek(state, 1).type === TOKEN_TYPES.CARET
   );
 }
 

@@ -111,7 +111,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Handle inline captures (act as identity: store and pass through)
         if (target.type === 'Capture') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).handleCapture(target, value);
+          await (this as any).handleCapture(target, value);
           // Value flows through unchanged
           continue;
         }
@@ -134,7 +134,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         // Capture
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).handleCapture(chain.terminator, value);
+        await (this as any).handleCapture(chain.terminator, value);
       }
 
       // Restore parent's $ - chain result is returned, but $ doesn't leak
@@ -160,8 +160,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let value = await this.evaluatePrimary(expr.primary);
 
         for (const method of expr.methods) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          value = await (this as any).evaluateMethod(method, value);
+          if (method.type === 'AnnotationAccess') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateAnnotationAccess(
+              value,
+              method.key,
+              method.span.start
+            );
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateMethod(method, value);
+          }
         }
 
         return value;
@@ -669,8 +678,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // The primary is implicit $ (pipe value)
           let value = input;
           for (const method of target.methods) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateMethod(method, value);
+            if (method.type === 'AnnotationAccess') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value = await (this as any).evaluateAnnotationAccess(
+                value,
+                method.key,
+                method.span.start
+              );
+            } else {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value = await (this as any).evaluateMethod(method, value);
+            }
           }
           return value;
         }

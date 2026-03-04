@@ -18,7 +18,6 @@ import { formatValue, inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
-  validateReturnType,
   type CallableParam,
 } from './callable.js';
 
@@ -67,11 +66,6 @@ export function createRuntimeContext(
     for (const [name, definition] of Object.entries(options.functions)) {
       // All functions must be HostFunctionDefinition with params
       const { params, fn, description, returnType } = definition;
-
-      // Validate return type at registration time (IR-1)
-      if (returnType !== undefined) {
-        validateReturnType(returnType, name);
-      }
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {

@@ -1,9 +1,5 @@
 import type { SourceSpan } from './source-location.js';
-import type {
-  RillFunctionReturnType,
-  RillTypeName,
-  TypeRef,
-} from './value-types.js';
+import type { RillTypeName, TypeRef } from './value-types.js';
 
 interface BaseNode {
   readonly span: SourceSpan;
@@ -38,12 +34,16 @@ export interface FrontmatterNode extends BaseNode {
  * - Simple: |x| $x (postfix-expr)
  * - Grouped: |x| ($x * 2) (compound expression)
  * - Block: |x| { $a ↵ $b } (multiple statements)
+ *
+ * Optional postfix return type target: |params| body :type-target
+ * Asserts the closure return value against the type target at invocation time.
+ * `:any` is valid and equivalent to omission.
  */
 export interface ClosureNode extends BaseNode {
   readonly type: 'Closure';
   readonly params: ClosureParamNode[];
   readonly body: BodyNode;
-  readonly returnType?: RillFunctionReturnType | undefined;
+  readonly returnTypeTarget?: TypeRef | ShapeLiteralNode | undefined;
 }
 
 /**
@@ -135,8 +135,12 @@ export interface SpreadArgNode extends BaseNode {
 export interface CaptureNode extends BaseNode {
   readonly type: 'Capture';
   readonly name: string;
-  /** Optional explicit type annotation: $name:type or $name:$t */
+  /**
+   * Optional explicit type annotation: $name:type or $name:$t
+   * Optional inline shape constraint: $name:shape { field: type }
+   */
   readonly typeRef: TypeRef | null;
+  readonly inlineShape: ShapeLiteralNode | null;
 }
 
 /**
@@ -219,7 +223,7 @@ export interface PipeChainNode extends BaseNode {
 export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;
-  readonly methods: (MethodCallNode | InvokeNode)[];
+  readonly methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
   readonly defaultValue: BodyNode | null;
 }
 
@@ -620,6 +624,12 @@ export interface InvokeNode extends BaseNode {
   readonly args: ExpressionNode[];
 }
 
+/** Annotation reflection access on expressions: expr.^key */
+export interface AnnotationAccessNode extends BaseNode {
+  readonly type: 'AnnotationAccess';
+  readonly key: string;
+}
+
 /** Call a closure stored in a variable: $fn(args) or $obj.method(args) */
 export interface ClosureCallNode extends BaseNode {
   readonly type: 'ClosureCall';
@@ -1005,6 +1015,7 @@ export type ASTNode =
   | PostfixExprNode
   | MethodCallNode
   | InvokeNode
+  | AnnotationAccessNode
   | HostCallNode
   | HostRefNode
   | ClosureCallNode

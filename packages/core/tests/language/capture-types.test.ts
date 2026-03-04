@@ -193,4 +193,46 @@ $v`;
       ).toBe('hello');
     });
   });
+
+  describe('Shape Variable in Capture', () => {
+    it('accepts dict matching shape schema', async () => {
+      expect(
+        await run(
+          'shape(name: string, age: number) => $schema\n[name: "andre", age: 54] => $record:$schema\n$record'
+        )
+      ).toEqual({ name: 'andre', age: 54 });
+    });
+
+    it('rejects dict with wrong field type', async () => {
+      await expect(
+        run(
+          'shape(name: string, age: number) => $schema\n[name: "andre", age: "old"] => $record:$schema'
+        )
+      ).rejects.toThrow();
+    });
+
+    it('rejects non-dict value against shape schema', async () => {
+      await expect(
+        run('shape(name: string) => $schema\n"not a dict" => $record:$schema')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('Inline Shape in Capture', () => {
+    it('accepts dict matching inline shape', async () => {
+      expect(
+        await run(
+          '[name: "andre", age: 54] => $record:shape(name: string, age: number)\n$record'
+        )
+      ).toEqual({ name: 'andre', age: 54 });
+    });
+
+    it('rejects dict with wrong field type', async () => {
+      await expect(
+        run(
+          '[name: "andre", age: "old"] => $record:shape(name: string, age: number)'
+        )
+      ).rejects.toThrow();
+    });
+  });
 });

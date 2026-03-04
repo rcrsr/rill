@@ -3,7 +3,7 @@
  * Common formatting functions for CLI tools
  */
 
-import { isCallable, isRillIterator, VERSION } from '@rcrsr/rill';
+import { formatValue, isCallable, isRillIterator, VERSION } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
@@ -27,7 +27,7 @@ export function formatOutput(value: RillValue): string {
   }
   if (isCallable(value)) return '[closure]';
   if (isRillIterator(value)) return '[iterator]';
-  return JSON.stringify(value, null, 2);
+  return formatValue(value);
 }
 
 /**

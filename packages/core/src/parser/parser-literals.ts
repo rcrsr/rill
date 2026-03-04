@@ -17,7 +17,7 @@ import type {
   LiteralNode,
   ListSpreadNode,
   BodyNode,
-  RillFunctionReturnType,
+  ShapeLiteralNode,
   SourceLocation,
   StringLiteralNode,
   TupleNode,
@@ -33,12 +33,7 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import {
-  isDictStart,
-  VALID_RETURN_TYPES,
-  parseTypeName,
-  isNegativeNumber,
-} from './helpers.js';
+import { isDictStart, isNegativeNumber } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
@@ -541,6 +536,38 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
 // CLOSURE PARSING
 // ============================================================
 
+/**
+ * Parse the optional postfix `:type-target` after a closure body.
+ *
+ * Grammar: [ ":" , type-target ]
+ * type-target = shape(...) | type-ref
+ *
+ * Returns the parsed TypeRef or ShapeLiteralNode, or undefined if absent.
+ * Follows the same disambiguation logic as parsePostfixTypeOperation.
+ */
+function parseClosureReturnTypeTarget(
+  parser: Parser
+): TypeRef | ShapeLiteralNode | undefined {
+  skipNewlines(parser.state);
+  if (!check(parser.state, TOKEN_TYPES.COLON)) {
+    return undefined;
+  }
+  advance(parser.state); // consume ':'
+  skipNewlines(parser.state);
+
+  // Disambiguation: shape followed by ( → inline shape literal
+  if (
+    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(parser.state).value === 'shape' &&
+    parser.state.tokens[parser.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    return parser.parseShapeLiteral();
+  }
+
+  // Default: plain type name or dynamic type reference
+  return parseTypeRef(parser.state);
+}
+
 Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   const start = current(this.state).span.start;
 
@@ -548,11 +575,16 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     advance(this.state);
     skipNewlines(this.state);
     const body = this.parseBody();
+    const returnTypeTarget = parseClosureReturnTypeTarget(this);
     return {
       type: 'Closure',
       params: [],
       body,
-      span: makeSpan(start, body.span.end),
+      returnTypeTarget,
+      span: makeSpan(
+        start,
+        returnTypeTarget ? current(this.state).span.end : body.span.end
+      ),
     };
   }
 
@@ -572,20 +604,18 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
   skipNewlines(this.state);
 
-  let returnType: RillFunctionReturnType | undefined = undefined;
-  if (check(this.state, TOKEN_TYPES.ARROW)) {
-    advance(this.state);
-    returnType = parseTypeName(this.state, VALID_RETURN_TYPES);
-  }
-
   const body = this.parseBody();
+  const returnTypeTarget = parseClosureReturnTypeTarget(this);
 
   return {
     type: 'Closure',
     params,
     body,
-    returnType,
-    span: makeSpan(start, body.span.end),
+    returnTypeTarget,
+    span: makeSpan(
+      start,
+      returnTypeTarget ? current(this.state).span.end : body.span.end
+    ),
   };
 };
 

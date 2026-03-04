@@ -33,9 +33,18 @@ import type {
 } from '../../types.js';
 export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
+import { VALID_TYPE_NAMES } from '../../constants.js';
 import { astEquals } from './equals.js';
-import type { RillValue } from './values.js';
+import type {
+  RillShape,
+  RillTypeValue,
+  RillValue,
+  ShapeFieldSpec,
+} from './values.js';
 import { formatValue, inferType, isShape, isTuple } from './values.js';
+
+/** Set of valid type names for O(1) membership lookup */
+const validTypeNamesSet = new Set<string>(VALID_TYPE_NAMES);
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -147,8 +156,10 @@ export interface ScriptCallable extends CallableBase {
   readonly annotations: Record<string, RillValue>;
   /** Evaluated parameter annotations keyed by parameter name */
   readonly paramAnnotations: Record<string, Record<string, RillValue>>;
-  /** Declared return type (from closure definition, e.g., |x|: string body) */
-  readonly returnType?: RillFunctionReturnType | undefined;
+  /** Cached input shape built from params at creation time — used by `$fn.^input` */
+  readonly inputShape: RillShape;
+  /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
+  readonly returnShape?: RillTypeValue | RillShape | undefined;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */
@@ -328,6 +339,45 @@ export function callableEquals(
 }
 
 /**
+ * Construct a RillShape from a closure's param list and per-param annotation records.
+ *
+ * Called at closure creation time to build the shape for `$fn.^input`.
+ * Each param becomes a ShapeFieldSpec:
+ * - typeName defaults to 'any' when param.typeName is absent
+ * - optional is true when param has a defaultValue
+ * - nestedShape is always undefined (no nested shape in this context)
+ * - annotations come from paramAnnotations[param.name], defaulting to {}
+ *
+ * @param params - Closure parameter definitions
+ * @param paramAnnotations - Per-param annotation records keyed by param name
+ * @returns Frozen RillShape with one field per param
+ * @throws RuntimeError (RILL-R001) if any param typeName is not a valid Rill type
+ */
+export function paramsToShape(
+  params: CallableParam[],
+  paramAnnotations: Record<string, Record<string, RillValue>>
+): RillShape {
+  const fields: Record<string, ShapeFieldSpec> = {};
+
+  for (const param of params) {
+    const typeName = param.typeName ?? 'any';
+
+    if (!validTypeNamesSet.has(typeName)) {
+      throw new RuntimeError('RILL-R001', `Unknown type: ${typeName}`);
+    }
+
+    fields[param.name] = {
+      typeName,
+      optional: param.defaultValue !== null,
+      nestedShape: undefined,
+      annotations: paramAnnotations[param.name] ?? {},
+    };
+  }
+
+  return Object.freeze({ __rill_shape: true as const, fields });
+}
+
+/**
  * Validate defaultValue type matches declared parameter type.
  *
  * Called at registration time to catch configuration errors early.
@@ -352,37 +402,6 @@ export function validateDefaultValueType(
   if (actualType !== expectedType) {
     throw new Error(
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
-    );
-  }
-}
-
-/**
- * Validate returnType is a valid RillFunctionReturnType literal.
- *
- * Called at registration time to catch configuration errors early.
- * Throws Error (not RuntimeError) to indicate registration failure.
- *
- * @param returnType - Return type value to validate
- * @param functionName - Function name for error messages
- * @throws Error if returnType is not a valid literal
- */
-export function validateReturnType(
-  returnType: unknown,
-  functionName: string
-): void {
-  const validTypes: readonly RillFunctionReturnType[] = [
-    'string',
-    'number',
-    'bool',
-    'list',
-    'dict',
-    'vector',
-    'any',
-  ] as const;
-
-  if (!validTypes.includes(returnType as RillFunctionReturnType)) {
-    throw new Error(
-      `Invalid returnType for function '${functionName}': expected one of string, number, bool, list, dict, vector, any`
     );
   }
 }

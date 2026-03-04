@@ -6,6 +6,7 @@
 import { Parser } from './parser.js';
 import type {
   AnnotatedExprNode,
+  AnnotationAccessNode,
   ArithHead,
   BinaryOp,
   BlockNode,
@@ -24,6 +25,7 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   RillTypeName,
+  ShapeLiteralNode,
   SourceLocation,
   SourceSpan,
   TypeNameExprNode,
@@ -46,6 +48,7 @@ import {
   isClosureCall,
   isClosureCallWithAccess,
   canStartPipeInvoke,
+  isAnnotationAccess,
   isMethodCall,
   isClosureChainTarget,
   isNegativeNumber,
@@ -453,7 +456,7 @@ Parser.prototype.parsePostfixExprBase = function (
     primary = this.parsePostfixTypeOperation(primary, start);
   }
 
-  const methods: (MethodCallNode | InvokeNode)[] = [];
+  const methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[] = [];
 
   // Track the end of the receiver for method calls
   let receiverEnd = primary.span.end;
@@ -470,9 +473,27 @@ Parser.prototype.parsePostfixExprBase = function (
 
   while (
     !shouldStopPostfix &&
-    (isMethodCall(this.state) || check(this.state, TOKEN_TYPES.LPAREN))
+    (isAnnotationAccess(this.state) ||
+      isMethodCall(this.state) ||
+      check(this.state, TOKEN_TYPES.LPAREN))
   ) {
-    if (isMethodCall(this.state)) {
+    if (isAnnotationAccess(this.state)) {
+      const dotStart = current(this.state).span.start;
+      advance(this.state); // consume .
+      advance(this.state); // consume ^
+      const nameToken = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected annotation key after .^'
+      );
+      const annotationAccess: AnnotationAccessNode = {
+        type: 'AnnotationAccess',
+        key: nameToken.value,
+        span: makeSpan(dotStart, nameToken.span.end),
+      };
+      methods.push(annotationAccess);
+      receiverEnd = nameToken.span.end;
+    } else if (isMethodCall(this.state)) {
       // Capture receiver span: from start to current receiver end
       const receiverSpan = makeSpan(start, receiverEnd);
       const method = this.parseMethodCall(receiverSpan);
@@ -925,15 +946,25 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
   );
 
   let typeRef: CaptureNode['typeRef'] = null;
+  let inlineShape: ShapeLiteralNode | null = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    typeRef = parseTypeRef(this.state);
+    if (
+      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+      current(this.state).value === 'shape' &&
+      this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+    ) {
+      inlineShape = this.parseShapeLiteral();
+    } else {
+      typeRef = parseTypeRef(this.state);
+    }
   }
 
   return {
     type: 'Capture',
     name: nameToken.value,
     typeRef,
+    inlineShape,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

@@ -72,6 +72,7 @@ import {
   isApplicationCallable,
   isDict,
   validateCallableArgs,
+  paramsToShape,
 } from '../../callable.js';
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
@@ -79,6 +80,7 @@ import type { RillValue, RillTuple, RillTypeValue } from '../../values.js';
 import {
   inferType,
   isFieldDescriptor,
+  isShape,
   isTypeValue,
   isTuple,
 } from '../../values.js';
@@ -341,7 +343,31 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx = callableCtx;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateBodyExpression(callable.body);
+        const result = await (this as any).evaluateBodyExpression(
+          callable.body
+        );
+        // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
+        if (callable.returnShape !== undefined) {
+          if (isShape(callable.returnShape)) {
+            // EC-3: Shape assertion — value must be a dict matching the shape
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).validateAgainstShape(
+              result,
+              callable.returnShape,
+              '',
+              callLocation
+            );
+          } else {
+            // EC-4: Type assertion — value must match the declared scalar type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).assertType(
+              result,
+              callable.returnShape.typeName,
+              callLocation
+            );
+          }
+        }
+        return result;
       } finally {
         this.ctx = savedCtx;
       }
@@ -443,7 +469,29 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx = closureCtx;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateBodyExpression(closure.body);
+        const result = await (this as any).evaluateBodyExpression(closure.body);
+        // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
+        if (closure.returnShape !== undefined) {
+          if (isShape(closure.returnShape)) {
+            // EC-3: Shape assertion — value must be a dict matching the shape
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).validateAgainstShape(
+              result,
+              closure.returnShape,
+              '',
+              callLocation
+            );
+          } else {
+            // EC-4: Type assertion — value must match the declared scalar type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).assertType(
+              result,
+              closure.returnShape.typeName,
+              callLocation
+            );
+          }
+        }
+        return result;
       } finally {
         this.ctx = savedCtx;
       }
@@ -794,6 +842,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
+      // IR-3: .name on type values returns the typeName string (method path)
+      if (isTypeValue(receiver) && node.name === 'name') {
+        return receiver.typeName;
+      }
+
       const args = await this.evaluateArgs(node.args);
 
       if (isDict(receiver)) {
@@ -936,11 +989,52 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return ann;
       }
 
+      // IR-2/IR-5: .^input returns the input shape for callable values
+      if (key === 'input') {
+        if (isScriptCallable(value)) {
+          return value.inputShape;
+        }
+        if (isApplicationCallable(value)) {
+          if (value.params === undefined) {
+            // IR-5: untyped host function — no shape available
+            return false;
+          }
+          // Build paramAnnotations with description for each param that has one
+          const paramAnnotations: Record<
+            string,
+            Record<string, RillValue>
+          > = {};
+          for (const param of value.params) {
+            if (param.description !== undefined) {
+              paramAnnotations[param.name] = { description: param.description };
+            }
+          }
+          return paramsToShape(value.params, paramAnnotations);
+        }
+        // Non-callable: fall through to existing RILL-R003 guard below
+      }
+
+      // IR-3: .^output returns the declared output contract for callable values
+      if (key === 'output') {
+        if (isScriptCallable(value)) {
+          if (value.returnShape !== undefined) {
+            return value.returnShape;
+          }
+          // No :type-target declared — return type value `any` (AC-17, AC-18, AC-19)
+          const anyTypeValue: RillTypeValue = Object.freeze({
+            __rill_type: true as const,
+            typeName: 'any',
+          });
+          return anyTypeValue;
+        }
+        // Non-callable: fall through to existing RILL-R003 guard below
+      }
+
       // Only ScriptCallable supports annotation reflection
       if (!isScriptCallable(value)) {
         throw new RuntimeError(
           'RILL-R003',
-          `Cannot access annotation on ${inferType(value)}`,
+          `annotation not found: ^${key}`,
           location,
           { actualType: inferType(value) }
         );

@@ -59,17 +59,17 @@ export function checkAutoExceptions(
  * Note: Accepts CaptureNode | null because internal calls from CoreMixin
  * pass chain.terminator which may be null.
  */
-export function handleCapture(
+export async function handleCapture(
   capture: CaptureNode | null,
   value: RillValue,
   ctx: RuntimeContext
-): CaptureInfo | undefined {
+): Promise<CaptureInfo | undefined> {
   if (!capture) return undefined;
 
   const evaluator = getEvaluator(ctx);
   // Access protected evaluateCapture method via type assertion
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (evaluator as any).evaluateCapture(capture, value);
+  await (evaluator as any).evaluateCapture(capture, value);
 
   // Return capture info for observability
   return { name: capture.name, value };

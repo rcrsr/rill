@@ -6,8 +6,6 @@
  * AC = Acceptance Criterion from the type-value-expressions spec.
  * EC = Error Contract from the type-value-expressions spec.
  *
- * Syntax note: `.^type` requires a variable or expression receiver.
- * Use `42 => $v\n$v.^type` rather than `42.^type` directly.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -151,6 +149,52 @@ describe('Rill Language: Type Value Expressions', () => {
       const result = await run('[a: 1] => $v\n$v.^type');
       expect(isTypeValue(result as RillTypeValue)).toBe(true);
       expect((result as RillTypeValue).typeName).toBe('dict');
+    });
+
+    it('"hello".^type == string evaluates to true (literal receiver)', async () => {
+      const result = await run('"hello".^type == string');
+      expect(result).toBe(true);
+    });
+
+    it('42.^type == number evaluates to true (literal receiver)', async () => {
+      const result = await run('42.^type == number');
+      expect(result).toBe(true);
+    });
+
+    it('true.^type == bool evaluates to true (literal receiver)', async () => {
+      const result = await run('true.^type == bool');
+      expect(result).toBe(true);
+    });
+
+    it('[1, 2].^type == list evaluates to true (literal receiver)', async () => {
+      const result = await run('[1, 2].^type == list');
+      expect(result).toBe(true);
+    });
+
+    it('[a: 1].^type == dict evaluates to true (literal receiver)', async () => {
+      const result = await run('[a: 1].^type == dict');
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // .name on Type Values (via .^type chain)
+  // ============================================================
+
+  describe('.name on Type Values', () => {
+    it('"hello" => $v; $v.^type.name returns "string"', async () => {
+      const result = await run('"hello" => $v\n$v.^type.name');
+      expect(result).toBe('string');
+    });
+
+    it('42 => $v; $v.^type.name returns "number"', async () => {
+      const result = await run('42 => $v\n$v.^type.name');
+      expect(result).toBe('number');
+    });
+
+    it('"hello".^type.name returns "string" (chained on literal)', async () => {
+      const result = await run('"hello".^type.name');
+      expect(result).toBe('string');
     });
   });
 
@@ -337,6 +381,32 @@ describe('Rill Language: Type Value Expressions', () => {
   describe('EC-7: type() removal', () => {
     it('42 -> type produces unknown-function error (EC-7)', async () => {
       await expect(run('42 -> type')).rejects.toThrow('Unknown function: type');
+    });
+  });
+
+  // ============================================================
+  // Type value string formatting
+  // ============================================================
+
+  describe('Type value formatting', () => {
+    it('type value formats as type(string) via .str', async () => {
+      const result = await run('"hello".^type.str');
+      expect(result).toBe('type(string)');
+    });
+
+    it('type value formats as type(number) via .str', async () => {
+      const result = await run('42.^type.str');
+      expect(result).toBe('type(number)');
+    });
+
+    it('type value formats as type(bool) via .str', async () => {
+      const result = await run('true.^type.str');
+      expect(result).toBe('type(bool)');
+    });
+
+    it('type value formats as type(dict) in string interpolation', async () => {
+      const result = await run('[a: 1].^type => $t\n"kind: {$t}"');
+      expect(result).toBe('kind: type(dict)');
     });
   });
 });

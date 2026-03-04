@@ -271,7 +271,7 @@ describe('Rill Language: Shape Introspection', () => {
           42 => $n
           $n.^somekey
         `)
-      ).rejects.toThrow(/Cannot access annotation on number/);
+      ).rejects.toThrow(/annotation not found: \^somekey/);
     });
 
     it('.^key on string (scalar) throws runtime error (AC-17, EC-4)', async () => {
@@ -280,7 +280,7 @@ describe('Rill Language: Shape Introspection', () => {
           "hello" => $str
           $str.^somekey
         `)
-      ).rejects.toThrow(/Cannot access annotation on string/);
+      ).rejects.toThrow(/annotation not found: \^somekey/);
     });
 
     it('.keys on closure throws runtime error (AC-18)', async () => {

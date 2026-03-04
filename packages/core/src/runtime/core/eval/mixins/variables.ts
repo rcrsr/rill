@@ -369,6 +369,16 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               field,
               this.getNodeLocation(node)!
             );
+          } else if (isTypeValue(value)) {
+            if (field === 'name') {
+              value = value.typeName;
+            } else {
+              throw new RuntimeError(
+                'RILL-R003',
+                `Type value has no property "${field}"`,
+                this.getNodeLocation(node)
+              );
+            }
           } else if (isDict(value)) {
             // Allow missing fields if there's a default value or existence check
             const allowMissing =
@@ -790,18 +800,47 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Handles capture syntax which assigns the piped value to a variable.
      * Calls setVariable for type checking and fires observability callback.
      */
-    protected evaluateCapture(node: CaptureNode, input: RillValue): RillValue {
-      let explicitType: RillTypeName | undefined;
-      if (node.typeRef !== null) {
-        // Resolve TypeRef at binding time (AC-13)
+    protected async evaluateCapture(
+      node: CaptureNode,
+      input: RillValue
+    ): Promise<RillValue> {
+      if (node.inlineShape !== null) {
+        // Bug 2: inline shape(…) syntax — evaluate shape literal then validate
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const shape = await (this as any).evaluateShapeLiteral(
+          node.inlineShape
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).validateAgainstShape(input, shape, '', node.span.start);
+        this.setVariable(node.name, input, undefined, node.span.start);
+      } else if (node.typeRef !== null) {
+        // Bug 1 fix: resolve TypeRef and validate properly
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resolved = (this as any).resolveTypeRef(
           node.typeRef,
           (name: string) => getVariable(this.ctx, name) as RillValue
         );
-        explicitType = isTypeValue(resolved) ? resolved.typeName : 'shape';
+        if (isTypeValue(resolved)) {
+          this.setVariable(
+            node.name,
+            input,
+            resolved.typeName,
+            node.span.start
+          );
+        } else {
+          // resolved is RillShape — validate dict against shape structure
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).validateAgainstShape(
+            input,
+            resolved,
+            '',
+            node.span.start
+          );
+          this.setVariable(node.name, input, undefined, node.span.start);
+        }
+      } else {
+        this.setVariable(node.name, input, undefined, node.span.start);
       }
-      this.setVariable(node.name, input, explicitType, node.span.start);
       this.ctx.observability.onCapture?.({ name: node.name, value: input });
       return input;
     }
@@ -811,13 +850,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Returns capture info if a capture occurred.
      * This overrides the stub in EvaluatorBase.
      */
-    protected override handleCapture(
+    protected override async handleCapture(
       capture: CaptureNode | null,
       value: RillValue
-    ): { name: string; value: RillValue } | undefined {
+    ): Promise<{ name: string; value: RillValue } | undefined> {
       if (!capture) return undefined;
 
-      this.evaluateCapture(capture, value);
+      await this.evaluateCapture(capture, value);
       return { name: capture.name, value };
     }
   };

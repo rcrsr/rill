@@ -35,6 +35,7 @@ import type {
   PostfixExprNode,
   ExpressionNode,
   RillTypeName,
+  ShapeLiteralNode,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -54,6 +55,7 @@ import {
 } from '../../values.js';
 import {
   isCallable,
+  paramsToShape,
   type ScriptCallable,
   type CallableParam,
 } from '../../callable.js';
@@ -994,6 +996,29 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const isProperty = params.length === 0;
+      const inputShape = paramsToShape(params, paramAnnotations);
+
+      // Evaluate returnTypeTarget at closure creation time (IR-4).
+      // ShapeLiteralNode → evaluate via evaluateShapeLiteral().
+      // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue or RillShape.
+      // Absent → returnShape remains undefined (omission implies :any, AC-17, AC-18, AC-19).
+      let returnShape: ScriptCallable['returnShape'] = undefined;
+      if (node.returnTypeTarget !== undefined) {
+        if (
+          (node.returnTypeTarget as ShapeLiteralNode).type === 'ShapeLiteral'
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          returnShape = await (this as any).evaluateShapeLiteral(
+            node.returnTypeTarget as ShapeLiteralNode
+          );
+        } else {
+          returnShape = (this as any).resolveTypeRef(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            node.returnTypeTarget,
+            (name: string) => getVariable(this.ctx, name)
+          );
+        }
+      }
 
       return {
         __type: 'callable',
@@ -1004,7 +1029,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isProperty,
         annotations,
         paramAnnotations,
-        returnType: node.returnType,
+        inputShape,
+        returnShape,
       };
     }
 
@@ -1032,6 +1058,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const annotations = this.ctx.immediateAnnotation ?? {};
       this.ctx.immediateAnnotation = undefined;
 
+      const paramAnnotations: Record<string, Record<string, RillValue>> = {};
+      const inputShape = paramsToShape(params, paramAnnotations);
+
       return {
         __type: 'callable',
         kind: 'script',
@@ -1040,7 +1069,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty: false,
         annotations,
-        paramAnnotations: {}, // Block closures have no parameter annotations
+        paramAnnotations,
+        inputShape,
+        returnShape: undefined,
       };
     }
 

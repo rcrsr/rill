@@ -61,7 +61,6 @@ export {
   isRuntimeCallable,
   isScriptCallable,
   validateHostFunctionArgs,
-  validateReturnType,
 } from './core/callable.js';
 
 // ============================================================
@@ -81,6 +80,7 @@ export type {
 
 export {
   createVector,
+  formatValue,
   inferType,
   isFieldDescriptor,
   isRillIterator,

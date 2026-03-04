@@ -193,6 +193,10 @@ export function visitNode(
       }
       break;
 
+    case 'AnnotationAccess':
+      // Leaf node - no children
+      break;
+
     case 'PipeInvoke':
       for (const arg of node.args) {
         visitNode(arg, context, visitor);

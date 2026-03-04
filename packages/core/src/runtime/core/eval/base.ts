@@ -106,7 +106,7 @@ export class EvaluatorBase {
   protected handleCapture(
     _capture: CaptureNode | null,
     _value: RillValue
-  ): { name: string; value: RillValue } | undefined {
+  ): Promise<{ name: string; value: RillValue } | undefined> {
     throw new Error(
       'handleCapture requires full Evaluator composition with VariablesMixin'
     );
