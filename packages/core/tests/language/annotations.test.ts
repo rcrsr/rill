@@ -842,7 +842,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('Annotation Capture', () => {
     describe('Statement-Level Annotation Capture (AC-1)', () => {
       it('captures closure-level annotation from statement', async () => {
-        const result = await runFull('^(doc: "test") |x|($x * 2) => $fn');
+        const result = await runFull('^(doc: "test") |x|($x * 2) => $fn\ntrue');
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -853,7 +853,9 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('evaluates statement annotation values', async () => {
-        const result = await runFull('^(timeout: 10 + 20) |x|($x) => $fn');
+        const result = await runFull(
+          '^(timeout: 10 + 20) |x|($x) => $fn\ntrue'
+        );
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -864,7 +866,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('captures multiple statement annotations', async () => {
         const result = await runFull(
-          '^(doc: "test", timeout: 30) |x|($x) => $fn'
+          '^(doc: "test", timeout: 30) |x|($x) => $fn\ntrue'
         );
         const fn = result.variables['fn'];
 
@@ -877,7 +879,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('evaluates annotation with variable reference', async () => {
         const result = await runFull(
-          '100 => $limit\n^(max: $limit) |x|($x) => $fn'
+          '100 => $limit\n^(max: $limit) |x|($x) => $fn\ntrue'
         );
         const fn = result.variables['fn'];
 
@@ -893,6 +895,7 @@ describe('Rill Runtime: Annotations', () => {
         const script = `
           ^(label: "test") |x|($x) => $fn
           $fn => $alias
+          true
         `;
         const result = await runFull(script);
         const alias = result.variables['alias'];
@@ -908,6 +911,7 @@ describe('Rill Runtime: Annotations', () => {
           ^(doc: "original", version: 1) |x|($x * 2) => $fn
           $fn => $alias1
           $alias1 => $alias2
+          true
         `;
         const result = await runFull(script);
         const alias2 = result.variables['alias2'];
@@ -922,7 +926,7 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('Empty Annotations (AC-12)', () => {
       it('results in empty objects when no annotations present', async () => {
-        const result = await runFull('|x|($x) => $fn');
+        const result = await runFull('|x|($x) => $fn\ntrue');
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -933,7 +937,9 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('has empty closure annotations when only param annotations exist', async () => {
-        const result = await runFull('|^(min: 0) x: number|{ $x } => $fn');
+        const result = await runFull(
+          '|^(min: 0) x: number|{ $x } => $fn\ntrue'
+        );
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -946,7 +952,9 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('Parameter Annotations', () => {
       it('captures parameter annotations (AC-5)', async () => {
-        const result = await runFull('|^(min: 0) x: number|{ $x } => $fn');
+        const result = await runFull(
+          '|^(min: 0) x: number|{ $x } => $fn\ntrue'
+        );
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -958,7 +966,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('captures multiple parameter annotations', async () => {
         const result = await runFull(
-          '|^(min: 0, max: 100) x: number|{ $x } => $fn'
+          '|^(min: 0, max: 100) x: number|{ $x } => $fn\ntrue'
         );
         const fn = result.variables['fn'];
 
@@ -971,7 +979,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('captures annotations for multiple parameters', async () => {
         const result = await runFull(
-          '|^(min: 0) x: number, ^(required: true) y: string|{ $x } => $fn'
+          '|^(min: 0) x: number, ^(required: true) y: string|{ $x } => $fn\ntrue'
         );
         const fn = result.variables['fn'];
 
@@ -984,7 +992,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('evaluates parameter annotation values', async () => {
         const result = await runFull(
-          '5 => $limit\n|^(max: $limit * 2) x: number|{ $x } => $fn'
+          '5 => $limit\n|^(max: $limit * 2) x: number|{ $x } => $fn\ntrue'
         );
         const fn = result.variables['fn'];
 
@@ -1005,7 +1013,9 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('has empty paramAnnotations for params without annotations', async () => {
-        const result = await runFull('|x: number, y: string|{ $x } => $fn');
+        const result = await runFull(
+          '|x: number, y: string|{ $x } => $fn\ntrue'
+        );
         const fn = result.variables['fn'];
 
         expect(isScriptCallable(fn)).toBe(true);
@@ -1279,7 +1289,7 @@ describe('Rill Runtime: Annotations', () => {
         await expect(
           run(`
           |x: number| { $x } => $fn
-          $fn.^output
+          $fn.^output -> :?type
         `)
         ).resolves.toBeDefined();
       });
@@ -1316,7 +1326,7 @@ describe('Rill Runtime: Annotations', () => {
         // Definition alone must not throw; only the invocation triggers the assertion.
         const source = `
           |x: number| { $x }:string => $fn
-          $fn
+          true
         `;
         await expect(run(source)).resolves.toBeDefined();
       });

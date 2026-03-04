@@ -139,14 +139,14 @@ export function createEventCollector(): {
 
 /** Log collector for .log() method testing */
 export function createLogCollector(): {
-  logs: RillValue[];
-  callbacks: { onLog: (value: RillValue) => void };
+  logs: string[];
+  callbacks: { onLog: (message: string) => void };
 } {
-  const logs: RillValue[] = [];
+  const logs: string[] = [];
   return {
     logs,
     callbacks: {
-      onLog: (value: RillValue) => logs.push(value),
+      onLog: (message: string) => logs.push(message),
     },
   };
 }

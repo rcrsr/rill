@@ -45,8 +45,8 @@ export interface HandlerContext {
   readonly sessionId?: string | undefined;
   /** Agent configuration keyed by section name. */
   readonly config: Record<string, Record<string, unknown>>;
-  /** Optional log callback. Receives the value passed to `log` in scripts. */
-  readonly onLog?: ((value: RillValue) => void) | undefined;
+  /** Optional log callback. Receives a formatted string from the core runtime. */
+  readonly onLog?: ((message: string) => void) | undefined;
   /** Optional extension event callback. Receives structured events from extensions. */
   readonly onLogEvent?: ((event: ExtensionEvent) => void) | undefined;
 }

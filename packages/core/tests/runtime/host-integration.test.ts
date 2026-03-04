@@ -296,15 +296,16 @@ describe('Rill Runtime: Host Integration', () => {
     });
 
     it('application callable can be returned from function', async () => {
-      const result = await run('getGreeter()', {
-        functions: {
-          getGreeter: {
-            params: [],
-            fn: () => callable((args) => `Hello, ${args[0]}!`),
+      await expect(
+        run('getGreeter()', {
+          functions: {
+            getGreeter: {
+              params: [],
+              fn: () => callable((args) => `Hello, ${args[0]}!`),
+            },
           },
-        },
-      });
-      expect(isApplicationCallable(result)).toBe(true);
+        })
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('application callable can be invoked after capture', async () => {
@@ -392,11 +393,10 @@ describe('Rill Runtime: Host Integration', () => {
       expect(isApplicationCallable(appCallable)).toBe(true);
       expect(isScriptCallable(appCallable)).toBe(false);
 
-      // Script callable (from Rill source)
-      const result = await run('|x| { $x }');
-      expect(isCallable(result)).toBe(true);
-      expect(isScriptCallable(result)).toBe(true);
-      expect(isApplicationCallable(result)).toBe(false);
+      // Script callable returned as final value throws at execution boundary
+      await expect(run('|x| { $x }')).rejects.toThrow(
+        'closures cannot be returned from scripts'
+      );
     });
 
     it('non-callables return false from type guards', () => {

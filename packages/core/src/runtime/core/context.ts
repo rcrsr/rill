@@ -14,7 +14,7 @@ import type {
   RuntimeOptions,
 } from './types.js';
 import { bindDictCallables } from './types.js';
-import { formatValue, inferType, type RillValue } from './values.js';
+import { inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
@@ -22,8 +22,8 @@ import {
 } from './callable.js';
 
 const defaultCallbacks: RuntimeCallbacks = {
-  onLog: (value) => {
-    console.log(formatValue(value));
+  onLog: (message) => {
+    console.log(message);
   },
 };
 

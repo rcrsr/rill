@@ -315,7 +315,7 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  let result;`,
         `  try {`,
         `    // Create a params-scoped context, copying extension functions from the composed context`,
-        `    const _onLog = _context.onLog ?? ((v) => { process.stderr.write((typeof v === 'string' ? v : JSON.stringify(v)) + '\\n'); });`,
+        `    const _onLog = _context.onLog ?? ((msg) => { process.stderr.write(msg + '\\n'); });`,
         `    const _onLogEvent = _context.onLogEvent ?? ((e) => { process.stderr.write(JSON.stringify(e) + '\\n'); });
     const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog, onLogEvent: _onLogEvent } });`,
         `    for (const [fnName, fn] of agent.context.functions) {`,
@@ -354,7 +354,7 @@ function generateHandlersJs(agentNames: string[], isHarness: boolean): string {
         `  let result;`,
         `  try {`,
         `    // Create a params-scoped context, copying extension functions from the composed context`,
-        `    const _onLog = _context.onLog ?? ((v) => { process.stderr.write((typeof v === 'string' ? v : JSON.stringify(v)) + '\\n'); });`,
+        `    const _onLog = _context.onLog ?? ((msg) => { process.stderr.write(msg + '\\n'); });`,
         `    const _onLogEvent = _context.onLogEvent ?? ((e) => { process.stderr.write(JSON.stringify(e) + '\\n'); });
     const execContext = createRuntimeContext({ variables: request.params ?? {}, callbacks: { onLog: _onLog, onLogEvent: _onLogEvent } });`,
         `    for (const [fnName, fn] of composed.context.functions) {`,

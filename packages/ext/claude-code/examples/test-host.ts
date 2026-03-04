@@ -25,7 +25,6 @@ import {
   createRuntimeContext,
   hoistExtension,
 } from '@rcrsr/rill';
-import type { RillValue } from '@rcrsr/rill';
 
 // ============================================================
 // CONSTANTS
@@ -57,24 +56,6 @@ Prerequisites:
 // ============================================================
 // HELPERS
 // ============================================================
-
-/**
- * Format RillValue for console output.
- *
- * @param value - Value to format
- * @returns Human-readable string
- */
-function formatOutput(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (typeof value === 'object' && value !== null && '__type' in value) {
-    return '[closure]';
-  }
-  return JSON.stringify(value, null, 2);
-}
 
 /**
  * Parse CLI arguments and determine source to execute.
@@ -147,7 +128,7 @@ async function main(): Promise<void> {
     const ctx = createRuntimeContext({
       functions,
       callbacks: {
-        onLog: (value) => console.log(formatOutput(value)),
+        onLog: (msg) => console.log(msg),
       },
     });
 
@@ -166,7 +147,9 @@ async function main(): Promise<void> {
     console.error(`[test-host] Done in ${elapsed}s`);
 
     // Print result to stderr (stdout reserved for log output)
-    console.error(`[test-host] Result: ${formatOutput(result.result)}`);
+    console.error(
+      `[test-host] Result: ${JSON.stringify(result.result, null, 2)}`
+    );
 
     // Cleanup
     dispose?.();

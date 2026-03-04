@@ -17,10 +17,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { run } from '../helpers/runtime.js';
-import { inferType, RuntimeError } from '@rcrsr/rill';
-import { isFieldDescriptor, buildFieldDescriptor } from '@rcrsr/rill';
-import type { RillShape, ShapeFieldSpec } from '@rcrsr/rill';
+import { run, runFull } from '../helpers/runtime.js';
+import {
+  buildFieldDescriptor,
+  inferType,
+  isFieldDescriptor,
+  RuntimeError,
+} from '@rcrsr/rill';
+import type {
+  RillShape,
+  RillShapeFieldDescriptor,
+  RillValue,
+  ShapeFieldSpec,
+} from '@rcrsr/rill';
 
 // ============================================================
 // Shared test fixtures
@@ -215,40 +224,43 @@ describe('.keys on shape values (IR-3)', () => {
 
 describe('.entries on shape values (IR-4)', () => {
   it('returns [name, descriptor] pairs for each field', async () => {
-    const result = (await run(`
+    const { variables } = await runFull(`
       shape(name: string) => $s
-      $s.entries
-    `)) as [string, unknown][];
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(1);
-    const [pair] = result;
-    expect(Array.isArray(pair)).toBe(true);
-    const [fieldName, descriptor] = pair as [string, unknown];
-    expect(fieldName).toBe('name');
-    expect(typeof descriptor).toBe('object');
-    expect(
-      (descriptor as Record<string, unknown>)['__rill_field_descriptor']
-    ).toBe(true);
+      $s.entries => $e
+      true
+    `);
+    const entries = variables['e'] as RillValue[];
+    expect(Array.isArray(entries)).toBe(true);
+    expect(entries).toHaveLength(1);
+    const pair = entries[0] as RillValue[];
+    expect(pair[0]).toBe('name');
+    expect(isFieldDescriptor(pair[1] as RillShapeFieldDescriptor)).toBe(true);
   });
 
   it('each descriptor carries the correct fieldName', async () => {
-    const result = (await run(`
+    const { variables } = await runFull(`
       shape(age: number) => $s
-      $s.entries
-    `)) as [string, Record<string, unknown>][];
-    const [[, descriptor]] = result;
-    expect(descriptor['fieldName']).toBe('age');
+      $s.entries => $e
+      true
+    `);
+    const entries = variables['e'] as RillValue[];
+    const pair = entries[0] as RillValue[];
+    const descriptor = pair[1] as RillShapeFieldDescriptor;
+    expect(descriptor.fieldName).toBe('age');
   });
 
   it('returns one entry per field for multi-field shape', async () => {
-    const result = (await run(`
+    const { variables } = await runFull(`
       shape(a: string, b: number) => $s
-      $s.entries
-    `)) as [string, unknown][];
-    expect(result).toHaveLength(2);
-    const names = result.map(([name]) => name);
-    expect(names).toContain('a');
-    expect(names).toContain('b');
+      $s.entries => $e
+      true
+    `);
+    const entries = variables['e'] as RillValue[];
+    expect(entries).toHaveLength(2);
+    const firstPair = entries[0] as RillValue[];
+    const secondPair = entries[1] as RillValue[];
+    expect(firstPair[0]).toBe('a');
+    expect(secondPair[0]).toBe('b');
   });
 
   it('returns empty list for empty shape', async () => {
@@ -260,20 +272,26 @@ describe('.entries on shape values (IR-4)', () => {
   });
 
   it('descriptor typeName matches declared field type', async () => {
-    const result = (await run(`
+    const { variables } = await runFull(`
       shape(score: number) => $s
-      $s.entries
-    `)) as [string, { spec: { typeName: string } }][];
-    const [[, descriptor]] = result;
+      $s.entries => $e
+      true
+    `);
+    const entries = variables['e'] as RillValue[];
+    const pair = entries[0] as RillValue[];
+    const descriptor = pair[1] as RillShapeFieldDescriptor;
     expect(descriptor.spec.typeName).toBe('number');
   });
 
   it('descriptor is frozen (entries returns frozen descriptors)', async () => {
-    const result = (await run(`
+    const { variables } = await runFull(`
       shape(label: string) => $s
-      $s.entries
-    `)) as [string, object][];
-    const [[, descriptor]] = result;
+      $s.entries => $e
+      true
+    `);
+    const entries = variables['e'] as RillValue[];
+    const pair = entries[0] as RillValue[];
+    const descriptor = pair[1] as RillShapeFieldDescriptor;
     expect(Object.isFrozen(descriptor)).toBe(true);
   });
 });

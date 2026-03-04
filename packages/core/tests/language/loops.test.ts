@@ -236,11 +236,12 @@ describe('Rill Runtime: Loops', () => {
   describe('Iterator While Loops', () => {
     it('$ is consistent in condition and body (parenthesized)', async () => {
       // Parenthesize condition and body for clarity
+      // Capture exhausted iterator then return its .done field
       const script = `
-        [1, 2, 3] -> .first() -> (!$.done) @ ($.next())
+        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) => $it
+        $it.done
       `;
-      const result = (await run(script)) as Record<string, unknown>;
-      expect(result.done).toBe(true);
+      expect(await run(script)).toBe(true);
     });
 
     it('loop advances iterator correctly', async () => {

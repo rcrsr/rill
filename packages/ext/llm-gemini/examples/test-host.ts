@@ -22,7 +22,6 @@ import {
   createRuntimeContext,
   hoistExtension,
 } from '@rcrsr/rill';
-import type { RillValue } from '@rcrsr/rill';
 import { createGeminiExtension } from '../src/index.js';
 
 // ============================================================
@@ -58,18 +57,6 @@ Examples:
 // ============================================================
 // HELPERS
 // ============================================================
-
-function formatOutput(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (typeof value === 'object' && value !== null && '__type' in value) {
-    return '[closure]';
-  }
-  return JSON.stringify(value, null, 2);
-}
 
 async function parseArgs(argv: string[]): Promise<string> {
   if (argv.includes('--help') || argv.includes('-h')) {
@@ -124,7 +111,7 @@ async function main(): Promise<void> {
     const ctx = createRuntimeContext({
       functions,
       callbacks: {
-        onLog: (value) => console.log(formatOutput(value)),
+        onLog: (msg) => console.log(msg),
         onLogEvent: (event) => {
           console.error(`[event] ${event.event} (${event.duration}ms)`);
         },
@@ -140,7 +127,9 @@ async function main(): Promise<void> {
     const result = await execute(ast, ctx);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.error(`[test-host] Done in ${elapsed}s`);
-    console.error(`[test-host] Result: ${formatOutput(result.result)}`);
+    console.error(
+      `[test-host] Result: ${JSON.stringify(result.result, null, 2)}`
+    );
 
     dispose?.();
   } catch (error: unknown) {

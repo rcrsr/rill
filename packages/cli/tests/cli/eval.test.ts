@@ -3,8 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ParseError, RuntimeError, callable, isCallable } from '@rcrsr/rill';
-import { formatOutput } from '../../src/cli-shared.js';
+import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { evaluateExpression } from '../../src/cli-eval.js';
 
 describe('rill-eval', () => {
@@ -35,10 +34,10 @@ describe('rill-eval', () => {
       expect((await evaluateExpression('[a: 1].a')).result).toBe(1);
     });
 
-    it('evaluates closures', async () => {
-      const result = await evaluateExpression('|x| { $x }');
-      expect(isCallable(result.result)).toBe(true);
-      expect(formatOutput(result.result)).toBe('[closure]');
+    it('rejects when expression returns a closure', async () => {
+      await expect(evaluateExpression('|x| { $x }')).rejects.toThrow(
+        RuntimeError
+      );
     });
 
     it('handles empty values', async () => {
@@ -69,12 +68,6 @@ describe('rill-eval', () => {
         expect((err as RuntimeError).errorId).toBe('RILL-R005');
         expect((err as RuntimeError).location?.line).toBe(1);
       }
-    });
-  });
-
-  describe('formatOutput for eval results', () => {
-    it('formats closures from expressions', () => {
-      expect(formatOutput(callable(() => 'x'))).toBe('[closure]');
     });
   });
 });

@@ -68,6 +68,9 @@ export {
 // ============================================================
 
 export type {
+  NativeArray,
+  NativePlainObject,
+  NativeValue,
   RillIterator,
   RillShape,
   RillShapeFieldDescriptor,
@@ -80,7 +83,6 @@ export type {
 
 export {
   createVector,
-  formatValue,
   inferType,
   isFieldDescriptor,
   isRillIterator,

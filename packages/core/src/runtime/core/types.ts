@@ -7,7 +7,9 @@
 
 import type { RillTypeName } from '../../types.js';
 import type { CallableFn, HostFunctionDefinition } from './callable.js';
-import type { RillValue } from './values.js';
+import type { NativeValue, RillValue } from './values.js';
+
+export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
 
 /**
  * Method signature for built-in methods.
@@ -24,7 +26,7 @@ export type RillMethod = (
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
   /** Called when .log is invoked */
-  onLog: (value: RillValue) => void;
+  onLog: (message: string) => void;
   /** Called when extensions emit diagnostic events */
   onLogEvent?: (event: ExtensionEvent) => void;
 }
@@ -190,7 +192,7 @@ export interface RuntimeOptions {
 /** Result of script execution */
 export interface ExecutionResult {
   /** Final result returned by the script */
-  result: RillValue;
+  result: NativeValue;
   /** All captured variables */
   variables: Record<string, RillValue>;
 }

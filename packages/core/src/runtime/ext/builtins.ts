@@ -8,7 +8,7 @@
  */
 
 import type { CallableFn } from '../core/callable.js';
-import { callable, isCallable, isDict } from '../core/callable.js';
+import { callable, isDict } from '../core/callable.js';
 import type { RillMethod, RuntimeContext } from '../core/types.js';
 import {
   RuntimeError,
@@ -23,6 +23,7 @@ import {
   isRillIterator,
   isShape,
   isVector,
+  valueToJSON,
   type RillShape,
   type RillValue,
   type RillVector,
@@ -169,30 +170,6 @@ function builtinToShape(
 }
 
 // ============================================================
-// BUILT-IN FUNCTIONS
-// ============================================================
-
-/** Recursively remove closures from a value for JSON serialization */
-function stripClosures(value: RillValue): RillValue {
-  if (isCallable(value)) {
-    return undefined as unknown as RillValue; // Will be filtered out
-  }
-  if (Array.isArray(value)) {
-    return value.filter((v) => !isCallable(v)).map(stripClosures);
-  }
-  if (isDict(value)) {
-    const result: Record<string, RillValue> = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (!isCallable(v)) {
-        result[k] = stripClosures(v);
-      }
-    }
-    return result;
-  }
-  return value;
-}
-
-// ============================================================
 // ITERATOR HELPERS
 // ============================================================
 
@@ -266,22 +243,24 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
   /** Log a value and return it unchanged (passthrough) */
   log: (args, ctx) => {
     const value = args[0] ?? null;
-    // ctx is RuntimeContext but CallableFn uses a minimal interface
-    (ctx as RuntimeContext).callbacks.onLog(value);
+    const message = formatValue(value);
+    (ctx as RuntimeContext).callbacks.onLog(message);
     return value;
   },
 
-  /** Convert any value to JSON string (errors on direct closure, skips closures in containers) */
+  /** Convert any value to JSON string (throws RuntimeError RILL-R004 on closures, tuples, vectors) */
   json: (args, _ctx, location) => {
     const value = args[0] ?? null;
-    if (isCallable(value)) {
-      throw new RuntimeError(
-        'RILL-R004',
-        'Cannot serialize closure to JSON',
-        location
-      );
+    try {
+      const jsonValue = valueToJSON(value);
+      return JSON.stringify(jsonValue);
+    } catch (err) {
+      if (err instanceof RuntimeError) throw err;
+      if (err instanceof Error) {
+        throw new RuntimeError('RILL-R004', err.message, location);
+      }
+      throw err;
     }
-    return JSON.stringify(stripClosures(value));
   },
 
   /**

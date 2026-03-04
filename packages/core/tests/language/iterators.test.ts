@@ -132,40 +132,39 @@ describe('Rill Runtime: Iterators', () => {
 
   describe('.first() method', () => {
     it('returns iterator for list', async () => {
-      const result = await run('[1, 2, 3] -> .first()');
-      expect(result).toHaveProperty('value', 1);
-      expect(result).toHaveProperty('done', false);
-      expect(result).toHaveProperty('next');
+      await expect(run('[1, 2, 3] -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('returns iterator for string', async () => {
-      const result = await run('"abc" -> .first()');
-      expect(result).toHaveProperty('value', 'a');
-      expect(result).toHaveProperty('done', false);
+      await expect(run('"abc" -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('returns iterator for dict', async () => {
-      const result = await run('[a: 1, b: 2] -> .first()');
-      expect(result).toHaveProperty('done', false);
-      expect((result as Record<string, unknown>).value).toEqual({
-        key: 'a',
-        value: 1,
-      });
+      await expect(run('[a: 1, b: 2] -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('returns done iterator for empty list', async () => {
-      const result = await run('[] -> .first()');
-      expect(result).toHaveProperty('done', true);
+      await expect(run('[] -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('returns done iterator for empty string', async () => {
-      const result = await run('"" -> .first()');
-      expect(result).toHaveProperty('done', true);
+      await expect(run('"" -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('returns done iterator for empty dict', async () => {
-      const result = await run('[:] -> .first()');
-      expect(result).toHaveProperty('done', true);
+      await expect(run('[:] -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('iterator can be used with each', async () => {
@@ -181,15 +180,15 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('single element list', async () => {
-      const result = await run('[42] -> .first()');
-      expect(result).toHaveProperty('value', 42);
-      expect(result).toHaveProperty('done', false);
+      await expect(run('[42] -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('single char string', async () => {
-      const result = await run('"x" -> .first()');
-      expect(result).toHaveProperty('value', 'x');
-      expect(result).toHaveProperty('done', false);
+      await expect(run('"x" -> .first()')).rejects.toThrow(
+        'iterators cannot be returned from scripts'
+      );
     });
 
     it('errors on number', async () => {
@@ -345,10 +344,9 @@ describe('Rill Runtime: Iterators', () => {
 
   describe('iterator edge cases', () => {
     it('dict without done is not iterator', async () => {
-      expect(await run('[value: 1, next: ||{ 0 }] -> each { $ }')).toEqual([
-        { key: 'next', value: expect.any(Object) },
-        { key: 'value', value: 1 },
-      ]);
+      await expect(
+        run('[value: 1, next: ||{ 0 }] -> each { $ }')
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('dict without next is not iterator', async () => {
@@ -359,13 +357,9 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('dict with non-bool done is not iterator', async () => {
-      expect(
-        await run('[value: 1, done: "false", next: ||{ 0 }] -> each { $ }')
-      ).toEqual([
-        { key: 'done', value: 'false' },
-        { key: 'next', value: expect.any(Object) },
-        { key: 'value', value: 1 },
-      ]);
+      await expect(
+        run('[value: 1, done: "false", next: ||{ 0 }] -> each { $ }')
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('empty done iterator works with each', async () => {

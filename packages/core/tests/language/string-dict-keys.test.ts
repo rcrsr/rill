@@ -65,20 +65,19 @@ describe('Rill Language: String Literal Dict Keys', () => {
     });
 
     it('parses dict with string key and closure value', async () => {
-      const script = '["fn": ||{ 42 }]';
-      const result = await run(script);
-      expect(result).toHaveProperty('fn');
-      expect(typeof result.fn).toBe('object');
-      expect(result.fn.__type).toBe('callable');
+      // Return the type name of the closure value rather than the dict itself,
+      // since toNative() rejects dicts containing closures.
+      // Use |x|{ $x } (explicit-param closure) so property access does not auto-invoke.
+      const result = await run('["fn": |x|{ $x }] => $d\n$d.fn.^type.^name');
+      expect(result).toBe('closure');
     });
 
     it('parses dict with string key and callable block value', async () => {
-      const script = '["key": { 1 + 1 }]';
-      const result = await run(script);
-      expect(result).toHaveProperty('key');
+      // Return the type name of the block-closure value rather than the dict itself,
+      // since toNative() rejects dicts containing closures.
+      const result = await run('["key": { 1 + 1 }] => $d\n$d.key.^type.^name');
       // Blocks in dict values are stored as callables, not evaluated
-      expect(typeof result.key).toBe('object');
-      expect(result.key.__type).toBe('callable');
+      expect(result).toBe('closure');
     });
   });
 

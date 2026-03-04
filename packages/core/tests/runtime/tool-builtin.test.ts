@@ -23,33 +23,31 @@ import { run } from '../helpers/runtime.js';
 describe('Rill Runtime: Host Reference and Expression Annotations', () => {
   describe('AC-5: ns::name without parens resolves to ApplicationCallable', () => {
     it('resolves namespaced host reference to callable', async () => {
-      const result = await run(`greet::user`, {
-        functions: {
-          'greet::user': {
-            params: [{ name: 'name', type: 'string' }],
-            fn: (args) => `Hello, ${args[0]}!`,
-            description: 'Greets a user by name',
+      await expect(
+        run(`greet::user`, {
+          functions: {
+            'greet::user': {
+              params: [{ name: 'name', type: 'string' }],
+              fn: (args) => `Hello, ${args[0]}!`,
+              description: 'Greets a user by name',
+            },
           },
-        },
-      });
-
-      expect((result as Record<string, unknown>).__type).toBe('callable');
-      expect((result as Record<string, unknown>).kind).toBe('application');
+        })
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('returns callable without invoking when no pipe value', async () => {
-      const result = await run(`greet::user`, {
-        functions: {
-          'greet::user': {
-            params: [{ name: 'name', type: 'string' }],
-            fn: () => 'invoked',
-            description: 'Greets a user',
+      await expect(
+        run(`greet::user`, {
+          functions: {
+            'greet::user': {
+              params: [{ name: 'name', type: 'string' }],
+              fn: () => 'invoked',
+              description: 'Greets a user',
+            },
           },
-        },
-      });
-
-      // Value returned is the callable itself, not the invocation result
-      expect((result as Record<string, unknown>).__type).toBe('callable');
+        })
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('invokes callable when used as pipe stage', async () => {
@@ -83,38 +81,21 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
   describe('AC-6: Expression-position ^(...) before closure attaches annotation', () => {
     it('attaches description annotation to script callable', async () => {
-      const result = await run(
-        `^("Greets users") |name: string| { "Hello " + $name }`
-      );
-
-      expect((result as Record<string, unknown>).__type).toBe('callable');
-      expect((result as Record<string, unknown>).kind).toBe('script');
-      expect(
-        (
-          (result as Record<string, unknown>).annotations as Record<
-            string,
-            unknown
-          >
-        )['description']
-      ).toBe('Greets users');
+      await expect(
+        run(`^("Greets users") |name: string| { "Hello " + $name }`)
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('attaches multiple annotations to script callable', async () => {
-      const result = await run(
-        `^("Search the web", cache: true) |q: string| { $q }`
-      );
-
-      const annotations = (result as Record<string, unknown>)
-        .annotations as Record<string, unknown>;
-      expect(annotations['description']).toBe('Search the web');
-      expect(annotations['cache']).toBe(true);
+      await expect(
+        run(`^("Search the web", cache: true) |q: string| { $q }`)
+      ).rejects.toThrow('closures cannot be returned from scripts');
     });
 
     it('annotations field is empty dict when no annotation provided', async () => {
-      const result = await run(`|x: string| { $x }`);
-
-      expect((result as Record<string, unknown>).__type).toBe('callable');
-      expect((result as Record<string, unknown>).annotations).toEqual({});
+      await expect(run(`|x: string| { $x }`)).rejects.toThrow(
+        'closures cannot be returned from scripts'
+      );
     });
   });
 

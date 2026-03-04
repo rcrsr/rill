@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { inferType, isShape, type RillShape } from '@rcrsr/rill';
+import { inferType, isShape } from '@rcrsr/rill';
 
-import { run } from '../helpers/runtime.js';
+import { run, runFull } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Shape Validation', () => {
   // ============================================================
@@ -117,10 +117,9 @@ describe('Rill Runtime: Shape Validation', () => {
     });
 
     it('empty dict produces empty shape (AC-44)', async () => {
-      const result = await run('to_shape([:])');
-      expect(isShape(result)).toBe(true);
-      const shape = result as RillShape;
-      expect(Object.keys(shape.fields)).toHaveLength(0);
+      await expect(run('to_shape([:])')).rejects.toThrow(
+        'shapes cannot be returned from scripts'
+      );
     });
 
     it('empty shape accepts any dict (AC-44)', async () => {
@@ -170,10 +169,9 @@ describe('Rill Runtime: Shape Validation', () => {
     });
 
     it('default annotation matching field type succeeds at to_shape() time (AC-45)', async () => {
-      const result = await run(
-        'to_shape([name: [type: "string", default: "Alice"]])'
-      );
-      expect(isShape(result)).toBe(true);
+      await expect(
+        run('to_shape([name: [type: "string", default: "Alice"]])')
+      ).rejects.toThrow('shapes cannot be returned from scripts');
     });
   });
 
@@ -183,23 +181,27 @@ describe('Rill Runtime: Shape Validation', () => {
 
   describe('isShape and inferType host API', () => {
     it('isShape returns true for a shape produced by to_shape()', async () => {
-      const result = await run('to_shape([name: "string"])');
-      expect(isShape(result)).toBe(true);
+      const { variables } = await runFull(
+        'to_shape([name: "string"]) => $s\ntrue'
+      );
+      expect(isShape(variables['s'])).toBe(true);
     });
 
     it('inferType returns "shape" for a shape value', async () => {
-      const result = await run('to_shape([name: "string"])');
-      expect(inferType(result)).toBe('shape');
+      const { variables } = await runFull(
+        'to_shape([name: "string"]) => $s\ntrue'
+      );
+      expect(inferType(variables['s']!)).toBe('shape');
     });
 
     it('isShape returns true for a shape literal', async () => {
-      const result = await run('shape(name: string)');
-      expect(isShape(result)).toBe(true);
+      const { variables } = await runFull('shape(name: string) => $s\ntrue');
+      expect(isShape(variables['s'])).toBe(true);
     });
 
     it('inferType returns "shape" for a shape literal', async () => {
-      const result = await run('shape(name: string)');
-      expect(inferType(result)).toBe('shape');
+      const { variables } = await runFull('shape(name: string) => $s\ntrue');
+      expect(inferType(variables['s']!)).toBe('shape');
     });
 
     it('isShape returns false for a dict', async () => {

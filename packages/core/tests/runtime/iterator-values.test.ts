@@ -9,7 +9,7 @@ import { formatValue, isRillIterator } from '../../src/runtime/core/values.js';
 
 describe('Iterator value utilities', () => {
   describe('formatValue', () => {
-    it('returns "[iterator]" for a valid iterator (not-done with value+next)', () => {
+    it('returns "type(iterator)" for a valid iterator (not-done with value+next)', () => {
       const iterator = {
         done: false,
         value: 1,
@@ -18,15 +18,15 @@ describe('Iterator value utilities', () => {
           next: callable(() => ({ done: true, next: callable(() => ({})) })),
         })),
       };
-      expect(formatValue(iterator)).toBe('[iterator]');
+      expect(formatValue(iterator)).toBe('type(iterator)');
     });
 
-    it('returns "[iterator]" for a done iterator (done=true with next)', () => {
+    it('returns "type(iterator)" for a done iterator (done=true with next)', () => {
       const iterator = {
         done: true,
         next: callable(() => ({ done: true, next: callable(() => ({})) })),
       };
-      expect(formatValue(iterator)).toBe('[iterator]');
+      expect(formatValue(iterator)).toBe('type(iterator)');
     });
 
     it('correctly identifies iterator via isRillIterator guard', () => {

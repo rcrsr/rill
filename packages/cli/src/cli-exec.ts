@@ -13,7 +13,6 @@ import * as yaml from 'yaml';
 import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 import type { RillValue, ExecutionResult } from '@rcrsr/rill';
 import {
-  formatOutput,
   formatError,
   determineExitCode,
   VERSION,
@@ -248,7 +247,7 @@ export async function executeScript(
   const ctx = createRuntimeContext({
     variables,
     callbacks: {
-      onLog: (value) => console.log(formatOutput(value)),
+      onLog: (msg) => console.log(msg),
     },
   });
 
@@ -365,7 +364,7 @@ Examples:
         if (message !== undefined) {
           console.log(message);
         } else {
-          console.log(formatOutput(result.result));
+          console.log(String(result.result));
         }
 
         // Exit with computed code

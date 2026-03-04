@@ -70,24 +70,26 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('json errors on direct closure serialization', async () => {
       await expect(run('|x|{ $x * 2 } -> json')).rejects.toThrow(
-        'Cannot serialize closure to JSON'
+        'closures are not JSON-serializable'
       );
     });
 
-    it('json skips closures in dicts', async () => {
-      expect(
-        await run('[name: "user", age: 30, greet: ||{ "Hello" }] -> json')
-      ).toBe('{"name":"user","age":30}');
+    it('json throws on closures in dicts', async () => {
+      await expect(
+        run('[name: "user", age: 30, greet: ||{ "Hello" }] -> json')
+      ).rejects.toThrow('closures are not JSON-serializable');
     });
 
-    it('json skips closures in lists', async () => {
-      expect(await run('[1, 2, ||{ "fn" }, 3] -> json')).toBe('[1,2,3]');
-    });
-
-    it('json handles nested containers with closures', async () => {
-      expect(await run('[items: [1, ||{ 0 }, 2], fn: ||{ 0 }] -> json')).toBe(
-        '{"items":[1,2]}'
+    it('json throws on closures in lists', async () => {
+      await expect(run('[1, 2, ||{ "fn" }, 3] -> json')).rejects.toThrow(
+        'closures are not JSON-serializable'
       );
+    });
+
+    it('json throws on nested containers with closures', async () => {
+      await expect(
+        run('[items: [1, ||{ 0 }, 2], fn: ||{ 0 }] -> json')
+      ).rejects.toThrow('closures are not JSON-serializable');
     });
 
     it('pipes to .^type for type name', async () => {

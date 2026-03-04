@@ -22,7 +22,7 @@ import {
   isTypeValue,
   type RillTypeValue,
 } from '@rcrsr/rill';
-import { run, createLogCollector } from '../helpers/runtime.js';
+import { run, runFull, createLogCollector } from '../helpers/runtime.js';
 
 describe('Rill Language: Shape Introspection', () => {
   // ============================================================
@@ -31,26 +31,34 @@ describe('Rill Language: Shape Introspection', () => {
 
   describe('Field Access', () => {
     it('$s.name returns a field descriptor value (AC-1)', async () => {
-      const result = await run(`
+      // Field descriptors cannot be returned from scripts (toNative throws).
+      // Capture $s.name into $fd via runFull to access the raw RillValue.
+      const { variables } = await runFull(`
         shape(name: string) => $s
-        $s.name
+        $s.name => $fd
+        true
       `);
+      const fd = variables['fd'];
       // Descriptor is a plain object with __rill_field_descriptor marker
-      expect(result).toBeDefined();
-      expect(typeof result).toBe('object');
-      expect(result).not.toBeNull();
-      expect((result as Record<string, unknown>).__rill_field_descriptor).toBe(
+      expect(fd).toBeDefined();
+      expect(typeof fd).toBe('object');
+      expect(fd).not.toBeNull();
+      expect((fd as Record<string, unknown>).__rill_field_descriptor).toBe(
         true
       );
     });
 
     it('$s.name.type returns the string type value (AC-2)', async () => {
+      // Type values cannot be returned from scripts (toNative throws).
+      // Access .type.name to get the representable typeName string instead.
       const result = await run(`
         shape(name: string) => $s
-        $s.name.type
+        $s.name.type.name
       `);
-      expect(isTypeValue(result as RillTypeValue)).toBe(true);
-      expect((result as RillTypeValue).typeName).toBe('string');
+      expect(
+        isTypeValue({ __rill_type: true, typeName: result } as RillTypeValue)
+      ).toBe(true);
+      expect(result).toBe('string');
     });
 
     it('$s.name.optional returns false for required field (AC-3)', async () => {
@@ -144,12 +152,16 @@ describe('Rill Language: Shape Introspection', () => {
 
   describe('Nested Shapes', () => {
     it('$s.user.type returns the shape type value (AC-10)', async () => {
+      // Type values cannot be returned from scripts (toNative throws).
+      // Access .type.name to get the representable typeName string instead.
       const result = await run(`
         shape(user: (id: number, name: string)) => $s
-        $s.user.type
+        $s.user.type.name
       `);
-      expect(isTypeValue(result as RillTypeValue)).toBe(true);
-      expect((result as RillTypeValue).typeName).toBe('shape');
+      expect(
+        isTypeValue({ __rill_type: true, typeName: result } as RillTypeValue)
+      ).toBe(true);
+      expect(result).toBe('shape');
     });
 
     it('$s.user.shape returns the nested shape value (AC-11)', async () => {

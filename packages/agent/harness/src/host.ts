@@ -282,9 +282,8 @@ export function createAgentHost(
       signal: controller.signal,
       maxCallStackDepth: baseContext.maxCallStackDepth,
       callbacks: {
-        onLog: (value: import('@rcrsr/rill').RillValue) => {
-          const msg = typeof value === 'string' ? value : JSON.stringify(value);
-          log('info', `[rill] ${msg}`, cfg.logLevel);
+        onLog: (message: string) => {
+          log('info', `[rill] ${message}`, cfg.logLevel);
         },
       },
       metadata: {

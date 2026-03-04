@@ -3,7 +3,7 @@
  * Common formatting functions for CLI tools
  */
 
-import { formatValue, isCallable, isRillIterator, VERSION } from '@rcrsr/rill';
+import { VERSION } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
@@ -12,23 +12,6 @@ import {
   formatError as formatEnrichedError,
   type FormatOptions,
 } from './cli-error-formatter.js';
-
-/**
- * Convert execution result to human-readable string
- *
- * @param value - The value to format
- * @returns Formatted string representation
- */
-export function formatOutput(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (isCallable(value)) return '[closure]';
-  if (isRillIterator(value)) return '[iterator]';
-  return formatValue(value);
-}
 
 /**
  * Format error for stderr output

@@ -46,9 +46,8 @@ export async function executeAgent(
   const onLog =
     logLevel === 'silent'
       ? (): void => {}
-      : (value: RillValue): void => {
-          const msg = typeof value === 'string' ? value : JSON.stringify(value);
-          process.stderr.write(msg + '\n');
+      : (message: string): void => {
+          process.stderr.write(message + '\n');
         };
   const onLogEvent =
     logLevel === 'silent'

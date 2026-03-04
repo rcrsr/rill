@@ -14,7 +14,7 @@ import {
   parse,
   type ExecutionResult,
 } from '@rcrsr/rill';
-import { formatOutput, determineExitCode, VERSION } from './cli-shared.js';
+import { determineExitCode, VERSION } from './cli-shared.js';
 
 /**
  * Parse command-line arguments into structured command
@@ -60,7 +60,7 @@ export async function evaluateExpression(
 ): Promise<ExecutionResult> {
   const ctx = createRuntimeContext({
     callbacks: {
-      onLog: (value) => console.log(formatOutput(value)),
+      onLog: (msg) => console.log(msg),
     },
   });
 
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(formatOutput(result.result));
+        console.log(String(result.result));
       }
       process.exit(code);
     }

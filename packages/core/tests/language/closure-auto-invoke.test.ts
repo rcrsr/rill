@@ -121,17 +121,16 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
 
     it('AC-36: fallback closure in ?? operator (NOT auto-invoked)', async () => {
       // Default value is evaluated but NOT auto-invoked
-      // This is because default value evaluation happens outside expression context
+      // This is because default value evaluation happens outside expression context.
+      // Capture the ?? result into $r, then return its type name (representable).
       const script = `
         || { $ * 2 } => $fallback
         [x: 10] => $data
-        5 -> ($data.y ?? $fallback)
+        5 -> ($data.y ?? $fallback) => $r
+        $r.^type.^name
       `;
-      // $data.y missing, evaluates $fallback, but returns closure (not invoked)
-      const result = await run(script);
-      expect(await run('$result.^type.^name', { variables: { result } })).toBe(
-        'closure'
-      );
+      // $data.y missing, $fallback is returned unevaluated (closure, not invoked)
+      expect(await run(script)).toBe('closure');
     });
 
     it('double negation with closure auto-invoke', async () => {

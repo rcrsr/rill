@@ -221,9 +221,9 @@ describe('Rill Runtime: Type Assertions', () => {
 
   describe('Type Assertion with Tuple Type', () => {
     it('asserts tuple type on spread result', async () => {
-      expect(await run('*[1, 2, 3] -> :tuple')).toHaveProperty(
-        '__rill_tuple',
-        true
+      // Tuples cannot be returned from scripts (toNative throws), so assert the error.
+      await expect(run('*[1, 2, 3] -> :tuple')).rejects.toThrow(
+        'tuples cannot be returned from scripts'
       );
     });
 

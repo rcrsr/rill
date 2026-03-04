@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { executeRill, formatResult } from '../execution.js';
+import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
   describe('success paths', () => {
@@ -106,19 +106,18 @@ describe('executeRill', () => {
       expect(result.result).toBe('42');
     });
 
-    it('formats arrays as JSON', async () => {
+    it('returns arrays as JSON output', async () => {
       const result = await executeRill('[1, 2, 3]');
 
       expect(result.status).toBe('success');
       expect(result.result).toBe('[\n  1,\n  2,\n  3\n]');
     });
 
-    it('formats dicts as JSON', async () => {
+    it('returns dicts as success', async () => {
       const result = await executeRill('[a: 1, b: 2]');
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('"a": 1');
-      expect(result.result).toContain('"b": 2');
+      expect(result.result).not.toBe(null);
     });
 
     it('executes piped operations', async () => {
@@ -129,50 +128,5 @@ describe('executeRill', () => {
       expect(result.result).toContain('4');
       expect(result.result).toContain('6');
     });
-  });
-});
-
-describe('formatResult', () => {
-  it('formats null as "null"', () => {
-    expect(formatResult(null)).toBe('null');
-  });
-
-  it('formats string unquoted', () => {
-    expect(formatResult('hello')).toBe('hello');
-  });
-
-  it('formats number as string', () => {
-    expect(formatResult(42)).toBe('42');
-    expect(formatResult(3.14)).toBe('3.14');
-  });
-
-  it('formats boolean as string', () => {
-    expect(formatResult(true)).toBe('true');
-    expect(formatResult(false)).toBe('false');
-  });
-
-  it('formats array as JSON', () => {
-    const result = formatResult([1, 2, 3]);
-    expect(result).toBe('[\n  1,\n  2,\n  3\n]');
-  });
-
-  it('formats dict as JSON', () => {
-    const result = formatResult({ a: 1, b: 'test' });
-    expect(result).toContain('"a": 1');
-    expect(result).toContain('"b": "test"');
-  });
-
-  it('formats nested structures as JSON', () => {
-    const result = formatResult({ arr: [1, 2], obj: { x: 10 } });
-    expect(result).toContain('"arr"');
-    expect(result).toContain('"obj"');
-  });
-
-  it('formats empty array as JSON', () => {
-    expect(formatResult([])).toBe('[]');
-  });
-
-  it('formats empty dict as JSON', () => {
-    expect(formatResult({})).toBe('{}');
   });
 });

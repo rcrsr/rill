@@ -24,6 +24,7 @@ import type {
   RuntimeContext,
   StepResult,
 } from './types.js';
+import { toNative } from './values.js';
 import type { RillValue } from './values.js';
 
 /**
@@ -199,12 +200,12 @@ export function createStepper(
           );
         }
         return {
-          result: context.pipeValue,
+          result: toNative(context.pipeValue),
           variables: collectVariables(),
         };
       }
       return {
-        result: lastValue,
+        result: toNative(lastValue),
         variables: collectVariables(),
       };
     },

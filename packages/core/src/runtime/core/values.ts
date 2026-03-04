@@ -6,6 +6,7 @@
  */
 
 import type { RillTypeName } from '../../types.js';
+import { RuntimeError } from '../../types.js';
 import {
   callableEquals,
   isCallable,
@@ -233,12 +234,36 @@ export function isEmpty(value: RillValue): boolean {
   return !isTruthy(value);
 }
 
+/** Format a shape for display, expanding nested shapes inline recursively */
+function formatShape(shape: RillShape): string {
+  const parts: string[] = [];
+  for (const [name, spec] of Object.entries(shape.fields)) {
+    const optMark = spec.optional ? '?' : '';
+    if (spec.nestedShape !== undefined) {
+      parts.push(`${name}${optMark}: ${formatShape(spec.nestedShape)}`);
+    } else {
+      parts.push(`${name}${optMark}: ${spec.typeName}`);
+    }
+  }
+  return `shape(${parts.join(', ')})`;
+}
+
 /** Format a value for display */
 export function formatValue(value: RillValue): string {
-  if (value === null) return '';
+  if (value === null) return 'type(null)';
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
+
+  // Guard order per spec AC-17: shape → callable → tuple → dict/list → others
+  if (isShape(value)) {
+    return formatShape(value);
+  }
+
+  if (isCallable(value)) {
+    return 'type(closure)';
+  }
+
   if (isTuple(value)) {
     const parts: string[] = [];
     for (const [key, val] of value.entries) {
@@ -248,27 +273,180 @@ export function formatValue(value: RillValue): string {
         parts.push(`${key}: ${formatValue(val)}`);
       }
     }
-    return `*[${parts.join(', ')}]`;
+    return `tuple(${parts.join(', ')})`;
   }
-  if (isTypeValue(value)) {
-    return `type(${value.typeName})`;
+
+  if (isRillIterator(value)) {
+    return 'type(iterator)';
   }
+
+  if (Array.isArray(value)) {
+    return `list(${value.map(formatValue).join(', ')})`;
+  }
+
   if (isVector(value)) {
     return `vector(${value.model}, ${value.data.length}d)`;
   }
+
+  if (isTypeValue(value)) {
+    return `type(${value.typeName})`;
+  }
+
+  if (isFieldDescriptor(value)) {
+    return 'type(field-descriptor)';
+  }
+
+  // Plain dict
+  if (typeof value === 'object') {
+    const dict = value as Record<string, RillValue>;
+    const parts = Object.entries(dict).map(
+      ([k, v]) => `${k}: ${formatValue(v)}`
+    );
+    return `dict(${parts.join(', ')})`;
+  }
+
+  return String(value);
+}
+
+/**
+ * Recursive native (host-side) value type.
+ * Represents values that can cross the host/script boundary.
+ */
+export type NativeValue =
+  | string
+  | number
+  | boolean
+  | null
+  | NativeArray
+  | NativePlainObject;
+
+/** Array of NativeValue */
+export type NativeArray = NativeValue[];
+
+/** Plain object with string keys and NativeValue values */
+export type NativePlainObject = { [key: string]: NativeValue };
+
+/**
+ * Convert a RillValue to a JSON-serializable value.
+ * @throws {Error} plain Error (not RuntimeError) for non-serializable types
+ */
+export function valueToJSON(value: RillValue): unknown {
+  if (value === null) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value;
+
+  if (Array.isArray(value)) {
+    return value.map(valueToJSON);
+  }
+
+  if (isCallable(value)) {
+    throw new Error('closures are not JSON-serializable');
+  }
+
+  if (isTuple(value)) {
+    throw new Error('tuples are not JSON-serializable');
+  }
+
+  if (isVector(value)) {
+    throw new Error('vectors are not JSON-serializable');
+  }
+
+  if (isShape(value)) {
+    throw new Error('shapes are not JSON-serializable');
+  }
+
+  if (isTypeValue(value)) {
+    throw new Error('type values are not JSON-serializable');
+  }
+
+  if (isFieldDescriptor(value)) {
+    throw new Error('field descriptors are not JSON-serializable');
+  }
+
   if (isRillIterator(value)) {
-    return '[iterator]';
+    throw new Error('iterators are not JSON-serializable');
   }
-  if (
-    typeof value === 'object' &&
-    '__type' in value &&
-    value.__type === 'callable'
-  ) {
-    // Basic callable formatting - full formatting in callable.ts
-    return '(...) { ... }';
+
+  // Plain dict
+  const dict = value as Record<string, RillValue>;
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(dict)) {
+    result[k] = valueToJSON(v);
   }
-  if (Array.isArray(value)) return JSON.stringify(value);
-  return JSON.stringify(value);
+  return result;
+}
+
+/**
+ * Convert a RillValue to a NativeValue for host consumption.
+ * @throws {RuntimeError} RILL-R004 for closures; RuntimeError for all other non-representable types
+ */
+export function toNative(value: RillValue): NativeValue {
+  if (value === null) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value;
+
+  if (Array.isArray(value)) {
+    return value.map(toNative);
+  }
+
+  if (isCallable(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'closures cannot be returned from scripts'
+    );
+  }
+
+  if (isTuple(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'tuples cannot be returned from scripts'
+    );
+  }
+
+  if (isVector(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'vectors cannot be returned from scripts'
+    );
+  }
+
+  if (isShape(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'shapes cannot be returned from scripts'
+    );
+  }
+
+  if (isTypeValue(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'type values cannot be returned from scripts'
+    );
+  }
+
+  if (isFieldDescriptor(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'field descriptors cannot be returned from scripts'
+    );
+  }
+
+  if (isRillIterator(value)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'iterators cannot be returned from scripts'
+    );
+  }
+
+  // Plain dict
+  const dict = value as Record<string, RillValue>;
+  const result: { [key: string]: NativeValue } = {};
+  for (const [k, v] of Object.entries(dict)) {
+    result[k] = toNative(v);
+  }
+  return result;
 }
 
 /**

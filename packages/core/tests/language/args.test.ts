@@ -289,10 +289,10 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
 
     describe('json()', () => {
-      it('converts tuple to JSON (as object with numeric keys)', async () => {
-        const result = await run('*[1, 2, 3] -> json');
-        // Tuple internally is represented differently, may serialize as object
-        expect(typeof result).toBe('string');
+      it('throws on tuple serialization to JSON', async () => {
+        await expect(run('*[1, 2, 3] -> json')).rejects.toThrow(
+          'tuples are not JSON-serializable'
+        );
       });
 
       it('converts list to JSON', async () => {

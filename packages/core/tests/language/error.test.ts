@@ -343,7 +343,7 @@ describe('Rill Language: Error Statement', () => {
         [1, 2, 3] => $items
         error "Items: {$items}"
       `;
-      await expect(run(script)).rejects.toThrow('Items: [1,2,3]');
+      await expect(run(script)).rejects.toThrow('Items: list(1, 2, 3)');
     });
 
     it('works with arithmetic in interpolation', async () => {
