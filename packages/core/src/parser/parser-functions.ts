@@ -12,9 +12,6 @@ import type {
   PipeInvokeNode,
   PostfixExprNode,
   PrimaryNode,
-  ShapeAssertionNode,
-  ShapeCheckNode,
-  ShapeLiteralNode,
   SourceSpan,
   TypeAssertionNode,
   TypeCheckNode,
@@ -40,15 +37,11 @@ declare module './parser.js' {
     parseClosureCall(): ClosureCallNode;
     parsePipeInvoke(): PipeInvokeNode;
     parseMethodCall(receiverSpan?: SourceSpan | null): MethodCallNode;
-    parseTypeOperation():
-      | TypeAssertionNode
-      | TypeCheckNode
-      | ShapeAssertionNode
-      | ShapeCheckNode;
+    parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
     parsePostfixTypeOperation(
       primary: PrimaryNode,
       start: { line: number; column: number; offset: number }
-    ): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode;
+    ): TypeAssertionNode | TypeCheckNode;
   }
 }
 
@@ -217,7 +210,7 @@ Parser.prototype.parseMethodCall = function (
 
 Parser.prototype.parseTypeOperation = function (
   this: Parser
-): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode {
+): TypeAssertionNode | TypeCheckNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
@@ -242,20 +235,6 @@ Parser.prototype.parseTypeOperation = function (
     return { type: 'TypeAssertion', operand: null, typeRef, span };
   }
 
-  // Disambiguation: shape followed by ( → inline shape validation
-  if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(this.state).value === 'shape' &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
-    const shape: ShapeLiteralNode = this.parseShapeLiteral();
-    const span = makeSpan(start, current(this.state).span.end);
-    if (isCheck) {
-      return { type: 'ShapeCheck', operand: null, shape, span };
-    }
-    return { type: 'ShapeAssertion', operand: null, shape, span };
-  }
-
   // Default: plain type name → existing TypeAssertion / TypeCheck
   const typeRef = parseTypeRef(this.state);
   if (typeRef.kind !== 'static')
@@ -272,7 +251,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
   this: Parser,
   primary: PrimaryNode,
   start: { line: number; column: number; offset: number }
-): TypeAssertionNode | TypeCheckNode | ShapeAssertionNode | ShapeCheckNode {
+): TypeAssertionNode | TypeCheckNode {
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
@@ -303,21 +282,6 @@ Parser.prototype.parsePostfixTypeOperation = function (
       return { type: 'TypeCheck', operand, typeRef, span };
     }
     return { type: 'TypeAssertion', operand, typeRef, span };
-  }
-
-  // Disambiguation: shape followed by ( → inline shape validation
-  if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(this.state).value === 'shape' &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
-    const shape: ShapeLiteralNode = this.parseShapeLiteral();
-    const operand = makeOperand();
-    const span = makeSpan(start, current(this.state).span.end);
-    if (isCheck) {
-      return { type: 'ShapeCheck', operand, shape, span };
-    }
-    return { type: 'ShapeAssertion', operand, shape, span };
   }
 
   // Default: plain type name → existing TypeAssertion / TypeCheck

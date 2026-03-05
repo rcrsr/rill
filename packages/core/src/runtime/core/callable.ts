@@ -35,13 +35,59 @@ export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { VALID_TYPE_NAMES } from '../../constants.js';
 import { astEquals } from './equals.js';
-import type {
-  RillShape,
-  RillTypeValue,
-  RillValue,
-  ShapeFieldSpec,
-} from './values.js';
-import { formatValue, inferType, isShape, isTuple } from './values.js';
+import type { RillTypeValue, RillValue } from './values.js';
+import { formatValue, inferType, isTuple } from './values.js';
+
+/**
+ * Shape field specification — describes a single field in a RillShape.
+ * Defined here (not values.ts) to avoid circular dependencies.
+ */
+export interface ShapeFieldSpec {
+  readonly typeName: string;
+  readonly optional: boolean;
+  readonly nestedShape: RillShape | undefined;
+  readonly annotations: Record<string, RillValue>;
+}
+
+/**
+ * Shape value — represents a validated dict structure at runtime.
+ * Created by shape(...) literals and to_shape() built-in.
+ */
+export interface RillShape {
+  readonly __rill_shape: true;
+  readonly fields: Record<string, ShapeFieldSpec>;
+}
+
+/**
+ * Field descriptor — carries field name and spec when accessing a shape field.
+ */
+export interface RillShapeFieldDescriptor {
+  readonly __rill_field_descriptor: true;
+  readonly fieldName: string;
+  readonly spec: ShapeFieldSpec;
+}
+
+/** Type guard for RillShape */
+export function isShape(value: RillValue): value is RillShape {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_shape' in value &&
+    (value as RillShape).__rill_shape === true
+  );
+}
+
+/** Type guard for RillShapeFieldDescriptor */
+export function isFieldDescriptor(
+  value: RillValue
+): value is RillShapeFieldDescriptor {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_field_descriptor' in value &&
+    (value as RillShapeFieldDescriptor).__rill_field_descriptor === true
+  );
+}
 
 /** Set of valid type names for O(1) membership lookup */
 const validTypeNamesSet = new Set<string>(VALID_TYPE_NAMES);
@@ -159,7 +205,7 @@ export interface ScriptCallable extends CallableBase {
   /** Cached input shape built from params at creation time — used by `$fn.^input` */
   readonly inputShape: RillShape;
   /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
-  readonly returnShape?: RillTypeValue | RillShape | undefined;
+  readonly returnShape?: RillTypeValue | undefined;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */

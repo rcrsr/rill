@@ -49,8 +49,11 @@ export type {
   HostFunctionParam,
   RillCallable,
   RillFunctionReturnType,
+  RillShape,
+  RillShapeFieldDescriptor,
   RuntimeCallable,
   ScriptCallable,
+  ShapeFieldSpec,
 } from './core/callable.js';
 
 export {
@@ -58,8 +61,10 @@ export {
   isApplicationCallable,
   isCallable,
   isDict,
+  isFieldDescriptor,
   isRuntimeCallable,
   isScriptCallable,
+  isShape,
   validateHostFunctionArgs,
 } from './core/callable.js';
 
@@ -72,26 +77,27 @@ export type {
   NativePlainObject,
   NativeValue,
   RillIterator,
-  RillShape,
-  RillShapeFieldDescriptor,
+  RillStructuralType,
   RillTuple,
   RillTypeValue,
   RillValue,
   RillVector,
-  ShapeFieldSpec,
 } from './core/values.js';
 
 export {
   createVector,
+  formatStructuralType,
+  inferElementType,
+  inferStructuralType,
   inferType,
-  isFieldDescriptor,
   isRillIterator,
-  isShape,
   isTuple,
   isTypeValue,
   isVector,
   isReservedMethod,
   RESERVED_DICT_METHODS,
+  structuralTypeEquals,
+  structuralTypeMatches,
 } from './core/values.js';
 
 export { buildFieldDescriptor } from './core/field-descriptor.js';

@@ -35,7 +35,6 @@ import type {
   PostfixExprNode,
   ExpressionNode,
   RillTypeName,
-  ShapeLiteralNode,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -49,6 +48,7 @@ import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import {
   formatValue,
+  inferElementType,
   isReservedMethod,
   isTypeValue,
   isVector,
@@ -271,6 +271,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           elements.push(await (this as any).evaluateExpression(elem));
         }
       }
+      // Validate homogeneity: all elements must share the same structural type [C-1]
+      inferElementType(elements);
       return elements;
     }
 
@@ -999,25 +1001,15 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const inputShape = paramsToShape(params, paramAnnotations);
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
-      // ShapeLiteralNode → evaluate via evaluateShapeLiteral().
-      // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue or RillShape.
+      // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
       // Absent → returnShape remains undefined (omission implies :any, AC-17, AC-18, AC-19).
       let returnShape: ScriptCallable['returnShape'] = undefined;
       if (node.returnTypeTarget !== undefined) {
-        if (
-          (node.returnTypeTarget as ShapeLiteralNode).type === 'ShapeLiteral'
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          returnShape = await (this as any).evaluateShapeLiteral(
-            node.returnTypeTarget as ShapeLiteralNode
-          );
-        } else {
-          returnShape = (this as any).resolveTypeRef(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            node.returnTypeTarget,
-            (name: string) => getVariable(this.ctx, name)
-          );
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        returnShape = (this as any).resolveTypeRef(
+          node.returnTypeTarget,
+          (name: string) => getVariable(this.ctx, name)
+        );
       }
 
       return {

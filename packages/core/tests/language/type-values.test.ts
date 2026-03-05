@@ -60,12 +60,6 @@ describe('Rill Language: Type Value Expressions', () => {
       );
     });
 
-    it('shape evaluates as a RillTypeValue with typeName "shape"', async () => {
-      await expect(run('shape')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
-    });
-
     it('closure evaluates as a RillTypeValue with typeName "closure"', async () => {
       await expect(run('closure')).rejects.toThrow(
         'type values cannot be returned from scripts'
@@ -105,18 +99,18 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe(true);
     });
 
-    it('[1, 2].^type == list evaluates to true', async () => {
-      const result = await run('[1, 2] => $v\n$v.^type == list');
+    it('[1, 2].^type.name == "list" evaluates to true', async () => {
+      const result = await run('[1, 2] => $v\n$v.^type.name == "list"');
       expect(result).toBe(true);
     });
 
-    it('[a: 1].^type == dict evaluates to true', async () => {
-      const result = await run('[a: 1] => $v\n$v.^type == dict');
+    it('[a: 1].^type.name == "dict" evaluates to true', async () => {
+      const result = await run('[a: 1] => $v\n$v.^type.name == "dict"');
       expect(result).toBe(true);
     });
 
-    it('closure.^type == closure evaluates to true (EC-4: .^type never errors)', async () => {
-      const result = await run('|| { 1 } => $v\n$v.^type == closure');
+    it('closure.^type.name == "closure" evaluates to true (EC-4: .^type never errors)', async () => {
+      const result = await run('|| { 1 } => $v\n$v.^type.name == "closure"');
       expect(result).toBe(true);
     });
 
@@ -165,13 +159,13 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe(true);
     });
 
-    it('[1, 2].^type == list evaluates to true (literal receiver)', async () => {
-      const result = await run('[1, 2].^type == list');
+    it('[1, 2].^type.name == "list" evaluates to true (literal receiver)', async () => {
+      const result = await run('[1, 2].^type.name == "list"');
       expect(result).toBe(true);
     });
 
-    it('[a: 1].^type == dict evaluates to true (literal receiver)', async () => {
-      const result = await run('[a: 1].^type == dict');
+    it('[a: 1].^type.name == "dict" evaluates to true (literal receiver)', async () => {
+      const result = await run('[a: 1].^type.name == "dict"');
       expect(result).toBe(true);
     });
   });
@@ -388,24 +382,24 @@ describe('Rill Language: Type Value Expressions', () => {
   // ============================================================
 
   describe('Type value formatting', () => {
-    it('type value formats as type(string) via .str', async () => {
+    it('type value formats as structural type string via .str', async () => {
       const result = await run('"hello".^type.str');
-      expect(result).toBe('type(string)');
+      expect(result).toBe('string');
     });
 
-    it('type value formats as type(number) via .str', async () => {
+    it('type value formats as structural type string for number', async () => {
       const result = await run('42.^type.str');
-      expect(result).toBe('type(number)');
+      expect(result).toBe('number');
     });
 
-    it('type value formats as type(bool) via .str', async () => {
+    it('type value formats as structural type string for bool', async () => {
       const result = await run('true.^type.str');
-      expect(result).toBe('type(bool)');
+      expect(result).toBe('bool');
     });
 
-    it('type value formats as type(dict) in string interpolation', async () => {
+    it('type value formats as structural type in string interpolation', async () => {
       const result = await run('[a: 1].^type => $t\n"kind: {$t}"');
-      expect(result).toBe('kind: type(dict)');
+      expect(result).toBe('kind: dict(a: number)');
     });
   });
 });

@@ -93,7 +93,8 @@ describe('Node Consolidation Regression', () => {
   // Shape dispatch via $var (AC-16)
   // ============================================================
 
-  describe('Shape Dispatch via $var (resolveTypeRef returns RillShape)', () => {
+  describe.skip('Shape Dispatch via $var (resolveTypeRef returns RillShape)', () => {
+    // Skipped: shape() syntax removed in Phase 2.
     it('$s holds a shape — valid dict passes :$s assertion', async () => {
       const result = await run(`
         shape(x: number) => $s

@@ -15,12 +15,8 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
-import type { RillValue, RillTuple } from '../../values.js';
-import {
-  createTupleFromDict,
-  createTupleFromList,
-  inferType,
-} from '../../values.js';
+import type { RillValue } from '../../values.js';
+import { createOrdered, inferType } from '../../values.js';
 import { isDict } from '../../callable.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -241,14 +237,16 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate spread operator: *[...] or *[key: value, ...]
-     * Creates a tuple from a list or dict for argument unpacking.
+     * Evaluate spread operator: *[key: value, ...]
+     * Creates an ordered dict from a dict for argument unpacking.
+     * Only dict spread is supported [C-4].
      *
      * Examples:
-     * *[1, 2, 3] -> $fn()             # Calls $fn(1, 2, 3)
      * *[a: 1, b: 2] -> $fn()          # Calls $fn with named args
      */
-    protected async evaluateSpread(node: SpreadNode): Promise<RillTuple> {
+    protected async evaluateSpread(
+      node: SpreadNode
+    ): Promise<ReturnType<typeof createOrdered>> {
       let value: RillValue;
       if (node.operand === null) {
         value = this.ctx.pipeValue;
@@ -259,17 +257,15 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         value = await (this as any).evaluateExpression(node.operand);
       }
 
-      if (Array.isArray(value)) {
-        return createTupleFromList(value);
-      }
-
       if (isDict(value)) {
-        return createTupleFromDict(value);
+        return createOrdered(
+          Object.entries(value as Record<string, RillValue>)
+        );
       }
 
       throw new RuntimeError(
         'RILL-R002',
-        `Spread requires list or dict, got ${inferType(value)}`,
+        `Spread requires dict, got ${inferType(value)}`,
         node.span.start
       );
     }

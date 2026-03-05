@@ -22,33 +22,6 @@ describe('Type Variable Positions', () => {
   // ============================================================
 
   describe('Assertion Position (:$t)', () => {
-    // AC-22: shape variable → valid, shape dispatch applies
-    it('AC-22: $s holds a shape — :$s passes a valid dict (AC-22)', async () => {
-      const result = await run(`
-        shape(val: number) => $s
-        [val: 42] -> :$s
-      `);
-      expect(result).toEqual({ val: 42 });
-    });
-
-    it('AC-22: $s holds a shape — :$s rejects an invalid dict (AC-22)', async () => {
-      await expect(
-        run(`
-          shape(val: number) => $s
-          [val: "hello"] -> :$s
-        `)
-      ).rejects.toThrow('expected number, got string');
-    });
-
-    it('AC-22: $s holds a shape — :$s rejects a non-dict value (AC-22)', async () => {
-      await expect(
-        run(`
-          shape(val: number) => $s
-          42 -> :$s
-        `)
-      ).rejects.toThrow('expected dict');
-    });
-
     // AC-9: variable holding a RillTypeValue works in assertion position
     it('AC-9: $t holds number type value — 42 -> :$t passes', async () => {
       expect(await run('number => $t\n42 -> :$t')).toBe(42);
@@ -68,126 +41,12 @@ describe('Type Variable Positions', () => {
   // ============================================================
 
   describe('Check Position (:?$t)', () => {
-    // AC-22 via :?$t — shape variable, non-halting check
-    it('AC-22: $s holds a shape — :?$s returns true for valid dict', async () => {
-      const result = await run(`
-        shape(val: number) => $s
-        [val: 42] -> :?$s
-      `);
-      expect(result).toBe(true);
-    });
-
-    it('AC-22: $s holds a shape — :?$s returns false for invalid dict without throwing', async () => {
-      const result = await run(`
-        shape(val: number) => $s
-        [val: "hello"] -> :?$s
-      `);
-      expect(result).toBe(false);
-    });
-
-    it('AC-22: $s holds a shape — :?$s returns false for non-dict without throwing', async () => {
-      const result = await run(`
-        shape(val: number) => $s
-        42 -> :?$s
-      `);
-      expect(result).toBe(false);
-    });
-
     // AC-10: variable holding a RillTypeValue works in check position
     it('AC-10: $t holds number type value — 42 -> :?$t returns true', async () => {
       expect(await run('number => $t\n42 -> :?$t')).toBe(true);
     });
     it('AC-10: $t holds number type value — "hello" -> :?$t returns false', async () => {
       expect(await run('number => $t\n"hello" -> :?$t')).toBe(false);
-    });
-  });
-
-  // ============================================================
-  // Shape Field Position (shape(val: $t))  [AC-11, AC-25]
-  // ============================================================
-
-  describe('Shape Field Position (shape(val: $t))', () => {
-    // AC-11: $t resolves at shape creation time
-    it('AC-11: $t bound to string — shape field accepts string value', async () => {
-      const result = await run(`
-        string => $t
-        shape(val: $t) => $s
-        [val: "hello"] -> :$s
-      `);
-      expect(result).toEqual({ val: 'hello' });
-    });
-
-    it('AC-11: $t bound to number — shape field rejects string value', async () => {
-      await expect(
-        run(`
-          number => $t
-          shape(val: $t) => $s
-          [val: "hello"] -> :$s
-        `)
-      ).rejects.toThrow('expected number, got string');
-    });
-
-    it('AC-11: $t bound to number — shape field accepts number value', async () => {
-      const result = await run(`
-        number => $t
-        shape(val: $t) => $s
-        [val: 42] -> :$s
-      `);
-      expect(result).toEqual({ val: 42 });
-    });
-
-    it('AC-11: $t bound to bool — shape field accepts bool value', async () => {
-      const result = await run(`
-        bool => $t
-        shape(val: $t) => $s
-        [val: true] -> :$s
-      `);
-      expect(result).toEqual({ val: true });
-    });
-
-    it('AC-11: $t bound to bool — shape field rejects number value', async () => {
-      await expect(
-        run(`
-          bool => $t
-          shape(val: $t) => $s
-          [val: 42] -> :$s
-        `)
-      ).rejects.toThrow('expected bool, got number');
-    });
-
-    // AC-25: reassigning $t between shapes produces distinct shapes
-    it('AC-25: $t reassigned to number after first shape — first shape locked to string', async () => {
-      const result = await run(`
-        string => $t
-        shape(val: $t) => $s1
-        number => $t
-        shape(val: $t) => $s2
-        [val: "hello"] -> :$s1
-      `);
-      expect(result).toEqual({ val: 'hello' });
-    });
-
-    it('AC-25: $t reassigned to number after first shape — second shape locked to number', async () => {
-      await expect(
-        run(`
-          string => $t
-          shape(val: $t) => $s1
-          number => $t
-          shape(val: $t) => $s2
-          [val: "hello"] -> :$s2
-        `)
-      ).rejects.toThrow('expected number, got string');
-    });
-
-    it('AC-25: first and second shapes are independently locked at creation time', async () => {
-      const result = await run(`
-        number => $t
-        shape(val: $t) => $s1
-        string => $t
-        shape(val: $t) => $s2
-        [val: 42] -> :$s1
-      `);
-      expect(result).toEqual({ val: 42 });
     });
   });
 
@@ -331,44 +190,6 @@ describe('Type Variable Positions', () => {
           42 -> :$myNum
         `)
       ).rejects.toThrow('$myNum is not a valid type reference');
-    });
-
-    // AC-22: shape variable in :$t — valid, shape dispatch applies
-    it('AC-22: shape variable $s used in :$s — valid dict passes', async () => {
-      const result = await run(`
-        shape(name: string) => $s
-        [name: "Alice"] -> :$s
-      `);
-      expect(result).toEqual({ name: 'Alice' });
-    });
-
-    it('AC-22: shape variable $s used in :$s — invalid dict throws RILL-R004', async () => {
-      await expect(
-        run(`
-          shape(name: string) => $s
-          [name: 42] -> :$s
-        `)
-      ).rejects.toThrow('expected string, got number');
-    });
-
-    it('AC-22: shape variable $s used in :$s — missing required field throws RILL-R004', async () => {
-      await expect(
-        run(`
-          shape(name: string) => $s
-          [:] -> :$s
-        `)
-      ).rejects.toThrow('missing required field');
-    });
-
-    // Error message format verification
-    it('RILL-R004 error in shape field position identifies field path', async () => {
-      await expect(
-        run(`
-          number => $t
-          shape(val: $t) => $s
-          [val: "wrong"] -> :$s
-        `)
-      ).rejects.toThrow('field "val" expected number, got string');
     });
 
     it('RILL-R004 error in closure param position identifies param and types', async () => {

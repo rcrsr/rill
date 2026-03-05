@@ -220,14 +220,16 @@ describe('Rill Runtime: Type Assertions', () => {
   });
 
   describe('Type Assertion with Tuple Type', () => {
-    it('asserts tuple type on spread result', async () => {
-      // Tuples cannot be returned from scripts (toNative throws), so assert the error.
+    it.skip('asserts tuple type on spread result', async () => {
+      // Skipped: *[1, 2, 3] uses list spread which is removed in Phase 2.
+      // Only dict spread (*[a: 1]) is supported.
       await expect(run('*[1, 2, 3] -> :tuple')).rejects.toThrow(
         'tuples cannot be returned from scripts'
       );
     });
 
-    it('type check for tuple', async () => {
+    it.skip('type check for tuple', async () => {
+      // Skipped: *[1, 2] uses list spread which is removed in Phase 2.
       expect(await run('*[1, 2] -> :?tuple')).toBe(true);
     });
 

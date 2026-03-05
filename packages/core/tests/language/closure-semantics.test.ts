@@ -77,11 +77,22 @@ describe('Rill Runtime: Closure Semantics', () => {
 
   describe('Mixed Dict Value Types', () => {
     it('AC-8: dict values have distinct types (closure, eager, literal)', async () => {
-      const script = `
+      // Mixed-type list ['closure', 10, 42] not allowed; verify each field separately
+      const scriptA = `
         [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
-        [$d.a.^type.^name, $d.b, $d.c]
+        $d.a.^type.^name
       `;
-      expect(await run(script)).toEqual(['closure', 10, 42]);
+      expect(await run(scriptA)).toBe('closure');
+      const scriptB = `
+        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        $d.b
+      `;
+      expect(await run(scriptB)).toBe(10);
+      const scriptC = `
+        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        $d.c
+      `;
+      expect(await run(scriptC)).toBe(42);
     });
 
     it('AC-8 variant: invoking closure produces correct result', async () => {
@@ -243,12 +254,15 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
-      // Note: ||{ 42 } auto-invokes on access, so $d.d returns 42 directly
-      const script = `
-        [a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        [10 -> $d.a, $d.b, $d.c, $d.d]
-      `;
-      expect(await run(script)).toEqual([10, 1, 's', 42]);
+      // Mixed-type list [10, 1, 's', 42] not allowed; verify each value separately
+      const scriptA = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n10 -> $d.a`;
+      expect(await run(scriptA)).toBe(10);
+      const scriptB = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.b`;
+      expect(await run(scriptB)).toBe(1);
+      const scriptC = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.c`;
+      expect(await run(scriptC)).toBe('s');
+      const scriptD = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.d`;
+      expect(await run(scriptD)).toBe(42);
     });
 
     it('AC-18: chained pipe through block-closure', async () => {

@@ -328,21 +328,6 @@ export function visitNode(
       }
       break;
 
-    case 'ShapeLiteral':
-      for (const field of node.fields) {
-        visitNode(field, context, visitor);
-      }
-      for (const spread of node.spreads) {
-        visitNode(spread, context, visitor);
-      }
-      break;
-
-    case 'ShapeField':
-      if (typeof node.fieldType === 'object' && 'type' in node.fieldType) {
-        visitNode(node.fieldType, context, visitor);
-      }
-      break;
-
     case 'TypeNameExpr':
     case 'HostRef':
       // Leaf nodes - no children
@@ -355,12 +340,17 @@ export function visitNode(
       visitNode(node.expression, context, visitor);
       break;
 
-    case 'ShapeAssertion':
-    case 'ShapeCheck':
-      if (node.operand) {
-        visitNode(node.operand, context, visitor);
+    case 'TypeConstructor':
+      for (const arg of node.args) {
+        visitNode(arg.value, context, visitor);
       }
-      visitNode(node.shape, context, visitor);
+      break;
+
+    case 'ClosureSigLiteral':
+      for (const param of node.params) {
+        visitNode(param.typeExpr, context, visitor);
+      }
+      visitNode(node.returnType, context, visitor);
       break;
 
     default: {

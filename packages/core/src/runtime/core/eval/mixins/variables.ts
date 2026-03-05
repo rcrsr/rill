@@ -41,15 +41,15 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import {
-  inferType,
-  isShape,
-  isTypeValue,
-  isFieldDescriptor,
-} from '../../values.js';
+import { inferType, isTypeValue } from '../../values.js';
 import { buildFieldDescriptor } from '../../field-descriptor.js';
 import { getVariable, hasVariable } from '../../context.js';
-import { isDict, isCallable } from '../../callable.js';
+import {
+  isDict,
+  isCallable,
+  isShape,
+  isFieldDescriptor,
+} from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { BUILTIN_METHODS } from '../../../ext/builtins.js';
@@ -804,40 +804,14 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: CaptureNode,
       input: RillValue
     ): Promise<RillValue> {
-      if (node.inlineShape !== null) {
-        // Bug 2: inline shape(…) syntax — evaluate shape literal then validate
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const shape = await (this as any).evaluateShapeLiteral(
-          node.inlineShape
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).validateAgainstShape(input, shape, '', node.span.start);
-        this.setVariable(node.name, input, undefined, node.span.start);
-      } else if (node.typeRef !== null) {
-        // Bug 1 fix: resolve TypeRef and validate properly
+      if (node.typeRef !== null) {
+        // Resolve TypeRef and validate against the declared type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resolved = (this as any).resolveTypeRef(
           node.typeRef,
           (name: string) => getVariable(this.ctx, name) as RillValue
         );
-        if (isTypeValue(resolved)) {
-          this.setVariable(
-            node.name,
-            input,
-            resolved.typeName,
-            node.span.start
-          );
-        } else {
-          // resolved is RillShape — validate dict against shape structure
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).validateAgainstShape(
-            input,
-            resolved,
-            '',
-            node.span.start
-          );
-          this.setVariable(node.name, input, undefined, node.span.start);
-        }
+        this.setVariable(node.name, input, resolved.typeName, node.span.start);
       } else {
         this.setVariable(node.name, input, undefined, node.span.start);
       }

@@ -43,7 +43,7 @@ export interface ClosureNode extends BaseNode {
   readonly type: 'Closure';
   readonly params: ClosureParamNode[];
   readonly body: BodyNode;
-  readonly returnTypeTarget?: TypeRef | ShapeLiteralNode | undefined;
+  readonly returnTypeTarget?: TypeRef | TypeConstructorNode | undefined;
 }
 
 /**
@@ -137,10 +137,9 @@ export interface CaptureNode extends BaseNode {
   readonly name: string;
   /**
    * Optional explicit type annotation: $name:type or $name:$t
-   * Optional inline shape constraint: $name:shape { field: type }
    */
   readonly typeRef: TypeRef | null;
-  readonly inlineShape: ShapeLiteralNode | null;
+  readonly inlineShape: null;
 }
 
 /**
@@ -246,10 +245,9 @@ export type PrimaryNode =
   | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
-  | ShapeLiteralNode
-  | ShapeAssertionNode
-  | ShapeCheckNode
-  | TypeNameExprNode;
+  | TypeNameExprNode
+  | TypeConstructorNode
+  | ClosureSigLiteralNode;
 
 export type PipeTargetNode =
   | HostCallNode
@@ -272,9 +270,6 @@ export type PipeTargetNode =
   | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
-  | ShapeLiteralNode
-  | ShapeAssertionNode
-  | ShapeCheckNode
   | EachExprNode
   | MapExprNode
   | FoldExprNode
@@ -363,34 +358,39 @@ export interface DictEntryNode extends BaseNode {
 }
 
 /**
- * Shape literal: shape { field: type, ...spreads }
- * Describes a structural type constraint with named fields.
+ * Type constructor: list(string), dict(string, number), tuple(string, number), ordered(string)
+ * Constructs a parameterized type expression for use in type assertions and shape constraints.
  *
  * Examples:
- *   shape { name: string, age: number }
- *   shape { name: string, address: shape { city: string } }
- *   shape { name: string, ...$baseShape }
+ *   list(string)
+ *   dict(string, number)
+ *   tuple(string, number, boolean)
+ *   ordered(string)
+ *   list(element: string)
  */
-export interface ShapeLiteralNode extends BaseNode {
-  readonly type: 'ShapeLiteral';
-  readonly fields: ShapeFieldNode[];
-  readonly spreads: ExpressionNode[];
+export interface TypeConstructorNode extends BaseNode {
+  readonly type: 'TypeConstructor';
+  readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered';
+  readonly args: TypeConstructorArg[];
 }
 
+export type TypeConstructorArg =
+  | { kind: 'positional'; value: ExpressionNode }
+  | { kind: 'named'; name: string; value: ExpressionNode };
+
 /**
- * A single field declaration inside a shape literal.
+ * Closure signature literal: |param: type, ...| -> returnType
+ * Represents a closure type signature as a first-class value.
+ * Distinguished from a closure literal by absence of a `{` body block.
+ *
  * Examples:
- *   name: string
- *   age?: number
- *   ^(label: "City") city: string
- *   address: shape { city: string }
+ *   |x: string| -> number
+ *   |a: string, b: number| -> boolean
  */
-export interface ShapeFieldNode extends BaseNode {
-  readonly type: 'ShapeField';
-  readonly name: string;
-  readonly fieldType: TypeRef | ShapeLiteralNode;
-  readonly optional: boolean;
-  readonly annotations?: AnnotationArg[] | undefined;
+export interface ClosureSigLiteralNode extends BaseNode {
+  readonly type: 'ClosureSigLiteral';
+  readonly params: { name: string; typeExpr: ExpressionNode }[];
+  readonly returnType: ExpressionNode;
 }
 
 // ============================================================
@@ -929,46 +929,6 @@ export interface TypeCheckNode extends BaseNode {
 }
 
 /**
- * Shape assertion: expr:shape { ... }
- * Asserts that the expression matches an inline shape literal.
- * Returns the value unchanged if assertion passes, errors on mismatch.
- *
- * Examples:
- *   fetchData():shape { name: string, age: number }
- *   $val -> :shape { id: number }
- *
- * When operand is null, it acts on the implicit $:
- *   :shape { ... } ≡ $:shape { ... }
- */
-export interface ShapeAssertionNode extends BaseNode {
-  readonly type: 'ShapeAssertion';
-  /** The expression to assert (null for bare :shape { } which uses $) */
-  readonly operand: PostfixExprNode | null;
-  /** The inline shape literal describing the expected structure */
-  readonly shape: ShapeLiteralNode;
-}
-
-/**
- * Shape check: expr:?shape { ... }
- * Checks if the expression matches an inline shape literal.
- * Returns true if the structure matches, false otherwise.
- *
- * Examples:
- *   fetchData():?shape { name: string, age: number }
- *   $val -> :?shape { id: number }
- *
- * When operand is null, it checks the implicit $:
- *   :?shape { ... } ≡ $:?shape { ... }
- */
-export interface ShapeCheckNode extends BaseNode {
-  readonly type: 'ShapeCheck';
-  /** The expression to check (null for bare :?shape { } which uses $) */
-  readonly operand: PostfixExprNode | null;
-  /** The inline shape literal describing the expected structure */
-  readonly shape: ShapeLiteralNode;
-}
-
-/**
  * Type name expression: a bare type keyword used as a first-class value.
  * Produces a type value that can be passed to type assertion/check operators
  * or stored in variables.
@@ -1043,10 +1003,8 @@ export type ASTNode =
   | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
-  | ShapeLiteralNode
-  | ShapeFieldNode
-  | ShapeAssertionNode
-  | ShapeCheckNode
+  | TypeConstructorNode
+  | ClosureSigLiteralNode
   | AnnotatedStatementNode
   | AnnotatedExprNode
   | NamedArgNode

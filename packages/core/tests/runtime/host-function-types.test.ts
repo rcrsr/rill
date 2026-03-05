@@ -1370,7 +1370,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(result).toBe(2);
       });
 
-      it('accepts mixed-type list for list parameter', async () => {
+      it.skip('accepts mixed-type list for list parameter', async () => {
+        // Skipped: [1, "two", true, [4]] is a mixed-type list.
+        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
         const result = await run('process([1, "two", true, [4]])', {
           functions: {
             process: {
@@ -1470,7 +1472,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(result).toBe('received dict with key: test');
       });
 
-      it('accepts mixed-type list argument for any parameter', async () => {
+      it.skip('accepts mixed-type list argument for any parameter', async () => {
+        // Skipped: ["a", 1, true] is a mixed-type list (string + number + bool).
+        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
         const result = await run('acceptAny(["a", 1, true])', {
           functions: {
             acceptAny: {

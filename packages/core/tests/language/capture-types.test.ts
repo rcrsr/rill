@@ -169,9 +169,10 @@ $v`;
     });
 
     it('captures multiple typed variables', async () => {
+      // Mixed-type list [$s, $n] not allowed; verify variables directly via runFull
       const result = await runFull(`"a" => $s:string
 42 => $n:number
-[$s, $n]`);
+$s`);
       expect(result.variables['s']).toBe('a');
       expect(result.variables['n']).toBe(42);
     });
@@ -194,7 +195,8 @@ $v`;
     });
   });
 
-  describe('Shape Variable in Capture', () => {
+  describe.skip('Shape Variable in Capture', () => {
+    // Skipped: shape() syntax removed in Phase 2.
     it('accepts dict matching shape schema', async () => {
       expect(
         await run(
@@ -218,7 +220,8 @@ $v`;
     });
   });
 
-  describe('Inline Shape in Capture', () => {
+  describe.skip('Inline Shape in Capture', () => {
+    // Skipped: shape() syntax removed in Phase 2.
     it('accepts dict matching inline shape', async () => {
       expect(
         await run(

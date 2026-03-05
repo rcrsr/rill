@@ -37,7 +37,7 @@ describe('Rill Runtime: List Membership Methods', () => {
 
     describe('deep equality', () => {
       it('uses deep equality for dicts (AC-15)', async () => {
-        expect(await run('[[a: 1], [b: 2]] -> .has([a: 1])')).toBe(true);
+        expect(await run('[[a: 1], [a: 2]] -> .has([a: 1])')).toBe(true);
       });
 
       it('uses deep equality for nested dicts', async () => {
@@ -51,11 +51,11 @@ describe('Rill Runtime: List Membership Methods', () => {
       });
 
       it('returns false for different dict values', async () => {
-        expect(await run('[[a: 1], [b: 2]] -> .has([a: 2])')).toBe(false);
+        expect(await run('[[a: 1], [a: 2]] -> .has([a: 3])')).toBe(false);
       });
 
-      it('returns false for different dict keys', async () => {
-        expect(await run('[[a: 1], [b: 2]] -> .has([c: 1])')).toBe(false);
+      it('returns false for key not in list', async () => {
+        expect(await run('[[a: 1], [a: 2]] -> .has([b: 1])')).toBe(false);
       });
     });
 
@@ -120,12 +120,12 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('edge cases', () => {
-      it('handles list with mixed types', async () => {
-        expect(await run('[1, "two", true, [a: 1]] -> .has("two")')).toBe(true);
+      it('finds string in string list', async () => {
+        expect(await run('["one", "two", "three"] -> .has("two")')).toBe(true);
       });
 
-      it('finds boolean in mixed list', async () => {
-        expect(await run('[1, "two", true] -> .has(true)')).toBe(true);
+      it('finds boolean in bool list', async () => {
+        expect(await run('[true, false] -> .has(true)')).toBe(true);
       });
 
       it('handles list with duplicate values', async () => {
@@ -180,7 +180,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     describe('deep equality', () => {
       it('uses deep equality for dict candidates', async () => {
         expect(
-          await run('[[a: 1], [b: 2]] -> .has_any([[a: 1], [c: 3]])')
+          await run('[[a: 1], [a: 2]] -> .has_any([[a: 1], [a: 3]])')
         ).toBe(true);
       });
 
@@ -192,7 +192,7 @@ describe('Rill Runtime: List Membership Methods', () => {
 
       it('returns false when no candidates match deeply', async () => {
         expect(
-          await run('[[a: 1], [b: 2]] -> .has_any([[a: 2], [c: 3]])')
+          await run('[[a: 1], [a: 2]] -> .has_any([[a: 3], [a: 4]])')
         ).toBe(false);
       });
     });
@@ -203,7 +203,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       });
 
       it('finds matching types', async () => {
-        expect(await run('[1, 2, 3] -> .has_any([4, 2, "2"])')).toBe(true);
+        expect(await run('[1, 2, 3] -> .has_any([4, 2, 5])')).toBe(true);
       });
     });
 
@@ -252,10 +252,8 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('edge cases', () => {
-      it('handles mixed-type candidates', async () => {
-        expect(
-          await run('[1, "two", true] -> .has_any([false, "two", 3])')
-        ).toBe(true);
+      it('handles homogeneous candidates', async () => {
+        expect(await run('[1, 2, 3] -> .has_any([5, 2, 6])')).toBe(true);
       });
 
       it('handles single-candidate list', async () => {
@@ -306,7 +304,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     describe('deep equality', () => {
       it('uses deep equality for dict candidates', async () => {
         expect(
-          await run('[[a: 1], [b: 2], [c: 3]] -> .has_all([[a: 1], [b: 2]])')
+          await run('[[a: 1], [a: 2], [a: 3]] -> .has_all([[a: 1], [a: 2]])')
         ).toBe(true);
       });
 
@@ -318,13 +316,15 @@ describe('Rill Runtime: List Membership Methods', () => {
 
       it('returns false when not all candidates match deeply', async () => {
         expect(
-          await run('[[a: 1], [b: 2]] -> .has_all([[a: 1], [c: 3]])')
+          await run('[[a: 1], [a: 2]] -> .has_all([[a: 1], [a: 3]])')
         ).toBe(false);
       });
     });
 
     describe('type safety', () => {
-      it('respects type differences', async () => {
+      it.skip('respects type differences', async () => {
+        // Skipped: [1, "2"] is a mixed-type list (number + string).
+        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
         expect(await run('[1, 2, 3] -> .has_all([1, "2"])')).toBe(false);
       });
 
@@ -378,10 +378,8 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('edge cases', () => {
-      it('handles mixed-type candidates requiring all', async () => {
-        expect(await run('[1, "two", true] -> .has_all([1, "two"])')).toBe(
-          true
-        );
+      it('handles homogeneous candidates requiring all', async () => {
+        expect(await run('[1, 2, 3] -> .has_all([1, 2])')).toBe(true);
       });
 
       it('handles duplicate candidates', async () => {

@@ -132,7 +132,8 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
 
     it('newlines around = in default value param', async () => {
-      const result = await run(`|x\n=\n1| { $x } => $fn\n*[] -> $fn()`);
+      // *[] (list spread) removed in Phase 2; call $fn() directly using default value
+      const result = await run(`|x\n=\n1| { $x } => $fn\n$fn()`);
       expect(result).toBe(1);
     });
   });

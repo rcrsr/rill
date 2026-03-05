@@ -1,18 +1,17 @@
 /**
- * Parser Extension: Shape Literal Parsing
- * shape(...) literals with fields, nested shapes, groups, and spreads
+ * Parser Extension: Type Constructor Parsing
+ * type-constructor = ("list" | "dict" | "tuple" | "ordered") "(" [type-arg-list] ")" ;
+ * type-arg-list    = type-arg ("," type-arg)* [","] ;
+ * type-arg         = identifier ":" expression | expression ;
  */
 
 import { Parser } from './parser.js';
 import type {
-  AnnotationArg,
   ExpressionNode,
-  ShapeFieldNode,
-  ShapeLiteralNode,
-  SourceLocation,
-  TypeRef,
+  TypeConstructorNode,
+  TypeConstructorArg,
 } from '../types.js';
-import { TOKEN_TYPES } from '../types.js';
+import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
   check,
   advance,
@@ -20,60 +19,57 @@ import {
   current,
   skipNewlines,
   makeSpan,
+  peek,
 } from './state.js';
-import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
-    parseShapeLiteral(): ShapeLiteralNode;
-    parseShapeField(): ShapeFieldNode;
-    parseShapeType(): TypeRef | ShapeLiteralNode;
-    parseShapeGroup(start: SourceLocation): ShapeLiteralNode;
+    parseTypeConstructor(constructorName: string): TypeConstructorNode;
   }
 }
 
 // ============================================================
-// SHAPE LITERAL PARSING
+// TYPE CONSTRUCTOR PARSING
 // ============================================================
 
 /**
- * Parse shape(...) literal.
- * Called when current token is identifier "shape" and next token is "(".
- * Produces ShapeLiteralNode.
+ * Parse a type constructor: list(args), dict(k: T, ...), tuple(T...), ordered(k: T, ...).
+ * Called when current identifier is in ['list', 'dict', 'tuple', 'ordered'] and next token is LPAREN.
+ * Consumes: constructorName "(" [type-arg-list] ")"
+ * Produces TypeConstructorNode.
  */
-Parser.prototype.parseShapeLiteral = function (this: Parser): ShapeLiteralNode {
+Parser.prototype.parseTypeConstructor = function (
+  this: Parser,
+  constructorName: string
+): TypeConstructorNode {
+  const validNames = ['list', 'dict', 'tuple', 'ordered'] as const;
+  if (!validNames.includes(constructorName as (typeof validNames)[number])) {
+    throw new ParseError(
+      'RILL-P001',
+      `Expected type constructor name (list, dict, tuple, ordered), got: ${constructorName}`,
+      current(this.state).span.start
+    );
+  }
+
   const start = current(this.state).span.start;
 
-  // Consume the "shape" identifier token
+  // Consume the constructor name identifier token
   advance(this.state);
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   skipNewlines(this.state);
 
-  const fields: ShapeFieldNode[] = [];
-  const spreads: ExpressionNode[] = [];
+  const args: TypeConstructorArg[] = [];
 
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    // Parse first field or spread
-    if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
-      advance(this.state); // consume ...
-      spreads.push(this.parseExpression());
-    } else {
-      fields.push(this.parseShapeField());
-    }
-
+    args.push(parseTypeArg(this));
     skipNewlines(this.state);
 
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
       if (check(this.state, TOKEN_TYPES.RPAREN)) break; // trailing comma
-      if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
-        advance(this.state); // consume ...
-        spreads.push(this.parseExpression());
-      } else {
-        fields.push(this.parseShapeField());
-      }
+      args.push(parseTypeArg(this));
       skipNewlines(this.state);
     }
   }
@@ -86,133 +82,36 @@ Parser.prototype.parseShapeLiteral = function (this: Parser): ShapeLiteralNode {
   );
 
   return {
-    type: 'ShapeLiteral',
-    fields,
-    spreads,
+    type: 'TypeConstructor',
+    constructorName: constructorName as TypeConstructorNode['constructorName'],
+    args,
     span: makeSpan(start, rparen.span.end),
   };
 };
 
 // ============================================================
-// SHAPE FIELD PARSING
+// TYPE ARG PARSING (internal)
 // ============================================================
 
 /**
- * Parse a single shape field: [^(annotations)] identifier : shape-type
- * Produces ShapeFieldNode.
+ * Parse a single type argument: `identifier ":" expression` (named) or `expression` (positional).
+ * Lookahead: if current is IDENTIFIER and next is COLON, parse as named arg.
+ * Otherwise parse as positional.
  */
-Parser.prototype.parseShapeField = function (this: Parser): ShapeFieldNode {
-  const start = current(this.state).span.start;
-
-  let annotations: AnnotationArg[] | undefined = undefined;
-
-  // Parse optional field annotations: ^(annots) identifier : type
-  if (check(this.state, TOKEN_TYPES.CARET)) {
-    advance(this.state); // consume ^
-    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
-    annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
-  }
-
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected field name'
-  );
-
-  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
-
-  const fieldType = this.parseShapeType();
-
-  // Optional marker: name: type? — the ? follows the type, not the field name.
-  // parseShapeType does NOT consume the ? so it lands here for parseShapeField.
-  const optional = check(this.state, TOKEN_TYPES.QUESTION);
-  if (optional) {
-    advance(this.state); // consume ?
-  }
-
-  return {
-    type: 'ShapeField',
-    name: nameToken.value,
-    fieldType,
-    optional,
-    annotations,
-    span: makeSpan(start, current(this.state).span.end),
-  };
-};
-
-// ============================================================
-// SHAPE TYPE PARSING
-// ============================================================
-
-/**
- * Parse a shape type (the right-hand side of a field declaration).
- * Handles: type-name | shape-literal | shape-group
- * Does NOT consume the optional ? — that is handled by parseShapeField.
- */
-Parser.prototype.parseShapeType = function (
-  this: Parser
-): TypeRef | ShapeLiteralNode {
-  // Nested shape literal: shape(...)
+function parseTypeArg(parser: Parser): TypeConstructorArg {
+  // Named arg: identifier ":" expression
   if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(this.state).value === 'shape' &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
+    peek(parser.state, 1).type === TOKEN_TYPES.COLON
   ) {
-    return this.parseShapeLiteral();
+    const nameToken = advance(parser.state); // consume identifier
+    advance(parser.state); // consume ':'
+    skipNewlines(parser.state);
+    const value: ExpressionNode = parser.parseExpression();
+    return { kind: 'named', name: nameToken.value, value };
   }
 
-  // Shape group shorthand: (field, ...)  → desugars to ShapeLiteralNode
-  if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    const start = current(this.state).span.start;
-    return this.parseShapeGroup(start);
-  }
-
-  // Static type name or dynamic $var reference
-  return parseTypeRef(this.state);
-};
-
-// ============================================================
-// SHAPE GROUP PARSING
-// ============================================================
-
-/**
- * Parse a shape group shorthand: (field, field, ...)
- * Desugars to ShapeLiteralNode at parse time.
- * Called when current token is LPAREN inside a shape type position.
- */
-Parser.prototype.parseShapeGroup = function (
-  this: Parser,
-  start: SourceLocation
-): ShapeLiteralNode {
-  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-  skipNewlines(this.state);
-
-  const fields: ShapeFieldNode[] = [];
-
-  // Shape group must have at least one field (per spec grammar)
-  fields.push(this.parseShapeField());
-  skipNewlines(this.state);
-
-  while (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state);
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RPAREN)) break; // trailing comma
-    fields.push(this.parseShapeField());
-    skipNewlines(this.state);
-  }
-
-  const rparen = expect(
-    this.state,
-    TOKEN_TYPES.RPAREN,
-    'Expected )',
-    'RILL-P005'
-  );
-
-  return {
-    type: 'ShapeLiteral',
-    fields,
-    spreads: [],
-    span: makeSpan(start, rparen.span.end),
-  };
-};
+  // Positional arg: expression
+  const value: ExpressionNode = parser.parseExpression();
+  return { kind: 'positional', value };
+}

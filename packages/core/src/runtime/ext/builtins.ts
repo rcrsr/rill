@@ -21,14 +21,16 @@ import {
   inferType,
   isEmpty,
   isRillIterator,
-  isShape,
   isVector,
   valueToJSON,
-  type RillShape,
   type RillValue,
   type RillVector,
-  type ShapeFieldSpec,
 } from '../core/values.js';
+import {
+  isShape,
+  type RillShape,
+  type ShapeFieldSpec,
+} from '../core/callable.js';
 import { VALID_TYPE_NAMES } from '../../constants.js';
 import { buildFieldDescriptor } from '../core/field-descriptor.js';
 

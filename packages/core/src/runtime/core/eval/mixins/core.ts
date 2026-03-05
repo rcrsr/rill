@@ -338,48 +338,33 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateTypeCheck(primary, checkValue);
         }
 
-        case 'ShapeAssertion': {
-          if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
-              'Postfix shape assertion requires operand',
-              primary.span.start
-            );
-          }
-          const shapeAssertValue = await this.evaluatePostfixExpr(
-            primary.operand
-          );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateShapeAssertion(
-            primary,
-            shapeAssertValue
-          );
-        }
-
-        case 'ShapeCheck': {
-          if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
-              'Postfix shape check requires operand',
-              primary.span.start
-            );
-          }
-          const shapeCheckValue = await this.evaluatePostfixExpr(
-            primary.operand
-          );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateShapeCheck(primary, shapeCheckValue);
-        }
-
-        case 'ShapeLiteral':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateShapeLiteral(primary);
-
         case 'TypeNameExpr':
+          // Bare type names that are primitives get primitive structure; others get 'any'.
           return Object.freeze({
             __rill_type: true as const,
             typeName: primary.typeName,
+            structure:
+              primary.typeName === 'string' ||
+              primary.typeName === 'number' ||
+              primary.typeName === 'bool' ||
+              primary.typeName === 'closure' ||
+              primary.typeName === 'list' ||
+              primary.typeName === 'dict' ||
+              primary.typeName === 'tuple' ||
+              primary.typeName === 'ordered' ||
+              primary.typeName === 'vector' ||
+              primary.typeName === 'type'
+                ? ({ kind: 'primitive', name: primary.typeName } as const)
+                : ({ kind: 'any' } as const),
           });
+
+        case 'TypeConstructor':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateTypeConstructor(primary);
+
+        case 'ClosureSigLiteral':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateClosureSigLiteral(primary);
 
         default:
           throw new RuntimeError(
@@ -549,14 +534,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'TypeCheck':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateTypeCheck(target, input);
-
-        case 'ShapeAssertion':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateShapeAssertion(target, input);
-
-        case 'ShapeCheck':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateShapeCheck(target, input);
 
         case 'EachExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

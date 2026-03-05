@@ -66,4 +66,6 @@ export type NodeType =
   | 'FilterExpr'
   | 'RecoveryError'
   | 'Error'
-  | 'TypeNameExpr';
+  | 'TypeNameExpr'
+  | 'TypeConstructor'
+  | 'ClosureSigLiteral';

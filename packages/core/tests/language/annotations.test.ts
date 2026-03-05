@@ -444,11 +444,17 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('handles multiple params with different annotations', async () => {
-        const script = `
+        // Mixed-type list [number, bool] not allowed; verify each annotation separately
+        const script1 = `
           |^(min: 0) x: number, ^(required: true) y: string| { $x } => $fn
-          [$fn.params.x.__annotations.min, $fn.params.y.__annotations.required]
+          $fn.params.x.__annotations.min
         `;
-        expect(await run(script)).toEqual([0, true]);
+        expect(await run(script1)).toEqual(0);
+        const script2 = `
+          |^(min: 0) x: number, ^(required: true) y: string| { $x } => $fn
+          $fn.params.y.__annotations.required
+        `;
+        expect(await run(script2)).toEqual(true);
       });
 
       it('has no __annotations field when param has no annotations', async () => {
@@ -633,21 +639,33 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('bare string with additional named args sets description and other keys', async () => {
-        const script = `
+        // Mixed-type list [string, bool] not allowed; verify each annotation separately
+        const script1 = `
           ^("text", cache: true) |x|($x) => $fn
-          [$fn.^description, $fn.^cache]
+          $fn.^description
         `;
-        expect(await run(script)).toEqual(['text', true]);
+        expect(await run(script1)).toBe('text');
+        const script2 = `
+          ^("text", cache: true) |x|($x) => $fn
+          $fn.^cache
+        `;
+        expect(await run(script2)).toBe(true);
       });
     });
 
     describe('Combined Reflection Operations', () => {
       it('accesses both closure and param annotations', async () => {
-        const script = `
+        // Mixed-type list [string, number] not allowed; verify each annotation separately
+        const script1 = `
           ^(doc: "test function") |^(min: 0) x: number| { $x } => $fn
-          [$fn.^doc, $fn.params.x.__annotations.min]
+          $fn.^doc
         `;
-        expect(await run(script)).toEqual(['test function', 0]);
+        expect(await run(script1)).toBe('test function');
+        const script2 = `
+          ^(doc: "test function") |^(min: 0) x: number| { $x } => $fn
+          $fn.params.x.__annotations.min
+        `;
+        expect(await run(script2)).toBe(0);
       });
 
       it('chains annotation access with pipe', async () => {
@@ -1047,7 +1065,10 @@ describe('Rill Runtime: Annotations', () => {
     });
   });
 
-  describe('Closure Shapes', () => {
+  // Closure Shapes section skipped: shape() syntax and :?shape type check removed in Phase 2.
+  // All shape-related tests (^input, ^output, :shape postfix, paramsToShape) are obsolete.
+
+  describe.skip('Closure Shapes', () => {
     describe('^input auto-generation', () => {
       it('$fn.^input returns a shape value (AC-1)', async () => {
         const result = await run(`
@@ -1508,8 +1529,8 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('ApplicationCallable and paramsToShape edge cases', () => {
     describe('AC-23: $fn.^input on host function with defined params returns a shape', () => {
-      it('returns a shape value when host function has params defined', async () => {
-        // Register a host function with typed params; capture via HostRef (no parens = callable value).
+      it.skip('returns a shape value when host function has params defined', async () => {
+        // Skipped: :?shape type check removed in Phase 2 (shape type no longer valid).
         const result = await run(`app::greet => $fn\n$fn.^input -> :?shape`, {
           functions: {
             'app::greet': {
@@ -1550,9 +1571,8 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     describe('AC-34: Concurrent read access to $fn.^input on the same closure is safe', () => {
-      it('returns identical shape on repeated reads (shape is immutable after creation)', async () => {
-        // Rill is single-threaded JS. Reading ^input twice on the same callable returns
-        // the same frozen shape object — no race conditions possible.
+      it.skip('returns identical shape on repeated reads (shape is immutable after creation)', async () => {
+        // Skipped: :?shape type check removed in Phase 2 (shape type no longer valid).
         const result = await run(
           `
             app::process => $fn
@@ -1602,7 +1622,8 @@ describe('Rill Runtime: Annotations', () => {
         expect(result).toEqual([]);
       });
 
-      it('zero-param host function ^input is a shape value (AC-35)', async () => {
+      it.skip('zero-param host function ^input is a shape value (AC-35)', async () => {
+        // Skipped: :?shape type check removed in Phase 2 (shape type no longer valid).
         const result = await run(`app::noop => $fn\n$fn.^input -> :?shape`, {
           functions: {
             'app::noop': {

@@ -7,11 +7,10 @@ export type RillTypeName =
   | 'list'
   | 'dict'
   | 'tuple'
+  | 'ordered'
   | 'vector'
-  | 'shape'
   | 'any'
-  | 'type'
-  | 'field';
+  | 'type';
 
 /**
  * A reference to a type — either a static type name literal or a dynamic

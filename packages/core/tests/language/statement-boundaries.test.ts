@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { run, runFull } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Statement Boundaries', () => {
   describe('Single Line Continuations', () => {
@@ -147,10 +147,13 @@ $x`;
 
   describe('Complex Multi-Statement Scripts', () => {
     it('multiple capture statements', async () => {
-      const script = `"hello" => $greeting
+      // Mixed-type list [$greeting, $count] (string + number) not allowed.
+      // Verify each variable independently via runFull.
+      const { variables } = await runFull(`"hello" => $greeting
 5 => $count
-[$greeting, $count]`;
-      expect(await run(script)).toEqual(['hello', 5]);
+$greeting`);
+      expect(variables['greeting']).toBe('hello');
+      expect(variables['count']).toBe(5);
     });
 
     it('capture then use in expression', async () => {

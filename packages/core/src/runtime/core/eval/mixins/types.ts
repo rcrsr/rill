@@ -10,10 +10,13 @@
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
  * - evaluateTypeAssertionPrimary(node) -> Promise<RillValue>
  * - evaluateTypeCheckPrimary(node) -> Promise<boolean>
- * - validateAgainstShape(value, shape, path, location) -> void
+ * - evaluateTypeConstructor(node) -> Promise<RillTypeValue> [IR-7]
+ * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue> [IR-8]
  *
  * Error Handling:
  * - Type assertion failures throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-24]
+ * - Type constructor argument errors throw RuntimeError [EC-4 through EC-7]
+ * - Closure sig literal errors throw RuntimeError [EC-8, EC-9]
  *
  * @internal
  */
@@ -21,29 +24,19 @@
 import type {
   TypeAssertionNode,
   TypeCheckNode,
-  ShapeLiteralNode,
-  AnnotationArg,
+  TypeConstructorNode,
+  ClosureSigLiteralNode,
   RillTypeName,
   SourceLocation,
-  ShapeAssertionNode,
-  ShapeCheckNode,
   TypeRef,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type {
   RillValue,
-  RillShape,
   RillTypeValue,
-  ShapeFieldSpec,
+  RillStructuralType,
 } from '../../values.js';
-import {
-  inferType,
-  checkType,
-  isShape,
-  isTypeValue,
-  deepEquals,
-} from '../../values.js';
-import { isDict } from '../../callable.js';
+import { inferType, checkType, isTypeValue } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -58,6 +51,7 @@ import type { EvaluatorBase } from '../base.js';
  * Depends on:
  * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
  * - evaluatePostfixExpr() (from future CoreMixin composition)
+ * - evaluateExpression() (from CoreMixin, for type constructor arg evaluation)
  *
  * Methods added:
  * - assertType(value, expected, location?) -> RillValue
@@ -65,30 +59,31 @@ import type { EvaluatorBase } from '../base.js';
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
  * - evaluateTypeAssertionPrimary(node) -> Promise<RillValue>
  * - evaluateTypeCheckPrimary(node) -> Promise<boolean>
- * - validateAgainstShape(value, shape, path, location) -> void
+ * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
+ * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue>
  */
 function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class TypesEvaluator extends Base {
     /**
-     * Resolve a TypeRef to a RillTypeValue or RillShape [IR-1].
+     * Resolve a TypeRef to a RillTypeValue [IR-12].
      *
      * Static refs return a frozen RillTypeValue directly.
      * Dynamic refs call getVariable, then dispatch on the result:
      * - RillTypeValue → return as-is
-     * - RillShape → return as-is
      * - Otherwise → throw RILL-R004
      *
      * EC-1: Variable not found → undefined from getVariable → RILL-R005.
-     * EC-2/EC-3: Non-type, non-shape value → RILL-R004.
+     * EC-2/EC-3: Non-type value → RILL-R004.
      */
     resolveTypeRef(
       typeRef: TypeRef,
       getVariable: (name: string) => RillValue | undefined
-    ): RillTypeValue | RillShape {
+    ): RillTypeValue {
       if (typeRef.kind === 'static') {
         return Object.freeze({
           __rill_type: true as const,
           typeName: typeRef.typeName,
+          structure: { kind: 'any' as const },
         });
       }
 
@@ -100,7 +95,6 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
       if (isTypeValue(result)) return result;
-      if (isShape(result)) return result;
 
       throw new RuntimeError(
         'RILL-R004',
@@ -132,106 +126,6 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Validate a value against a shape definition [IR-5].
-     *
-     * Reports the first failure only — consistent with rill's singular control flow.
-     * Extra fields in the dict not declared in the shape pass silently (lenient).
-     * Enum annotation validation runs for both assert and check paths.
-     * Nested shapes validated recursively with dot-separated field path.
-     *
-     * @param value - The value to validate
-     * @param shape - The shape definition to validate against
-     * @param path - Dot-separated path prefix (empty string for top-level)
-     * @param location - Source location for error reporting
-     *
-     * Error contracts:
-     * - EC-1: value not a dict -> "Shape assertion failed: expected dict, got <type>"
-     * - EC-2: required field absent -> "Shape assertion failed: missing required field "<path>""
-     * - EC-3: field type mismatch -> "Shape assertion failed: field "<path>" expected <type>, got <type>"
-     * - EC-4: enum violation -> "Shape assertion failed: field "<path>" value not in enum"
-     */
-    validateAgainstShape(
-      value: RillValue,
-      shape: RillShape,
-      path: string,
-      location: SourceLocation
-    ): void {
-      // EC-1: input must be a dict [AC-34]
-      if (!isDict(value)) {
-        throw new RuntimeError(
-          'RILL-R004',
-          `Shape assertion failed: expected dict, got ${inferType(value)}`,
-          location
-        );
-      }
-
-      const dict = value as Record<string, RillValue>;
-
-      for (const [fieldName, spec] of Object.entries(shape.fields)) {
-        const fieldPath = path === '' ? fieldName : `${path}.${fieldName}`;
-        const fieldPresent = fieldName in dict;
-
-        // AC-14: any? (optional any) — absent passes, present with any type passes
-        // AC-12: optional field absent — skip silently
-        if (!fieldPresent) {
-          if (spec.optional) {
-            // optional field absent: pass silently (covers any? as well)
-            continue;
-          }
-          // EC-2: required field missing [AC-8]
-          throw new RuntimeError(
-            'RILL-R004',
-            `Shape assertion failed: missing required field "${fieldPath}"`,
-            location
-          );
-        }
-
-        // Field is present
-        const fieldValue = dict[fieldName] as RillValue;
-
-        // Recursive nested shape validation [AC-20, AC-21, AC-38]
-        // Must check nestedShape BEFORE the flat type equality check because
-        // nestedShape fields carry typeName='shape' but the value is a dict
-        // (inferType returns "dict", not "shape"). Delegating to recursion
-        // lets the recursive call's EC-1 check validate the dict requirement.
-        if (spec.nestedShape !== undefined) {
-          this.validateAgainstShape(
-            fieldValue,
-            spec.nestedShape,
-            fieldPath,
-            location
-          );
-        } else if (spec.typeName !== 'any') {
-          // AC-14: any (required or optional) with field present — skip type check
-          // EC-3: field type mismatch [AC-9, AC-13]
-          const actualType = inferType(fieldValue);
-          if (actualType !== spec.typeName) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Shape assertion failed: field "${fieldPath}" expected ${spec.typeName}, got ${actualType}`,
-              location
-            );
-          }
-        }
-
-        // EC-4: enum annotation validation [AC-18]
-        const enumAnnotation = spec.annotations['enum'];
-        if (enumAnnotation !== undefined && Array.isArray(enumAnnotation)) {
-          const inEnum = enumAnnotation.some((allowed) =>
-            deepEquals(fieldValue, allowed)
-          );
-          if (!inEnum) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Shape assertion failed: field "${fieldPath}" value not in enum`,
-              location
-            );
-          }
-        }
-      }
-    }
-
-    /**
      * Evaluate type assertion: expr:type or :type (shorthand for $:type).
      * Returns the value if type matches, throws on mismatch.
      */
@@ -249,11 +143,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const resolved = this.resolveTypeRef(node.typeRef, (name) =>
         getVariable(this.ctx, name)
       );
-      if (isTypeValue(resolved)) {
-        return this.assertType(value, resolved.typeName, node.span.start);
-      }
-      this.validateAgainstShape(value, resolved, '', node.span.start);
-      return value;
+      return this.assertType(value, resolved.typeName, node.span.start);
     }
 
     /**
@@ -274,93 +164,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const resolved = this.resolveTypeRef(node.typeRef, (name) =>
         getVariable(this.ctx, name)
       );
-      if (isTypeValue(resolved)) {
-        return checkType(value, resolved.typeName);
-      }
-      try {
-        this.validateAgainstShape(value, resolved, '', node.span.start);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-
-    /**
-     * Evaluate a shape literal node into a frozen RillShape value [IR-3].
-     *
-     * Iterates node.fields to build ShapeFieldSpec entries. For nested
-     * ShapeLiteralNode field types, recurses into evaluateShapeLiteral().
-     * Processes spread expressions by inlining source shape fields.
-     * Returns a frozen RillShape with frozen fields map.
-     */
-    async evaluateShapeLiteral(node: ShapeLiteralNode): Promise<RillShape> {
-      const fields: Record<string, ShapeFieldSpec> = {};
-
-      // Process spread expressions first so explicit fields can override [AC-22, AC-23]
-      for (const spreadExpr of node.spreads) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const spreadValue = await (this as any).evaluateExpression(spreadExpr);
-        if (!isShape(spreadValue)) {
-          throw new RuntimeError(
-            'RILL-R004',
-            `Shape spread requires a shape value, got ${inferType(spreadValue as RillValue)}`,
-            spreadExpr.span.start
-          );
-        }
-        // Inline all fields from the source shape (including annotations) [AC-23]
-        for (const [name, spec] of Object.entries(spreadValue.fields)) {
-          fields[name] = spec;
-        }
-      }
-
-      // Process explicit fields (may override spread fields)
-      for (const field of node.fields) {
-        let typeName: string;
-        let nestedShape: RillShape | undefined;
-
-        if ('kind' in field.fieldType) {
-          // TypeRef — resolve at shape-creation time
-          const resolved = this.resolveTypeRef(field.fieldType, (name) =>
-            getVariable(this.ctx, name)
-          );
-          if (isTypeValue(resolved)) {
-            typeName = resolved.typeName;
-            nestedShape = undefined;
-          } else {
-            // isShape(resolved) — dynamic reference resolved to a shape
-            typeName = 'shape';
-            nestedShape = resolved;
-          }
-        } else {
-          // ShapeLiteralNode — inline nested shape syntax
-          typeName = 'shape';
-          nestedShape = await this.evaluateShapeLiteral(field.fieldType);
-        }
-
-        // Evaluate field-level annotations into a key→value record
-        const annotations: Record<string, RillValue> = {};
-        const rawAnnotations: AnnotationArg[] = field.annotations ?? [];
-        if (rawAnnotations.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const evaluated = await (this as any).evaluateAnnotations(
-            rawAnnotations
-          );
-          Object.assign(annotations, evaluated);
-        }
-
-        const spec: ShapeFieldSpec = {
-          typeName,
-          optional: field.optional,
-          nestedShape,
-          annotations,
-        };
-        fields[field.name] = spec;
-      }
-
-      return Object.freeze({
-        __rill_shape: true as const,
-        fields: Object.freeze(fields),
-      });
+      return checkType(value, resolved.typeName);
     }
 
     /**
@@ -400,47 +204,223 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate inline shape assertion: expr:shape(...) or :shape(...) [IR-2].
+     * Evaluate a type constructor node into a RillTypeValue [IR-7].
      *
-     * Evaluates the inline shape literal then validates the input against it.
-     * Returns input unchanged on success [AC-7].
+     * Handles list(T), dict(k: T, ...), tuple(T1, T2, ...), ordered(k: T, ...).
+     * All arguments must evaluate to RillTypeValue.
+     *
+     * Error contracts:
+     * - EC-4: list() with != 1 arg -> RILL-R004
+     * - EC-5: non-type argument -> RILL-R004
+     * - EC-6: positional arg in dict/ordered -> RILL-R004
+     * - EC-7: named arg in tuple -> RILL-R004
      */
-    async evaluateShapeAssertion(
-      node: ShapeAssertionNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      const value = node.operand
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluatePostfixExpr(node.operand)
-        : input;
+    async evaluateTypeConstructor(
+      node: TypeConstructorNode
+    ): Promise<RillTypeValue> {
+      const name = node.constructorName;
+      const location = node.span.start;
 
-      const shape = await this.evaluateShapeLiteral(node.shape);
-      this.validateAgainstShape(value, shape, '', node.span.start);
-      return value;
+      // Helper: evaluate one arg expression and assert it is a RillTypeValue
+      const resolveArgAsType = async (
+        argValue: RillValue
+      ): Promise<RillStructuralType> => {
+        if (!isTypeValue(argValue)) {
+          throw new RuntimeError(
+            'RILL-R004',
+            `Type constructor argument must be a type value, got ${inferType(argValue)}`,
+            location
+          );
+        }
+        return argValue.structure.kind === 'any' &&
+          argValue.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: argValue.typeName }
+          : argValue.structure;
+      };
+
+      if (name === 'list') {
+        // EC-4: list() requires exactly 1 argument
+        if (node.args.length !== 1) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'list() requires exactly 1 type argument',
+            location
+          );
+        }
+        const arg = node.args[0]!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const argVal: RillValue = await (this as any).evaluateExpression(
+          arg.value
+        );
+        const elementType = await resolveArgAsType(argVal);
+        const structure: RillStructuralType = {
+          kind: 'list',
+          element: elementType,
+        };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'list' as RillTypeName,
+          structure,
+        });
+      }
+
+      if (name === 'dict') {
+        // EC-6: dict() requires named arguments
+        for (const arg of node.args) {
+          if (arg.kind === 'positional') {
+            throw new RuntimeError(
+              'RILL-R004',
+              'dict() requires named arguments (field: type)',
+              location
+            );
+          }
+        }
+        const fields: Record<string, RillStructuralType> = {};
+        for (const arg of node.args) {
+          if (arg.kind === 'named') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const argVal: RillValue = await (this as any).evaluateExpression(
+              arg.value
+            );
+            fields[arg.name] = await resolveArgAsType(argVal);
+          }
+        }
+        const structure: RillStructuralType = { kind: 'dict', fields };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'dict' as RillTypeName,
+          structure,
+        });
+      }
+
+      if (name === 'tuple') {
+        // EC-7: tuple() requires positional arguments
+        for (const arg of node.args) {
+          if (arg.kind === 'named') {
+            throw new RuntimeError(
+              'RILL-R004',
+              'tuple() requires positional arguments',
+              location
+            );
+          }
+        }
+        const elements: RillStructuralType[] = [];
+        for (const arg of node.args) {
+          if (arg.kind === 'positional') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const argVal: RillValue = await (this as any).evaluateExpression(
+              arg.value
+            );
+            elements.push(await resolveArgAsType(argVal));
+          }
+        }
+        const structure: RillStructuralType = { kind: 'tuple', elements };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'tuple' as RillTypeName,
+          structure,
+        });
+      }
+
+      // name === 'ordered'
+      // EC-6: ordered() requires named arguments
+      for (const arg of node.args) {
+        if (arg.kind === 'positional') {
+          throw new RuntimeError(
+            'RILL-R004',
+            'ordered() requires named arguments (field: type)',
+            location
+          );
+        }
+      }
+      const orderedFields: [string, RillStructuralType][] = [];
+      for (const arg of node.args) {
+        if (arg.kind === 'named') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const argVal: RillValue = await (this as any).evaluateExpression(
+            arg.value
+          );
+          orderedFields.push([arg.name, await resolveArgAsType(argVal)]);
+        }
+      }
+      const structure: RillStructuralType = {
+        kind: 'ordered',
+        fields: orderedFields,
+      };
+      return Object.freeze({
+        __rill_type: true as const,
+        typeName: 'ordered' as RillTypeName,
+        structure,
+      });
     }
 
     /**
-     * Evaluate inline shape check: expr:?shape(...) or :?shape(...) [IR-2].
+     * Evaluate a closure signature literal into a RillTypeValue [IR-8].
      *
-     * Same as evaluateShapeAssertion but never throws.
-     * Returns true on success, false on any error [AC-11].
+     * Creates a closure type value from |param: T, ...|: R syntax.
+     * Each parameter produces a [name, RillStructuralType] entry.
+     *
+     * Error contracts:
+     * - EC-8: missing return type -> RILL-R004 (enforced at parse time; node always has returnType)
+     * - EC-9: non-type in parameter position -> RILL-R004
      */
-    async evaluateShapeCheck(
-      node: ShapeCheckNode,
-      input: RillValue
-    ): Promise<boolean> {
-      try {
-        const value = node.operand
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (this as any).evaluatePostfixExpr(node.operand)
-          : input;
+    async evaluateClosureSigLiteral(
+      node: ClosureSigLiteralNode
+    ): Promise<RillTypeValue> {
+      const location = node.span.start;
 
-        const shape = await this.evaluateShapeLiteral(node.shape);
-        this.validateAgainstShape(value, shape, '', node.span.start);
-        return true;
-      } catch {
-        return false;
+      // Helper: evaluate a type expression and extract RillStructuralType
+      const resolveTypeExpr = async (
+        argVal: RillValue
+      ): Promise<RillStructuralType> => {
+        if (!isTypeValue(argVal)) {
+          throw new RuntimeError(
+            'RILL-R004',
+            `Parameter type must be a type value, got ${inferType(argVal)}`,
+            location
+          );
+        }
+        return argVal.structure.kind === 'any' &&
+          argVal.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: argVal.typeName }
+          : argVal.structure;
+      };
+
+      // Evaluate parameter types
+      const params: [string, RillStructuralType][] = [];
+      for (const param of node.params) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const paramVal: RillValue = await (this as any).evaluateExpression(
+          param.typeExpr
+        );
+        const paramType = await resolveTypeExpr(paramVal);
+        params.push([param.name, paramType]);
       }
+
+      // Evaluate return type (EC-8: required — parser enforces this at parse time)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retVal: RillValue = await (this as any).evaluateExpression(
+        node.returnType
+      );
+      if (!isTypeValue(retVal)) {
+        throw new RuntimeError(
+          'RILL-R004',
+          `Closure type literal requires return type after |, got ${inferType(retVal)}`,
+          location
+        );
+      }
+      const ret: RillStructuralType =
+        retVal.structure.kind === 'any' &&
+        retVal.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: retVal.typeName }
+          : retVal.structure;
+
+      const structure: RillStructuralType = { kind: 'closure', params, ret };
+      return Object.freeze({
+        __rill_type: true as const,
+        typeName: 'closure' as RillTypeName,
+        structure,
+      });
     }
   };
 }

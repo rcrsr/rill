@@ -17,7 +17,6 @@ import type {
   LiteralNode,
   ListSpreadNode,
   BodyNode,
-  ShapeLiteralNode,
   SourceLocation,
   StringLiteralNode,
   TupleNode,
@@ -545,24 +544,13 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
  * Returns the parsed TypeRef or ShapeLiteralNode, or undefined if absent.
  * Follows the same disambiguation logic as parsePostfixTypeOperation.
  */
-function parseClosureReturnTypeTarget(
-  parser: Parser
-): TypeRef | ShapeLiteralNode | undefined {
+function parseClosureReturnTypeTarget(parser: Parser): TypeRef | undefined {
   skipNewlines(parser.state);
   if (!check(parser.state, TOKEN_TYPES.COLON)) {
     return undefined;
   }
   advance(parser.state); // consume ':'
   skipNewlines(parser.state);
-
-  // Disambiguation: shape followed by ( → inline shape literal
-  if (
-    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(parser.state).value === 'shape' &&
-    parser.state.tokens[parser.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
-    return parser.parseShapeLiteral();
-  }
 
   // Default: plain type name or dynamic type reference
   return parseTypeRef(parser.state);

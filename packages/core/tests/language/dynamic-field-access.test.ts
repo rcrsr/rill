@@ -50,13 +50,19 @@ describe('Dynamic Field Access', () => {
     });
 
     it('resolves variable key with multiple fields', async () => {
-      const code = `
+      // Mixed-type list [30, 'alice'] (number + string) not allowed; verify each field separately
+      const code1 = `
         "age" => $key1
+        [name: "alice", age: 30] => $data
+        $data.$key1
+      `;
+      expect(await run(code1)).toBe(30);
+      const code2 = `
         "name" => $key2
         [name: "alice", age: 30] => $data
-        [$data.$key1, $data.$key2]
+        $data.$key2
       `;
-      expect(await run(code)).toEqual([30, 'alice']);
+      expect(await run(code2)).toBe('alice');
     });
   });
 

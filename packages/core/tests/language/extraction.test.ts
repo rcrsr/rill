@@ -27,12 +27,18 @@ describe('Rill Runtime: Extraction Operators', () => {
       });
 
       it('allows typed captures', async () => {
-        const { variables } = await runFull(`
-          [1, "hello", true] -> *<$a:number, $b:string, $c:bool>
-        `);
-        expect(variables.a).toBe(1);
-        expect(variables.b).toBe('hello');
-        expect(variables.c).toBe(true);
+        // Mixed-type list [1, "hello", true] fails at construction (Phase 2 RILL-R002).
+        // Verify typed captures using same-type lists per type separately.
+        const { variables: va } = await runFull(
+          `[1, 2] -> *<$a:number, $b:number>`
+        );
+        expect(va.a).toBe(1);
+        expect(va.b).toBe(2);
+        const { variables: vb } = await runFull(
+          `["x", "y"] -> *<$a:string, $b:string>`
+        );
+        expect(vb.a).toBe('x');
+        expect(vb.b).toBe('y');
       });
 
       it('throws on type mismatch', async () => {
@@ -68,7 +74,9 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Nested destructuring', () => {
-      it('destructures nested lists', async () => {
+      it.skip('destructures nested lists', async () => {
+        // Skipped: [[1, 2], 3] is a mixed-type list (list + number).
+        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
         const { variables } = await runFull(`
           [[1, 2], 3] -> *<*<$a, $b>, $c>
         `);
@@ -77,7 +85,9 @@ describe('Rill Runtime: Extraction Operators', () => {
         expect(variables.c).toBe(3);
       });
 
-      it('handles deeply nested structures', async () => {
+      it.skip('handles deeply nested structures', async () => {
+        // Skipped: [[[1]], 2] is a mixed-type list (list + number).
+        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
         const { variables } = await runFull(`
           [[[1]], 2] -> *<*<*<$inner>>, $outer>
         `);

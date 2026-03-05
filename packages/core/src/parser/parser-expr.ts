@@ -13,6 +13,7 @@ import type {
   BodyNode,
   CaptureNode,
   ChainTerminator,
+  ClosureSigLiteralNode,
   ConditionalNode,
   DoWhileLoopNode,
   ExpressionNode,
@@ -25,7 +26,6 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   RillTypeName,
-  ShapeLiteralNode,
   SourceLocation,
   SourceSpan,
   TypeNameExprNode,
@@ -104,6 +104,7 @@ declare module './parser.js' {
       loop: WhileLoopNode | DoWhileLoopNode,
       span: SourceSpan
     ): PostfixExprNode;
+    parseClosureSigLiteral(): ClosureSigLiteralNode;
   }
 }
 
@@ -557,6 +558,51 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
 };
 
 // ============================================================
+// CLOSURE SIG LITERAL HELPERS
+// ============================================================
+
+/**
+ * Lookahead: PIPE_BAR ... PIPE_BAR ARROW → closure sig literal.
+ * A closure literal has `| param |` followed by a body (`{` or expression).
+ * A closure sig literal has `| name: typeExpr, ... | -> returnType`.
+ * The distinguishing pattern is PIPE_BAR at pos+0, IDENTIFIER at pos+1, COLON at pos+2,
+ * AND the matching closing PIPE_BAR is followed by ARROW (->).
+ * This avoids misidentifying typed closures |x: T| { body } as sig literals.
+ */
+function isClosureSigLiteralStart(state: {
+  tokens: { type: string }[];
+  pos: number;
+}): boolean {
+  const t0 = state.tokens[state.pos];
+  const t1 = state.tokens[state.pos + 1];
+  const t2 = state.tokens[state.pos + 2];
+  if (!t0 || !t1 || !t2) return false;
+  if (
+    t0.type !== TOKEN_TYPES.PIPE_BAR ||
+    t1.type !== TOKEN_TYPES.IDENTIFIER ||
+    t2.type !== TOKEN_TYPES.COLON
+  ) {
+    return false;
+  }
+  // Scan forward to find the matching closing PIPE_BAR, then check for ARROW.
+  // Track nested pipe bars (|| is OR, not PIPE_BAR so we only count PIPE_BAR).
+  let depth = 1;
+  let i = state.pos + 1;
+  while (i < state.tokens.length) {
+    const tok = state.tokens[i]!;
+    if (tok.type === TOKEN_TYPES.PIPE_BAR) {
+      depth -= 1;
+      if (depth === 0) {
+        const afterClose = state.tokens[i + 1];
+        return afterClose?.type === TOKEN_TYPES.ARROW;
+      }
+    }
+    i += 1;
+  }
+  return false;
+}
+
+// ============================================================
 // PRIMARY PARSING
 // ============================================================
 
@@ -606,6 +652,12 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     };
   }
 
+  // Closure sig literal: |param: T, ...|: R
+  // Lookahead: PIPE_BAR IDENTIFIER COLON -> sig literal (not a closure body)
+  if (isClosureSigLiteralStart(this.state)) {
+    return this.parseClosureSigLiteral();
+  }
+
   // Closure: |params| body or || body
   if (isClosureStart(this.state)) {
     return this.parseClosure();
@@ -631,17 +683,20 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseMethodCall(null);
   }
 
-  // Shape literal: shape(...)
+  // Type constructor: list(...), dict(...), tuple(...), ordered(...)
+  const TYPE_CONSTRUCTORS = ['list', 'dict', 'tuple', 'ordered'] as const;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    current(this.state).value === 'shape' &&
+    TYPE_CONSTRUCTORS.includes(
+      current(this.state).value as (typeof TYPE_CONSTRUCTORS)[number]
+    ) &&
     this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
   ) {
-    return this.parseShapeLiteral();
+    const name = current(this.state).value;
+    return this.parseTypeConstructor(name);
   }
 
   // Type name expression: bare type name in expression position (e.g. `number`, `string`)
-  // Must come after shape(...) check to avoid capturing `shape` when followed by LPAREN.
   // Invalid type names fall through to the host call path (EC-6).
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
@@ -946,25 +1001,16 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
   );
 
   let typeRef: CaptureNode['typeRef'] = null;
-  let inlineShape: ShapeLiteralNode | null = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    if (
-      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-      current(this.state).value === 'shape' &&
-      this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-    ) {
-      inlineShape = this.parseShapeLiteral();
-    } else {
-      typeRef = parseTypeRef(this.state);
-    }
+    typeRef = parseTypeRef(this.state);
   }
 
   return {
     type: 'Capture',
     name: nameToken.value,
     typeRef,
-    inlineShape,
+    inlineShape: null,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -1190,4 +1236,58 @@ Parser.prototype.parseUnary = function (
     };
   }
   return this.parsePostfixExpr();
+};
+
+// ============================================================
+// CLOSURE SIG LITERAL PARSING
+// ============================================================
+
+Parser.prototype.parseClosureSigLiteral = function (
+  this: Parser
+): ClosureSigLiteralNode {
+  const start = current(this.state).span.start;
+
+  // Consume opening |
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+  skipNewlines(this.state);
+
+  const params: { name: string; typeExpr: ExpressionNode }[] = [];
+
+  // Parse param-type-list: name: typeExpr [, name: typeExpr]*
+  while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+    const nameToken = expect(
+      this.state,
+      TOKEN_TYPES.IDENTIFIER,
+      'Expected parameter name'
+    );
+    expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
+    skipNewlines(this.state);
+    const typeExpr = this.parseExpression();
+    params.push({ name: nameToken.value, typeExpr });
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      skipNewlines(this.state);
+    }
+  }
+
+  // Consume closing |
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+
+  // Consume -> before return type
+  expect(
+    this.state,
+    TOKEN_TYPES.ARROW,
+    'Expected -> before return type in closure sig literal'
+  );
+  skipNewlines(this.state);
+
+  const returnType = this.parseExpression();
+
+  return {
+    type: 'ClosureSigLiteral',
+    params,
+    returnType,
+    span: makeSpan(start, current(this.state).span.end),
+  };
 };

@@ -9,7 +9,7 @@
 
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import type { RillShape, RillShapeFieldDescriptor } from './values.js';
+import type { RillShape, RillShapeFieldDescriptor } from './callable.js';
 
 /**
  * Build a frozen RillShapeFieldDescriptor for the given field in a shape.

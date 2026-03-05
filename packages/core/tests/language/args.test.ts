@@ -10,73 +10,52 @@ import { run } from '../helpers/runtime.js';
 describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   describe('Spread operator *', () => {
     describe('Prefix form: *expr', () => {
-      it('creates tuple from list literal', async () => {
-        const result = await run('*[1, 2, 3] => $t\n$t.^type.^name');
-        expect(result).toBe('tuple');
+      it('list spread throws — list spread is removed (BC)', async () => {
+        await expect(run('*[1, 2, 3] => $t\n$t')).rejects.toThrow(
+          'Spread requires dict'
+        );
       });
 
-      it('creates tuple from dict literal', async () => {
+      it('creates ordered from dict literal', async () => {
         const result = await run('*[x: 1, y: 2] => $t\n$t.^type.^name');
-        expect(result).toBe('tuple');
+        expect(result).toBe('ordered');
       });
 
-      it('creates tuple from list variable', async () => {
-        const result = await run('[1, 2] => $t\n*$t => $u\n$u.^type.^name');
-        expect(result).toBe('tuple');
+      it('list variable spread throws — list spread is removed (BC)', async () => {
+        await expect(run('[1, 2] => $t\n*$t => $u\n$u')).rejects.toThrow(
+          'Spread requires dict'
+        );
       });
 
-      it('creates tuple from dict variable', async () => {
+      it('creates ordered from dict variable', async () => {
         const result = await run('[a: 1] => $d\n*$d => $u\n$u.^type.^name');
-        expect(result).toBe('tuple');
-      });
-
-      it('creates tuple with spread elements (AC-10)', async () => {
-        const result = await run(`
-          [1, 2] => $list
-          |a, b, c| { ($a + $b + $c) } => $fn
-          *[...$list, 3] -> $fn()
-        `);
-        expect(result).toBe(6); // 1 + 2 + 3
+        expect(result).toBe('ordered');
       });
     });
 
     describe('Pipe target form: -> *', () => {
-      it('converts pipe value to tuple', async () => {
-        const result = await run('[1, 2, 3] -> * => $t\n$t.^type.^name');
-        expect(result).toBe('tuple');
+      it('list pipe to * throws — list spread is removed (BC)', async () => {
+        await expect(run('[1, 2, 3] -> * => $t\n$t')).rejects.toThrow(
+          'Spread requires dict'
+        );
       });
 
-      it('works in pipeline', async () => {
-        const result = await run('[1, 2] -> * => $t\n$t.^type.^name');
-        expect(result).toBe('tuple');
+      it('dict pipe to * creates ordered', async () => {
+        const result = await run('[a: 1, b: 2] -> * => $t\n$t.^type.^name');
+        expect(result).toBe('ordered');
       });
     });
   });
 
   describe('Args unpacking at invocation', () => {
-    describe('Positional args (from tuple)', () => {
-      it('unpacks tuple into separate arguments', async () => {
-        const result = await run(`
-          |x, y| { ($x + $y) } => $add
-          *[3, 4] -> $add()
-        `);
-        expect(result).toBe(7);
-      });
-
-      it('preserves argument order', async () => {
-        const result = await run(`
-          |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
-          *[1, 2, 3] -> $fmt()
-        `);
-        expect(result).toBe('1-2-3');
-      });
-
-      it('works with string arguments', async () => {
-        const result = await run(`
-          |a, b| { [$b, $a] } => $flip
-          *["x", "y"] -> $flip()
-        `);
-        expect(result).toEqual(['y', 'x']);
+    describe('Positional args (list spread removed — BC)', () => {
+      it('list spread to fn throws — list spread removed', async () => {
+        await expect(
+          run(`
+            |x, y| { ($x + $y) } => $add
+            *[3, 4] -> $add()
+          `)
+        ).rejects.toThrow('Spread requires dict');
       });
     });
 
@@ -100,18 +79,18 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   });
 
   describe('Parameter defaults', () => {
-    it('applies defaults for missing positional args', async () => {
+    it('applies defaults for missing named args', async () => {
       const result = await run(`
         |x, y = 10, z = 20| { ($x + $y + $z) } => $fn
-        *[5] -> $fn()
+        *[x: 5] -> $fn()
       `);
       expect(result).toBe(35); // 5 + 10 + 20
     });
 
-    it('overrides defaults when args provided', async () => {
+    it('overrides defaults when named args provided', async () => {
       const result = await run(`
         |x, y = 10, z = 20| { ($x + $y + $z) } => $fn
-        *[5, 15] -> $fn()
+        *[x: 5, y: 15] -> $fn()
       `);
       expect(result).toBe(40); // 5 + 15 + 20
     });
@@ -127,33 +106,13 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     it('infers type from default value', async () => {
       const result = await run(`
         |x = "hello"| { $x } => $fn
-        *[] -> $fn()
+        *[x: "world"] -> $fn()
       `);
-      expect(result).toBe('hello');
+      expect(result).toBe('world');
     });
   });
 
   describe('Strict validation', () => {
-    describe('Positional args errors', () => {
-      it('errors on missing positional argument', async () => {
-        await expect(
-          run(`
-            |x, y| { ($x + $y) } => $fn
-            *[1] -> $fn()
-          `)
-        ).rejects.toThrow(/missing/i);
-      });
-
-      it('errors on extra positional argument', async () => {
-        await expect(
-          run(`
-            |x, y| { ($x + $y) } => $fn
-            *[1, 2, 3] -> $fn()
-          `)
-        ).rejects.toThrow(/extra/i);
-      });
-    });
-
     describe('Named args errors', () => {
       it('errors on missing named argument', async () => {
         await expect(
@@ -186,41 +145,34 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
   });
 
-  describe('Storing tuples', () => {
-    it('stores tuple in variable', async () => {
+  describe('Storing ordered spread values', () => {
+    it('stores ordered value in variable', async () => {
       const result = await run(`
-        *[1, 2, 3] => $myTuple
-        $myTuple.^type.^name
+        *[x: 1, y: 2] => $myOrdered
+        $myOrdered.^type.^name
       `);
-      expect(result).toBe('tuple');
+      expect(result).toBe('ordered');
     });
 
-    it('uses stored tuple later', async () => {
+    it('uses stored ordered spread for named arg call', async () => {
       const result = await run(`
         |a, b| { ($a + $b) } => $add
-        *[3, 4] => $t
+        *[a: 3, b: 4] => $t
         $t -> $add()
       `);
       expect(result).toBe(7);
     });
 
-    it('supports type annotation', async () => {
+    it('supports type annotation with ordered', async () => {
       const result = await run(`
-        *[1, 2] => $a:tuple
+        *[x: 1, y: 2] => $a:ordered
         $a.^type.^name
       `);
-      expect(result).toBe('tuple');
+      expect(result).toBe('ordered');
     });
   });
 
-  describe('.str method on tuple', () => {
-    it('converts tuple to string representation', async () => {
-      const result = await run('*[1, 2, 3] -> .str');
-      expect(result).toContain('1');
-      expect(result).toContain('2');
-      expect(result).toContain('3');
-    });
-
+  describe('.str method on ordered spread', () => {
     it('includes named keys in string', async () => {
       const result = await run('*[x: 1, y: 2] -> .str');
       expect(result).toContain('x');
@@ -229,28 +181,28 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   });
 
   describe('Type identity', () => {
-    it('tuple is distinct from list', async () => {
+    it('ordered is distinct from list', async () => {
       const result = await run(`
         [1, 2] => $list
-        *[1, 2] => $tuple
-        $list.^type.^name -> .eq($tuple.^type.^name)
+        *[a: 1, b: 2] => $ordered
+        $list.^type.^name -> .eq($ordered.^type.^name)
       `);
       expect(result).toBe(false);
     });
 
-    it('tuple equality works', async () => {
+    it('ordered equality works', async () => {
       const result = await run(`
-        *[1, 2] => $a
-        *[1, 2] => $b
+        *[a: 1, b: 2] => $a
+        *[a: 1, b: 2] => $b
         $a.eq($b)
       `);
       expect(result).toBe(true);
     });
 
-    it('tuple inequality with different content', async () => {
+    it('ordered inequality with different content', async () => {
       const result = await run(`
-        *[1, 2] => $a
-        *[1, 3] => $b
+        *[a: 1, b: 2] => $a
+        *[a: 1, b: 3] => $b
         $a.eq($b)
       `);
       expect(result).toBe(false);
@@ -259,8 +211,10 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
   describe('Global functions', () => {
     describe('.^type.^name operator', () => {
-      it('returns "tuple" for spread tuple value', async () => {
-        expect(await run('*[1, 2] => $t\n$t.^type.^name')).toBe('tuple');
+      it('returns "ordered" for dict spread value', async () => {
+        expect(await run('*[a: 1, b: 2] => $t\n$t.^type.^name')).toBe(
+          'ordered'
+        );
       });
 
       it('returns "list" for list', async () => {
@@ -289,9 +243,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
 
     describe('json()', () => {
-      it('throws on tuple serialization to JSON', async () => {
-        await expect(run('*[1, 2, 3] -> json')).rejects.toThrow(
-          'tuples are not JSON-serializable'
+      it('throws on ordered spread serialization to JSON', async () => {
+        await expect(run('*[a: 1, b: 2] -> json')).rejects.toThrow(
+          'ordered values are not JSON-serializable'
         );
       });
 

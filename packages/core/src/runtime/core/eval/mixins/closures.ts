@@ -76,14 +76,20 @@ import {
 } from '../../callable.js';
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
-import type { RillValue, RillTuple, RillTypeValue } from '../../values.js';
+import type {
+  RillValue,
+  RillTuple,
+  RillOrdered,
+  RillTypeValue,
+} from '../../values.js';
 import {
   inferType,
-  isFieldDescriptor,
-  isShape,
   isTypeValue,
   isTuple,
+  isOrdered,
+  inferStructuralType,
 } from '../../values.js';
+import { isFieldDescriptor } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
@@ -301,6 +307,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           callLocation
         );
       }
+      if (args.length === 1 && firstArg !== undefined && isOrdered(firstArg)) {
+        return this.invokeScriptCallableWithNamedArgs(
+          callable,
+          firstArg,
+          callLocation
+        );
+      }
 
       const callableCtx = this.createCallableContext(callable);
 
@@ -348,24 +361,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
         // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
         if (callable.returnShape !== undefined) {
-          if (isShape(callable.returnShape)) {
-            // EC-3: Shape assertion — value must be a dict matching the shape
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).validateAgainstShape(
-              result,
-              callable.returnShape,
-              '',
-              callLocation
-            );
-          } else {
-            // EC-4: Type assertion — value must match the declared scalar type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).assertType(
-              result,
-              callable.returnShape.typeName,
-              callLocation
-            );
-          }
+          // EC-4: Type assertion — value must match the declared scalar type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).assertType(
+            result,
+            callable.returnShape.typeName,
+            callLocation
+          );
         }
         return result;
       } finally {
@@ -383,66 +385,39 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       callLocation?: SourceLocation
     ): Promise<RillValue> {
       const closureCtx = this.createCallableContext(closure);
+      const entries = tupleValue.entries;
 
-      const hasNumericKeys = [...tupleValue.entries.keys()].some(
-        (k) => typeof k === 'number'
-      );
-      const hasStringKeys = [...tupleValue.entries.keys()].some(
-        (k) => typeof k === 'string'
-      );
-
-      if (hasNumericKeys && hasStringKeys) {
+      if (entries.length > closure.params.length) {
         throw new RuntimeError(
           'RILL-R001',
-          'Tuple cannot mix positional (numeric) and named (string) keys',
-          callLocation
+          `Extra argument at position ${closure.params.length} (closure has ${closure.params.length} params)`,
+          callLocation,
+          { position: closure.params.length, paramCount: closure.params.length }
         );
       }
 
       const boundParams = new Set<string>();
 
-      if (hasNumericKeys) {
-        for (const [key, value] of tupleValue.entries) {
-          const position = key as number;
-          const param = closure.params[position];
+      for (let i = 0; i < entries.length; i++) {
+        const value = entries[i]!;
+        const param = closure.params[i];
 
-          if (param === undefined) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Extra argument at position ${position} (closure has ${closure.params.length} params)`,
-              callLocation,
-              { position, paramCount: closure.params.length }
-            );
-          }
-
-          this.validateParamType(param, value, callLocation);
-          closureCtx.variables.set(param.name, value);
-          boundParams.add(param.name);
+        if (param === undefined) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Extra argument at position ${i} (closure has ${closure.params.length} params)`,
+            callLocation,
+            { position: i, paramCount: closure.params.length }
+          );
         }
-      } else if (hasStringKeys) {
-        const paramNames = new Set(closure.params.map((p) => p.name));
 
-        for (const [key, value] of tupleValue.entries) {
-          const name = key as string;
-
-          if (!paramNames.has(name)) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Unknown argument '${name}' (valid params: ${[...paramNames].join(', ')})`,
-              callLocation,
-              { argName: name, validParams: [...paramNames] }
-            );
-          }
-
-          const param = closure.params.find((p) => p.name === name)!;
-          this.validateParamType(param, value, callLocation);
-          closureCtx.variables.set(name, value);
-          // Block-closures have param named '$': sync with pipeValue for bare $ references
-          if (name === '$') {
-            closureCtx.pipeValue = value;
-          }
-          boundParams.add(name);
+        this.validateParamType(param, value, callLocation);
+        closureCtx.variables.set(param.name, value);
+        // Block-closures have param named '$': sync with pipeValue for bare $ references
+        if (param.name === '$') {
+          closureCtx.pipeValue = value;
         }
+        boundParams.add(param.name);
       }
 
       for (const param of closure.params) {
@@ -472,24 +447,77 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const result = await (this as any).evaluateBodyExpression(closure.body);
         // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
         if (closure.returnShape !== undefined) {
-          if (isShape(closure.returnShape)) {
-            // EC-3: Shape assertion — value must be a dict matching the shape
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).validateAgainstShape(
-              result,
-              closure.returnShape,
-              '',
-              callLocation
-            );
-          } else {
-            // EC-4: Type assertion — value must match the declared scalar type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).assertType(
-              result,
-              closure.returnShape.typeName,
-              callLocation
-            );
-          }
+          // EC-4: Type assertion — value must match the declared scalar type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).assertType(
+            result,
+            closure.returnShape.typeName,
+            callLocation
+          );
+        }
+        return result;
+      } finally {
+        this.ctx = savedCtx;
+      }
+    }
+
+    /**
+     * Invoke script callable with named arguments from RillOrdered (*[name: val]).
+     * Binds arguments by parameter name, applies defaults for omitted params.
+     */
+    protected async invokeScriptCallableWithNamedArgs(
+      closure: ScriptCallable,
+      orderedValue: RillOrdered,
+      callLocation?: SourceLocation
+    ): Promise<RillValue> {
+      const closureCtx = this.createCallableContext(closure);
+      const namedEntries = new Map<string, RillValue>(orderedValue.entries);
+      const paramNames = new Set(closure.params.map((p) => p.name));
+
+      // Validate: no unknown named args
+      for (const [name] of namedEntries) {
+        if (!paramNames.has(name)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Unknown named argument '${name}'`,
+            callLocation,
+            { paramName: name }
+          );
+        }
+      }
+
+      // Bind params by name, apply defaults
+      for (const param of closure.params) {
+        const value = namedEntries.get(param.name);
+        if (value !== undefined) {
+          this.validateParamType(param, value, callLocation);
+          closureCtx.variables.set(param.name, value);
+          if (param.name === '$') closureCtx.pipeValue = value;
+        } else if (param.defaultValue !== null) {
+          closureCtx.variables.set(param.name, param.defaultValue);
+          if (param.name === '$') closureCtx.pipeValue = param.defaultValue;
+        } else {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Missing argument '${param.name}' (no default value)`,
+            callLocation,
+            { paramName: param.name }
+          );
+        }
+      }
+
+      const savedCtx = this.ctx;
+      this.ctx = closureCtx;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (this as any).evaluateBodyExpression(closure.body);
+        if (closure.returnShape !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).assertType(
+            result,
+            closure.returnShape.typeName,
+            callLocation
+          );
         }
         return result;
       } finally {
@@ -965,6 +993,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const typeValue: RillTypeValue = Object.freeze({
           __rill_type: true as const,
           typeName: inferType(value),
+          structure: inferStructuralType(value),
         });
         return typeValue;
       }
@@ -1024,6 +1053,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const anyTypeValue: RillTypeValue = Object.freeze({
             __rill_type: true as const,
             typeName: 'any',
+            structure: { kind: 'any' as const },
           });
           return anyTypeValue;
         }
