@@ -73,29 +73,6 @@ describe('Rill Runtime: Extraction Operators', () => {
       });
     });
 
-    describe('Nested destructuring', () => {
-      it.skip('destructures nested lists', async () => {
-        // Skipped: [[1, 2], 3] is a mixed-type list (list + number).
-        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-        const { variables } = await runFull(`
-          [[1, 2], 3] -> *<*<$a, $b>, $c>
-        `);
-        expect(variables.a).toBe(1);
-        expect(variables.b).toBe(2);
-        expect(variables.c).toBe(3);
-      });
-
-      it.skip('handles deeply nested structures', async () => {
-        // Skipped: [[[1]], 2] is a mixed-type list (list + number).
-        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-        const { variables } = await runFull(`
-          [[[1]], 2] -> *<*<*<$inner>>, $outer>
-        `);
-        expect(variables.inner).toBe(1);
-        expect(variables.outer).toBe(2);
-      });
-    });
-
     describe('Dict destructuring', () => {
       it('extracts by key', async () => {
         const { variables } = await runFull(`

@@ -35,9 +35,9 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Logical | `!` (unary), `&&`, `\|\|` |
 | Pipe | `->` |
 | Capture | `=>` |
-| Spread | `@` (sequential), `*` (tuple) |
+| Spread | `@` (sequential), `*dict` (ordered) |
 | Extraction | `*<>` (destructure), `/<>` (slice) |
-| Type | `:type` (assert), `:?type` (check), `:$var` (shape assert), `:?$var` (shape check), `:shape(...)` (inline assert), `:?shape(...)` (inline check) |
+| Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type` |
@@ -81,13 +81,13 @@ See [Collections](topic-collections.md) for detailed documentation.
 | Bool | `true`, `false` | `true` | Boolean value |
 | List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
 | Dict | `[k: v]`, `[$k: v]`, `[($e): v]` | `[output: "text"]`, `[$key: 1]` | Dict value |
-| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
+| Ordered | `*[k: v]` | `*[a: 1, b: "hello"]` | Ordered value |
+| Tuple | `*[...]` (positional, *list spread removed) | `*[1, 2]` | Tuple value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
-| Shape | `shape(field: type)` | `shape(name: string)` | Shape value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `field`, `any`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -145,22 +145,49 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
-### Shape Validation
+### Type Constructors
 
-Validate a dict against a shape. All forms use the `:` type position.
+Type constructors are primary expressions that produce structural type values. They describe the internal structure of a collection type.
 
-| Syntax | Behavior | On Mismatch |
-|--------|----------|-------------|
-| `value -> :$shape` | Assert: dict matches shape in `$shape` | Halts with `RILL-R004` |
-| `value -> :?$shape` | Check: dict matches shape in `$shape` | Returns `false` |
-| `value -> :shape(field: type)` | Assert: dict matches inline shape | Halts with `RILL-R004` |
-| `value -> :?shape(field: type)` | Check: dict matches inline shape | Returns `false` |
-| `value -> :shape` | Assert: value is a shape type | Halts with `RILL-R004` |
-| `value -> :?shape` | Check: value is a shape type | Returns `false` |
+| Constructor | Syntax | Example |
+|-------------|--------|---------|
+| List type | `list(T)` | `list(number)`, `list(list(string))` |
+| Dict type | `dict(k: T, ...)` | `dict(a: number, b: string)` |
+| Tuple type | `tuple(T, T2, ...)` | `tuple(number, string, bool)` |
+| Ordered type | `ordered(k: T, ...)` | `ordered(a: number, b: string)` |
+| Closure sig | `\|p: T\| -> R` | `\|x: number\| -> string` |
 
-Disambiguation after `:` (and optional `?`): `$` → variable shape reference; `shape` followed by `(` → inline shape literal; `shape` without `(` → plain type assertion.
+`^type` returns a structural type value — not a coarse string:
 
-See [Types](topic-types.md) for shape literal syntax and validation examples.
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type.name
+# Result: "dict"
+```
+
+Type constructors appear as values and can be compared:
+
+```rill
+[1, 2, 3] => $list
+$list.^type == list(number)
+# Result: true
+```
+
+`.^type.name` returns the coarse type name string:
+
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+See [Types](topic-types.md) for detailed structural type documentation.
 
 ### Dispatch
 
@@ -294,7 +321,6 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
-| `to_shape(dict)` | Convert dict descriptor to shape value |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 
@@ -343,16 +369,15 @@ See [Operators](topic-operators.md) for detailed extraction operator documentati
 
 ## Annotation Reflection
 
-Access annotation values using `.^key` syntax. Annotations attach to closures and field descriptors. The key `type` is special-cased and works on any value.
+Access annotation values using `.^key` syntax. Annotations attach to closures. The key `type` is special-cased and works on any value — it returns the structural type.
 
 ### `.^key` Dispatch Table
 
 | Value | Key | Result |
 |-------|-----|--------|
-| Any value | `type` | Type value via `.^type` |
+| Any value | `type` | Structural type value via `.^type` |
 | Type value | `name` | Type name string |
 | Closure | any other key | Closure annotation value |
-| Field descriptor | any other key | Field annotation value |
 | Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
 ```rill
@@ -360,16 +385,6 @@ Access annotation values using `.^key` syntax. Annotations attach to closures an
 
 $fn.^min     # 0
 $fn.^max     # 100
-```
-
-```rill
-shape(^("User name", enum: ["alice", "bob"]) name: string) => $s
-$s.name.^description   # "User name"
-$s.name.^enum          # ["alice", "bob"]
-```
-
-```text
-$s.name.^absent   # Error: Annotation "absent" not found on field "name"
 ```
 
 Annotations are metadata attached at definition time. They enable runtime configuration and introspection.
@@ -453,7 +468,7 @@ Use default value operator for optional annotations:
 $fn.^timeout ?? 30  # 30 (uses default since annotation missing)
 ```
 
-Accessing `.^key` on primitives, lists, or dicts throws `RUNTIME_TYPE_ERROR`:
+Accessing `.^key` with a non-`type` key on primitives, lists, or dicts throws `RUNTIME_TYPE_ERROR`. Use `.^type` first to get a type value, then access `.name` on the result:
 
 ```text
 "hello" => $str
@@ -479,7 +494,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
 ```
 
-The `name` key is intercepted on type values (`.^name` returns the type name string) but is not reserved — user annotations may use `name` on closures and field descriptors without restriction.
+The `name` key is intercepted on type values (`.^type.name` returns the type name string) but is not reserved — user annotations may use `name` on closures without restriction.
 
 ### Parameter Annotations
 
@@ -553,9 +568,8 @@ Valid return type targets:
 | `bool` | Boolean value |
 | `list` | List value |
 | `dict` | Dict value |
+| `ordered` | Ordered container value |
 | `any` | Any type (no assertion) |
-| `shape(...)` | Inline shape — validates dict structure |
-| `$shapeVar` | Variable shape — validates against stored shape |
 
 Mismatched return type halts with `RILL-R004`:
 
@@ -573,17 +587,18 @@ $add(3, 4)    # 7
 
 ---
 
-## Tuples
+## Ordered and Tuples
 
-Tuples package values for argument unpacking:
+`*dict` spread produces an `ordered` container — a named container that preserves insertion order. Use it for named argument unpacking:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-*[1, 2, 3] -> $fmt()             # "1-2-3"
-*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named)
+*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named args by key)
 ```
 
-See [Types](topic-types.md) for detailed tuple documentation.
+Tuples are positional containers. `*list` spread is no longer supported — use `ordered` (`*dict`) for all unpacking.
+
+See [Types](topic-types.md) for detailed ordered and tuple documentation.
 
 ---
 
@@ -714,7 +729,7 @@ A newline after any of these continues the current statement:
 | Type annotation | `:` |
 | Spread | `...` |
 | Annotation | `^` |
-| Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` `shape(` |
+| Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` |
 
 A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
 

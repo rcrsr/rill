@@ -12,7 +12,7 @@
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison Methods | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` |
 | Logical | `!` (unary), `&&`, `||` |
-| Spread | `@` (sequential), `*` (tuple) |
+| Spread | `@` (sequential), `*` (dict ordered) |
 | Extraction | `*<>` (destructure), `/<>` (slice) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
@@ -268,30 +268,18 @@ Single closure:
 5 -> @$dbl                       # 10
 ```
 
-### Tuple Spread `*`
+### Dict Spread `*`
 
-Create tuples for argument unpacking:
-
-```rill
-# From list (positional)
-*[1, 2, 3] => $args
-
-# From dict (named)
-*[x: 1, y: 2] => $named
-
-# Convert list to tuple via pipe
-[1, 2, 3] -> * => $tuple
-```
-
-Using tuples at invocation:
+Spread a dict to produce an `ordered` value. The result preserves insertion order and carries named keys. The `ordered` type is not a tuple — it is a named, ordered container produced only by dict spread. Use it to pass named arguments to closures:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-*[1, 2, 3] -> $fmt()             # "1-2-3"
-*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named, order doesn't matter)
+*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (names matched, order irrelevant)
 ```
 
-See [Types](topic-types.md) for full tuple documentation.
+`ordered` values are not serializable via `toNative()` — they throw `RILL-R004` at the host boundary (same rule as tuples).
+
+See [Types](topic-types.md) for full type documentation.
 
 ---
 
@@ -405,49 +393,6 @@ Access dict fields:
 [name: "alice", age: 30] => $person
 $person.name                     # "alice"
 $person.age                      # 30
-```
-
-`.field` on a shape value returns a field descriptor — not a field value. A field descriptor exposes `.type`, `.optional`, `.shape`, and `.^key` properties.
-
-```rill
-shape(name: string, age: number) => $s
-$s.name.type      # string (the type value)
-$s.name.optional  # false (field is required)
-$s.age.type       # number
-```
-
-Access annotation values on a field descriptor with `.^key`:
-
-```rill
-shape(^(description: "User name") name: string) => $s
-$s.name.^description              # "User name"
-```
-
-Chain field descriptor access through nested shapes via `.shape`:
-
-```rill
-shape(address: (city: string, zip: string)) => $s
-$s.address.type                   # shape (type value)
-$s.address.shape.city.type        # string
-```
-
-### Shape Structural Access
-
-`.keys` and `.entries` work on shapes with the same syntax as dicts.
-
-`.keys` returns field names in declaration order:
-
-```rill
-shape(name: string, age: number, role: string) => $s
-$s -> .keys                       # ["name", "age", "role"]
-```
-
-`.entries` returns `[fieldname, descriptor]` pairs:
-
-```rill
-shape(name: string, age: number) => $s
-$s -> .entries -> each { log($[0]) }
-# Logs: "name" then "age"
 ```
 
 See [Types](topic-types.md) for dict `.keys` and `.entries` documentation.
@@ -622,6 +567,14 @@ Error if type doesn't match, returns value unchanged:
 "hello" -> :string               # "hello"
 ```
 
+Structural type syntax is supported in assertions. The structural form specifies element or field types:
+
+```text
+[1, 2, 3] -> :list(number)                    # passes: all elements are number
+[a: 1, b: 2] -> :dict(a: number, b: number)   # passes: fields match types
+[1, "x"] -> :list(number)                     # ERROR: structural type mismatch
+```
+
 ```text
 "hello" -> :number               # ERROR: expected number, got string
 ```
@@ -634,6 +587,45 @@ Returns boolean:
 42:?number                       # true
 "hello":?number                  # false
 "hello" -> :?string              # true
+```
+
+Coarse checks return boolean directly:
+
+```rill
+[1, 2, 3] -> :?list              # true
+[a: 1] -> :?dict                 # true
+```
+
+Structural checks are also supported. These match element and field types:
+
+```text
+[1, 2, 3] -> :?list(number)      # true
+[1, "x"] -> :?list(number)       # false
+[a: 1] -> :?dict(a: number)      # true
+```
+
+### `^type` Operator
+
+`^type` returns the structural `RillTypeValue` for a value. The type value carries both a coarse name and a full structural description:
+
+```text
+[1, 2, 3] -> ^type               # list(number)
+[a: 1, b: "x"] -> ^type         # dict(a: number, b: string)
+42 -> ^type                      # number
+```
+
+The type value formats as a structural string via `.str` or string interpolation:
+
+```text
+[1, 2, 3] -> ^type -> .str       # "list(number)"
+"hello {[1,2,3] -> ^type}"       # "hello list(number)"
+```
+
+To get the type name only, chain `.name` on the type value:
+
+```text
+[1, 2, 3] -> ^type -> .name      # "list"
+42 -> ^type -> .name             # "number"
 ```
 
 See [Types](topic-types.md) for detailed type system documentation.

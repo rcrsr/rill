@@ -41,33 +41,13 @@ import type {
   RillValue,
 } from '../../src/runtime/core/values.js';
 import { callable } from '../../src/runtime/core/callable.js';
-import type {
-  RillShape,
-  RillShapeFieldDescriptor,
-  ShapeFieldSpec,
-} from '../../src/runtime/core/callable.js';
+
 import { RuntimeError } from '@rcrsr/rill';
 import { run, runFull, createLogCollector } from '../helpers/runtime.js';
 
 // ============================================================
 // Shared test fixtures
 // ============================================================
-
-function makeShape(fields: Record<string, ShapeFieldSpec>): RillShape {
-  return Object.freeze({
-    __rill_shape: true as const,
-    fields: Object.freeze(fields),
-  });
-}
-
-function makeSpec(typeName: string, optional = false): ShapeFieldSpec {
-  return {
-    typeName,
-    optional,
-    nestedShape: undefined,
-    annotations: {},
-  };
-}
 
 function makeTypeValue(typeName: string): RillTypeValue {
   return {
@@ -78,14 +58,6 @@ function makeTypeValue(typeName: string): RillTypeValue {
       name: typeName as RillTypeValue['typeName'],
     },
   };
-}
-
-function makeFieldDescriptor(fieldName: string): RillShapeFieldDescriptor {
-  return Object.freeze({
-    __rill_field_descriptor: true as const,
-    fieldName,
-    spec: makeSpec('string'),
-  });
 }
 
 // createTupleFromDict was removed in Phase 2. Construct RillTuple directly.
@@ -180,52 +152,6 @@ describe('formatValue', () => {
     });
   });
 
-  describe('AC-7: shape', () => {
-    // Phase 2: shape() syntax removed. formatValue treats shapes as plain dicts.
-    it.skip('formats shape with required fields', () => {
-      // Skipped: formatValue no longer has a shape-specific branch.
-      // Shapes are formatted as plain dicts (dict(__rill_shape: true, fields: ...)).
-      const shape = makeShape({ name: makeSpec('string') });
-      expect(formatValue(shape)).toBe('shape(name: string)');
-    });
-
-    it.skip('formats shape with optional fields', () => {
-      // Skipped: shape formatting removed in Phase 2.
-      const shape = makeShape({
-        name: makeSpec('string'),
-        age: makeSpec('number', true),
-      });
-      expect(formatValue(shape)).toBe('shape(name: string, age?: number)');
-    });
-
-    it.skip('AC-15: formats shape with nested shape inline', () => {
-      // Skipped: shape formatting removed in Phase 2.
-      const addressShape = makeShape({
-        street: makeSpec('string'),
-        city: makeSpec('string'),
-      });
-      const addressSpec: ShapeFieldSpec = {
-        typeName: 'shape',
-        optional: false,
-        nestedShape: addressShape,
-        annotations: {},
-      };
-      const personShape = makeShape({
-        name: makeSpec('string'),
-        address: addressSpec,
-      });
-      expect(formatValue(personShape)).toBe(
-        'shape(name: string, address: shape(street: string, city: string))'
-      );
-    });
-
-    it.skip('formats empty shape', () => {
-      // Skipped: shape formatting removed in Phase 2.
-      const shape = makeShape({});
-      expect(formatValue(shape)).toBe('shape()');
-    });
-  });
-
   describe('AC-8: closure', () => {
     it('formats callable as "type(closure)"', () => {
       const fn = callable(() => null);
@@ -241,13 +167,6 @@ describe('formatValue', () => {
   });
 
   describe('tuple', () => {
-    it.skip('formats named tuple', () => {
-      // Skipped: RillTuple.entries is now RillValue[] (positional only, no named keys).
-      // createTupleFromDict({a:1,b:2}) yields entries=[1,2], formatted as tuple(1, 2).
-      const tuple = createTupleFromDict({ a: 1, b: 2 });
-      expect(formatValue(tuple)).toBe('tuple(a: 1, b: 2)');
-    });
-
     it('formats positional tuple', () => {
       // RillTuple.entries is RillValue[] in Phase 2 (not a Map).
       const posTuple: RillTuple = {
@@ -262,33 +181,6 @@ describe('formatValue', () => {
     it('formats vector as "vector(model, Nd)"', () => {
       const vec = createVector(new Float32Array(1536), 'voyage-3');
       expect(formatValue(vec)).toBe('vector(voyage-3, 1536d)');
-    });
-  });
-
-  describe('type value', () => {
-    // Phase 2: formatValue(typeValue) returns formatStructuralType(value.structure),
-    // which returns the structural type name (e.g. 'string') not 'type(string)'.
-    it.skip('formats string type value', () => {
-      // Skipped: formatValue now returns structural type name 'string', not 'type(string)'.
-      expect(formatValue(makeTypeValue('string'))).toBe('type(string)');
-    });
-
-    it.skip('formats number type value', () => {
-      // Skipped: formatValue now returns structural type name 'number', not 'type(number)'.
-      expect(formatValue(makeTypeValue('number'))).toBe('type(number)');
-    });
-
-    it.skip('formats bool type value', () => {
-      // Skipped: formatValue now returns structural type name 'bool', not 'type(bool)'.
-      expect(formatValue(makeTypeValue('bool'))).toBe('type(bool)');
-    });
-  });
-
-  describe('field descriptor', () => {
-    it.skip('formats field descriptor as "type(field-descriptor)"', () => {
-      // Skipped: formatValue has no field-descriptor branch; falls to plain dict format.
-      const fd = makeFieldDescriptor('name');
-      expect(formatValue(fd)).toBe('type(field-descriptor)');
     });
   });
 
@@ -318,15 +210,6 @@ describe('formatValue', () => {
   });
 
   describe('AC-17: guard clause ordering', () => {
-    it.skip('shape is formatted before dict (shape has __rill_shape, not treated as plain dict)', () => {
-      // Skipped: Phase 2 removed the shape guard from formatValue.
-      // Shapes now fall through to plain dict formatting.
-      const shape = makeShape({ x: makeSpec('number') });
-      const result = formatValue(shape);
-      expect(result).toBe('shape(x: number)');
-      expect(result).not.toMatch(/^dict/);
-    });
-
     it('callable is formatted before dict (callable has __type, not treated as plain dict)', () => {
       const fn = callable(() => null);
       const result = formatValue(fn);
@@ -510,54 +393,6 @@ describe('valueToJSON', () => {
       let caught: unknown;
       try {
         valueToJSON(vec);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
-    });
-  });
-
-  describe('EC-13: shape throws plain Error', () => {
-    it.skip('throws Error for shape', () => {
-      // Skipped: Phase 2 removed shape() syntax. valueToJSON has no shape guard;
-      // shapes fall through to plain dict serialization instead of throwing.
-      const shape = makeShape({ name: makeSpec('string') });
-      expect(() => valueToJSON(shape)).toThrow(
-        'shapes are not JSON-serializable'
-      );
-    });
-
-    it.skip('thrown error is plain Error, not RuntimeError', () => {
-      // Skipped: see above.
-      const shape = makeShape({ name: makeSpec('string') });
-      let caught: unknown;
-      try {
-        valueToJSON(shape);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
-    });
-  });
-
-  describe('EC-14: field descriptor throws plain Error', () => {
-    it.skip('throws Error for field descriptor', () => {
-      // Skipped: Phase 2 removed shape/field-descriptor guards from valueToJSON.
-      // Field descriptors fall through to plain dict serialization instead of throwing.
-      const fd = makeFieldDescriptor('name');
-      expect(() => valueToJSON(fd)).toThrow(
-        'field descriptors are not JSON-serializable'
-      );
-    });
-
-    it.skip('thrown error is plain Error, not RuntimeError', () => {
-      // Skipped: see above.
-      const fd = makeFieldDescriptor('name');
-      let caught: unknown;
-      try {
-        valueToJSON(fd);
       } catch (e) {
         caught = e;
       }
@@ -751,58 +586,6 @@ describe('toNative', () => {
       let caught: unknown;
       try {
         toNative(vec);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
-    });
-  });
-
-  describe('EC-6: shape throws RuntimeError', () => {
-    it.skip('throws RuntimeError for shape', () => {
-      // Skipped: Phase 2 removed shape() syntax. toNative has no shape guard;
-      // shapes fall through to plain dict conversion instead of throwing.
-      const shape = makeShape({ name: makeSpec('string') });
-      expect(() => toNative(shape)).toThrow(
-        'shapes cannot be returned from scripts'
-      );
-    });
-
-    it.skip('thrown error is RuntimeError with RILL-R004', () => {
-      // Skipped: see above.
-      const shape = makeShape({ name: makeSpec('string') });
-      let caught: unknown;
-      try {
-        toNative(shape);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
-    });
-  });
-
-  describe('EC-7: field descriptor throws RuntimeError', () => {
-    it.skip('throws RuntimeError for field descriptor', () => {
-      // Skipped: Phase 2 removed field-descriptor guard from toNative.
-      // Field descriptors fall through to plain dict conversion instead of throwing.
-      const fd = makeFieldDescriptor('name');
-      expect(() => toNative(fd)).toThrow(
-        'field descriptors cannot be returned from scripts'
-      );
-    });
-
-    it.skip('thrown error is RuntimeError with RILL-R004', () => {
-      // Skipped: see above.
-      const fd = makeFieldDescriptor('name');
-      let caught: unknown;
-      try {
-        toNative(fd);
       } catch (e) {
         caught = e;
       }

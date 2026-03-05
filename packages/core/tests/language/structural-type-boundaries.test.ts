@@ -62,14 +62,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // AC-48: *[] → SKIPPED (list spread removed)
   // ============================================================
 
-  describe('AC-48: *[] spread on empty list (SKIPPED)', () => {
-    it.skip('*[] produces ordered() — SKIPPED: list spread removed in Phase 2', async () => {
-      // List spread (*list) was removed. *[] throws RILL-R002 "Spread requires dict, got list".
-      // This AC is no longer achievable with the current implementation.
-      const result = await run('*[].^type == ordered()');
-      expect(result).toBe(true);
-    });
-  });
+  // AC-48 removed: *[] list spread no longer supported (Phase 2).
 
   // ============================================================
   // AC-49: *[:] → ordered()

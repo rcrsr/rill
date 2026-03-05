@@ -322,12 +322,6 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('type safety', () => {
-      it.skip('respects type differences', async () => {
-        // Skipped: [1, "2"] is a mixed-type list (number + string).
-        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-        expect(await run('[1, 2, 3] -> .has_all([1, "2"])')).toBe(false);
-      });
-
       it('requires all types to match', async () => {
         expect(await run('["1", "2", "3"] -> .has_all(["1", "2"])')).toBe(true);
       });

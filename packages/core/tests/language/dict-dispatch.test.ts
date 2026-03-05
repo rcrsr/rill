@@ -446,16 +446,6 @@ describe('Rill Runtime: Dict Dispatch', () => {
       expect(result).toEqual([1, 1]);
     });
 
-    it.skip('expands multi-key with mixed types (AC-7)', async () => {
-      // Skipped: [[1, "1"]: "x"] uses mixed-type list as key (number + string).
-      // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-      const result = await run(`
-        [[1, "1"]: "x"] => $dict
-        [$dict.("1"), $dict.("1")]
-      `);
-      expect(result).toEqual(['x', 'x']);
-    });
-
     it('mixes multi-key entries with single-key entries (AC-8)', async () => {
       // AC-8: Mixed entries - [a: 0, ["b", "c"]: 1] yields [a: 0, b: 1, c: 1]
       const result = await run(`

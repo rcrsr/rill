@@ -100,6 +100,60 @@ functions: {
 - Return `RillValue` types (string, number, boolean, array, object, or `RillCallable`)
 - Avoid returning `null` or `undefined`—use empty string `''` or empty array `[]` instead
 
+## Value Types
+
+rill uses several internal container types that host code may encounter in observability callbacks or return values.
+
+### RillOrdered
+
+`RillOrdered` is the container produced by dict spread (`*dict`). It preserves insertion order and carries named keys.
+
+```typescript
+interface RillOrdered {
+  __rill_ordered: true;
+  entries: [string, RillValue][];
+}
+// Created by: *[a: 1, b: 2]
+```
+
+`toNative()` rejects `RillOrdered` with error code `RILL-R004` — the same rejection that applies to `RillTuple`. Do not pass `RillOrdered` values across the host boundary via serialization.
+
+### RillTuple
+
+`RillTuple` holds positional values produced by tuple expressions. The `entries` field is a plain array, not a `Map`:
+
+```typescript
+interface RillTuple {
+  __rill_tuple: true;
+  entries: RillValue[];    // positional values, 0-indexed
+}
+```
+
+`toNative()` rejects `RillTuple` with error code `RILL-R004`.
+
+### RillTypeValue
+
+`^type` expressions return a `RillTypeValue`. The `structure` field carries the full structural type:
+
+```typescript
+interface RillTypeValue {
+  __rill_type: true;
+  name: string;                    // coarse name: "list", "dict", "number", etc.
+  structure: RillStructuralType;   // full structural type
+}
+```
+
+The structural type formats as a human-readable string via `formatStructuralType`:
+
+| Expression | `.str` output |
+|------------|---------------|
+| `[1, 2, 3] -> ^type` | `"list(number)"` |
+| `[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
+| `[1, "x"] -> ^type` | `"tuple(number, string)"` |
+| `*[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
+
+Dict fields are sorted alphabetically in the formatted output.
+
 ## Custom Functions
 
 Functions are called by name: `functionName(arg1, arg2)`.
@@ -964,6 +1018,7 @@ try {
 | `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
+| `RILL-R004` | `toNative()` or `valueToJSON()` called on non-serializable type (`RillTuple`, `RillOrdered`) |
 
 ## Agent Registry
 

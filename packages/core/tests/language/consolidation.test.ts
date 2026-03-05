@@ -93,26 +93,6 @@ describe('Node Consolidation Regression', () => {
   // Shape dispatch via $var (AC-16)
   // ============================================================
 
-  describe.skip('Shape Dispatch via $var (resolveTypeRef returns RillShape)', () => {
-    // Skipped: shape() syntax removed in Phase 2.
-    it('$s holds a shape — valid dict passes :$s assertion', async () => {
-      const result = await run(`
-        shape(x: number) => $s
-        [x: 42] -> :$s
-      `);
-      expect(result).toEqual({ x: 42 });
-    });
-
-    it('$s holds a shape — invalid dict fails :$s assertion', async () => {
-      await expect(
-        run(`
-          shape(x: number) => $s
-          [x: "hello"] -> :$s
-        `)
-      ).rejects.toThrow('expected number, got string');
-    });
-  });
-
   // ============================================================
   // Error cases unchanged (AC-16)
   // ============================================================

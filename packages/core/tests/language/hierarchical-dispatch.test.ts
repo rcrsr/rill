@@ -38,31 +38,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     });
   });
 
-  describe('Mixed Path Navigation', () => {
-    it.skip('navigates dict then list then dict (AC-3)', async () => {
-      // Skipped: ["users", 0, "name"] is a mixed-type list (string + number).
-      // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-      const result = await run(
-        '["users", 0, "name"] -> [users: [[name: "Alice"]]]'
-      );
-      expect(result).toBe('Alice');
-    });
-
-    it.skip('navigates list then dict then list', async () => {
-      // Skipped: [0, "items", 1] is a mixed-type list (number + string).
-      const result = await run('[0, "items", 1] -> [[items: [10, 20, 30]]]');
-      expect(result).toBe(20);
-    });
-
-    it.skip('navigates complex nested structure', async () => {
-      // Skipped: ["data", 0, "score", 1] is a mixed-type list (string + number).
-      const result = await run(
-        '["data", 0, "score", 1] -> [data: [[score: [85, 92, 78]]]]'
-      );
-      expect(result).toBe(92);
-    });
-  });
-
   describe('Intermediate Closure Auto-Invocation', () => {
     it('auto-invokes intermediate zero-param closure (AC-4)', async () => {
       // AC-4: Intermediate zero-param closure auto-invokes
@@ -75,12 +50,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
         '["fn1", "fn2", "value"] -> [fn1: ||([fn2: ||([value: "result"])])]'
       );
       expect(result).toBe('result');
-    });
-
-    it.skip('auto-invokes closure that returns list for further navigation', async () => {
-      // Skipped: ["getter", 0] is a mixed-type list (string + number).
-      const result = await run('["getter", 0] -> [getter: ||([10, 20, 30])]');
-      expect(result).toBe(10);
     });
   });
 
@@ -158,15 +127,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       `);
       expect(result).toBe('Alice');
     });
-
-    it.skip('captures hierarchical dispatch result', async () => {
-      // Skipped: ["data", 0] is a mixed-type list (string + number).
-      const result = await run(`
-        ["data", 0] -> [data: [42, 100]] => $val
-        $val + 8
-      `);
-      expect(result).toBe(50);
-    });
   });
 
   describe('Chaining After Hierarchical Dispatch', () => {
@@ -176,22 +136,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       );
       expect(result).toBe('ALICE');
     });
-
-    it.skip('chains multiple operations after nested dispatch', async () => {
-      // Skipped: [0, "value"] is a mixed-type list (number + string).
-      const result = await run(
-        '[0, "value"] -> [[value: "hello"]] -> .upper -> .len'
-      );
-      expect(result).toBe(5);
-    });
-
-    it.skip('chains hierarchical dispatch into another dispatch', async () => {
-      // Skipped: ["key", 0] is a mixed-type list (string + number).
-      const result = await run(
-        '["key", 0] -> [key: ["x", "y"]] -> [x: 1, y: 2]'
-      );
-      expect(result).toBe(1);
-    });
   });
 
   describe('Boundary Conditions', () => {
@@ -199,12 +143,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       // AC-16: Default value on missing key
       const result = await run('["a", "missing"] -> [a: [x: 1]] ?? "default"');
       expect(result).toBe('default');
-    });
-
-    it.skip('returns default value on empty list navigation (AC-17)', async () => {
-      // Skipped: ["users", 10] is a mixed-type list (string + number).
-      const result = await run('["users", 10] -> [users: []] ?? "unknown"');
-      expect(result).toBe('unknown');
     });
 
     it('uses variable as path for navigation (AC-18)', async () => {
@@ -224,14 +162,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
         ["status", $action] -> $handlers
       `);
       expect(result).toBe('pending');
-    });
-
-    it.skip('provides numeric terminal key to closure (AC-20)', async () => {
-      // Skipped: ["handlers", 0] is a mixed-type list (string + number).
-      const result = await run(
-        '["handlers", 0] -> [handlers: [{ "idx={$}" }]]'
-      );
-      expect(result).toBe('idx=0');
     });
 
     it('navigates 3-level nested structure (AC-21)', async () => {
@@ -266,16 +196,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       );
     });
 
-    it.skip('throws RUNTIME_TYPE_ERROR for parameterized intermediate closure (AC-11/EC-3/EC-8)', async () => {
-      // Skipped: ["compute", 0] is a mixed-type list (string + number).
-      // Phase 2: Mixed-type lists fail at construction before closure dispatch.
-      await expect(
-        run('["compute", 0] -> [compute: |x|([x])]')
-      ).rejects.toThrow(
-        /Cannot invoke parameterized closure at intermediate path position/
-      );
-    });
-
     it('throws RUNTIME_TYPE_ERROR for parameterized terminal closure (AC-12/EC-9)', async () => {
       // AC-12/EC-9: Parameterized closure at terminal position throws
       await expect(run('["fn"] -> [fn: |x|($x * 2)]')).rejects.toThrow(
@@ -294,14 +214,6 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
       // AC-14/EC-5: Out of bounds list index
       await expect(run('[0, 5] -> [[1, 2]]')).rejects.toThrow(
         /List dispatch.*not found/i
-      );
-    });
-
-    it.skip('throws RUNTIME_TYPE_ERROR for type mismatch mid-path (AC-15/EC-7)', async () => {
-      // Skipped: ["a", 0] is a mixed-type list (string + number).
-      // Phase 2: Mixed-type lists fail at construction before dispatch type check.
-      await expect(run('["a", 0] -> [a: "text"]')).rejects.toThrow(
-        /cannot use number key with string value/
       );
     });
 

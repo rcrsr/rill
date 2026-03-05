@@ -64,15 +64,6 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple structural types (AC-6 to AC-9)', () => {
-    it.skip('AC-6: *[1, "hello", true].^type == tuple(number, string, bool) — SKIP: list spread removed; mixed-type list construction also fails', async () => {
-      // List spread (*list) was removed in Phase 2. *[1, "hello", true] throws RILL-R002.
-      // Additionally, [1, "hello", true] fails mixed-type enforcement.
-      const result = await run(
-        '*[1, "hello", true].^type == tuple(number, string, bool)'
-      );
-      expect(result).toBe(true);
-    });
-
     it('AC-7: tuple(number, string) != tuple(string, number) is true', async () => {
       const result = await run(
         'tuple(number, string) != tuple(string, number)'
@@ -84,12 +75,6 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(
         'tuple(number, string) != tuple(number, string, bool)'
       );
-      expect(result).toBe(true);
-    });
-
-    it.skip('AC-9: *[].^type == tuple() — SKIP: list spread removed; *[] throws RILL-R002', async () => {
-      // List spread (*list) was removed in Phase 2. *[] throws RILL-R002.
-      const result = await run('*[].^type == tuple()');
       expect(result).toBe(true);
     });
   });
@@ -341,12 +326,6 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run('*[a: 1].^type.name == "ordered"');
       expect(result).toBe(true);
     });
-
-    it.skip('AC-37: *[1, "hi"].^type.name == "tuple" — SKIP: list spread removed; *[1, "hi"] throws RILL-R002', async () => {
-      // List spread (*list) was removed in Phase 2. *[1, "hi"] throws RILL-R002.
-      const result = await run('*[1, "hi"].^type.name == "tuple"');
-      expect(result).toBe(true);
-    });
   });
 
   // ============================================================
@@ -360,12 +339,6 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(
         '*[a: 1, b: 2].^type == ordered(a: number, b: number)'
       );
-      expect(result).toBe(true);
-    });
-
-    it.skip('AC-39: *[1, "hello"].^type == tuple(number, string) — SKIP: list spread removed; *[1, "hello"] throws RILL-R002', async () => {
-      // List spread (*list) was removed in Phase 2. *[1, "hello"] throws RILL-R002.
-      const result = await run('*[1, "hello"].^type == tuple(number, string)');
       expect(result).toBe(true);
     });
   });

@@ -1370,20 +1370,6 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(result).toBe(2);
       });
 
-      it.skip('accepts mixed-type list for list parameter', async () => {
-        // Skipped: [1, "two", true, [4]] is a mixed-type list.
-        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-        const result = await run('process([1, "two", true, [4]])', {
-          functions: {
-            process: {
-              params: [{ name: 'items', type: 'list' }],
-              fn: (args) => (args[0] as unknown[]).length,
-            },
-          },
-        });
-        expect(result).toBe(4);
-      });
-
       it('accepts empty list for list parameter', async () => {
         const result = await run('process([])', {
           functions: {
@@ -1470,21 +1456,6 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           },
         });
         expect(result).toBe('received dict with key: test');
-      });
-
-      it.skip('accepts mixed-type list argument for any parameter', async () => {
-        // Skipped: ["a", 1, true] is a mixed-type list (string + number + bool).
-        // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-        const result = await run('acceptAny(["a", 1, true])', {
-          functions: {
-            acceptAny: {
-              params: [{ name: 'value', type: 'any' }],
-              fn: (args) =>
-                `received mixed list with length: ${(args[0] as unknown[]).length}`,
-            },
-          },
-        });
-        expect(result).toBe('received mixed list with length: 3');
       });
 
       it('accepts vector argument for any parameter', async () => {

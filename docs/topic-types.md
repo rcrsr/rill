@@ -13,12 +13,11 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Bool | `true`, `false` | `true` |
 | List | `[a, b]` | `["file.ts", 42]` |
 | Dict | `[k: v]` | `[output: "text", code: 0]` |
-| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` |
+| Ordered | `*[k: v]` | `*[a: 1, b: "hello"]` |
+| Tuple | `*[...]` (positional) | `*[1, 2]` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
-| Shape | `shape(field: type)` | `shape(name: string, age: number)` |
-| Field | field descriptor | `$s.fieldname` |
-| Type | type name expression | `number`, `dict`, `type` |
+| Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
 
 **Key principles:**
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
@@ -320,62 +319,66 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 
 ---
 
-## Tuples
+## Ordered
 
-Tuples package values for explicit argument unpacking at closure invocation. Created with the `*` spread operator:
+`ordered` is a first-class container produced by spreading a dict with `*`. It preserves key insertion order.
 
 ```rill
-# From list (positional)
-*[1, 2, 3] => $t              # tuple with positional values
-
-# From dict (named)
-*[x: 1, y: 2] => $t           # tuple with named values
-
-# Via pipe target
-[1, 2, 3] -> * => $t          # convert list to tuple
+*[a: 1, b: "hello"] => $o
+$o.^type.name
+# Result: "ordered"
 ```
 
-### Using Tuples at Invocation
+Use `ordered` for named argument unpacking:
+
+```rill
+|a, b| { "{$a}-{$b}" } => $fmt
+*[a: 1, b: "hello"] -> $fmt()
+# Result: "1-hello"
+```
+
+Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
+
+`ordered` cannot be passed to `toNative()` — it throws `RILL-R004`.
+
+---
+
+## Tuples
+
+Tuples are positional containers. `*list` spread is no longer supported — use `ordered` (`*dict`) for all argument unpacking.
+
+### Using Ordered for Named Unpacking
+
+For named unpacking, use `ordered` (`*dict`):
 
 ```rill
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
-
-# Positional unpacking
-*[1, 2, 3] -> $fmt()          # "1-2-3"
-
-# Named unpacking (order doesn't matter)
-*[c: 3, a: 1, b: 2] -> $fmt() # "1-2-3"
+*[c: 3, a: 1, b: 2] -> $fmt() # "1-2-3" (named, via ordered)
 ```
 
 ### Strict Validation
 
-When invoking with tuples, missing required parameters error, and extra arguments error:
+When invoking with ordered containers, missing required parameters error, and extra keys error:
 
 ```rill
 |x, y|($x + $y) => $fn
-*[1] -> $fn()                 # Error: missing argument 'y'
-*[1, 2, 3] -> $fn()           # Error: extra positional argument
-*[x: 1, z: 3] -> $fn()        # Error: unknown argument 'z'
+*[x: 1, y: 2] -> $fn()        # 3
 ```
 
-### Parameter Defaults with Tuples
+### Parameter Defaults with Ordered
 
 ```rill
 |x, y = 10, z = 20|($x + $y + $z) => $fn
-*[5] -> $fn()                 # 35 (5 + 10 + 20)
-*[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
+*[x: 5] -> $fn()              # 35 (5 + 10 + 20)
 ```
 
-### Auto-Unpacking with Parallel Spread
+### Parallel Spread with Ordered
 
-When a closure is invoked with a single tuple argument, the tuple auto-unpacks:
+Ordered containers auto-unpack when passed as a single argument to a multi-param closure:
 
 ```rill
-# List of tuples with multi-arg closure
-[*[1,2], *[3,4]] -> map |x,y|($x * $y)    # [2, 12]
-
-# Named tuples work too
-[*[x:1, y:2], *[x:3, y:4]] -> map |x,y|($x + $y)  # [3, 7]
+# List of ordered containers with multi-arg closure
+[*[x: 1, y: 2], *[x: 3, y: 4]] -> map |x, y|($x * $y)    # [2, 12]
 ```
 
 ---
@@ -475,330 +478,107 @@ $vec -> each { $ * 2 }
 
 ---
 
-## Shape
+## Structural Type Values
 
-A shape describes the expected structure of a dict — field names mapped to types with optional metadata. Shapes are first-class values with their own type.
+`^type` returns a structural type value — a first-class value describing the full structure of a collection, not just a coarse type name.
 
-### Shape Literals
-
-```rill
-# Basic shape literal
-shape(name: string, age: number) => $s
-$s -> :?shape
-# Result: true
-
-$s -> :?dict
-# Result: false
-```
-
-### Optional Fields
-
-Append `?` to a field type to mark it optional:
+### `^type` Returns Structural Types
 
 ```rill
-shape(name: string, tag: string?) => $s
-[name: "Alice"] -> :$s
-# Result: [name: "Alice"]
-
-[name: "Alice", tag: "admin"] -> :$s
-# Result: [name: "Alice", tag: "admin"]
-```
-
-### Nested Shapes
-
-Use `shape(field: type)` or the `(field: type)` shorthand for nested structure:
-
-```rill
-# Explicit nested shape
-shape(meta: shape(ts: number)) => $s
-[meta: [ts: 5]] -> :$s
-# Result: [meta: [ts: 5]]
-
-# Shorthand — desugars to the same nested shape
-shape(meta: (ts: number)) => $s
-[meta: [ts: 5]] -> :$s
-# Result: [meta: [ts: 5]]
-```
-
-Nested validation errors report the full dot-separated path:
-
-```text
-shape(user: (address: (zip: string))) => $s
-[user: [address: [:]]] -> :$s
-# Error: missing required field "user.address.zip"
-```
-
-### Spread Composition
-
-Use `...` to inline all fields from a base shape:
-
-```rill
-shape(x: number) => $base
-shape(...$base, age: number) => $composed
-[x: 5, age: 30] -> :$composed
-# Result: [x: 5, age: 30]
-```
-
-Annotations from the source shape carry through to the composed shape.
-
-### Shape Validation
-
-Six forms cover dict validation and shape type assertions:
-
-| Form | Syntax | Behavior |
-|------|--------|----------|
-| Variable ref (assert) | `:$varName` | Halts on mismatch |
-| Variable ref (check) | `:?$varName` | Returns bool, never throws |
-| Inline literal (assert) | `:shape(field: type)` | Halts on mismatch |
-| Inline literal (check) | `:?shape(field: type)` | Returns bool, never throws |
-| Type assertion | `:shape` | Returns value if it is a shape type, halts otherwise |
-| Type check | `:?shape` | Returns `true` if value is a shape type, `false` otherwise |
-
-**Disambiguation:** After `:` (and optional `?`), `$` signals a variable shape reference, `shape` followed by `(` signals an inline shape literal, and `shape` without `(` is a plain type assertion on the value itself — checking whether the value is a shape, not validating dict contents against one.
-
-**Assert form:** Halts execution with `RILL-R004` on mismatch. Returns the dict unchanged on success.
-
-```rill
-shape(name: string, age: number) => $s
-[name: "Alice", age: 30] -> :$s
-# Result: [name: "Alice", age: 30]
-```
-
-Extra undeclared fields pass — validation is lenient:
-
-```rill
-shape(name: string) => $s
-[name: "Alice", extra: 99] -> :$s
-# Result: [name: "Alice", extra: 99]
-```
-
-Failure cases use `text` fences because they halt:
-
-```text
-shape(name: string) => $s
-[:] -> :$s
-# Error: Shape assertion failed: missing required field "name"
-
-[name: 42] -> :$s
-# Error: Shape assertion failed: field "name" expected string, got number
-
-42 -> :$s
-# Error: Shape assertion failed: expected dict, got number
-```
-
-**Check form:** Returns `true` or `false`, never halts:
-
-```rill
-shape(name: string) => $s
-[name: "Alice"] -> :?$s
-# Result: true
-
-[:] -> :?$s
-# Result: false
-```
-
-**Inline form:** Shape literal directly in type position:
-
-```rill
-[x: 5] -> :shape(x: number)
-# Result: [x: 5]
-
-[x: 5] -> :?shape(x: number)
-# Result: true
-
-[x: "hello"] -> :?shape(x: number)
-# Result: false
-```
-
-### Annotations on Shape Fields
-
-Attach metadata to individual fields using `^(...)` before the field name:
-
-```rill
-shape(^(enum: ["admin", "user"]) role: string) => $s
-[role: "admin"] -> :$s
-# Result: [role: "admin"]
-```
-
-The `enum` annotation enforces allowed values during both assert and check:
-
-```rill
-shape(^(enum: ["admin", "user"]) role: string) => $s
-[role: "guest"] -> :?$s
-# Result: false
-```
-
-Supported annotation keys:
-
-| Key | Type | Purpose |
-|-----|------|---------|
-| `description` | `string` | Human-readable field description |
-| `enum` | `list` | Allowed values — enforced during assert and check |
-| `default` | any | Default value hint for host tooling (metadata only) |
-
-Annotation keys `type`, `input`, and `output` are reserved — using them is a parse error:
-
-```text
-^(type: "custom") name: string   # Error: annotation key "type" is reserved
-```
-
-### Shape Field Access
-
-Access field names and field descriptors directly from a shape value.
-
-`.keys` returns field names in declaration order:
-
-```rill
-shape(name: string, age: number, role: string) => $s
-$s.keys   # ["name", "age", "role"]
-```
-
-`.entries` returns a list of `["fieldname", descriptor]` pairs:
-
-```rill
-shape(name: string, age: number) => $s
-$s -> .entries -> each { log($[0]) }
-# Logs: "name" then "age"
-```
-
-`.fieldname` returns the field descriptor for that field:
-
-```rill
-shape(name: string, age: number) => $s
-$s.name           # field descriptor
-$s.name.optional  # false
-$s.age.optional   # false
-
-shape(email: string?) => $s2
-$s2.email.optional  # true
-```
-
-Accessing an absent field errors:
-
-```text
-shape(name: string) => $s
-$s.missing   # Error: Shape has no field "missing"
-```
-
-### Field Descriptor
-
-A field descriptor is a first-class value with type identity `"field"`. Access it via `$shape.fieldname`.
-
-**Properties:**
-
-| Property | Returns | Description |
-|----------|---------|-------------|
-| `.type` | type value | The declared type of the field |
-| `.optional` | bool | `true` if the field is marked optional |
-| `.shape` | shape or `false` | Nested shape for shape-typed fields; `false` otherwise |
-
-`.type` returns the type value for the field:
-
-```rill
-shape(name: string, age: number) => $s
-$s.name.type      # string (type value)
-$s.name.type == string  # true
-```
-
-`.shape` returns the nested shape for shape-typed fields, or `false` for non-nested fields:
-
-```rill
-shape(user: (name: string, age: number)) => $s
-$s.user.type      # shape (type value)
-$s.user.shape     # shape(name: string, age: number)
-```
-
-```rill
-shape(name: string) => $s
-$s.name.shape     # false
-```
-
-**Annotation access:**
-
-| Expression | Returns |
-|-----------|---------|
-| `$d.^key` | Annotation value for `key` |
-| `$d.^keys` | List of annotation key names |
-
-```rill
-shape(
-  ^("User name") name: string,
-  ^("User role", enum: ["admin", "user"]) role: string
-) => $s
-
-$s.name.^description   # "User name"
-$s.role.^enum          # ["admin", "user"]
-$s.role.^description   # "User role"
-```
-
-`.^keys` returns all annotation key names on the field:
-
-```rill
-shape(^("User name", enum: ["alice", "bob"]) name: string) => $s
-$s.name.^keys   # ["description", "enum"]
-```
-
-Accessing an absent annotation key errors:
-
-```text
-shape(name: string) => $s
-$s.name.^enum   # Error: Annotation "enum" not found on field "name"
-```
-
-**Type identity:** Field descriptors have type `"field"`:
-
-```rill
-shape(name: string) => $s
-$s.name.^type == field  # true
-$s.name -> :?field      # true
-```
-
-### `to_shape()` Built-in
-
-Convert a dict descriptor to a shape value. Useful for building shapes programmatically:
-
-```rill
-# String field spec: "typeName" or "typeName?"
-to_shape([name: "string", count: "number?"]) => $s
-[name: "Alice"] -> :$s
-# Result: [name: "Alice"]
-
-# Dict with type key: type + annotations
-to_shape([role: [type: "string", enum: ["admin", "user"]]]) => $s
-[role: "admin"] -> :$s
-# Result: [role: "admin"]
-
-# Dict without type key: recursive nested shape
-to_shape([address: [street: "string", city: "string"]]) => $s
-[address: [street: "Main St", city: "Springfield"]] -> :$s
-# Result: [address: [street: "Main St", city: "Springfield"]]
-
-# Shape passthrough: returns unchanged
-shape(name: string) => $original
-to_shape($original) -> :?shape
+[1, 2, 3] => $list
+$list.^type == list(number)
 # Result: true
 ```
 
-### Shape vs Dict
-
-Shapes and dicts are distinct types with different runtime behavior:
-
-| Property | Dict | Shape |
-|----------|------|-------|
-| `.^type` | `dict` (type value) | `shape` (type value) |
-| `.^name` (on `.^type` result) | `"dict"` | `"shape"` |
-| `:?dict` check | `true` | `false` |
-| `:?shape` check | `false` | `true` |
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type.name
+# Result: "dict"
+```
 
 ```rill
-[name: "Alice"] => $p
-$p.^type == dict
-# Result: true
-
-shape(name: string) => $s
-$s.^type == shape
+42 => $n
+$n.^type == number
 # Result: true
 ```
+
+### Type Constructors
+
+Type constructors produce structural type values. They are primary expressions — valid anywhere an expression is valid.
+
+```rill
+list(number) => $lt
+$lt.^type.name
+# Result: "type"
+```
+
+| Constructor | Example | Produced Type |
+|-------------|---------|---------------|
+| `list(T)` | `list(number)` | List-of-number type |
+| `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
+| `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
+| `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
+| `\|p: T\| -> R` | `\|x: number\| -> string` | Closure signature type |
+
+### Comparing Structural Types
+
+```rill
+[1, 2, 3] => $list
+$list.^type == list(number)
+# Result: true
+```
+
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type == dict(a: number, b: string)
+# Result: true
+```
+
+### `.^type.name` for Coarse Type Name
+
+`.^type.name` returns the coarse type name as a string:
+
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+```rill
+[a: 1] => $d
+$d.^type.name
+# Result: "dict"
+```
+
+### Metatype Fixed Point
+
+The `^type` of a type value is always `type`. `type.^type` is `type`:
+
+```rill
+list(number) => $lt
+$lt.^type == type
+# Result: true
+```
+
+```rill
+type => $t
+$t.^type == type
+# Result: true
+```
+
+### `formatStructuralType` Output Format
+
+The string representation of structural types follows this format:
+
+| Value | `^type` string |
+|-------|---------------|
+| Any value | `"any"` |
+| Primitive | `"string"`, `"number"`, `"bool"` |
+| List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
+| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
+| Tuple | `"tuple(number, string, bool)"` (positional) |
+| Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
+| Closure | `"\|x: number\| -> string"` (pipe-delimited params with arrow-return) |
 
 ---
 
@@ -841,9 +621,9 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`, `shape`, `field`, `any`, `type`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
 
-The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures.
+The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
 
 Both types are valid in closure parameter positions, capture annotations, and type assertions:
 
@@ -938,11 +718,11 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ## Type Values
 
-rill has an 11th runtime type named `type`. A type value represents a rill type itself.
+rill has a runtime type named `type`. A type value represents a rill type — including full structural information for collection types.
 
 ### `.^type` Operator
 
-`.^type` returns the type value for any rill value. Use it on variables:
+`.^type` returns the structural type value for any rill value:
 
 ```rill
 42 => $n
@@ -954,18 +734,18 @@ $s.^type == string
 # Result: true
 
 [1, 2] => $l
-$l.^type == list
+$l.^type == list(number)
 # Result: true
 
 [a: 1] => $d
-$d.^type == dict
+$d.^type == dict(a: number)
 # Result: true
 ```
 
 ```rill
-*[1, 2] => $t
-$t.^type == tuple
-# Result: true
+*[a: 1, b: 2] => $o
+$o.^type.name
+# Result: "ordered"
 
 ||{ $ } => $fn
 $fn.^type == closure
@@ -978,15 +758,9 @@ $vec.^type == vector
 # Result: true
 ```
 
-```rill
-shape(name: string) => $shp
-$shp.^type == shape
-# Result: true
-```
-
 ### Type Name Expressions
 
-All 11 type names are valid expressions that produce type values:
+All type names are valid expressions that produce type values:
 
 ```rill
 string => $st
@@ -1000,57 +774,75 @@ $nt.^type == type
 type => $tt
 $tt.^type == type
 # Result: true
-
-field => $ft
-$ft.^type == type
-# Result: true
 ```
 
-### `.^name` Property
+### `.^type.name` Property
 
-Every type value has a `.^name` annotation that returns its string name:
+Access the coarse type name via `.^type.name` on any value:
 
 ```rill
 42 => $n
-$n.^type => $tv
-$tv.^name
+$n.^type.name
 # Result: "number"
+```
 
+```rill
 "hello" => $s
-$s.^type => $tv
-$tv.^name
+$s.^type.name
 # Result: "string"
 ```
 
-Bare type names also support `.^name` via a variable:
+```rill
+[1, 2] => $l
+$l.^type.name
+# Result: "list"
+```
+
+Type values also have `.name` when accessed through a variable:
 
 ```rill
 dict => $t
-$t.^name
+$t.name
 # Result: "dict"
 
 number => $t
-$t.^name
+$t.name
 # Result: "number"
 ```
 
 ### Type Value Equality
 
-Type values compare with `==` and `!=`:
+Type values compare with `==` and `!=`. Structural types compare structurally:
 
 ```rill
 42 => $n
 $n.^type == number
 # Result: true
+```
 
+```rill
 42 => $n
 $n.^type == string
 # Result: false
+```
 
+```rill
 "hello" => $a
 "world" => $b
 $a.^type == $b.^type
 # Result: true
+```
+
+```rill
+[1, 2] => $l
+$l.^type == list(number)
+# Result: true
+```
+
+```rill
+["a", "b"] => $strs
+$strs.^type == list(number)
+# Result: false
 ```
 
 The type of a type value is `type`:
@@ -1071,7 +863,6 @@ $t.^type == type
 | Function | Description |
 |----------|-------------|
 | `json` | Convert to JSON string |
-| `to_shape` | Convert dict descriptor to shape value |
 
 ```rill
 [a: 1, b: 2] -> json

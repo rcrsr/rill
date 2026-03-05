@@ -96,12 +96,6 @@ describe('Rill Runtime: Literals', () => {
       expect(await run('[1, 2, 3]')).toEqual([1, 2, 3]);
     });
 
-    it.skip('evaluates mixed types', async () => {
-      // Skipped: ["a", 1, true] is a mixed-type list (string + number + bool).
-      // Phase 2: Mixed-type lists fail at construction with RILL-R002.
-      expect(await run('["a", 1, true]')).toEqual(['a', 1, true]);
-    });
-
     it('evaluates nested tuples', async () => {
       expect(await run('[[1, 2], [3, 4]]')).toEqual([
         [1, 2],
