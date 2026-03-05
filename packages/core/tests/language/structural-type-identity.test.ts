@@ -10,17 +10,7 @@
  * - Type constructor: list(number), dict(a: number), tuple(...), ordered(...)
  * - Structural :? check requires variable: store type in $t, use -> :?$t
  *
- * Skipped ACs (list spread removed — throws RILL-R002):
- *   AC-6:  *[1, "hello", true].^type  — mixed-type list fails construction
- *   AC-9:  *[].^type                   — list spread removed
- *   AC-37: *[1, "hi"].^type.name       — list spread removed
- *   AC-39: *[1, "hello"].^type         — list spread removed
  *
- * Skipped ACs (ordered from dict spread — pre-existing implementation gap):
- *   AC-10: *[a: 1, b: "hello"].^type == ordered(a: number, b: string) — fails
- *   AC-12: *[:].^type == ordered()                                     — fails
- *   AC-36: *[a: 1].^type.name == "ordered"                            — fails
- *   AC-38: *[a: 1, b: 2].^type == ordered(a: number, b: number)       — fails
  */
 
 import { describe, expect, it } from 'vitest';
@@ -64,6 +54,13 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple structural types (AC-6 to AC-9)', () => {
+    it('AC-6: *[1, "hello", true].^type == tuple(number, string, bool)', async () => {
+      const result = await run(
+        '*[1, "hello", true].^type == tuple(number, string, bool)'
+      );
+      expect(result).toBe(true);
+    });
+
     it('AC-7: tuple(number, string) != tuple(string, number) is true', async () => {
       const result = await run(
         'tuple(number, string) != tuple(string, number)'
@@ -77,6 +74,11 @@ describe('Rill Language: Structural Type Identity', () => {
       );
       expect(result).toBe(true);
     });
+
+    it('AC-9: *[].^type == tuple() is true', async () => {
+      const result = await run('*[].^type == tuple()');
+      expect(result).toBe(true);
+    });
   });
 
   // ============================================================
@@ -84,9 +86,7 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Ordered structural types (AC-10 to AC-12)', () => {
-    it.skip('AC-10: *[a: 1, b: "hello"].^type == ordered(a: number, b: string) — SKIP: pre-existing ordered ^type implementation gap', async () => {
-      // Dict spread produces a RillOrdered value, but ^type comparison with
-      // ordered(...) constructor currently returns false. Tracked separately.
+    it('AC-10: *[a: 1, b: "hello"].^type == ordered(a: number, b: string)', async () => {
       const result = await run(
         '*[a: 1, b: "hello"].^type == ordered(a: number, b: string)'
       );
@@ -100,9 +100,7 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it.skip('AC-12: *[:].^type == ordered() — SKIP: pre-existing ordered ^type implementation gap', async () => {
-      // *[:] produces an empty RillOrdered, but ^type comparison with ordered()
-      // constructor currently returns false. Tracked separately.
+    it('AC-12: *[:].^type == ordered()', async () => {
       const result = await run('*[:].^type == ordered()');
       expect(result).toBe(true);
     });
@@ -328,10 +326,13 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it.skip('AC-36: *[a: 1].^type.name == "ordered" — SKIP: pre-existing ordered ^type implementation gap', async () => {
-      // Dict spread produces a RillOrdered value, but .^type.name returns
-      // wrong value due to pre-existing implementation gap. Tracked separately.
+    it('AC-36: *[a: 1].^type.name == "ordered"', async () => {
       const result = await run('*[a: 1].^type.name == "ordered"');
+      expect(result).toBe(true);
+    });
+
+    it('AC-37: *[1, "hi"].^type.name == "tuple"', async () => {
+      const result = await run('*[1, "hi"].^type.name == "tuple"');
       expect(result).toBe(true);
     });
   });
@@ -341,12 +342,15 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple/Ordered split (AC-38 to AC-39)', () => {
-    it.skip('AC-38: *[a: 1, b: 2].^type == ordered(a: number, b: number) — SKIP: pre-existing ordered ^type implementation gap', async () => {
-      // Dict spread produces a RillOrdered value, but ^type comparison with
-      // ordered(...) constructor currently returns false. Tracked separately.
+    it('AC-38: *[a: 1, b: 2].^type == ordered(a: number, b: number)', async () => {
       const result = await run(
         '*[a: 1, b: 2].^type == ordered(a: number, b: number)'
       );
+      expect(result).toBe(true);
+    });
+
+    it('AC-39: *[1, "hello"].^type == tuple(number, string)', async () => {
+      const result = await run('*[1, "hello"].^type == tuple(number, string)');
       expect(result).toBe(true);
     });
   });

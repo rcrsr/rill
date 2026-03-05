@@ -17,6 +17,7 @@ export {
   type ConfigFieldDescriptor,
   createRuntimeContext,
   createStepper,
+  createTuple,
   createVector,
   type DocumentationCoverageResult,
   emitExtensionEvent,

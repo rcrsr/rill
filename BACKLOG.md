@@ -34,8 +34,9 @@ Consolidated from completed initiative feedback documents. Each item includes it
   - Action: Define closure with typed params, store, assert `^input` returns `{ kind: 'closure', params: [['x', { kind: 'primitive', name: 'Int' }]], ret: { kind: 'any' } }`
   - Resolution: Added 2 tests in `ScriptCallable $fn.^input returns closure structural type` describe block — typed param (`number`) and untyped param. All 3623 tests pass.
 
-- [ ] **VAL-2**: Ordered `^type` inference gap — `*[a:1,b:2].^type` does not produce a comparable `ordered(a:number, b:string)` structural type. Affects AC-10, AC-12, AC-36, AC-38, AC-49 (all skipped). (MEDIUM)
+- [x] **VAL-2**: Ordered `^type` inference gap — `*[a:1,b:2].^type` does not produce a comparable `ordered(a:number, b:string)` structural type. Affects AC-10, AC-12, AC-36, AC-38, AC-49 (all skipped). (MEDIUM)
   - Origin: structural-type-identity (VAL-1)
+  - Resolution: Root cause was parser precedence — `parseSpread()` called `parsePostfixExpr()`, consuming `.^type` as part of the spread operand. Fixed by changing to `parsePrimary()` so `*` binds to the next atomic expression. All 7 skipped tests now pass (3630 total, 2 unrelated skips remain).
 
 - [ ] **VAL-3**: No direct unit test for `paramsToStructuralType` with typed param asserting `{ kind: 'primitive', name }`. Covered indirectly via AC-7/AC-23 tests. (LOW)
   - Origin: shape-migration (VAL-1)

@@ -9,6 +9,7 @@ import type {
   DestructPatternNode,
   DestructureNode,
   PipeChainNode,
+  PostfixExprNode,
   RillTypeName,
   SliceBoundNode,
   SliceNode,
@@ -287,7 +288,15 @@ Parser.prototype.parseSpread = function (this: Parser): SpreadNode {
     };
   }
 
-  const operand = this.parsePostfixExpr();
+  const primary = this.parsePrimary();
+
+  const operand: PostfixExprNode = {
+    type: 'PostfixExpr',
+    primary,
+    methods: [],
+    defaultValue: null,
+    span: primary.span,
+  };
 
   const operandExpr: PipeChainNode = {
     type: 'PipeChain',

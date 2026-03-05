@@ -10,10 +10,9 @@ import { run } from '../helpers/runtime.js';
 describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   describe('Spread operator *', () => {
     describe('Prefix form: *expr', () => {
-      it('list spread throws — list spread is removed (BC)', async () => {
-        await expect(run('*[1, 2, 3] => $t\n$t')).rejects.toThrow(
-          'Spread requires dict'
-        );
+      it('creates tuple from list literal', async () => {
+        const result = await run('*[1, 2, 3] => $t\n$t.^type.^name');
+        expect(result).toBe('tuple');
       });
 
       it('creates ordered from dict literal', async () => {
@@ -21,10 +20,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
         expect(result).toBe('ordered');
       });
 
-      it('list variable spread throws — list spread is removed (BC)', async () => {
-        await expect(run('[1, 2] => $t\n*$t => $u\n$u')).rejects.toThrow(
-          'Spread requires dict'
-        );
+      it('creates tuple from list variable', async () => {
+        const result = await run('[1, 2] => $t\n*$t => $u\n$u.^type.^name');
+        expect(result).toBe('tuple');
       });
 
       it('creates ordered from dict variable', async () => {
@@ -34,10 +32,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
 
     describe('Pipe target form: -> *', () => {
-      it('list pipe to * throws — list spread is removed (BC)', async () => {
-        await expect(run('[1, 2, 3] -> * => $t\n$t')).rejects.toThrow(
-          'Spread requires dict'
-        );
+      it('list pipe to * creates tuple', async () => {
+        const result = await run('[1, 2, 3] -> * => $t\n$t.^type.^name');
+        expect(result).toBe('tuple');
       });
 
       it('dict pipe to * creates ordered', async () => {
@@ -48,14 +45,13 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   });
 
   describe('Args unpacking at invocation', () => {
-    describe('Positional args (list spread removed — BC)', () => {
-      it('list spread to fn throws — list spread removed', async () => {
-        await expect(
-          run(`
-            |x, y| { ($x + $y) } => $add
-            *[3, 4] -> $add()
-          `)
-        ).rejects.toThrow('Spread requires dict');
+    describe('Positional args (from list spread)', () => {
+      it('unpacks list as positional args via tuple', async () => {
+        const result = await run(`
+          |x, y| { ($x + $y) } => $add
+          *[3, 4] -> $add()
+        `);
+        expect(result).toBe(7);
       });
     });
 

@@ -109,23 +109,18 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // AC-45: *[1, 2, 3] spread on list throws RILL-R002
+  // AC-45: *[1, 2, 3] spread on list produces tuple
   // ============================================================
 
-  describe('List spread throws RILL-R002 (AC-45)', () => {
-    it('throws when spreading a homogeneous list', async () => {
-      // [1, 2, 3] constructs successfully (homogeneous).
-      // *[1, 2, 3] then fails: spread requires dict, got list.
-      await expect(run('*[1, 2, 3]')).rejects.toThrow(
-        'Spread requires dict, got list'
-      );
+  describe('List spread produces tuple (AC-45)', () => {
+    it('produces a tuple when spreading a homogeneous list', async () => {
+      const result = await run('*[1, 2, 3] => $t\n$t.^type.^name');
+      expect(result).toBe('tuple');
     });
 
-    it('throws when spreading an empty list', async () => {
-      // *[] — list spread removed, throws RILL-R002
-      await expect(run('*[]')).rejects.toThrow(
-        'Spread requires dict, got list'
-      );
+    it('produces an empty tuple when spreading an empty list', async () => {
+      const result = await run('*[] => $t\n$t.^type.^name');
+      expect(result).toBe('tuple');
     });
   });
 

@@ -52,7 +52,7 @@ import type { EvaluatorBase } from '../base.js';
  * - ControlFlowMixin: evaluateConditional(), evaluateWhileLoop(), evaluateDoWhileLoop(), evaluateBlockExpression()
  * - TypesMixin: evaluateTypeAssertion(), evaluateTypeCheck()
  * - CollectionsMixin: evaluateEach(), evaluateMap(), evaluateFold(), evaluateFilter()
- * - ExtractionMixin: evaluateDestructure(), evaluateSlice(), evaluateSpread()
+ * - ExtractionMixin: evaluateDestructure(), evaluateSlice(), evaluateStarLiteral()
  *
  * Methods added:
  * - evaluateExpression(expr) -> Promise<RillValue>
@@ -296,7 +296,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         case 'Spread':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateSpread(primary);
+          return (this as any).evaluateStarLiteral(primary);
 
         case 'Assert':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -525,7 +525,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         case 'Spread':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateSpread(target);
+          return (this as any).evaluateStarLiteral(target);
 
         case 'TypeAssertion':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -12,11 +12,12 @@ import type {
   SliceNode,
   SpreadNode,
   GroupedExprNode,
+  TupleNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { RillValue } from '../../values.js';
-import { createOrdered, inferType } from '../../values.js';
+import { createOrdered, createTuple, inferType } from '../../values.js';
 import { isDict } from '../../callable.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -35,12 +36,12 @@ import type { EvaluatorBase } from '../base.js';
  * Methods added:
  * - evaluateDestructure(node, input) -> RillValue
  * - evaluateSlice(node, input) -> Promise<RillValue>
- * - evaluateSpread(node) -> Promise<RillTuple>
+ * - evaluateStarLiteral(node) -> Promise<RillTuple>
  *
  * Covers:
  * - IR-26: evaluateDestructure(node, input) -> RillValue
  * - IR-27: evaluateSlice(node, input) -> Promise<RillValue>
- * - IR-28: evaluateSpread(node) -> Promise<RillTuple>
+ * - IR-28: evaluateStarLiteral(node) -> Promise<RillTuple>
  *
  * Error handling:
  * - EC-13: Destructure/slice on wrong types -> RuntimeError(RUNTIME_TYPE_ERROR)
@@ -244,9 +245,36 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Examples:
      * *[a: 1, b: 2] -> $fn()          # Calls $fn with named args
      */
-    protected async evaluateSpread(
+    protected async evaluateStarLiteral(
       node: SpreadNode
-    ): Promise<ReturnType<typeof createOrdered>> {
+    ): Promise<
+      ReturnType<typeof createTuple> | ReturnType<typeof createOrdered>
+    > {
+      // Check if operand is a bare list literal: *[elements...]
+      // Evaluate elements directly to bypass list homogeneity check,
+      // since tuples allow mixed types.
+      const tupleNode = this.extractTupleNode(node);
+      if (tupleNode) {
+        const elements: RillValue[] = [];
+        for (const elem of tupleNode.elements) {
+          if (elem.type === 'ListSpread') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const spreadValue = await (this as any).evaluateExpression(
+              elem.expression
+            );
+            if (Array.isArray(spreadValue)) {
+              elements.push(...spreadValue);
+            } else {
+              elements.push(spreadValue);
+            }
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            elements.push(await (this as any).evaluateExpression(elem));
+          }
+        }
+        return createTuple(elements);
+      }
+
       let value: RillValue;
       if (node.operand === null) {
         value = this.ctx.pipeValue;
@@ -257,6 +285,10 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         value = await (this as any).evaluateExpression(node.operand);
       }
 
+      if (Array.isArray(value)) {
+        return createTuple(value);
+      }
+
       if (isDict(value)) {
         return createOrdered(
           Object.entries(value as Record<string, RillValue>)
@@ -265,9 +297,24 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       throw new RuntimeError(
         'RILL-R002',
-        `Spread requires dict, got ${inferType(value)}`,
+        `* requires list or dict, got ${inferType(value)}`,
         node.span.start
       );
+    }
+
+    /**
+     * Extract TupleNode from a Spread operand if it's a bare list literal.
+     * Returns null if the operand has pipes, methods, or is not a list literal.
+     */
+    private extractTupleNode(node: SpreadNode): TupleNode | null {
+      if (node.operand === null) return null;
+      if (node.operand.type !== 'PipeChain') return null;
+      if (node.operand.pipes.length > 0) return null;
+      const head = node.operand.head;
+      if (head.type !== 'PostfixExpr') return null;
+      if (head.methods.length > 0) return null;
+      if (head.primary.type !== 'Tuple') return null;
+      return head.primary;
     }
 
     /**

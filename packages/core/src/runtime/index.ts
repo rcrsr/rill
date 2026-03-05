@@ -80,6 +80,7 @@ export type {
 } from './core/values.js';
 
 export {
+  createTuple,
   createVector,
   formatStructuralType,
   inferElementType,

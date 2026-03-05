@@ -66,23 +66,20 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
 
   // ============================================================
   // AC-49: *[:] → ordered()
-  // Note: ordered() type equality and .^type inference via spread are not yet
-  // implemented (pre-existing failures in structural-type-identity.test.ts AC-12,
-  // AC-36, AC-38). These tests are skipped until that implementation lands.
   // ============================================================
 
   describe('Spread on empty dict produces ordered() (AC-49)', () => {
-    it.skip('*[:].^type == ordered() evaluates to true — SKIP: ordered() type equality not yet implemented', async () => {
+    it('*[:].^type == ordered() evaluates to true', async () => {
       const result = await run('*[:].^type == ordered()');
       expect(result).toBe(true);
     });
 
-    it.skip('*[:].^type.name returns "ordered" — SKIP: ordered() structural type inference not yet implemented', async () => {
+    it('*[:].^type.name returns "ordered"', async () => {
       const result = await run('*[:].^type.name');
       expect(result).toBe('ordered');
     });
 
-    it.skip('*[:].^type.str returns "ordered()" — SKIP: ordered() structural type inference not yet implemented', async () => {
+    it('*[:].^type.str returns "ordered()"', async () => {
       const result = await run('*[:].^type.str');
       expect(result).toBe('ordered()');
     });

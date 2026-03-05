@@ -144,6 +144,11 @@ export function createOrdered(entries: [string, RillValue][]): RillOrdered {
   return Object.freeze({ __rill_ordered: true, entries: [...entries] });
 }
 
+/** Create tuple from entries array (positional, preserves order) */
+export function createTuple(entries: RillValue[]): RillTuple {
+  return Object.freeze({ __rill_tuple: true, entries: [...entries] });
+}
+
 /**
  * Create vector from Float32Array with model name.
  * @throws {Error} if data.length is 0 (zero-dimension vectors not allowed)
