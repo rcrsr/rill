@@ -798,14 +798,30 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseClosure();
   }
 
-  // Method call (possibly chained: .a.b.c)
+  // Method call or annotation access (possibly chained: .a.b.c or .^type)
   if (check(this.state, TOKEN_TYPES.DOT)) {
-    const methods: MethodCallNode[] = [];
+    const methods: (MethodCallNode | AnnotationAccessNode)[] = [];
     const start = current(this.state).span.start;
 
-    // Collect all chained method calls
+    // Collect all chained method calls and annotation accesses
     while (check(this.state, TOKEN_TYPES.DOT)) {
-      methods.push(this.parseMethodCall(null));
+      if (isAnnotationAccess(this.state)) {
+        const dotStart = current(this.state).span.start;
+        advance(this.state); // consume .
+        advance(this.state); // consume ^
+        const nameToken = expect(
+          this.state,
+          TOKEN_TYPES.IDENTIFIER,
+          'Expected annotation key after .^'
+        );
+        methods.push({
+          type: 'AnnotationAccess',
+          key: nameToken.value,
+          span: makeSpan(dotStart, nameToken.span.end),
+        });
+      } else {
+        methods.push(this.parseMethodCall(null));
+      }
     }
 
     if (check(this.state, TOKEN_TYPES.QUESTION)) {

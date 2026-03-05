@@ -670,6 +670,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return value;
         }
 
+        case 'AnnotationAccess':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateAnnotationAccess(
+            input,
+            target.key,
+            target.span.start
+          );
+
         case 'Assert':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateAssert(target, input);

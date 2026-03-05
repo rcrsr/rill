@@ -277,7 +277,8 @@ export type PipeTargetNode =
   | PostfixExprNode
   | VariableNode
   | AssertNode
-  | ErrorNode;
+  | ErrorNode
+  | AnnotationAccessNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
