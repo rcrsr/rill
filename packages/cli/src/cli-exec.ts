@@ -10,7 +10,7 @@ import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
-import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, toNative } from '@rcrsr/rill';
 import type { RillValue, ExecutionResult } from '@rcrsr/rill';
 import {
   formatError,
@@ -358,13 +358,14 @@ Examples:
           source,
         });
 
-        const { code, message } = determineExitCode(result.result);
+        const native = toNative(result.result);
+        const { code, message } = determineExitCode(native);
 
         // Output message if present, otherwise output the result value
         if (message !== undefined) {
           console.log(message);
         } else {
-          console.log(String(result.result));
+          console.log(String(native));
         }
 
         // Exit with computed code

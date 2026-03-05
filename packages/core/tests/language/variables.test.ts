@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 import { parse, type VariableNode } from '@rcrsr/rill';
 
 describe('Rill Runtime: Variables', () => {
@@ -15,8 +15,8 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('=> captured value equals original', async () => {
-      const result = await runFull('"hello" => $x -> .upper');
-      expect(result.variables['x']).toBe('hello');
+      const { context } = await runWithContext('"hello" => $x -> .upper');
+      expect(context.variables.get('x')).toBe('hello');
     });
 
     it('=> at end of chain emits value', async () => {
@@ -103,14 +103,16 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('captures in execution result', async () => {
-      const result = await runFull('"hello" => $msg\n$msg');
-      expect(result.variables['msg']).toBe('hello');
+      const { context } = await runWithContext('"hello" => $msg\n$msg');
+      expect(context.variables.get('msg')).toBe('hello');
     });
 
     it('captures multiple variables in result', async () => {
-      const result = await runFull('"a" => $x\n"b" => $y\n[$x, $y]');
-      expect(result.variables['x']).toBe('a');
-      expect(result.variables['y']).toBe('b');
+      const { context } = await runWithContext(
+        '"a" => $x\n"b" => $y\n[$x, $y]'
+      );
+      expect(context.variables.get('x')).toBe('a');
+      expect(context.variables.get('y')).toBe('b');
     });
   });
 

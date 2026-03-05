@@ -14,7 +14,7 @@
  * AC-6: formatValue on dict {a:1} → "dict(a: 1)"
  * AC-7: formatValue on shape → "shape(name: string, age?: number)"
  * AC-8: formatValue on closure → "type(closure)"
- * AC-9: Script returns closure → runtime error
+ * AC-9: Script returns closure → returns as RillValue
  * AC-10: json(closure) throws RuntimeError RILL-R004
  * AC-11: json([1, closure, 3]) throws RuntimeError
  * AC-12: json(tuple(a:1)) throws RuntimeError
@@ -643,21 +643,11 @@ describe('Script-level integration', () => {
     });
   });
 
-  describe('AC-9: Script returning closure causes runtime error', () => {
-    it('throws RuntimeError when script result is a closure', async () => {
-      await expect(run('|| { "fn" }')).rejects.toThrow(
-        'closures cannot be returned from scripts'
-      );
-    });
-
-    it('thrown error is RuntimeError', async () => {
-      let caught: unknown;
-      try {
-        await run('|| { "fn" }');
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
+  describe('AC-9: Script returning closure returns as RillValue', () => {
+    it('closure is returned without error', async () => {
+      const result = await run('|| { "fn" }');
+      expect(result).not.toBeNull();
+      expect(typeof result).toBe('object');
     });
   });
 

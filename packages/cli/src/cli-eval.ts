@@ -12,6 +12,7 @@ import {
   createRuntimeContext,
   execute,
   parse,
+  toNative,
   type ExecutionResult,
 } from '@rcrsr/rill';
 import { determineExitCode, VERSION } from './cli-shared.js';
@@ -115,12 +116,13 @@ async function main(): Promise<void> {
 
     if (command.mode === 'eval') {
       const result = await evaluateExpression(command.expression);
-      const { code, message } = determineExitCode(result.result);
+      const native = toNative(result.result);
+      const { code, message } = determineExitCode(native);
 
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(String(result.result));
+        console.log(String(native));
       }
       process.exit(code);
     }

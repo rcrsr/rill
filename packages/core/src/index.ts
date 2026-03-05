@@ -89,6 +89,7 @@ export {
   type VectorExtensionContract,
   structuralTypeEquals,
   structuralTypeMatches,
+  toNative,
   validateHostFunctionArgs,
   VERSION,
   VERSION_INFO,

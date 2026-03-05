@@ -252,9 +252,11 @@ describe('rill-exec', () => {
       expect(result.result).toEqual([]);
     });
 
-    it('rejects when script returns a closure', async () => {
+    it('returns closure as RillValue when script returns a closure', async () => {
       const script = await writeScript('closure.rill', '|x| { $x }');
-      await expect(executeScript(script, [])).rejects.toThrow(RuntimeError);
+      const result = await executeScript(script, []);
+      expect(result.result).not.toBeNull();
+      expect(typeof result.result).toBe('object');
     });
   });
 

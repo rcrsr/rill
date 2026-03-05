@@ -5,18 +5,18 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Extraction Operators', () => {
   describe('Destructure *<>', () => {
     describe('Tuple destructuring', () => {
       it('extracts elements into variables', async () => {
-        const { variables } = await runFull(`
+        const { context } = await runWithContext(`
           [1, 2, 3] -> *<$a, $b, $c>
         `);
-        expect(variables.a).toBe(1);
-        expect(variables.b).toBe(2);
-        expect(variables.c).toBe(3);
+        expect(context.variables.get('a')).toBe(1);
+        expect(context.variables.get('b')).toBe(2);
+        expect(context.variables.get('c')).toBe(3);
       });
 
       it('returns original input unchanged', async () => {
@@ -29,16 +29,16 @@ describe('Rill Runtime: Extraction Operators', () => {
       it('allows typed captures', async () => {
         // Mixed-type list [1, "hello", true] fails at construction (Phase 2 RILL-R002).
         // Verify typed captures using same-type lists per type separately.
-        const { variables: va } = await runFull(
+        const { context: ca } = await runWithContext(
           `[1, 2] -> *<$a:number, $b:number>`
         );
-        expect(va.a).toBe(1);
-        expect(va.b).toBe(2);
-        const { variables: vb } = await runFull(
+        expect(ca.variables.get('a')).toBe(1);
+        expect(ca.variables.get('b')).toBe(2);
+        const { context: cb } = await runWithContext(
           `["x", "y"] -> *<$a:string, $b:string>`
         );
-        expect(vb.a).toBe('x');
-        expect(vb.b).toBe('y');
+        expect(cb.variables.get('a')).toBe('x');
+        expect(cb.variables.get('b')).toBe('y');
       });
 
       it('throws on type mismatch', async () => {
@@ -56,30 +56,30 @@ describe('Rill Runtime: Extraction Operators', () => {
 
     describe('Skip placeholder _', () => {
       it('skips elements with _', async () => {
-        const { variables } = await runFull(`
+        const { context } = await runWithContext(`
           [1, 2, 3] -> *<$a, _, $c>
         `);
-        expect(variables.a).toBe(1);
-        expect(variables.c).toBe(3);
-        expect('_' in variables).toBe(false);
+        expect(context.variables.get('a')).toBe(1);
+        expect(context.variables.get('c')).toBe(3);
+        expect(context.variables.has('_')).toBe(false);
       });
 
       it('skips multiple elements', async () => {
-        const { variables } = await runFull(`
+        const { context } = await runWithContext(`
           [1, 2, 3, 4] -> *<_, $b, _, $d>
         `);
-        expect(variables.b).toBe(2);
-        expect(variables.d).toBe(4);
+        expect(context.variables.get('b')).toBe(2);
+        expect(context.variables.get('d')).toBe(4);
       });
     });
 
     describe('Dict destructuring', () => {
       it('extracts by key', async () => {
-        const { variables } = await runFull(`
+        const { context } = await runWithContext(`
           [name: "Alice", age: 30] -> *<name: $n, age: $a>
         `);
-        expect(variables.n).toBe('Alice');
-        expect(variables.a).toBe(30);
+        expect(context.variables.get('n')).toBe('Alice');
+        expect(context.variables.get('a')).toBe(30);
       });
 
       it('throws on missing key', async () => {
@@ -89,10 +89,10 @@ describe('Rill Runtime: Extraction Operators', () => {
       });
 
       it('allows typed captures for dict', async () => {
-        const { variables } = await runFull(`
+        const { context } = await runWithContext(`
           [count: 42] -> *<count: $c:number>
         `);
-        expect(variables.c).toBe(42);
+        expect(context.variables.get('c')).toBe(42);
       });
     });
 

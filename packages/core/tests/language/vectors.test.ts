@@ -6,7 +6,7 @@
 import { createVector, isVector, type RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Vector Type', () => {
   describe('.^type.^name operator [AC-9]', () => {
@@ -439,10 +439,11 @@ describe('Rill Runtime: Vector Type', () => {
 
     it('preserves direction', async () => {
       const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
-      const { variables } = await runFull('$v -> .normalize => $result\ntrue', {
-        variables: { v: vec },
-      });
-      const normalized = variables['result'] as RillValue;
+      const { context } = await runWithContext(
+        '$v -> .normalize => $result\ntrue',
+        { variables: { v: vec } }
+      );
+      const normalized = context.variables.get('result') as RillValue;
       expect(isVector(normalized)).toBe(true);
       if (isVector(normalized)) {
         expect(normalized.data[0]).toBeCloseTo(0.6, 5);

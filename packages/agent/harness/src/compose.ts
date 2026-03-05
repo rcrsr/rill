@@ -391,8 +391,8 @@ export async function composeAgent(
     }
     const source = readFileSync(absPath, 'utf-8');
     const moduleAst = parse(source);
-    const result = await execute(moduleAst, context);
-    modules[alias] = result.variables;
+    await execute(moduleAst, context);
+    modules[alias] = Object.fromEntries(context.variables);
   }
 
   // Step 9: Parse entry file
@@ -606,8 +606,8 @@ export async function composeHarness(
       }
       const source = readFileSync(absPath, 'utf-8');
       const moduleAst = parse(source);
-      const result = await execute(moduleAst, context);
-      modules[alias] = result.variables;
+      await execute(moduleAst, context);
+      modules[alias] = Object.fromEntries(context.variables);
     }
 
     // Step 4e: Generate AgentCard from agent-level fields

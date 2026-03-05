@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Capture Type Annotations', () => {
   describe('String Type', () => {
@@ -164,17 +164,17 @@ $v`;
 
   describe('Variables in Result', () => {
     it('captures typed variable in result', async () => {
-      const result = await runFull('"hello" => $msg:string');
-      expect(result.variables['msg']).toBe('hello');
+      const { context } = await runWithContext('"hello" => $msg:string');
+      expect(context.variables.get('msg')).toBe('hello');
     });
 
     it('captures multiple typed variables', async () => {
-      // Mixed-type list [$s, $n] not allowed; verify variables directly via runFull
-      const result = await runFull(`"a" => $s:string
+      // Mixed-type list [$s, $n] not allowed; verify variables directly via runWithContext
+      const { context } = await runWithContext(`"a" => $s:string
 42 => $n:number
 $s`);
-      expect(result.variables['s']).toBe('a');
-      expect(result.variables['n']).toBe(42);
+      expect(context.variables.get('s')).toBe('a');
+      expect(context.variables.get('n')).toBe(42);
     });
   });
 

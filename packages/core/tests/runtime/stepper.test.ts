@@ -187,9 +187,9 @@ describe('Rill Runtime: Step Execution', () => {
         await stepper.step();
       }
 
-      const result = stepper.getResult();
-      expect(result.variables['first']).toBe('x');
-      expect(result.variables['second']).toBe('y');
+      stepper.getResult();
+      expect(stepper.context.variables.get('first')).toBe('x');
+      expect(stepper.context.variables.get('second')).toBe('y');
     });
 
     it('can be called before completion', async () => {
@@ -199,9 +199,9 @@ describe('Rill Runtime: Step Execution', () => {
 
       await stepper.step(); // Only first step
 
-      const result = stepper.getResult();
-      expect(result.variables['x']).toBe('a');
-      expect(result.variables['y']).toBeUndefined();
+      stepper.getResult();
+      expect(stepper.context.variables.get('x')).toBe('a');
+      expect(stepper.context.variables.get('y')).toBeUndefined();
     });
   });
 

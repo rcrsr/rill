@@ -34,10 +34,10 @@ describe('rill-eval', () => {
       expect((await evaluateExpression('[a: 1].a')).result).toBe(1);
     });
 
-    it('rejects when expression returns a closure', async () => {
-      await expect(evaluateExpression('|x| { $x }')).rejects.toThrow(
-        RuntimeError
-      );
+    it('returns closure as RillValue when expression returns a closure', async () => {
+      const result = await evaluateExpression('|x| { $x }');
+      expect(result.result).not.toBeNull();
+      expect(typeof result.result).toBe('object');
     });
 
     it('handles empty values', async () => {

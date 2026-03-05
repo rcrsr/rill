@@ -7,7 +7,7 @@
 
 import type { RillTypeName } from '../../types.js';
 import type { CallableFn, HostFunctionDefinition } from './callable.js';
-import type { NativeValue, RillValue } from './values.js';
+import type { RillValue } from './values.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
 
@@ -192,9 +192,7 @@ export interface RuntimeOptions {
 /** Result of script execution */
 export interface ExecutionResult {
   /** Final result returned by the script */
-  result: NativeValue;
-  /** All captured variables */
-  variables: Record<string, RillValue>;
+  result: RillValue;
 }
 
 /** Result of a single step execution */

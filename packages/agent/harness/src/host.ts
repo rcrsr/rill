@@ -319,7 +319,7 @@ export function createAgentHost(
         record.state = 'completed';
         record.durationMs = durationMs;
         record.result = result.result;
-        record.variables = result.variables;
+        record.variables = Object.fromEntries(sessionContext.variables);
 
         metrics.sessionsActive.labels({ agent: agentName }).dec();
         metrics.sessionsTotal

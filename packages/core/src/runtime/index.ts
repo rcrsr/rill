@@ -94,6 +94,7 @@ export {
   RESERVED_DICT_METHODS,
   structuralTypeEquals,
   structuralTypeMatches,
+  toNative,
 } from './core/values.js';
 
 export { buildFieldDescriptor } from './core/field-descriptor.js';

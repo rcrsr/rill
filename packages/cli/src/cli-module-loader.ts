@@ -78,15 +78,15 @@ export async function loadModule(
 
     // Execute module with dependencies
     const ctx = createRuntimeContext({ variables: imports });
-    const result = await execute(ast, ctx);
+    await execute(ast, ctx);
 
-    // Extract exports
+    // Extract exports from context variables
     const exports: Record<string, RillValue> = {};
     const exportList: unknown = frontmatter['export'];
     if (Array.isArray(exportList)) {
       for (const name of exportList) {
-        if (typeof name === 'string' && result.variables[name] !== undefined) {
-          exports[name] = result.variables[name];
+        if (typeof name === 'string' && ctx.variables.has(name)) {
+          exports[name] = ctx.variables.get(name)!;
         }
       }
     }

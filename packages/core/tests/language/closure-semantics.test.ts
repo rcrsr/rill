@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
@@ -210,13 +210,13 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Fixed: Originally piped "outer" -> $a, but unified dispatch would
       // try to find key "outer" in dict, throwing RUNTIME_PROPERTY_NOT_FOUND.
       // Test intent is to verify dict contains block-closure, not test dispatch.
-      // Using runFull to capture $a as a raw RillValue (dict with closure),
+      // Using runWithContext to capture $a as a raw RillValue (dict with closure),
       // since toNative() rejects dicts that contain closure values.
-      const { variables } = await runFull(`
+      const { context } = await runWithContext(`
         [y: { "inner" }] => $a
         true
       `);
-      const a = variables['a'];
+      const a = context.variables.get('a');
       expect(a).toHaveProperty('y');
       expect(
         await run('$result.y.^type.^name', { variables: { result: a } })

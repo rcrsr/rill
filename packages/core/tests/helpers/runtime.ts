@@ -11,6 +11,7 @@ import {
   parse,
   type HostFunctionDefinition,
   type RillValue,
+  type RuntimeContext,
   type RuntimeOptions,
   type StepResult,
 } from '@rcrsr/rill';
@@ -34,13 +35,23 @@ export async function run(
   return (await execute(ast, ctx)).result;
 }
 
-/** Execute and return full result with variables */
+/** Execute and return full result */
 export async function runFull(
   source: string,
   options: TestOptions = {}
 ): Promise<ExecutionResult> {
   const { ast, ctx } = setup(source, options);
   return execute(ast, ctx);
+}
+
+/** Execute and return both result and context for variable inspection */
+export async function runWithContext(
+  source: string,
+  options: TestOptions = {}
+): Promise<{ result: ExecutionResult; context: RuntimeContext }> {
+  const { ast, ctx } = setup(source, options);
+  const result = await execute(ast, ctx);
+  return { result, context: ctx };
 }
 
 /** Execute using stepper and return all step results */

@@ -19,63 +19,63 @@ describe('Rill Language: Type Value Expressions', () => {
 
   describe('Bare Type Name Expressions (AC-3)', () => {
     it('string evaluates as a RillTypeValue with typeName "string"', async () => {
-      await expect(run('string')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('string')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('string');
     });
 
     it('number evaluates as a RillTypeValue with typeName "number"', async () => {
-      await expect(run('number')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('number')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('number');
     });
 
     it('bool evaluates as a RillTypeValue with typeName "bool"', async () => {
-      await expect(run('bool')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('bool')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('bool');
     });
 
     it('dict evaluates as a RillTypeValue with typeName "dict"', async () => {
-      await expect(run('dict')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('dict')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('dict');
     });
 
     it('list evaluates as a RillTypeValue with typeName "list"', async () => {
-      await expect(run('list')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('list')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('list');
     });
 
     it('tuple evaluates as a RillTypeValue with typeName "tuple"', async () => {
-      await expect(run('tuple')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('tuple')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('tuple');
     });
 
     it('vector evaluates as a RillTypeValue with typeName "vector"', async () => {
-      await expect(run('vector')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('vector')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('vector');
     });
 
     it('closure evaluates as a RillTypeValue with typeName "closure"', async () => {
-      await expect(run('closure')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('closure')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('closure');
     });
 
     it('any evaluates as a RillTypeValue with typeName "any"', async () => {
-      await expect(run('any')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('any')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('any');
     });
 
     it('type evaluates as a RillTypeValue with typeName "type"', async () => {
-      await expect(run('type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('type')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('type');
     });
   });
 
@@ -115,33 +115,28 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('.^type returns a RillTypeValue object (EC-4)', async () => {
-      await expect(run('42 => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('42 => $v\n$v.^type')) as any;
+      expect(result.__rill_type).toBe(true);
     });
 
     it('.^type on a string returns typeName "string"', async () => {
-      await expect(run('"hello" => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('"hello" => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('string');
     });
 
     it('.^type on a bool returns typeName "bool"', async () => {
-      await expect(run('true => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('true => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('bool');
     });
 
     it('.^type on a list returns typeName "list"', async () => {
-      await expect(run('[1, 2, 3] => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('[1, 2, 3] => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('list');
     });
 
     it('.^type on a dict returns typeName "dict"', async () => {
-      await expect(run('[a: 1] => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('[a: 1] => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('dict');
     });
 
     it('"hello".^type == string evaluates to true (literal receiver)', async () => {
@@ -339,9 +334,9 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('.^type on type value returns RillTypeValue with typeName "type"', async () => {
-      await expect(run('number => $v\n$v.^type')).rejects.toThrow(
-        'type values cannot be returned from scripts'
-      );
+      const result = (await run('number => $v\n$v.^type')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('type');
     });
   });
 

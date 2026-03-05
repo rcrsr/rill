@@ -145,7 +145,7 @@ export function createAgentHandler(agent: ComposedAgent): AgentHandler {
         record.state = 'completed';
         record.durationMs = durationMs;
         record.result = result.result;
-        record.variables = result.variables;
+        record.variables = Object.fromEntries(sessionContext.variables);
 
         metrics.sessionsActive.labels({ agent: agent.card.name }).dec();
         metrics.sessionsTotal

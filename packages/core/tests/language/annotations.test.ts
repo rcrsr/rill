@@ -12,7 +12,7 @@ import {
   type ApplicationCallable,
   type CallableParam,
 } from '@rcrsr/rill';
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Annotations', () => {
   describe('Parsing', () => {
@@ -886,8 +886,10 @@ describe('Rill Runtime: Annotations', () => {
   describe('Annotation Capture', () => {
     describe('Statement-Level Annotation Capture (AC-1)', () => {
       it('captures closure-level annotation from statement', async () => {
-        const result = await runFull('^(doc: "test") |x|($x * 2) => $fn\ntrue');
-        const fn = result.variables['fn'];
+        const { context } = await runWithContext(
+          '^(doc: "test") |x|($x * 2) => $fn\ntrue'
+        );
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -897,10 +899,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('evaluates statement annotation values', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '^(timeout: 10 + 20) |x|($x) => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -909,10 +911,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('captures multiple statement annotations', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '^(doc: "test", timeout: 30) |x|($x) => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -922,10 +924,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('evaluates annotation with variable reference', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '100 => $limit\n^(max: $limit) |x|($x) => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -941,8 +943,8 @@ describe('Rill Runtime: Annotations', () => {
           $fn => $alias
           true
         `;
-        const result = await runFull(script);
-        const alias = result.variables['alias'];
+        const { context } = await runWithContext(script);
+        const alias = context.variables.get('alias');
 
         expect(isScriptCallable(alias)).toBe(true);
         if (isScriptCallable(alias)) {
@@ -957,8 +959,8 @@ describe('Rill Runtime: Annotations', () => {
           $alias1 => $alias2
           true
         `;
-        const result = await runFull(script);
-        const alias2 = result.variables['alias2'];
+        const { context } = await runWithContext(script);
+        const alias2 = context.variables.get('alias2');
 
         expect(isScriptCallable(alias2)).toBe(true);
         if (isScriptCallable(alias2)) {
@@ -970,8 +972,8 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('Empty Annotations (AC-12)', () => {
       it('results in empty objects when no annotations present', async () => {
-        const result = await runFull('|x|($x) => $fn\ntrue');
-        const fn = result.variables['fn'];
+        const { context } = await runWithContext('|x|($x) => $fn\ntrue');
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -981,10 +983,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('has empty closure annotations when only param annotations exist', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '|^(min: 0) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -996,10 +998,10 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('Parameter Annotations', () => {
       it('captures parameter annotations (AC-5)', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '|^(min: 0) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1009,10 +1011,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('captures multiple parameter annotations', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '|^(min: 0, max: 100) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1022,10 +1024,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('captures annotations for multiple parameters', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '|^(min: 0) x: number, ^(required: true) y: string|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1035,10 +1037,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('evaluates parameter annotation values', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '5 => $limit\n|^(max: $limit * 2) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1057,10 +1059,10 @@ describe('Rill Runtime: Annotations', () => {
       });
 
       it('has empty paramAnnotations for params without annotations', async () => {
-        const result = await runFull(
+        const { context } = await runWithContext(
           '|x: number, y: string|{ $x } => $fn\ntrue'
         );
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1175,7 +1177,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('ApplicationCallable and paramsToStructuralType edge cases', () => {
     describe('AC-23: $fn.^input on host function with defined params returns a closure structural type', () => {
       it('structural type params array matches registered param names (AC-23)', async () => {
-        const result = await runFull(`app::fn => $fn\ntrue`, {
+        const { context } = await runWithContext(`app::fn => $fn\ntrue`, {
           functions: {
             'app::fn': {
               params: [
@@ -1186,7 +1188,7 @@ describe('Rill Runtime: Annotations', () => {
             },
           },
         });
-        const fn = result.variables['fn'];
+        const fn = context.variables.get('fn');
         expect(
           isScriptCallable(fn) ||
             (fn !== null && typeof fn === 'object' && '__type' in fn)
