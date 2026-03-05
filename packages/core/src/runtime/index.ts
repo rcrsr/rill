@@ -70,6 +70,7 @@ export {
 export type {
   NativeArray,
   NativePlainObject,
+  NativeResult,
   NativeValue,
   RillIterator,
   RillStructuralType,

@@ -4,7 +4,7 @@
  */
 
 import { VERSION } from '@rcrsr/rill';
-import type { RillValue } from '@rcrsr/rill';
+import type { NativeValue } from '@rcrsr/rill';
 import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
 import { enrichError, type ScopeInfo } from './cli-error-enrichment.js';
@@ -105,7 +105,7 @@ export function formatError(
  * @param value - The script return value
  * @returns Exit code and optional message
  */
-export function determineExitCode(value: RillValue): {
+export function determineExitCode(value: NativeValue | null): {
   code: number;
   message?: string;
 } {

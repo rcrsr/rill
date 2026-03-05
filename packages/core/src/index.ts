@@ -60,6 +60,7 @@ export {
   type KvExtensionContract,
   type NativeArray,
   type NativePlainObject,
+  type NativeResult,
   type NativeValue,
   type LlmExtensionContract,
   type SchemaEntry,

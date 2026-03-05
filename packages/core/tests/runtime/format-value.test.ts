@@ -410,130 +410,114 @@ describe('valueToJSON', () => {
 describe('toNative', () => {
   describe('native types', () => {
     it('converts null', () => {
-      expect(toNative(null)).toBeNull();
+      const r = toNative(null);
+      expect(r.kind).toBe('string');
+      expect(r.native).toBeNull();
     });
 
     it('converts string', () => {
-      expect(toNative('hello')).toBe('hello');
+      const r = toNative('hello');
+      expect(r.kind).toBe('string');
+      expect(r.native).toBe('hello');
     });
 
     it('converts number', () => {
-      expect(toNative(42)).toBe(42);
+      const r = toNative(42);
+      expect(r.kind).toBe('number');
+      expect(r.native).toBe(42);
     });
 
     it('converts boolean true', () => {
-      expect(toNative(true)).toBe(true);
+      const r = toNative(true);
+      expect(r.kind).toBe('bool');
+      expect(r.native).toBe(true);
     });
 
     it('converts boolean false', () => {
-      expect(toNative(false)).toBe(false);
+      const r = toNative(false);
+      expect(r.kind).toBe('bool');
+      expect(r.native).toBe(false);
     });
 
     it('converts list to native array', () => {
-      expect(toNative([1, 2, 3])).toEqual([1, 2, 3]);
+      const r = toNative([1, 2, 3]);
+      expect(r.kind).toBe('list');
+      expect(r.native).toEqual([1, 2, 3]);
     });
 
     it('converts dict to native plain object', () => {
-      expect(toNative({ a: 1, b: 'x' })).toEqual({ a: 1, b: 'x' });
+      const r = toNative({ a: 1, b: 'x' });
+      expect(r.kind).toBe('dict');
+      expect(r.native).toEqual({ a: 1, b: 'x' });
     });
 
     it('converts empty list', () => {
-      expect(toNative([])).toEqual([]);
+      const r = toNative([]);
+      expect(r.kind).toBe('list');
+      expect(r.native).toEqual([]);
     });
 
     it('converts empty dict', () => {
-      expect(toNative({})).toEqual({});
+      const r = toNative({});
+      expect(r.kind).toBe('dict');
+      expect(r.native).toEqual({});
     });
   });
 
   describe('AC-14: recursive native conversion', () => {
     it('converts nested list', () => {
-      expect(
-        toNative([
-          [1, 2],
-          [3, 4],
-        ])
-      ).toEqual([
+      const r = toNative([
+        [1, 2],
+        [3, 4],
+      ]);
+      expect(r.native).toEqual([
         [1, 2],
         [3, 4],
       ]);
     });
 
     it('converts nested dict', () => {
-      expect(toNative({ outer: { inner: 42 } })).toEqual({
-        outer: { inner: 42 },
-      });
+      const r = toNative({ outer: { inner: 42 } });
+      expect(r.native).toEqual({ outer: { inner: 42 } });
     });
 
     it('converts list containing dict', () => {
-      expect(toNative([{ a: 1 }])).toEqual([{ a: 1 }]);
+      expect(toNative([{ a: 1 }]).native).toEqual([{ a: 1 }]);
     });
 
     it('converts dict containing list', () => {
-      expect(toNative({ items: [1, 2] })).toEqual({ items: [1, 2] });
+      expect(toNative({ items: [1, 2] }).native).toEqual({ items: [1, 2] });
     });
   });
 
-  describe('EC-1: closure throws RuntimeError RILL-R004', () => {
-    it('throws RuntimeError for callable', () => {
+  describe('EC-1: closure returns native: null', () => {
+    it('returns kind "closure"', () => {
       const fn = callable(() => null);
-      expect(() => toNative(fn)).toThrow(
-        'closures cannot be returned from scripts'
-      );
+      expect(toNative(fn).kind).toBe('closure');
     });
 
-    it('thrown error is RuntimeError', () => {
+    it('returns native: null for callable', () => {
       const fn = callable(() => null);
-      let caught: unknown;
-      try {
-        toNative(fn);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-    });
-
-    it('thrown error has errorId RILL-R004', () => {
-      const fn = callable(() => null);
-      let caught: unknown;
-      try {
-        toNative(fn);
-      } catch (e) {
-        caught = e;
-      }
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
+      expect(toNative(fn).native).toBeNull();
     });
   });
 
-  describe('EC-2: iterator throws RuntimeError', () => {
-    it('throws RuntimeError for iterator', () => {
+  describe('EC-2: iterator returns native: null', () => {
+    it('returns kind "iterator"', () => {
       const iterator = makeIterator();
-      expect(() => toNative(iterator)).toThrow(
-        'iterators cannot be returned from scripts'
-      );
+      expect(toNative(iterator).kind).toBe('iterator');
     });
 
-    it('thrown error is RuntimeError with RILL-R004', () => {
+    it('returns native: null for iterator', () => {
       const iterator = makeIterator();
-      let caught: unknown;
-      try {
-        toNative(iterator);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
+      expect(toNative(iterator).native).toBeNull();
     });
   });
 
   describe('EC-3: tuple converts to native array', () => {
     it('converts tuple entries to a native array', () => {
       const tuple = createTupleFromDict({ a: 1 });
-      expect(toNative(tuple)).toEqual([1]);
+      expect(toNative(tuple).native).toEqual([1]);
     });
 
     it('recursively converts nested tuple entries', () => {
@@ -542,51 +526,29 @@ describe('toNative', () => {
         __rill_tuple: true as const,
         entries: [inner],
       };
-      expect(toNative(outer)).toEqual([[2]]);
+      expect(toNative(outer).native).toEqual([[2]]);
     });
   });
 
-  describe('EC-4: type value throws RuntimeError', () => {
-    it('throws RuntimeError for type value', () => {
-      expect(() => toNative(makeTypeValue('string'))).toThrow(
-        'type values cannot be returned from scripts'
-      );
+  describe('EC-4: type value returns native: null', () => {
+    it('returns kind "type"', () => {
+      expect(toNative(makeTypeValue('string')).kind).toBe('type');
     });
 
-    it('thrown error is RuntimeError with RILL-R004', () => {
-      let caught: unknown;
-      try {
-        toNative(makeTypeValue('number'));
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
+    it('returns native: null for type value', () => {
+      expect(toNative(makeTypeValue('number')).native).toBeNull();
     });
   });
 
-  describe('EC-5: vector throws RuntimeError', () => {
-    it('throws RuntimeError for vector', () => {
+  describe('EC-5: vector returns native: null', () => {
+    it('returns kind "vector"', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
-      expect(() => toNative(vec)).toThrow(
-        'vectors cannot be returned from scripts'
-      );
+      expect(toNative(vec).kind).toBe('vector');
     });
 
-    it('thrown error is RuntimeError with RILL-R004', () => {
+    it('returns native: null for vector', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
-      let caught: unknown;
-      try {
-        toNative(vec);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
+      expect(toNative(vec).native).toBeNull();
     });
   });
 
@@ -596,13 +558,31 @@ describe('toNative', () => {
         ['a', 1],
         ['b', 'x'],
       ]);
-      expect(toNative(ordered)).toEqual({ a: 1, b: 'x' });
+      expect(toNative(ordered).native).toEqual({ a: 1, b: 'x' });
     });
 
     it('recursively converts nested ordered values', () => {
       const inner = createOrdered([['x', 2]]);
       const outer = createOrdered([['nested', inner]]);
-      expect(toNative(outer)).toEqual({ nested: { x: 2 } });
+      expect(toNative(outer).native).toEqual({ nested: { x: 2 } });
+    });
+  });
+
+  describe('typeSig field', () => {
+    it('returns "string" for string', () => {
+      expect(toNative('hi').typeSig).toBe('string');
+    });
+
+    it('returns "number" for number', () => {
+      expect(toNative(42).typeSig).toBe('number');
+    });
+
+    it('returns "bool" for boolean', () => {
+      expect(toNative(true).typeSig).toBe('bool');
+    });
+
+    it('returns "list(number)" for number list', () => {
+      expect(toNative([1, 2, 3]).typeSig).toBe('list(number)');
     });
   });
 });

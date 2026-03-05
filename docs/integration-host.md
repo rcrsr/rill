@@ -116,7 +116,7 @@ interface RillOrdered {
 // Created by: *[a: 1, b: 2]
 ```
 
-`toNative()` rejects `RillOrdered` with error code `RILL-R004` — the same rejection that applies to `RillTuple`. Do not pass `RillOrdered` values across the host boundary via serialization.
+`toNative()` converts `RillOrdered` to a plain object — the `NativeResult.native` field holds `{ key: value, ... }` with insertion-order keys.
 
 ### RillTuple
 
@@ -129,7 +129,7 @@ interface RillTuple {
 }
 ```
 
-`toNative()` rejects `RillTuple` with error code `RILL-R004`.
+`toNative()` converts `RillTuple` to a native array — the `NativeResult.native` field holds the entries as a plain array.
 
 ### RillTypeValue
 
@@ -153,6 +153,59 @@ The structural type formats as a human-readable string via `formatStructuralType
 | `*[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
 
 Dict fields are sorted alphabetically in the formatted output.
+
+## Value Conversion
+
+`toNative()` converts a `RillValue` to a structured result suitable for host consumption.
+
+```typescript
+import { toNative } from '@rcrsr/rill';
+
+const nativeResult = toNative(executionResult.result);
+console.log(nativeResult.kind);    // e.g. "string", "list", "ordered"
+console.log(nativeResult.typeSig); // e.g. "string", "list(number)"
+console.log(nativeResult.native);  // JS-native value, or null
+```
+
+### NativeResult
+
+```typescript
+interface NativeResult {
+  /** Rill type name — "string", "number", "bool", "list", "dict",
+   *  "tuple", "ordered", "closure", "vector", "type", or "iterator" */
+  kind: string;
+  /** Human-readable structural type signature, e.g. "list(number)",
+   *  "dict(a: number, b: string)", "|x: number| :string" */
+  typeSig: string;
+  /** JS-native representation, or null for non-representable types */
+  native: NativeValue | null;
+}
+
+type NativeValue = string | number | boolean | null | NativeValue[] | { [key: string]: NativeValue };
+```
+
+### Conversion table
+
+| Rill value | `kind` | `native` |
+|------------|--------|----------|
+| `null` (empty string) | `"string"` | `null` |
+| string | `"string"` | string |
+| number | `"number"` | number |
+| bool | `"bool"` | boolean |
+| list | `"list"` | array |
+| dict | `"dict"` | plain object |
+| tuple | `"tuple"` | array of entry values |
+| ordered | `"ordered"` | plain object with insertion-order keys |
+| closure | `"closure"` | `null` |
+| vector | `"vector"` | `null` |
+| type value | `"type"` | `null` |
+| iterator | `"iterator"` | `null` |
+
+Non-representable types (`closure`, `vector`, `type`, `iterator`) return `native: null`. The `kind` and `typeSig` fields are always populated regardless.
+
+### valueToJSON
+
+The built-in `json` function (used inside scripts as `value -> json`) throws `RILL-R004` for non-serializable types (closure, iterator, vector, type value, tuple, ordered). Use `toNative()` at the host boundary for safe, non-throwing conversion with type metadata.
 
 ## Custom Functions
 
@@ -1018,7 +1071,7 @@ try {
 | `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
-| `RILL-R004` | `toNative()` or `valueToJSON()` called on non-serializable type (`RillTuple`, `RillOrdered`) |
+| `RILL-R004` | `valueToJSON()` called on non-serializable type (closure, iterator, vector, type value, tuple, ordered) |
 
 ## Agent Registry
 

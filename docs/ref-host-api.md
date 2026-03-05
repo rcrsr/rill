@@ -100,6 +100,10 @@ export { validateHostFunctionArgs };
 // Value types
 export type { RillValue, RillArgs };
 
+// Value conversion
+export { toNative };
+export type { NativeResult, NativeValue, NativeArray, NativePlainObject };
+
 // Introspection
 export { getFunctions, getLanguageReference, getDocumentationCoverage };
 export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult };

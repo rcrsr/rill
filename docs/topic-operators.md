@@ -277,7 +277,7 @@ Spread a dict to produce an `ordered` value. The result preserves insertion orde
 *[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (names matched, order irrelevant)
 ```
 
-`ordered` values are not serializable via `toNative()` — they throw `RILL-R004` at the host boundary (same rule as tuples).
+`ordered` values convert to plain objects via `toNative()` — the `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
 
 See [Types](topic-types.md) for full type documentation.
 

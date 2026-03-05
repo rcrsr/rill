@@ -526,7 +526,7 @@ slice-bound       = number | variable | grouped-expr ;
    Strict validation: missing or extra arguments error at invocation.
    Parameter defaults provide explicit opt-in leniency.
 
-   Note: ordered values cannot be passed to toNative() — throws RILL-R004. *)
+   Note: ordered values convert to plain objects via toNative() — native field holds { key: value }. *)
 
 spread            = "*" , postfix-expr ;
               (* Spread converts a dict to ordered for arg unpacking: *[a: 1, b: 2]

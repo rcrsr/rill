@@ -339,7 +339,7 @@ Use `ordered` for named argument unpacking:
 
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
-`ordered` cannot be passed to `toNative()` — it throws `RILL-R004`.
+`ordered` converts to a plain object via `toNative()` — the result's `native` field holds `{ key: value, ... }`.
 
 ---
 

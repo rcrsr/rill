@@ -109,13 +109,13 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     // Use JSON.stringify for objects/arrays (produces readable output instead of
     // '[object Object]' or '1,2,3'). Use String() for primitives to avoid adding
     // quotes around string values. Handle null explicitly.
-    const raw = toNative(executionResult.result);
+    const { native } = toNative(executionResult.result);
     const formattedValue =
-      raw === null
+      native === null
         ? 'null'
-        : typeof raw === 'object'
-          ? JSON.stringify(raw, null, 2)
-          : String(raw);
+        : typeof native === 'object'
+          ? JSON.stringify(native, null, 2)
+          : String(native);
 
     return {
       status: 'success',
