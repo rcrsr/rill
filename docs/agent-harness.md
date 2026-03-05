@@ -238,48 +238,45 @@ Validation error response body:
 
 Behavioral constraints: validation runs before session creation; `fields` lists params in manifest declaration order; defaults inject before execution; extra params pass through.
 
-## Shape-Based I/O Contracts
+## Structural Type I/O Contracts
 
-A `RillShape` value produced by a rill script can define agent input and output schema. Pass it to `composeAgent` via `inputShape` or `outputShape`. The harness serializes the shape to the same `InputParamDescriptor` and `OutputSchema` format used by the manifest `input` and `output` fields.
+A `RillStructuralType` value from a closure's `^input` accessor can define agent input and output schema. Pass it to `composeAgent` via `inputShape` or `outputShape`. The harness serializes the structural type to the same `InputParamDescriptor` and `OutputSchema` format used by the manifest `input` and `output` fields.
 
 The existing dict-based manifest format still works. `inputShape` and `outputShape` are additive options that override the manifest `input`/`output` fields when provided.
 
 ### Serialization Mapping
 
-| Shape field property | Manifest field |
-|---------------------|----------------|
-| `typeName` | `type` |
-| `optional: true` | `required` omitted (field is optional) |
-| `optional: false` | `required: true` |
-| `annotations.description` | `description` |
-| `annotations.default` | `default` |
-| `nestedShape` | `fields` (recursive, output schema only) |
+| Source | Manifest field |
+|--------|----------------|
+| Param type `kind` | `type` |
+| `CallableParam.defaultValue: null` | `required: true` |
+| `CallableParam.defaultValue` present | `required` omitted |
+| `CallableParam.annotations.description` | `description` |
+| `CallableParam.annotations.enum` | `enum` |
+| `dict` or `list` kind | `fields` (recursive, output schema only) |
 
-### Defining a Shape in rill
+### Defining Input Schema with a Closure
 
 ```rill
-shape(
-  query: string,
-  ^("Maximum results to return") limit: number?,
-  filters: (category: string, min_score: number?)
-) => $input_schema
+|query: string, ^("Maximum results to return") limit: number = 0, filters: dict| { 0 } => $schema_fn
+$schema_fn.^input => $input_schema
 ```
 
-`query` maps to `{ type: "string", required: true }`. `limit` is optional with a description annotation. `filters` is a nested shape; for input schema, it serializes to `{ type: "dict" }` — no recursive `fields` expansion. Use `rillShapeToOutputSchema()` when output schema requires field-level recursion.
+`query` maps to `{ type: "string", required: true }`. `limit` is optional (default `0`) with a description annotation. `filters` is a dict. For output schema with field-level recursion, use `structuralTypeToOutputSchema()`.
 
-### Passing a Shape to composeAgent
+### Passing Structural Type to composeAgent
 
-Extract the shape value from the rill execution result, then pass it to `composeAgent`:
+Extract the structural type value from the rill execution result, then pass it to `composeAgent`:
 
 ```typescript
 import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
-import type { RillShape } from '@rcrsr/rill';
+import type { RillStructuralType } from '@rcrsr/rill';
 import { composeAgent } from '@rcrsr/rill-agent-harness';
 import { validateManifest } from '@rcrsr/rill-agent-shared';
 
 const ctx = createRuntimeContext({ functions: {} });
 const result = await execute(parse(schemaScript), ctx);
-const inputShape = result.variables['input_schema'] as RillShape;
+const inputShape = result.variables['input_schema'] as RillStructuralType;
 
 const manifest = validateManifest(JSON.parse(readFileSync('./agent.json', 'utf-8')));
 const agent = await composeAgent(manifest, {
@@ -293,17 +290,17 @@ const agent = await composeAgent(manifest, {
 
 ### Validation Behavior
 
-Shape-derived params validate the same way as manifest-declared params. See [POST /run Param Validation](#post-run-param-validation) for the full validation table — behavior is identical regardless of whether the schema came from the manifest or a shape.
+Structural type-derived params validate the same way as manifest-declared params. See [POST /run Param Validation](#post-run-param-validation) for the full validation table — behavior is identical regardless of whether the schema came from the manifest or a structural type.
 
 ### Error: Non-Representable Types (EC-9)
 
-Shape fields with `closure` or `tuple` type cannot be serialized to the manifest format. `composeAgent` throws a `RuntimeError` (`RILL-R004`) when either type appears in the shape.
+Closure or tuple type params cannot be serialized to the manifest format. `composeAgent` throws a `RuntimeError` (`RILL-R004`) when either type appears in the structural type.
 
 ```text
-# Error: shape field type 'closure' not representable in manifest
+# Error: type 'closure' not representable in manifest
 ```
 
-Use `string`, `number`, `bool`, `list`, or nested shapes (`dict`) for all agent I/O fields.
+Use `string`, `number`, `bool`, `list`, or nested dicts (`dict`) for all agent I/O fields.
 
 ## Invocation Model
 

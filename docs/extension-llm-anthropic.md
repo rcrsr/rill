@@ -128,19 +128,15 @@ $result.usage.input      # Input tokens
 $result.usage.output     # Output tokens
 ```
 
-**generate with a RillShape schema:**
+**generate with structured output schema:**
 
-Pass a `shape(...)` value as `schema` to use field annotations and optional fields:
+Define a closure with typed and annotated params, then pass its `^input` structural type as `schema`:
 
 ```rill
-shape(
-  ^("Extracted name") name: string,
-  ^(description: "Confidence score") confidence: number,
-  tags: list?
-) => $my_shape
+|^("Extracted name") name: string, ^(description: "Confidence score") confidence: number, tags: list = []| { "test" } => $extractor
 
 anthropic::generate("Extract: rill is a pipe-based scripting language", [
-  schema: $my_shape,
+  schema: $extractor.^input,
   system: "Extract structured data from the input.",
 ]) => $result
 $result.data.name        # Extracted name field
@@ -148,31 +144,12 @@ $result.data.confidence  # Extracted confidence field
 $result.data.tags        # Extracted tags (optional)
 ```
 
-The extension converts the shape to a JSON Schema object via `buildJsonSchema()` before sending to the provider. Field `description` and `enum` annotations map to JSON Schema `description` and `enum` properties.
+The extension converts the structural type to a JSON Schema object via `buildJsonSchemaFromStructuralType()` before sending to the provider. Field `description` and `enum` annotations map to JSON Schema `description` and `enum` properties.
 
-Shape fields using `closure` or `tuple` type are not representable in JSON Schema and throw:
+Params using `closure` or `tuple` type are not representable in JSON Schema and throw:
 
 ```text
 # Error: generate schema field 'fn' uses unsupported type 'closure'
-shape(fn: closure) => $bad_shape
-anthropic::generate("prompt", [schema: $bad_shape])
-```
-
-Use `to_shape()` to build a shape from a dict descriptor at runtime:
-
-```rill
-to_shape([
-  name: "string",
-  confidence: [type: "number", description: "Score 0-1"],
-  tags: "list",
-]) => $schema
-
-anthropic::generate("Classify: rill is a scripting language", [
-  schema: $schema,
-]) => $result
-$result.data.name        # Extracted name
-$result.data.confidence  # Extracted confidence score
-$result.data.tags        # Extracted tags
 ```
 
 ### Per-Call Options
@@ -185,7 +162,7 @@ $result.data.tags        # Extracted tags
 | `max_turns` | number | tool_loop | Limit LLM round-trips |
 | `max_errors` | number | tool_loop | Consecutive error limit (default: 3) |
 | `messages` | list | tool_loop, generate | Prepend conversation history |
-| `schema` | dict or shape | generate (required) | Dict descriptor (legacy) or `RillShape` value for structured output |
+| `schema` | dict or RillStructuralType | generate (required) | Dict descriptor (legacy) or `RillStructuralType` value (from `$closure.^input`) for structured output |
 
 ## Result Dict
 
