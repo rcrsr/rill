@@ -606,7 +606,8 @@ export function valueToJSON(value: RillValue): unknown {
 
 /**
  * Convert a RillValue to a NativeValue for host consumption.
- * @throws {RuntimeError} RILL-R004 for closures; RuntimeError for all other non-representable types
+ * Tuples convert to native arrays. Ordered values convert to plain objects.
+ * @throws {RuntimeError} RILL-R004 for closures, vectors, type values, and iterators
  */
 export function toNative(value: RillValue): NativeValue {
   if (value === null) return null;
@@ -626,17 +627,15 @@ export function toNative(value: RillValue): NativeValue {
   }
 
   if (isTuple(value)) {
-    throw new RuntimeError(
-      'RILL-R004',
-      'tuples cannot be returned from scripts'
-    );
+    return value.entries.map(toNative);
   }
 
   if (isOrdered(value)) {
-    throw new RuntimeError(
-      'RILL-R004',
-      'ordered values cannot be returned from scripts'
-    );
+    const result: { [key: string]: NativeValue } = {};
+    for (const [k, v] of value.entries) {
+      result[k] = toNative(v);
+    }
+    return result;
   }
 
   if (isVector(value)) {

@@ -25,14 +25,5 @@ export type TypeRef =
 
 /**
  * Return type declaration for host-provided and script functions.
- * Subset of RillTypeName — excludes 'closure' and 'tuple' (not valid return types).
- * Limited to 6 primitive types plus 'any' (default).
  */
-export type RillFunctionReturnType =
-  | 'string'
-  | 'number'
-  | 'bool'
-  | 'list'
-  | 'dict'
-  | 'vector'
-  | 'any';
+export type RillFunctionReturnType = RillTypeName;

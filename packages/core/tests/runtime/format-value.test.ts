@@ -4,7 +4,7 @@
  * IR-1: formatValue(value: RillValue): string — pure function, guard order:
  *   shape → callable → tuple → iterator → list → vector → type value → field descriptor → dict
  * IR-2: valueToJSON(value: RillValue): unknown — throws plain Error for non-serializable types
- * IR-3: toNative(value: RillValue): NativeValue — throws RuntimeError for non-representable types
+ * IR-3: toNative(value: RillValue): NativeValue — converts representable types; throws RuntimeError RILL-R004 for closure/iterator/vector/type
  *
  * AC-1: Script returns number → ExecutionResult.result is JS number
  * AC-2: log(42) delivers string "42" to onLog
@@ -24,7 +24,7 @@
  * AC-16: null in formatValue → "type(null)"
  * AC-17: Guard clause ordering: shape before dict; callable before dict/array; tuple before dict
  *
- * EC-1 through EC-7: toNative throws RuntimeError RILL-R004 for non-representable types
+ * EC-1 through EC-5: toNative — EC-1,EC-2 throw RuntimeError RILL-R004; EC-3,EC-6 convert tuple/ordered to JS array/object
  * EC-8 through EC-14: valueToJSON throws plain Error for non-serializable types
  */
 
@@ -34,6 +34,7 @@ import {
   valueToJSON,
   toNative,
   createVector,
+  createOrdered,
 } from '../../src/runtime/core/values.js';
 import type {
   RillTuple,
@@ -529,26 +530,19 @@ describe('toNative', () => {
     });
   });
 
-  describe('EC-3: tuple throws RuntimeError', () => {
-    it('throws RuntimeError for tuple', () => {
+  describe('EC-3: tuple converts to native array', () => {
+    it('converts tuple entries to a native array', () => {
       const tuple = createTupleFromDict({ a: 1 });
-      expect(() => toNative(tuple)).toThrow(
-        'tuples cannot be returned from scripts'
-      );
+      expect(toNative(tuple)).toEqual([1]);
     });
 
-    it('thrown error is RuntimeError with RILL-R004', () => {
-      const tuple = createTupleFromDict({ a: 1 });
-      let caught: unknown;
-      try {
-        toNative(tuple);
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
-        'RILL-R004'
-      );
+    it('recursively converts nested tuple entries', () => {
+      const inner = createTupleFromDict({ x: 2 });
+      const outer: RillTuple = {
+        __rill_tuple: true as const,
+        entries: [inner],
+      };
+      expect(toNative(outer)).toEqual([[2]]);
     });
   });
 
@@ -593,6 +587,22 @@ describe('toNative', () => {
       expect((caught as InstanceType<typeof RuntimeError>).errorId).toBe(
         'RILL-R004'
       );
+    });
+  });
+
+  describe('EC-6: ordered converts to native plain object', () => {
+    it('converts ordered entries to a native object', () => {
+      const ordered = createOrdered([
+        ['a', 1],
+        ['b', 'x'],
+      ]);
+      expect(toNative(ordered)).toEqual({ a: 1, b: 'x' });
+    });
+
+    it('recursively converts nested ordered values', () => {
+      const inner = createOrdered([['x', 2]]);
+      const outer = createOrdered([['nested', inner]]);
+      expect(toNative(outer)).toEqual({ nested: { x: 2 } });
     });
   });
 });
