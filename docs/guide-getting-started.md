@@ -279,7 +279,8 @@ $add(3, 4)
 Optional type hints help catch errors:
 
 ```rill
-|name: string, age: number| "Name: {$name}, Age: {$age}"
+|name: string, age: number| "Name: {$name}, Age: {$age}" => $fn
+$fn("Alice", 30)
 ```
 
 ## Property Access
@@ -315,22 +316,18 @@ $data.?name          # true
 Group multiple statements in braces. The last value is the block's result:
 
 ```rill
-{
-  "hello" => $greeting
-  $greeting -> .upper => $shouted
-  "{$shouted}!"
-}
+"hello" => $greeting
+$greeting -> .upper => $shouted
+"{$shouted}!"
 # Result: "HELLO!"
 ```
 
 Use `return` to exit a block early:
 
 ```rill
-{
-  5 => $x
-  ($x > 3) ? ("big" -> return)
-  "small"
-}
+5 => $x
+($x > 3) ? ("big" -> return)
+"small"
 # Result: "big"
 ```
 

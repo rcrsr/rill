@@ -13,8 +13,8 @@ Demonstrates destructuring, slicing, and enumeration.
 ### Destructuring Function Results
 
 ```rill
-# Destructure list results into named variables
-["test output", 0] -> *<$out, $code>
+# Destructure dict results into named variables
+[output: "test output", code: 0] -> *<output: $out, code: $code>
 
 $code -> .gt(0) ? {
   "Tests failed:\n{$out}" -> log
@@ -176,17 +176,17 @@ $items -> filter { .contains("error") } -> .len => $count
 
 Explicit argument unpacking with validation.
 
-### Positional Args
+### Named Args (Strict Invocation)
 
 ```rill
 # Define a function
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
-# Create args from tuple and invoke
-*[1, 2, 3] -> $fmt()    # "1-2-3"
+# Create named args and invoke
+*[a: 1, b: 2, c: 3] -> $fmt()    # "1-2-3"
 
 # Store args for later use
-*[1, 2, 3] => $myArgs
+*[a: 1, b: 2, c: 3] => $myArgs
 $myArgs -> $fmt()       # "1-2-3"
 ```
 
@@ -205,7 +205,7 @@ $myArgs -> $fmt()       # "1-2-3"
 # Defaults provide opt-in leniency
 |x, y = 10, z = 20|($x + $y + $z) => $fn
 
-*[5] -> $fn()                 # 35 (5 + 10 + 20)
+*[x: 5] -> $fn()              # 35 (5 + 10 + 20)
 *[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
 ```
 
@@ -219,8 +219,8 @@ $x.^type == number      # true
 $s.^type == string      # true
 [1, 2] => $l
 $l.^type == list        # true
-*[1, 2] => $t
-$t.^type == tuple       # true
+*[a: 1, b: 2] => $t
+$t.^type == ordered     # true
 [a: 1] => $d
 $d.^type == dict        # true
 
@@ -444,7 +444,7 @@ Output SUCCESS, RETRY, or FAILED.
 } ? (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
-$result -> .contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$result}"]
+$result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! [code: 1, msg: "Failed: {$result}"]
 ```
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.

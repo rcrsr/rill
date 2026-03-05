@@ -47,6 +47,7 @@ Name closures for their action:
 |x|($x * 2) => $double            # verb describing transformation
 |s|($s -> .trim) => $cleanup      # verb describing action
 ||{ $.count * $.price } => $total # noun for computed value
+true
 ```
 
 ## Capture and Flow
@@ -260,6 +261,7 @@ condition
 |n| {
   ($n < 1) ? 1 ! ($n * $factorial($n - 1))
 } => $factorial
+true
 ```
 
 ### Capture loop variable explicitly for deferred closures
@@ -272,6 +274,7 @@ condition
 } => $closures
 
 # result: closures return [1, 2, 3] when called
+true
 ```
 
 ### Dict closures for computed properties
@@ -306,6 +309,7 @@ $obj.greet("hello")    # "test: hello"
 |name: string, count: number| {
   "{$name}: {$count}"
 } => $format
+$format("test", 1)
 ```
 
 ### Capture with type annotation for documentation
@@ -410,6 +414,7 @@ Variables lock to their first type. Reassigning suggests misuse:
 
 # clear: explicit parameter
 |x| { $x + 1 } => $fn
+$fn(5)
 ```
 
 ### Avoid break in parallel operators
@@ -663,11 +668,9 @@ $input -> .trim -> .lower -> .split(" ")
 ### Indent block contents
 
 ```rill
-{
-  "first" => $a
-  "second" => $b
-  "{$a} {$b}"
-}
+"first" => $a
+"second" => $b
+"{$a} {$b}"
 ```
 
 ### Align related captures

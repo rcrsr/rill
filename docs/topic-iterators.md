@@ -76,6 +76,7 @@ range(0, 10, 2)       # 0, 2, 4, 6, 8
 range(5, 0, -1)       # 5, 4, 3, 2, 1
 range(-3, 2)          # -3, -2, -1, 0, 1
 range(0, 1, 0.25)     # 0, 0.25, 0.5, 0.75
+true
 ```
 
 **Edge cases:**
@@ -100,6 +101,7 @@ Generate a value repeated n times.
 repeat("x", 3)        # "x", "x", "x"
 repeat(0, 5)          # 0, 0, 0, 0, 0
 repeat([a: 1], 2)     # [a: 1], [a: 1]
+true
 ```
 
 **Edge cases:**
@@ -127,6 +129,7 @@ Returns an iterator for any collection. Provides a consistent interface for manu
 "abc" -> .first()            # iterator at "a"
 [a: 1, b: 2] -> .first()     # iterator at [key: "a", value: 1]
 range(0, 5) -> .first()      # iterator at 0 (identity)
+true
 ```
 
 **Empty collections** return a done iterator:
@@ -134,6 +137,7 @@ range(0, 5) -> .first()      # iterator at 0 (identity)
 ```rill
 [] -> .first()               # [done: true, next: ...]
 "" -> .first()               # [done: true, next: ...]
+true
 ```
 
 **Using `.first()` with collection operators:**

@@ -363,6 +363,7 @@ export:
 ---
 |name|"Hello, {$name}!" => $hello
 |name|"Goodbye, {$name}!" => $goodbye
+true
 ```
 
 ### Using a Module
@@ -415,6 +416,7 @@ export:
 |items|{
   $items -> map $normalizeItem
 } => $processAll
+true
 ```
 
 ## Module Loading Phases

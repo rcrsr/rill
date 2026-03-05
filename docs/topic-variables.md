@@ -140,6 +140,7 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ```rill
 |x|$x => $fn:closure          # locked as closure
+$fn(42)
 ```
 
 ```text

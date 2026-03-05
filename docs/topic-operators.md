@@ -296,10 +296,10 @@ Extract elements from lists or dicts into variables. Returns the original value 
 # $a = 1, $b = 2, $c = 3
 ```
 
-**With type annotations:**
+**With dict destructuring:**
 
 ```rill
-[0, "ok"] -> *<$code:number, $msg:string>
+[code: 0, msg: "ok"] -> *<code: $code, msg: $msg>
 # $code = 0, $msg = "ok"
 ```
 
@@ -320,8 +320,8 @@ Extract elements from lists or dicts into variables. Returns the original value 
 **Nested destructuring:**
 
 ```rill
-[[1, 2], 3] -> *<*<$a, $b>, $c>
-# $a = 1, $b = 2, $c = 3
+[[1, 2], [3, 4]] -> *<*<$a, $b>, *<$c, $d>>
+# $a = 1, $b = 2, $c = 3, $d = 4
 ```
 
 **Errors:**
@@ -472,7 +472,7 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 
 ### Mixed Path
 
-```rill
+```text
 ["users", 0, "name"] -> [users: [[name: "Alice"], [name: "Bob"]]]
 # Result: "Alice"
 ```

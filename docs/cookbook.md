@@ -306,12 +306,8 @@ Remove duplicates while preserving order:
 ["a", "b", "a", "c", "b", "d", "a"] => $items
 
 $items -> fold([seen: [], result: []]) {
-  $@.seen -> .has($) ? $@ ! {
-    [
-      seen: [...$@.seen, $],
-      result: [...$@.result, $]
-    ]
-  }
+  $ => $item
+  $@.seen -> .has($item) ? [seen: $@.seen, result: $@.result] ! [seen: [...$@.seen, $item], result: [...$@.result, $item]]
 } -> .result
 # Result: ["a", "b", "c", "d"]
 ```
@@ -398,11 +394,11 @@ Flatten arbitrarily nested lists:
 
 ```rill
 # For known depth, chain operations
-[[1, 2], [3, [4, 5]], [6]] => $nested
+[[1, 2], [3, 4], [5, 6]] => $nested
 
 # Flatten one level
 $nested -> fold([]) { [...$@, ...$] }
-# Result: [1, 2, 3, [4, 5], 6]
+# Result: [1, 2, 3, 4, 5, 6]
 ```
 
 ### Transpose Matrix
@@ -424,16 +420,16 @@ range(0, $matrix[0] -> .len) -> map |col|{
 
 ### Zip Lists
 
-Combine parallel lists into tuples:
+Combine parallel lists into dicts:
 
 ```rill
 ["a", "b", "c"] => $zipKeys
 [1, 2, 3] => $zipValues
 
 range(0, $zipKeys -> .len) -> map |i|{
-  [$zipKeys[$i], $zipValues[$i]]
+  [key: $zipKeys[$i], value: $zipValues[$i]]
 }
-# Result: [["a", 1], ["b", 2], ["c", 3]]
+# Result: [[key: "a", value: 1], [key: "b", value: 2], [key: "c", value: 3]]
 ```
 
 Converting to a dict requires dict spread (not yet implemented):

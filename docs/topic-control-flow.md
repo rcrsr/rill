@@ -337,22 +337,18 @@ $value -> return         # exit with value
 ### In Blocks
 
 ```rill
-{
-  5 => $x
-  ($x > 3) ? ("big" -> return)
-  "small"
-}
+5 => $x
+($x > 3) ? ("big" -> return)
+"small"
 # Returns "big"
 ```
 
 ### Multi-Phase Pipeline
 
 ```rill
-{
-  "content" => $data
-  $data -> .contains("ERROR") ? ("Read failed" -> return)
-  "processed: {$data}"
-}
+"content" => $content
+$content -> .contains("ERROR") ? ("Read failed" -> return)
+"processed: {$content}"
 # Returns "processed: content" or "Read failed"
 ```
 
@@ -456,6 +452,7 @@ Guard clauses at function start:
   assert !$data.empty "List cannot be empty"
   $data -> each { $ * 2 }
 } => $process
+true
 ```
 
 Multi-step validation:
@@ -563,6 +560,7 @@ Use `error` in blocks for multi-step validation:
   ($age > 150) ? { error "Age out of range: {$age}" }
   "Valid age: {$age}"
 } => $validate_age
+true
 ```
 
 ### Error Behavior
@@ -702,6 +700,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
   $data -> :?list ? $ ! app::error("Expected list")
   $data -> each { $ * 2 }
 } => $process
+true
 ```
 
 ### Retry with Limit

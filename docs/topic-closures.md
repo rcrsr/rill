@@ -578,6 +578,7 @@ Parameter annotations appear in a specific order:
 |^(min: 0, max: 100) x: number|($x) => $validate
 |^(required: true) name: string = "guest"|($name) => $greet
 |^(cache: true) count = 0|($count) => $process
+true
 ```
 
 ### Access Pattern
