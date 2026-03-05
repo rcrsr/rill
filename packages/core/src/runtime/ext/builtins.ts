@@ -10,11 +10,7 @@
 import type { CallableFn } from '../core/callable.js';
 import { callable, isDict } from '../core/callable.js';
 import type { RillMethod, RuntimeContext } from '../core/types.js';
-import {
-  RuntimeError,
-  type RillTypeName,
-  type SourceLocation,
-} from '../../types.js';
+import { RuntimeError } from '../../types.js';
 import {
   deepEquals,
   formatValue,
@@ -26,151 +22,6 @@ import {
   type RillValue,
   type RillVector,
 } from '../core/values.js';
-import {
-  isShape,
-  type RillShape,
-  type ShapeFieldSpec,
-} from '../core/callable.js';
-import { VALID_TYPE_NAMES } from '../../constants.js';
-import { buildFieldDescriptor } from '../core/field-descriptor.js';
-
-// ============================================================
-// SHAPE HELPERS
-// ============================================================
-
-/** Valid Rill type names accepted by to_shape() */
-const validTypeNamesSet = new Set(VALID_TYPE_NAMES);
-
-/**
- * Convert a dict value to a RillShape.
- * Called by the to_shape() built-in and recursively for nested shapes.
- *
- * @throws RuntimeError RILL-R004 if input is not a dict or shape
- * @throws RuntimeError RILL-R004 if a field spec has invalid format
- * @throws RuntimeError RILL-R004 if a default annotation value type mismatches the field type
- */
-function builtinToShape(
-  input: RillValue,
-  location?: SourceLocation
-): RillShape {
-  // Passthrough: if already a shape, return unchanged [AC-28]
-  if (isShape(input)) {
-    return input;
-  }
-
-  // EC-5, AC-36: input must be a dict
-  if (!isDict(input)) {
-    throw new RuntimeError(
-      'RILL-R004',
-      'to_shape() argument must be a dict or shape',
-      location
-    );
-  }
-
-  const fields: Record<string, ShapeFieldSpec> = {};
-
-  for (const [key, value] of Object.entries(input)) {
-    // Case (a): string value — simple type name with optional `?` suffix [AC-24, AC-25]
-    if (typeof value === 'string') {
-      let typeName = value;
-      let optional = false;
-      if (typeName.endsWith('?')) {
-        typeName = typeName.slice(0, -1);
-        optional = true;
-      }
-      if (!validTypeNamesSet.has(typeName as RillTypeName)) {
-        throw new RuntimeError(
-          'RILL-R004',
-          `to_shape() field spec at "${key}" has invalid format`,
-          location
-        );
-      }
-      fields[key] = {
-        typeName,
-        optional,
-        nestedShape: undefined,
-        annotations: {},
-      };
-      continue;
-    }
-
-    // Case (d): existing shape value — nested shape passthrough
-    if (isShape(value)) {
-      fields[key] = {
-        typeName: 'shape',
-        optional: false,
-        nestedShape: value,
-        annotations: {},
-      };
-      continue;
-    }
-
-    // Cases (b) and (c): dict value
-    if (isDict(value)) {
-      if ('type' in value) {
-        // Case (b): dict with `type` key — type + annotations [AC-26]
-        const rawType = value['type'];
-        if (
-          typeof rawType !== 'string' ||
-          !validTypeNamesSet.has(rawType as RillTypeName)
-        ) {
-          throw new RuntimeError(
-            'RILL-R004',
-            `to_shape() field spec at "${key}" has invalid format`,
-            location
-          );
-        }
-        const annotations: Record<string, RillValue> = {};
-        for (const [ak, av] of Object.entries(value)) {
-          if (ak !== 'type') {
-            annotations[ak] = av;
-          }
-        }
-        // AC-45: validate `default` annotation type against declared field type
-        if ('default' in annotations && rawType !== 'any') {
-          const defaultVal = annotations['default']!;
-          const defaultType = inferType(defaultVal);
-          if (defaultType !== rawType) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `to_shape() field spec at "${key}" has invalid format`,
-              location
-            );
-          }
-        }
-        fields[key] = {
-          typeName: rawType,
-          optional: false,
-          nestedShape: undefined,
-          annotations,
-        };
-      } else {
-        // Case (c): dict without `type` key — recursive nested shape [AC-27]
-        const nested = builtinToShape(value, location);
-        fields[key] = {
-          typeName: 'shape',
-          optional: false,
-          nestedShape: nested,
-          annotations: {},
-        };
-      }
-      continue;
-    }
-
-    // EC-6, AC-29: invalid field spec
-    throw new RuntimeError(
-      'RILL-R004',
-      `to_shape() field spec at "${key}" has invalid format`,
-      location
-    );
-  }
-
-  return Object.freeze({
-    __rill_shape: true as const,
-    fields: Object.freeze(fields),
-  });
-}
-
 // ============================================================
 // ITERATOR HELPERS
 // ============================================================
@@ -233,12 +84,6 @@ function makeDictIterator(
  */
 
 export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
-  /** Convert a dict to a RillShape structural type descriptor */
-  to_shape: (args, _ctx, location) => {
-    const input = args[0] ?? null;
-    return builtinToShape(input, location);
-  },
-
   /** Identity function - returns its argument */
   identity: (args) => args[0] ?? null,
 
@@ -681,11 +526,8 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
 
   // === Dict methods (reserved) ===
 
-  /** Get all keys of a dict or shape as a tuple of strings */
+  /** Get all keys of a dict as a tuple of strings */
   keys: (receiver) => {
-    if (isShape(receiver)) {
-      return Object.keys(receiver.fields);
-    }
     if (isDict(receiver)) {
       return Object.keys(receiver);
     }
@@ -700,14 +542,8 @@ export const BUILTIN_METHODS: Record<string, RillMethod> = {
     return [];
   },
 
-  /** Get all entries of a dict or shape as a tuple of [key, value] pairs */
-  entries: (receiver, _args, _ctx, location) => {
-    if (isShape(receiver)) {
-      return Object.keys(receiver.fields).map((name) => [
-        name,
-        buildFieldDescriptor(receiver, name, location!),
-      ]);
-    }
+  /** Get all entries of a dict as a tuple of [key, value] pairs */
+  entries: (receiver) => {
     if (isDict(receiver)) {
       return Object.entries(receiver).map(([k, v]) => [k, v]);
     }

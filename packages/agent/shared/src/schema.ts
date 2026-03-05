@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { type RillShape, type ShapeFieldSpec, RuntimeError } from '@rcrsr/rill';
+import {
+  type RillStructuralType,
+  type CallableParam,
+  RuntimeError,
+} from '@rcrsr/rill';
 import { ManifestValidationError, type ManifestIssue } from './errors.js';
 
 // ============================================================
@@ -44,6 +48,7 @@ export type InputParamDescriptor = {
   type: 'string' | 'number' | 'bool' | 'list' | 'dict';
   required?: boolean | undefined;
   description?: string | undefined;
+  enum?: unknown[] | undefined;
   default?: unknown;
 };
 
@@ -62,6 +67,7 @@ export const inputParamDescriptorSchema = z
     type: z.enum(['string', 'number', 'bool', 'list', 'dict']),
     required: z.boolean().optional(),
     description: z.string().optional(),
+    enum: z.array(z.unknown()).optional(),
     default: z.unknown().optional(),
   })
   .strict();
@@ -84,101 +90,160 @@ export const inputSchemaSchema = z.record(
 export type InputSchema = z.infer<typeof inputSchemaSchema>;
 
 // ============================================================
-// SHAPE SERIALIZATION
+// STRUCTURAL TYPE SERIALIZATION
 // ============================================================
 
 /**
- * Maps a ShapeFieldSpec typeName to the InputParamDescriptor type union.
+ * Maps a RillStructuralType kind to the OutputSchema type string.
  * Throws RuntimeError RILL-R004 for closure or tuple (not representable in manifest format).
  */
-function shapeTypeToInputType(
-  typeName: string
+function structuralKindToOutputType(
+  type: RillStructuralType
 ): 'string' | 'number' | 'bool' | 'list' | 'dict' {
-  switch (typeName) {
-    case 'string':
-      return 'string';
-    case 'number':
-      return 'number';
-    case 'bool':
-      return 'bool';
+  switch (type.kind) {
+    case 'primitive':
+      switch (type.name) {
+        case 'string':
+          return 'string';
+        case 'number':
+          return 'number';
+        case 'bool':
+          return 'bool';
+        default:
+          return 'dict';
+      }
     case 'list':
       return 'list';
     case 'closure':
       throw new RuntimeError(
         'RILL-R004',
-        `shape field type 'closure' not representable in manifest`
+        `structural type 'closure' not representable in manifest`
       );
     case 'tuple':
       throw new RuntimeError(
         'RILL-R004',
-        `shape field type 'tuple' not representable in manifest`
+        `structural type 'tuple' not representable in manifest`
       );
-    // shape, dict, vector, any all map to dict or string
+    // dict, ordered, any all map to dict
     default:
       return 'dict';
   }
 }
 
 /**
- * Converts a RillShape to an InputSchema (Record<string, InputParamDescriptor>).
- * Iterates shape.fields and maps each ShapeFieldSpec to an InputParamDescriptor.
- * Throws RuntimeError RILL-R004 if any field uses closure or tuple type.
+ * Convert a RillStructuralType to an InputSchema.
+ *
+ * For the closure variant, iterates type.params and matches each to the
+ * corresponding CallableParam by position for metadata (defaultValue, annotations).
+ * For non-closure variants, treats the type as a single unnamed param using
+ * params[0] for metadata.
+ *
+ * required = true when CallableParam.defaultValue is null.
+ * Propagates description and enum from annotations when present as strings/arrays.
+ * Throws RuntimeError RILL-R004 if any param uses closure or tuple kind.
  */
-export function rillShapeToInputSchema(shape: RillShape): InputSchema {
+export function structuralTypeToInputSchema(
+  type: RillStructuralType,
+  params: CallableParam[]
+): InputSchema {
   const result: InputSchema = {};
 
-  for (const [name, field] of Object.entries(
-    shape.fields as Record<string, ShapeFieldSpec>
-  )) {
-    const type = shapeTypeToInputType(field.typeName);
-    const descriptor: InputParamDescriptor = { type };
+  if (type.kind === 'closure') {
+    for (let i = 0; i < type.params.length; i++) {
+      const [name, paramType] = type.params[i]!;
+      const callableParam = params[i];
 
-    if (!field.optional) {
-      descriptor.required = true;
+      // Validate the structural type of this param
+      if (paramType.kind === 'closure' || paramType.kind === 'tuple') {
+        throw new RuntimeError(
+          'RILL-R004',
+          `structural type '${paramType.kind}' not representable in manifest`
+        );
+      }
+
+      const inputType = structuralKindToOutputType(paramType);
+      const descriptor: InputParamDescriptor = { type: inputType };
+
+      if (callableParam !== undefined) {
+        if (callableParam.defaultValue === null) {
+          descriptor.required = true;
+        }
+
+        const desc = callableParam.annotations['description'];
+        if (typeof desc === 'string') {
+          descriptor.description = desc;
+        }
+
+        const enumVal = callableParam.annotations['enum'];
+        if (Array.isArray(enumVal)) {
+          descriptor.enum = enumVal;
+        }
+      }
+
+      result[name] = descriptor;
+    }
+  } else {
+    // Non-closure variant: treat the whole type as a single unnamed param
+    if (type.kind === 'tuple') {
+      throw new RuntimeError(
+        'RILL-R004',
+        `structural type 'tuple' not representable in manifest`
+      );
     }
 
-    const desc = field.annotations['description'];
-    if (typeof desc === 'string') {
-      descriptor.description = desc;
+    const inputType = structuralKindToOutputType(type);
+    const callableParam = params[0];
+    const descriptor: InputParamDescriptor = { type: inputType };
+
+    if (callableParam !== undefined) {
+      if (callableParam.defaultValue === null) {
+        descriptor.required = true;
+      }
+
+      const desc = callableParam.annotations['description'];
+      if (typeof desc === 'string') {
+        descriptor.description = desc;
+      }
+
+      const enumVal = callableParam.annotations['enum'];
+      if (Array.isArray(enumVal)) {
+        descriptor.enum = enumVal;
+      }
     }
 
-    if ('default' in field.annotations) {
-      descriptor.default = field.annotations['default'];
-    }
-
-    result[name] = descriptor;
+    result['value'] = descriptor;
   }
 
   return result;
 }
 
 /**
- * Converts a RillShape to an OutputSchema.
- * Recursively serializes nested shapes into fields records.
- * Throws RuntimeError RILL-R004 if any field uses closure or tuple type.
+ * Convert a RillStructuralType to an OutputSchema.
+ *
+ * Recursively converts nested types to OutputSchema fields for dict/ordered variants.
+ * Throws RuntimeError RILL-R004 if any field uses closure or tuple kind.
  */
-export function rillShapeToOutputSchema(shape: RillShape): OutputSchema {
-  const fields: Record<string, OutputSchema> = {};
-
-  for (const [name, field] of Object.entries(
-    shape.fields as Record<string, ShapeFieldSpec>
-  )) {
-    const type = shapeTypeToInputType(field.typeName);
-    const entry: OutputSchema = { type };
-
-    const desc = field.annotations['description'];
-    if (typeof desc === 'string') {
-      entry.description = desc;
+export function structuralTypeToOutputSchema(
+  type: RillStructuralType
+): OutputSchema {
+  if (type.kind === 'dict') {
+    const fields: Record<string, OutputSchema> = {};
+    for (const [name, fieldType] of Object.entries(type.fields)) {
+      fields[name] = structuralTypeToOutputSchema(fieldType);
     }
-
-    if (field.typeName === 'shape' && field.nestedShape !== undefined) {
-      entry.fields = rillShapeToOutputSchema(field.nestedShape).fields;
-    }
-
-    fields[name] = entry;
+    return { type: 'dict', fields };
   }
 
-  return { type: 'dict', fields };
+  if (type.kind === 'ordered') {
+    const fields: Record<string, OutputSchema> = {};
+    for (const [name, fieldType] of type.fields) {
+      fields[name] = structuralTypeToOutputSchema(fieldType);
+    }
+    return { type: 'dict', fields };
+  }
+
+  const outputType = structuralKindToOutputType(type);
+  return { type: outputType };
 }
 
 // ============================================================

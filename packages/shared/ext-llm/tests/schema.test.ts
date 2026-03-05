@@ -1,35 +1,21 @@
 /**
- * Unit tests for buildJsonSchema.
+ * Unit tests for buildJsonSchema and buildJsonSchemaFromStructuralType.
  *
  * Covers all 6 rill type mappings, descriptor forms, nesting, enum constraints,
- * empty schema, and all error contracts (EC-1, EC-2).
+ * empty schema, and all error contracts (EC-1, EC-2, EC-3).
+ *
+ * AC-10: buildJsonSchemaFromStructuralType output === buildJsonSchemaFromShape output
+ * AC-18: buildJsonSchemaFromStructuralType unsupported type → RILL-R004
+ * AC-20: buildJsonSchema receives plain Record<string, unknown> dict → correct JSON Schema
+ * EC-3: buildJsonSchemaFromStructuralType receives closure/tuple kind → RILL-R004
  */
 
 import { describe, it, expect } from 'vitest';
-import { type RillShape, type ShapeFieldSpec, RuntimeError } from '@rcrsr/rill';
-import { buildJsonSchema } from '../src/schema.js';
-
-// ============================================================
-// HELPER: construct a frozen RillShape for testing
-// ============================================================
-
-function makeShape(
-  fields: Record<string, Partial<ShapeFieldSpec> & { typeName: string }>
-): RillShape {
-  const fullFields: Record<string, ShapeFieldSpec> = {};
-  for (const [name, partial] of Object.entries(fields)) {
-    fullFields[name] = {
-      typeName: partial.typeName,
-      optional: partial.optional ?? false,
-      nestedShape: partial.nestedShape,
-      annotations: partial.annotations ?? {},
-    };
-  }
-  return Object.freeze({
-    __rill_shape: true as const,
-    fields: Object.freeze(fullFields),
-  }) as RillShape;
-}
+import { type CallableParam, RuntimeError } from '@rcrsr/rill';
+import {
+  buildJsonSchema,
+  buildJsonSchemaFromStructuralType,
+} from '../src/schema.js';
 
 // ============================================================
 // ALL 6 RILL TYPES (AC-15, AC-30)
@@ -468,88 +454,189 @@ describe('buildJsonSchema', () => {
   });
 
   // ============================================================
-  // AC-30, AC-31, AC-32, EC-8: RillShape input (IR-6)
+  // AC-20: buildJsonSchema with plain Record<string, unknown> dict (legacy path)
   // ============================================================
 
-  describe('RillShape input (IR-6)', () => {
-    // AC-30: basic field type mapping
-    it('AC-30: string field maps to JSON Schema type "string"', () => {
-      const result = buildJsonSchema(
-        makeShape({ name: { typeName: 'string' } })
-      );
+  describe('AC-20: buildJsonSchema with plain dict (legacy path)', () => {
+    it('maps string type from plain dict key', () => {
+      const result = buildJsonSchema({ name: 'string' });
       expect(result.properties['name']?.type).toBe('string');
     });
 
-    it('AC-30: number field maps to JSON Schema type "number"', () => {
-      const result = buildJsonSchema(
-        makeShape({ count: { typeName: 'number' } })
-      );
+    it('maps number type from plain dict key', () => {
+      const result = buildJsonSchema({ count: 'number' });
       expect(result.properties['count']?.type).toBe('number');
     });
 
-    it('AC-30: bool field maps to JSON Schema type "boolean"', () => {
-      const result = buildJsonSchema(
-        makeShape({ active: { typeName: 'bool' } })
+    it('maps bool type from plain dict key', () => {
+      const result = buildJsonSchema({ active: 'bool' });
+      expect(result.properties['active']?.type).toBe('boolean');
+    });
+
+    it('includes all keys in required array', () => {
+      const result = buildJsonSchema({ a: 'string', b: 'number' });
+      expect(result.required).toContain('a');
+      expect(result.required).toContain('b');
+    });
+
+    it('returns type "object" with additionalProperties: false', () => {
+      const result = buildJsonSchema({ x: 'string' });
+      expect(result.type).toBe('object');
+      expect(result.additionalProperties).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // AC-10, AC-18, EC-3: buildJsonSchemaFromStructuralType
+  // ============================================================
+
+  describe('buildJsonSchemaFromStructuralType [AC-10, AC-18, EC-3]', () => {
+    // AC-10: output identical to equivalent legacy schema for same param structure
+    it('AC-10: string param produces same output as buildJsonSchema string type', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'name',
+          typeName: 'string',
+          defaultValue: null,
+          annotations: {},
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['name', { kind: 'primitive', name: 'string' }]],
+          ret: { kind: 'any' },
+        },
+        params
+      );
+      expect(result.properties['name']?.type).toBe('string');
+      expect(result.required).toContain('name');
+      expect(result.type).toBe('object');
+      expect(result.additionalProperties).toBe(false);
+    });
+
+    it('AC-10: number param produces same output as buildJsonSchema number type', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'count',
+          typeName: 'number',
+          defaultValue: null,
+          annotations: {},
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['count', { kind: 'primitive', name: 'number' }]],
+          ret: { kind: 'any' },
+        },
+        params
+      );
+      expect(result.properties['count']?.type).toBe('number');
+      expect(result.required).toContain('count');
+    });
+
+    it('AC-10: bool param produces type "boolean" matching buildJsonSchema', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'active',
+          typeName: 'bool',
+          defaultValue: null,
+          annotations: {},
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['active', { kind: 'primitive', name: 'bool' }]],
+          ret: { kind: 'any' },
+        },
+        params
       );
       expect(result.properties['active']?.type).toBe('boolean');
     });
 
-    it('AC-30: shape field produces type "object" with properties', () => {
-      const nested = makeShape({ city: { typeName: 'string' } });
-      const result = buildJsonSchema(
-        makeShape({ addr: { typeName: 'shape', nestedShape: nested } })
+    it('param with defaultValue !== null is optional (not in required)', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'limit',
+          typeName: 'number',
+          defaultValue: 10,
+          annotations: {},
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['limit', { kind: 'primitive', name: 'number' }]],
+          ret: { kind: 'any' },
+        },
+        params
       );
-      expect(result.properties['addr']?.type).toBe('object');
-      expect(result.properties['addr']?.properties?.['city']?.type).toBe(
-        'string'
-      );
+      expect(result.required).not.toContain('limit');
     });
 
-    // AC-31: enum annotation
-    it('AC-31: enum annotation produces enum array in JSON Schema', () => {
-      const result = buildJsonSchema(
-        makeShape({
-          status: {
-            typeName: 'string',
-            annotations: { enum: ['active', 'inactive'] },
-          },
-        })
+    it('description annotation propagates to property', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'query',
+          typeName: 'string',
+          defaultValue: null,
+          annotations: { description: 'Search query' },
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['query', { kind: 'primitive', name: 'string' }]],
+          ret: { kind: 'any' },
+        },
+        params
+      );
+      expect(result.properties['query']?.description).toBe('Search query');
+    });
+
+    it('enum annotation propagates to property', () => {
+      const params: CallableParam[] = [
+        {
+          name: 'status',
+          typeName: 'string',
+          defaultValue: null,
+          annotations: { enum: ['active', 'inactive'] },
+        },
+      ];
+      const result = buildJsonSchemaFromStructuralType(
+        {
+          kind: 'closure',
+          params: [['status', { kind: 'primitive', name: 'string' }]],
+          ret: { kind: 'any' },
+        },
+        params
       );
       expect(result.properties['status']?.enum).toEqual(['active', 'inactive']);
     });
 
-    // AC-32: optional fields
-    it('AC-32: optional:false field appears in required array', () => {
-      const result = buildJsonSchema(
-        makeShape({ name: { typeName: 'string', optional: false } })
-      );
-      expect(result.required).toContain('name');
+    it('empty closure produces empty properties and required arrays', () => {
+      const result = buildJsonSchemaFromStructuralType({
+        kind: 'closure',
+        params: [],
+        ret: { kind: 'any' },
+      });
+      expect(result.properties).toEqual({});
+      expect(result.required).toEqual([]);
     });
 
-    it('AC-32: optional:true field does NOT appear in required array', () => {
-      const result = buildJsonSchema(
-        makeShape({ name: { typeName: 'string', optional: true } })
-      );
-      expect(result.required).not.toContain('name');
-    });
-
-    it('AC-32: mixed required/optional produces correct required array', () => {
-      const result = buildJsonSchema(
-        makeShape({
-          required_field: { typeName: 'string', optional: false },
-          optional_field: { typeName: 'number', optional: true },
-        })
-      );
-      expect(result.required).toContain('required_field');
-      expect(result.required).not.toContain('optional_field');
-      expect(result.required).toHaveLength(1);
-    });
-
-    // EC-8: closure/tuple throw RuntimeError RILL-R004
-    it('EC-8: closure field type throws RuntimeError RILL-R004', () => {
+    // AC-18 / EC-3: unsupported type throws RILL-R004
+    it('AC-18/EC-3: closure kind in param throws RuntimeError RILL-R004', () => {
       let thrown: RuntimeError | undefined;
       try {
-        buildJsonSchema(makeShape({ fn: { typeName: 'closure' } }));
+        buildJsonSchemaFromStructuralType({
+          kind: 'closure',
+          params: [
+            ['fn', { kind: 'closure', params: [], ret: { kind: 'any' } }],
+          ],
+          ret: { kind: 'any' },
+        });
       } catch (e) {
         thrown = e as RuntimeError;
       }
@@ -557,10 +644,14 @@ describe('buildJsonSchema', () => {
       expect(thrown?.errorId).toBe('RILL-R004');
     });
 
-    it('EC-8: tuple field type throws RuntimeError RILL-R004', () => {
+    it('AC-18/EC-3: tuple kind in param throws RuntimeError RILL-R004', () => {
       let thrown: RuntimeError | undefined;
       try {
-        buildJsonSchema(makeShape({ t: { typeName: 'tuple' } }));
+        buildJsonSchemaFromStructuralType({
+          kind: 'closure',
+          params: [['t', { kind: 'tuple', elements: [] }]],
+          ret: { kind: 'any' },
+        });
       } catch (e) {
         thrown = e as RuntimeError;
       }

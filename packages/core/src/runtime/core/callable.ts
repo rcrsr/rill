@@ -33,64 +33,9 @@ import type {
 } from '../../types.js';
 export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import { VALID_TYPE_NAMES } from '../../constants.js';
 import { astEquals } from './equals.js';
-import type { RillTypeValue, RillValue } from './values.js';
+import type { RillStructuralType, RillTypeValue, RillValue } from './values.js';
 import { formatValue, inferType, isTuple } from './values.js';
-
-/**
- * Shape field specification — describes a single field in a RillShape.
- * Defined here (not values.ts) to avoid circular dependencies.
- */
-export interface ShapeFieldSpec {
-  readonly typeName: string;
-  readonly optional: boolean;
-  readonly nestedShape: RillShape | undefined;
-  readonly annotations: Record<string, RillValue>;
-}
-
-/**
- * Shape value — represents a validated dict structure at runtime.
- * Created by shape(...) literals and to_shape() built-in.
- */
-export interface RillShape {
-  readonly __rill_shape: true;
-  readonly fields: Record<string, ShapeFieldSpec>;
-}
-
-/**
- * Field descriptor — carries field name and spec when accessing a shape field.
- */
-export interface RillShapeFieldDescriptor {
-  readonly __rill_field_descriptor: true;
-  readonly fieldName: string;
-  readonly spec: ShapeFieldSpec;
-}
-
-/** Type guard for RillShape */
-export function isShape(value: RillValue): value is RillShape {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_shape' in value &&
-    (value as RillShape).__rill_shape === true
-  );
-}
-
-/** Type guard for RillShapeFieldDescriptor */
-export function isFieldDescriptor(
-  value: RillValue
-): value is RillShapeFieldDescriptor {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_field_descriptor' in value &&
-    (value as RillShapeFieldDescriptor).__rill_field_descriptor === true
-  );
-}
-
-/** Set of valid type names for O(1) membership lookup */
-const validTypeNamesSet = new Set<string>(VALID_TYPE_NAMES);
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -202,8 +147,8 @@ export interface ScriptCallable extends CallableBase {
   readonly annotations: Record<string, RillValue>;
   /** Evaluated parameter annotations keyed by parameter name */
   readonly paramAnnotations: Record<string, Record<string, RillValue>>;
-  /** Cached input shape built from params at creation time — used by `$fn.^input` */
-  readonly inputShape: RillShape;
+  /** Cached input structural type built from params at creation time — used by `$fn.^input` */
+  readonly inputShape: RillStructuralType;
   /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
   readonly returnShape?: RillTypeValue | undefined;
 }
@@ -277,15 +222,14 @@ export function callable(
   };
 }
 
-/** Type guard for dict (plain object, not array, not callable, not tuple, not shape) */
+/** Type guard for dict (plain object, not array, not callable, not tuple) */
 export function isDict(value: RillValue): value is Record<string, RillValue> {
   return (
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
     !isCallable(value) &&
-    !isTuple(value) &&
-    !isShape(value)
+    !isTuple(value)
   );
 }
 
@@ -385,42 +329,34 @@ export function callableEquals(
 }
 
 /**
- * Construct a RillShape from a closure's param list and per-param annotation records.
+ * Build a RillStructuralType closure variant from a closure's parameter list.
  *
- * Called at closure creation time to build the shape for `$fn.^input`.
- * Each param becomes a ShapeFieldSpec:
- * - typeName defaults to 'any' when param.typeName is absent
- * - optional is true when param has a defaultValue
- * - nestedShape is always undefined (no nested shape in this context)
- * - annotations come from paramAnnotations[param.name], defaulting to {}
+ * Called at closure creation time to build the structural type for `$fn.^input`.
+ * - Typed params map to { kind: 'primitive', name }
+ * - Untyped params (typeName: null) map to { kind: 'any' }
+ * - Return type is always { kind: 'any' }
+ *
+ * No validation: parser already validates type names.
  *
  * @param params - Closure parameter definitions
- * @param paramAnnotations - Per-param annotation records keyed by param name
- * @returns Frozen RillShape with one field per param
- * @throws RuntimeError (RILL-R001) if any param typeName is not a valid Rill type
+ * @returns Frozen RillStructuralType with closure variant
  */
-export function paramsToShape(
-  params: CallableParam[],
-  paramAnnotations: Record<string, Record<string, RillValue>>
-): RillShape {
-  const fields: Record<string, ShapeFieldSpec> = {};
+export function paramsToStructuralType(
+  params: CallableParam[]
+): RillStructuralType {
+  const closureParams: [string, RillStructuralType][] = params.map((param) => {
+    const paramType: RillStructuralType =
+      param.typeName !== null
+        ? { kind: 'primitive', name: param.typeName }
+        : { kind: 'any' };
+    return [param.name, paramType];
+  });
 
-  for (const param of params) {
-    const typeName = param.typeName ?? 'any';
-
-    if (!validTypeNamesSet.has(typeName)) {
-      throw new RuntimeError('RILL-R001', `Unknown type: ${typeName}`);
-    }
-
-    fields[param.name] = {
-      typeName,
-      optional: param.defaultValue !== null,
-      nestedShape: undefined,
-      annotations: paramAnnotations[param.name] ?? {},
-    };
-  }
-
-  return Object.freeze({ __rill_shape: true as const, fields });
+  return Object.freeze({
+    kind: 'closure' as const,
+    params: closureParams,
+    ret: { kind: 'any' as const },
+  });
 }
 
 /**

@@ -20,14 +20,6 @@ interface CallableMarker {
   readonly __type: 'callable';
 }
 
-// Forward declaration - actual shape types defined in callable.ts
-// This avoids circular dependency (RillShape.fields uses ShapeFieldSpec which
-// is not a RillValue, so RillShape cannot be a full union member; ShapeMarker
-// carries only the discriminant so it IS assignable to { [key: string]: RillValue })
-interface ShapeMarker {
-  readonly __rill_shape: true;
-}
-
 // Forward declaration for field descriptors
 interface FieldDescriptorMarker {
   readonly __rill_field_descriptor: true;
@@ -104,7 +96,6 @@ export type RillValue =
   | RillTuple
   | RillOrdered
   | RillVector
-  | ShapeMarker
   | FieldDescriptorMarker
   | RillTypeValue;
 

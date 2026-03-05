@@ -17,10 +17,7 @@ import {
   detectManifestType,
   resolveExtensions,
   generateAgentCard,
-  rillShapeToInputSchema,
-  rillShapeToOutputSchema,
 } from '@rcrsr/rill-agent-shared';
-import { isShape, type RillShape } from '@rcrsr/rill';
 import { computeChecksum } from './checksum.js';
 
 // ============================================================
@@ -435,14 +432,8 @@ export async function buildBundle(
     isHarness = true;
     agentBuildInputs = harness.agents.map((entry) => {
       const synthetic = buildSyntheticManifest(entry);
-      const resolvedInput =
-        entry.input !== undefined && isShape(entry.input)
-          ? rillShapeToInputSchema(entry.input as unknown as RillShape)
-          : entry.input;
-      const resolvedOutput =
-        entry.output !== undefined && isShape(entry.output)
-          ? rillShapeToOutputSchema(entry.output as unknown as RillShape)
-          : entry.output;
+      const resolvedInput = entry.input;
+      const resolvedOutput = entry.output;
       return {
         name: entry.name,
         entry: entry.entry,

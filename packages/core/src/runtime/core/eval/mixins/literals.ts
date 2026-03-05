@@ -55,7 +55,7 @@ import {
 } from '../../values.js';
 import {
   isCallable,
-  paramsToShape,
+  paramsToStructuralType,
   type ScriptCallable,
   type CallableParam,
 } from '../../callable.js';
@@ -998,7 +998,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const isProperty = params.length === 0;
-      const inputShape = paramsToShape(params, paramAnnotations);
+      const inputShape = paramsToStructuralType(params);
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
       // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
@@ -1051,7 +1051,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx.immediateAnnotation = undefined;
 
       const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-      const inputShape = paramsToShape(params, paramAnnotations);
+      const inputShape = paramsToStructuralType(params);
 
       return {
         __type: 'callable',

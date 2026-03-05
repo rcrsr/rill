@@ -25,9 +25,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateInputParams, injectDefaults } from '../src/core/input.js';
+import {
+  validateInputParams,
+  injectDefaults,
+  validateInputParamsFromShape,
+} from '../src/core/input.js';
 import type { InputValidationIssue } from '../src/core/input.js';
 import type { InputSchema } from '@rcrsr/rill-agent-shared';
+import { RuntimeError } from '@rcrsr/rill';
 
 // ============================================================
 // validateInputParams
@@ -467,6 +472,89 @@ describe('injectDefaults', () => {
       expect(() =>
         injectDefaults({ a: 'provided', b: 42 }, schema)
       ).not.toThrow();
+    });
+  });
+});
+
+// ============================================================
+// validateInputParamsFromShape
+// ============================================================
+
+describe('validateInputParamsFromShape', () => {
+  // EC-4: inherits RILL-R004 from structuralTypeToInputSchema
+  describe('EC-4: inherits RILL-R004 from structuralTypeToInputSchema', () => {
+    it('throws RuntimeError RILL-R004 when a param has closure kind', () => {
+      let thrown: unknown;
+      try {
+        validateInputParamsFromShape(
+          { fn: 'value' },
+          {
+            kind: 'closure',
+            params: [
+              ['fn', { kind: 'closure', params: [], ret: { kind: 'any' } }],
+            ],
+            ret: { kind: 'any' },
+          },
+          [
+            {
+              name: 'fn',
+              typeName: 'closure',
+              defaultValue: null,
+              annotations: {},
+            },
+          ]
+        );
+      } catch (e) {
+        thrown = e;
+      }
+      expect(thrown).toBeInstanceOf(RuntimeError);
+      expect((thrown as RuntimeError).errorId).toBe('RILL-R004');
+    });
+
+    it('throws RuntimeError RILL-R004 when a param has tuple kind', () => {
+      let thrown: unknown;
+      try {
+        validateInputParamsFromShape(
+          { t: 'value' },
+          {
+            kind: 'closure',
+            params: [['t', { kind: 'tuple', elements: [] }]],
+            ret: { kind: 'any' },
+          },
+          [
+            {
+              name: 't',
+              typeName: 'tuple',
+              defaultValue: null,
+              annotations: {},
+            },
+          ]
+        );
+      } catch (e) {
+        thrown = e;
+      }
+      expect(thrown).toBeInstanceOf(RuntimeError);
+      expect((thrown as RuntimeError).errorId).toBe('RILL-R004');
+    });
+
+    it('returns issues normally for valid closure type with primitive params', () => {
+      const issues = validateInputParamsFromShape(
+        { name: 'Alice' },
+        {
+          kind: 'closure',
+          params: [['name', { kind: 'primitive', name: 'string' }]],
+          ret: { kind: 'any' },
+        },
+        [
+          {
+            name: 'name',
+            typeName: 'string',
+            defaultValue: null,
+            annotations: {},
+          },
+        ]
+      );
+      expect(issues).toEqual([]);
     });
   });
 });

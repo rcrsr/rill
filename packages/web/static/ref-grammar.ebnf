@@ -63,7 +63,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
      Type annotation:    ":"
      Spread:             "..."
      Annotation:         "^"
-     Open delimiters:    unclosed "[" "(" "{" "|" "||" "shape("
+     Open delimiters:    unclosed "[" "(" "{" "|" "||"
 
    Continuation tokens also act as line continuations when they
    appear at the start of a line — the previous statement continues:
@@ -172,8 +172,9 @@ error-statement = "error" , string ;
 postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } ;
 
 primary       = literal
-              | shape-literal       (* shape(...) — inline shape validation value *)
-              | type-name           (* type name as value — produces type value e.g. string, number *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T) — structural type expression *)
+              | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
+              | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
               | closure-call
               | host-call
@@ -181,7 +182,7 @@ primary       = literal
               | loop
               | block
               | grouped-expr
-              | spread              (* *expr - convert list/dict to tuple *)
+              | spread              (* *dict-expr — convert dict to ordered for arg unpacking *)
               | pass ;
 
 (* Pass: returns current pipe value ($) unchanged.
@@ -450,7 +451,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | slice              (* $ -> /<0:3> — extract portion of $ *)
               | type-assertion     (* $ -> :string — assert $ is string type *)
               | type-check         (* $ -> :?string — check if $ is string type *)
-              | "*" ;              (* $ -> * — convert $ to tuple for unpacking *)
+              | "*" ;              (* $ -> * — convert $ dict to ordered for unpacking *)
 
 (* Closure chain (@): compose closures left-to-right.
    - Chain:     x -> @[$f,$g,$h]        -- $h($g($f(x)))
@@ -507,30 +508,30 @@ destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
 slice             = "/<" , [ slice-bound ] , ":" , [ slice-bound ] , [ ":" , [ slice-bound ] ] , ">" ;
 slice-bound       = number | variable | grouped-expr ;
 
-(* Spread: convert list/dict to tuple for unpacking at closure invocation.
-   The tuple type exists solely to signal "unpack these values as separate arguments."
+(* Spread: convert a dict to an ordered container for argument unpacking at closure invocation.
+   Only dict operands are valid. *list spread was removed.
 
    Syntax:
-     *[1, 2, 3]              -- positional tuple from list literal
-     *[x: 1, y: 2]           -- named tuple from dict literal
-     *$myList                -- positional tuple from list variable
-     *$myDict                -- named tuple from dict variable
-     [1, 2, 3] -> *          -- convert pipe value to tuple
+     *[x: 1, y: 2]           -- named spread from dict literal → ordered
+     *$myDict                -- named spread from dict variable → ordered
+     [a: 1] -> *             -- convert pipe dict to ordered
 
    Key-based matching at invocation:
-     - Numeric keys (from list): match parameters by position
      - String keys (from dict): match parameters by name
 
    Example:
      |a, b| { [$b, $a] } -> $flip
-     *[1, 2] -> $flip()      -- $a=1, $b=2, returns [2, 1]
-     *[a: 1, b: 2] -> $flip() -- named tuple, same result
+     *[a: 1, b: 2] -> $flip() -- $a=1, $b=2, returns [2, 1]
 
    Strict validation: missing or extra arguments error at invocation.
-   Parameter defaults provide explicit opt-in leniency. *)
+   Parameter defaults provide explicit opt-in leniency.
 
-spread            = "*" , [ postfix-expr ] ;
-              (* Bare * uses implicit $: each { * } ≡ each { $ -> * } *)
+   Note: ordered values cannot be passed to toNative() — throws RILL-R004. *)
+
+spread            = "*" , postfix-expr ;
+              (* Spread converts a dict to ordered for arg unpacking: *[a: 1, b: 2]
+                 Only dict spread is valid. *list spread was removed.
+                 Bare * in pipe position uses implicit $: each { * } ≡ each { $ -> * } *)
 
 (* Pipe-invoke: call the pipe value ($) as a closure
    ||{ "hello" } -> $()          -- invoke with no args
@@ -543,19 +544,12 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    - Postfix: 42:number, (expr):type - binds tighter than method calls
    - Pipe target: -> :type - asserts on pipe value ($)
 
-   Disambiguation after ":":
-   - "$" identifier  → variable shape reference (type-target → shape-validation)
-   - "shape" "("     → inline shape literal (type-target → shape-validation)
-   - else            → existing type-name flow
-
    Examples:
    42:number                       -- postfix assertion
    (1 + 2):number                  -- postfix on grouped expr
    (($ < 5) @ ($ + 1)):number      -- postfix on loop result
    "hello" -> :string              -- pipe target assertion
-   $val -> :dict -> .keys          -- assert then continue chain
-   $val -> :shape(name: string)    -- inline shape assertion
-   $val -> :$myShape               -- variable shape assertion *)
+   $val -> :dict -> .keys          -- assert then continue chain *)
 type-assertion = ":" , type-target ;
 
 (* Type check: check if value is a specific type, returns bool.
@@ -564,59 +558,54 @@ type-assertion = ":" , type-target ;
    Examples:
    42:?number                      -- true (postfix)
    "hello":?number                 -- false (postfix)
-   $val -> :?list ? process()      -- conditional on type
-   $val -> :?shape(name: string)   -- true if matches shape *)
+   $val -> :?list ? process()      -- conditional on type *)
 type-check    = ":" , "?" , type-target ;
 
-type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "vector" | "shape" | "any" | "type" ;
+type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "ordered" | "vector" | "any" | "type" ;
+              (* "ordered" added: container produced by *dict spread, preserves insertion order.
+                 "shape" and "field" removed: shape system replaced by structural type constructors. *)
 
-(* type-ref: a type reference used in assertion, shape, param, and capture positions.
+(* type-ref: a type reference used in assertion, param, and capture positions.
    Either a primitive/collection type name or a variable holding a type value. *)
 type-ref      = type-name | "$" , identifier ;
 
-(* type-target selects the assertion/check subject.
-   Disambiguation (after ":" and optional "?"):
-   - "$" identifier → shape-validation (variable shape ref) OR type-ref
-   - "shape" "("    → shape-validation (inline shape literal)
-   - else           → type-ref (type name or variable) *)
-type-target   = type-ref
-              | shape-validation ;
+(* type-target selects the assertion/check subject. *)
+type-target   = type-ref ;
 
-(* shape-validation wraps a shape-literal for use in type positions. *)
-shape-validation = shape-literal ;
+(* ============================================================ *)
+(* TYPE CONSTRUCTORS                                            *)
+(* ============================================================ *)
 
-(* shape-literal: structural shape for inline validation.
-   "shape" is NOT a reserved keyword. The parser recognizes it
-   contextually when "shape" identifier is followed by "(".
+(* Type constructors are PRIMARY expressions that produce structural type values.
+   They can appear anywhere an expression is valid.
 
    Examples:
-   shape(name: string, age: number)         -- required fields
-   shape(name: string, email: string?)      -- optional field
-   shape(name: string, addr: (street: string, city: string))  -- nested group
-   shape(name: string, ...expr)             -- spread: inline all fields from expr
+   list(number)                    -- list of numbers
+   list(list(string))              -- nested list type
+   dict(a: number, b: string)      -- dict with named fields
+   tuple(number, string, bool)     -- positional tuple type
+   ordered(x: number, y: string)   -- ordered container type
 
-   Spread inlines all fields from the source shape expression.
-   The spread expression must evaluate to a shape at runtime. *)
-shape-literal = "shape" , "(" , [ shape-field , { "," , shape-field } ] , [ "," , "..." , expression ] , ")" ;
+   These values are used with ^type for structural type inspection. *)
 
-(* shape-field: a single named field with its type constraint.
-   Optional annotation (e.g. ^("description")) provides field metadata. *)
-shape-field   = [ annotation ] , identifier , ":" , shape-type ;
+type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ type-arg-list ] , ")" ;
 
-(* shape-type: the type constraint for a shape field.
-   Appending "?" marks the field as optional (value may be absent).
-   Alternatives:
-   - Primitive/collection type name, optionally optional
-   - Nested inline shape literal, optionally optional
-   - Nested shape group (shorthand "(...)"), optionally optional *)
-shape-type    = type-ref , [ "?" ]
-              | shape-literal , [ "?" ]
-              | shape-group , [ "?" ] ;
+type-arg-list    = type-arg , { "," , type-arg } , [ "," ] ;
 
-(* shape-group: shorthand for a nested shape using "(...)".
-   Desugars to ShapeLiteralNode at parse time.
-   (street: string, city: string)  ≡  shape(street: string, city: string) *)
-shape-group   = "(" , shape-field , { "," , shape-field } , ")" ;
+type-arg         = identifier , ":" , expression   (* named: key: type-expr *)
+               | expression ;                      (* positional: type-expr *)
+
+(* Closure signature literal: a type expression for closure type inspection.
+   Syntax mirrors closure definition but uses "|" delimiters and "-> return".
+   This is a PRIMARY expression, not a closure body.
+
+   Examples:
+   |x: number| -> string             -- closure taking number, returning string
+   |a: number, b: number| -> number  -- two-param closure *)
+
+closure-sig-lit  = "|" , param-type-list , "|" , "->" , expression ;
+param-type-list  = [ param-type-item , { "," , param-type-item } ] ;
+param-type-item  = identifier , ":" , expression ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)

@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { build as esbuild, type BuildFailure } from 'esbuild';
 import {
   type RillValue,
+  type RillStructuralType,
   type HostFunctionDefinition,
   type ExtensionResult,
   hoistExtension,
@@ -28,10 +29,9 @@ import {
   resolveExtensions,
   extractConfigSchema,
   generateAgentCard,
-  rillShapeToInputSchema,
-  rillShapeToOutputSchema,
+  structuralTypeToInputSchema,
+  structuralTypeToOutputSchema,
 } from '@rcrsr/rill-agent-shared';
-import type { RillShape } from '@rcrsr/rill';
 
 // ============================================================
 // PUBLIC INTERFACES
@@ -40,8 +40,8 @@ import type { RillShape } from '@rcrsr/rill';
 export interface ComposeOptions {
   readonly basePath?: string | undefined;
   readonly config: Record<string, Record<string, unknown>>;
-  readonly inputShape?: RillShape | undefined;
-  readonly outputShape?: RillShape | undefined;
+  readonly inputShape?: RillStructuralType | undefined;
+  readonly outputShape?: RillStructuralType | undefined;
 }
 
 export interface ComposedHarness {
@@ -319,14 +319,14 @@ export async function composeAgent(
 ): Promise<ComposedAgent> {
   const basePath = options.basePath ?? process.cwd();
 
-  // Serialize RillShape options to InputSchema/OutputSchema if provided
+  // Serialize RillStructuralType options to InputSchema/OutputSchema if provided
   const effectiveInput =
     options.inputShape !== undefined
-      ? rillShapeToInputSchema(options.inputShape)
+      ? structuralTypeToInputSchema(options.inputShape, [])
       : manifest.input;
   const effectiveOutput =
     options.outputShape !== undefined
-      ? rillShapeToOutputSchema(options.outputShape)
+      ? structuralTypeToOutputSchema(options.outputShape)
       : manifest.output;
 
   // Step 2: Resolve extensions (handles EC-3, EC-4, EC-5)

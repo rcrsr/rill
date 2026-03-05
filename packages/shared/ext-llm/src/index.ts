@@ -44,5 +44,9 @@ export { executeToolLoop } from './tool-loop.js';
 // ============================================================
 // SCHEMA BUILDING
 // ============================================================
-export { buildJsonSchema, mapRillType } from './schema.js';
+export {
+  buildJsonSchema,
+  buildJsonSchemaFromStructuralType,
+  mapRillType,
+} from './schema.js';
 export type { JsonSchemaObject, JsonSchemaProperty } from './schema.js';

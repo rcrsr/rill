@@ -6,9 +6,8 @@
  */
 
 import {
-  type RillShape,
-  type ShapeFieldSpec,
-  isShape,
+  type RillStructuralType,
+  type CallableParam,
   RuntimeError,
 } from '@rcrsr/rill';
 
@@ -66,75 +65,93 @@ export function mapRillType(rillType: string): string {
 }
 
 /**
- * Build a JsonSchemaProperty from a ShapeFieldSpec (IR-6, EC-8).
+ * Build a JsonSchemaProperty from a RillStructuralType in param position.
  *
- * - closure and tuple types throw RuntimeError RILL-R004 (EC-8).
- * - any type produces an unconstrained property (no type field).
- * - shape type recursively builds nested object schema.
- * - annotations.description maps to JSON Schema description.
- * - annotations.enum maps to JSON Schema enum.
+ * - closure and tuple kinds throw RuntimeError RILL-R004 (EC-3).
+ * - any kind produces an unconstrained property (no type field).
+ * - primitive kind maps the type name via mapRillType.
  */
-function buildPropertyFromFieldSpec(
-  fieldSpec: ShapeFieldSpec
+function buildPropertyFromStructuralType(
+  structuralType: RillStructuralType
 ): JsonSchemaProperty {
-  const { typeName, nestedShape, annotations } = fieldSpec;
-
-  // EC-8: closure and tuple are not representable in JSON Schema
-  if (typeName === 'closure' || typeName === 'tuple') {
+  if (structuralType.kind === 'closure' || structuralType.kind === 'tuple') {
     throw new RuntimeError(
       'RILL-R004',
-      `unsupported type for JSON Schema: ${typeName}`
+      `unsupported type for JSON Schema: ${structuralType.kind}`
     );
   }
 
-  const property: JsonSchemaProperty = {};
-
-  // any: no type constraint — JSON Schema allows {} for unconstrained
-  if (typeName !== 'any') {
-    property.type = mapRillType(typeName);
+  if (structuralType.kind === 'any') {
+    return {};
   }
 
-  // shape: recursively build nested object schema
-  if (typeName === 'shape' && nestedShape !== undefined) {
-    const nested = buildJsonSchemaFromShape(nestedShape);
-    property.properties = nested.properties;
-    property.required = nested.required;
-    property.additionalProperties = false;
+  if (structuralType.kind === 'primitive') {
+    return { type: mapRillType(structuralType.name) };
   }
 
-  // Map annotations.description
-  const description = annotations['description'];
-  if (typeof description === 'string') {
-    property.description = description;
+  if (structuralType.kind === 'list') {
+    return { type: 'array' };
   }
 
-  // Map annotations.enum (stored as RillValue — a JS array)
-  const enumAnnotation = annotations['enum'];
-  if (Array.isArray(enumAnnotation)) {
-    property.enum = enumAnnotation as string[];
+  if (structuralType.kind === 'dict' || structuralType.kind === 'ordered') {
+    return { type: 'object' };
   }
 
-  return property;
+  // Exhaustive guard — should never reach here with a valid RillStructuralType
+  const exhaustive: never = structuralType;
+  throw new RuntimeError(
+    'RILL-R004',
+    `unsupported type: ${String(exhaustive)}`
+  );
 }
 
 /**
- * Build a JSON Schema object from a RillShape (IR-6).
+ * Build a JSON Schema object from a RillStructuralType (IR-4).
  *
- * - Iterates shape.fields entries.
- * - Maps each ShapeFieldSpec to a JsonSchemaProperty.
- * - Adds field name to required only when optional === false.
- * - Sets additionalProperties: false on the result.
+ * For the closure variant:
+ * - Iterates type.params (array of [name, RillStructuralType]).
+ * - Matches each entry to params[i] by position for metadata.
+ * - annotations.description from callableParam.annotations['description'].
+ * - annotations.enum from callableParam.annotations['enum'].
+ * - optional = callableParam.defaultValue !== null.
+ * - Non-optional params added to required[].
+ * - additionalProperties: false always present.
  *
- * @throws RuntimeError RILL-R004 for closure or tuple field types (EC-8)
+ * @throws RuntimeError RILL-R004 for closure/tuple kind in param position (EC-3)
+ * @throws RuntimeError RILL-R004 for unsupported type name (EC-3)
  */
-export function buildJsonSchemaFromShape(shape: RillShape): JsonSchemaObject {
+export function buildJsonSchemaFromStructuralType(
+  type: RillStructuralType,
+  params?: CallableParam[]
+): JsonSchemaObject {
   const properties: Record<string, JsonSchemaProperty> = {};
   const required: string[] = [];
 
-  for (const [fieldName, fieldSpec] of Object.entries(shape.fields)) {
-    properties[fieldName] = buildPropertyFromFieldSpec(fieldSpec);
-    if (!fieldSpec.optional) {
-      required.push(fieldName);
+  if (type.kind === 'closure') {
+    for (let i = 0; i < type.params.length; i++) {
+      const [paramName, paramType] = type.params[i]!;
+      const callableParam = params?.[i];
+
+      const property = buildPropertyFromStructuralType(paramType);
+
+      // Map annotations.description
+      const description = callableParam?.annotations['description'];
+      if (typeof description === 'string') {
+        property.description = description;
+      }
+
+      // Map annotations.enum (stored as RillValue — a JS array)
+      const enumAnnotation = callableParam?.annotations['enum'];
+      if (Array.isArray(enumAnnotation)) {
+        property.enum = enumAnnotation as string[];
+      }
+
+      properties[paramName] = property;
+
+      // Non-optional params (defaultValue === null) go into required[]
+      if (callableParam === undefined || callableParam.defaultValue === null) {
+        required.push(paramName);
+      }
     }
   }
 
@@ -144,14 +161,9 @@ export function buildJsonSchemaFromShape(shape: RillShape): JsonSchemaObject {
 /**
  * Build a JSON Schema object from a rill schema descriptor.
  *
- * Accepts two input forms:
- * - RillShape (has `__rill_shape: true`): delegates to buildJsonSchemaFromShape.
- * - Record<string, unknown>: legacy dict descriptor path.
- *
- * @param rillSchema - A RillShape or a record mapping parameter names to rill
- *   type descriptors. Each value can be a simple type string (e.g., `"string"`)
- *   or a full descriptor object (e.g., `{ type: "string", description: "..." }`).
- * @returns A JsonSchemaObject with properties, required, and additionalProperties.
+ * Accepts a Record<string, unknown> dict descriptor.
+ * Each value can be a simple type string (e.g., `"string"`)
+ * or a full descriptor object (e.g., `{ type: "string", description: "..." }`).
  *
  * @example
  * buildJsonSchema({ name: "string", age: { type: "number", description: "Age in years" } })
@@ -166,16 +178,10 @@ export function buildJsonSchemaFromShape(shape: RillShape): JsonSchemaObject {
  *
  * @throws RuntimeError RILL-R004 for unsupported rill types (EC-1)
  * @throws RuntimeError RILL-R004 for enum on non-string type (EC-2)
- * @throws RuntimeError RILL-R004 for closure/tuple field in RillShape (EC-8)
  */
 export function buildJsonSchema(
   rillSchema: Record<string, unknown>
 ): JsonSchemaObject {
-  // IR-6: detect RillShape input and delegate
-  if (isShape(rillSchema)) {
-    return buildJsonSchemaFromShape(rillSchema);
-  }
-
   const properties: Record<string, JsonSchemaProperty> = {};
   const required: string[] = [];
 

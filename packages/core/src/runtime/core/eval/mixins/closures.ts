@@ -72,7 +72,7 @@ import {
   isApplicationCallable,
   isDict,
   validateCallableArgs,
-  paramsToShape,
+  paramsToStructuralType,
 } from '../../callable.js';
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
@@ -89,7 +89,6 @@ import {
   isOrdered,
   inferStructuralType,
 } from '../../values.js';
-import { isFieldDescriptor } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
@@ -1003,21 +1002,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return value.typeName;
       }
 
-      // IR-2: .^key on field descriptors reads from spec.annotations
-      if (isFieldDescriptor(value)) {
-        // .^keys returns all annotation key names
-        if (key === 'keys') return Object.keys(value.spec.annotations);
-        const ann = value.spec.annotations[key];
-        if (ann === undefined) {
-          throw new RuntimeError(
-            'RILL-R003',
-            `Annotation "${key}" not found on field "${value.fieldName}"`,
-            location
-          );
-        }
-        return ann;
-      }
-
       // IR-2/IR-5: .^input returns the input shape for callable values
       if (key === 'input') {
         if (isScriptCallable(value)) {
@@ -1028,17 +1012,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // IR-5: untyped host function — no shape available
             return false;
           }
-          // Build paramAnnotations with description for each param that has one
-          const paramAnnotations: Record<
-            string,
-            Record<string, RillValue>
-          > = {};
-          for (const param of value.params) {
-            if (param.description !== undefined) {
-              paramAnnotations[param.name] = { description: param.description };
-            }
-          }
-          return paramsToShape(value.params, paramAnnotations);
+          return paramsToStructuralType(value.params);
         }
         // Non-callable: fall through to existing RILL-R003 guard below
       }

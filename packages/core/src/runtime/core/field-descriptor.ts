@@ -1,28 +1,39 @@
 /**
  * Field Descriptor Builder
  *
- * Constructs a frozen RillShapeFieldDescriptor for a named field within a shape.
- * Used during shape field access to carry field name and spec.
+ * Constructs a frozen RillFieldDescriptor for a named field within a
+ * RillStructuralType dict. Used during structural type field access to carry
+ * field name and field type.
  *
  * @internal
  */
 
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import type { RillShape, RillShapeFieldDescriptor } from './callable.js';
+import type { RillStructuralType } from './values.js';
 
 /**
- * Build a frozen RillShapeFieldDescriptor for the given field in a shape.
+ * Field descriptor — carries field name and structural type when accessing a
+ * dict-kind RillStructuralType field.
+ */
+export interface RillFieldDescriptor {
+  readonly __rill_field_descriptor: true;
+  readonly fieldName: string;
+  readonly fieldType: RillStructuralType;
+}
+
+/**
+ * Build a frozen RillFieldDescriptor for the given field in a structural dict type.
  *
- * EC-1: Throws RILL-R003 when fieldName is absent from shape.fields.
+ * EC-1: Throws RILL-R003 when fieldName is absent from structuralType.fields.
  */
 export function buildFieldDescriptor(
-  shape: RillShape,
+  structuralType: RillStructuralType & { kind: 'dict' },
   fieldName: string,
   location: SourceLocation
-): RillShapeFieldDescriptor {
-  const spec = shape.fields[fieldName];
-  if (spec === undefined) {
+): RillFieldDescriptor {
+  const fieldType = structuralType.fields[fieldName];
+  if (fieldType === undefined) {
     throw new RuntimeError(
       'RILL-R003',
       `Shape has no field "${fieldName}"`,
@@ -32,6 +43,6 @@ export function buildFieldDescriptor(
   return Object.freeze({
     __rill_field_descriptor: true as const,
     fieldName,
-    spec,
+    fieldType,
   });
 }

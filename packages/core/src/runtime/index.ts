@@ -49,11 +49,8 @@ export type {
   HostFunctionParam,
   RillCallable,
   RillFunctionReturnType,
-  RillShape,
-  RillShapeFieldDescriptor,
   RuntimeCallable,
   ScriptCallable,
-  ShapeFieldSpec,
 } from './core/callable.js';
 
 export {
@@ -61,10 +58,8 @@ export {
   isApplicationCallable,
   isCallable,
   isDict,
-  isFieldDescriptor,
   isRuntimeCallable,
   isScriptCallable,
-  isShape,
   validateHostFunctionArgs,
 } from './core/callable.js';
 
