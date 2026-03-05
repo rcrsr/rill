@@ -676,6 +676,32 @@ describe('Rill Runtime: Annotations', () => {
         expect(await run(script)).toBe(30);
       });
 
+      it('accesses annotation via pipe target .^key', async () => {
+        const script = `
+          ^(label: "test") |x|($x) => $fn
+          $fn -> .^label
+        `;
+        expect(await run(script)).toBe('test');
+      });
+
+      it('throws when pipe target .^key accesses missing annotation', async () => {
+        const script = `
+          |x|($x) => $fn
+          $fn -> .^missing
+        `;
+        await expect(run(script)).rejects.toThrow(
+          /Annotation 'missing' not found/
+        );
+      });
+
+      it('chains pipe target .^key with method', async () => {
+        const script = `
+          ^(name: "HELLO") |x|($x) => $fn
+          $fn -> .^name -> .lower
+        `;
+        expect(await run(script)).toBe('hello');
+      });
+
       it('uses annotation value in conditional', async () => {
         const script = `
           ^(enabled: true) |x|($x) => $fn
@@ -1270,6 +1296,26 @@ describe('Rill Runtime: Annotations', () => {
           params: [['x', { kind: 'primitive', name: 'string' }]],
           ret: { kind: 'any' },
         });
+      });
+    });
+  });
+
+  describe('ScriptCallable $fn.^input returns closure structural type', () => {
+    it('typed param returns primitive structural type entry (VAL-1)', async () => {
+      const result = await run(`|x: number| ($x) => $fn\n$fn.^input`);
+      expect(result).toMatchObject({
+        kind: 'closure',
+        params: [['x', { kind: 'primitive', name: 'number' }]],
+        ret: { kind: 'any' },
+      });
+    });
+
+    it('untyped param returns any structural type entry (VAL-1)', async () => {
+      const result = await run(`|x| ($x) => $fn\n$fn.^input`);
+      expect(result).toMatchObject({
+        kind: 'closure',
+        params: [['x', { kind: 'any' }]],
+        ret: { kind: 'any' },
       });
     });
   });

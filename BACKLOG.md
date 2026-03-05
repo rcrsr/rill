@@ -28,10 +28,11 @@ Consolidated from completed initiative feedback documents. Each item includes it
 
 ## Validation Gaps
 
-- [ ] **VAL-1**: No test for `$fn.^input` on a Rill-defined closure returning `{ kind: 'closure', ... }`. All existing `^input` tests use `ApplicationCallable`. The `ScriptCallable` path at `closures.ts:1010-1015` is correct by inspection but untested. (MEDIUM)
+- [x] **VAL-1**: No test for `$fn.^input` on a Rill-defined closure returning `{ kind: 'closure', ... }`. All existing `^input` tests use `ApplicationCallable`. The `ScriptCallable` path at `closures.ts:1010-1015` is correct by inspection but untested. (MEDIUM)
   - Origin: shape-migration (VAL-3)
   - File: `packages/core/tests/language/annotations.test.ts`
   - Action: Define closure with typed params, store, assert `^input` returns `{ kind: 'closure', params: [['x', { kind: 'primitive', name: 'Int' }]], ret: { kind: 'any' } }`
+  - Resolution: Added 2 tests in `ScriptCallable $fn.^input returns closure structural type` describe block — typed param (`number`) and untyped param. All 3623 tests pass.
 
 - [ ] **VAL-2**: Ordered `^type` inference gap — `*[a:1,b:2].^type` does not produce a comparable `ordered(a:number, b:string)` structural type. Affects AC-10, AC-12, AC-36, AC-38, AC-49 (all skipped). (MEDIUM)
   - Origin: structural-type-identity (VAL-1)
