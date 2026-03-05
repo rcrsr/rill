@@ -5,7 +5,7 @@
  * Covers AC-1 through AC-39 from the structural-type-identity spec.
  *
  * Key syntax facts (verified from source):
- * - Closure sig literal: `|x: type| -> returnType` (-> not :)
+ * - Closure sig literal: `|x: type| :returnType` (: after closing |)
  * - Closure return type annotation: `|x| { body }:type` (: after body)
  * - Type constructor: list(number), dict(a: number), tuple(...), ordered(...)
  * - Structural :? check requires variable: store type in $t, use -> :?$t
@@ -150,10 +150,9 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
   // Structural Type Identity — Closures (AC-18 through AC-20)
   //
-  // Runtime closures store param typeName (coarse) but return type as
-  // RillTypeValue.structure = { kind: 'any' } when set via :TypeRef.
-  // Closure sig literals (|x: T| -> R) produce fully structural types.
-  // AC-18/19 use runtime closures (param name comparison works).
+  // Runtime closures with `:type` return annotation produce structural
+  // return types matching sig literals. Without annotation, ret = any.
+  // AC-18/19 use runtime closures (param name comparison).
   // AC-20 uses sig literals to compare different return types structurally.
   // ============================================================
 
@@ -180,9 +179,9 @@ describe('Rill Language: Structural Type Identity', () => {
 
     it('AC-20: different-return-type closures produce unequal ^type', async () => {
       // Use closure sig literals which encode return type structurally:
-      // |x: number| -> number vs |x: number| -> string
+      // |x: number| :number vs |x: number| :string
       const result = await run(
-        '(|x: number| -> number) == (|x: number| -> string)'
+        '(|x: number| :number) == (|x: number| :string)'
       );
       expect(result).toBe(false);
     });
@@ -205,9 +204,9 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-23: closure sig literal |x: string| -> string stores as type value', async () => {
-      // Closure sig literal syntax: |params| -> returnType (arrow, not colon)
-      await expect(run('(|x: string| -> string) => $t\n"ok"')).resolves.toBe(
+    it('AC-23: closure sig literal |x: string| :string stores as type value', async () => {
+      // Closure sig literal syntax: |params| :returnType
+      await expect(run('(|x: string| :string) => $t\n"ok"')).resolves.toBe(
         'ok'
       );
     });
@@ -244,13 +243,11 @@ describe('Rill Language: Structural Type Identity', () => {
       // Store closure sig as type, compare against closure ^type
       const result = await run(`
         |x: number, y: number| { $x + $y } => $fn
-        (|x: number, y: number| -> number) => $sigType
+        (|x: number, y: number| :number) => $sigType
         $fn.^type == $sigType
       `);
-      // Note: runtime closure ret = {kind:'any'}, sig literal ret = primitive(number).
-      // These differ, so this tests that the structural type is NOT equal.
-      // The correct AC-27 intent (coarse closure match) uses :?closure.
-      // Since closure :? is coarse, we verify param names/types do match:
+      // No return type annotation on the closure → ret = {kind:'any'}.
+      // Sig literal has :number → ret = primitive(number). They differ.
       expect(result).toBe(false);
     });
 
@@ -258,6 +255,17 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(`
         |x: number, y: number| { $x + $y } => $fn
         $fn -> :?closure
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('AC-27b: closure with :number return type matches sig literal ^type', async () => {
+      // Return type annotation `:number` after `}` should encode as
+      // primitive(number) in ^type.structure.ret, matching a sig literal.
+      const result = await run(`
+        |x: number| { $x }:number => $fn
+        (|x: number| :number) => $sigType
+        $fn.^type == $sigType
       `);
       expect(result).toBe(true);
     });

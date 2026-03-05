@@ -155,7 +155,7 @@ Type constructors are primary expressions that produce structural type values. T
 | Dict type | `dict(k: T, ...)` | `dict(a: number, b: string)` |
 | Tuple type | `tuple(T, T2, ...)` | `tuple(number, string, bool)` |
 | Ordered type | `ordered(k: T, ...)` | `ordered(a: number, b: string)` |
-| Closure sig | `\|p: T\| -> R` | `\|x: number\| -> string` |
+| Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 
 `^type` returns a structural type value — not a coarse string:
 
@@ -508,6 +508,7 @@ Parameters can have their own annotations using `^(key: value)` syntax. These at
 |^(min: 0, max: 100) x: number|($x) => $validate
 |^(required: true) name: string = "guest"|($name) => $greet
 |^(cache: true) count = 0|($count) => $process
+true
 ```
 
 **Access via `.params`:**
@@ -542,6 +543,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 
 # Format specifications
 |^(format: "ISO8601") timestamp|($timestamp) => $formatDate
+true
 ```
 
 See [Closures](topic-closures.md) for parameter annotation examples and patterns.

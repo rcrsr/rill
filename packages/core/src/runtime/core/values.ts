@@ -450,7 +450,7 @@ export function formatStructuralType(type: RillStructuralType): string {
     const params = type.params
       .map(([name, t]) => `${name}: ${formatStructuralType(t)}`)
       .join(', ');
-    return `|${params}| -> ${formatStructuralType(type.ret)}`;
+    return `|${params}| :${formatStructuralType(type.ret)}`;
   }
 
   return 'any';

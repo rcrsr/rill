@@ -596,14 +596,14 @@ type-arg         = identifier , ":" , expression   (* named: key: type-expr *)
                | expression ;                      (* positional: type-expr *)
 
 (* Closure signature literal: a type expression for closure type inspection.
-   Syntax mirrors closure definition but uses "|" delimiters and "-> return".
+   Syntax mirrors closure definition but uses "|" delimiters and ": return".
    This is a PRIMARY expression, not a closure body.
 
    Examples:
-   |x: number| -> string             -- closure taking number, returning string
-   |a: number, b: number| -> number  -- two-param closure *)
+   |x: number| :string             -- closure taking number, returning string
+   |a: number, b: number| :number  -- two-param closure *)
 
-closure-sig-lit  = "|" , param-type-list , "|" , "->" , expression ;
+closure-sig-lit  = "|" , param-type-list , "|" , ":" , expression ;
 param-type-list  = [ param-type-item , { "," , param-type-item } ] ;
 param-type-item  = identifier , ":" , expression ;
 

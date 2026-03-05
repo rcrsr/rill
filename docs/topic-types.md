@@ -391,8 +391,8 @@ Vectors represent dense numeric embeddings from language models or other ML syst
 
 ```rill
 app::embed("hello world") => $vec
-$vec
-# Result: vector(mock-embed, 3d)
+$vec -> .model
+# Result: "mock-embed"
 ```
 
 ### Properties
@@ -518,7 +518,7 @@ $lt.^type.name
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
-| `\|p: T\| -> R` | `\|x: number\| -> string` | Closure signature type |
+| `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
 
 ### Comparing Structural Types
 
@@ -578,7 +578,7 @@ The string representation of structural types follows this format:
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
-| Closure | `"\|x: number\| -> string"` (pipe-delimited params with arrow-return) |
+| Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
 
 ---
 
@@ -631,8 +631,8 @@ Both types are valid in closure parameter positions, capture annotations, and ty
 # Closure parameter with vector type annotation
 |x: vector| { $x } => $fn
 app::embed("hello") => $v
-$fn($v)
-# Result: vector(mock-embed, 3d)
+$fn($v) -> .model
+# Result: "mock-embed"
 ```
 
 ```rill
@@ -650,6 +650,7 @@ $v -> :vector
 
 $v -> :any
 # Result: vector(mock-embed, 3d)
+true
 ```
 
 ```rill

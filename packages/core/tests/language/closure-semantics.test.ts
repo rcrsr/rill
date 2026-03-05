@@ -566,4 +566,105 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(await run(script)).toBe(0);
     });
   });
+
+  // ============================================================
+  // Return Type Assertions
+  // ============================================================
+
+  describe('Closure Return Type Assertions', () => {
+    it('return type :number passes when closure returns number', async () => {
+      expect(await run('|x: number| { $x * 2 }:number => $fn\n$fn(5)')).toBe(
+        10
+      );
+    });
+
+    it('return type :string passes when closure returns string', async () => {
+      expect(await run('|x: number| { "{$x}" }:string => $fn\n$fn(42)')).toBe(
+        '42'
+      );
+    });
+
+    it('return type :number halts with RILL-R004 on mismatch', async () => {
+      try {
+        await run('|x: number| { "{$x}" }:number => $fn\n$fn(5)');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R004');
+      }
+    });
+
+    it('^output reflects declared return type', async () => {
+      expect(
+        await run('|x: number| { $x }:number => $fn\n$fn.^output.^name')
+      ).toBe('number');
+    });
+
+    it('^output defaults to any when no return type declared', async () => {
+      expect(await run('|x: number| { $x } => $fn\n$fn.^output.^name')).toBe(
+        'any'
+      );
+    });
+
+    it('^type includes return type when declared', async () => {
+      // Closure with :number matches sig literal with :number
+      expect(
+        await run(`
+          |x: number| { $x }:number => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(true);
+    });
+
+    it('^type shows any for return type when not declared', async () => {
+      // Without :type, return defaults to any — differs from explicit :number
+      expect(
+        await run(`
+          |x: number| { $x } => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // Closure Sig Literals
+  // ============================================================
+
+  describe('Closure Sig Literals', () => {
+    it('parses |x: number| :string as a type value', async () => {
+      expect(await run('(|x: number| :string) => $t\n$t.^name')).toBe(
+        'closure'
+      );
+    });
+
+    it('sig literal equality: same signature', async () => {
+      expect(await run('(|x: number| :string) == (|x: number| :string)')).toBe(
+        true
+      );
+    });
+
+    it('sig literal inequality: different return type', async () => {
+      expect(await run('(|x: number| :number) == (|x: number| :string)')).toBe(
+        false
+      );
+    });
+
+    it('sig literal inequality: different param name', async () => {
+      expect(await run('(|x: number| :string) == (|y: number| :string)')).toBe(
+        false
+      );
+    });
+
+    it('sig literal matches ^type of closure with return annotation', async () => {
+      expect(
+        await run(`
+          |x: number| { $x }:number => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(true);
+    });
+  });
 });

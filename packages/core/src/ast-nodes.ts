@@ -379,13 +379,13 @@ export type TypeConstructorArg =
   | { kind: 'named'; name: string; value: ExpressionNode };
 
 /**
- * Closure signature literal: |param: type, ...| -> returnType
+ * Closure signature literal: |param: type, ...| :returnType
  * Represents a closure type signature as a first-class value.
  * Distinguished from a closure literal by absence of a `{` body block.
  *
  * Examples:
- *   |x: string| -> number
- *   |a: string, b: number| -> boolean
+ *   |x: string| :number
+ *   |a: string, b: number| :boolean
  */
 export interface ClosureSigLiteralNode extends BaseNode {
   readonly type: 'ClosureSigLiteral';

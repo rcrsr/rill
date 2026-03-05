@@ -83,7 +83,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return Object.freeze({
           __rill_type: true as const,
           typeName: typeRef.typeName,
-          structure: { kind: 'any' as const },
+          structure: { kind: 'primitive' as const, name: typeRef.typeName },
         });
       }
 

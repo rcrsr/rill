@@ -562,12 +562,13 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
 // ============================================================
 
 /**
- * Lookahead: PIPE_BAR ... PIPE_BAR ARROW → closure sig literal.
+ * Lookahead: PIPE_BAR ... PIPE_BAR COLON → closure sig literal.
  * A closure literal has `| param |` followed by a body (`{` or expression).
- * A closure sig literal has `| name: typeExpr, ... | -> returnType`.
+ * A closure sig literal has `| name: typeExpr, ... | :returnType`.
  * The distinguishing pattern is PIPE_BAR at pos+0, IDENTIFIER at pos+1, COLON at pos+2,
- * AND the matching closing PIPE_BAR is followed by ARROW (->).
- * This avoids misidentifying typed closures |x: T| { body } as sig literals.
+ * AND the matching closing PIPE_BAR is followed by COLON (:).
+ * This avoids misidentifying typed closures |x: T| { body } as sig literals
+ * because those have `{` after the closing `|`, not `:`.
  */
 function isClosureSigLiteralStart(state: {
   tokens: { type: string }[];
@@ -584,7 +585,7 @@ function isClosureSigLiteralStart(state: {
   ) {
     return false;
   }
-  // Scan forward to find the matching closing PIPE_BAR, then check for ARROW.
+  // Scan forward to find the matching closing PIPE_BAR, then check for COLON.
   // Track nested pipe bars (|| is OR, not PIPE_BAR so we only count PIPE_BAR).
   let depth = 1;
   let i = state.pos + 1;
@@ -594,7 +595,7 @@ function isClosureSigLiteralStart(state: {
       depth -= 1;
       if (depth === 0) {
         const afterClose = state.tokens[i + 1];
-        return afterClose?.type === TOKEN_TYPES.ARROW;
+        return afterClose?.type === TOKEN_TYPES.COLON;
       }
     }
     i += 1;
@@ -1274,11 +1275,11 @@ Parser.prototype.parseClosureSigLiteral = function (
   // Consume closing |
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
 
-  // Consume -> before return type
+  // Consume : before return type
   expect(
     this.state,
-    TOKEN_TYPES.ARROW,
-    'Expected -> before return type in closure sig literal'
+    TOKEN_TYPES.COLON,
+    'Expected : before return type in closure sig literal'
   );
   skipNewlines(this.state);
 
