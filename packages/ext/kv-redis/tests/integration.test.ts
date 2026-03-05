@@ -27,7 +27,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { Redis } from 'ioredis';
 import { createRedisKvExtension } from '../src/factory.js';
 import type { RedisKvExtensionConfig } from '../src/factory.js';
-import { createKvExtension } from '@rcrsr/rill';
+import { createKvExtension } from '@rcrsr/rill/ext/kv';
 
 // Redis test connection
 const REDIS_URL = 'redis://localhost:6379';
