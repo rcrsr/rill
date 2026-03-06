@@ -34,7 +34,7 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('invokes with multiple arguments', async () => {
-      const script = `|a, b| { [$a, $b] } -> $("x", "y")`;
+      const script = `|a, b| { list[$a, $b] } -> $("x", "y")`;
       expect(await run(script)).toEqual(['x', 'y']);
     });
 
@@ -65,7 +65,7 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('pipes to json for serialization', async () => {
-      expect(await run('[1, 2, 3] -> json')).toBe('[1,2,3]');
+      expect(await run('list[1, 2, 3] -> json')).toBe('[1,2,3]');
     });
 
     it('json errors on direct closure serialization', async () => {
@@ -76,20 +76,20 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('json throws on closures in dicts', async () => {
       await expect(
-        run('[name: "user", age: 30, greet: ||{ "Hello" }] -> json')
+        run('dict[name: "user", age: 30, greet: ||{ "Hello" }] -> json')
       ).rejects.toThrow('closures are not JSON-serializable');
     });
 
     it('json throws on closures in lists', async () => {
       // Phase 2: [1, 2, ||{ "fn" }, 3] is a mixed-type list; RILL-R002 fires first.
       // The test intent (json rejects closures) remains valid; error is still thrown.
-      await expect(run('[1, 2, ||{ "fn" }, 3] -> json')).rejects.toThrow();
+      await expect(run('list[1, 2, ||{ "fn" }, 3] -> json')).rejects.toThrow();
     });
 
     it('json throws on nested containers with closures', async () => {
       // Phase 2: [1, ||{ 0 }, 2] is a mixed-type list; RILL-R002 fires first.
       await expect(
-        run('[items: [1, ||{ 0 }, 2], fn: ||{ 0 }] -> json')
+        run('dict[items: list[1, ||{ 0 }, 2], fn: ||{ 0 }] -> json')
       ).rejects.toThrow();
     });
 
@@ -97,8 +97,8 @@ describe('Rill Runtime: Pipe Targets', () => {
       expect(await run('"hello" => $v\n$v.^type.^name')).toBe('string');
       expect(await run('42 => $v\n$v.^type.^name')).toBe('number');
       expect(await run('true => $v\n$v.^type.^name')).toBe('bool');
-      expect(await run('[1, 2] => $v\n$v.^type.^name')).toBe('list');
-      expect(await run('[a: 1] => $v\n$v.^type.^name')).toBe('dict');
+      expect(await run('list[1, 2] => $v\n$v.^type.^name')).toBe('list');
+      expect(await run('dict[a: 1] => $v\n$v.^type.^name')).toBe('dict');
     });
 
     it('pipes through multiple bare functions', async () => {
@@ -129,14 +129,14 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('calls closure with explicit args', async () => {
-      const script = `|a, b| { [$a, $b] } => $fn
+      const script = `|a, b| { list[$a, $b] } => $fn
 $fn("x", "y")`;
       expect(await run(script)).toEqual(['x', 'y']);
     });
 
     it('calls closure in for loop', async () => {
       const script = `|x| { ($x * 2) } => $double
-[1, 2, 3] -> each { $double() }`;
+list[1, 2, 3] -> each { $double() }`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
@@ -173,7 +173,9 @@ $fn("x", "y")`;
     });
 
     it('pipes to for loop', async () => {
-      expect(await run('[1, 2, 3] -> each { ($ + 10) }')).toEqual([11, 12, 13]);
+      expect(await run('list[1, 2, 3] -> each { ($ + 10) }')).toEqual([
+        11, 12, 13,
+      ]);
     });
 
     it('pipes to while loop', async () => {
@@ -197,7 +199,7 @@ $fn("x", "y")`;
 
     it('multiple inline captures', async () => {
       const script = `"a" => $x -> "b" => $y
-[$x, $y]`;
+list[$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
@@ -230,7 +232,7 @@ $fn("x", "y")`;
     });
 
     it('pipes to inline closure with multiple params uses defaults', async () => {
-      expect(await run('3 -> |a, b = 10| { [$a, $b] }')).toEqual([3, 10]);
+      expect(await run('3 -> |a, b = 10| { list[$a, $b] }')).toEqual([3, 10]);
     });
 
     it('inline closure with type annotations', async () => {
@@ -242,9 +244,9 @@ $fn("x", "y")`;
     });
 
     it('inline closure in each loop', async () => {
-      expect(await run('[1, 2, 3] -> each { $ -> |x| { $x * 2 } }')).toEqual([
-        2, 4, 6,
-      ]);
+      expect(
+        await run('list[1, 2, 3] -> each { $ -> |x| { $x * 2 } }')
+      ).toEqual([2, 4, 6]);
     });
 
     it('inline closure with complex expression body', async () => {
@@ -277,7 +279,7 @@ $val -> |x| { $x -> .len }`;
     });
 
     it('chains with for loop transformation', async () => {
-      const script = `[1, 2, 3] -> each { ($ * 2) } -> .head`;
+      const script = `list[1, 2, 3] -> each { ($ * 2) } -> .head`;
       expect(await run(script)).toBe(2);
     });
 

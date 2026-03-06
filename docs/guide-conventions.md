@@ -13,7 +13,7 @@ Use **snake_case** for all identifiers in rill:
 ```rill
 # variables
 "hello" => $user_name
-[1, 2, 3] => $item_list
+list[1, 2, 3] => $item_list
 true => $is_valid
 
 # closures
@@ -21,7 +21,7 @@ true => $is_valid
 |s|($s -> .trim) => $cleanup_text
 
 # dict keys
-[first_name: "Alice", last_name: "Smith", is_active: true] => $user
+dict[first_name: "Alice", last_name: "Smith", is_active: true] => $user
 ```
 
 ### Variables
@@ -36,7 +36,7 @@ Use descriptive snake_case names with `$` prefix:
 For loop variables, short names are acceptable when scope is small:
 
 ```rill
-[1, 2, 3] -> each |x| ($x * 2)    # fine: small scope
+list[1, 2, 3] -> each |x| ($x * 2)    # fine: small scope
 ```
 
 ### Closures
@@ -99,47 +99,47 @@ $result -> .contains("OK") ? {
 
 ```rill
 # good: concise
-["hello", "world"] -> map .upper
+list["hello", "world"] -> map .upper
 
 # equivalent but verbose
-["hello", "world"] -> map { $.upper() }
-["hello", "world"] -> map |x| $x.upper()
+list["hello", "world"] -> map { $.upper() }
+list["hello", "world"] -> map |x| $x.upper()
 ```
 
 Method chains work too:
 
 ```rill
-["  HELLO  ", "  WORLD  "] -> map .trim.lower
+list["  HELLO  ", "  WORLD  "] -> map .trim.lower
 ```
 
 ### Use grouped form for negation
 
 ```rill
 # correct: grouped negation
-["", "a", "b"] -> filter (!.empty)
+list["", "a", "b"] -> filter (!.empty)
 
 # wrong: .empty returns truthy elements
-["", "a", "b"] -> filter .empty    # returns [""]
+list["", "a", "b"] -> filter .empty    # returns list[""]
 ```
 
 ### Use fold for reduction, each(init) for running totals
 
 ```rill
 # sum: use fold (returns final value)
-[1, 2, 3] -> fold(0) { $@ + $ }    # 6
+list[1, 2, 3] -> fold(0) { $@ + $ }    # 6
 
 # running sum: use each (returns all intermediates)
-[1, 2, 3] -> each(0) { $@ + $ }    # [1, 3, 6]
+list[1, 2, 3] -> each(0) { $@ + $ }    # list[1, 3, 6]
 ```
 
 ### Break returns partial results in each
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+list[1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $ * 2
 }
-# Result: [2, 4] (elements processed BEFORE break)
+# Result: list[2, 4] (elements processed BEFORE break)
 ```
 
 ## Loops
@@ -268,12 +268,12 @@ true
 
 ```rill
 # good: explicit capture per iteration
-[1, 2, 3] -> each {
+list[1, 2, 3] -> each {
   $ => $item
   || { $item }
 } => $closures
 
-# result: closures return [1, 2, 3] when called
+# result: closures return list[1, 2, 3] when called
 true
 ```
 
@@ -282,8 +282,8 @@ true
 Zero-arg closures auto-invoke when accessed:
 
 ```rill
-[
-  items: [1, 2, 3],
+dict[
+  items: list[1, 2, 3],
   count: ||{ $.items -> .len }
 ] => $data
 
@@ -293,7 +293,7 @@ $data.count    # 3 (auto-invokes)
 Parameterized closures work as methods:
 
 ```rill
-[
+dict[
   name: "test",
   greet: |x|{ "{$.name}: {$x}" }
 ] => $obj

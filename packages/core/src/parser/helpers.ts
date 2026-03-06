@@ -154,18 +154,6 @@ export function isAnnotationAccess(state: ParserState): boolean {
 }
 
 /**
- * Check for sequential spread target: @$ or @[ (not @{ which is for-loop)
- * @internal
- */
-export function isClosureChainTarget(state: ParserState): boolean {
-  return (
-    check(state, TOKEN_TYPES.AT) &&
-    (peek(state, 1).type === TOKEN_TYPES.DOLLAR ||
-      peek(state, 1).type === TOKEN_TYPES.LBRACKET)
-  );
-}
-
-/**
  * Check for negative number: -42
  * @internal
  */
@@ -262,32 +250,11 @@ export function isLiteralStart(state: ParserState): boolean {
     TOKEN_TYPES.NUMBER,
     TOKEN_TYPES.TRUE,
     TOKEN_TYPES.FALSE,
-    TOKEN_TYPES.LBRACKET
-  );
-}
-
-/**
- * Check if current token can start an expression (for bare spread detection)
- * @internal
- */
-export function canStartExpression(state: ParserState): boolean {
-  return (
-    isLiteralStart(state) ||
-    isClosureStart(state) ||
-    check(
-      state,
-      TOKEN_TYPES.DOLLAR,
-      TOKEN_TYPES.PIPE_VAR,
-      TOKEN_TYPES.IDENTIFIER,
-      TOKEN_TYPES.DOT,
-      TOKEN_TYPES.LPAREN,
-      TOKEN_TYPES.LBRACE,
-      TOKEN_TYPES.AT,
-      TOKEN_TYPES.QUESTION,
-      TOKEN_TYPES.BANG,
-      TOKEN_TYPES.STAR,
-      TOKEN_TYPES.MINUS
-    )
+    TOKEN_TYPES.LBRACKET,
+    TOKEN_TYPES.LIST_LBRACKET,
+    TOKEN_TYPES.DICT_LBRACKET,
+    TOKEN_TYPES.TUPLE_LBRACKET,
+    TOKEN_TYPES.ORDERED_LBRACKET
   );
 }
 

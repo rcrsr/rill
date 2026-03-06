@@ -11,10 +11,10 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | String | `"text"` | `"hello"` |
 | Number | `123`, `0.5` | `42`, `0.9` |
 | Bool | `true`, `false` | `true` |
-| List | `[a, b]` | `["file.ts", 42]` |
-| Dict | `[k: v]` | `[output: "text", code: 0]` |
-| Ordered | `*[k: v]` | `*[a: 1, b: "hello"]` |
-| Tuple | `*[...]` (positional) | `*[1, 2]` |
+| List | `list[a, b]` | `list["file.ts", 42]` |
+| Dict | `dict[k: v]` | `dict[output: "text", code: 0]` |
+| Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
+| Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 | Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
@@ -23,7 +23,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
 - **Type-locked variables**: A variable that holds a string always holds a string
 - **Value-based**: All copies are deep, all comparisons by value
-- **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
+- **No null/undefined**: Empty values are valid (`""`, `list[]`, `dict[]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
 ---
@@ -134,8 +134,8 @@ The negation operator (`!`) requires a boolean operand. There is no truthiness c
 Use explicit boolean checks when needed:
 
 ```rill
-"" -> .empty -> (!$) ? "has content" ! "empty"    # Negate boolean result
-[1,2,3] -> .empty -> (!$) ? "has items" ! "none"  # Check non-empty
+"" -> .empty -> (!$) ? "has content" ! "empty"         # Negate boolean result
+list[1,2,3] -> .empty -> (!$) ? "has items" ! "none"   # Check non-empty
 ```
 
 ---
@@ -145,7 +145,7 @@ Use explicit boolean checks when needed:
 Ordered sequences of values:
 
 ```rill
-[1, 2, 3] => $nums
+list[1, 2, 3] => $nums
 $nums[0]                   # 1
 $nums[-1]                  # 3 (last element)
 $nums -> .len              # 3
@@ -156,24 +156,24 @@ $nums -> .len              # 3
 Inline elements from another list using `...` spread syntax:
 
 ```rill
-[1, 2] => $a
-[...$a, 3]                 # [1, 2, 3]
-[...$a, ...$a]             # [1, 2, 1, 2] (concatenation)
-[...[], 1]                 # [1] (empty spread contributes nothing)
+list[1, 2] => $a
+list[...$a, 3]             # list[1, 2, 3]
+list[...$a, ...$a]         # list[1, 2, 1, 2] (concatenation)
+list[...list[], 1]         # list[1] (empty spread contributes nothing)
 ```
 
 Spread expressions evaluate before inlining:
 
 ```rill
-[1, 2, 3] => $nums
-[...($nums -> map {$ * 2})]  # [2, 4, 6]
+list[1, 2, 3] => $nums
+list[...($nums -> map {$ * 2})]  # list[2, 4, 6]
 ```
 
 Spreading a non-list throws an error:
 
 ```text
 "hello" => $str
-[...$str]                  # Error: Spread in list literal requires list, got string
+list[...$str]              # Error: Spread in list literal requires list, got string
 ```
 
 **Access methods:**
@@ -186,14 +186,14 @@ Spreading a non-list throws an error:
 **Out-of-bounds access** throws an error:
 
 ```text
-[] -> .at(0)               # Error: List index out of bounds
-["a"] -> .at(5)            # Error: List index out of bounds
+list[] -> .at(0)           # Error: List index out of bounds
+list["a"] -> .at(5)        # Error: List index out of bounds
 ```
 
 Use `??` for safe access with default:
 
 ```rill
-["a"] => $list
+list["a"] => $list
 $list[0] ?? "default"  # "a"
 ```
 
@@ -207,37 +207,37 @@ Key-value mappings with identifier, number, boolean, variable, or computed keys:
 
 ```rill
 # Identifier keys
-[name: "alice", age: 30] => $person
+dict[name: "alice", age: 30] => $person
 $person.name               # "alice"
 $person.age                # 30
 ```
 
 ```text
 # Number keys (including negative)
-[1: "one", 2: "two", -1: "minus one"] => $numbers
+dict[1: "one", 2: "two", -1: "minus one"] => $numbers
 1 -> $numbers              # "one"
 (-1) -> $numbers           # "minus one"
 
 # Boolean keys
-[true: "yes", false: "no"] => $yesno
+dict[true: "yes", false: "no"] => $yesno
 true -> $yesno             # "yes"
 
 # Variable keys (key value from variable, must be string)
 "status" => $key
-[$key: "active"]           # [status: "active"]
+dict[$key: "active"]       # dict[status: "active"]
 
 # Computed keys (key from expression, must be string)
 "user" => $prefix
-[($prefix -> "{$}_name"): "alice"]  # [user_name: "alice"]
+dict[($prefix -> "{$}_name"): "alice"]  # dict[user_name: "alice"]
 
 # Multi-key syntax (same value for multiple keys)
-[["a", "b"]: 1]            # [a: 1, b: 1]
-[[1, "1"]: "x"]            # [1: "x", "1": "x"] (mixed types)
-[a: 0, ["b", "c"]: 1]      # [a: 0, b: 1, c: 1] (mixed entries)
-[a: 0, ["a", "b"]: 1]      # [a: 1, b: 1] (last-write-wins)
+dict[list["a", "b"]: 1]    # dict[a: 1, b: 1]
+dict[list[1, "1"]: "x"]    # dict[1: "x", "1": "x"] (mixed types)
+dict[a: 0, list["b", "c"]: 1]  # dict[a: 0, b: 1, c: 1] (mixed entries)
+dict[a: 0, list["a", "b"]: 1]  # dict[a: 1, b: 1] (last-write-wins)
 
 # Multi-key dispatch
-[["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] => $methods
+dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
 "GET" -> $methods          # "safe"
 "POST" -> $methods         # "unsafe"
 ```
@@ -245,8 +245,8 @@ true -> $yesno             # "yes"
 Multi-key errors:
 
 ```text
-[[]: 1]                    # Error: Multi-key dict entry requires non-empty list
-[[[1, 2], "a"]: 1]         # Error: Dict key must be string, number, or boolean, got list
+dict[list[]: 1]            # Error: Multi-key dict entry requires non-empty list
+dict[list[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boolean, got list
 ```
 
 **Access patterns:**
@@ -265,7 +265,7 @@ Multi-key errors:
 **Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
-[:] => $d
+dict[] => $d
 $d.missing ?? ""           # "" (safe default)
 ```
 
@@ -296,9 +296,9 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 | `.entries` | List of `[key, value]` pairs |
 
 ```rill
-[name: "test", count: 42] -> .keys      # ["count", "name"]
-[name: "test", count: 42] -> .values    # [42, "test"]
-[a: 1, b: 2] -> .entries                # [["a", 1], ["b", 2]]
+dict[name: "test", count: 42] -> .keys      # list["count", "name"]
+dict[name: "test", count: 42] -> .values    # list[42, "test"]
+dict[a: 1, b: 2] -> .entries                # list[list["a", 1], list["b", 2]]
 ```
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
@@ -308,7 +308,7 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 Closures in dicts have `$` late-bound to the containing dict. See [Closures](topic-closures.md) for details.
 
 ```rill
-[
+dict[
   name: "toolkit",
   count: 3,
   str: ||"{$.name}: {$.count} items"
@@ -321,10 +321,10 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 
 ## Ordered
 
-`ordered` is a first-class container produced by spreading a dict with `*`. It preserves key insertion order.
+`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
 
 ```rill
-*[a: 1, b: "hello"] => $o
+ordered[a: 1, b: "hello"] => $o
 $o.^type.name
 # Result: "ordered"
 ```
@@ -333,7 +333,7 @@ Use `ordered` for named argument unpacking:
 
 ```rill
 |a, b| { "{$a}-{$b}" } => $fmt
-*[a: 1, b: "hello"] -> $fmt()
+ordered[a: 1, b: "hello"] -> $fmt()
 # Result: "1-hello"
 ```
 
@@ -345,15 +345,15 @@ Key order in `ordered` is the insertion order. This differs from `dict`, which i
 
 ## Tuples
 
-Tuples are positional containers. `*list` spread is no longer supported — use `ordered` (`*dict`) for all argument unpacking.
+Tuples are positional containers created with `tuple[...]` syntax.
 
 ### Using Ordered for Named Unpacking
 
-For named unpacking, use `ordered` (`*dict`):
+For named unpacking, use `ordered[...]`:
 
 ```rill
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
-*[c: 3, a: 1, b: 2] -> $fmt() # "1-2-3" (named, via ordered)
+ordered[c: 3, a: 1, b: 2] -> $fmt()   # "1-2-3" (named, via ordered)
 ```
 
 ### Strict Validation
@@ -362,14 +362,14 @@ When invoking with ordered containers, missing required parameters error, and ex
 
 ```rill
 |x, y|($x + $y) => $fn
-*[x: 1, y: 2] -> $fn()        # 3
+ordered[x: 1, y: 2] -> $fn()          # 3
 ```
 
 ### Parameter Defaults with Ordered
 
 ```rill
 |x, y = 10, z = 20|($x + $y + $z) => $fn
-*[x: 5] -> $fn()              # 35 (5 + 10 + 20)
+ordered[x: 5] -> $fn()                # 35 (5 + 10 + 20)
 ```
 
 ### Parallel Spread with Ordered
@@ -378,7 +378,7 @@ Ordered containers auto-unpack when passed as a single argument to a multi-param
 
 ```rill
 # List of ordered containers with multi-arg closure
-[*[x: 1, y: 2], *[x: 3, y: 4]] -> map |x, y|($x * $y)    # [2, 12]
+list[ordered[x: 1, y: 2], ordered[x: 3, y: 4]] -> map |x, y|($x * $y)    # list[2, 12]
 ```
 
 ---
@@ -485,13 +485,13 @@ $vec -> each { $ * 2 }
 ### `^type` Returns Structural Types
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
 
 ```rill
-[a: 1, b: "hello"] => $d
+dict[a: 1, b: "hello"] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -523,13 +523,13 @@ $lt.^type.name
 ### Comparing Structural Types
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
 
 ```rill
-[a: 1, b: "hello"] => $d
+dict[a: 1, b: "hello"] => $d
 $d.^type == dict(a: number, b: string)
 # Result: true
 ```
@@ -539,13 +539,13 @@ $d.^type == dict(a: number, b: string)
 `.^type.name` returns the coarse type name as a string:
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
 
 ```rill
-[a: 1] => $d
+dict[a: 1] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -664,7 +664,7 @@ $x -> .model
 
 ```rill
 # Assert type and continue processing
-[1, 2, 3] -> :list -> each { $ * 2 }
+list[1, 2, 3] -> :list -> each { $ * 2 }
 
 # Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4
@@ -734,17 +734,17 @@ $n.^type == number
 $s.^type == string
 # Result: true
 
-[1, 2] => $l
+list[1, 2] => $l
 $l.^type == list(number)
 # Result: true
 
-[a: 1] => $d
+dict[a: 1] => $d
 $d.^type == dict(a: number)
 # Result: true
 ```
 
 ```rill
-*[a: 1, b: 2] => $o
+ordered[a: 1, b: 2] => $o
 $o.^type.name
 # Result: "ordered"
 
@@ -794,7 +794,7 @@ $s.^type.name
 ```
 
 ```rill
-[1, 2] => $l
+list[1, 2] => $l
 $l.^type.name
 # Result: "list"
 ```
@@ -835,13 +835,13 @@ $a.^type == $b.^type
 ```
 
 ```rill
-[1, 2] => $l
+list[1, 2] => $l
 $l.^type == list(number)
 # Result: true
 ```
 
 ```rill
-["a", "b"] => $strs
+list["a", "b"] => $strs
 $strs.^type == list(number)
 # Result: false
 ```
@@ -866,7 +866,7 @@ $t.^type == type
 | `json` | Convert to JSON string |
 
 ```rill
-[a: 1, b: 2] -> json
+dict[a: 1, b: 2] -> json
 # Result: '{"a":1,"b":2}'
 ```
 

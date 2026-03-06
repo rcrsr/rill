@@ -119,37 +119,37 @@ describe('formatValue', () => {
 
   describe('AC-5: list', () => {
     it('formats list with multiple elements', () => {
-      expect(formatValue([1, 2, 3])).toBe('list(1, 2, 3)');
+      expect(formatValue([1, 2, 3])).toBe('list[1, 2, 3]');
     });
 
     it('formats empty list', () => {
-      expect(formatValue([])).toBe('list()');
+      expect(formatValue([])).toBe('list[]');
     });
 
     it('formats list with string elements', () => {
-      expect(formatValue(['a', 'b'])).toBe('list(a, b)');
+      expect(formatValue(['a', 'b'])).toBe('list[a, b]');
     });
 
     it('formats list with boolean elements', () => {
-      expect(formatValue([true, false])).toBe('list(true, false)');
+      expect(formatValue([true, false])).toBe('list[true, false]');
     });
   });
 
   describe('AC-6: dict', () => {
     it('formats dict with one entry', () => {
-      expect(formatValue({ a: 1 })).toBe('dict(a: 1)');
+      expect(formatValue({ a: 1 })).toBe('dict[a: 1]');
     });
 
     it('formats dict with multiple entries', () => {
-      expect(formatValue({ a: 1, b: 2 })).toBe('dict(a: 1, b: 2)');
+      expect(formatValue({ a: 1, b: 2 })).toBe('dict[a: 1, b: 2]');
     });
 
     it('formats empty dict', () => {
-      expect(formatValue({})).toBe('dict()');
+      expect(formatValue({})).toBe('dict[]');
     });
 
     it('formats dict with string values', () => {
-      expect(formatValue({ name: 'Alice' })).toBe('dict(name: Alice)');
+      expect(formatValue({ name: 'Alice' })).toBe('dict[name: Alice]');
     });
   });
 
@@ -174,7 +174,7 @@ describe('formatValue', () => {
         __rill_tuple: true as const,
         entries: ['x' as RillValue, 'y' as RillValue],
       };
-      expect(formatValue(posTuple)).toBe('tuple(x, y)');
+      expect(formatValue(posTuple)).toBe('tuple[x, y]');
     });
   });
 
@@ -192,20 +192,20 @@ describe('formatValue', () => {
           [1, 2],
           [3, 4],
         ])
-      ).toBe('list(list(1, 2), list(3, 4))');
+      ).toBe('list[list[1, 2], list[3, 4]]');
     });
 
     it('formats list containing dict', () => {
-      expect(formatValue([{ a: 1 }])).toBe('list(dict(a: 1))');
+      expect(formatValue([{ a: 1 }])).toBe('list[dict[a: 1]]');
     });
 
     it('formats dict containing list', () => {
-      expect(formatValue({ items: [1, 2] })).toBe('dict(items: list(1, 2))');
+      expect(formatValue({ items: [1, 2] })).toBe('dict[items: list[1, 2]]');
     });
 
     it('formats dict containing dict', () => {
       expect(formatValue({ outer: { inner: 42 } })).toBe(
-        'dict(outer: dict(inner: 42))'
+        'dict[outer: dict[inner: 42]]'
       );
     });
   });
@@ -221,9 +221,24 @@ describe('formatValue', () => {
     it('tuple is formatted before dict (tuple has __rill_tuple, not treated as plain dict)', () => {
       const tuple = createTupleFromDict({ a: 1 });
       const result = formatValue(tuple);
-      // Phase 2: entries=[1], positional only: tuple(1)
-      expect(result).toBe('tuple(1)');
+      // Phase 2: entries=[1], positional only: tuple[1]
+      expect(result).toBe('tuple[1]');
       expect(result).not.toMatch(/^dict/);
+    });
+  });
+
+  describe('AC-26: ordered', () => {
+    it('formats ordered value as "ordered[...]"', () => {
+      const ord = createOrdered([
+        ['a', 1],
+        ['b', 2],
+      ]);
+      expect(formatValue(ord)).toBe('ordered[a: 1, b: 2]');
+    });
+
+    it('formats empty ordered value', () => {
+      const ord = createOrdered([]);
+      expect(formatValue(ord)).toBe('ordered[]');
     });
   });
 });
@@ -611,14 +626,14 @@ describe('Script-level integration', () => {
 
   describe('AC-3: json([1,2,3]) produces "[1,2,3]"', () => {
     it('json on a list produces compact JSON', async () => {
-      const result = await run('[1, 2, 3] -> json');
+      const result = await run('list[1, 2, 3] -> json');
       expect(result).toBe('[1,2,3]');
     });
   });
 
   describe('AC-4: json(dict(a: 1)) produces \'{"a":1}\'', () => {
     it('json on a dict produces compact JSON', async () => {
-      const result = await run('[a: 1] -> json');
+      const result = await run('dict[a: 1] -> json');
       expect(result).toBe('{"a":1}');
     });
   });
@@ -643,7 +658,7 @@ describe('Script-level integration', () => {
 
   describe('AC-11: json([1, closure, 3]) throws RuntimeError', () => {
     it('json on list containing closure rejects', async () => {
-      await expect(run('[1, ||{ "fn" }, 3] -> json')).rejects.toThrow(
+      await expect(run('list[1, ||{ "fn" }, 3] -> json')).rejects.toThrow(
         RuntimeError
       );
     });
@@ -651,7 +666,7 @@ describe('Script-level integration', () => {
 
   describe('AC-12: json(tuple(a:1)) throws RuntimeError', () => {
     it('json on tuple rejects', async () => {
-      await expect(run('*[a: 1] -> json')).rejects.toThrow(RuntimeError);
+      await expect(run('ordered[a: 1] -> json')).rejects.toThrow(RuntimeError);
     });
   });
 

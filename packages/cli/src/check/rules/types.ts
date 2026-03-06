@@ -146,7 +146,7 @@ function getLiteralType(
       return 'string';
     case 'BoolLiteral':
       return 'bool';
-    case 'Tuple':
+    case 'TupleLiteral':
       return 'list';
     case 'Dict':
       return 'dict';

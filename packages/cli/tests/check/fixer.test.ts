@@ -4,12 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyFixes, type ApplyResult } from '../../src/check/fixer.js';
-import type {
-  Diagnostic,
-  Fix,
-  ValidationContext,
-} from '../../src/check/types.js';
+import { applyFixes } from '../../src/check/fixer.js';
+import type { Diagnostic, ValidationContext } from '../../src/check/types.js';
 import { parse } from '@rcrsr/rill';
 import { createDefaultConfig } from '../../src/check/config.js';
 
@@ -156,15 +152,15 @@ describe('applyFixes', () => {
     });
 
     it('handles fixes at different positions correctly', () => {
-      const source = '[a: 1, b: 2]';
+      const source = 'dict[a: 1, b: 2]';
       const context = createContext(source);
       const diagnostics = [
-        createDiagnostic('TEST_1', 1, 2, 1, 2, 'x'), // "a" -> "x"
-        createDiagnostic('TEST_2', 1, 8, 7, 8, 'y'), // "b" -> "y"
+        createDiagnostic('TEST_1', 1, 6, 5, 6, 'x'), // "a" -> "x"
+        createDiagnostic('TEST_2', 1, 12, 11, 12, 'y'), // "b" -> "y"
       ];
       const result = applyFixes(source, diagnostics, context);
 
-      expect(result.modified).toBe('[x: 1, y: 2]');
+      expect(result.modified).toBe('dict[x: 1, y: 2]');
       expect(result.applied).toBe(2);
     });
   });

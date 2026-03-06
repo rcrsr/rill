@@ -34,7 +34,7 @@ No `=` operator exists. Data moves via `->`, values captured via `=>`.
 ```rill
 # Data flows through transformations
 "  hello world  " -> .trim -> .upper -> .split(" ")
-# Result: ["HELLO", "WORLD"]
+# Result: list["HELLO", "WORLD"]
 
 # Capture only when a value appears more than once
 app::prompt("analyze") => $result
@@ -49,7 +49,7 @@ $result -> .contains("ERROR") ? { error "Analysis failed: {$result}" }
 No null, undefined, nil, or None. Missing values produce errors. Use `??` for defaults and `.?` for existence checks.
 
 ```rill
-[name: "alice"] => $user
+dict[name: "alice"] => $user
 $user.name ?? "anonymous"   # Default if missing
 $user.?email                # Returns true or false
 ```
@@ -64,12 +64,12 @@ Conditions must evaluate to boolean. Empty strings, zero, and empty lists are no
 # These are errors — conditions must be boolean:
 # "" ? "yes"          ERROR
 # 0 ? "yes"           ERROR
-# [] ? "yes"          ERROR
+# list[] ? "yes"      ERROR
 
 # Explicit boolean conversion required:
 "" -> .empty ? "empty"
 0 -> ($ == 0) ? "zero"
-[] -> .empty ? "no items"
+list[] -> .empty ? "no items"
 ```
 
 **Mainstream habit to break:** Using values directly as conditions. In rill, convert to boolean explicitly with `.empty`, comparisons, or `:?type`.
@@ -98,15 +98,15 @@ Inner scopes cannot read or modify outer variables created after the scope opens
 ```text
 # This does NOT work — inner => creates a local:
 0 => $count
-[1, 2, 3] -> each { $count + 1 => $count }
+list[1, 2, 3] -> each { $count + 1 => $count }
 $count  # Still 0
 
 # Use accumulators instead:
-[1, 2, 3] -> fold(0) { $@ + 1 }            # Final: 3
-[1, 2, 3] -> each(0) { $@ + $ }            # Running: [1, 3, 6]
-0 -> ($ < 5) @ { $ + 1 }                   # While: 5
-[result: "", done: false] -> (!.done) @ {  # While: "aaaaa"
-  [result: "a{.result}", .result.len == 5]
+list[1, 2, 3] -> fold(0) { $@ + 1 }            # Final: 3
+list[1, 2, 3] -> each(0) { $@ + $ }            # Running: list[1, 3, 6]
+0 -> ($ < 5) @ { $ + 1 }                       # While: 5
+dict[result: "", done: false] -> (!.done) @ {  # While: "aaaaa"
+  dict[result: "a{.result}", done: (.result.len == 5)]
 }
 ```
 
@@ -117,9 +117,9 @@ $count  # Still 0
 No references. All copies are deep. All comparisons are by value. Types lock on first assignment.
 
 ```rill
-[1, 2, 3] == [1, 2, 3]    # true — content equality
-[1, 2] => $a
-$a => $b                   # $b is an independent deep copy
+list[1, 2, 3] == list[1, 2, 3]    # true — content equality
+list[1, 2] => $a
+$a => $b                          # $b is an independent deep copy
 ```
 
 **Mainstream habit to break:** Expecting two variables to point at the same object. In rill, every binding holds its own copy.
@@ -143,8 +143,8 @@ Without `$`, `process(data)` is ambiguous: is `process` a host function or a sto
 
 **Additional disambiguation:**
 
-- **Capture syntax:** `=> $x` requires `$` for lookahead. Without it, slice syntax `/<1:>` becomes ambiguous.
-- **Destructuring:** `*<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
+- **Capture syntax:** `=> $x` requires `$` for lookahead. Without it, slice syntax `slice<1:>` becomes ambiguous.
+- **Destructuring:** `destruct<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
 - **Dynamic field access:** `$data.$key` distinguishes variable-as-key from literal field.
 - **Visual clarity:** Code is readable without context. `$total` is always a variable.
 
@@ -182,10 +182,10 @@ $step3
 
 ```rill
 # Not rillistic: verbose closure
-["hello", "world"] -> map |x| { $x.upper() }
+list["hello", "world"] -> map |x| { $x.upper() }
 
 # Rillistic: method shorthand
-["hello", "world"] -> map .upper
+list["hello", "world"] -> map .upper
 ```
 
 ### Defaults Over Conditionals
@@ -203,10 +203,10 @@ $dict.field ?? "default"
 ```text
 # Not rillistic: trying to mutate outer scope
 "" => $result
-["a", "b", "c"] -> each { $result + $ => $result }
+list["a", "b", "c"] -> each { $result + $ => $result }
 
 # Rillistic: fold produces the value
-["a", "b", "c"] -> fold("") { $@ + $ }
+list["a", "b", "c"] -> fold("") { $@ + $ }
 ```
 
 ### Explicit Booleans Over Coercion
@@ -221,7 +221,7 @@ $str -> .empty ? "no" ! "yes"
 ```text
 # Rillistic: $ in inline pipes and loops
 "hello" -> { .upper }
-[1, 2, 3] -> each { $ * 2 }
+list[1, 2, 3] -> each { $ * 2 }
 0 -> ($ < 5) @ { $ + 1 }
 
 # Rillistic: named params in stored closures

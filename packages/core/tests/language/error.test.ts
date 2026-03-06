@@ -70,7 +70,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws RILL-P004 for list message (AC-ERR-3)', async () => {
       try {
-        await run('error [1, 2]');
+        await run('error list[1, 2]');
         expect.fail('Should have thrown');
       } catch (err: any) {
         expect(err.errorId).toBe('RILL-P004');
@@ -122,7 +122,7 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('throws on first iteration in each loop (AC-BOUND-4)', async () => {
-      await expect(run('[1, 2] -> each { error "stop" }')).rejects.toThrow(
+      await expect(run('list[1, 2] -> each { error "stop" }')).rejects.toThrow(
         'stop'
       );
     });
@@ -238,7 +238,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from map operator on conditional error', async () => {
       const script = `
-        [1, 2, 3] -> map {
+        list[1, 2, 3] -> map {
           ($ == 2) ? { error "failed at 2" }
           $ * 2
         }
@@ -248,7 +248,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from filter operator on conditional error', async () => {
       const script = `
-        [1, 2, 3] -> filter {
+        list[1, 2, 3] -> filter {
           ($ == 2) ? { error "filter error" }
           $ > 1
         }
@@ -268,7 +268,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from fold operator accumulator', async () => {
       const script = `
-        [1, 2, 3] -> fold(0) {
+        list[1, 2, 3] -> fold(0) {
           ($ == 2) ? { error "fold error" }
           $@ + $
         }
@@ -308,7 +308,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with default operator in message', async () => {
       const script = `
-        [name: "test"] => $obj
+        dict[name: "test"] => $obj
         error "Value: {$obj.missing ?? "not found"}"
       `;
       await expect(run(script)).rejects.toThrow('Value: not found');
@@ -332,7 +332,7 @@ describe('Rill Language: Error Statement', () => {
   describe('Edge Cases', () => {
     it('works with dict message values via interpolation', async () => {
       const script = `
-        [code: 500, msg: "Server Error"] => $err
+        dict[code: 500, msg: "Server Error"] => $err
         error "{$err.code}: {$err.msg}"
       `;
       await expect(run(script)).rejects.toThrow('500: Server Error');
@@ -340,10 +340,10 @@ describe('Rill Language: Error Statement', () => {
 
     it('works with list message values via interpolation', async () => {
       const script = `
-        [1, 2, 3] => $items
+        list[1, 2, 3] => $items
         error "Items: {$items}"
       `;
-      await expect(run(script)).rejects.toThrow('Items: list(1, 2, 3)');
+      await expect(run(script)).rejects.toThrow('Items: list[1, 2, 3]');
     });
 
     it('works with arithmetic in interpolation', async () => {
@@ -375,8 +375,8 @@ describe('Rill Language: Error Statement', () => {
 
     it('works in nested each loops', async () => {
       const script = `
-        [1, 2] -> each {
-          [10, 20] -> each {
+        list[1, 2] -> each {
+          list[10, 20] -> each {
             ($ == 20) ? { error "inner error" }
             $
           }

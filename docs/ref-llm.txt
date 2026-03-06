@@ -49,11 +49,11 @@ Use cases:
 
 State machine pattern (`$` carries state through iterations):
 
-    [state: "init", data: $input]
+    dict[state: "init", data: $input]
       -> ($.state != "done") @ {
-        $.state -> [
-          init: { [state: "process", data: transform($.data)] },
-          process: { [state: "done", data: finalize($.data)] }
+        $.state -> dict[
+          init: { dict[state: "process", data: transform($.data)] },
+          process: { dict[state: "done", data: finalize($.data)] }
         ]
       }
 
@@ -61,9 +61,9 @@ State machine pattern (`$` carries state through iterations):
 
 Use snake_case for all identifiers:
 
-    $user_name, $item_list, $is_valid    # variables
-    $double_value, $cleanup_text         # closures
-    [first_name: "x", last_name: "y"]    # dict keys
+    $user_name, $item_list, $is_valid             # variables
+    $double_value, $cleanup_text                  # closures
+    dict[first_name: "x", last_name: "y"]         # dict keys
 
 ## Why Variables Use $ Prefix
 
@@ -82,7 +82,8 @@ Without `$`, `process(data)` is ambiguous: is `process` a host function or store
     Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
     Braces:        space inside           { $x + 1 }, each { $ * 2 }
     Brackets:      no inner space         $list[0], $dict.items[1]
-    Literals:      space after , and :    [1, 2, 3], [name: "x", age: 30]
+    Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
+    Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
     Closures:      space after params     |x| ($x * 2), |a, b| { $a + $b }
     Methods:       no space before . or ( $str.upper(), $list.join(", ")
     Pipes:         space both sides       "x" -> .upper -> .len
@@ -118,7 +119,7 @@ Example: `"hello" => $x -> .upper => $y` — `$x="hello"`, `$y="HELLO"`.
 
 ### 2. No Null/Undefined
 
-Empty values (`""`, `[]`, `[:]`) exist. "No value" cannot be represented.
+Empty values (`""`, `list[]`, `dict[]`) exist. "No value" cannot be represented.
 Use `??` for defaults: `$dict.field ?? "default"`.
 Use `.empty` to check: `$str -> .empty ? "was empty"`.
 
@@ -148,25 +149,25 @@ Variables created inside blocks/loops do NOT leak out.
 WRONG — outer variable modification (NEVER works):
 
     0 => $count
-    [1, 2, 3] -> each { $count + 1 => $count }  # creates LOCAL $count
-    $count                                       # still 0!
+    list[1, 2, 3] -> each { $count + 1 => $count }  # creates LOCAL $count
+    $count                                           # still 0!
 
 RIGHT — use `fold` for reduction:
 
-    [1, 2, 3] -> fold(0) { $@ + $ }             # 6 ($@ is accumulator)
+    list[1, 2, 3] -> fold(0) { $@ + $ }             # 6 ($@ is accumulator)
 
 RIGHT — use `each(init)` for results AND accumulator:
 
-    [1, 2, 3] -> each(0) { $@ + $ }             # [1, 3, 6] (running totals)
+    list[1, 2, 3] -> each(0) { $@ + $ }             # list[1, 3, 6] (running totals)
 
 RIGHT — use `(cond) @ { }` with `$` as state dict for multiple values:
 
-    [iter: 0, max: 3, text: $input, done: false]
+    dict[iter: 0, max: 3, text: $input, done: false]
       -> (!$.done && $.iter < $.max) @ {
         $.iter + 1 => $i
         process($.text) => $result
-        $result.finished ? [iter: $i, max: $.max, text: $.text, done: true]
-                         ! [iter: $i, max: $.max, text: $result.text, done: false]
+        $result.finished ? dict[iter: $i, max: $.max, text: $.text, done: true]
+                         ! dict[iter: $i, max: $.max, text: $result.text, done: false]
       }
 
 Pattern summary:
@@ -185,28 +186,29 @@ Built-in: `assert` (validate condition), `error` (halt with message).
 
 All copies are deep. All comparisons are by value. No object identity.
 
-    [1, 2, 3] == [1, 2, 3]   # true (content equality)
-    [1, 2] => $a
-    $a => $b                  # $b is an independent deep copy
+    list[1, 2, 3] == list[1, 2, 3]   # true (content equality)
+    list[1, 2] => $a
+    $a => $b                          # $b is an independent deep copy
 
 ## Syntax Quick Reference
 
     Variables:     $name (always prefixed with $)
-    Strings:       "hello {$var}"          # interpolation with {}
-                   """..."""               # multiline (also interpolates)
+    Strings:       "hello {$var}"              # interpolation with {}
+                   """..."""                   # multiline (also interpolates)
     Numbers:       42, 3.14, -7
     Booleans:      true, false
-    Lists:         [1, 2, 3]
-                   [...$list, 4]               # spread: inline list elements
-    Dicts:         [name: "alice", age: 30]    # identifier keys
-                   [1: "one", 2: "two"]        # number keys (incl. negative: [-1: "neg"])
-                   [true: "yes", false: "no"]  # boolean keys
-                   [["a", "b"]: 1]             # multi-key: [a: 1, b: 1]
-                   [$keyVar: value]            # variable key (must eval to string)
-                   [($expr): value]            # computed key (must eval to string)
-    Tuples:        *[1, 2, 3]              # for argument unpacking
-    Closures:      |x|($x + 1)             # like lambda/arrow functions
-    Type annot:    "hi" => $x:string       # lock type on capture
+    Lists:         list[1, 2, 3]
+                   list[...$list, 4]           # spread: inline list elements
+    Dicts:         dict[name: "alice", age: 30]    # identifier keys
+                   dict[1: "one", 2: "two"]        # number keys (incl. negative: dict[-1: "neg"])
+                   dict[true: "yes", false: "no"]  # boolean keys
+                   dict[list["a", "b"]: 1]         # multi-key: dict[a: 1, b: 1]
+                   dict[$keyVar: value]             # variable key (must eval to string)
+                   dict[($expr): value]             # computed key (must eval to string)
+    Tuples:        tuple[1, 2, 3]              # positional argument unpacking
+    Ordered:       ordered[a: 1, b: 2]         # named argument unpacking (preserves order)
+    Closures:      |x|($x + 1)                 # like lambda/arrow functions
+    Type annot:    "hi" => $x:string           # lock type on capture
     Comments:      # single line only
 
 ## Pipes and $ Binding
@@ -260,7 +262,7 @@ Do-condition loop (body runs at least once):
 
 Break (exits loop, returns collected results before break):
 
-    [1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns [1, 2]
+    list[1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns list[1, 2]
 
 Return (exits block or script with value):
 
@@ -284,8 +286,8 @@ Pass (returns `$` unchanged, explicit no-op):
 
     cond ? pass ! "fallback"               # preserve $ when condition true
     cond ? "value" ! pass                  # preserve $ when condition false
-    "data" -> { [status: pass] }           # include $ in dict: [status: "data"]
-    [1, -2, 3] -> map { ($ > 0) ? pass ! 0 }  # [1, 0, 3]
+    "data" -> { dict[status: pass] }              # include $ in dict: dict[status: "data"]
+    list[1, -2, 3] -> map { ($ > 0) ? pass ! 0 }  # list[1, 0, 3]
 
 Note: `pass` requires pipe context. Using `pass` without `$` throws error.
 
@@ -303,10 +305,10 @@ Note: `pass` requires pipe context. Using `pass` without `$` throws error.
 
 Method shorthand in collection operators:
 
-    ["a", "b"] -> map .upper            # ["A", "B"]
-    ["", "x"] -> filter (!.empty)       # ["x"]
-    ["a", "b"] -> map .pad_start(3, "0") # ["00a", "00b"] (with args)
-    ["  HI  "] -> map .trim.lower       # ["hi"] (chained methods)
+    list["a", "b"] -> map .upper              # list["A", "B"]
+    list["", "x"] -> filter (!.empty)         # list["x"]
+    list["a", "b"] -> map .pad_start(3, "0")  # list["00a", "00b"] (with args)
+    list["  HI  "] -> map .trim.lower         # list["hi"] (chained methods)
 
 Body forms (all operators accept these):
 
@@ -319,13 +321,13 @@ Body forms (all operators accept these):
 
 Dict iteration (`$` contains `key` and `value` fields):
 
-    [a: 1, b: 2] -> each { "{$.key}={$.value}" }   # ["a=1", "b=2"]
-    [a: 1, b: 5] -> filter { $.value > 2 }          # entries where value > 2
+    dict[a: 1, b: 2] -> each { "{$.key}={$.value}" }   # list["a=1", "b=2"]
+    dict[a: 1, b: 5] -> filter { $.value > 2 }          # entries where value > 2
 
 String iteration (iterates over characters):
 
-    "abc" -> each { "{$}!" }            # ["a!", "b!", "c!"]
-    "hello" -> filter { $ != "l" }      # ["h", "e", "o"]
+    "abc" -> each { "{$}!" }            # list["a!", "b!", "c!"]
+    "hello" -> filter { $ != "l" }      # list["h", "e", "o"]
 
 ## Closures
 
@@ -336,7 +338,7 @@ Two ways to create closures:
     { $ + 1 } => $inc                  # implicit $ parameter
     $inc(5)                            # 6
     5 -> $inc                          # 6 (pipe invocation)
-    [x: { $ * 2 }]                     # dict value is closure
+    dict[x: { $ * 2 }]                # dict value is closure
     type({ "hi" })                     # "closure"
 
 **Explicit closures:** `|params| body`
@@ -382,7 +384,7 @@ LATE BINDING: closures capture scope, not values. Variables resolve at call time
 
 Zero-param dict closures (methods):
 
-    [count: 3, double: ||{ $.count * 2 }] => $obj
+    dict[count: 3, double: ||{ $.count * 2 }] => $obj
     $obj.double                         # 6 ($ is bound to dict)
 
 ## Property Access
@@ -404,29 +406,29 @@ Zero-param dict closures (methods):
 
 **Dict dispatch** (single key) — pipe a value to a dict to match keys:
 
-    $val -> [apple: "fruit", carrot: "veg"]        # "fruit" if $val is "apple"
-    $val -> [apple: "fruit"] ?? "not found"         # default if no match
-    $method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # multi-key
+    $val -> dict[apple: "fruit", carrot: "veg"]                              # "fruit" if $val is "apple"
+    $val -> dict[apple: "fruit"] ?? "not found"                              # default if no match
+    $method -> dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # multi-key
 
 Type-aware matching (keys matched by value AND type):
 
-    1 -> [1: "number", "1": "string"]              # "number"
-    "1" -> [1: "number", "1": "string"]            # "string"
-    true -> [true: "bool", "true": "str"]          # "bool"
+    1 -> dict[1: "number", "1": "string"]              # "number"
+    "1" -> dict[1: "number", "1": "string"]            # "string"
+    true -> dict[true: "bool", "true": "str"]          # "bool"
 
 **List dispatch** (index) — pipe a number to a list:
 
-    0 -> ["first", "second"]                        # "first"
-    -1 -> ["first", "second"]                       # "second" (last)
-    5 -> ["a", "b"] ?? "not found"                  # default if out of bounds
+    0 -> list["first", "second"]                        # "first"
+    -1 -> list["first", "second"]                       # "second" (last)
+    5 -> list["a", "b"] ?? "not found"                  # default if out of bounds
 
 **Hierarchical dispatch** (path navigation) — pipe a list of keys/indexes:
 
-    ["name", "first"] -> [name: [first: "Alice"]]   # "Alice"
-    [0, 1] -> [[1, 2, 3], [4, 5, 6]]                # 2
-    ["users", 0, "name"] -> [users: [[name: "Alice"]]] # "Alice"
-    [] -> [a: 1]                                    # [a: 1] (empty path = unchanged)
-    ["a", "missing"] -> [a: [x: 1]] ?? "default"    # "default"
+    list["name", "first"] -> dict[name: dict[first: "Alice"]]              # "Alice"
+    list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2
+    list["users", 0, "name"] -> dict[users: list[dict[name: "Alice"]]]    # "Alice"
+    list[] -> dict[a: 1]                                                    # dict[a: 1] (empty path = unchanged)
+    list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"              # "default"
 
 ## Type Operations
 
@@ -458,39 +460,40 @@ Use parentheses to override: `(2 + 3) * 4`
 
 ## Extraction Operators
 
-Destructure (`*<>`):
+Destructure (`destruct<>`):
 
-    [1, 2, 3] -> *<$a, $b, $c>          # $a=1, $b=2, $c=3
-    [x: 1, y: 2] -> *<x: $a, y: $b>     # $a=1, $b=2
-    [1, 2, 3] -> *<$first, _, $third>   # _ skips element
+    list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
+    dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
+    list[1, 2, 3] -> destruct<$first, _, $third>    # _ skips element
 
-Slice (`/<start:stop:step>`):
+Slice (`slice<start:stop:step>`):
 
-    [0,1,2,3,4] -> /<1:3>               # [1, 2]
-    [0,1,2,3,4] -> /<-2:>               # [3, 4]
-    [0,1,2,3,4] -> /<::-1>              # [4,3,2,1,0] (reverse)
-    "hello" -> /<1:4>                   # "ell"
+    list[0,1,2,3,4] -> slice<1:3>               # list[1, 2]
+    list[0,1,2,3,4] -> slice<-2:>               # list[3, 4]
+    list[0,1,2,3,4] -> slice<::-1>              # list[4,3,2,1,0] (reverse)
+    "hello" -> slice<1:4>                       # "ell"
 
 ## List Spread in Literals
 
 Inline list elements into a new list using `...` (spread operator):
 
-    [1, 2] => $a
-    [...$a, 3]                          # [1, 2, 3]
-    [...$a, ...$b]                      # concatenate lists
-    [...($nums -> map {$ * 2})]         # spread expression result
+    list[1, 2] => $a
+    list[...$a, 3]                      # list[1, 2, 3]
+    list[...$a, ...$b]                  # concatenate lists
+    list[...($nums -> map {$ * 2})]     # spread expression result
 
-## Tuples for Argument Unpacking
+## Tuples and Ordered for Argument Unpacking
 
-    *[1, 2, 3] -> $fn()                   # positional: $fn(1, 2, 3)
-    *[b: 2, a: 1] -> $fn()                # named: $fn(a=1, b=2)
-    *[...$list, 3] -> $fn()               # spread in tuple: combines elements
+    tuple[1, 2, 3] -> $fn()                # positional: $fn(1, 2, 3)
+    ordered[b: 2, a: 1] -> $fn()           # named: $fn(a=1, b=2) (preserves declaration order, matches by key)
+    tuple[...$list, 3] -> $fn()            # spread in tuple: combines elements
 
-## Closure Chain (@)
+## Closure Chain
 
 Chains closures sequentially (each receives previous result):
 
-    5 -> @[$inc, $double, $add10]       # (5+1)*2+10 = 22
+    5 -> chain(list[$inc, $double, $add10])   # (5+1)*2+10 = 22
+    5 -> chain($fn)                           # apply single closure
 
 ## String Methods
 
@@ -532,7 +535,7 @@ Chains closures sequentially (each receives previous result):
 | `.at(i)` | element at index |
 | `.keys` | dict keys as list |
 | `.values` | dict values as list |
-| `.entries` | dict as list of [k, v] tuples |
+| `.entries` | dict as list of `tuple[k, v]` pairs |
 | `.has(val)` | list contains value (deep equality) |
 | `.has_any(list)` | list contains any value from candidates |
 | `.has_all(list)` | list contains all values from candidates |
@@ -547,18 +550,20 @@ Chains closures sequentially (each receives previous result):
 | `identity(val)` | returns input unchanged |
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator) |
-| `enumerate(coll)` | lists: [index, value]; dicts: [index, key, value] |
+| `enumerate(coll)` | lists: `tuple[index, value]`; dicts: `tuple[index, key, value]` |
+| `chain($fn)` | apply single closure sequentially |
+| `chain(list[$f, $g])` | apply list of closures sequentially |
 
 ## Iterators
 
 Lazy sequence generation. Collection operators auto-expand iterators.
 
-    range(0, 5) -> each { $ * 2 }        # [0, 2, 4, 6, 8]
-    repeat("x", 3) -> each { $ }         # ["x", "x", "x"]
+    range(0, 5) -> each { $ * 2 }        # list[0, 2, 4, 6, 8]
+    repeat("x", 3) -> each { $ }         # list["x", "x", "x"]
 
 `.first()` method (returns iterator for any collection):
 
-    [1, 2, 3] -> .first()                # iterator at 1
+    list[1, 2, 3] -> .first()            # iterator at 1
     "abc" -> .first()                     # iterator at "a"
 
 Iterator protocol (dict with `value`, `done`, `next`):
@@ -586,5 +591,5 @@ Invalid annotation keys produce a runtime error.
 |---|---|
 | `true` / non-empty string | 0 |
 | `false` / empty string | 1 |
-| `[0, "message"]` | 0 with message |
-| `[1, "message"]` | 1 with message |
+| `list[0, "message"]` | 0 with message |
+| `list[1, "message"]` | 1 with message |

@@ -301,9 +301,9 @@ Parser.prototype.parseAnnotationArgs = function (
 Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
   const start = current(this.state).span.start;
 
-  // Spread argument: *expr
-  if (check(this.state, TOKEN_TYPES.STAR)) {
-    advance(this.state); // consume *
+  // Spread argument: ...expr
+  if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+    advance(this.state); // consume ...
     const expression = this.parseExpression();
     return {
       type: 'SpreadArg',

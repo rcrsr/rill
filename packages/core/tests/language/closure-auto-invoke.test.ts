@@ -125,7 +125,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       // Capture the ?? result into $r, then return its type name (representable).
       const script = `
         || { $ * 2 } => $fallback
-        [x: 10] => $data
+        dict[x: 10] => $data
         5 -> ($data.y ?? $fallback) => $r
         $r.^type.^name
       `;
@@ -340,7 +340,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       // filter receives closure, not auto-invoked
       const script = `
         |x|($x > 0) => $positive
-        [-1, 2, -3, 4] -> filter $positive
+        list[-1, 2, -3, 4] -> filter $positive
       `;
       expect(await run(script)).toEqual([2, 4]);
     });
@@ -349,7 +349,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       // each receives closure, not auto-invoked
       const script = `
         |x|($x * 2) => $double
-        [1, 2, 3] -> each $double
+        list[1, 2, 3] -> each $double
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });

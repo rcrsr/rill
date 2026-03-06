@@ -14,7 +14,7 @@ Demonstrates destructuring, slicing, and enumeration.
 
 ```rill
 # Destructure dict results into named variables
-[output: "test output", code: 0] -> *<output: $out, code: $code>
+dict[output: "test output", code: 0] -> destruct<output: $out, code: $code>
 
 $code -> .gt(0) ? {
   "Tests failed:\n{$out}" -> log
@@ -26,13 +26,13 @@ $code -> .gt(0) ? {
 ### Processing Structured Data
 
 ```rill
-# Process list of [file, mode] pairs
-[
-  ["src/auth.ts", "security"],
-  ["src/api.ts", "performance"],
-  ["src/db.ts", "security"]
+# Process list of file-mode pairs
+list[
+  list["src/auth.ts", "security"],
+  list["src/api.ts", "performance"],
+  list["src/db.ts", "security"]
 ] -> each {
-  $ -> *<$f, $mode>
+  $ -> destruct<$f, $mode>
   "Review {$f} for {$mode} issues" -> log
 }
 ```
@@ -41,21 +41,21 @@ $code -> .gt(0) ? {
 
 ```rill
 # Get first 3 items
-["a", "b", "c", "d", "e"] -> /<:3>
-# ["a", "b", "c"]
+list["a", "b", "c", "d", "e"] -> slice<:3>
+# list["a", "b", "c"]
 ```
 
 ```rill
 # Process in reverse order
-["a", "b", "c"] -> /<::-1>
-# ["c", "b", "a"]
+list["a", "b", "c"] -> slice<::-1>
+# list["c", "b", "a"]
 ```
 
 ### Dict Iteration
 
 ```rill
 # Use .entries to iterate over dict key-value pairs
-[host: "localhost", port: 8080] -> .entries -> each {
+dict[host: "localhost", port: 8080] -> .entries -> each {
   "{$[0]}={$[1]}"
 } -> .join("\n")
 ```
@@ -69,52 +69,52 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 ```rill
 # Define closure first, then use it
 |x| { $x * 2 } => $double
-[1, 2, 3, 4, 5] -> map $double
-# [2, 4, 6, 8, 10]
+list[1, 2, 3, 4, 5] -> map $double
+# list[2, 4, 6, 8, 10]
 ```
 
 ```rill
 # Map with inline block
-["alice", "bob", "carol"] -> map { "Hello, {$}!" }
-# ["Hello, alice!", "Hello, bob!", "Hello, carol!"]
+list["alice", "bob", "carol"] -> map { "Hello, {$}!" }
+# list["Hello, alice!", "Hello, bob!", "Hello, carol!"]
 ```
 
 ### Filter with Parallel Filter
 
 ```rill
 # Keep elements matching condition (block form)
-[1, 2, 3, 4, 5] -> filter { .gt(2) }
-# [3, 4, 5]
+list[1, 2, 3, 4, 5] -> filter { .gt(2) }
+# list[3, 4, 5]
 ```
 
 ```rill
 # Filter with closure predicate
 |x| { $x % 2 == 0 } => $even
-[1, 2, 3, 4, 5, 6] -> filter $even
-# [2, 4, 6]
+list[1, 2, 3, 4, 5, 6] -> filter $even
+# list[2, 4, 6]
 ```
 
 ```rill
 # Filter non-empty strings
-["hello", "", "world", ""] -> filter { !.empty }
-# ["hello", "world"]
+list["hello", "", "world", ""] -> filter { !.empty }
+# list["hello", "world"]
 ```
 
 ```rill
 # Chain filter and map
 |x| { $x * 2 } => $dbl
-[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
-# [6, 8, 10]
+list[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
+# list[6, 8, 10]
 ```
 
 ```rill
 # Filter structured data
-[
-  [name: "alice", age: 30],
-  [name: "bob", age: 17],
-  [name: "carol", age: 25]
+list[
+  dict[name: "alice", age: 30],
+  dict[name: "bob", age: 17],
+  dict[name: "carol", age: 25]
 ] -> filter { $.age -> .ge(18) }
-# [[name: "alice", age: 30], [name: "carol", age: 25]]
+# list[dict[name: "alice", age: 30], dict[name: "carol", age: 25]]
 ```
 
 ### Reduce with Sequential Spread
@@ -125,14 +125,14 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 |s|"{$s} -> processed" => $process
 |s|"{$s} -> complete" => $complete
 
-"input" -> @[$validate, $process, $complete]
+"input" -> chain(list[$validate, $process, $complete])
 # "input -> validated -> processed -> complete"
 
 # Numeric reduction
 |x|($x + 10) => $add10
 |x|($x * 2) => $double
 
-5 -> @[$add10, $double, $add10]
+5 -> chain(list[$add10, $double, $add10])
 # ((5 + 10) * 2) + 10 = 40
 ```
 
@@ -140,13 +140,13 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 
 ```rill
 # Find first element matching condition
-[1, 2, 3, 4, 5] -> each {
+list[1, 2, 3, 4, 5] -> each {
   .gt(3) ? { $ -> break }
 } => $found
 # 4
 
 # Find with default
-[1, 2, 3] -> each {
+list[1, 2, 3] -> each {
   .gt(10) ? { $ -> break }
 } => $result
 $result -> .empty ? { "not found" } ! { "found: {$result}" }
@@ -156,7 +156,7 @@ $result -> .empty ? { "not found" } ! { "found: {$result}" }
 
 ```rill
 # Sum numbers using fold
-[10, 20, 30, 40] -> fold(0) { $@ + $ }
+list[10, 20, 30, 40] -> fold(0) { $@ + $ }
 # 100
 
 # Count matching elements using filter
@@ -168,7 +168,7 @@ $items -> filter { .contains("error") } -> .len => $count
 
 ```rill
 # Process items, collect results using map
-["file1.txt", "file2.txt", "file3.txt"] -> map { "analyzed: {$}" } -> .join("\n")
+list["file1.txt", "file2.txt", "file3.txt"] -> map { "analyzed: {$}" } -> .join("\n")
 # "analyzed: file1.txt\nanalyzed: file2.txt\nanalyzed: file3.txt"
 ```
 
@@ -183,10 +183,10 @@ Explicit argument unpacking with validation.
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
 # Create named args and invoke
-*[a: 1, b: 2, c: 3] -> $fmt()    # "1-2-3"
+ordered[a: 1, b: 2, c: 3] -> $fmt()    # "1-2-3"
 
 # Store args for later use
-*[a: 1, b: 2, c: 3] => $myArgs
+ordered[a: 1, b: 2, c: 3] => $myArgs
 $myArgs -> $fmt()       # "1-2-3"
 ```
 
@@ -196,7 +196,7 @@ $myArgs -> $fmt()       # "1-2-3"
 # Named args match by parameter name, order doesn't matter
 |width, height|($width * $height) => $area
 
-*[height: 20, width: 10] -> $area()  # 200
+ordered[height: 20, width: 10] -> $area()  # 200
 ```
 
 ### Parameter Defaults
@@ -205,8 +205,8 @@ $myArgs -> $fmt()       # "1-2-3"
 # Defaults provide opt-in leniency
 |x, y = 10, z = 20|($x + $y + $z) => $fn
 
-*[x: 5] -> $fn()              # 35 (5 + 10 + 20)
-*[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
+ordered[x: 5] -> $fn()              # 35 (5 + 10 + 20)
+ordered[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
 ```
 
 ### Type Checking with `.^type`
@@ -217,15 +217,15 @@ $myArgs -> $fmt()       # "1-2-3"
 $x.^type == number      # true
 "hello" => $s
 $s.^type == string      # true
-[1, 2] => $l
+list[1, 2] => $l
 $l.^type == list        # true
-*[a: 1, b: 2] => $t
+ordered[a: 1, b: 2] => $t
 $t.^type == ordered     # true
-[a: 1] => $d
+dict[a: 1] => $d
 $d.^type == dict        # true
 
 # Use json() to serialize
-[name: "test", count: 42] -> json
+dict[name: "test", count: 42] -> json
 # '{"name":"test","count":42}'
 
 # Use log() to debug while continuing pipe
@@ -444,7 +444,7 @@ Output SUCCESS, RETRY, or FAILED.
 } ? (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
-$result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! [code: 1, msg: "Failed: {$result}"]
+$result -> .contains("SUCCESS") ? dict[code: 0, msg: "Succeeded"] ! dict[code: 1, msg: "Failed: {$result}"]
 ```
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.
@@ -649,7 +649,7 @@ args: question: string
 $question -> openai::embed => $query_vector
 
 # Search for similar documents
-$query_vector -> qdrant::search($, [k: 3, score_threshold: 0.7]) => $results
+$query_vector -> qdrant::search($, dict[k: 3, score_threshold: 0.7]) => $results
 
 # Extract metadata for context
 $results -> map { $.metadata.text } -> .join("\n\n---\n\n") => $context
@@ -674,10 +674,10 @@ args: documents: list
 
 # Embed all documents
 $documents -> map {
-  [
+  dict[
     id: $.id,
     vector: $.text -> openai::embed,
-    metadata: [title: $.title, source: $.source]
+    metadata: dict[title: $.title, source: $.source]
   ]
 } => $items
 
@@ -702,7 +702,7 @@ Create, populate, and manage vector collections.
 
 ```text
 # Create a new collection
-qdrant::create_collection("knowledge_base", [
+qdrant::create_collection("knowledge_base", dict[
   dimensions: 1536,
   distance: "cosine"
 ]) => $create_result
@@ -711,10 +711,10 @@ qdrant::create_collection("knowledge_base", [
 
 # Store vectors (assumes $docs defined)
 $docs -> map {
-  [
+  dict[
     id: $.id,
     vector: $.text -> openai::embed,
-    metadata: [title: $.title]
+    metadata: dict[title: $.title]
   ]
 } -> qdrant::upsert_batch => $upsert_result
 
@@ -742,7 +742,7 @@ args: user_query: string
 # Define search tool with closure annotation
 ^("Search the knowledge base for relevant information")
 |^("Search query text") query: string| {
-  $query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
+  $query -> openai::embed -> qdrant::search($, dict[k: 5]) -> map {
     "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
   } -> .join("\n\n---\n\n")
 } => $search_knowledge_base
@@ -750,21 +750,21 @@ args: user_query: string
 # Define store tool with closure annotation
 ^("Store a new document in the knowledge base")
 |^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string| {
-  [
+  dict[
     id: $id,
     vector: $text -> openai::embed,
-    metadata: [title: $title, text: $text]
+    metadata: dict[title: $title, text: $text]
   ] => $item
 
-  $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
+  $item.vector -> qdrant::upsert($item.id, $, dict[title: $item.metadata.title])
   "Stored document {$item.id}"
 } => $store_document
 
 # Run tool loop with dict-form tools
 anthropic::tool_loop(
   "Answer the user's question. Use search_knowledge_base to find relevant information. If the user provides new information to remember, use store_document.",
-  [
-    tools: [search_knowledge_base: $search_knowledge_base, store_document: $store_document],
+  dict[
+    tools: dict[search_knowledge_base: $search_knowledge_base, store_document: $store_document],
     max_turns: 10,
     user_message: $user_query
   ]

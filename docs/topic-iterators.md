@@ -21,9 +21,9 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 - Composable: Work with all collection operators (`each`, `map`, `filter`, `fold`)
 
 ```rill
-range(0, 5) -> each { $ * 2 }           # [0, 2, 4, 6, 8]
-repeat("x", 3) -> each { $ }            # ["x", "x", "x"]
-[1, 2, 3] -> .first() -> each { $ }     # [1, 2, 3]
+range(0, 5) -> each { $ * 2 }           # list[0, 2, 4, 6, 8]
+repeat("x", 3) -> each { $ }            # list["x", "x", "x"]
+list[1, 2, 3] -> .first() -> each { $ } # list[1, 2, 3]
 ```
 
 ---
@@ -38,9 +38,9 @@ Iterators are dicts with three fields:
 | `done` | bool | True if exhausted |
 | `next` | closure | Returns new iterator at next position |
 
-```rill
+```text
 # Iterator structure
-[
+dict[
   value: 0,
   done: false,
   next: || { ... }   # returns new iterator
@@ -50,8 +50,8 @@ Iterators are dicts with three fields:
 Collection operators automatically recognize and expand iterators:
 
 ```rill
-range(1, 4) -> map { $ * 10 }     # [10, 20, 30]
-range(0, 10) -> filter { $ > 5 }  # [6, 7, 8, 9]
+range(1, 4) -> map { $ * 10 }     # list[10, 20, 30]
+range(0, 10) -> filter { $ > 5 }  # list[6, 7, 8, 9]
 range(1, 6) -> fold(0) { $@ + $ } # 15
 ```
 
@@ -100,7 +100,7 @@ Generate a value repeated n times.
 ```rill
 repeat("x", 3)        # "x", "x", "x"
 repeat(0, 5)          # 0, 0, 0, 0, 0
-repeat([a: 1], 2)     # [a: 1], [a: 1]
+repeat(dict[a: 1], 2) # dict[a: 1], dict[a: 1]
 true
 ```
 
@@ -125,26 +125,26 @@ Returns an iterator for any collection. Provides a consistent interface for manu
 | iterator | Returns itself (identity) |
 
 ```rill
-[1, 2, 3] -> .first()        # iterator at 1
-"abc" -> .first()            # iterator at "a"
-[a: 1, b: 2] -> .first()     # iterator at [key: "a", value: 1]
-range(0, 5) -> .first()      # iterator at 0 (identity)
+list[1, 2, 3] -> .first()        # iterator at 1
+"abc" -> .first()                # iterator at "a"
+dict[a: 1, b: 2] -> .first()     # iterator at dict[key: "a", value: 1]
+range(0, 5) -> .first()          # iterator at 0 (identity)
 true
 ```
 
 **Empty collections** return a done iterator:
 
 ```rill
-[] -> .first()               # [done: true, next: ...]
-"" -> .first()               # [done: true, next: ...]
+list[] -> .first()           # done iterator
+"" -> .first()               # done iterator
 true
 ```
 
 **Using `.first()` with collection operators:**
 
 ```rill
-[1, 2, 3] -> .first() -> each { $ * 2 }    # [2, 4, 6]
-"hello" -> .first() -> each { $ }          # ["h", "e", "l", "l", "o"]
+list[1, 2, 3] -> .first() -> each { $ * 2 }    # list[2, 4, 6]
+"hello" -> .first() -> each { $ }              # list["h", "e", "l", "l", "o"]
 ```
 
 ---
@@ -154,7 +154,7 @@ true
 Traverse an iterator by accessing `.value`, `.done`, and calling `.next()`:
 
 ```rill
-[1, 2, 3] -> .first() => $it
+list[1, 2, 3] -> .first() => $it
 
 # Check if done
 $it.done                     # false
@@ -187,6 +187,7 @@ $it.value                    # 2
 **Check before access:**
 
 ```rill
+list[1, 2, 3] => $list
 $list -> .first() => $it
 $it.done ? "empty" ! $it.value
 ```
@@ -199,43 +200,43 @@ Create custom iterators by implementing the protocol:
 
 ```rill
 # Counter from start to max
-|start, max| [
+|start, max| dict[
   value: $start,
   done: ($start > $max),
   next: || { $counter($.value + 1, $max) }
 ] => $counter
 
-$counter(1, 5) -> each { $ }    # [1, 2, 3, 4, 5]
+$counter(1, 5) -> each { $ }    # list[1, 2, 3, 4, 5]
 ```
 
 **Fibonacci sequence:**
 
 ```text
-|a, b, max| [
+|a, b, max| dict[
   value: $a,
   done: ($a > $max),
   next: || { $fib($.b, $.a + $.b, $max) }
 ] => $fib
 
-$fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+$fib(0, 1, 50) -> each { $ }    # list[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
 
 **Infinite iterator (use with limit):**
 
 ```text
-|n| [
+|n| dict[
   value: $n,
   done: false,
   next: || { $naturals($.value + 1) }
 ] => $naturals
 
 # Take first 5 using fold with compound accumulator
-$naturals(1) -> .first() -> fold([list: [], it: $]) {
-  ($@.list -> .len >= 5) ? $@ -> break ! [
-    list: [...$@.list, $@.it.value],
+$naturals(1) -> .first() -> fold(dict[list: list[], it: $]) {
+  ($@.list -> .len >= 5) ? $@ -> break ! dict[
+    list: list[...$@.list, $@.it.value],
     it: $@.it.next()
   ]
-} -> $.list    # [1, 2, 3, 4, 5]
+} -> $.list    # list[1, 2, 3, 4, 5]
 ```
 
 ---
@@ -250,16 +251,16 @@ For direct element access (not iteration), use `.head` and `.tail`:
 | `.tail` | Last element (errors on empty) |
 
 ```rill
-[1, 2, 3] -> .head    # 1
-[1, 2, 3] -> .tail    # 3
-"hello" -> .head      # "h"
-"hello" -> .tail      # "o"
+list[1, 2, 3] -> .head    # 1
+list[1, 2, 3] -> .tail    # 3
+"hello" -> .head          # "h"
+"hello" -> .tail          # "o"
 ```
 
 **Empty collections error** (no null in rill):
 
 ```rill
-[] -> .head           # ERROR: Cannot get head of empty list
+list[] -> .head       # ERROR: Cannot get head of empty list
 "" -> .tail           # ERROR: Cannot get tail of empty string
 ```
 
@@ -285,7 +286,7 @@ range(1, 11) -> map { $ * $ } -> fold(0) { $@ + $ }
 
 ```rill
 range(0, 5) -> each { "Item {$}" }
-# ["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
+# list["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
 ```
 
 ### Retry pattern
@@ -310,7 +311,7 @@ range(0, 20) -> filter { ($ % 2) == 0 }
 
 ```rill
 range(1, 4) -> each { $ => $row -> range(1, 4) -> each { $row * $ } }
-# [[1, 2, 3], [2, 4, 6], [3, 6, 9]]
+# list[list[1, 2, 3], list[2, 4, 6], list[3, 6, 9]]
 ```
 
 ---
@@ -321,7 +322,7 @@ Iterators are expanded eagerly when passed to collection operators. A default li
 
 ```rill
 # This would error after 10000 elements
-|n| [value: $n, done: false, next: || { $inf($.value + 1) }] => $inf
+|n| dict[value: $n, done: false, next: || { $inf($.value + 1) }] => $inf
 $inf(0) -> each { $ }    # ERROR: Iterator exceeded 10000 elements
 ```
 

@@ -228,6 +228,10 @@ export interface PostfixExprNode extends BaseNode {
 
 export type PrimaryNode =
   | LiteralNode
+  | ListLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
   | VariableNode
   | HostCallNode
   | HostRefNode
@@ -242,7 +246,6 @@ export type PrimaryNode =
   | ErrorNode
   | PassNode
   | GroupedExprNode
-  | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
   | TypeNameExprNode
@@ -262,12 +265,9 @@ export type PipeTargetNode =
   | ClosureNode
   | StringLiteralNode
   | DictNode
-  | TupleNode
   | GroupedExprNode
-  | ClosureChainNode
   | DestructureNode
   | SliceNode
-  | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
   | EachExprNode
@@ -278,7 +278,10 @@ export type PipeTargetNode =
   | VariableNode
   | AssertNode
   | ErrorNode
-  | AnnotationAccessNode;
+  | AnnotationAccessNode
+  | ConvertNode
+  | DestructNode
+  | ListLiteralNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -294,7 +297,6 @@ export type LiteralNode =
   | StringLiteralNode
   | NumberLiteralNode
   | BoolLiteralNode
-  | TupleNode
   | DictNode
   | ClosureNode;
 
@@ -317,12 +319,6 @@ export interface NumberLiteralNode extends BaseNode {
 export interface BoolLiteralNode extends BaseNode {
   readonly type: 'BoolLiteral';
   readonly value: boolean;
-}
-
-export interface TupleNode extends BaseNode {
-  readonly type: 'Tuple';
-  readonly elements: (ExpressionNode | ListSpreadNode)[];
-  readonly defaultValue: BodyNode | null;
 }
 
 export interface ListSpreadNode extends BaseNode {
@@ -352,7 +348,7 @@ export interface DictEntryNode extends BaseNode {
     | string
     | number
     | boolean
-    | TupleNode
+    | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
@@ -694,7 +690,6 @@ export type IteratorBody =
   | GroupedExprNode // (expr)
   | VariableNode // $fn
   | PostfixExprNode // $ or other simple expression
-  | SpreadNode // * (spread element to tuple)
   | HostCallNode // greet (bare function name)
   | HostRefNode; // ns::func (namespaced host function reference)
 
@@ -794,23 +789,6 @@ export interface FilterExprNode extends BaseNode {
 }
 
 // ============================================================
-// SPREAD OPERATIONS
-// ============================================================
-
-/**
- * Sequential spread: $input -> @$closures
- * Chains closures where each receives the previous result.
- *
- * Equivalent to a fold: $input -> [$f, $g, $h] -> @ { $() }
- * - With stored closures: the $ is the current closure, $() invokes it
- * - With inline blocks: $ is the accumulated value directly
- */
-export interface ClosureChainNode extends BaseNode {
-  readonly type: 'ClosureChain';
-  readonly target: ExpressionNode; // The closure(s) to chain
-}
-
-// ============================================================
 // EXTRACTION OPERATORS
 // ============================================================
 
@@ -865,21 +843,6 @@ export interface SliceNode extends BaseNode {
 
 /** A slice bound: number, variable, or grouped expression */
 export type SliceBoundNode = NumberLiteralNode | VariableNode | GroupedExprNode;
-
-/**
- * Spread operator: *expr or -> *
- * Converts tuple or dict to args type for unpacking at closure invocation.
- *
- * Prefix form: *[1, 2, 3], *$tuple, *[x: 1, y: 2]
- * Pipe target form: [1, 2, 3] -> *
- *
- * Creates an args value that unpacks into separate arguments when passed to a closure.
- */
-export interface SpreadNode extends BaseNode {
-  readonly type: 'Spread';
-  /** The expression to spread (null when used as pipe target: -> *) */
-  readonly operand: ExpressionNode | null;
-}
 
 // ============================================================
 // TYPE OPERATIONS
@@ -944,6 +907,102 @@ export interface TypeNameExprNode extends BaseNode {
   readonly typeName: RillTypeName;
 }
 
+// ============================================================
+// COLLECTION LITERALS
+// ============================================================
+
+/**
+ * List literal: list[expr, expr, ...]
+ * Constructs a list collection from comma-separated expressions.
+ *
+ * Examples:
+ *   list[1, 2, 3]
+ *   list["a", "b", $x]
+ */
+export interface ListLiteralNode extends BaseNode {
+  readonly type: 'ListLiteral';
+  readonly elements: ExpressionNode[];
+  readonly defaultValue: BodyNode | null;
+}
+
+/**
+ * Dict literal: dict[key: value, ...]
+ * Constructs a dict collection from comma-separated key-value pairs.
+ *
+ * Examples:
+ *   dict[name: "Alice", age: 30]
+ *   dict["x": 1, "y": 2]
+ */
+export interface DictLiteralNode extends BaseNode {
+  readonly type: 'DictLiteral';
+  readonly entries: DictEntryNode[];
+}
+
+/**
+ * Tuple literal: tuple[expr, expr, ...]
+ * Constructs a typed tuple from comma-separated expressions (mixed types allowed).
+ *
+ * Examples:
+ *   tuple[1, "hello", true]
+ *   tuple[$a, $b]
+ */
+export interface TupleLiteralNode extends BaseNode {
+  readonly type: 'TupleLiteral';
+  readonly elements: ExpressionNode[];
+}
+
+/**
+ * Ordered literal: ordered[key: value, ...]
+ * Constructs an ordered collection from comma-separated key-value pairs.
+ *
+ * Examples:
+ *   ordered[name: "Alice", score: 42]
+ */
+export interface OrderedLiteralNode extends BaseNode {
+  readonly type: 'OrderedLiteral';
+  readonly entries: DictEntryNode[];
+}
+
+// ============================================================
+// DESTRUCT OPERATOR
+// ============================================================
+
+/**
+ * Destruct operator: destruct<$a, $b, ...>
+ * Extracts elements from collections into named captures.
+ * Supports skip placeholders (_), typed captures, and key-value patterns.
+ *
+ * Examples:
+ *   $tuple -> destruct<$a, $b, $c>
+ *   $tuple -> destruct<$a, _, $c>
+ *   $dict  -> destruct<name: $n, age: $a>
+ */
+export interface DestructNode extends BaseNode {
+  readonly type: 'Destruct';
+  readonly elements: DestructPatternNode[];
+}
+
+// ============================================================
+// CONVERT OPERATOR
+// ============================================================
+
+/**
+ * Convert operator: -> :>type or -> :>$var
+ * Converts the pipe value to the specified type.
+ * Accepts a static type name, a dynamic type variable, or a structural
+ * ordered type signature for field-ordered conversion.
+ *
+ * Examples:
+ *   $items -> :>list
+ *   $data  -> :>$targetType
+ *   $row   -> :>ordered(name: string, age: number)
+ */
+export interface ConvertNode extends BaseNode {
+  readonly type: 'Convert';
+  /** Static or dynamic type reference, or a structural type constructor */
+  readonly typeRef: TypeRef | TypeConstructorNode;
+}
+
 export type SimplePrimaryNode =
   | LiteralNode
   | VariableNode
@@ -990,18 +1049,15 @@ export type ASTNode =
   | InterpolationNode
   | NumberLiteralNode
   | BoolLiteralNode
-  | TupleNode
   | ListSpreadNode
   | DictNode
   | DictEntryNode
   | BinaryExprNode
   | UnaryExprNode
   | GroupedExprNode
-  | ClosureChainNode
   | DestructureNode
   | DestructPatternNode
   | SliceNode
-  | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
   | TypeConstructorNode
@@ -1016,4 +1072,10 @@ export type ASTNode =
   | FilterExprNode
   | RecoveryErrorNode
   | ErrorNode
-  | TypeNameExprNode;
+  | TypeNameExprNode
+  | ListLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
+  | DestructNode
+  | ConvertNode;

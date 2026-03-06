@@ -41,7 +41,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Dict Value Block-Closure', () => {
     it('AC-4: dict value block-closure invoked via pipe', async () => {
       const script = `
-        [x: { $ + 1 }] => $d
+        dict[x: { $ + 1 }] => $d
         5 -> $d.x
       `;
       expect(await run(script)).toBe(6);
@@ -50,7 +50,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
   describe('Dict Dispatch Block-Closure', () => {
     it('AC-5: dict dispatch invokes block-closure', async () => {
-      const script = `"x" -> [x: { "{$} matched" }]`;
+      const script = `"x" -> dict[x: { "{$} matched" }]`;
       expect(await run(script)).toBe('x matched');
     });
   });
@@ -79,17 +79,17 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-8: dict values have distinct types (closure, eager, literal)', async () => {
       // Mixed-type list ['closure', 10, 42] not allowed; verify each field separately
       const scriptA = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.a.^type.^name
       `;
       expect(await run(scriptA)).toBe('closure');
       const scriptB = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.b
       `;
       expect(await run(scriptB)).toBe(10);
       const scriptC = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.c
       `;
       expect(await run(scriptC)).toBe(42);
@@ -97,7 +97,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-8 variant: invoking closure produces correct result', async () => {
       const script = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         7 -> $d.a
       `;
       expect(await run(script)).toBe(14);
@@ -107,7 +107,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Block-Closure Edge Cases', () => {
     it('block-closure in list can be invoked', async () => {
       const script = `
-        [{ $ + 1 }, { $ * 2 }] => $fns
+        list[{ $ + 1 }, { $ * 2 }] => $fns
         10 -> $fns[0]
       `;
       expect(await run(script)).toBe(11);
@@ -143,7 +143,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('block-closure passed as argument', async () => {
       const script = `
-        [1, 2, 3] -> map { $ * 2 }
+        list[1, 2, 3] -> map { $ * 2 }
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
@@ -213,7 +213,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Using runWithContext to capture $a as a raw RillValue (dict with closure),
       // since toNative() rejects dicts that contain closure values.
       const { context } = await runWithContext(`
-        [y: { "inner" }] => $a
+        dict[y: { "inner" }] => $a
         true
       `);
       const a = context.variables.get('a');
@@ -225,16 +225,16 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-16: block-closure in list', async () => {
       const script = `
-        [{ $ + 1 }, { $ + 2 }] => $list
-        [$list[0].^type.^name, $list[1].^type.^name]
+        list[{ $ + 1 }, { $ + 2 }] => $list
+        list[$list[0].^type.^name, $list[1].^type.^name]
       `;
       expect(await run(script)).toEqual(['closure', 'closure']);
     });
 
     it('AC-16 variant: verify both closures execute correctly', async () => {
       const script = `
-        [{ $ + 1 }, { $ + 2 }] => $list
-        [5 -> $list[0], 5 -> $list[1]]
+        list[{ $ + 1 }, { $ + 2 }] => $list
+        list[5 -> $list[0], 5 -> $list[1]]
       `;
       expect(await run(script)).toEqual([6, 7]);
     });
@@ -242,8 +242,8 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-17: dict with all value types', async () => {
       // Note: ||{ 42 } is property-style (isProperty: true), auto-invokes on access
       const script = `
-        [a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        [$d.a.^type.^name, $d.b.^type.^name, $d.c.^type.^name, $d.d.^type.^name]
+        dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
+        list[$d.a.^type.^name, $d.b.^type.^name, $d.c.^type.^name, $d.d.^type.^name]
       `;
       expect(await run(script)).toEqual([
         'closure', // block-closure: no auto-invoke
@@ -255,13 +255,13 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
       // Mixed-type list [10, 1, 's', 42] not allowed; verify each value separately
-      const scriptA = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n10 -> $d.a`;
+      const scriptA = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n10 -> $d.a`;
       expect(await run(scriptA)).toBe(10);
-      const scriptB = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.b`;
+      const scriptB = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.b`;
       expect(await run(scriptB)).toBe(1);
-      const scriptC = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.c`;
+      const scriptC = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.c`;
       expect(await run(scriptC)).toBe('s');
-      const scriptD = `[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.d`;
+      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.d`;
       expect(await run(scriptD)).toBe(42);
     });
 
@@ -352,7 +352,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Dict value block-closure also requires implicit $ when called directly
       try {
         await run(`
-          [x: { $ + 1 }] => $d
+          dict[x: { $ + 1 }] => $d
           $d.x()
         `);
         expect.fail('Should have thrown');
@@ -399,7 +399,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "keys" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'keys' as dict key
       try {
-        await run('[keys: { $ }]');
+        await run('dict[keys: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -415,7 +415,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "values" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'values' as dict key
       try {
-        await run('[values: { $ }]');
+        await run('dict[values: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -431,7 +431,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "entries" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'entries' as dict key
       try {
-        await run('[entries: { $ }]');
+        await run('dict[entries: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -447,7 +447,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-10: undefined variable in dict dispatch closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
       // Dict dispatch closure body references undefined variable - error propagated
       try {
-        await run('"x" -> [x: { $undefined }]');
+        await run('"x" -> dict[x: { $undefined }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId', 'RILL-R005');
@@ -457,7 +457,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-10: type error in dict dispatch closure body throws RUNTIME_TYPE_ERROR', async () => {
       // Dict dispatch closure body contains type error (number + string) - error propagated
       try {
-        await run('"x" -> [x: { 5 + "text" }]');
+        await run('"x" -> dict[x: { 5 + "text" }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');

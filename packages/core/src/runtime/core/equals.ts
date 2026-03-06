@@ -33,17 +33,20 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   PropertyAccess,
-  ClosureChainNode,
   BodyNode,
   SliceNode,
-  SpreadNode,
   StatementNode,
   StringLiteralNode,
-  TupleNode,
   ListSpreadNode,
   UnaryExprNode,
   ClosureCallNode,
   VariableNode,
+  ListLiteralNode,
+  DictLiteralNode,
+  TupleLiteralNode,
+  OrderedLiteralNode,
+  DestructNode,
+  ConvertNode,
 } from '../../types.js';
 
 /**
@@ -117,9 +120,6 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'DoWhileLoop':
       return doWhileLoopEquals(a, b as DoWhileLoopNode);
 
-    case 'Tuple':
-      return tupleEquals(a, b as TupleNode);
-
     case 'ListSpread':
       return listSpreadEquals(a, b as ListSpreadNode);
 
@@ -144,9 +144,6 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'GroupedExpr':
       return groupedExprEquals(a, b as GroupedExprNode);
 
-    case 'ClosureChain':
-      return closureChainEquals(a, b as ClosureChainNode);
-
     case 'Destructure':
       return destructureEquals(a, b as DestructureNode);
 
@@ -156,8 +153,23 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'Slice':
       return sliceEquals(a, b as SliceNode);
 
-    case 'Spread':
-      return spreadEquals(a, b as SpreadNode);
+    case 'ListLiteral':
+      return listLiteralEquals(a, b as ListLiteralNode);
+
+    case 'DictLiteral':
+      return dictLiteralEquals(a, b as DictLiteralNode);
+
+    case 'TupleLiteral':
+      return tupleLiteralEquals(a, b as TupleLiteralNode);
+
+    case 'OrderedLiteral':
+      return orderedLiteralEquals(a, b as OrderedLiteralNode);
+
+    case 'Destruct':
+      return destructNodeEquals(a, b as DestructNode);
+
+    case 'Convert':
+      return convertEquals(a, b as ConvertNode);
 
     case 'Capture': {
       const bCapture = b as typeof a;
@@ -417,16 +429,6 @@ function groupedExprEquals(a: GroupedExprNode, b: GroupedExprNode): boolean {
   return pipeChainEquals(a.expression, b.expression);
 }
 
-function tupleEquals(a: TupleNode, b: TupleNode): boolean {
-  if (a.elements.length !== b.elements.length) return false;
-  for (let i = 0; i < a.elements.length; i++) {
-    const elemA = a.elements[i]!;
-    const elemB = b.elements[i]!;
-    if (!astEquals(elemA, elemB)) return false;
-  }
-  return true;
-}
-
 function listSpreadEquals(a: ListSpreadNode, b: ListSpreadNode): boolean {
   return expressionEquals(a.expression, b.expression);
 }
@@ -457,8 +459,14 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
       // Variable/computed keys not supported in equals yet
       return false;
     }
-    // TupleNode keys: compare with tupleEquals()
-    if (!tupleEquals(a.key, b.key)) return false;
+    // ListLiteralNode keys: compare element-wise
+    const aKey = a.key as ListLiteralNode;
+    const bKey = b.key as ListLiteralNode;
+    if (aKey.type !== bKey.type) return false;
+    if (aKey.elements.length !== bKey.elements.length) return false;
+    for (let i = 0; i < aKey.elements.length; i++) {
+      if (!astEquals(aKey.elements[i]!, bKey.elements[i]!)) return false;
+    }
   } else {
     // Different key types are not equal
     return false;
@@ -491,10 +499,6 @@ function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
   return nullableEquals(a.defaultValue, b.defaultValue);
 }
 
-function closureChainEquals(a: ClosureChainNode, b: ClosureChainNode): boolean {
-  return expressionEquals(a.target, b.target);
-}
-
 function destructureEquals(a: DestructureNode, b: DestructureNode): boolean {
   if (a.elements.length !== b.elements.length) return false;
   for (let i = 0; i < a.elements.length; i++) {
@@ -521,6 +525,64 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
   return true;
 }
 
-function spreadEquals(a: SpreadNode, b: SpreadNode): boolean {
-  return nullableEquals(a.operand, b.operand);
+function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
+  if (a.elements.length !== b.elements.length) return false;
+  for (let i = 0; i < a.elements.length; i++) {
+    if (!expressionEquals(a.elements[i]!, b.elements[i]!)) return false;
+  }
+  return true;
+}
+
+function dictLiteralEquals(a: DictLiteralNode, b: DictLiteralNode): boolean {
+  if (a.entries.length !== b.entries.length) return false;
+  for (let i = 0; i < a.entries.length; i++) {
+    if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
+  }
+  return true;
+}
+
+function tupleLiteralEquals(a: TupleLiteralNode, b: TupleLiteralNode): boolean {
+  if (a.elements.length !== b.elements.length) return false;
+  for (let i = 0; i < a.elements.length; i++) {
+    if (!expressionEquals(a.elements[i]!, b.elements[i]!)) return false;
+  }
+  return true;
+}
+
+function orderedLiteralEquals(
+  a: OrderedLiteralNode,
+  b: OrderedLiteralNode
+): boolean {
+  if (a.entries.length !== b.entries.length) return false;
+  for (let i = 0; i < a.entries.length; i++) {
+    if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
+  }
+  return true;
+}
+
+function destructNodeEquals(a: DestructNode, b: DestructNode): boolean {
+  if (a.elements.length !== b.elements.length) return false;
+  for (let i = 0; i < a.elements.length; i++) {
+    if (!destructElemEquals(a.elements[i]!, b.elements[i]!)) return false;
+  }
+  return true;
+}
+
+function convertEquals(a: ConvertNode, b: ConvertNode): boolean {
+  const aRef = a.typeRef;
+  const bRef = b.typeRef;
+  // TypeConstructorNode has a 'type' property; TypeRef has a 'kind' property
+  if ('type' in aRef && 'type' in bRef) {
+    return astEquals(aRef, bRef);
+  }
+  if ('kind' in aRef && 'kind' in bRef) {
+    if (aRef.kind !== bRef.kind) return false;
+    if (aRef.kind === 'static' && bRef.kind === 'static') {
+      return aRef.typeName === bRef.typeName;
+    }
+    if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic') {
+      return aRef.varName === bRef.varName;
+    }
+  }
+  return false;
 }

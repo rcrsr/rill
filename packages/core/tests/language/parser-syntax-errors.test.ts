@@ -10,7 +10,7 @@ import type { ScriptNode, DictNode, StatementNode } from '@rcrsr/rill';
 describe('Parser Syntax Errors', () => {
   describe('Dict literal key validation - Success Cases', () => {
     it('parses dict with number key to DictNode (AC-1)', () => {
-      const source = '[1: "one"]';
+      const source = 'dict[1: "one"]';
       const ast = parse(source) as ScriptNode;
       expect(ast.type).toBe('Script');
 
@@ -27,7 +27,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('parses dict with boolean keys to DictNode (AC-2)', () => {
-      const source = '[true: "yes", false: "no"]';
+      const source = 'dict[true: "yes", false: "no"]';
       const ast = parse(source) as ScriptNode;
 
       const statement = ast.statements[0] as StatementNode;
@@ -44,7 +44,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('parses dict with identifier key (AC-5, backward compatibility)', () => {
-      const source = '[name: "alice"]';
+      const source = 'dict[name: "alice"]';
       const ast = parse(source) as ScriptNode;
 
       const statement = ast.statements[0] as StatementNode;
@@ -59,7 +59,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('parses dict with positive integer number key', () => {
-      const source = '[42: "answer"]';
+      const source = 'dict[42: "answer"]';
       const ast = parse(source) as ScriptNode;
 
       const statement = ast.statements[0] as StatementNode;
@@ -74,7 +74,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('parses dict with decimal number key (AC-10)', () => {
-      const source = '[3.14: "pi"]';
+      const source = 'dict[3.14: "pi"]';
       const ast = parse(source) as ScriptNode;
 
       const statement = ast.statements[0] as StatementNode;
@@ -89,7 +89,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('parses dict with mixed key types', () => {
-      const source = '[name: "alice", 1: "one", true: "yes"]';
+      const source = 'dict[name: "alice", 1: "one", true: "yes"]';
       const ast = parse(source) as ScriptNode;
 
       const statement = ast.statements[0] as StatementNode;
@@ -106,7 +106,7 @@ describe('Parser Syntax Errors', () => {
 
     it('parses dict with negative number key', () => {
       // Negative numbers are now supported as dict keys
-      const source = '[-1: "negative", 0: "zero", 1: "positive"]';
+      const source = 'dict[-1: "negative", 0: "zero", 1: "positive"]';
       const ast = parse(source);
       expect(ast.type).toBe('Script');
       const stmt = ast.statements[0];
@@ -123,7 +123,7 @@ describe('Parser Syntax Errors', () => {
   describe('Dict literal key validation - Error Cases', () => {
     it('rejects dict as multi-key', () => {
       // EC-2: Multi-key must be a list, not a dict
-      const source = '"x" -> [[a: "dict"]: "val"]';
+      const source = '"x" -> dict[dict[a: "dict"]: "val"]';
 
       try {
         parse(source);
@@ -139,7 +139,7 @@ describe('Parser Syntax Errors', () => {
     });
 
     it('rejects nested dict as multi-key', () => {
-      const source = '[[nested: [deep: "val"]]: "result"]';
+      const source = 'dict[dict[nested: dict[deep: "val"]]: "result"]';
 
       try {
         parse(source);
@@ -156,14 +156,14 @@ describe('Parser Syntax Errors', () => {
 
     it('accepts list as multi-key', () => {
       // Valid: list literal as multi-key
-      const source = '[["a", "b"]: "val"]';
+      const source = 'dict[list["a", "b"]: "val"]';
       const ast = parse(source);
       expect(ast.type).toBe('Script');
     });
 
     it('accepts identifier as single key', () => {
       // Valid: identifier as single key
-      const source = '[a: "val"]';
+      const source = 'dict[a: "val"]';
       const ast = parse(source);
       expect(ast.type).toBe('Script');
     });
@@ -171,7 +171,7 @@ describe('Parser Syntax Errors', () => {
     it('rejects invalid token at key position (EC-1)', () => {
       // EC-1: After a valid dict entry, subsequent entries must also be valid keys
       // Using a closure as a key should fail
-      const source = '[a: 1, ||($): "val"]';
+      const source = 'dict[a: 1, ||($): "val"]';
 
       try {
         parse(source);
@@ -189,7 +189,7 @@ describe('Parser Syntax Errors', () => {
     it('rejects missing colon after key (EC-3)', () => {
       // EC-3: Colon is required after dict key
       // First entry establishes this is a dict, second entry missing colon
-      const source = '[a: 1, b "val"]';
+      const source = 'dict[a: 1, b "val"]';
 
       try {
         parse(source);
@@ -256,56 +256,6 @@ describe('Parser Syntax Errors', () => {
       const source4 = 'true -> ! { $ }';
       const ast4 = parse(source4);
       expect(ast4.type).toBe('Script');
-    });
-  });
-
-  describe('Capture arrow migration errors', () => {
-    it('rejects :> in expression context with RILL-P006 (EC-3, AC-7)', () => {
-      const source = 'x :> y';
-
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-
-        expect(parseErr.errorId).toBe('RILL-P006');
-        expect(parseErr.message).toContain('capture arrow syntax changed');
-        expect(parseErr.message).toContain(':> to =>');
-      }
-    });
-
-    it('rejects => in slice context with RILL-P006 (EC-4, AC-8)', () => {
-      // Slice syntax: /<start:stop:step>
-      // /<:=> is invalid because => (capture arrow) cannot appear in slice after :
-      const source = '"test" -> /<:=>';
-
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-
-        expect(parseErr.errorId).toBe('RILL-P006');
-        expect(parseErr.message).toContain('slice context');
-      }
-    });
-
-    it('rejects :> in pipe chain with migration error (AC-9)', () => {
-      const source = 'result :> $val -> .upper';
-
-      try {
-        parse(source);
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-
-        expect(parseErr.errorId).toBe('RILL-P006');
-        expect(parseErr.message).toContain('capture arrow syntax changed');
-      }
     });
   });
 });

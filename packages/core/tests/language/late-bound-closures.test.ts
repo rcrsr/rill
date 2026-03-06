@@ -82,7 +82,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
     it('fibonacci: base cases', async () => {
       const script = `
         |n| { ($n < 2) ? $n ! ($fib($n - 1) + $fib($n - 2)) } => $fib
-        [$fib(0), $fib(1), $fib(2)]
+        list[$fib(0), $fib(1), $fib(2)]
       `;
       expect(await run(script)).toEqual([0, 1, 1]);
     });
@@ -91,7 +91,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
   describe('Closures in Lists', () => {
     it('closures in list can reference forward-defined variable', async () => {
       const script = `
-        [
+        list[
           || { $helper(1) },
           || { $helper(2) }
         ] => $handlers
@@ -103,7 +103,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('closures in list: second handler', async () => {
       const script = `
-        [
+        list[
           || { $helper(1) },
           || { $helper(2) }
         ] => $handlers
@@ -159,7 +159,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('invoking non-callable throws error', async () => {
       const script = `
-        [1, 2, 3] => $list
+        list[1, 2, 3] => $list
         $list[0]()
       `;
       await expect(run(script)).rejects.toThrow(/Cannot invoke non-callable/);
@@ -225,7 +225,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
         || { $counter } => $get
         || { $counter + 1 } => $getPlus1
         5 => $counter
-        [$get(), $getPlus1()]
+        list[$get(), $getPlus1()]
       `;
       expect(await run(script)).toEqual([5, 6]);
     });
@@ -234,7 +234,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
   describe('Postfix Invocation Edge Cases', () => {
     it('invocation with arguments', async () => {
       const script = `
-        [|a, b| { $a + $b }] => $fns
+        list[|a, b| { $a + $b }] => $fns
         $fns[0](3, 4)
       `;
       expect(await run(script)).toBe(7);
@@ -252,7 +252,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
       // $list[0].upper parses .upper as field access on $list, not method on result
       // Use grouping to force method call on the bracket access result
       const script = `
-        ["hello", "world"] => $list
+        list["hello", "world"] => $list
         ($list[0]).upper
       `;
       expect(await run(script)).toBe('HELLO');
@@ -260,7 +260,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('invocation after method chain', async () => {
       const script = `
-        [double: |n| { $n * 2 }] => $math
+        dict[double: |n| { $n * 2 }] => $math
         $math.double(7)
       `;
       expect(await run(script)).toBe(14);
@@ -268,7 +268,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('pipe-style invocation with dict closure', async () => {
       const script = `
-        [double: |x| { $x * 2 }] => $math
+        dict[double: |x| { $x * 2 }] => $math
         5 -> $math.double()
       `;
       expect(await run(script)).toBe(10);
@@ -276,7 +276,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('pipe-style invocation with nested dict closure', async () => {
       const script = `
-        [ops: [double: |x| { $x * 2 }, triple: |x| { $x * 3 }]] => $math
+        dict[ops: dict[double: |x| { $x * 2 }, triple: |x| { $x * 3 }]] => $math
         7 -> $math.ops.double()
       `;
       expect(await run(script)).toBe(14);
@@ -284,7 +284,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('pipe-style invocation chains with dict closure', async () => {
       const script = `
-        [double: |x| { $x * 2 }] => $math
+        dict[double: |x| { $x * 2 }] => $math
         5 -> $math.double() -> $math.double()
       `;
       expect(await run(script)).toBe(20);
@@ -292,7 +292,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
 
     it('pipe-style dict closure with explicit args ignores pipe value', async () => {
       const script = `
-        [double: |x| { $x * 2 }] => $math
+        dict[double: |x| { $x * 2 }] => $math
         999 -> $math.double(7)
       `;
       expect(await run(script)).toBe(14);
@@ -303,8 +303,8 @@ describe('Rill Runtime: Late-Bound Closures', () => {
     it('closures capture loop variables when explicitly stored', async () => {
       // $ (pipeValue) is not a variable - must capture explicitly
       const script = `
-        [1, 2, 3] -> each { $ => $item \n || { $item } } => $closures
-        [$closures[0](), $closures[1](), $closures[2]()]
+        list[1, 2, 3] -> each { $ => $item \n || { $item } } => $closures
+        list[$closures[0](), $closures[1](), $closures[2]()]
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
@@ -323,11 +323,11 @@ describe('Rill Runtime: Late-Bound Closures', () => {
     it('closures in different loop iterations have different scopes', async () => {
       // Each iteration creates a new child scope with its own $item
       const script = `
-        [10, 20, 30] -> each {
+        list[10, 20, 30] -> each {
           $ => $val
           || { $val * 2 }
         } => $doublers
-        [$doublers[0](), $doublers[1](), $doublers[2]()]
+        list[$doublers[0](), $doublers[1](), $doublers[2]()]
       `;
       expect(await run(script)).toEqual([20, 40, 60]);
     });

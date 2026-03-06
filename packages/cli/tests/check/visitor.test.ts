@@ -94,7 +94,7 @@ describe('visitNode', () => {
   });
 
   it('visits loop bodies', () => {
-    const source = '[1, 2, 3] -> each { $ * 2 }';
+    const source = 'list[1, 2, 3] -> each { $ * 2 }';
     const context = createTestContext(source);
     const nodeTypes = new Set<string>();
 
@@ -109,7 +109,7 @@ describe('visitNode', () => {
 
     expect(nodeTypes.has('EachExpr')).toBe(true);
     expect(nodeTypes.has('Block')).toBe(true);
-    expect(nodeTypes.has('Tuple')).toBe(true);
+    expect(nodeTypes.has('ListLiteral')).toBe(true);
   });
 
   it('visits closure parameters and body', () => {
@@ -133,7 +133,7 @@ describe('visitNode', () => {
   });
 
   it('visits destructure patterns', () => {
-    const source = '[1, 2, 3] -> *<$a, $b, $c>';
+    const source = 'list[1, 2, 3] -> destruct<$a, $b, $c>';
     const context = createTestContext(source);
     const nodeTypes = new Set<string>();
 
@@ -146,7 +146,7 @@ describe('visitNode', () => {
 
     visitNode(context.ast, context, visitor);
 
-    expect(nodeTypes.has('Destructure')).toBe(true);
+    expect(nodeTypes.has('Destruct')).toBe(true);
     expect(nodeTypes.has('DestructPattern')).toBe(true);
   });
 

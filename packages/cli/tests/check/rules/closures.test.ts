@@ -45,15 +45,6 @@ function hasViolations(source: string, config?: CheckConfig): boolean {
   return diagnostics.length > 0;
 }
 
-/**
- * Validate source and get diagnostic codes.
- */
-function getCodes(source: string, config?: CheckConfig): string[] {
-  const ast = parse(source);
-  const diagnostics = validateScript(ast, source, config ?? createConfig());
-  return diagnostics.map((d) => d.code);
-}
-
 // ============================================================
 // CLOSURE_BARE_DOLLAR TESTS
 // ============================================================
@@ -158,12 +149,14 @@ describe('CLOSURE_LATE_BINDING', () => {
   });
 
   it('accepts each loops without closure creation', () => {
-    expect(hasViolations('[1, 2, 3] -> each { $ * 2 }', config)).toBe(false);
+    expect(hasViolations('list[1, 2, 3] -> each { $ * 2 }', config)).toBe(
+      false
+    );
   });
 
   it('accepts closures with explicit capture', () => {
     const source = `
-      [1, 2, 3] -> each {
+      list[1, 2, 3] -> each {
         $ => $item
         ||{ $item }
       }
@@ -172,7 +165,7 @@ describe('CLOSURE_LATE_BINDING', () => {
   });
 
   it('warns on closure creation without explicit capture', () => {
-    const source = '[1, 2, 3] -> each { ||{ $ } }';
+    const source = 'list[1, 2, 3] -> each { ||{ $ } }';
 
     const messages = getDiagnostics(source, config);
     expect(messages.length).toBeGreaterThan(0);
@@ -181,7 +174,7 @@ describe('CLOSURE_LATE_BINDING', () => {
   });
 
   it('has correct severity and code', () => {
-    const source = '[1, 2, 3] -> each { ||{ $ } }';
+    const source = 'list[1, 2, 3] -> each { ||{ $ } }';
     const ast = parse(source);
     const diagnostics = validateScript(ast, source, config);
 

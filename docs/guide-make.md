@@ -200,7 +200,7 @@ $result.content            # only printed once by run.ts
 
 ```rill
 newsapi::headlines() => $articles
-$articles -> map { [title: $.title, source: $.source.name] }
+$articles -> map { dict[title: $.title, source: $.source.name] }
 # returns list of dicts — run.ts prints as JSON
 ```
 
@@ -391,7 +391,7 @@ The agent script calls extension functions using `namespace::function()` syntax.
 ```rill
 // If host.ts has: hoistExtension('newsapi', createFetchExtension({...}))
 // Then agent.rill calls: newsapi::top_headlines(...)
-newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
+newsapi::top_headlines(dict[country: "us", pageSize: 5]) => $articles
 ```
 
 **STOP — do not run `npm start` yet.** You must complete two steps before executing.
@@ -477,10 +477,10 @@ $i -> ($ < 3) @ { $ + 1 }
 **Collections:**
 
 ```rill
-[1, 2, 3] -> each { $ * 2 }       # sequential iteration
-[1, 2, 3] -> map { $ * 2 }        # parallel iteration
-[1, 2, 3] -> filter { $ > 1 }     # filter elements
-[1, 2, 3] -> fold(0) { $@ + $ }   # reduce to value
+list[1, 2, 3] -> each { $ * 2 }       # sequential iteration
+list[1, 2, 3] -> map { $ * 2 }        # parallel iteration
+list[1, 2, 3] -> filter { $ > 1 }     # filter elements
+list[1, 2, 3] -> fold(0) { $@ + $ }   # reduce to value
 ```
 
 **String building** — the `+` operator is arithmetic-only. Use interpolation or `.join()`:
@@ -508,7 +508,7 @@ $fn("test")
 **Dict-bound closures:**
 
 ```rill
-[name: "alice", greet: || { "Hello, {$.name}" }] => $obj
+dict[name: "alice", greet: || { "Hello, {$.name}" }] => $obj
 $obj.greet
 # Result: "Hello, alice"
 ```
@@ -642,8 +642,8 @@ api::get_users(10) => $users
 newsapi::top_headlines("us", 5) => $resp
 
 # Dict/named args — matched to params by name
-api::get_users([limit: 10]) => $users
-newsapi::top_headlines([country: "us", pageSize: 5]) => $resp
+api::get_users(dict[limit: 10]) => $users
+newsapi::top_headlines(dict[country: "us", pageSize: 5]) => $resp
 
 # Introspection
 api::endpoints() => $list                    # [{ name, method, path, description }, ...]

@@ -1,24 +1,20 @@
 /**
  * Parser Extension: Extraction Operator Parsing
- * Destructure, slice, spread, and closure chain
+ * Destructure, slice
  */
 
 import { Parser } from './parser.js';
 import type {
-  ClosureChainNode,
+  DestructNode,
   DestructPatternNode,
   DestructureNode,
-  PipeChainNode,
-  PostfixExprNode,
   RillTypeName,
   SliceBoundNode,
   SliceNode,
-  SpreadNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan } from './state.js';
 import {
-  canStartExpression,
   isDictStart,
   isNegativeNumber,
   VALID_TYPE_NAMES,
@@ -28,39 +24,13 @@ import {
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
-    parseClosureChain(): ClosureChainNode;
     parseDestructure(): DestructureNode;
     parseDestructPattern(): DestructPatternNode;
+    parseDestructTarget(): DestructNode;
     parseSlice(): SliceNode;
     parseSliceBound(): SliceBoundNode;
-    parseSpread(): SpreadNode;
-    parseSpreadTarget(): SpreadNode;
   }
 }
-
-// ============================================================
-// CLOSURE CHAIN
-// ============================================================
-
-Parser.prototype.parseClosureChain = function (this: Parser): ClosureChainNode {
-  const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.AT, 'Expected @');
-
-  const postfix = this.parsePostfixExpr();
-  const target: PipeChainNode = {
-    type: 'PipeChain',
-    head: postfix,
-    pipes: [],
-    terminator: null,
-    span: postfix.span,
-  };
-
-  return {
-    type: 'ClosureChain',
-    target,
-    span: makeSpan(start, current(this.state).span.end),
-  };
-};
 
 // ============================================================
 // DESTRUCTURE
@@ -68,7 +38,7 @@ Parser.prototype.parseClosureChain = function (this: Parser): ClosureChainNode {
 
 Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
   const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.STAR_LT, 'Expected *<');
+  expect(this.state, TOKEN_TYPES.DESTRUCT_LANGLE, 'Expected destruct<');
 
   const elements: DestructPatternNode[] = [];
   if (!check(this.state, TOKEN_TYPES.GT)) {
@@ -94,7 +64,7 @@ Parser.prototype.parseDestructPattern = function (
 ): DestructPatternNode {
   const start = current(this.state).span.start;
 
-  if (check(this.state, TOKEN_TYPES.STAR_LT)) {
+  if (check(this.state, TOKEN_TYPES.DESTRUCT_LANGLE)) {
     const nested = this.parseDestructure();
     return {
       type: 'DestructPattern',
@@ -175,40 +145,78 @@ Parser.prototype.parseDestructPattern = function (
 };
 
 // ============================================================
+// DESTRUCT (keyword form)
+// ============================================================
+
+Parser.prototype.parseDestructTarget = function (this: Parser): DestructNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.DESTRUCT_LANGLE, 'Expected destruct<');
+
+  const elements: DestructPatternNode[] = [];
+  if (!check(this.state, TOKEN_TYPES.GT)) {
+    elements.push(this.parseDestructPattern());
+    while (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      if (check(this.state, TOKEN_TYPES.GT)) break;
+      elements.push(this.parseDestructPattern());
+    }
+  }
+
+  expect(
+    this.state,
+    TOKEN_TYPES.GT,
+    "expected '>' to close destruct form",
+    'RILL-P005'
+  );
+
+  return {
+    type: 'Destruct',
+    elements,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
 // SLICE
 // ============================================================
 
 Parser.prototype.parseSlice = function (this: Parser): SliceNode {
   const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.SLASH_LT, 'Expected /<');
+  expect(this.state, TOKEN_TYPES.SLICE_LANGLE, 'Expected slice<');
+
+  // EC-8: slice<> with no ':' separator is an error
+  if (check(this.state, TOKEN_TYPES.GT)) {
+    throw new ParseError(
+      'RILL-P001',
+      "slice requires at least one ':' separator",
+      current(this.state).span.start
+    );
+  }
 
   let sliceStart: SliceBoundNode | null = null;
   let sliceStop: SliceBoundNode | null = null;
   let sliceStep: SliceBoundNode | null = null;
 
-  // Handle :: as shorthand for empty start and stop (e.g., /<::2> means [::2])
+  // Handle :: as shorthand for empty start and stop (e.g., slice<::2> means [::2])
   if (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
     advance(this.state); // consume ::
-    // Both start and stop are empty, parse step if present
     if (!check(this.state, TOKEN_TYPES.GT)) {
       sliceStep = this.parseSliceBound();
     }
   } else {
-    // Normal parsing: start:stop:step
     if (!check(this.state, TOKEN_TYPES.COLON)) {
       sliceStart = this.parseSliceBound();
     }
 
-    expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
-
-    // Detect deprecated capture arrow in slice context
-    if (check(this.state, TOKEN_TYPES.CAPTURE_ARROW)) {
+    if (!check(this.state, TOKEN_TYPES.COLON)) {
       throw new ParseError(
-        'RILL-P006',
-        'Capture arrow cannot appear in slice context',
+        'RILL-P001',
+        "slice requires at least one ':' separator",
         current(this.state).span.start
       );
     }
+
+    advance(this.state); // consume first :
 
     if (
       !check(this.state, TOKEN_TYPES.COLON) &&
@@ -225,7 +233,12 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.GT, 'Expected >', 'RILL-P005');
+  expect(
+    this.state,
+    TOKEN_TYPES.GT,
+    "expected '>' to close slice form",
+    'RILL-P005'
+  );
 
   return {
     type: 'Slice',
@@ -270,56 +283,4 @@ Parser.prototype.parseSliceBound = function (this: Parser): SliceBoundNode {
     `Expected slice bound (number, variable, or grouped expression), got: ${current(this.state).value}`,
     current(this.state).span.start
   );
-};
-
-// ============================================================
-// SPREAD
-// ============================================================
-
-Parser.prototype.parseSpread = function (this: Parser): SpreadNode {
-  const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.STAR, 'Expected *');
-
-  if (!canStartExpression(this.state)) {
-    return {
-      type: 'Spread',
-      operand: null,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  const primary = this.parsePrimary();
-
-  const operand: PostfixExprNode = {
-    type: 'PostfixExpr',
-    primary,
-    methods: [],
-    defaultValue: null,
-    span: primary.span,
-  };
-
-  const operandExpr: PipeChainNode = {
-    type: 'PipeChain',
-    head: operand,
-    pipes: [],
-    terminator: null,
-    span: operand.span,
-  };
-
-  return {
-    type: 'Spread',
-    operand: operandExpr,
-    span: makeSpan(start, current(this.state).span.end),
-  };
-};
-
-Parser.prototype.parseSpreadTarget = function (this: Parser): SpreadNode {
-  const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.STAR, 'Expected *');
-
-  return {
-    type: 'Spread',
-    operand: null,
-    span: makeSpan(start, current(this.state).span.end),
-  };
 };

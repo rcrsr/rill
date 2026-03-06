@@ -35,8 +35,9 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Logical | `!` (unary), `&&`, `\|\|` |
 | Pipe | `->` |
 | Capture | `=>` |
-| Spread | `@` (sequential), `*dict` (ordered) |
-| Extraction | `*<>` (destructure), `/<>` (slice) |
+| Spread | `...` (list/tuple spread), `ordered[...]` spread |
+| Extraction | `destruct<>` (destructure), `slice<>` (slice) |
+| Conversion | `:>type` (convert type) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
@@ -79,10 +80,10 @@ See [Collections](topic-collections.md) for detailed documentation.
 | String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` | String value |
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
-| List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
-| Dict | `[k: v]`, `[$k: v]`, `[($e): v]` | `[output: "text"]`, `[$key: 1]` | Dict value |
-| Ordered | `*[k: v]` | `*[a: 1, b: "hello"]` | Ordered value |
-| Tuple | `*[...]` (positional, *list spread removed) | `*[1, 2]` | Tuple value |
+| List | `list[a, b]`, `list[...$list]` | `list["file.ts", 42]`, `list[...$a, 3]` | List value |
+| Dict | `dict[k: v]`, `dict[$k: v]`, `dict[($e): v]` | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
+| Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
+| Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
@@ -160,13 +161,13 @@ Type constructors are primary expressions that produce structural type values. T
 `^type` returns a structural type value — not a coarse string:
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
 
 ```rill
-[a: 1, b: "hello"] => $d
+dict[a: 1, b: "hello"] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -174,7 +175,7 @@ $d.^type.name
 Type constructors appear as values and can be compared:
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
@@ -182,7 +183,7 @@ $list.^type == list(number)
 `.^type.name` returns the coarse type name string:
 
 ```rill
-[1, 2, 3] => $list
+list[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
@@ -197,73 +198,73 @@ Pipe a value to a collection (dict or list) to retrieve the corresponding elemen
 
 | Syntax | Description |
 |--------|-------------|
-| `$val -> [k1: v1, k2: v2]` | Returns value for matching key |
-| `$val -> [k1: v1, k2: v2] ?? default` | Returns matched value or default |
-| `$val -> [["k1", "k2"]: shared]` | Multi-key dispatch (same value) |
+| `$val -> dict[k1: v1, k2: v2]` | Returns value for matching key |
+| `$val -> dict[k1: v1, k2: v2] ?? default` | Returns matched value or default |
+| `$val -> dict[list["k1", "k2"]: shared]` | Multi-key dispatch (same value) |
 
 ```text
-$value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
-$value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
-$method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
+$value -> dict[apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
+$value -> dict[apple: "fruit"] ?? "not found"        # Returns "not found" if no match
+$method -> dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
 
 **Type-Aware Dispatch:** Keys match by both value and type.
 
 | Input | Dict | Result |
 |-------|------|--------|
-| `1` | `[1: "one", 2: "two"]` | `"one"` |
-| `"1"` | `[1: "one", "1": "string"]` | `"string"` |
-| `true` | `[true: "yes", false: "no"]` | `"yes"` |
-| `"true"` | `[true: "bool", "true": "string"]` | `"string"` |
-| `1` | `[[1, "one"]: "match"]` | `"match"` |
-| `"one"` | `[[1, "one"]: "match"]` | `"match"` |
+| `1` | `dict[1: "one", 2: "two"]` | `"one"` |
+| `"1"` | `dict[1: "one", "1": "string"]` | `"string"` |
+| `true` | `dict[true: "yes", false: "no"]` | `"yes"` |
+| `"true"` | `dict[true: "bool", "true": "string"]` | `"string"` |
+| `1` | `dict[list[1, "one"]: "match"]` | `"match"` |
+| `"one"` | `dict[list[1, "one"]: "match"]` | `"match"` |
 
-Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: value` maps multiple keys to the same value.
+Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `list[k1, k2]: value` maps multiple keys to the same value.
 
 **Hierarchical Dispatch:** Navigate nested structures using a path list.
 
 | Syntax | Description |
 |--------|-------------|
-| `[path] -> $target` | Navigate nested dict/list using path of keys/indexes |
-| `[] -> $target` | Empty path returns target unchanged |
-| `[k1, k2, ...] -> $dict` | Sequential navigation through nested dicts |
-| `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
-| `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
+| `list[path] -> $target` | Navigate nested dict/list using path of keys/indexes |
+| `list[] -> $target` | Empty path returns target unchanged |
+| `list[k1, k2, ...] -> $dict` | Sequential navigation through nested dicts |
+| `list[0, 1, ...] -> $list` | Sequential navigation through nested lists |
+| `list[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
 
 Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). Type mismatch throws `RUNTIME_TYPE_ERROR`.
 
 Terminal closures receive `$` bound to the final path key.
 
 ```text
-["name", "first"] -> [name: [first: "Alice"]]              # "Alice" (dict path)
-[0, 1] -> [[1, 2, 3], [4, 5, 6]]                           # 2 (list path)
-["users", 0, "name"] -> [users: [[name: "Alice"]]]         # "Alice" (mixed path)
-["req", "draft"] -> [req: [draft: { "key={$}" }]]          # "key=draft" (terminal closure)
+list["name", "first"] -> dict[name: dict[first: "Alice"]]              # "Alice" (dict path)
+list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
+list["users", 0, "name"] -> dict[users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
+list["req", "draft"] -> dict[req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
 ```
 
 **List Dispatch:** Index into a list using a number.
 
 | Syntax | Description |
 |--------|-------------|
-| `$idx -> [a, b, c]` | Returns element at index (0-based) |
-| `$idx -> [a, b, c] ?? default` | Returns element or default if out of bounds |
+| `$idx -> list[a, b, c]` | Returns element at index (0-based) |
+| `$idx -> list[a, b, c] ?? default` | Returns element or default if out of bounds |
 
 ```text
-0 -> ["first", "second", "third"]     # "first"
-1 -> ["first", "second", "third"]     # "second"
--1 -> ["first", "second", "third"]    # "third" (last element)
-5 -> ["a", "b"] ?? "not found"        # "not found" (out of bounds)
+0 -> list["first", "second", "third"]     # "first"
+1 -> list["first", "second", "third"]     # "second"
+-1 -> list["first", "second", "third"]    # "third" (last element)
+5 -> list["a", "b"] ?? "not found"        # "not found" (out of bounds)
 ```
 
 **Variable Dispatch:** Use stored collections.
 
 ```rill
-[apple: "fruit", carrot: "vegetable"] => $lookup
+dict[apple: "fruit", carrot: "vegetable"] => $lookup
 "apple" -> $lookup                    # "fruit"
 ```
 
 ```rill
-["a", "b", "c"] => $items
+list["a", "b", "c"] => $items
 1 -> $items                           # "b"
 ```
 
@@ -321,6 +322,8 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
+| `chain($fn)` | Apply single closure sequentially |
+| `chain(list[$f, $g])` | Apply list of closures sequentially |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 
@@ -340,27 +343,27 @@ When constructs appear without explicit input, `$` is used implicitly:
 
 ## Extraction Operators
 
-### Destructure `*<>`
+### Destructure `destruct<>`
 
 Extract elements from lists or dicts into variables:
 
 ```rill
-[1, 2, 3] -> *<$a, $b, $c>
+list[1, 2, 3] -> destruct<$a, $b, $c>
 # $a = 1, $b = 2, $c = 3
 
-[name: "test", count: 42] -> *<name: $n, count: $c>
+dict[name: "test", count: 42] -> destruct<name: $n, count: $c>
 # $n = "test", $c = 42
 ```
 
-### Slice `/<>`
+### Slice `slice<>`
 
 Extract portions using Python-style `start:stop:step`:
 
 ```rill
-[0, 1, 2, 3, 4] -> /<0:3>        # [0, 1, 2]
-[0, 1, 2, 3, 4] -> /<-2:>        # [3, 4]
-[0, 1, 2, 3, 4] -> /<::-1>       # [4, 3, 2, 1, 0]
-"hello" -> /<1:4>                # "ell"
+list[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
+list[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4]
+list[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0]
+"hello" -> slice<1:4>                    # "ell"
 ```
 
 See [Operators](topic-operators.md) for detailed extraction operator documentation.
@@ -446,7 +449,7 @@ $fetch.^retry    # 3
 **Complex Annotation Values:**
 
 ```rill
-^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
+^(config: dict[timeout: 30, endpoints: list["a", "b"]]) |x|($x) => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -591,14 +594,19 @@ $add(3, 4)    # 7
 
 ## Ordered and Tuples
 
-`*dict` spread produces an `ordered` container — a named container that preserves insertion order. Use it for named argument unpacking:
+`ordered[...]` produces a named container that preserves insertion order. Use it for named argument unpacking:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named args by key)
+ordered[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named args by key)
 ```
 
-Tuples are positional containers. `*list` spread is no longer supported — use `ordered` (`*dict`) for all unpacking.
+Tuples are positional containers. Use `tuple[...]` for positional argument unpacking:
+
+```rill
+|a, b, c|"{$a}-{$b}-{$c}" => $fmt
+tuple[1, 2, 3] -> $fmt()    # "1-2-3" (positional args)
+```
 
 See [Types](topic-types.md) for detailed ordered and tuple documentation.
 
@@ -617,10 +625,10 @@ Place `^(...)` between the operator name and its body to attach metadata to that
 **Collection operators:**
 
 ```rill
-[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
-[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
-[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
-[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+list[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+list[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+list[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
+list[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
 ```
 
 Invalid annotation keys for operator context produce a runtime error.
@@ -766,7 +774,7 @@ These always begin a new statement:
 | identifier | Host function call |
 | `@` | Loop |
 | `\|` `\|\|` | Closure definition |
-| literals | String, number, bool, tuple, dict |
+| literals | String, number, bool, `list[...]`, `dict[...]`, `tuple[...]`, `ordered[...]` |
 
 ### Disjoint sets
 

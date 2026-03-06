@@ -24,17 +24,17 @@ describe('Rill Language: Structural Type Identity', () => {
 
   describe('List structural types (AC-1 to AC-5)', () => {
     it('AC-1: [1, 2, 3].^type == list(number) is true', async () => {
-      const result = await run('[1, 2, 3].^type == list(number)');
+      const result = await run('list[1, 2, 3].^type == list(number)');
       expect(result).toBe(true);
     });
 
     it('AC-2: ["a", "b"].^type == list(string) is true', async () => {
-      const result = await run('["a", "b"].^type == list(string)');
+      const result = await run('list["a", "b"].^type == list(string)');
       expect(result).toBe(true);
     });
 
     it('AC-3: [].^type == list(any) is true', async () => {
-      const result = await run('[].^type == list(any)');
+      const result = await run('list[].^type == list(any)');
       expect(result).toBe(true);
     });
 
@@ -54,9 +54,9 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple structural types (AC-6 to AC-9)', () => {
-    it('AC-6: *[1, "hello", true].^type == tuple(number, string, bool)', async () => {
+    it('AC-6: tuple[1, "hello", true].^type == tuple(number, string, bool)', async () => {
       const result = await run(
-        '*[1, "hello", true].^type == tuple(number, string, bool)'
+        'tuple[1, "hello", true].^type == tuple(number, string, bool)'
       );
       expect(result).toBe(true);
     });
@@ -75,8 +75,8 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-9: *[].^type == tuple() is true', async () => {
-      const result = await run('*[].^type == tuple()');
+    it('AC-9: tuple[].^type == tuple() is true', async () => {
+      const result = await run('tuple[].^type == tuple()');
       expect(result).toBe(true);
     });
   });
@@ -86,9 +86,9 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Ordered structural types (AC-10 to AC-12)', () => {
-    it('AC-10: *[a: 1, b: "hello"].^type == ordered(a: number, b: string)', async () => {
+    it('AC-10: ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)', async () => {
       const result = await run(
-        '*[a: 1, b: "hello"].^type == ordered(a: number, b: string)'
+        'ordered[a: 1, b: "hello"].^type == ordered(a: number, b: string)'
       );
       expect(result).toBe(true);
     });
@@ -100,8 +100,8 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-12: *[:].^type == ordered()', async () => {
-      const result = await run('*[:].^type == ordered()');
+    it('AC-12: ordered[].^type == ordered()', async () => {
+      const result = await run('ordered[].^type == ordered()');
       expect(result).toBe(true);
     });
   });
@@ -113,7 +113,7 @@ describe('Rill Language: Structural Type Identity', () => {
   describe('Dict structural types (AC-13 to AC-17)', () => {
     it('AC-13: [name: "alice", age: 30].^type == dict(name: string, age: number) is true', async () => {
       const result = await run(
-        '[name: "alice", age: 30].^type == dict(name: string, age: number)'
+        'dict[name: "alice", age: 30].^type == dict(name: string, age: number)'
       );
       expect(result).toBe(true);
     });
@@ -197,7 +197,7 @@ describe('Rill Language: Structural Type Identity', () => {
     it('AC-22: stored type constructor equals ^type of matching dict', async () => {
       const result = await run(`
         dict(name: string) => $t
-        [name: "alice"].^type == $t
+        dict[name: "alice"].^type == $t
       `);
       expect(result).toBe(true);
     });
@@ -223,17 +223,17 @@ describe('Rill Language: Structural Type Identity', () => {
 
   describe('Type assertions with structural types (AC-24 to AC-30)', () => {
     it('AC-24: [1, 2, 3] :? list(number) is true — via ^type equality', async () => {
-      const result = await run('[1, 2, 3].^type == list(number)');
+      const result = await run('list[1, 2, 3].^type == list(number)');
       expect(result).toBe(true);
     });
 
     it('AC-25: [1, 2, 3] :? list(string) is false — via ^type equality', async () => {
-      const result = await run('[1, 2, 3].^type == list(string)');
+      const result = await run('list[1, 2, 3].^type == list(string)');
       expect(result).toBe(false);
     });
 
     it('AC-26: [1, 2, 3] :? list is true (coarse check)', async () => {
-      const result = await run('[1, 2, 3] -> :?list');
+      const result = await run('list[1, 2, 3] -> :?list');
       expect(result).toBe(true);
     });
 
@@ -277,12 +277,14 @@ describe('Rill Language: Structural Type Identity', () => {
     });
 
     it('AC-29: [a: [1, 2, 3]] :? dict(a: list(number)) is true — via ^type equality', async () => {
-      const result = await run('[a: [1, 2, 3]].^type == dict(a: list(number))');
+      const result = await run(
+        'dict[a: list[1, 2, 3]].^type == dict(a: list(number))'
+      );
       expect(result).toBe(true);
     });
 
     it('AC-30: [] :? list(any) is true — via ^type equality', async () => {
-      const result = await run('[].^type == list(any)');
+      const result = await run('list[].^type == list(any)');
       expect(result).toBe(true);
     });
   });
@@ -322,17 +324,17 @@ describe('Rill Language: Structural Type Identity', () => {
     });
 
     it('AC-35: [1, 2, 3].^type.name == "list" is true', async () => {
-      const result = await run('[1, 2, 3].^type.name == "list"');
+      const result = await run('list[1, 2, 3].^type.name == "list"');
       expect(result).toBe(true);
     });
 
-    it('AC-36: *[a: 1].^type.name == "ordered"', async () => {
-      const result = await run('*[a: 1].^type.name == "ordered"');
+    it('AC-36: ordered[a: 1].^type.name == "ordered"', async () => {
+      const result = await run('ordered[a: 1].^type.name == "ordered"');
       expect(result).toBe(true);
     });
 
-    it('AC-37: *[1, "hi"].^type.name == "tuple"', async () => {
-      const result = await run('*[1, "hi"].^type.name == "tuple"');
+    it('AC-37: tuple[1, "hi"].^type.name == "tuple"', async () => {
+      const result = await run('tuple[1, "hi"].^type.name == "tuple"');
       expect(result).toBe(true);
     });
   });
@@ -342,15 +344,17 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Tuple/Ordered split (AC-38 to AC-39)', () => {
-    it('AC-38: *[a: 1, b: 2].^type == ordered(a: number, b: number)', async () => {
+    it('AC-38: ordered[a: 1, b: 2].^type == ordered(a: number, b: number)', async () => {
       const result = await run(
-        '*[a: 1, b: 2].^type == ordered(a: number, b: number)'
+        'ordered[a: 1, b: 2].^type == ordered(a: number, b: number)'
       );
       expect(result).toBe(true);
     });
 
-    it('AC-39: *[1, "hello"].^type == tuple(number, string)', async () => {
-      const result = await run('*[1, "hello"].^type == tuple(number, string)');
+    it('AC-39: tuple[1, "hello"].^type == tuple(number, string)', async () => {
+      const result = await run(
+        'tuple[1, "hello"].^type == tuple(number, string)'
+      );
       expect(result).toBe(true);
     });
   });

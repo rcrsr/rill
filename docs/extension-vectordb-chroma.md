@@ -48,16 +48,16 @@ const ext = createChromaExtension({
 **upsert(id, vector, metadata?)** — Insert or update a vector:
 
 ```rill
-chroma::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example", page: 1]) => $result
+chroma::upsert("doc-1", list[0.1, 0.2, 0.3], dict[title: "Example", page: 1]) => $result
 $result.success -> log
 ```
 
 **upsert_batch(items)** — Batch insert or update multiple vectors:
 
 ```rill
-[
-  [id: "doc-1", vector: [0.1, 0.2, 0.3], metadata: [title: "First"]],
-  [id: "doc-2", vector: [0.4, 0.5, 0.6], metadata: [title: "Second"]],
+list[
+  dict[id: "doc-1", vector: list[0.1, 0.2, 0.3], metadata: dict[title: "First"]],
+  dict[id: "doc-2", vector: list[0.4, 0.5, 0.6], metadata: dict[title: "Second"]],
 ] -> chroma::upsert_batch => $result
 $result.succeeded -> log
 ```
@@ -65,7 +65,7 @@ $result.succeeded -> log
 **search(vector, options?)** — Search for similar vectors:
 
 ```rill
-chroma::search([0.1, 0.2, 0.3], [k: 5]) => $results
+chroma::search(list[0.1, 0.2, 0.3], dict[k: 5]) => $results
 $results -> log
 ```
 
@@ -92,7 +92,7 @@ $result.deleted -> log
 **delete_batch(ids)** — Delete multiple vectors by ID:
 
 ```rill
-chroma::delete_batch(["doc-1", "doc-2", "doc-3"]) => $result
+chroma::delete_batch(list["doc-1", "doc-2", "doc-3"]) => $result
 $result.succeeded -> log
 ```
 
@@ -106,7 +106,7 @@ $count -> log
 **create_collection(name, options?)** — Create a new collection:
 
 ```rill
-chroma::create_collection("my_vectors", [metadata: [description: "Test vectors"]]) => $result
+chroma::create_collection("my_vectors", dict[metadata: dict[description: "Test vectors"]]) => $result
 $result.created -> log
 ```
 

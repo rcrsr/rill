@@ -179,7 +179,7 @@ describe('Rill Runtime: Step Execution', () => {
     });
 
     it('includes all captured variables', async () => {
-      const ast = parse('"x" => $first\n"y" => $second\n[$first, $second]');
+      const ast = parse('"x" => $first\n"y" => $second\nlist[$first, $second]');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 

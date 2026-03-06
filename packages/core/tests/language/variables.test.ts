@@ -80,7 +80,7 @@ describe('Rill Runtime: Variables', () => {
 
     it('=> in loop body is per-iteration', async () => {
       expect(
-        await run('[1, 2, 3] -> each { $ => $curr -> { $curr * 2 } }')
+        await run('list[1, 2, 3] -> each { $ => $curr -> { $curr * 2 } }')
       ).toEqual([2, 4, 6]);
     });
   });
@@ -95,7 +95,10 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('supports multiple variables', async () => {
-      expect(await run('"a" => $x\n"b" => $y\n[$x, $y]')).toEqual(['a', 'b']);
+      expect(await run('"a" => $x\n"b" => $y\nlist[$x, $y]')).toEqual([
+        'a',
+        'b',
+      ]);
     });
 
     it('errors for undefined variable', async () => {
@@ -109,7 +112,7 @@ describe('Rill Runtime: Variables', () => {
 
     it('captures multiple variables in result', async () => {
       const { context } = await runWithContext(
-        '"a" => $x\n"b" => $y\n[$x, $y]'
+        '"a" => $x\n"b" => $y\nlist[$x, $y]'
       );
       expect(context.variables.get('x')).toBe('a');
       expect(context.variables.get('y')).toBe('b');
@@ -155,28 +158,30 @@ describe('Rill Runtime: Variables', () => {
 
   describe('Field Access', () => {
     it('accesses tuple index via variable', async () => {
-      expect(await run('[1, 2] => $t\n$t[0]')).toBe(1);
+      expect(await run('list[1, 2] => $t\n$t[0]')).toBe(1);
     });
 
     it('accesses dict field via variable', async () => {
-      expect(await run('[x: "y"] => $d\n$d.x')).toBe('y');
+      expect(await run('dict[x: "y"] => $d\n$d.x')).toBe('y');
     });
 
     it('chains field access', async () => {
-      expect(await run('[a: [b: 1]] => $d\n$d.a.b')).toBe(1);
+      expect(await run('dict[a: dict[b: 1]] => $d\n$d.a.b')).toBe(1);
     });
 
     it('accesses field on $ in block', async () => {
       // Direct $.field as pipe target isn't supported; use block
-      expect(await run('[x: 1] -> { $.x }')).toBe(1);
+      expect(await run('dict[x: 1] -> { $.x }')).toBe(1);
     });
 
     it('accesses nested tuple in dict', async () => {
-      expect(await run('[items: [1, 2, 3]] => $d\n$d.items[1]')).toBe(2);
+      expect(await run('dict[items: list[1, 2, 3]] => $d\n$d.items[1]')).toBe(
+        2
+      );
     });
 
     it('accesses dict in tuple', async () => {
-      expect(await run('[[a: 1], [a: 2]] => $t\n$t[1].a')).toBe(2);
+      expect(await run('list[dict[a: 1], dict[a: 2]] => $t\n$t[1].a')).toBe(2);
     });
   });
 

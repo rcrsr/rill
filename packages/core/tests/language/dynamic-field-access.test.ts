@@ -14,7 +14,7 @@ describe('Dynamic Field Access', () => {
       // AC-1: Variable key resolves string, accesses dict field
       const code = `
         "name" => $key
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.$key
       `;
       expect(await run(code)).toBe('alice');
@@ -24,7 +24,7 @@ describe('Dynamic Field Access', () => {
       // AC-2: Variable key resolves number, accesses list index
       const code = `
         1 => $idx
-        ["a", "b", "c"] => $list
+        list["a", "b", "c"] => $list
         $list.$idx
       `;
       expect(await run(code)).toBe('b');
@@ -34,7 +34,7 @@ describe('Dynamic Field Access', () => {
       // AC-15: Negative list index resolves from end (existing behavior)
       const code = `
         -1 => $idx
-        ["a", "b", "c"] => $list
+        list["a", "b", "c"] => $list
         $list.$idx
       `;
       expect(await run(code)).toBe('c');
@@ -43,7 +43,7 @@ describe('Dynamic Field Access', () => {
     it('resolves variable key in pipe chain', async () => {
       const code = `
         "name" => $key
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.$key
       `;
       expect(await run(code)).toBe('alice');
@@ -53,13 +53,13 @@ describe('Dynamic Field Access', () => {
       // Mixed-type list [30, 'alice'] (number + string) not allowed; verify each field separately
       const code1 = `
         "age" => $key1
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.$key1
       `;
       expect(await run(code1)).toBe(30);
       const code2 = `
         "name" => $key2
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.$key2
       `;
       expect(await run(code2)).toBe('alice');
@@ -72,7 +72,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         "name" => $key1
         "age" => $key2
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.(true ? $key1 ! $key2)
       `;
       expect(await run(code)).toBe('alice');
@@ -82,7 +82,7 @@ describe('Dynamic Field Access', () => {
       // AC-4: Computed expression returns number, accesses list index
       const code = `
         0 => $i
-        ["a", "b", "c"] => $list
+        list["a", "b", "c"] => $list
         $list.($i + 1)
       `;
       expect(await run(code)).toBe('b');
@@ -92,7 +92,7 @@ describe('Dynamic Field Access', () => {
       // AC-18: Computed expression with edge case string result
       const code = `
         "abc" => $str
-        [a: "single-char-key", name: "alice"] => $data
+        dict[a: "single-char-key", name: "alice"] => $data
         $data.($str -> .replace("bc", ""))
       `;
       expect(await run(code)).toBe('single-char-key');
@@ -101,7 +101,7 @@ describe('Dynamic Field Access', () => {
     it('evaluates computed expression with arithmetic', async () => {
       const code = `
         2 => $base
-        ["a", "b", "c", "d", "e"] => $list
+        list["a", "b", "c", "d", "e"] => $list
         $list.($base * 2)
       `;
       expect(await run(code)).toBe('e'); // index 4
@@ -110,7 +110,7 @@ describe('Dynamic Field Access', () => {
     it('evaluates computed expression with method call', async () => {
       const code = `
         "  name  " => $key
-        [name: "alice", age: 30] => $data
+        dict[name: "alice", age: 30] => $data
         $data.($key -> .trim)
       `;
       expect(await run(code)).toBe('alice');
@@ -121,7 +121,7 @@ describe('Dynamic Field Access', () => {
     it('returns value when first alternative key exists', async () => {
       // AC-5: First alternative key exists, returns its value
       const code = `
-        [name: "alice", nickname: "Al"] => $user
+        dict[name: "alice", nickname: "Al"] => $user
         $user.(name || nickname)
       `;
       expect(await run(code)).toBe('alice');
@@ -130,7 +130,7 @@ describe('Dynamic Field Access', () => {
     it('returns value when second alternative key exists and first missing', async () => {
       // AC-6: Second alternative key exists (first missing), returns its value
       const code = `
-        [nickname: "Al"] => $user
+        dict[nickname: "Al"] => $user
         $user.(name || nickname)
       `;
       expect(await run(code)).toBe('Al');
@@ -139,7 +139,7 @@ describe('Dynamic Field Access', () => {
     it('returns null when all alternative keys are missing', async () => {
       // AC-16: All alternative keys missing returns null
       const code = `
-        [age: 30] => $user
+        dict[age: 30] => $user
         $user.(name || nickname) ?? "unknown"
       `;
       expect(await run(code)).toBe('unknown');
@@ -148,7 +148,7 @@ describe('Dynamic Field Access', () => {
     it('works with single alternative key', async () => {
       // AC-17: Single alternative key (edge case) works correctly
       const code = `
-        [name: "alice"] => $user
+        dict[name: "alice"] => $user
         $user.(name || missing)
       `;
       // Test that single existing alternative works (use two to avoid parse edge case)
@@ -157,7 +157,7 @@ describe('Dynamic Field Access', () => {
 
     it('tries multiple alternatives left-to-right', async () => {
       const code = `
-        [title: "Dr."] => $user
+        dict[title: "Dr."] => $user
         $user.(name || nickname || title)
       `;
       expect(await run(code)).toBe('Dr.');
@@ -165,7 +165,7 @@ describe('Dynamic Field Access', () => {
 
     it('returns first non-null alternative', async () => {
       const code = `
-        [name: "", nickname: "Al"] => $user
+        dict[name: "", nickname: "Al"] => $user
         $user.(name || nickname)
       `;
       // Empty string is valid value, should return it (not try nickname)
@@ -175,7 +175,7 @@ describe('Dynamic Field Access', () => {
     it('works with number alternatives on list', async () => {
       const code = `
         0 => $idx
-        ["a", "b"] => $list
+        list["a", "b"] => $list
         $list.($idx)
       `;
       // Simple variable index test
@@ -188,7 +188,7 @@ describe('Dynamic Field Access', () => {
       // AC-7: Chained access: variable key followed by literal field
       const code = `
         "user" => $key
-        [user: [name: "alice", age: 30], admin: [name: "bob"]] => $data
+        dict[user: dict[name: "alice", age: 30], admin: dict[name: "bob"]] => $data
         $data.$key.name
       `;
       expect(await run(code)).toBe('alice');
@@ -199,7 +199,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         0 => $idx
         "name" => $field
-        [[name: "alice"], [name: "bob"]] => $users
+        list[dict[name: "alice"], dict[name: "bob"]] => $users
         $users.($idx + 0).$field
       `;
       expect(await run(code)).toBe('alice');
@@ -208,7 +208,7 @@ describe('Dynamic Field Access', () => {
     it('chains variable key followed by bracket access', async () => {
       const code = `
         "items" => $key
-        [items: [1, 2, 3], other: [4, 5]] => $data
+        dict[items: list[1, 2, 3], other: list[4, 5]] => $data
         $data.$key[1]
       `;
       expect(await run(code)).toBe(2);
@@ -217,7 +217,7 @@ describe('Dynamic Field Access', () => {
     it('chains computed key followed by literal field', async () => {
       const code = `
         "user" => $key
-        [user: [name: "alice"]] => $data
+        dict[user: dict[name: "alice"]] => $data
         $data.($key).name
       `;
       expect(await run(code)).toBe('alice');
@@ -227,7 +227,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         0 => $i
         "name" => $field
-        [[name: "alice", age: 30]] => $users
+        list[dict[name: "alice", age: 30]] => $users
         $users.($i).$field
       `;
       expect(await run(code)).toBe('alice');
@@ -235,7 +235,7 @@ describe('Dynamic Field Access', () => {
 
     it('chains alternative keys followed by literal field', async () => {
       const code = `
-        [person: [name: "alice"]] => $data
+        dict[person: dict[name: "alice"]] => $data
         $data.(user || person).name
       `;
       expect(await run(code)).toBe('alice');
@@ -246,7 +246,7 @@ describe('Dynamic Field Access', () => {
     it('returns null for any key access on empty dict with default value', async () => {
       // AC-14: Empty dict with any key access returns null (with default value support)
       const code = `
-        [:] => $empty
+        dict[] => $empty
         $empty.anyfield ?? "default"
       `;
       expect(await run(code)).toBe('default');
@@ -255,7 +255,7 @@ describe('Dynamic Field Access', () => {
     it('handles variable key with null result and default', async () => {
       const code = `
         "missing" => $key
-        [name: "alice"] => $data
+        dict[name: "alice"] => $data
         $data.$key ?? "not-found"
       `;
       expect(await run(code)).toBe('not-found');
@@ -264,7 +264,7 @@ describe('Dynamic Field Access', () => {
     it('handles computed key with null result and default', async () => {
       const code = `
         10 => $i
-        ["a", "b", "c"] => $list
+        list["a", "b", "c"] => $list
         $list.($i * 10) ?? "out-of-bounds"
       `;
       expect(await run(code)).toBe('out-of-bounds');
@@ -273,7 +273,7 @@ describe('Dynamic Field Access', () => {
     it('handles zero index via variable key', async () => {
       const code = `
         0 => $idx
-        ["first", "second"] => $list
+        list["first", "second"] => $list
         $list.$idx
       `;
       expect(await run(code)).toBe('first');
@@ -282,7 +282,7 @@ describe('Dynamic Field Access', () => {
     it('handles zero index via computed key', async () => {
       const code = `
         1 => $n
-        ["first", "second"] => $list
+        list["first", "second"] => $list
         $list.($n - 1)
       `;
       expect(await run(code)).toBe('first');
@@ -291,7 +291,7 @@ describe('Dynamic Field Access', () => {
     it('handles empty list with variable key index', async () => {
       const code = `
         0 => $idx
-        [] => $list
+        list[] => $list
         $list.$idx ?? "empty"
       `;
       expect(await run(code)).toBe('empty');
@@ -300,7 +300,7 @@ describe('Dynamic Field Access', () => {
     it('handles variable key accessing dict with numeric string key', async () => {
       const code = `
         "field123" => $key
-        [field123: "numeric-suffix-key"] => $data
+        dict[field123: "numeric-suffix-key"] => $data
         $data.$key
       `;
       expect(await run(code)).toBe('numeric-suffix-key');
@@ -310,7 +310,7 @@ describe('Dynamic Field Access', () => {
       const code = `
         "found" => $key1
         "missing" => $key2
-        [found: "success"] => $data
+        dict[found: "success"] => $data
         $data.(true ? $key1 ! $key2)
       `;
       // Conditional expression returns string key
@@ -323,7 +323,7 @@ describe('Dynamic Field Access', () => {
       it('throws RUNTIME_UNDEFINED_VARIABLE when variable key is undefined', async () => {
         // AC-9: Variable key undefined throws RUNTIME_UNDEFINED_VARIABLE [EC-1]
         const code = `
-          [name: "alice", age: 30] => $data
+          dict[name: "alice", age: 30] => $data
           $data.$missingVar
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -336,7 +336,7 @@ describe('Dynamic Field Access', () => {
         // AC-10: Variable key is boolean throws RUNTIME_TYPE_ERROR [EC-2]
         const code = `
           true => $key
-          [name: "alice", age: 30] => $data
+          dict[name: "alice", age: 30] => $data
           $data.$key
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -350,8 +350,8 @@ describe('Dynamic Field Access', () => {
       it('throws RUNTIME_TYPE_ERROR when variable key is list', async () => {
         // EC-3: Variable value is list → RUNTIME_TYPE_ERROR
         const code = `
-          ["name", "age"] => $key
-          [name: "alice", age: 30] => $data
+          list["name", "age"] => $key
+          dict[name: "alice", age: 30] => $data
           $data.$key
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -367,8 +367,8 @@ describe('Dynamic Field Access', () => {
       it('throws RUNTIME_TYPE_ERROR when computed expression returns list', async () => {
         // AC-11: Computed expression returns list throws RUNTIME_TYPE_ERROR
         const code = `
-          ["name"] => $keys
-          [name: "alice", age: 30] => $data
+          list["name"] => $keys
+          dict[name: "alice", age: 30] => $data
           $data.($keys)
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -382,7 +382,7 @@ describe('Dynamic Field Access', () => {
       it('propagates error from computed expression', async () => {
         // AC-12: Computed expression error propagates
         const code = `
-          [name: "alice"] => $data
+          dict[name: "alice"] => $data
           $data.($undefined + 1)
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -395,7 +395,7 @@ describe('Dynamic Field Access', () => {
         // EC-4: Result is closure → RUNTIME_TYPE_ERROR
         const code = `
           |x|($x + 1) => $fn
-          [name: "alice"] => $data
+          dict[name: "alice"] => $data
           $data.($fn)
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -409,8 +409,8 @@ describe('Dynamic Field Access', () => {
       it('throws RUNTIME_TYPE_ERROR when computed expression returns dict', async () => {
         // EC-5: Result is dict → RUNTIME_TYPE_ERROR
         const code = `
-          [field: "name"] => $obj
-          [name: "alice"] => $data
+          dict[field: "name"] => $obj
+          dict[name: "alice"] => $data
           $data.($obj)
         `;
         await expect(run(code)).rejects.toMatchObject({
@@ -426,7 +426,7 @@ describe('Dynamic Field Access', () => {
       it('throws RUNTIME_TYPE_ERROR when alternative access used on non-dict', async () => {
         // AC-13: Alternative access on list (not dict) throws RUNTIME_TYPE_ERROR [EC-6]
         const code = `
-          ["a", "b", "c"] => $list
+          list["a", "b", "c"] => $list
           $list.(name || title)
         `;
         await expect(run(code)).rejects.toMatchObject({

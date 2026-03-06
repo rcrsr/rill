@@ -10,19 +10,19 @@ async function run(code: string) {
 describe('implicit $ property access bug', () => {
   describe('property access on pipe value', () => {
     it('explicit $.field works', async () => {
-      const result = await run('[a: 1] -> $.a');
+      const result = await run('dict[a: 1] -> $.a');
       expect(result).toBe(1);
     });
 
     it('implicit .field should work', async () => {
       // .field should be sugar for $.field
-      const result = await run('[a: 1] -> .a');
+      const result = await run('dict[a: 1] -> .a');
       expect(result).toBe(1);
     });
 
     it('explicit $.type in condition works', async () => {
       const result = await run(
-        '[type: "json"] -> ($.type == "json") ? "yes" ! "no"'
+        'dict[type: "json"] -> ($.type == "json") ? "yes" ! "no"'
       );
       expect(result).toBe('yes');
     });
@@ -30,13 +30,13 @@ describe('implicit $ property access bug', () => {
     it('implicit .type in condition should work', async () => {
       // This currently fails with "Unknown method: type"
       const result = await run(
-        '[type: "json"] -> (.type == "json") ? "yes" ! "no"'
+        'dict[type: "json"] -> (.type == "json") ? "yes" ! "no"'
       );
       expect(result).toBe('yes');
     });
 
     it('chained implicit property access', async () => {
-      const result = await run('[a: [b: 1]] -> .a.b');
+      const result = await run('dict[a: dict[b: 1]] -> .a.b');
       expect(result).toBe(1);
     });
   });
@@ -48,7 +48,7 @@ describe('implicit $ property access bug', () => {
     });
 
     it('.type is a property access (dict field)', async () => {
-      const result = await run('[type: "test"] -> .type');
+      const result = await run('dict[type: "test"] -> .type');
       expect(result).toBe('test');
     });
   });

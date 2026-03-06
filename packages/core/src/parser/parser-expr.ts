@@ -15,6 +15,7 @@ import type {
   ChainTerminator,
   ClosureSigLiteralNode,
   ConditionalNode,
+  ConvertNode,
   DoWhileLoopNode,
   ExpressionNode,
   WhileLoopNode,
@@ -26,8 +27,10 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   RillTypeName,
+  ListLiteralNode,
   SourceLocation,
   SourceSpan,
+  TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
   VariableNode,
@@ -50,13 +53,11 @@ import {
   canStartPipeInvoke,
   isAnnotationAccess,
   isMethodCall,
-  isClosureChainTarget,
   isNegativeNumber,
   isLiteralStart,
   isClosureStart,
   makeBoolLiteralBlock,
   parseBareHostCall,
-  isDictStart,
   VALID_TYPE_NAMES,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
@@ -105,6 +106,7 @@ declare module './parser.js' {
       span: SourceSpan
     ): PostfixExprNode;
     parseClosureSigLiteral(): ClosureSigLiteralNode;
+    parseConvert(): ConvertNode;
   }
 }
 
@@ -181,7 +183,17 @@ Parser.prototype.parseCommonConstruct = function (
   }
 
   // Loop: @ body [? cond]
+  // Guard: @[ and @$fn are not valid expression forms (RILL-P010)
+  // @ is only valid as a do-while terminator inside a loop body.
   if (check(this.state, TOKEN_TYPES.AT)) {
+    const nextType = peek(this.state, 1).type;
+    if (nextType === TOKEN_TYPES.LBRACKET || nextType === TOKEN_TYPES.DOLLAR) {
+      throw new ParseError(
+        'RILL-P010',
+        `'@${nextType === TOKEN_TYPES.LBRACKET ? '[' : '$'}...' is not a valid expression; use chain(...) to chain collections`,
+        current(this.state).span.start
+      );
+    }
     return this.parseLoop(null);
   }
 
@@ -306,18 +318,6 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
 
   // Helper: check for -> or => possibly after newlines (line continuation)
   const checkChainContinuation = (): boolean => {
-    // Detect deprecated :> syntax (COLON followed by GT)
-    if (check(this.state, TOKEN_TYPES.COLON)) {
-      const nextToken = peek(this.state, 1);
-      if (nextToken.type === TOKEN_TYPES.GT) {
-        throw new ParseError(
-          'RILL-P006',
-          'The capture arrow syntax changed from :> to =>',
-          current(this.state).span.start
-        );
-      }
-    }
-
     if (
       check(this.state, TOKEN_TYPES.ARROW) ||
       check(this.state, TOKEN_TYPES.CAPTURE_ARROW)
@@ -331,20 +331,6 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
         lookahead++;
       }
       const nextToken = peek(this.state, lookahead);
-
-      // Detect deprecated :> after newlines
-      if (nextToken.type === TOKEN_TYPES.COLON) {
-        const tokenAfterColon = peek(this.state, lookahead + 1);
-        if (tokenAfterColon.type === TOKEN_TYPES.GT) {
-          // Skip newlines to reach the colon for accurate error location
-          while (check(this.state, TOKEN_TYPES.NEWLINE)) advance(this.state);
-          throw new ParseError(
-            'RILL-P006',
-            'The capture arrow syntax changed from :> to =>',
-            current(this.state).span.start
-          );
-        }
-      }
 
       if (
         nextToken.type === TOKEN_TYPES.ARROW ||
@@ -445,15 +431,6 @@ Parser.prototype.parsePostfixExprBase = function (
 
   // Check for postfix type assertion: expr:type or expr:?type
   if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.COLON)) {
-    // Detect deprecated :> syntax before type operation
-    const nextToken = peek(this.state, 1);
-    if (nextToken.type === TOKEN_TYPES.GT) {
-      throw new ParseError(
-        'RILL-P006',
-        'The capture arrow syntax changed from :> to =>',
-        current(this.state).span.start
-      );
-    }
     primary = this.parsePostfixTypeOperation(primary, start);
   }
 
@@ -636,11 +613,6 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     };
   }
 
-  // Spread operator: *expr
-  if (check(this.state, TOKEN_TYPES.STAR)) {
-    return this.parseSpread();
-  }
-
   // Unary minus for negative numbers: -42
   if (isNegativeNumber(this.state)) {
     const start = current(this.state).span.start;
@@ -662,6 +634,106 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   // Closure: |params| body or || body
   if (isClosureStart(this.state)) {
     return this.parseClosure();
+  }
+
+  // Whitespace adjacency error: collection keyword followed by bracket with whitespace (RILL-P007)
+  // e.g. `list [` or `ordered [` — the lexer only emits compound tokens (LIST_LBRACKET etc.)
+  // when there is NO whitespace. If whitespace separates them, we get IDENTIFIER + LBRACKET/LT.
+  const COMPOUND_KEYWORDS_WITH_BRACKET = ['list', 'dict', 'tuple', 'ordered'];
+  const COMPOUND_KEYWORDS_WITH_ANGLE = ['destruct', 'slice'];
+  if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+    const identValue = current(this.state).value;
+    const nextTokType = peek(this.state, 1).type;
+    if (
+      COMPOUND_KEYWORDS_WITH_BRACKET.includes(identValue) &&
+      nextTokType === TOKEN_TYPES.LBRACKET
+    ) {
+      throw new ParseError(
+        'RILL-P007',
+        "keyword and bracket must be adjacent; found whitespace before '['",
+        current(this.state).span.start
+      );
+    }
+    if (
+      COMPOUND_KEYWORDS_WITH_ANGLE.includes(identValue) &&
+      nextTokType === TOKEN_TYPES.LT
+    ) {
+      throw new ParseError(
+        'RILL-P007',
+        "keyword and bracket must be adjacent; found whitespace before '<'",
+        current(this.state).span.start
+      );
+    }
+  }
+
+  // Removed sigil forms: *[, *<, /<, @$fn (RILL-P009)
+  // Note: @[ is handled by AT in parseCommonConstruct as a loop — covered separately below.
+  if (check(this.state, TOKEN_TYPES.STAR)) {
+    const nextTokType = peek(this.state, 1).type;
+    if (nextTokType === TOKEN_TYPES.LBRACKET) {
+      throw new ParseError(
+        'RILL-P009',
+        'Sigil syntax *[ was removed; use tuple[...] or ordered[...]',
+        current(this.state).span.start
+      );
+    }
+    if (nextTokType === TOKEN_TYPES.LT) {
+      throw new ParseError(
+        'RILL-P009',
+        'Sigil syntax *< was removed; use destruct<...>',
+        current(this.state).span.start
+      );
+    }
+  }
+  if (check(this.state, TOKEN_TYPES.SLASH)) {
+    const nextTokType = peek(this.state, 1).type;
+    if (nextTokType === TOKEN_TYPES.LT) {
+      throw new ParseError(
+        'RILL-P009',
+        'Sigil syntax /< was removed; use slice<...>',
+        current(this.state).span.start
+      );
+    }
+  }
+
+  // Keyword-prefixed collection literals: list[...], tuple[...], ordered[...]
+  // Note: dict[...] is handled below — it produces a DictNode (same as bare [key:val])
+  if (
+    check(
+      this.state,
+      TOKEN_TYPES.LIST_LBRACKET,
+      TOKEN_TYPES.TUPLE_LBRACKET,
+      TOKEN_TYPES.ORDERED_LBRACKET
+    )
+  ) {
+    const token = advance(this.state);
+    const collectionTypeMap: Record<string, 'list' | 'tuple' | 'ordered'> = {
+      [TOKEN_TYPES.LIST_LBRACKET]: 'list',
+      [TOKEN_TYPES.TUPLE_LBRACKET]: 'tuple',
+      [TOKEN_TYPES.ORDERED_LBRACKET]: 'ordered',
+    };
+    const collectionType = collectionTypeMap[token.type]!;
+    return this.parseCollectionLiteral(collectionType);
+  }
+
+  // dict[...] in expression context: same semantics as bare [key: val] (DictNode)
+  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume dict[
+    skipNewlines(this.state);
+
+    // Handle empty dict: dict[]
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      const rbracket = advance(this.state); // consume ]
+      return {
+        type: 'Dict',
+        entries: [],
+        defaultValue: null,
+        span: makeSpan(start, rbracket.span.end),
+      };
+    }
+
+    return this.parseDict(start);
   }
 
   // Literal
@@ -722,6 +794,15 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return parseBareHostCall(this.state);
   }
 
+  // Bare '[' at expression start: not valid without keyword prefix (RILL-P008)
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    throw new ParseError(
+      'RILL-P008',
+      "bare '[' is not valid; use list[...] for a list or dict[...] for a dict",
+      current(this.state).span.start
+    );
+  }
+
   // Common constructs
   const common = this.parseCommonConstruct();
   if (common) return common;
@@ -761,21 +842,24 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseError();
   }
 
+  // Convert operator: -> :>type or -> :>$var or -> :>ordered(...)
+  if (
+    check(this.state, TOKEN_TYPES.COLON) &&
+    peek(this.state, 1).type === TOKEN_TYPES.GT
+  ) {
+    return this.parseConvert();
+  }
+
   // Type operations: -> :type or -> :?type
   if (check(this.state, TOKEN_TYPES.COLON)) {
     return this.parseTypeOperation();
   }
 
-  // Spread as pipe target: -> *
-  if (check(this.state, TOKEN_TYPES.STAR)) {
-    return this.parseSpreadTarget();
-  }
-
   // Extraction operators
-  if (check(this.state, TOKEN_TYPES.STAR_LT)) {
-    return this.parseDestructure();
+  if (check(this.state, TOKEN_TYPES.DESTRUCT_LANGLE)) {
+    return this.parseDestructTarget();
   }
-  if (check(this.state, TOKEN_TYPES.SLASH_LT)) {
+  if (check(this.state, TOKEN_TYPES.SLICE_LANGLE)) {
     return this.parseSlice();
   }
 
@@ -871,11 +955,6 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseClosureCall();
   }
 
-  // Sequential spread: -> @$var or -> @[closures]
-  if (isClosureChainTarget(this.state)) {
-    return this.parseClosureChain();
-  }
-
   // Pipe invoke: -> $() or -> $(args)
   if (canStartPipeInvoke(this.state)) {
     return this.parsePipeInvoke();
@@ -894,88 +973,52 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseString();
   }
 
-  // Dict or list literal for dispatch
-  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+  // Keyword list literal as dispatch target: list["a", "b"]
+  if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    const listStart = current(this.state).span.start;
+    advance(this.state); // consume list[
+    const listLiteral = this.parseCollectionLiteral('list') as ListLiteralNode;
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      const defaultValue = this.parseDefaultValue();
+      return {
+        ...listLiteral,
+        defaultValue,
+        span: makeSpan(listStart, defaultValue.span.end),
+      } satisfies ListLiteralNode;
+    }
+    return listLiteral;
+  }
+
+  // Keyword dict literal as dispatch target: dict[key: val, ...]
+  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
     const start = current(this.state).span.start;
-    advance(this.state); // consume [
+    advance(this.state); // consume dict[
     skipNewlines(this.state);
 
-    // Handle empty brackets: [] or [:]
+    // Handle empty dict: dict[]
     if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-      advance(this.state); // consume ]
-
-      // Check for ?? default value
+      const rbracket = advance(this.state); // consume ]
       let defaultValue = null;
       if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
         advance(this.state);
         defaultValue = this.parseDefaultValue();
       }
-
-      // Empty brackets [] = empty tuple
-      return {
-        type: 'Tuple',
-        elements: [],
-        defaultValue,
-        span: makeSpan(start, current(this.state).span.end),
-      };
-    }
-
-    // Handle empty dict: [:]
-    if (
-      check(this.state, TOKEN_TYPES.COLON) &&
-      this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
-    ) {
-      advance(this.state); // consume :
-      advance(this.state); // consume ]
-
-      // Check for ?? default value
-      let defaultValue = null;
-      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-        advance(this.state);
-        defaultValue = this.parseDefaultValue();
-      }
-
       return {
         type: 'Dict',
         entries: [],
         defaultValue,
-        span: makeSpan(start, current(this.state).span.end),
+        span: makeSpan(start, rbracket.span.end),
       };
     }
 
-    // Distinguish dict from tuple using isDictStart helper
-    if (isDictStart(this.state)) {
-      const dict = this.parseDict(start);
-
-      // Check for ?? default value after dict
-      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-        advance(this.state);
-        const defaultValue = this.parseDefaultValue();
-
-        return {
-          ...dict,
-          defaultValue,
-        };
-      }
-
-      return dict;
-    } else {
-      // Parse as tuple (list literal)
-      const tuple = this.parseTuple(start);
-
-      // Check for ?? default value after tuple
-      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-        advance(this.state);
-        const defaultValue = this.parseDefaultValue();
-
-        return {
-          ...tuple,
-          defaultValue,
-        };
-      }
-
-      return tuple;
+    const dict = this.parseDict(start);
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      const defaultValue = this.parseDefaultValue();
+      return { ...dict, defaultValue };
     }
+    return dict;
   }
 
   // Function call with parens
@@ -1305,6 +1348,52 @@ Parser.prototype.parseClosureSigLiteral = function (
     type: 'ClosureSigLiteral',
     params,
     returnType,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+// ============================================================
+// CONVERT PARSING
+// ============================================================
+
+/**
+ * Parse the convert operator: :>type, :>$var, or :>ordered(field: type, ...)
+ *
+ * Called when current token is COLON and next is GT (i.e. `:>`).
+ * Consumes COLON and GT, then parses:
+ *   - structural: ordered(field: type, ...) → TypeConstructorNode
+ *   - dynamic:    $varName                  → TypeRef { kind: 'dynamic' }
+ *   - static:     list | dict | tuple | ...  → TypeRef { kind: 'static' }
+ */
+Parser.prototype.parseConvert = function (this: Parser): ConvertNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  expect(this.state, TOKEN_TYPES.GT, 'Expected >');
+
+  // Structural convert: :>ordered(field: type, ...)
+  const TYPE_CONSTRUCTORS = ['list', 'dict', 'tuple', 'ordered'] as const;
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    TYPE_CONSTRUCTORS.includes(
+      current(this.state).value as (typeof TYPE_CONSTRUCTORS)[number]
+    ) &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    const constructorName = current(this.state).value;
+    const typeRef: TypeConstructorNode =
+      this.parseTypeConstructor(constructorName);
+    return {
+      type: 'Convert',
+      typeRef,
+      span: makeSpan(start, current(this.state).span.end),
+    };
+  }
+
+  // Dynamic or static type reference
+  const typeRef = parseTypeRef(this.state);
+  return {
+    type: 'Convert',
+    typeRef,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

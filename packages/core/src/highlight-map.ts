@@ -31,6 +31,14 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     // Comments
     ['COMMENT', 'comment'],
 
+    // Compound keywords
+    ['LIST_LBRACKET', 'keyword'],
+    ['DICT_LBRACKET', 'keyword'],
+    ['TUPLE_LBRACKET', 'keyword'],
+    ['ORDERED_LBRACKET', 'keyword'],
+    ['DESTRUCT_LANGLE', 'keyword'],
+    ['SLICE_LANGLE', 'keyword'],
+
     // Keywords
     ['EACH', 'keyword'],
     ['MAP', 'keyword'],
@@ -69,9 +77,8 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['BANG', 'operator'],
     ['NULLISH_COALESCE', 'operator'],
     ['DOT_QUESTION', 'operator'],
-    ['STAR_LT', 'operator'],
-    ['SLASH_LT', 'operator'],
     ['ELLIPSIS', 'operator'],
+    ['CONVERT', 'operator'],
     ['AT', 'operator'],
     ['CARET', 'operator'],
     ['AMPERSAND', 'operator'],

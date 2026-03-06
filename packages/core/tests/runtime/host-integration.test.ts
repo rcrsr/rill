@@ -197,7 +197,7 @@ describe('Rill Runtime: Host Integration', () => {
       };
 
       await expect(
-        run('[1,2,3,4,5,6,7,8,9,10] -> each { count() }', {
+        run('list[1,2,3,4,5,6,7,8,9,10] -> each { count() }', {
           functions: { count: countFn },
           signal: controller.signal,
         })
@@ -223,7 +223,7 @@ describe('Rill Runtime: Host Integration', () => {
       };
 
       await expect(
-        run('[1, 2, 3, 4, 5] -> each { tick($) }', {
+        run('list[1, 2, 3, 4, 5] -> each { tick($) }', {
           functions: { tick: tickFn },
           signal: controller.signal,
         })

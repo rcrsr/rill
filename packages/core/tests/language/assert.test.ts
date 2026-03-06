@@ -22,7 +22,7 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('works with list elements in each loop (AC-4)', async () => {
-      const result = await run('[1, 2, 3] -> each { assert ($ > 0) }');
+      const result = await run('list[1, 2, 3] -> each { assert ($ > 0) }');
       expect(result).toEqual([1, 2, 3]);
     });
 
@@ -60,7 +60,7 @@ describe('Rill Runtime: Assert Statement', () => {
 
     it('halts loop at first assertion failure (AC-8)', async () => {
       await expect(
-        run('[1, 0, 3] -> each { assert ($ > 0) "Must be positive" }')
+        run('list[1, 0, 3] -> each { assert ($ > 0) "Must be positive" }')
       ).rejects.toThrow('Must be positive');
     });
 
@@ -104,13 +104,13 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('throws when condition is list', async () => {
-      await expect(run('[1, 2] -> assert $')).rejects.toThrow(
+      await expect(run('list[1, 2] -> assert $')).rejects.toThrow(
         'assert requires boolean condition, got list'
       );
     });
 
     it('throws when condition is dict', async () => {
-      await expect(run('[a: 1] -> assert $')).rejects.toThrow(
+      await expect(run('dict[a: 1] -> assert $')).rejects.toThrow(
         'assert requires boolean condition, got dict'
       );
     });
@@ -251,27 +251,27 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('works with map operator', async () => {
-      expect(await run('[1, 2, 3] -> map { assert ($ > 0)\n$ * 2 }')).toEqual([
-        2, 4, 6,
-      ]);
+      expect(
+        await run('list[1, 2, 3] -> map { assert ($ > 0)\n$ * 2 }')
+      ).toEqual([2, 4, 6]);
     });
 
     it('halts map on assertion failure', async () => {
       await expect(
-        run('[1, 0, 3] -> map { assert ($ > 0) "Invalid element" }')
+        run('list[1, 0, 3] -> map { assert ($ > 0) "Invalid element" }')
       ).rejects.toThrow('Invalid element');
     });
 
     it('works with filter operator', async () => {
       expect(
-        await run('[1, 2, 3, 4] -> filter { assert ($ > 0)\n$ > 2 }')
+        await run('list[1, 2, 3, 4] -> filter { assert ($ > 0)\n$ > 2 }')
       ).toEqual([3, 4]);
     });
 
     it('works with fold operator', async () => {
       expect(
         await run(`
-          [1, 2, 3] -> fold(0) {
+          list[1, 2, 3] -> fold(0) {
             assert ($@ >= 0) "Accumulator invalid"
             $@ + $
           }
@@ -300,15 +300,15 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('preserves different value types', async () => {
-      expect(await run('[1, 2] -> assert (!.empty)')).toEqual([1, 2]);
-      expect(await run('[a: 1] -> assert (!.empty)')).toEqual({ a: 1 });
+      expect(await run('list[1, 2] -> assert (!.empty)')).toEqual([1, 2]);
+      expect(await run('dict[a: 1] -> assert (!.empty)')).toEqual({ a: 1 });
       expect(await run('true -> assert $')).toBe(true);
       expect(await run('42 -> assert ($ > 0)')).toBe(42);
     });
 
     it('works with default operator in message', async () => {
       const script = `
-        [name: "test"] => $obj
+        dict[name: "test"] => $obj
         false -> assert $ "Error: {$obj.missing ?? "no value"}"
       `;
       await expect(run(script)).rejects.toThrow('Error: no value');

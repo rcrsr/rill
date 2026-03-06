@@ -6,14 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
 import { validateScript } from '../../src/check/validator.js';
-import type {
-  CheckConfig,
-  ValidationRule,
-  Diagnostic,
-  ASTNode,
-  ValidationContext,
-} from '../../src/check/types.js';
-import type { NodeType } from '@rcrsr/rill';
+import type { CheckConfig, Diagnostic } from '../../src/check/types.js';
 
 // ============================================================
 // TEST HELPERS
@@ -27,36 +20,6 @@ function createConfig(
   severity: Record<string, 'error' | 'warning' | 'info'> = {}
 ): CheckConfig {
   return { rules, severity };
-}
-
-/**
- * Create a mock validation rule for testing.
- */
-function createMockRule(
-  code: string,
-  nodeTypes: NodeType[],
-  diagnosticCount: number = 1
-): ValidationRule {
-  return {
-    code,
-    category: 'naming',
-    severity: 'error',
-    nodeTypes,
-    validate(node: ASTNode, _context: ValidationContext): Diagnostic[] {
-      const diagnostics: Diagnostic[] = [];
-      for (let i = 0; i < diagnosticCount; i++) {
-        diagnostics.push({
-          location: node.span.start,
-          severity: 'error',
-          code,
-          message: `Mock diagnostic ${i} from ${code}`,
-          context: '',
-          fix: null,
-        });
-      }
-      return diagnostics;
-    },
-  };
 }
 
 // ============================================================
@@ -100,12 +63,6 @@ describe('validateScript', () => {
 
   describe('diagnostic sorting', () => {
     it('sorts diagnostics by line number', () => {
-      const source = `"line1"
-"line2"
-"line3"`;
-      const ast = parse(source);
-      const config = createConfig();
-
       // Create mock diagnostics with different line numbers
       const mockDiagnostics: Diagnostic[] = [
         {
@@ -148,7 +105,6 @@ describe('validateScript', () => {
     });
 
     it('sorts diagnostics by column when lines equal', () => {
-      const source = '"hello"';
       const mockDiagnostics: Diagnostic[] = [
         {
           location: { line: 1, column: 5 },
@@ -355,7 +311,7 @@ describe('validateScript', () => {
     });
 
     it('validates script with loops', () => {
-      const source = '[1, 2, 3] -> each { $ * 2 }';
+      const source = 'list[1, 2, 3] -> each { $ * 2 }';
       const ast = parse(source);
       const config = createConfig();
 
@@ -375,7 +331,7 @@ describe('validateScript', () => {
     });
 
     it('validates script with destructuring', () => {
-      const source = '[1, 2, 3] -> *<$a, $b, $c>';
+      const source = 'list[1, 2, 3] -> destruct<$a, $b, $c>';
       const ast = parse(source);
       const config = createConfig();
 

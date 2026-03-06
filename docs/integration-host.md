@@ -113,7 +113,7 @@ interface RillOrdered {
   __rill_ordered: true;
   entries: [string, RillValue][];
 }
-// Created by: *[a: 1, b: 2]
+// Created by: ordered[a: 1, b: 2]
 ```
 
 `toNative()` converts `RillOrdered` to a plain object — the `NativeResult.native` field holds `{ key: value, ... }` with insertion-order keys.
@@ -147,10 +147,10 @@ The structural type formats as a human-readable string via `formatStructuralType
 
 | Expression | `.str` output |
 |------------|---------------|
-| `[1, 2, 3] -> ^type` | `"list(number)"` |
-| `[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
-| `[1, "x"] -> ^type` | `"tuple(number, string)"` |
-| `*[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
+| `list[1, 2, 3] -> ^type` | `"list(number)"` |
+| `dict[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
+| `tuple[1, "x"] -> ^type` | `"tuple(number, string)"` |
+| `ordered[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
 
 Dict fields are sorted alphabetically in the formatted output.
 
@@ -316,9 +316,9 @@ Namespaces help organize host APIs and avoid name collisions without requiring t
 LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. The provider enforces the schema at the API level and returns a consistent dict.
 
 ```rill
-[name: "string", age: "number", active: "bool"] => $schema
+dict[name: "string", age: "number", active: "bool"] => $schema
 
-llm::generate("Extract user info from the following text: Alice, 30, active.", [
+llm::generate("Extract user info from the following text: Alice, 30, active.", dict[
   schema: $schema,
 ]) => $result
 

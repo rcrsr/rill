@@ -82,7 +82,7 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('calls method with arg', async () => {
-      expect(await run('["a", "b"] -> .join("-")')).toBe('a-b');
+      expect(await run('list["a", "b"] -> .join("-")')).toBe('a-b');
     });
 
     it('chains methods', async () => {
@@ -120,9 +120,9 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('uses method result in method chain', async () => {
-      expect(await run('["a", "b", "c"] -> .join(",") -> .contains("b")')).toBe(
-        true
-      );
+      expect(
+        await run('list["a", "b", "c"] -> .join(",") -> .contains("b")')
+      ).toBe(true);
     });
 
     it('pipes through multiple transformations', async () => {

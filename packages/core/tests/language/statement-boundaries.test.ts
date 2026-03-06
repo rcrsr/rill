@@ -70,13 +70,13 @@ true`;
 
       it('tuple starts new statement', async () => {
         const script = `"ignored" => $a
-[1, 2, 3]`;
+list[1, 2, 3]`;
         expect(await run(script)).toEqual([1, 2, 3]);
       });
 
       it('dict starts new statement', async () => {
         const script = `"ignored" => $a
-[x: 1]`;
+dict[x: 1]`;
         expect(await run(script)).toEqual({ x: 1 });
       });
     });
@@ -163,7 +163,7 @@ $length -> ($ * 2)`;
     });
 
     it('for loop with block on same line', async () => {
-      const script = `[1, 2, 3] -> each { ($ > 1) ? ($ * 10) ! $ }`;
+      const script = `list[1, 2, 3] -> each { ($ > 1) ? ($ * 10) ! $ }`;
       expect(await run(script)).toEqual([1, 20, 30]);
     });
 
@@ -174,7 +174,7 @@ $parts -> each { "{$}!" }`;
     });
 
     it('nested control flow on single lines', async () => {
-      const script = `[1, 2, 3] -> each { ($ > 1) ? "big" ! "small" }`;
+      const script = `list[1, 2, 3] -> each { ($ > 1) ? "big" ! "small" }`;
       expect(await run(script)).toEqual(['small', 'big', 'big']);
     });
   });
@@ -195,7 +195,7 @@ $parts -> each { "{$}!" }`;
     });
 
     it('handles CRLF line endings', async () => {
-      const script = '"a" => $x\r\n"b" => $y\r\n[$x, $y]';
+      const script = '"a" => $x\r\n"b" => $y\r\nlist[$x, $y]';
       expect(await run(script)).toEqual(['a', 'b']);
     });
 

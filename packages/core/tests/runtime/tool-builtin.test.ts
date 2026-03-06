@@ -164,7 +164,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
     });
 
     it('annotation before dict literal is silently ignored', async () => {
-      const result = await run(`^("desc") [x: 1]`);
+      const result = await run(`^("desc") dict[x: 1]`);
       expect(result).toEqual({ x: 1 });
     });
 

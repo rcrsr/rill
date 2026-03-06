@@ -8,7 +8,7 @@
  */
 
 import type { CallableFn } from '../core/callable.js';
-import { callable, isDict } from '../core/callable.js';
+import { callable, isCallable, isDict } from '../core/callable.js';
 import type { RillMethod, RuntimeContext } from '../core/types.js';
 import { RuntimeError } from '../../types.js';
 import {
@@ -22,6 +22,7 @@ import {
   type RillValue,
   type RillVector,
 } from '../core/values.js';
+import { invokeCallable } from '../core/eval/index.js';
 // ============================================================
 // ITERATOR HELPERS
 // ============================================================
@@ -197,6 +198,59 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
     };
 
     return makeRepeatIterator(count);
+  },
+
+  /**
+   * Pipe a value through one or more closures, left-to-right.
+   * chain(value, closure)        -> closure(value)
+   * chain(value, [f, g, h])     -> h(g(f(value)))
+   * chain(value, [])             -> value unchanged
+   * Non-closure/non-list second arg throws RILL-R040 (EC-14).
+   */
+  chain: async (args, ctx, location) => {
+    // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
+    // Detect this by checking if there is exactly one arg and a pipe value is set.
+    let value: RillValue;
+    let arg: RillValue;
+    if (args.length === 1 && ctx.pipeValue !== null) {
+      value = ctx.pipeValue;
+      arg = args[0] ?? null;
+    } else {
+      value = args[0] ?? null;
+      arg = args[1] ?? null;
+    }
+
+    if (Array.isArray(arg)) {
+      // List of closures: fold left-to-right
+      let result = value;
+      for (const item of arg) {
+        if (!isCallable(item)) {
+          throw new RuntimeError(
+            'RILL-R040',
+            `chain: list element must be a closure, got ${inferType(item)}`,
+            location
+          );
+        }
+        result = await invokeCallable(
+          item,
+          [result],
+          ctx as RuntimeContext,
+          location
+        );
+      }
+      return result;
+    }
+
+    if (isCallable(arg)) {
+      // Single closure: invoke with value
+      return invokeCallable(arg, [value], ctx as RuntimeContext, location);
+    }
+
+    throw new RuntimeError(
+      'RILL-R040',
+      `chain: second argument must be a closure or list of closures, got ${inferType(arg)}`,
+      location
+    );
   },
 };
 

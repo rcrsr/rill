@@ -80,18 +80,18 @@ describe('Rill Runtime: Whitespace Continuations', () => {
 
   describe('G3: Access chains with . and [ across newlines', () => {
     it('dot access across newline', async () => {
-      const result = await run(`[name: "alice"] => $user\n$user\n.name`);
+      const result = await run(`dict[name: "alice"] => $user\n$user\n.name`);
       expect(result).toBe('alice');
     });
 
     it('index access across newline', async () => {
-      const result = await run(`["a", "b"] => $items\n$items\n[0]`);
+      const result = await run(`list["a", "b"] => $items\n$items\n[0]`);
       expect(result).toBe('a');
     });
 
     it('chained dot access across newlines', async () => {
       const result = await run(
-        `[name: "alice"] => $user\n$user\n.name\n.upper`
+        `dict[name: "alice"] => $user\n$user\n.name\n.upper`
       );
       expect(result).toBe('ALICE');
     });
@@ -104,14 +104,14 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
 
     it('optional type assertion :?dict across newline returns bool', async () => {
-      const result = await run(`[a: 1] => $value\n$value\n:?dict`);
+      const result = await run(`dict[a: 1] => $value\n$value\n:?dict`);
       expect(result).toBe(true);
     });
   });
 
   describe('G5: Spread ... across newlines', () => {
     it('spread inside tuple with newline before variable', async () => {
-      const result = await run(`["a", "b"] => $base\n[...\n$base]`);
+      const result = await run(`list["a", "b"] => $base\nlist[...\n$base]`);
       expect(result).toEqual(['a', 'b']);
     });
   });
@@ -168,7 +168,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
 
     it('EC-3 / AC-10: spread ... followed by newline then ] throws ParseError RILL-P004', () => {
       try {
-        parse('[...\n]');
+        parse('list[...\n]');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -186,7 +186,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
 
     it('AC-12: access chain newline before [ with invalid index throws ParseError', () => {
       try {
-        parse('"hello"\n[)');
+        parse('"hello"\nlist[)');
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -218,7 +218,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
 
     it('AC-15: single-line spread still works', async () => {
-      const result = await run('[...[1, 2]] => $t\n$t');
+      const result = await run('list[...list[1, 2]] => $t\n$t');
       expect(result).toEqual([1, 2]);
     });
 

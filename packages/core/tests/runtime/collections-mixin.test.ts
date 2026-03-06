@@ -11,23 +11,23 @@ import { run } from '../helpers/runtime.js';
 describe('CollectionsMixin', () => {
   describe('evaluateEach', () => {
     it('executes sequential iteration with all results', async () => {
-      const result = await run('[1, 2, 3] -> each { $ * 2 }');
+      const result = await run('list[1, 2, 3] -> each { $ * 2 }');
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('handles empty collections', async () => {
-      const result = await run('[] -> each { $ * 2 }');
+      const result = await run('list[] -> each { $ * 2 }');
       expect(result).toEqual([]);
     });
 
     it('supports accumulator with scan pattern', async () => {
-      const result = await run('[1, 2, 3] -> each(0) { $@ + $ }');
+      const result = await run('list[1, 2, 3] -> each(0) { $@ + $ }');
       expect(result).toEqual([1, 3, 6]);
     });
 
     it('supports break for early termination', async () => {
       const result = await run(
-        '[1, 2, 3, 4, 5] -> each { ($ == 3) ? break ! $ }'
+        'list[1, 2, 3, 4, 5] -> each { ($ == 3) ? break ! $ }'
       );
       expect(result).toEqual([1, 2]);
     });
@@ -38,46 +38,48 @@ describe('CollectionsMixin', () => {
     });
 
     it('iterates over dicts as key-value pairs', async () => {
-      const result = await run('[a: 1, b: 2] -> each { $.key }');
+      const result = await run('dict[a: 1, b: 2] -> each { $.key }');
       expect(result).toEqual(['a', 'b']);
     });
   });
 
   describe('evaluateMap', () => {
     it('executes parallel iteration with all results', async () => {
-      const result = await run('[1, 2, 3] -> map { $ * 2 }');
+      const result = await run('list[1, 2, 3] -> map { $ * 2 }');
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('handles empty collections', async () => {
-      const result = await run('[] -> map { $ * 2 }');
+      const result = await run('list[] -> map { $ * 2 }');
       expect(result).toEqual([]);
     });
 
     it('processes all elements concurrently', async () => {
-      const result = await run('[1, 2, 3] -> map { $ + 1 }');
+      const result = await run('list[1, 2, 3] -> map { $ + 1 }');
       expect(result).toEqual([2, 3, 4]);
     });
   });
 
   describe('evaluateFold', () => {
     it('executes sequential reduction to final value', async () => {
-      const result = await run('[1, 2, 3] -> fold(0) { $@ + $ }');
+      const result = await run('list[1, 2, 3] -> fold(0) { $@ + $ }');
       expect(result).toBe(6);
     });
 
     it('returns initial accumulator for empty collections', async () => {
-      const result = await run('[] -> fold(10) { $@ + $ }');
+      const result = await run('list[] -> fold(10) { $@ + $ }');
       expect(result).toBe(10);
     });
 
     it('supports closure with accumulator parameter', async () => {
-      const result = await run('[1, 2, 3] -> fold |x, acc = 0| ($acc + $x)');
+      const result = await run(
+        'list[1, 2, 3] -> fold |x, acc = 0| ($acc + $x)'
+      );
       expect(result).toBe(6);
     });
 
     it('throws error when accumulator is missing', async () => {
-      await expect(run('[1, 2, 3] -> fold { $@ + $ }')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] -> fold { $@ + $ }')).rejects.toThrow(
         'Fold requires accumulator'
       );
     });
@@ -85,22 +87,22 @@ describe('CollectionsMixin', () => {
 
   describe('evaluateFilter', () => {
     it('filters elements where predicate is true', async () => {
-      const result = await run('[1, 2, 3, 4, 5] -> filter { $ > 2 }');
+      const result = await run('list[1, 2, 3, 4, 5] -> filter { $ > 2 }');
       expect(result).toEqual([3, 4, 5]);
     });
 
     it('handles empty collections', async () => {
-      const result = await run('[] -> filter { $ > 2 }');
+      const result = await run('list[] -> filter { $ > 2 }');
       expect(result).toEqual([]);
     });
 
     it('preserves original element order', async () => {
-      const result = await run('[5, 1, 3, 2, 4] -> filter { $ > 2 }');
+      const result = await run('list[5, 1, 3, 2, 4] -> filter { $ > 2 }');
       expect(result).toEqual([5, 3, 4]);
     });
 
     it('throws error when predicate is not boolean', async () => {
-      await expect(run('[1, 2, 3] -> filter { $ * 2 }')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] -> filter { $ * 2 }')).rejects.toThrow(
         'Filter predicate must return boolean'
       );
     });
@@ -132,7 +134,7 @@ describe('CollectionsMixin', () => {
     });
 
     it('propagates errors from iterator body evaluation', async () => {
-      await expect(run('[1, 2, 3] -> each { $undefined }')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] -> each { $undefined }')).rejects.toThrow(
         'Undefined variable'
       );
     });
@@ -155,36 +157,38 @@ describe('CollectionsMixin', () => {
 
     it('respects concurrency limit annotation in map', async () => {
       // The annotation should limit parallel processing
-      const result = await run('^(limit: 2) [1, 2, 3, 4] -> map { $ * 2 }');
+      const result = await run('^(limit: 2) list[1, 2, 3, 4] -> map { $ * 2 }');
       expect(result).toEqual([2, 4, 6, 8]);
     });
   });
 
   describe('iterator body forms', () => {
     it('supports inline closure body', async () => {
-      const result = await run('[1, 2, 3] -> each |x| ($x * 2)');
+      const result = await run('list[1, 2, 3] -> each |x| ($x * 2)');
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('supports block body', async () => {
-      const result = await run('[1, 2, 3] -> each { $ * 2 }');
+      const result = await run('list[1, 2, 3] -> each { $ * 2 }');
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('supports variable closure body', async () => {
       const result = await run(
-        '|x|($x * 2) => $double\n[1, 2, 3] -> each $double'
+        '|x|($x * 2) => $double\nlist[1, 2, 3] -> each $double'
       );
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('supports bare $ as identity', async () => {
-      const result = await run('[1, 2, 3] -> each { $ }');
+      const result = await run('list[1, 2, 3] -> each { $ }');
       expect(result).toEqual([1, 2, 3]);
     });
 
     it('supports property access on element', async () => {
-      const result = await run('[[name: "a"], [name: "b"]] -> each { $.name }');
+      const result = await run(
+        'list[dict[name: "a"], dict[name: "b"]] -> each { $.name }'
+      );
       expect(result).toEqual(['a', 'b']);
     });
   });

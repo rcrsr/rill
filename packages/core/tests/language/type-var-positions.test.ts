@@ -98,7 +98,7 @@ describe('Type Variable Positions', () => {
       const result = await run(`
         list => $t
         |val: $t| { $val } => $f
-        $f([1, 2, 3])
+        $f(list[1, 2, 3])
       `);
       expect(result).toEqual([1, 2, 3]);
     });

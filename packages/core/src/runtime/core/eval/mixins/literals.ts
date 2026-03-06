@@ -27,7 +27,7 @@
 
 import type {
   StringLiteralNode,
-  TupleNode,
+  ListLiteralNode,
   DictNode,
   ClosureNode,
   BlockNode,
@@ -39,7 +39,6 @@ import type {
   AnnotationArg,
   NamedArgNode,
   SpreadArgNode,
-  ListSpreadNode,
   DictKeyVariable,
   DictKeyComputed,
   PassNode,
@@ -246,30 +245,16 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate tuple literal.
+     * Evaluate list literal elements into a flat array.
      * Elements are evaluated in order and collected into an array.
-     * ListSpreadNode elements are flattened inline.
      *
      * Errors from element evaluation propagate to caller.
      */
-    protected async evaluateTuple(node: TupleNode): Promise<RillValue[]> {
+    protected async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
-        if (elem.type === 'ListSpread') {
-          // ListSpreadNode: evaluate expression and flatten
-          const spreadResult = await this.evaluateTupleElement(elem);
-          // Spread result should be an array - flatten it
-          if (Array.isArray(spreadResult)) {
-            elements.push(...spreadResult);
-          } else {
-            // Single value returned - should not happen for ListSpread
-            elements.push(spreadResult);
-          }
-        } else {
-          // Regular element: evaluate and add
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          elements.push(await (this as any).evaluateExpression(elem));
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        elements.push(await (this as any).evaluateExpression(elem));
       }
       // Validate homogeneity: all elements must share the same structural type [C-1]
       inferElementType(elements);
@@ -277,65 +262,24 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate single tuple element.
-     * Returns spread-able array when element is ListSpreadNode, single value otherwise.
-     *
-     * @param elem - Element to evaluate (ExpressionNode or ListSpreadNode)
-     * @returns Flattened array for spread, single value otherwise
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if spread on non-list [EC-3]
+     * Evaluate multi-key dict entry from a ListLiteralNode key.
      */
-    protected async evaluateTupleElement(
-      elem: ExpressionNode | ListSpreadNode
-    ): Promise<RillValue | RillValue[]> {
-      if (elem.type === 'ListSpread') {
-        // Evaluate spread expression
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const spreadValue = await (this as any).evaluateExpression(
-          elem.expression
-        );
-
-        // Verify it's a list
-        if (!Array.isArray(spreadValue)) {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Spread in list literal requires list, got ${typeof spreadValue}`,
-            elem.span?.start,
-            { got: typeof spreadValue }
-          );
-        }
-
-        return spreadValue;
-      } else {
-        // Regular expression: evaluate and return single value
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateExpression(elem);
-      }
-    }
-
-    /**
-     * Evaluate multi-key dict entry.
-     * Expands `[["k1", "k2"]: value]` to array of key-value pairs.
-     * Evaluates value once, creates entry for each key.
-     *
-     * @param keyTuple - TupleNode containing list of keys
-     * @param value - Value expression to associate with all keys
-     * @returns Array of [key, value] pairs
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if tuple empty [EC-4]
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if key element non-primitive [EC-5]
-     */
-    protected async evaluateDictMultiKey(
-      keyTuple: TupleNode,
+    protected async evaluateDictMultiKeyFromList(
+      keyList: ListLiteralNode,
       value: ExpressionNode
     ): Promise<Array<[string, RillValue]>> {
-      // Evaluate key tuple to get list of keys
-      const keys = await this.evaluateTuple(keyTuple);
+      // Evaluate list elements to get keys
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const keys: RillValue[] = await (this as any).evaluateListLiteralElements(
+        keyList.elements
+      );
 
       // Validate non-empty [EC-4]
       if (keys.length === 0) {
         throw new RuntimeError(
           'RILL-R002',
           'Multi-key dict entry requires non-empty list',
-          keyTuple.span?.start
+          keyList.span?.start
         );
       }
 
@@ -350,7 +294,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           throw new RuntimeError(
             'RILL-R002',
             `Dict key must be string, number, or boolean, got ${keyType}`,
-            keyTuple.span?.start,
+            keyList.span?.start,
             { got: keyType }
           );
         }
@@ -359,12 +303,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate value once
       let evaluatedValue: RillValue;
       if (this.isBlockExpr(value)) {
-        // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
         const head = value.head as PostfixExprNode;
         const blockNode = head.primary as BlockNode;
         evaluatedValue = this.createBlockClosure(blockNode);
       } else if (this.isClosureExpr(value)) {
-        // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
         const head = value.head as PostfixExprNode;
         const fnLit = head.primary as ClosureNode;
         evaluatedValue = await this.createClosure(fnLit);
@@ -512,9 +454,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               continue;
             }
           }
-          // At this point, entry.key must be TupleNode (multi-key entry)
-          const pairs = await this.evaluateDictMultiKey(
-            entry.key as TupleNode,
+          // At this point, entry.key is ListLiteralNode (multi-key entry)
+          const pairs = await this.evaluateDictMultiKeyFromList(
+            entry.key as ListLiteralNode,
             entry.value
           );
           for (const [stringKey, value] of pairs) {
@@ -622,9 +564,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               entry.span.start
             );
           }
-          // Tuple key - evaluate to get list of candidates
-          // Parser ensures entry.key is TupleNode, evaluateTuple always returns array
-          const keyValue = await this.evaluateTuple(entry.key);
+          // ListLiteralNode key - evaluate to get list of candidates
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const keyValue = (await (this as any).evaluateListLiteralElements(
+            (entry.key as ListLiteralNode).elements
+          )) as RillValue[];
 
           // Check if input matches any element in the list (type-aware)
           for (const candidate of keyValue) {
@@ -671,30 +615,29 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Takes numeric index and returns element at that position.
      * Supports negative indices and default values.
      *
-     * @param node - TupleNode representing list literal
+     * @param node - ListLiteralNode representing list literal
      * @param input - Piped value to use as index (must be number)
      * @returns Element at index
      * @throws RuntimeError if input not number or index out of bounds
      */
     protected async evaluateListDispatch(
-      node: TupleNode,
+      node: ListLiteralNode,
       input: RillValue
     ): Promise<RillValue> {
-      // Validate input is number
-      if (typeof input !== 'number') {
+      // Validate input is an integer (EC-15)
+      if (typeof input !== 'number' || !Number.isInteger(input)) {
         throw new RuntimeError(
-          'RILL-R002',
-          `List dispatch requires number index, got ${typeof input}`,
+          'RILL-R041',
+          `List dispatch requires integer index, got ${typeof input !== 'number' ? typeof input : 'non-integer number'}`,
           node.span?.start,
-          { input, expectedType: 'number' }
+          { input, expectedType: 'integer' }
         );
       }
 
       // Evaluate all elements to get the list
       const elements = await this.evaluateTuple(node);
 
-      // Truncate decimal to integer
-      const index = Math.trunc(input);
+      const index = input;
 
       // Normalize negative indices
       const normalizedIndex = index < 0 ? elements.length + index : index;
@@ -707,10 +650,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return await (this as any).evaluateExpression(node.defaultValue);
         }
 
-        // No match and no default - throw error
+        // No default - throw EC-16 out-of-bounds error
         throw new RuntimeError(
-          'RILL-R009',
-          `List dispatch: index '${index}' not found`,
+          'RILL-R042',
+          `List dispatch: index ${index} out of range (length: ${elements.length})`,
           node.span?.start,
           { index, listLength: elements.length }
         );

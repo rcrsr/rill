@@ -154,7 +154,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for dict argument', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> .similarity([a: 1])', {
+        run('$v -> .similarity(dict[a: 1])', {
           variables: { v: vec },
         })
       ).rejects.toThrow('expected vector, got dict');
@@ -284,7 +284,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[1, 2, 3] -> .dimensions')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] -> .dimensions')).rejects.toThrow(
         'dimensions requires vector receiver'
       );
     });
@@ -422,7 +422,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[3, 4] -> .norm')).rejects.toThrow(
+      await expect(run('list[3, 4] -> .norm')).rejects.toThrow(
         'norm requires vector receiver'
       );
     });
@@ -460,7 +460,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[3, 4] -> .normalize')).rejects.toThrow(
+      await expect(run('list[3, 4] -> .normalize')).rejects.toThrow(
         'normalize requires vector receiver'
       );
     });

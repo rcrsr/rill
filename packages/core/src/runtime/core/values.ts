@@ -503,12 +503,12 @@ export function formatValue(value: RillValue): string {
   }
 
   if (isTuple(value)) {
-    return `tuple(${value.entries.map(formatValue).join(', ')})`;
+    return `tuple[${value.entries.map(formatValue).join(', ')}]`;
   }
 
   if (isOrdered(value)) {
     const parts = value.entries.map(([k, v]) => `${k}: ${formatValue(v)}`);
-    return `*[${parts.join(', ')}]`;
+    return `ordered[${parts.join(', ')}]`;
   }
 
   if (isRillIterator(value)) {
@@ -516,7 +516,7 @@ export function formatValue(value: RillValue): string {
   }
 
   if (Array.isArray(value)) {
-    return `list(${value.map(formatValue).join(', ')})`;
+    return `list[${value.map(formatValue).join(', ')}]`;
   }
 
   if (isVector(value)) {
@@ -533,7 +533,7 @@ export function formatValue(value: RillValue): string {
     const parts = Object.entries(dict).map(
       ([k, v]) => `${k}: ${formatValue(v)}`
     );
-    return `dict(${parts.join(', ')})`;
+    return `dict[${parts.join(', ')}]`;
   }
 
   return String(value);

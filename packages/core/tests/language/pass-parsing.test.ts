@@ -10,7 +10,7 @@ import { parse } from '@rcrsr/rill';
 describe('Rill Language: Pass Keyword Parsing', () => {
   describe('Pass in Dict Values', () => {
     it('parses pass as dict value (AC-10)', () => {
-      const ast = parse('["done": pass]');
+      const ast = parse('dict["done": pass]');
       expect(ast.type).toBe('Script');
       expect(ast.statements).toHaveLength(1);
 
@@ -31,7 +31,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
     });
 
     it('parses multiple pass values in dict (AC-16)', () => {
-      const ast = parse('[a: pass, b: pass]');
+      const ast = parse('dict[a: pass, b: pass]');
       expect(ast.type).toBe('Script');
 
       const stmt = ast.statements[0]!;
@@ -111,7 +111,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
 
   describe('Pass as Dispatch Value', () => {
     it('parses pass as only dispatch value (AC-18)', () => {
-      const ast = parse('$x -> ["match": pass]');
+      const ast = parse('$x -> dict["match": pass]');
       expect(ast.type).toBe('Script');
 
       const stmt = ast.statements[0]!;
@@ -135,15 +135,15 @@ describe('Rill Language: Pass Keyword Parsing', () => {
     });
 
     it('parses pass in list', () => {
-      const ast = parse('[pass, pass]');
+      const ast = parse('list[pass, pass]');
       expect(ast.type).toBe('Script');
 
       const stmt = ast.statements[0]!;
-      const tuple = stmt.expression.head.primary;
-      expect(tuple.type).toBe('Tuple');
-      expect(tuple.elements).toHaveLength(2);
-      expect(tuple.elements[0]!.head.primary.type).toBe('Pass');
-      expect(tuple.elements[1]!.head.primary.type).toBe('Pass');
+      const listLit = stmt.expression.head.primary;
+      expect(listLit.type).toBe('ListLiteral');
+      expect(listLit.elements).toHaveLength(2);
+      expect(listLit.elements[0]!.head.primary.type).toBe('Pass');
+      expect(listLit.elements[1]!.head.primary.type).toBe('Pass');
     });
 
     it('parses pass piped to method', () => {

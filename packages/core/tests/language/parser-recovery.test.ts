@@ -155,7 +155,7 @@ describe('Parser Recovery', () => {
     });
 
     it('handles complex valid interpolations', () => {
-      const source = `[x: 42] => $obj
+      const source = `dict[x: 42] => $obj
 "value: {$obj.x}"
 """multiline
 with {$obj.x}

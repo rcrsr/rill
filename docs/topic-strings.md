@@ -141,11 +141,11 @@ $m -> !.empty ? process($m.groups[0])
 | `.lines` | `() -> list`                 | Split on newlines (same as .split) |
 
 ```rill
-"a,b,c" -> .split(",")               # ["a", "b", "c"]
-"a\nb\nc" -> .lines                  # ["a", "b", "c"]
+"a,b,c" -> .split(",")               # list["a", "b", "c"]
+"a\nb\nc" -> .lines                  # list["a", "b", "c"]
 
-["a", "b", "c"] -> .join("-")        # "a-b-c"
-["a", "b", "c"] -> .join("\n")       # "a\nb\nc"
+list["a", "b", "c"] -> .join("-")    # "a-b-c"
+list["a", "b", "c"] -> .join("\n")   # "a\nb\nc"
 ```
 
 ---
@@ -199,7 +199,7 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email"
 ### Format Output
 
 ```rill
-[[name: "Alice", value: 100], [name: "Bob", value: 42]] => $items
+list[dict[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $items
 $items -> each {
   $.name -> .pad_end(20) => $name
   $.value -> .str -> .pad_start(10) => $val
@@ -219,7 +219,7 @@ $text -> .replace_all("\\s+", " ") -> .trim
 ```rill
 "key: value" => $line
 $line -> .match("(\\w+):\\s*(.+)") => $m
-$m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
+$m -> !.empty ? dict[key: $m.groups[0], value: $m.groups[1]]
 ```
 
 ---

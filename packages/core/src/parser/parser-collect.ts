@@ -52,10 +52,6 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
     return this.parseVariable();
   }
 
-  if (check(this.state, TOKEN_TYPES.STAR)) {
-    return this.parseSpread();
-  }
-
   // Method shorthand: .method applies method to each element
   if (check(this.state, TOKEN_TYPES.DOT)) {
     return this.parsePostfixExpr();
@@ -68,7 +64,7 @@ Parser.prototype.parseIteratorBody = function (this: Parser): IteratorBody {
 
   throw new ParseError(
     'RILL-P001',
-    `Expected collection body (closure, block, grouped, variable, spread, method, or function), got: ${current(this.state).value}`,
+    `Expected collection body (closure, block, grouped, variable, method, or function), got: ${current(this.state).value}`,
     current(this.state).span.start
   );
 };

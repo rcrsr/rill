@@ -92,7 +92,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts list argument for list parameter', async () => {
-        const result = await run('first([1, 2, 3])', {
+        const result = await run('first(list[1, 2, 3])', {
           functions: {
             first: {
               params: [{ name: 'items', type: 'list' }],
@@ -104,7 +104,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts dict argument for dict parameter', async () => {
-        const result = await run('getValue([key: "test"])', {
+        const result = await run('getValue(dict[key: "test"])', {
           functions: {
             getValue: {
               params: [{ name: 'data', type: 'dict' }],
@@ -843,7 +843,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
     describe('TC-HOSTTYPE-7: Throws error for wrong collection type (list vs dict mismatch) [EC-3, AC-12]', () => {
       it('throws RuntimeError when dict parameter receives list', async () => {
         await expect(
-          run('getValue([1, 2, 3])', {
+          run('getValue(list[1, 2, 3])', {
             functions: {
               getValue: {
                 params: [{ name: 'data', type: 'dict' }],
@@ -1347,7 +1347,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
 
     describe('AC-19: List validation does not check element types', () => {
       it('accepts list of numbers for list parameter', async () => {
-        const result = await run('process([1, 2, 3])', {
+        const result = await run('process(list[1, 2, 3])', {
           functions: {
             process: {
               params: [{ name: 'items', type: 'list' }],
@@ -1359,7 +1359,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts list of strings for list parameter', async () => {
-        const result = await run('process(["a", "b"])', {
+        const result = await run('process(list["a", "b"])', {
           functions: {
             process: {
               params: [{ name: 'items', type: 'list' }],
@@ -1371,7 +1371,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts empty list for list parameter', async () => {
-        const result = await run('process([])', {
+        const result = await run('process(list[])', {
           functions: {
             process: {
               params: [{ name: 'items', type: 'list' }],
@@ -1383,7 +1383,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts nested lists for list parameter', async () => {
-        const result = await run('process([[1, 2], [3, 4]])', {
+        const result = await run('process(list[list[1, 2], list[3, 4]])', {
           functions: {
             process: {
               params: [{ name: 'items', type: 'list' }],
@@ -1433,7 +1433,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts list argument for any parameter', async () => {
-        const result = await run('acceptAny([1, 2, 3])', {
+        const result = await run('acceptAny(list[1, 2, 3])', {
           functions: {
             acceptAny: {
               params: [{ name: 'value', type: 'any' }],
@@ -1446,7 +1446,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts dict argument for any parameter', async () => {
-        const result = await run('acceptAny([key: "test"])', {
+        const result = await run('acceptAny(dict[key: "test"])', {
           functions: {
             acceptAny: {
               params: [{ name: 'value', type: 'any' }],

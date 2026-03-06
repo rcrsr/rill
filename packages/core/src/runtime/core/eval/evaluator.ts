@@ -107,11 +107,13 @@ import { LiteralsMixin } from './mixins/literals.js';
 import { VariablesMixin } from './mixins/variables.js';
 import { CollectionsMixin } from './mixins/collections.js';
 import { ExtractionMixin } from './mixins/extraction.js';
+import { ListDispatchMixin } from './mixins/list-dispatch.js';
 import { ControlFlowMixin } from './mixins/control-flow.js';
 import { ClosuresMixin } from './mixins/closures.js';
 import { ExpressionsMixin } from './mixins/expressions.js';
 import { TypesMixin } from './mixins/types.js';
 import { AnnotationsMixin } from './mixins/annotations.js';
+import { ConversionMixin } from './mixins/conversion.js';
 import type { RuntimeContext } from '../types.js';
 
 /**
@@ -125,10 +127,14 @@ export const Evaluator = AnnotationsMixin(
   TypesMixin(
     ExpressionsMixin(
       ClosuresMixin(
-        ControlFlowMixin(
-          ExtractionMixin(
-            CollectionsMixin(
-              VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+        ConversionMixin(
+          ControlFlowMixin(
+            ExtractionMixin(
+              ListDispatchMixin(
+                CollectionsMixin(
+                  VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+                )
+              )
             )
           )
         )

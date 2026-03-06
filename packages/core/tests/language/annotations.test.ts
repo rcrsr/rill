@@ -23,7 +23,7 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('parses .^key annotation access syntax (AC-10)', () => {
-      const ast = parse('[name: "test"] => $obj\n$obj.^name');
+      const ast = parse('dict[name: "test"] => $obj\n$obj.^name');
       expect(ast.statements).toHaveLength(2);
       const stmt = ast.statements[1];
       expect(stmt?.type).toBe('Statement');
@@ -67,7 +67,7 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('parses spread annotation', () => {
-      const ast = parse('[limit: 10] => $opts\n^(*$opts) "hello"');
+      const ast = parse('dict[limit: 10] => $opts\n^(...$opts) "hello"');
       const stmt = ast.statements[1];
       expect(stmt?.type).toBe('AnnotatedStatement');
       if (stmt?.type === 'AnnotatedStatement') {
@@ -93,7 +93,7 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('spreads dict as annotations', async () => {
-      const result = await run('[limit: 10] => $opts\n^(*$opts) "hello"');
+      const result = await run('dict[limit: 10] => $opts\n^(...$opts) "hello"');
       expect(result).toBe('hello');
     });
 
@@ -106,7 +106,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('Parsing Errors', () => {
     it('throws error on missing identifier after .^ (EC-1)', () => {
       // Error case: .^123 should fail
-      const source = '[name: "test"] => $obj\n$obj.^123';
+      const source = 'dict[name: "test"] => $obj\n$obj.^123';
 
       try {
         parse(source);
@@ -205,7 +205,7 @@ describe('Rill Runtime: Annotations', () => {
     it('allows for-each loops within limit', async () => {
       // Operator-level annotation on each
       const script = `
-        [1, 2, 3] -> each^(limit: 10) { $ }
+        list[1, 2, 3] -> each^(limit: 10) { $ }
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
@@ -273,7 +273,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('Annotations with Various Statements', () => {
     it('works with pipe chains', async () => {
       const script = `
-        ^(limit: 5) [1, 2, 3] -> each { $ } -> .len
+        ^(limit: 5) list[1, 2, 3] -> each { $ } -> .len
       `;
       expect(await run(script)).toBe(3);
     });
@@ -310,7 +310,7 @@ describe('Rill Runtime: Annotations', () => {
       it('accesses multiple closure annotations', async () => {
         const script = `
           ^(min: 0, max: 100) |x|($x) => $fn
-          [$fn.^min, $fn.^max]
+          list[$fn.^min, $fn.^max]
         `;
         expect(await run(script)).toEqual([0, 100]);
       });
@@ -345,7 +345,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('accesses complex annotation values (AC-14)', async () => {
         const script = `
-          ^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
+          ^(config: dict[timeout: 30, endpoints: list["a", "b"]]) |x|($x) => $fn
           $fn.^config.timeout
         `;
         expect(await run(script)).toBe(30);
@@ -353,7 +353,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('accesses nested list in annotation', async () => {
         const script = `
-          ^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
+          ^(config: dict[timeout: 30, endpoints: list["a", "b"]]) |x|($x) => $fn
           $fn.^config.endpoints[0]
         `;
         expect(await run(script)).toBe('a');
@@ -381,7 +381,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('throws error for annotation access on list', async () => {
         const script = `
-          [1, 2, 3] => $list
+          list[1, 2, 3] => $list
           $list.^key
         `;
         await expect(run(script)).rejects.toThrow(
@@ -391,7 +391,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('throws error for annotation access on dict', async () => {
         const script = `
-          [name: "test"] => $dict
+          dict[name: "test"] => $dict
           $dict.^key
         `;
         await expect(run(script)).rejects.toThrow(
@@ -430,7 +430,7 @@ describe('Rill Runtime: Annotations', () => {
       it('accesses multiple parameter annotations via __annotations', async () => {
         const script = `
           |^(min: 0, max: 100) x: number| { $x } => $fn
-          [$fn.params.x.__annotations.min, $fn.params.x.__annotations.max]
+          list[$fn.params.x.__annotations.min, $fn.params.x.__annotations.max]
         `;
         expect(await run(script)).toEqual([0, 100]);
       });
@@ -541,7 +541,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('throws when accessing .params on list', async () => {
         const script = `
-          [1, 2, 3] => $list
+          list[1, 2, 3] => $list
           $list.params
         `;
         await expect(run(script)).rejects.toThrow(
@@ -551,7 +551,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('throws when accessing .params on dict', async () => {
         const script = `
-          [name: "test"] => $dict
+          dict[name: "test"] => $dict
           $dict.params
         `;
         await expect(run(script)).rejects.toThrow(
@@ -615,8 +615,8 @@ describe('Rill Runtime: Annotations', () => {
         expect(await run('"hello" => $x:any\n$x')).toBe('hello');
         expect(await run('42 => $x:any\n$x')).toBe(42);
         expect(await run('true => $x:any\n$x')).toBe(true);
-        expect(await run('[1, 2] => $x:any\n$x')).toEqual([1, 2]);
-        expect(await run('[a: 1] => $x:any\n$x')).toEqual({ a: 1 });
+        expect(await run('list[1, 2] => $x:any\n$x')).toEqual([1, 2]);
+        expect(await run('dict[a: 1] => $x:any\n$x')).toEqual({ a: 1 });
       });
 
       it('rejects invalid type name in param position (EC-8)', () => {
@@ -670,7 +670,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('chains annotation access with pipe', async () => {
         const script = `
-          ^(config: [timeout: 30]) |x|($x) => $fn
+          ^(config: dict[timeout: 30]) |x|($x) => $fn
           $fn.^config -> .timeout
         `;
         expect(await run(script)).toBe(30);
@@ -786,26 +786,26 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('each with operator-level annotation', () => {
       it('parses ^(limit:) before each body without error', () => {
-        const ast = parse('[1, 2, 3] -> each ^(limit: 10) { $ }');
+        const ast = parse('list[1, 2, 3] -> each ^(limit: 10) { $ }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
       it('executes each with operator-level annotation and produces correct result', async () => {
-        const result = await run('[1, 2, 3] -> each ^(limit: 10) { $ }');
+        const result = await run('list[1, 2, 3] -> each ^(limit: 10) { $ }');
         expect(result).toEqual([1, 2, 3]);
       });
     });
 
     describe('map with operator-level annotation', () => {
       it('parses ^(limit:) before map body without error', () => {
-        const ast = parse('[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+        const ast = parse('list[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
       it('executes map with operator-level annotation and doubles each element', async () => {
-        const result = await run('[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+        const result = await run('list[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
         expect(result).toEqual([2, 4, 6]);
       });
     });
@@ -814,7 +814,7 @@ describe('Rill Runtime: Annotations', () => {
       it('parses ^(limit:) before fold body without error', () => {
         // fold uses closure form with default accumulator so ^(...) can precede the body
         const ast = parse(
-          '[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
+          'list[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
         );
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
@@ -823,7 +823,7 @@ describe('Rill Runtime: Annotations', () => {
       it('executes fold with operator-level annotation and sums elements', async () => {
         // fold(init) prefix conflicts with ^(...) placement; use closure form instead
         const result = await run(
-          '[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
+          'list[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
         );
         expect(result).toBe(6);
       });
@@ -831,14 +831,14 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('filter with operator-level annotation', () => {
       it('parses ^(limit:) before filter body without error', () => {
-        const ast = parse('[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }');
+        const ast = parse('list[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
       it('executes filter with operator-level annotation and returns matching elements', async () => {
         const result = await run(
-          '[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }'
+          'list[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }'
         );
         expect(result).toEqual([3, 4]);
       });
@@ -853,7 +853,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('statement-level ^(limit:) before each — still runs each to completion', async () => {
         // Statement annotation wraps the full pipe chain; each uses default limit.
-        const result = await run('^(limit: 1000) [1, 2, 3] -> each { $ }');
+        const result = await run('^(limit: 1000) list[1, 2, 3] -> each { $ }');
         expect(result).toEqual([1, 2, 3]);
       });
 
@@ -870,13 +870,13 @@ describe('Rill Runtime: Annotations', () => {
       // This test verifies the parser does not reject unknown keys (runtime error is Phase 3 scope).
 
       it('parses unknown annotation key on each without error', () => {
-        const ast = parse('[1, 2, 3] -> each ^(invalid_key: 99) { $ }');
+        const ast = parse('list[1, 2, 3] -> each ^(invalid_key: 99) { $ }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
       it('parses unknown annotation key on map without error', () => {
-        const ast = parse('[1, 2, 3] -> map ^(unknown: true) { $ }');
+        const ast = parse('list[1, 2, 3] -> map ^(unknown: true) { $ }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
@@ -1088,7 +1088,7 @@ describe('Rill Runtime: Annotations', () => {
 
     it('operator-level limit on each with block-closure runs without error (IR-8)', async () => {
       // Combines operator-level annotation (IR-8) with each collection operator
-      const result = await run('[1, 2, 3] -> each ^(limit: 10) { $ * 2 }');
+      const result = await run('list[1, 2, 3] -> each ^(limit: 10) { $ * 2 }');
       expect(result).toEqual([2, 4, 6]);
     });
   });

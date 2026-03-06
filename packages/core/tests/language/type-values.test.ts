@@ -100,12 +100,12 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('[1, 2].^type.name == "list" evaluates to true', async () => {
-      const result = await run('[1, 2] => $v\n$v.^type.name == "list"');
+      const result = await run('list[1, 2] => $v\n$v.^type.name == "list"');
       expect(result).toBe(true);
     });
 
     it('[a: 1].^type.name == "dict" evaluates to true', async () => {
-      const result = await run('[a: 1] => $v\n$v.^type.name == "dict"');
+      const result = await run('dict[a: 1] => $v\n$v.^type.name == "dict"');
       expect(result).toBe(true);
     });
 
@@ -130,12 +130,12 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('.^type on a list returns typeName "list"', async () => {
-      const result = (await run('[1, 2, 3] => $v\n$v.^type')) as any;
+      const result = (await run('list[1, 2, 3] => $v\n$v.^type')) as any;
       expect(result.typeName).toBe('list');
     });
 
     it('.^type on a dict returns typeName "dict"', async () => {
-      const result = (await run('[a: 1] => $v\n$v.^type')) as any;
+      const result = (await run('dict[a: 1] => $v\n$v.^type')) as any;
       expect(result.typeName).toBe('dict');
     });
 
@@ -155,12 +155,12 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('[1, 2].^type.name == "list" evaluates to true (literal receiver)', async () => {
-      const result = await run('[1, 2].^type.name == "list"');
+      const result = await run('list[1, 2].^type.name == "list"');
       expect(result).toBe(true);
     });
 
     it('[a: 1].^type.name == "dict" evaluates to true (literal receiver)', async () => {
-      const result = await run('[a: 1].^type.name == "dict"');
+      const result = await run('dict[a: 1].^type.name == "dict"');
       expect(result).toBe(true);
     });
   });
@@ -393,7 +393,7 @@ describe('Rill Language: Type Value Expressions', () => {
     });
 
     it('type value formats as structural type in string interpolation', async () => {
-      const result = await run('[a: 1].^type => $t\n"kind: {$t}"');
+      const result = await run('dict[a: 1].^type => $t\n"kind: {$t}"');
       expect(result).toBe('kind: dict(a: number)');
     });
   });

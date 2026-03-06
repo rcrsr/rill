@@ -27,11 +27,13 @@ describe('rill-eval', () => {
     });
 
     it('evaluates collections', async () => {
-      expect((await evaluateExpression('[1, 2, 3] -> .len')).result).toBe(3);
+      expect((await evaluateExpression('list[1, 2, 3] -> .len')).result).toBe(
+        3
+      );
       expect(
-        (await evaluateExpression('[1, 2, 3] -> map |x|($x * 2)')).result
+        (await evaluateExpression('list[1, 2, 3] -> map |x|($x * 2)')).result
       ).toEqual([2, 4, 6]);
-      expect((await evaluateExpression('[a: 1].a')).result).toBe(1);
+      expect((await evaluateExpression('dict[a: 1].a')).result).toBe(1);
     });
 
     it('returns closure as RillValue when expression returns a closure', async () => {
@@ -42,7 +44,7 @@ describe('rill-eval', () => {
 
     it('handles empty values', async () => {
       expect((await evaluateExpression('""')).result).toBe('');
-      expect((await evaluateExpression('[]')).result).toEqual([]);
+      expect((await evaluateExpression('list[]')).result).toEqual([]);
       expect((await evaluateExpression('0')).result).toBe(0);
     });
 

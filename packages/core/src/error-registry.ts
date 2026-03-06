@@ -311,22 +311,89 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P006',
+    errorId: 'RILL-P007',
     category: 'parse',
-    description: 'Deprecated capture arrow syntax',
-    messageTemplate: 'The capture arrow syntax changed from :> to =>',
+    description: 'Keyword and bracket not adjacent',
+    messageTemplate:
+      "keyword and bracket must be adjacent; found whitespace before '{bracket}'",
     cause:
-      'Code uses old capture arrow syntax (:>) instead of current syntax (=>).',
+      'Collection keyword (list, ordered, destruct, slice) must be written with its bracket immediately following, no whitespace allowed.',
     resolution:
-      'Replace :> with => for all variable captures. This change was made in version 0.4.0.',
+      "Remove the whitespace between the keyword and its bracket. Write 'list[...]' not 'list [...]'.",
     examples: [
       {
-        description: 'Old capture syntax',
-        code: '"value" :> $x  # Change to "value" => $x',
+        description: 'list with whitespace before [',
+        code: 'list [1, 2]  # Error: use list[1, 2]',
       },
       {
-        description: 'Old typed capture',
-        code: '5 :> $x:number  # Change to 5 => $x:number',
+        description: 'ordered with whitespace before [',
+        code: 'ordered [a: 1]  # Error: use ordered[a: 1]',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P008',
+    category: 'parse',
+    description: 'Bare bracket at expression start',
+    messageTemplate:
+      'Bare [ at expression start is not valid; use list[...] or dict[...]',
+    cause:
+      'A bare [ token at expression start is ambiguous. Rill requires an explicit keyword prefix to distinguish list and dict literals.',
+    resolution:
+      'Use list[...] for a list literal or dict[key: val, ...] for a dict literal.',
+    examples: [
+      {
+        description: 'Bare list literal',
+        code: '[1, 2, 3]  # Error: use list[1, 2, 3]',
+      },
+      {
+        description: 'Bare dict literal',
+        code: '[a: 1, b: 2]  # Error: use dict[a: 1, b: 2]',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P009',
+    category: 'parse',
+    description: 'Removed sigil syntax',
+    messageTemplate: 'Sigil syntax {sigil} was removed; {resolution}',
+    cause:
+      'Code uses a removed sigil-prefixed collection or extraction form that was replaced by keyword-prefixed syntax.',
+    resolution:
+      'Replace the sigil form with the keyword-prefixed equivalent. See examples for specific replacements.',
+    examples: [
+      {
+        description: 'Old tuple sigil *[',
+        code: '*[1, 2]  # Error: use tuple[1, 2] or ordered[a: 1]',
+      },
+      {
+        description: 'Old destruct sigil *<',
+        code: '$ -> *<$a, $b>  # Error: use destruct<$a, $b>',
+      },
+      {
+        description: 'Old slice sigil /<',
+        code: '$ -> /<1:3>  # Error: use slice<1:3>',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P010',
+    category: 'parse',
+    description: 'Invalid AT expression syntax',
+    messageTemplate:
+      "'@[' and '@$fn' are not valid expressions; use chain(...) to chain collections",
+    cause:
+      "The '@' token at expression start is only valid as a do-while loop terminator inside a loop body. '@[...]' and '@$fn' are not supported expression forms.",
+    resolution:
+      'Use chain(...) to chain collection operations, or restructure the expression to use a valid operator.',
+    examples: [
+      {
+        description: 'Invalid @[ at expression start',
+        code: '@[1, 2, 3]  # Error: use chain(...) instead',
+      },
+      {
+        description: 'Invalid @$fn at expression start',
+        code: '@$transform  # Error: use chain(...) instead',
       },
     ],
   },
@@ -961,6 +1028,116 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Agent not registered',
         code: '# createAhiExtension({ agents: ["parser"], registry: "http://registry:8080" })\n# Registry has no entry for "parser"',
+      },
+    ],
+  },
+
+  // Collection literal, conversion, chain, and list dispatch errors (RILL-R036–RILL-R042)
+  {
+    errorId: 'RILL-R036',
+    category: 'runtime',
+    description: 'Incompatible convert source/target',
+    messageTemplate: 'cannot convert {source} to {target}',
+    cause:
+      'The :> operator does not support conversion between the given source and target types.',
+    resolution:
+      'Check the type conversion compatibility matrix. Not all combinations are valid (e.g. string :>list is not allowed).',
+    examples: [
+      {
+        description: 'String to list conversion',
+        code: '"hello" -> :>list  # Not allowed',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R037',
+    category: 'runtime',
+    description: 'dict :>ordered without structural signature',
+    messageTemplate:
+      'dict to ordered conversion requires structural type signature',
+    cause:
+      'Converting a dict to ordered with :>ordered requires an explicit ordered(field: type, ...) type signature to determine field order.',
+    resolution:
+      'Provide a structural type signature: $dict -> :>ordered(name: string, age: number)',
+    examples: [
+      {
+        description: 'Missing structural signature',
+        code: '$dict -> :>ordered  # Ambiguous field order',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R038',
+    category: 'runtime',
+    description: 'Non-parseable string to number',
+    messageTemplate: 'cannot convert string "{value}" to number',
+    cause: 'The string does not represent a valid number.',
+    resolution:
+      'Ensure the string contains a valid numeric format before converting with :>number.',
+    examples: [
+      {
+        description: 'Non-numeric string',
+        code: '"hello" -> :>number  # Not a number',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R039',
+    category: 'runtime',
+    description: ':>$var not a type value',
+    messageTemplate: 'expected type value, got {actual}',
+    cause: 'The variable used with :>$var does not hold a type value.',
+    resolution:
+      'Ensure the variable holds a type value (e.g. from a type name expression like `list` or `string`).',
+    examples: [
+      {
+        description: 'Variable is a string, not a type',
+        code: '"list" => $t\n$x -> :>$t  # $t is string, not a type value',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R040',
+    category: 'runtime',
+    description: 'chain() non-closure argument',
+    messageTemplate: 'chain() argument must be a closure or list of closures',
+    cause:
+      'The chain() built-in received a value that is neither a closure nor a list of closures.',
+    resolution: 'Pass a single closure or a list of closures to chain().',
+    examples: [
+      {
+        description: 'Passing a number to chain()',
+        code: '5 -> chain(42)  # 42 is not a closure',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R041',
+    category: 'runtime',
+    description: 'List dispatch non-integer index',
+    messageTemplate: 'list index must be an integer',
+    cause: 'The index piped to a list[...] dispatch is not an integer.',
+    resolution:
+      'Ensure the index is a whole number. Use math operations to convert if needed.',
+    examples: [
+      {
+        description: 'Floating-point index',
+        code: '1.5 -> list["a", "b"]  # Not an integer',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R042',
+    category: 'runtime',
+    description: 'List dispatch index out of range',
+    messageTemplate: 'list index {n} out of range (length: {m})',
+    cause:
+      'The index piped to a list[...] dispatch is outside the valid range.',
+    resolution: 'Use an index within [0, length-1] or add a fallback with ??.',
+    examples: [
+      {
+        description: 'Index beyond end',
+        code: '5 -> list["a", "b"]  # Only 2 elements (indices 0-1)',
       },
     ],
   },

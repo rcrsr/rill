@@ -9,7 +9,7 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: to_shape() Removal', () => {
   it('produces unknown function error when calling to_shape (AC-19)', async () => {
-    await expect(run('to_shape([x: 1])')).rejects.toThrow(
+    await expect(run('to_shape(dict[x: 1])')).rejects.toThrow(
       'Unknown function: to_shape'
     );
   });

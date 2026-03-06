@@ -45,7 +45,7 @@ describe('executeRill', () => {
       expect(result.logs[0]).toBe('42');
       expect(result.logs[1]).toBe('true');
       expect(result.logs[2]).toBe('string');
-      expect(result.logs[3]).toBe('list(1, 2, 3)');
+      expect(result.logs[3]).toBe('list[1, 2, 3]');
       expect(result.result).toBe('done');
     });
 

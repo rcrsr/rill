@@ -9,15 +9,21 @@
 
 import type {
   DestructureNode,
+  DestructNode,
   SliceNode,
-  SpreadNode,
   GroupedExprNode,
-  TupleNode,
+  ListLiteralNode,
+  DictLiteralNode,
+  TupleLiteralNode,
+  OrderedLiteralNode,
+  ExpressionNode,
+  ListSpreadNode,
+  DictEntryNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { RillValue } from '../../values.js';
-import { createOrdered, createTuple, inferType } from '../../values.js';
+import { createOrdered, createTuple, inferElementType } from '../../values.js';
 import { isDict } from '../../callable.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -35,13 +41,14 @@ import type { EvaluatorBase } from '../base.js';
  *
  * Methods added:
  * - evaluateDestructure(node, input) -> RillValue
+ * - evaluateDestruct(node, input) -> RillValue
  * - evaluateSlice(node, input) -> Promise<RillValue>
- * - evaluateStarLiteral(node) -> Promise<RillTuple>
+ * - evaluateCollectionLiteral(node) -> Promise<RillValue>
  *
  * Covers:
+ * - IR-8: evaluateCollectionLiteral for ListLiteralNode, DictLiteralNode, TupleLiteralNode, OrderedLiteralNode
  * - IR-26: evaluateDestructure(node, input) -> RillValue
  * - IR-27: evaluateSlice(node, input) -> Promise<RillValue>
- * - IR-28: evaluateStarLiteral(node) -> Promise<RillTuple>
  *
  * Error handling:
  * - EC-13: Destructure/slice on wrong types -> RuntimeError(RUNTIME_TYPE_ERROR)
@@ -238,86 +245,6 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate spread operator: *[key: value, ...]
-     * Creates an ordered dict from a dict for argument unpacking.
-     * Only dict spread is supported [C-4].
-     *
-     * Examples:
-     * *[a: 1, b: 2] -> $fn()          # Calls $fn with named args
-     */
-    protected async evaluateStarLiteral(
-      node: SpreadNode
-    ): Promise<
-      ReturnType<typeof createTuple> | ReturnType<typeof createOrdered>
-    > {
-      // Check if operand is a bare list literal: *[elements...]
-      // Evaluate elements directly to bypass list homogeneity check,
-      // since tuples allow mixed types.
-      const tupleNode = this.extractTupleNode(node);
-      if (tupleNode) {
-        const elements: RillValue[] = [];
-        for (const elem of tupleNode.elements) {
-          if (elem.type === 'ListSpread') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const spreadValue = await (this as any).evaluateExpression(
-              elem.expression
-            );
-            if (Array.isArray(spreadValue)) {
-              elements.push(...spreadValue);
-            } else {
-              elements.push(spreadValue);
-            }
-          } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            elements.push(await (this as any).evaluateExpression(elem));
-          }
-        }
-        return createTuple(elements);
-      }
-
-      let value: RillValue;
-      if (node.operand === null) {
-        value = this.ctx.pipeValue;
-      } else {
-        // Note: evaluateExpression will be available from CoreMixin
-        // which is applied before ExtractionMixin in the composition order
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value = await (this as any).evaluateExpression(node.operand);
-      }
-
-      if (Array.isArray(value)) {
-        return createTuple(value);
-      }
-
-      if (isDict(value)) {
-        return createOrdered(
-          Object.entries(value as Record<string, RillValue>)
-        );
-      }
-
-      throw new RuntimeError(
-        'RILL-R002',
-        `* requires list or dict, got ${inferType(value)}`,
-        node.span.start
-      );
-    }
-
-    /**
-     * Extract TupleNode from a Spread operand if it's a bare list literal.
-     * Returns null if the operand has pipes, methods, or is not a list literal.
-     */
-    private extractTupleNode(node: SpreadNode): TupleNode | null {
-      if (node.operand === null) return null;
-      if (node.operand.type !== 'PipeChain') return null;
-      if (node.operand.pipes.length > 0) return null;
-      const head = node.operand.head;
-      if (head.type !== 'PostfixExpr') return null;
-      if (head.methods.length > 0) return null;
-      if (head.primary.type !== 'Tuple') return null;
-      return head.primary;
-    }
-
-    /**
      * Evaluate a slice bound expression (start, stop, or step).
      * Returns the numeric value of the bound.
      */
@@ -429,6 +356,170 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else {
         return indices.map((i) => input[i]).join('') as T;
       }
+    }
+
+    /**
+     * Evaluate destruct operator: destruct<$a, $b, ...>
+     * Same semantics as evaluateDestructure but for the keyword-based syntax.
+     * Delegates to evaluateDestructure since the pattern structure is identical.
+     */
+    protected evaluateDestruct(
+      node: DestructNode,
+      input: RillValue
+    ): RillValue {
+      // DestructNode has the same elements structure as DestructureNode.
+      // Cast to DestructureNode-compatible shape for reuse.
+      return this.evaluateDestructure(
+        { ...node, type: 'Destructure' } as unknown as DestructureNode,
+        input
+      );
+    }
+
+    /**
+     * Evaluate collection literals [IR-8].
+     * Handles list[...], dict[...], tuple[...], ordered[...] keyword forms.
+     *
+     * Ellipsis spread (...$other) expands referenced collections inline.
+     * Type is fixed by the keyword — no runtime inference from content.
+     *
+     * Returns:
+     * - ListLiteralNode  -> RillValue[] (plain list)
+     * - DictLiteralNode  -> Record<string, RillValue>
+     * - TupleLiteralNode -> RillTuple
+     * - OrderedLiteralNode -> RillOrdered
+     */
+    protected async evaluateCollectionLiteral(
+      node:
+        | ListLiteralNode
+        | DictLiteralNode
+        | TupleLiteralNode
+        | OrderedLiteralNode
+    ): Promise<RillValue> {
+      switch (node.type) {
+        case 'ListLiteral': {
+          const listItems = await this.evaluateListLiteralElements(
+            node.elements
+          );
+          // Validate homogeneity: all elements must share the same structural type
+          inferElementType(listItems);
+          return listItems;
+        }
+
+        case 'TupleLiteral': {
+          // Tuples allow mixed types — no homogeneity check
+          const items = await this.evaluateListLiteralElements(node.elements);
+          return createTuple(items);
+        }
+
+        case 'DictLiteral': {
+          const result: Record<string, RillValue> = {};
+          for (const [key, value] of await this.evaluateDictLiteralEntries(
+            node.entries
+          )) {
+            result[key] = value;
+          }
+          return result;
+        }
+
+        case 'OrderedLiteral': {
+          const pairs = await this.evaluateDictLiteralEntries(node.entries);
+          return createOrdered(pairs);
+        }
+      }
+    }
+
+    /**
+     * Evaluate list/tuple literal elements, expanding spread nodes inline.
+     * Spread: ...$other expands the referenced collection into the result.
+     */
+    private async evaluateListLiteralElements(
+      rawElements: ExpressionNode[]
+    ): Promise<RillValue[]> {
+      const result: RillValue[] = [];
+      for (const elem of rawElements) {
+        if ((elem as unknown as { type: string }).type === 'ListSpread') {
+          const spreadNode = elem as unknown as ListSpreadNode;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const spreadValue = await (this as any).evaluateExpression(
+            spreadNode.expression
+          );
+          if (Array.isArray(spreadValue)) {
+            result.push(...spreadValue);
+          } else {
+            throw new RuntimeError(
+              'RILL-R002',
+              `Spread in list literal requires list, got ${typeof spreadValue}`,
+              spreadNode.span?.start,
+              { got: typeof spreadValue }
+            );
+          }
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          result.push(await (this as any).evaluateExpression(elem));
+        }
+      }
+      return result;
+    }
+
+    /**
+     * Evaluate dict/ordered literal entries, returning [key, value] pairs.
+     * Keys are always strings (number/boolean keys are stringified).
+     * Spread entries (...$other) expand inline (dict keys merged).
+     */
+    private async evaluateDictLiteralEntries(
+      entries: DictEntryNode[]
+    ): Promise<[string, RillValue][]> {
+      const result: [string, RillValue][] = [];
+      for (const entry of entries) {
+        // Spread entry: key is a string starting with '...' is not how parser marks it.
+        // The parser uses ListSpread for element spreads in list/tuple.
+        // For dict/ordered, spread is encoded as a DictEntry with an object key
+        // where kind === 'variable'. Handle simple string/number/boolean keys only here
+        // since the collection literal parser does not support multi-key or computed keys.
+        const key = entry.key;
+        let stringKey: string;
+
+        if (typeof key === 'string') {
+          stringKey = key;
+        } else if (typeof key === 'number' || typeof key === 'boolean') {
+          stringKey = String(key);
+        } else {
+          // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
+          if ('kind' in key) {
+            if (key.kind === 'variable') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const varVal = (this as any).evaluateVariable
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (this as any).evaluateVariable({
+                    name: key.variableName,
+                    isPipeVar: false,
+                    accessChain: [],
+                    defaultValue: null,
+                    existenceCheck: null,
+                  })
+                : undefined;
+              stringKey =
+                typeof varVal === 'string'
+                  ? varVal
+                  : String(varVal ?? key.variableName);
+            } else {
+              // computed: evaluate expression
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const computed = await (this as any).evaluateExpression(
+                key.expression
+              );
+              stringKey = String(computed);
+            }
+          } else {
+            stringKey = String(key);
+          }
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const value = await (this as any).evaluateExpression(entry.value);
+        result.push([stringKey, value]);
+      }
+      return result;
     }
   };
 }

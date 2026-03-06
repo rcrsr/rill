@@ -8,7 +8,6 @@
  * - Invoke operations
  * - Pipe invocations
  * - Property access on piped values
- * - Closure chains
  *
  * Interface requirements (from spec):
  * - invokeCallable(callable, args, location) -> Promise<RillValue>
@@ -20,7 +19,6 @@
  * - evaluatePipeInvoke(node, input) -> Promise<RillValue>
  * - evaluateMethod(node, receiver) -> Promise<RillValue>
  * - evaluateInvoke(node, receiver) -> Promise<RillValue>
- * - evaluateClosureChain(node, input) -> Promise<RillValue>
  *
  * Error Handling:
  * - Undefined functions throw RuntimeError(RUNTIME_UNDEFINED_FUNCTION) [EC-18]
@@ -53,7 +51,6 @@ import type {
   MethodCallNode,
   InvokeNode,
   PipeInvokeNode,
-  ClosureChainNode,
   VariableNode,
   SourceLocation,
   ExpressionNode,
@@ -114,7 +111,6 @@ import type { CallFrame } from '../../../../types.js';
  * - evaluatePipeInvoke(node, input) -> Promise<RillValue>
  * - evaluateMethod(node, receiver) -> Promise<RillValue>
  * - evaluateInvoke(node, receiver) -> Promise<RillValue>
- * - evaluateClosureChain(node, input) -> Promise<RillValue>
  * - evaluateArgs(argExprs) -> Promise<RillValue[]> (helper)
  * - invokeFnCallable(callable, args, location) -> Promise<RillValue> (helper)
  * - invokeScriptCallable(callable, args, location) -> Promise<RillValue> (helper)
@@ -930,48 +926,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const args = await this.evaluateArgs(node.args);
       return this.invokeCallable(receiver, args, this.getNodeLocation(node));
-    }
-
-    /**
-     * Evaluate closure chain: >>expr
-     * Chains multiple closures for composition.
-     */
-    protected async evaluateClosureChain(
-      node: ClosureChainNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      // Evaluate the target expression to get the closure(s)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const target = await (this as any).evaluateExpression(node.target);
-
-      if (Array.isArray(target)) {
-        // List of closures: chain them left-to-right
-        let result = input;
-        for (const closure of target) {
-          if (!isCallable(closure)) {
-            throw new RuntimeError(
-              'RILL-R002',
-              `Closure chain element must be callable, got ${inferType(closure)}`,
-              this.getNodeLocation(node)
-            );
-          }
-          result = await this.invokeCallable(
-            closure,
-            [result],
-            this.getNodeLocation(node)
-          );
-        }
-        return result;
-      } else if (isCallable(target)) {
-        // Single closure: invoke with input
-        return this.invokeCallable(target, [input], this.getNodeLocation(node));
-      } else {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Closure chain requires callable or list of callables, got ${inferType(target)}`,
-          this.getNodeLocation(node)
-        );
-      }
     }
 
     /**

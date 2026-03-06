@@ -243,7 +243,7 @@ describe('Phase 0: Scope Isolation', () => {
     });
 
     it('each iteration receives element as $', async () => {
-      const result = await run('[1, 2, 3] -> each { $ * 10 }');
+      const result = await run('list[1, 2, 3] -> each { $ * 10 }');
       expect(result).toEqual([10, 20, 30]);
     });
   });

@@ -22,19 +22,19 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('Mixed list elements (AC-40)', () => {
     it('throws on list with mixed number and string elements', async () => {
-      await expect(run('[1, "hello", 3]')).rejects.toThrow(
+      await expect(run('list[1, "hello", 3]')).rejects.toThrow(
         'List elements must be the same type'
       );
     });
 
     it('throws on list with mixed string and number elements', async () => {
-      await expect(run('["a", 1]')).rejects.toThrow(
+      await expect(run('list["a", 1]')).rejects.toThrow(
         'List elements must be the same type'
       );
     });
 
     it('throws on list with mixed bool and number elements', async () => {
-      await expect(run('[true, 1]')).rejects.toThrow(
+      await expect(run('list[true, 1]')).rejects.toThrow(
         'List elements must be the same type'
       );
     });
@@ -109,17 +109,17 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // AC-45: *[1, 2, 3] spread on list produces tuple
+  // AC-45: tuple[1, 2, 3] literal produces tuple
   // ============================================================
 
   describe('List spread produces tuple (AC-45)', () => {
     it('produces a tuple when spreading a homogeneous list', async () => {
-      const result = await run('*[1, 2, 3] => $t\n$t.^type.^name');
+      const result = await run('tuple[1, 2, 3] => $t\n$t.^type.^name');
       expect(result).toBe('tuple');
     });
 
     it('produces an empty tuple when spreading an empty list', async () => {
-      const result = await run('*[] => $t\n$t.^type.^name');
+      const result = await run('tuple[] => $t\n$t.^type.^name');
       expect(result).toBe('tuple');
     });
   });

@@ -297,23 +297,6 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return await (this as any).evaluatePostfixExpr(body);
         }
 
-        case 'Spread': {
-          // Spread: return element as tuple
-          if (Array.isArray(element)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).createTupleFromList(element);
-          }
-          if (isDict(element)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).createTupleFromDict(element);
-          }
-          throw new RuntimeError(
-            'RILL-R002',
-            `Spread requires list or dict, got ${inferType(element)}`,
-            body.span.start
-          );
-        }
-
         case 'HostCall': {
           // Host function call: invoke with element as first arg
           const fn = this.ctx.functions.get(body.name);
