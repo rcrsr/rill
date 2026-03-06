@@ -87,12 +87,16 @@ Every defensive check in the Python maps to a failure category rill eliminates:
 
 ## Why rill?
 
-- **Built for machine authorship.** General-purpose languages leave guarantees on the table. rill was designed as a target for LLM code generation.
-- **Structurally safe.** No null, no exceptions, no implicit coercion. Entire categories of failure are structurally impossible.
-- **LLM-optimized syntax.** Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). `$` prefix enables single-pass parsing — zero ambiguity for codegen.
-- **Bounded execution.** `^(limit: N)` annotations prevent runaway loops from exhausting LLM usage budgets.
-- **Sandboxed by design.** No filesystem, no network, no `eval()`. The host controls the entire function surface, not just what's blocked.
-- **Embeddable.** Zero dependencies. [Integration](docs/integration-host.md) takes a few lines of code, browser or backend.
+Four tenets drive every design decision:
+
+| Tenet | Trade-off |
+|-------|-----------|
+| **Structural Safety over Familiarity** | No null, no exceptions, no implicit coercion. If it parses, it's safe to run. |
+| **LLM Authorship over Human Ergonomics** | `$` prefix, type locking, explicit booleans. Syntax optimizes for unambiguous codegen. |
+| **Host Authority over Ambient Capability** | Scripts start with zero capabilities. The host grants exactly what it intends. |
+| **Halt over Recover** | No try/catch. Scripts return a complete result or an error, never partial state. |
+
+Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). Zero dependencies. [Embeds](docs/integration-host.md) in Node, Bun, Deno, or the browser.
 
 ## Who Is This For?
 
