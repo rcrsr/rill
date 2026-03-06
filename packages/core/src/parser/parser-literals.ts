@@ -35,7 +35,7 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import { isNegativeNumber } from './helpers.js';
+import { isDictStart, isNegativeNumber } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
@@ -54,6 +54,7 @@ declare module './parser.js' {
     ): InterpolationNode;
     unescapeBraces(s: string): string;
     parseTuple(start: SourceLocation): ListLiteralNode;
+    parseTupleOrDict(): ListLiteralNode | DictNode;
     parseTupleElement(): ExpressionNode | ListSpreadNode;
     parseDict(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
@@ -98,16 +99,11 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     return { type: 'BoolLiteral', value: false, span: token.span };
   }
 
-  // Bare '[' without keyword prefix: not valid (RILL-P008)
-  const token = current(this.state);
-  if (token.type === TOKEN_TYPES.LBRACKET) {
-    throw new ParseError(
-      'RILL-P008',
-      "bare '[' is not valid; use list[...] for a list or dict[...] for a dict",
-      token.span.start
-    );
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    return this.parseTupleOrDict();
   }
 
+  const token = current(this.state);
   let hint = '';
   if (token.type === TOKEN_TYPES.ASSIGN) {
     hint = ". Hint: Use '->' for assignment, not '='";
@@ -336,6 +332,46 @@ Parser.prototype.parseTuple = function (
   } satisfies ListLiteralNode;
 };
 
+Parser.prototype.parseTupleOrDict = function (
+  this: Parser
+): ListLiteralNode | DictNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.LBRACKET, 'Expected [');
+  skipNewlines(this.state);
+
+  // [] → empty list
+  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+    const rbracket = advance(this.state);
+    return {
+      type: 'ListLiteral',
+      elements: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+
+  // [:] → empty dict
+  if (
+    check(this.state, TOKEN_TYPES.COLON) &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
+  ) {
+    advance(this.state); // consume :
+    const rbracket = advance(this.state); // consume ]
+    return {
+      type: 'Dict',
+      entries: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+
+  if (isDictStart(this.state)) {
+    return this.parseDict(start);
+  }
+
+  return this.parseTuple(start);
+};
+
 Parser.prototype.parseTupleElement = function (
   this: Parser
 ): ExpressionNode | ListSpreadNode {
@@ -452,12 +488,21 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       expression,
     };
   } else if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    // Parse bare [a, b] as tuple multi-key
+    // Parse bare [a, b] or [] as multi-key
     const tupleStart = current(this.state).span.start;
     advance(this.state); // consume [
     skipNewlines(this.state);
-    const literal = this.parseTuple(tupleStart);
-    key = literal;
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      const rbracket = advance(this.state);
+      key = {
+        type: 'ListLiteral',
+        elements: [],
+        defaultValue: null,
+        span: makeSpan(tupleStart, rbracket.span.end),
+      } as ListLiteralNode;
+    } else {
+      key = this.parseTuple(tupleStart);
+    }
   } else if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
     // Parse list[...] literal as multi-key: dict[list["a", "b"]: value]
     advance(this.state); // consume list[

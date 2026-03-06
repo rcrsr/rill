@@ -64,9 +64,9 @@ range(1, 11) -> fold(1) { $@ * $ }`,
     id: 'dispatch',
     label: 'Dispatch',
     source: `# Dict dispatch — match value against keys
-"POST" -> [
-  ["GET", "HEAD", "OPTIONS"]: "safe",
-  ["POST", "PUT", "PATCH"]: "mutation",
+"POST" -> dict[
+  list["GET", "HEAD", "OPTIONS"]: "safe",
+  list["POST", "PUT", "PATCH"]: "mutation",
   "DELETE": "destructive"
 ] ?? "unknown"`,
   },
@@ -78,28 +78,28 @@ range(1, 11) -> fold(1) { $@ * $ }`,
 |x| ($x * $x) => $square
 
 # Closure chain: 3 -> 6 -> 16 -> 256
-3 -> @[$double, $offset, $square]`,
+3 -> chain($double, $offset, $square)`,
   },
   'collection-pipeline': {
     id: 'collection-pipeline',
     label: 'Collection Pipeline',
-    source: `[
-  [name: "Alice", score: 85],
-  [name: "Bob", score: 42],
-  [name: "Carol", score: 91],
-  [name: "Dave", score: 67],
-  [name: "Eve", score: 95]
+    source: `list[
+  dict[name: "Alice", score: 85],
+  dict[name: "Bob", score: 42],
+  dict[name: "Carol", score: 91],
+  dict[name: "Dave", score: 67],
+  dict[name: "Eve", score: 95]
 ]
   -> filter { $.score >= 70 }
   -> map {
     ($.score >= 90) ? "A" ! "B" => $grade
-    [name: $.name, grade: $grade]
+    dict[name: $.name, grade: $grade]
   }`,
   },
   destructuring: {
     id: 'destructuring',
     label: 'Destructuring',
-    source: `[10, 20, 30, 40, 50] -> *<$first, _, $third, _, $last>
+    source: `list[10, 20, 30, 40, 50] -> destruct<$first, _, $third, _, $last>
 log("first: {$first}")
 log("third: {$third}")
 log("last: {$last}")
@@ -109,10 +109,10 @@ $first + $third + $last`,
     id: 'slicing',
     label: 'Slicing',
     source: `"Hello, World!" => $str
-log($str -> /<0:5>)
-log($str -> /<7:12>)
-log($str -> /<::-1>)
-[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -> /<::2>`,
+log($str -> slice<0:5>)
+log($str -> slice<7:12>)
+log($str -> slice<::-1>)
+list[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -> slice<::2>`,
   },
   'type-checking': {
     id: 'type-checking',
@@ -123,7 +123,7 @@ log($str -> /<::-1>)
     ! $val:?list ? "list[{$val.len}]"
     ! "other"
 } => $describe
-["hello", 42, [1, 2, 3], true] -> each $describe`,
+list["hello", 42, list[1, 2, 3], true] -> each $describe`,
   },
   'string-processing': {
     id: 'string-processing',
@@ -138,8 +138,8 @@ log($str -> /<::-1>)
   'dict-methods': {
     id: 'dict-methods',
     label: 'Dict Methods',
-    source: `[
-  items: [12, 5, 8, 23, 3],
+    source: `dict[
+  items: list[12, 5, 8, 23, 3],
   total: ||{ $.items -> fold(0) { $@ + $ } },
   max: ||{ $.items -> fold(0) { ($@ > $) ? $@ ! $ } }
 ] => $bag
@@ -151,22 +151,22 @@ $bag.items -> filter { $ > 10 }`,
     id: 'state-machine',
     label: 'State Machine',
     source: `# Traffic light with dispatch in condition loop
-[state: "red", cycles: 0]
+dict[state: "red", cycles: 0]
   -> ($.cycles < 6) @ {
     log($.state)
-    $.state -> [
-      red: [state: "green", cycles: $.cycles + 1],
-      green: [state: "yellow", cycles: $.cycles + 1],
-      yellow: [state: "red", cycles: $.cycles + 1]
+    $.state -> dict[
+      red: dict[state: "green", cycles: $.cycles + 1],
+      green: dict[state: "yellow", cycles: $.cycles + 1],
+      yellow: dict[state: "red", cycles: $.cycles + 1]
     ]
   }`,
   },
   spread: {
     id: 'spread',
     label: 'Spread',
-    source: `[1, 2, 3] => $a
-[4, 5, 6] => $b
-[...$a, ...$b] => $combined
+    source: `list[1, 2, 3] => $a
+list[4, 5, 6] => $b
+list[...$a, ...$b] => $combined
 log($combined)
 # Running total with each(init)
 $combined -> each(0) { $@ + $ }`,

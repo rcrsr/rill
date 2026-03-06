@@ -19,16 +19,16 @@ All four operators share similar syntax but differ in execution model and output
 
 ```rill
 # Sequential: results in order, one at a time
-list[1, 2, 3] -> each { $ * 2 }     # list[2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }     # list[2, 4, 6]
 
 # Parallel: results in order, concurrent execution
-list[1, 2, 3] -> map { $ * 2 }      # list[2, 4, 6]
+[1, 2, 3] -> map { $ * 2 }      # list[2, 4, 6]
 
 # Parallel filter: keep matching elements
-list[1, 2, 3, 4, 5] -> filter { $ > 2 }  # list[3, 4, 5]
+[1, 2, 3, 4, 5] -> filter { $ > 2 }  # list[3, 4, 5]
 
 # Reduction: accumulates to single value
-list[1, 2, 3] -> fold(0) { $@ + $ } # 6
+[1, 2, 3] -> fold(0) { $@ + $ } # 6
 ```
 
 ## Body Forms
@@ -49,11 +49,11 @@ Each operator accepts multiple body syntaxes. Choose based on readability and co
 Use braces for multi-statement bodies. `$` refers to the current element.
 
 ```rill
-list[1, 2, 3] -> each {
+[1, 2, 3] -> each {
   $ => $x
   $x * 2
 }
-# Result: list[2, 4, 6]
+# Result: [2, 4, 6]
 ```
 
 ### Grouped Expression
@@ -61,8 +61,8 @@ list[1, 2, 3] -> each {
 Use parentheses for single expressions. `$` refers to the current element.
 
 ```rill
-list[1, 2, 3] -> each ($ + 10)
-# Result: list[11, 12, 13]
+[1, 2, 3] -> each ($ + 10)
+# Result: [11, 12, 13]
 ```
 
 ### Inline Closure
@@ -70,8 +70,8 @@ list[1, 2, 3] -> each ($ + 10)
 Define parameters explicitly. The first parameter receives each element.
 
 ```rill
-list[1, 2, 3] -> each |x| ($x * 2)
-# Result: list[2, 4, 6]
+[1, 2, 3] -> each |x| ($x * 2)
+# Result: [2, 4, 6]
 ```
 
 ### Variable Closure
@@ -80,8 +80,8 @@ Reference a pre-defined closure by variable.
 
 ```rill
 |x| ($x * 2) => $double
-list[1, 2, 3] -> each $double
-# Result: list[2, 4, 6]
+[1, 2, 3] -> each $double
+# Result: [2, 4, 6]
 ```
 
 ### Identity
@@ -89,8 +89,8 @@ list[1, 2, 3] -> each $double
 Use bare `$` to return elements unchanged.
 
 ```rill
-list[1, 2, 3] -> each $
-# Result: list[1, 2, 3]
+[1, 2, 3] -> each $
+# Result: [1, 2, 3]
 ```
 
 ### Method Shorthand
@@ -98,35 +98,35 @@ list[1, 2, 3] -> each $
 Use `.method` to apply a method to each element. Equivalent to `{ $.method() }`.
 
 ```rill
-list["hello", "world"] -> each .upper
-# Result: list["HELLO", "WORLD"]
+["hello", "world"] -> each .upper
+# Result: ["HELLO", "WORLD"]
 
-list["  hi  ", " there "] -> map .trim
-# Result: list["hi", "there"]
+["  hi  ", " there "] -> map .trim
+# Result: ["hi", "there"]
 
-list["hello", "", "world"] -> filter .empty
-# Result: list[""]
+["hello", "", "world"] -> filter .empty
+# Result: [""]
 ```
 
 Methods can take arguments:
 
 ```rill
-list["a", "b"] -> map .pad_start(3, "0")
-# Result: list["00a", "00b"]
+["a", "b"] -> map .pad_start(3, "0")
+# Result: ["00a", "00b"]
 ```
 
 Chain multiple methods:
 
 ```rill
-list["  HELLO  ", "  WORLD  "] -> map .trim.lower
-# Result: list["hello", "world"]
+["  HELLO  ", "  WORLD  "] -> map .trim.lower
+# Result: ["hello", "world"]
 ```
 
 For negation, use grouped expression:
 
 ```rill
-list["hello", "", "world"] -> filter (!.empty)
-# Result: list["hello", "world"]
+["hello", "", "world"] -> filter (!.empty)
+# Result: ["hello", "world"]
 ```
 
 ---
@@ -144,16 +144,16 @@ collection -> each (init) body   # with accumulator
 
 ```rill
 # Double each number
-list[1, 2, 3] -> each { $ * 2 }
-# Result: list[2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }
+# Result: [2, 4, 6]
 
 # Transform strings
-list["a", "b", "c"] -> each { "{$}!" }
-# Result: list["a!", "b!", "c!"]
+["a", "b", "c"] -> each { "{$}!" }
+# Result: ["a!", "b!", "c!"]
 
 # Iterate string characters
 "hello" -> each $
-# Result: list["h", "e", "l", "l", "o"]
+# Result: ["h", "e", "l", "l", "o"]
 ```
 
 ### Dict Iteration
@@ -161,11 +161,11 @@ list["a", "b", "c"] -> each { "{$}!" }
 When iterating over a dict, `$` contains `key` and `value` fields.
 
 ```rill
-dict[name: "alice", age: 30] -> each { "{$.key}: {$.value}" }
-# Result: list["name: alice", "age: 30"]
+[name: "alice", age: 30] -> each { "{$.key}: {$.value}" }
+# Result: ["name: alice", "age: 30"]
 
-dict[a: 1, b: 2, c: 3] -> each { $.value * 2 }
-# Result: list[2, 4, 6]
+[a: 1, b: 2, c: 3] -> each { $.value * 2 }
+# Result: [2, 4, 6]
 ```
 
 ### With Accumulator
@@ -178,12 +178,12 @@ Place initial value in parentheses before the block. Access accumulator via `$@`
 
 ```rill
 # Running sum (scan pattern)
-list[1, 2, 3] -> each(0) { $@ + $ }
-# Result: list[1, 3, 6]
+[1, 2, 3] -> each(0) { $@ + $ }
+# Result: [1, 3, 6]
 
 # String concatenation
-list["a", "b", "c"] -> each("") { "{$@}{$}" }
-# Result: list["a", "ab", "abc"]
+["a", "b", "c"] -> each("") { "{$@}{$}" }
+# Result: ["a", "ab", "abc"]
 ```
 
 #### Inline Closure Form
@@ -192,8 +192,8 @@ Define accumulator as the last parameter with a default value.
 
 ```rill
 # Running sum
-list[1, 2, 3] -> each |x, acc = 0| ($acc + $x)
-# Result: list[1, 3, 6]
+[1, 2, 3] -> each |x, acc = 0| ($acc + $x)
+# Result: [1, 3, 6]
 ```
 
 ### Early Termination
@@ -201,11 +201,11 @@ list[1, 2, 3] -> each |x, acc = 0| ($acc + $x)
 Use `break` to exit `each` early. Returns partial results collected before the break.
 
 ```rill
-list[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $ * 2
 }
-# Result: list[2, 4] (partial results before break)
+# Result: [2, 4] (partial results before break)
 ```
 
 ### Empty Collections
@@ -213,12 +213,12 @@ list[1, 2, 3, 4, 5] -> each {
 `each` returns `[]` for empty collections. The body never executes.
 
 ```rill
-list[] -> each { $ * 2 }
-# Result: list[]
+[] -> each { $ * 2 }
+# Result: []
 
 # With accumulator, still returns [] (not the initial value)
-list[] -> each(0) { $@ + $ }
-# Result: list[]
+[] -> each(0) { $@ + $ }
+# Result: []
 ```
 
 ---
@@ -235,16 +235,16 @@ collection -> map body
 
 ```rill
 # Map with closure parameter
-list["a", "b", "c"] -> map |x| { "{$x}!" }
-# Result: list["a!", "b!", "c!"]
+["a", "b", "c"] -> map |x| { "{$x}!" }
+# Result: ["a!", "b!", "c!"]
 
 # Block expression (implicit $)
-list[1, 2, 3] -> map { $ * 2 }
-# Result: list[2, 4, 6]
+[1, 2, 3] -> map { $ * 2 }
+# Result: [2, 4, 6]
 
 # Grouped expression
-list[1, 2, 3] -> map ($ * 2)
-# Result: list[2, 4, 6]
+[1, 2, 3] -> map ($ * 2)
+# Result: [2, 4, 6]
 ```
 
 ### Key Differences from each
@@ -262,8 +262,8 @@ Use `map` when:
 
 ```rill
 # CPU-bound: same result as each, but runs in parallel
-list[1, 2, 3, 4, 5] -> map { $ * $ }
-# Result: list[1, 4, 9, 16, 25]
+[1, 2, 3, 4, 5] -> map { $ * $ }
+# Result: [1, 4, 9, 16, 25]
 ```
 
 ### Empty Collections
@@ -271,8 +271,8 @@ list[1, 2, 3, 4, 5] -> map { $ * $ }
 `map` returns `[]` for empty collections. The body never executes.
 
 ```rill
-list[] -> map { $ * 2 }
-# Result: list[]
+[] -> map { $ * 2 }
+# Result: []
 ```
 
 ---
@@ -289,16 +289,16 @@ collection -> filter body
 
 ```rill
 # Keep numbers greater than 2
-list[1, 2, 3, 4, 5] -> filter { $ > 2 }
-# Result: list[3, 4, 5]
+[1, 2, 3, 4, 5] -> filter { $ > 2 }
+# Result: [3, 4, 5]
 
 # Keep non-empty strings
-list["hello", "", "world", ""] -> filter { !.empty }
-# Result: list["hello", "world"]
+["hello", "", "world", ""] -> filter { !.empty }
+# Result: ["hello", "world"]
 
 # Keep even numbers
-list[1, 2, 3, 4, 5, 6] -> filter { ($ % 2) == 0 }
-# Result: list[2, 4, 6]
+[1, 2, 3, 4, 5, 6] -> filter { ($ % 2) == 0 }
+# Result: [2, 4, 6]
 ```
 
 ### All Body Forms
@@ -307,17 +307,17 @@ list[1, 2, 3, 4, 5, 6] -> filter { ($ % 2) == 0 }
 
 ```rill
 # Block form
-list[1, 2, 3, 4, 5] -> filter { $ > 2 }
+[1, 2, 3, 4, 5] -> filter { $ > 2 }
 
 # Grouped expression
-list[1, 2, 3, 4, 5] -> filter ($ > 2)
+[1, 2, 3, 4, 5] -> filter ($ > 2)
 
 # Inline closure
-list[1, 2, 3, 4, 5] -> filter |x| ($x > 2)
+[1, 2, 3, 4, 5] -> filter |x| ($x > 2)
 
 # Variable closure
 |x| ($x > 2) => $gtTwo
-list[1, 2, 3, 4, 5] -> filter $gtTwo
+[1, 2, 3, 4, 5] -> filter $gtTwo
 ```
 
 ### Dict Filtering
@@ -325,8 +325,8 @@ list[1, 2, 3, 4, 5] -> filter $gtTwo
 When filtering a dict, `$` contains `key` and `value` fields. Returns list of matching entries.
 
 ```rill
-dict[a: 1, b: 5, c: 3] -> filter { $.value > 2 }
-# Result: list[dict[key: "b", value: 5], dict[key: "c", value: 3]]
+[a: 1, b: 5, c: 3] -> filter { $.value > 2 }
+# Result: [[key: "b", value: 5], dict[key: "c", value: 3]]
 ```
 
 ### String Filtering
@@ -342,15 +342,15 @@ Filters characters in a string.
 
 ```rill
 # Filter then transform
-list[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 }
-# Result: list[6, 8, 10]
+[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 }
+# Result: [6, 8, 10]
 
 # Transform then filter
-list[1, 2, 3, 4, 5] -> map { $ * 2 } -> filter { $ > 5 }
-# Result: list[6, 8, 10]
+[1, 2, 3, 4, 5] -> map { $ * 2 } -> filter { $ > 5 }
+# Result: [6, 8, 10]
 
 # Filter, transform, reduce
-list[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 } -> fold(0) { $@ + $ }
+[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 } -> fold(0) { $@ + $ }
 # Result: 24
 ```
 
@@ -359,11 +359,11 @@ list[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 } -> fold(0) { $@ + $ }
 `filter` returns `[]` for empty collections or when nothing matches.
 
 ```rill
-list[] -> filter { $ > 0 }
-# Result: list[]
+[] -> filter { $ > 0 }
+# Result: []
 
-list[1, 2, 3] -> filter { $ > 10 }
-# Result: list[]
+[1, 2, 3] -> filter { $ > 10 }
+# Result: []
 ```
 
 ---
@@ -381,11 +381,11 @@ Syntax forms:
 
 ```rill
 # Sum numbers
-list[1, 2, 3] -> fold(0) { $@ + $ }
+[1, 2, 3] -> fold(0) { $@ + $ }
 # Result: 6
 
 # Same with inline closure
-list[1, 2, 3] -> fold |x, sum = 0| ($sum + $x)
+[1, 2, 3] -> fold |x, sum = 0| ($sum + $x)
 # Result: 6
 ```
 
@@ -394,21 +394,21 @@ list[1, 2, 3] -> fold |x, sum = 0| ($sum + $x)
 #### Sum
 
 ```rill
-list[1, 2, 3, 4, 5] -> fold(0) { $@ + $ }
+[1, 2, 3, 4, 5] -> fold(0) { $@ + $ }
 # Result: 15
 ```
 
 #### Product
 
 ```rill
-list[1, 2, 3, 4] -> fold(1) { $@ * $ }
+[1, 2, 3, 4] -> fold(1) { $@ * $ }
 # Result: 24
 ```
 
 #### Maximum
 
 ```rill
-list[3, 1, 4, 1, 5, 9] -> fold(0) {
+[3, 1, 4, 1, 5, 9] -> fold(0) {
   ($@ > $) ? $@ ! $
 }
 # Result: 9
@@ -417,18 +417,18 @@ list[3, 1, 4, 1, 5, 9] -> fold(0) {
 #### Count
 
 ```rill
-list[1, 2, 3, 4, 5] -> fold(0) { $@ + 1 }
+[1, 2, 3, 4, 5] -> fold(0) { $@ + 1 }
 # Result: 5
 ```
 
 #### String Join
 
 ```rill
-list["a", "b", "c"] -> fold("") { "{$@}{$}" }
+["a", "b", "c"] -> fold("") { "{$@}{$}" }
 # Result: "abc"
 
 # With separator
-list["a", "b", "c"] -> fold |x, acc = ""| {
+["a", "b", "c"] -> fold |x, acc = ""| {
   ($acc -> .empty) ? $x ! "{$acc},{$x}"
 }
 # Result: "a,b,c"
@@ -439,7 +439,7 @@ list["a", "b", "c"] -> fold |x, acc = ""| {
 When folding over a dict, `$` contains `key` and `value` fields.
 
 ```rill
-dict[a: 1, b: 2, c: 3] -> fold |entry, sum = 0| ($sum + $entry.value)
+[a: 1, b: 2, c: 3] -> fold |entry, sum = 0| ($sum + $entry.value)
 # Result: 6
 ```
 
@@ -453,9 +453,9 @@ Define closures for common reductions.
 |x, max = 0| (($x > $max) ? $x ! $max) => $maxer
 
 # Use with different data
-list[1, 2, 3] -> fold $summer => $r1     # 6
-list[3, 7, 2] -> fold $maxer => $r2      # 7
-list[9, 1, 5] -> fold $maxer => $r3      # 9
+[1, 2, 3] -> fold $summer => $r1     # 6
+[3, 7, 2] -> fold $maxer => $r2      # 7
+[9, 1, 5] -> fold $maxer => $r3      # 9
 ```
 
 ### Empty Collections
@@ -463,13 +463,13 @@ list[9, 1, 5] -> fold $maxer => $r3      # 9
 `fold` returns the initial value for empty collections. The body never executes.
 
 ```rill
-list[] -> fold(0) { $@ + $ }
+[] -> fold(0) { $@ + $ }
 # Result: 0
 
-list[] -> fold(42) { $@ + $ }
+[] -> fold(42) { $@ + $ }
 # Result: 42
 
-list[] -> fold |x, acc = 100| ($acc + $x)
+[] -> fold |x, acc = 100| ($acc + $x)
 # Result: 100
 ```
 
@@ -488,11 +488,11 @@ Both `each` and `fold` support accumulators. The difference is in what they retu
 
 ```rill
 # each: returns every intermediate result
-list[1, 2, 3] -> each(0) { $@ + $ }
-# Result: list[1, 3, 6]  (running totals)
+[1, 2, 3] -> each(0) { $@ + $ }
+# Result: [1, 3, 6]  (running totals)
 
 # fold: returns only the final result
-list[1, 2, 3] -> fold(0) { $@ + $ }
+[1, 2, 3] -> fold(0) { $@ + $ }
 # Result: 6  (final sum)
 ```
 
@@ -502,15 +502,15 @@ Use `each` with accumulator when you need intermediate states (scan pattern):
 
 ```rill
 # Running balance
-list[100, -50, 200, -75] -> each(0) { $@ + $ }
-# Result: list[100, 50, 250, 175]
+[100, -50, 200, -75] -> each(0) { $@ + $ }
+# Result: [100, 50, 250, 175]
 ```
 
 Use `fold` when you only need the final result:
 
 ```rill
 # Final balance
-list[100, -50, 200, -75] -> fold(0) { $@ + $ }
+[100, -50, 200, -75] -> fold(0) { $@ + $ }
 # Result: 175
 ```
 
@@ -522,16 +522,16 @@ Combine operators for multi-stage transformations.
 
 ```rill
 # Double each element, then sum
-list[1, 2, 3] -> map { $ * 2 } -> fold(0) { $@ + $ }
+[1, 2, 3] -> map { $ * 2 } -> fold(0) { $@ + $ }
 # Result: 12
 
 # Filter even numbers (using parallel filter)
-list[1, 2, 3, 4, 5] -> filter { ($ % 2) == 0 }
-# Result: list[2, 4]
+[1, 2, 3, 4, 5] -> filter { ($ % 2) == 0 }
+# Result: [2, 4]
 
 # Complex pipeline: filter, then transform
-list[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 10 }
-# Result: list[30, 40, 50]
+[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 10 }
+# Result: [30, 40, 50]
 ```
 
 ---
@@ -582,8 +582,8 @@ For inline closures with accumulators, specific rules apply.
 ### Lists
 
 ```rill
-list[1, 2, 3] -> each { $ * 2 }
-# Result: list[2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }
+# Result: [2, 4, 6]
 ```
 
 ### Strings
@@ -592,7 +592,7 @@ Iterates over characters.
 
 ```rill
 "abc" -> each { "{$}!" }
-# Result: list["a!", "b!", "c!"]
+# Result: ["a!", "b!", "c!"]
 ```
 
 ### Dicts
@@ -600,8 +600,8 @@ Iterates over characters.
 Iterates over entries with `key` and `value` fields.
 
 ```rill
-dict[a: 1, b: 2] -> each { "{$.key}={$.value}" }
-# Result: list["a=1", "b=2"]
+[a: 1, b: 2] -> each { "{$.key}={$.value}" }
+# Result: ["a=1", "b=2"]
 ```
 
 ---
@@ -612,11 +612,11 @@ Process nested structures with nested operators.
 
 ```rill
 # Double nested values
-list[list[1, 2], list[3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
-# Result: list[list[2, 4], list[6, 8]]
+[list[1, 2], list[3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
+# Result: [list[2, 4], list[6, 8]]
 
 # Sum all nested values
-list[list[1, 2], list[3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
+[list[1, 2], list[3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
 # Result: 10
 ```
 
@@ -644,34 +644,34 @@ list[list[1, 2], list[3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner ->
 
 ```text
 # each - sequential, all results
-list[1, 2, 3] -> each { $ * 2 }           # list[2, 4, 6]
-list[1, 2, 3] -> each(0) { $@ + $ }       # list[1, 3, 6] (running sum)
+[1, 2, 3] -> each { $ * 2 }           # list[2, 4, 6]
+[1, 2, 3] -> each(0) { $@ + $ }       # list[1, 3, 6] (running sum)
 
 # map - parallel, all results
-list[1, 2, 3] -> map { $ * 2 }            # list[2, 4, 6]
-list["a", "b"] -> map |x| { "{$x}!" }     # list["a!", "b!"]
+[1, 2, 3] -> map { $ * 2 }            # list[2, 4, 6]
+["a", "b"] -> map |x| { "{$x}!" }     # list["a!", "b!"]
 
 # filter - parallel, matching elements
-list[1, 2, 3, 4, 5] -> filter { $ > 2 }   # list[3, 4, 5]
+[1, 2, 3, 4, 5] -> filter { $ > 2 }   # list[3, 4, 5]
 |x| { $x % 2 == 0 } => $isEven
-list[1, 2, 3, 4, 5] -> filter $isEven     # list[2, 4]
+[1, 2, 3, 4, 5] -> filter $isEven     # list[2, 4]
 
 # fold - sequential, final result only
-list[1, 2, 3] -> fold(0) { $@ + $ }       # 6
-list[1, 2, 3] -> fold |x, s = 0| ($s + $x) # 6
+[1, 2, 3] -> fold(0) { $@ + $ }       # 6
+[1, 2, 3] -> fold |x, s = 0| ($s + $x) # 6
 
 # Dict iteration
-dict[a: 1, b: 2] -> each { $.key }        # list["a", "b"]
-dict[a: 1, b: 2] -> each { $.value }      # list[1, 2]
+[a: 1, b: 2] -> each { $.key }        # ["a", "b"]
+[a: 1, b: 2] -> each { $.value }      # [1, 2]
 
 # Break (each only)
-list[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # list[1, 2] (partial results)
+[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # list[1, 2] (partial results)
 
 # Empty collections
-list[] -> each { $ }      # list[]
-list[] -> map { $ }       # list[]
-list[] -> filter { $ }    # list[]
-list[] -> fold(42) { $ }  # 42
+[] -> each { $ }      # []
+[] -> map { $ }       # []
+[] -> filter { $ }    # []
+[] -> fold(42) { $ }  # 42
 ```
 
 ---

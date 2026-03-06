@@ -21,7 +21,7 @@ Variables are declared via capture (`=>`), not assignment:
 ```rill
 "hello" => $greeting
 42 => $count
-list[1, 2, 3] => $items
+[1, 2, 3] => $items
 ```
 
 ### Capture and Continue
@@ -89,7 +89,7 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 
 # In each loops, $ is the current item
 |x| { $x * 2 } => $double
-list[1, 2, 3] -> each { $double() }   # $double receives 1, 2, 3
+[1, 2, 3] -> each { $double() }   # $double receives 1, 2, 3
 ```
 
 **When implied `$` does NOT apply:**
@@ -196,7 +196,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 >
 > ```text
 > 0 => $count
-> list[1, 2, 3] -> each { $count + 1 => $count }  # Creates LOCAL $count!
+> [1, 2, 3] -> each { $count + 1 => $count }  # Creates LOCAL $count!
 > $count                                       # Still 0!
 > ```
 >
@@ -206,10 +206,10 @@ While loops use `$` as the accumulator since named variables in the body don't p
 
 ```rill
 10 => $x
-list[1, 2, 3] -> each {
+[1, 2, 3] -> each {
   $x + $      # Reads outer $x = 10
 }
-# Result: list[11, 12, 13]
+# Result: [11, 12, 13]
 ```
 
 ---

@@ -67,10 +67,10 @@ $result.usage.output # Output tokens
 **messages(messages, options?)** — Multi-turn conversation:
 
 ```rill
-list[
-  dict[role: "user", content: "What is rill?"],
-  dict[role: "assistant", content: "A scripting language."],
-  dict[role: "user", content: "Tell me more."],
+[
+  [role: "user", content: "What is rill?"],
+  [role: "assistant", content: "A scripting language."],
+  [role: "user", content: "Tell me more."],
 ] -> gemini::messages => $result
 $result.content   # Latest response
 $result.messages  # Full conversation history
@@ -87,7 +87,7 @@ $vec.model           # Embedding model used
 **embed_batch(texts)** — Batch embeddings:
 
 ```rill
-list["first text", "second text"] -> gemini::embed_batch => $vectors
+["first text", "second text"] -> gemini::embed_batch => $vectors
 $vectors.len  # Number of vectors
 ```
 
@@ -98,8 +98,8 @@ $vectors.len  # Number of vectors
   "Weather in {$city}: 72F sunny"
 } => $get_weather
 
-gemini::tool_loop("What's the weather in Paris?", dict[
-  tools: dict[get_weather: $get_weather],
+gemini::tool_loop("What's the weather in Paris?", [
+  tools: [get_weather: $get_weather],
   max_turns: 5,
 ]) => $result
 $result.content  # Final response
@@ -109,13 +109,13 @@ $result.turns    # Number of LLM round-trips
 **generate(prompt, options)** — Structured output extraction:
 
 ```rill
-dict[
+[
   name: "string",
   confidence: "number",
   tags: "list",
 ] => $schema
 
-gemini::generate("Extract metadata from: rill is a pipe-based scripting language", dict[
+gemini::generate("Extract metadata from: rill is a pipe-based scripting language", [
   schema: $schema,
   system: "Extract structured data from the input.",
 ]) => $result
@@ -133,9 +133,9 @@ $result.usage.output     # Output tokens
 Define a closure with typed and annotated params, then pass its `^input` structural type as `schema`:
 
 ```text
-|^("Extracted name") name: string, ^(description: "Confidence score") confidence: number, tags: list = list[]| { "test" } => $extractor
+|^("Extracted name") name: string, ^(description: "Confidence score") confidence: number, tags: list = []| { "test" } => $extractor
 
-gemini::generate("Extract: rill is a pipe-based scripting language", dict[
+gemini::generate("Extract: rill is a pipe-based scripting language", [
   schema: $extractor.^input,
   system: "Extract structured data from the input.",
 ]) => $result

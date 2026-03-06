@@ -67,10 +67,10 @@ $result.usage.output # Output tokens
 **messages(messages, options?)** — Multi-turn conversation:
 
 ```rill
-list[
-  dict[role: "user", content: "What is rill?"],
-  dict[role: "assistant", content: "A scripting language."],
-  dict[role: "user", content: "Tell me more."],
+[
+  [role: "user", content: "What is rill?"],
+  [role: "assistant", content: "A scripting language."],
+  [role: "user", content: "Tell me more."],
 ] -> openai::messages => $result
 $result.content   # Latest response
 $result.messages  # Full conversation history
@@ -87,7 +87,7 @@ $vec.model           # Embedding model used
 **embed_batch(texts)** — Batch embeddings:
 
 ```rill
-list["first text", "second text"] -> openai::embed_batch => $vectors
+["first text", "second text"] -> openai::embed_batch => $vectors
 $vectors.len  # Number of vectors
 ```
 
@@ -98,8 +98,8 @@ $vectors.len  # Number of vectors
   "Weather in {$city}: 72F sunny"
 } => $get_weather
 
-openai::tool_loop("What's the weather in Paris?", dict[
-  tools: dict[get_weather: $get_weather],
+openai::tool_loop("What's the weather in Paris?", [
+  tools: [get_weather: $get_weather],
   max_turns: 5,
 ]) => $result
 $result.content  # Final response
@@ -109,9 +109,9 @@ $result.turns    # Number of LLM round-trips
 **generate(prompt, options)** — Structured output extraction:
 
 ```rill
-dict[name: "string", age: "number", active: "bool"] => $schema
+[name: "string", age: "number", active: "bool"] => $schema
 
-openai::generate("Extract user info: Alice, 30, active", dict[
+openai::generate("Extract user info: Alice, 30, active", [
   schema: $schema,
 ]) => $result
 $result.data            # Parsed dict matching schema keys
@@ -127,7 +127,7 @@ Define a closure with typed and annotated params, then pass its `^input` structu
 ```rill
 |^("Full name") name: string, ^(description: "Age in years") age: number, active: bool = false| { "test" } => $extractor
 
-openai::generate("Extract user info: Alice, 30, active", dict[
+openai::generate("Extract user info: Alice, 30, active", [
   schema: $extractor.^input,
   system: "Extract structured data from the input.",
 ]) => $result

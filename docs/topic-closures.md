@@ -101,7 +101,7 @@ The block `{ $ + 1 }` produces a closure. When invoked, `$` is bound to the argu
 $constant()           # 42 (no argument needed)
 
 # In dicts
-dict[
+[
   double: { $ * 2 },
   constant: || { 42 }
 ] => $obj
@@ -142,9 +142,9 @@ Block-closures can contain multiple statements:
 Block-closures integrate with collection operators:
 
 ```rill
-list[1, 2, 3] -> map { $ * 2 }                    # list[2, 4, 6]
-list[1, 2, 3] -> filter { $ > 1 }                 # list[2, 3]
-list[1, 2, 3] -> fold(0) { $@ + $ }               # 6 ($@ is accumulator)
+[1, 2, 3] -> map { $ * 2 }                    # list[2, 4, 6]
+[1, 2, 3] -> filter { $ > 1 }                 # list[2, 3]
+[1, 2, 3] -> fold(0) { $@ + $ }               # 6 ($@ is accumulator)
 ```
 
 ### Eager vs Deferred Evaluation
@@ -209,7 +209,7 @@ $even(4)    # true
 ### Forward References
 
 ```rill
-list[
+[
   || { $helper(1) },
   || { $helper(2) }
 ] => $handlers
@@ -231,7 +231,7 @@ Closures see the current value of captured variables:
 
 5 => $counter
 
-list[$get(), $getPlus1()]    # list[5, 6]
+[$get(), $getPlus1()]    # list[5, 6]
 ```
 
 ---
@@ -243,7 +243,7 @@ Closures stored in dicts have `$` late-bound to the containing dict at invocatio
 ### Zero-Arg Closures Auto-Invoke
 
 ```rill
-dict[
+[
   name: "toolkit",
   count: 3,
   summary: || { "{$.name}: {$.count} items" }
@@ -255,7 +255,7 @@ $obj.summary    # "toolkit: 3 items" (auto-invoked on access)
 ### Accessing Sibling Fields
 
 ```rill
-dict[
+[
   width: 10,
   height: 5,
   area: || { $.width * $.height }
@@ -267,7 +267,7 @@ $rect.area    # 50
 ### Parameterized Dict Closures
 
 ```rill
-dict[
+[
   name: "tools",
   greet: |x| { "{$.name} says: {$x}" }
 ] => $obj
@@ -280,8 +280,8 @@ $obj.greet("hello")    # "tools says: hello"
 ```rill
 || { "{$.name}: {$.count} items" } => $describer
 
-dict[name: "tools", count: 3, str: $describer] => $obj1
-dict[name: "actions", count: 5, str: $describer] => $obj2
+[name: "tools", count: 3, str: $describer] => $obj1
+[name: "actions", count: 5, str: $describer] => $obj2
 
 $obj1.str    # "tools: 3 items"
 $obj2.str    # "actions: 5 items"
@@ -290,7 +290,7 @@ $obj2.str    # "actions: 5 items"
 ### Calling Sibling Methods
 
 ```rill
-dict[
+[
   double: |n| { $n * 2 },
   quad: |n| { $.double($.double($n)) }
 ] => $math
@@ -305,7 +305,7 @@ $math.quad(3)    # 12
 Closures in lists maintain their defining scope. Invoke via bracket access:
 
 ```rill
-list[
+[
   |x| { $x + 1 },
   |x| { $x * 2 },
   |x| { $x * $x }
@@ -322,7 +322,7 @@ $transforms[2](5)    # 25
 |n| { $n + 1 } => $inc
 |n| { $n * 2 } => $double
 
-5 -> chain(list[$inc, $double, $inc])    # 13: (5+1)*2+1
+5 -> chain([$inc, $double, $inc])    # 13: (5+1)*2+1
 ```
 
 ---
@@ -332,21 +332,21 @@ $transforms[2](5)    # 25
 Closures can appear inline in expressions:
 
 ```rill
-list[1, 2, 3] -> map |x| { $x * 2 }    # list[2, 4, 6]
+[1, 2, 3] -> map |x| { $x * 2 }    # list[2, 4, 6]
 
-list[1, 2, 3] -> filter |x| { $x > 1 }    # list[2, 3]
+[1, 2, 3] -> filter |x| { $x > 1 }    # list[2, 3]
 
-list[1, 2, 3] -> fold(0) |acc, x| { $acc + $x }    # 6
+[1, 2, 3] -> fold(0) |acc, x| { $acc + $x }    # 6
 ```
 
 ### Inline with Block Bodies
 
 ```rill
-list[1, 2, 3] -> map |x| {
+[1, 2, 3] -> map |x| {
   ($x * 10) => $scaled
   "{$x} -> {$scaled}"
 }
-# list["1 -> 10", "2 -> 20", "3 -> 30"]
+# ["1 -> 10", "2 -> 20", "3 -> 30"]
 ```
 
 ---
@@ -405,12 +405,12 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 
 ```rill
 # Capture $ into named variable for each iteration
-list[1, 2, 3] -> each {
+[1, 2, 3] -> each {
   $ => $item
   || { $item }
 } => $closures
 
-list[$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
+[$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
 ```
 
 **Note:** `$` (pipeValue) is a context property, not a variable. Use explicit capture for closure access.
@@ -455,10 +455,10 @@ Block-closures work seamlessly with pipe syntax since `$` receives the piped val
 Call closures from bracket access or expressions:
 
 ```rill
-list[|x| { $x * 2 }] => $fns
+[|x| { $x * 2 }] => $fns
 $fns[0](5)    # 10
 
-list[{ $ * 2 }] => $fns
+[{ $ * 2 }] => $fns
 $fns[0](5)    # 10 (block-closure)
 
 || { |n| { $n * 2 } } => $factory
@@ -468,16 +468,16 @@ $factory()(5)    # 10 (chained invocation)
 ### Method Access After Bracket (Requires Grouping)
 
 ```rill
-list["hello", "world"] => $list
+["hello", "world"] => $list
 
 # Use grouping to call method on bracket result
-($list[0]).upper    # "HELLO"
+($[0]).upper    # "HELLO"
 
 # Or use pipe syntax
-$list[0] -> .upper    # "HELLO"
+$[0] -> .upper    # "HELLO"
 ```
 
-Note: `$list[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
+Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
 
 ---
 
@@ -765,7 +765,7 @@ $fn.^max     # 100
 Annotations can hold any value type:
 
 ```rill
-^(config: dict[timeout: 30, endpoints: list["a", "b"]]) |x|($x) => $fn
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -856,8 +856,8 @@ $fn()    # Error: Undefined variable: $undefined
 ### Invoking Non-Callable
 
 ```rill
-list[1, 2, 3] => $list
-$list[0]()    # Error: Cannot invoke non-callable value (got number)
+[1, 2, 3] => $list
+$[0]()    # Error: Cannot invoke non-callable value (got number)
 ```
 
 ### Type Errors

@@ -14,10 +14,10 @@ Use nested dict dispatch to look up transitions by state and event:
 
 ```rill
 # Traffic light state machine
-dict[
-  green: dict[tick: "yellow", emergency: "red"],
-  yellow: dict[tick: "red", emergency: "red"],
-  red: dict[tick: "green", emergency: "red"]
+[
+  green: [tick: "yellow", emergency: "red"],
+  yellow: [tick: "red", emergency: "red"],
+  red: [tick: "green", emergency: "red"]
 ] => $machine
 
 # Current state and incoming event
@@ -37,17 +37,17 @@ Embed closures in the transition table to execute side effects:
 
 ```rill
 # Order processing state machine
-dict[
-  pending: dict[
-    pay: dict[next: "paid", action: ||{ log("Payment received") }],
-    cancel: dict[next: "cancelled", action: ||{ log("Order cancelled") }]
+[
+  pending: [
+    pay: [next: "paid", action: ||{ log("Payment received") }],
+    cancel: [next: "cancelled", action: ||{ log("Order cancelled") }]
   ],
-  paid: dict[
-    ship: dict[next: "shipped", action: ||{ log("Order shipped") }],
-    refund: dict[next: "refunded", action: ||{ log("Refund issued") }]
+  paid: [
+    ship: [next: "shipped", action: ||{ log("Order shipped") }],
+    refund: [next: "refunded", action: ||{ log("Refund issued") }]
   ],
-  shipped: dict[
-    deliver: dict[next: "delivered", action: ||{ log("Order delivered") }]
+  shipped: [
+    deliver: [next: "delivered", action: ||{ log("Order delivered") }]
   ]
 ] => $machine
 
@@ -69,14 +69,14 @@ Process a sequence of events through the machine:
 
 ```rill
 # Define machine
-dict[
-  idle: dict[start: "running", stop: "idle"],
-  running: dict[pause: "paused", stop: "idle"],
-  paused: dict[resume: "running", stop: "idle"]
+[
+  idle: [start: "running", stop: "idle"],
+  running: [pause: "paused", stop: "idle"],
+  paused: [resume: "running", stop: "idle"]
 ] => $machine
 
 # Event sequence to process
-list["start", "pause", "resume", "stop"] => $events
+["start", "pause", "resume", "stop"] => $events
 
 # Process events, accumulating state history
 $events -> fold("idle") {
@@ -88,23 +88,23 @@ $events -> fold("idle") {
 Track state history with `fold`:
 
 ```rill
-dict[
-  idle: dict[start: "running"],
-  running: dict[pause: "paused", stop: "idle"],
-  paused: dict[resume: "running"]
+[
+  idle: [start: "running"],
+  running: [pause: "paused", stop: "idle"],
+  paused: [resume: "running"]
 ] => $machine
 
-list["start", "pause", "resume"] => $events
+["start", "pause", "resume"] => $events
 
-$events -> fold(dict[current: "idle", history: list[]]) {
+$events -> fold([current: "idle", history: []]) {
   $ => $event
   $machine.($@.current) => $stateConfig
   $stateConfig -> .keys -> .has($event) ? {
     $stateConfig.($event) => $next
-    dict[current: $next, history: list[...$@.history, $next]]
+    [current: $next, history: [...$@.history, $next]]
   } ! $@
 }
-# Result: dict[current: "running", history: list["running", "paused", "running"]]
+# Result: [current: "running", history: ["running", "paused", "running"]]
 ```
 
 ### Guard Conditions
@@ -161,26 +161,26 @@ Model nested states using path dispatch:
 
 ```rill
 # Media player with play/pause substates
-dict[
-  stopped: dict[
+[
+  stopped: [
     play: "playing.normal"
   ],
-  playing: dict[
-    normal: dict[
+  playing: [
+    normal: [
       pause: "paused",
       slow: "playing.slow",
       fast: "playing.fast"
     ],
-    slow: dict[
+    slow: [
       pause: "paused",
       normal: "playing.normal"
     ],
-    fast: dict[
+    fast: [
       pause: "paused",
       normal: "playing.normal"
     ]
   ],
-  paused: dict[
+  paused: [
     play: "playing.normal",
     stop: "stopped"
   ]
@@ -192,7 +192,7 @@ $state -> .split(".") => $path
 
 # Navigate to current state config
 $path -> fold($machine) { $@.$  }
-# Result: dict[pause: "paused", slow: "playing.slow", fast: "playing.fast"]
+# Result: [pause: "paused", slow: "playing.slow", fast: "playing.fast"]
 ```
 
 ## Dispatch Patterns
@@ -222,14 +222,14 @@ Map multiple inputs to the same handler:
 
 ```rill
 # HTTP method routing - correct multi-key syntax
-dict[
-  list["GET", "HEAD"]: dict[handler: "read", safe: true],
-  list["POST", "PUT", "PATCH"]: dict[handler: "write", safe: false],
-  list["DELETE"]: dict[handler: "delete", safe: false]
+[
+  ["GET", "HEAD"]: [handler: "read", safe: true],
+  ["POST", "PUT", "PATCH"]: [handler: "write", safe: false],
+  ["DELETE"]: [handler: "delete", safe: false]
 ] => $routes
 
 "POST" -> $routes
-# Result: dict[handler: "write", safe: false]
+# Result: [handler: "write", safe: false]
 ```
 
 ### Default Handlers
@@ -237,13 +237,13 @@ dict[
 Combine dispatch with `??` for fallback behavior:
 
 ```rill
-dict[
+[
   success: |r|{ "Completed: {$r.data}" },
   error: |r|{ "Failed: {$r.message}" },
   pending: |r|{ "Waiting..." }
 ] => $handlers
 
-dict[status: "unknown", data: "test"] => $response
+[status: "unknown", data: "test"] => $response
 
 $response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
 -> |handler|{ $handler($response) }
@@ -303,13 +303,13 @@ $employees -> fold([]) {
 Remove duplicates while preserving order:
 
 ```rill
-list["a", "b", "a", "c", "b", "d", "a"] => $items
+["a", "b", "a", "c", "b", "d", "a"] => $items
 
-$items -> fold(dict[seen: list[], result: list[]]) {
+$items -> fold([seen: [], result: []]) {
   $ => $item
-  $@.seen -> .has($item) ? dict[seen: $@.seen, result: $@.result] ! dict[seen: list[...$@.seen, $item], result: list[...$@.result, $item]]
+  $@.seen -> .has($item) ? [seen: $@.seen, result: $@.result] ! dict[seen: [...$@.seen, $item], result: list[...$@.result, $item]]
 } -> .result
-# Result: list["a", "b", "c", "d"]
+# Result: ["a", "b", "c", "d"]
 ```
 
 ## Control Flow Patterns
@@ -319,15 +319,15 @@ $items -> fold(dict[seen: list[], result: list[]]) {
 Validate multiple conditions and exit on first failure:
 
 ```rill
-dict[username: "", email: "test@", age: 15] => $formData
+[username: "", email: "test@", age: 15] => $formData
 
 $formData -> {
-  $.username -> .empty ? (dict[valid: false, err: "Username required"] -> return)
-  $.email -> .contains("@") -> ! ? (dict[valid: false, err: "Invalid email"] -> return)
-  ($.age < 18) ? (dict[valid: false, err: "Must be 18+"] -> return)
-  dict[valid: true, data: $]
+  $.username -> .empty ? ([valid: false, err: "Username required"] -> return)
+  $.email -> .contains("@") -> ! ? ([valid: false, err: "Invalid email"] -> return)
+  ($.age < 18) ? ([valid: false, err: "Must be 18+"] -> return)
+  [valid: true, data: $]
 }
-# Result: dict[valid: false, err: "Username required"]
+# Result: [valid: false, err: "Username required"]
 ```
 
 ### Retry with Backoff
@@ -337,7 +337,7 @@ Retry an operation with exponential backoff:
 ```rill
 # Simulate flaky operation (host would provide real implementation)
 |attempt|{
-  ($attempt < 3) ? dict[ok: false, err: "Network error"] ! dict[ok: true, data: "Success"]
+  ($attempt < 3) ? [ok: false, err: "Network error"] ! dict[ok: true, data: "Success"]
 } => $operation
 
 # Retry loop with backoff
@@ -348,8 +348,8 @@ Retry an operation with exponential backoff:
   $ + 1
 } => $final
 
-$final.?ok ? $final ! dict[ok: false, err: "Max retries exceeded"]
-# Result: dict[ok: true, data: "Success"]
+$final.?ok ? $final ! [ok: false, err: "Max retries exceeded"]
+# Result: [ok: true, data: "Success"]
 ```
 
 ### Pipeline with Short-Circuit
@@ -358,17 +358,17 @@ Process steps that can fail at any point:
 
 ```rill
 |input|{
-  dict[ok: true, value: $input -> .trim]
+  [ok: true, value: $input -> .trim]
 } => $step1
 
 |input|{
   $input -> .len => $len
-  ($len < 3) ? dict[ok: false, err: "Too short"] ! dict[ok: true, value: $input -> .upper]
+  ($len < 3) ? [ok: false, err: "Too short"] ! dict[ok: true, value: $input -> .upper]
 } => $step2
 
 |input|{
   $input -> .contains("HELLO") => $hasHello
-  $hasHello ? dict[ok: true, value: $input] ! dict[ok: false, err: "Must contain HELLO"]
+  $hasHello ? [ok: true, value: $input] ! dict[ok: false, err: "Must contain HELLO"]
 } => $step3
 
 # Chain steps with early exit
@@ -383,7 +383,7 @@ $pipelineInput -> {
   $step3($r2.value) => $r3
   $r3
 }
-# Result: dict[ok: false, err: "Must contain HELLO"]
+# Result: [ok: false, err: "Must contain HELLO"]
 ```
 
 ## Data Transformation
@@ -394,11 +394,11 @@ Flatten arbitrarily nested lists:
 
 ```rill
 # For known depth, chain operations
-list[list[1, 2], list[3, 4], list[5, 6]] => $nested
+[list[1, 2], list[3, 4], list[5, 6]] => $nested
 
 # Flatten one level
-$nested -> fold(list[]) { list[...$@, ...$] }
-# Result: list[1, 2, 3, 4, 5, 6]
+$nested -> fold([]) { [...$@, ...$] }
+# Result: [1, 2, 3, 4, 5, 6]
 ```
 
 ### Transpose Matrix
@@ -406,16 +406,16 @@ $nested -> fold(list[]) { list[...$@, ...$] }
 Convert rows to columns:
 
 ```rill
-list[
-  list[1, 2, 3],
-  list[4, 5, 6],
-  list[7, 8, 9]
+[
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9]
 ] => $matrix
 
 range(0, $matrix[0] -> .len) -> map |col|{
   $matrix -> map |row|{ $row[$col] }
 }
-# Result: list[list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
+# Result: [list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
 ```
 
 ### Zip Lists
@@ -423,13 +423,13 @@ range(0, $matrix[0] -> .len) -> map |col|{
 Combine parallel lists into dicts:
 
 ```rill
-list["a", "b", "c"] => $zipKeys
-list[1, 2, 3] => $zipValues
+["a", "b", "c"] => $zipKeys
+[1, 2, 3] => $zipValues
 
 range(0, $zipKeys -> .len) -> map |i|{
-  dict[key: $zipKeys[$i], value: $zipValues[$i]]
+  [key: $zipKeys[$i], value: $zipValues[$i]]
 }
-# Result: list[dict[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
+# Result: [[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
 ```
 
 Converting to a dict requires dict spread (not yet implemented):
@@ -451,7 +451,7 @@ Simple template with variable substitution (using angle brackets as delimiters):
 ```rill
 "Hello <name>, your order <orderId> ships on <date>." => $template
 
-dict[name: "Alice", orderId: "12345", date: "2024-03-15"] => $templateVars
+[name: "Alice", orderId: "12345", date: "2024-03-15"] => $templateVars
 
 $templateVars -> .entries -> fold($template) {
   $@.replace_all("<{$[0]}>", $[1] -> .str)
@@ -469,11 +469,11 @@ Extract structured data from formatted text:
 
 $input
   -> .split(";")
-  -> fold(dict[:]) {
+  -> fold([:]) {
     $ -> .split("=") -> destruct<$key, $value>
-    dict[...$@, ($key): $value]
+    [...$@, ($key): $value]
   }
-# Result: dict[name: "Alice", age: "30", city: "Seattle"]
+# Result: [name: "Alice", age: "30", city: "Seattle"]
 ```
 
 ### Word Frequency

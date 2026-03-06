@@ -80,8 +80,8 @@ See [Collections](topic-collections.md) for detailed documentation.
 | String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` | String value |
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
-| List | `list[a, b]`, `list[...$list]` | `list["file.ts", 42]`, `list[...$a, 3]` | List value |
-| Dict | `dict[k: v]`, `dict[$k: v]`, `dict[($e): v]` | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
+| List | `[a, b]` or `list[a, b]` (canonical) | `list["file.ts", 42]`, `list[...$a, 3]` | List value |
+| Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
@@ -89,6 +89,8 @@ See [Collections](topic-collections.md) for detailed documentation.
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+
+> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical — they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -161,13 +163,13 @@ Type constructors are primary expressions that produce structural type values. T
 `^type` returns a structural type value — not a coarse string:
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
 
 ```rill
-dict[a: 1, b: "hello"] => $d
+[a: 1, b: "hello"] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -175,7 +177,7 @@ $d.^type.name
 Type constructors appear as values and can be compared:
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
@@ -183,7 +185,7 @@ $list.^type == list(number)
 `.^type.name` returns the coarse type name string:
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
@@ -198,73 +200,73 @@ Pipe a value to a collection (dict or list) to retrieve the corresponding elemen
 
 | Syntax | Description |
 |--------|-------------|
-| `$val -> dict[k1: v1, k2: v2]` | Returns value for matching key |
-| `$val -> dict[k1: v1, k2: v2] ?? default` | Returns matched value or default |
-| `$val -> dict[list["k1", "k2"]: shared]` | Multi-key dispatch (same value) |
+| `$val -> [k1: v1, k2: v2]` | Returns value for matching key |
+| `$val -> [k1: v1, k2: v2] ?? default` | Returns matched value or default |
+| `$val -> [["k1", "k2"]: shared]` | Multi-key dispatch (same value) |
 
 ```text
-$value -> dict[apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
-$value -> dict[apple: "fruit"] ?? "not found"        # Returns "not found" if no match
-$method -> dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
+$value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
+$value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
+$method -> [["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
 
 **Type-Aware Dispatch:** Keys match by both value and type.
 
 | Input | Dict | Result |
 |-------|------|--------|
-| `1` | `dict[1: "one", 2: "two"]` | `"one"` |
-| `"1"` | `dict[1: "one", "1": "string"]` | `"string"` |
-| `true` | `dict[true: "yes", false: "no"]` | `"yes"` |
-| `"true"` | `dict[true: "bool", "true": "string"]` | `"string"` |
-| `1` | `dict[list[1, "one"]: "match"]` | `"match"` |
-| `"one"` | `dict[list[1, "one"]: "match"]` | `"match"` |
+| `1` | `[1: "one", 2: "two"]` | `"one"` |
+| `"1"` | `[1: "one", "1": "string"]` | `"string"` |
+| `true` | `[true: "yes", false: "no"]` | `"yes"` |
+| `"true"` | `[true: "bool", "true": "string"]` | `"string"` |
+| `1` | `[[1, "one"]: "match"]` | `"match"` |
+| `"one"` | `[[1, "one"]: "match"]` | `"match"` |
 
-Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `list[k1, k2]: value` maps multiple keys to the same value.
+Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: value` maps multiple keys to the same value.
 
 **Hierarchical Dispatch:** Navigate nested structures using a path list.
 
 | Syntax | Description |
 |--------|-------------|
-| `list[path] -> $target` | Navigate nested dict/list using path of keys/indexes |
-| `list[] -> $target` | Empty path returns target unchanged |
-| `list[k1, k2, ...] -> $dict` | Sequential navigation through nested dicts |
-| `list[0, 1, ...] -> $list` | Sequential navigation through nested lists |
-| `list[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
+| `[path] -> $target` | Navigate nested dict/list using path of keys/indexes |
+| `[] -> $target` | Empty path returns target unchanged |
+| `[k1, k2, ...] -> $dict` | Sequential navigation through nested dicts |
+| `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
+| `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
 
 Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). Type mismatch throws `RUNTIME_TYPE_ERROR`.
 
 Terminal closures receive `$` bound to the final path key.
 
 ```text
-list["name", "first"] -> dict[name: dict[first: "Alice"]]              # "Alice" (dict path)
-list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
-list["users", 0, "name"] -> dict[users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
-list["req", "draft"] -> dict[req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
+["name", "first"] -> [name: dict[first: "Alice"]]              # "Alice" (dict path)
+[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
+["users", 0, "name"] -> [users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
+["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
 ```
 
 **List Dispatch:** Index into a list using a number.
 
 | Syntax | Description |
 |--------|-------------|
-| `$idx -> list[a, b, c]` | Returns element at index (0-based) |
-| `$idx -> list[a, b, c] ?? default` | Returns element or default if out of bounds |
+| `$idx -> [a, b, c]` | Returns element at index (0-based) |
+| `$idx -> [a, b, c] ?? default` | Returns element or default if out of bounds |
 
 ```text
-0 -> list["first", "second", "third"]     # "first"
-1 -> list["first", "second", "third"]     # "second"
--1 -> list["first", "second", "third"]    # "third" (last element)
-5 -> list["a", "b"] ?? "not found"        # "not found" (out of bounds)
+0 -> ["first", "second", "third"]     # "first"
+1 -> ["first", "second", "third"]     # "second"
+-1 -> ["first", "second", "third"]    # "third" (last element)
+5 -> ["a", "b"] ?? "not found"        # "not found" (out of bounds)
 ```
 
 **Variable Dispatch:** Use stored collections.
 
 ```rill
-dict[apple: "fruit", carrot: "vegetable"] => $lookup
+[apple: "fruit", carrot: "vegetable"] => $lookup
 "apple" -> $lookup                    # "fruit"
 ```
 
 ```rill
-list["a", "b", "c"] => $items
+["a", "b", "c"] => $items
 1 -> $items                           # "b"
 ```
 
@@ -323,7 +325,7 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
 | `chain($fn)` | Apply single closure sequentially |
-| `chain(list[$f, $g])` | Apply list of closures sequentially |
+| `chain([$f, $g])` | Apply list of closures sequentially |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 
@@ -348,10 +350,10 @@ When constructs appear without explicit input, `$` is used implicitly:
 Extract elements from lists or dicts into variables:
 
 ```rill
-list[1, 2, 3] -> destruct<$a, $b, $c>
+[1, 2, 3] -> destruct<$a, $b, $c>
 # $a = 1, $b = 2, $c = 3
 
-dict[name: "test", count: 42] -> destruct<name: $n, count: $c>
+[name: "test", count: 42] -> destruct<name: $n, count: $c>
 # $n = "test", $c = 42
 ```
 
@@ -360,9 +362,9 @@ dict[name: "test", count: 42] -> destruct<name: $n, count: $c>
 Extract portions using Python-style `start:stop:step`:
 
 ```rill
-list[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
-list[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4]
-list[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0]
+[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
+[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4]
+[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0]
 "hello" -> slice<1:4>                    # "ell"
 ```
 
@@ -449,7 +451,7 @@ $fetch.^retry    # 3
 **Complex Annotation Values:**
 
 ```rill
-^(config: dict[timeout: 30, endpoints: list["a", "b"]]) |x|($x) => $fn
+^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
 
 $fn.^config.timeout      # 30
 $fn.^config.endpoints[0] # "a"
@@ -625,10 +627,10 @@ Place `^(...)` between the operator name and its body to attach metadata to that
 **Collection operators:**
 
 ```rill
-list[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
-list[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
-list[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
-list[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
 ```
 
 Invalid annotation keys for operator context produce a runtime error.
@@ -774,7 +776,7 @@ These always begin a new statement:
 | identifier | Host function call |
 | `@` | Loop |
 | `\|` `\|\|` | Closure definition |
-| literals | String, number, bool, `list[...]`, `dict[...]`, `tuple[...]`, `ordered[...]` |
+| literals | String, number, bool, `[...]`, `[...]`, `tuple[...]`, `ordered[...]` |
 
 ### Disjoint sets
 

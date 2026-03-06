@@ -259,16 +259,5 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       expect(err).toBeInstanceOf(ParseError);
       expect(err).toHaveProperty('errorId', 'RILL-P007');
     });
-
-    it('throws ParseError with errorId RILL-P008 for bare bracket at expression start (AC-35)', () => {
-      let err: unknown;
-      try {
-        parse('[1, 2, 3]');
-      } catch (e) {
-        err = e;
-      }
-      expect(err).toBeInstanceOf(ParseError);
-      expect(err).toHaveProperty('errorId', 'RILL-P008');
-    });
   });
 });

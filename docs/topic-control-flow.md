@@ -212,13 +212,13 @@ When you need to track multiple values across iterations, use `$` as a state dic
 
 ```text
 # Track iteration count, text, and done flag
-dict[iter: 0, text: $input, done: false]
+[iter: 0, text: $input, done: false]
   -> (!$.done && $.iter < 3) @ {
     $.iter + 1 => $i
     app::process($.text) => $result
     $result.finished
-      ? dict[iter: $i, text: $.text, done: true]
-      ! dict[iter: $i, text: $result.text, done: false]
+      ? [iter: $i, text: $.text, done: true]
+      ! [iter: $i, text: $result.text, done: false]
   }
 # Access final state: $.text, $.iter
 ```
@@ -285,7 +285,7 @@ $value -> break          # exit with value
 ### In Each Loop
 
 ```rill
-list[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> each {
   ($ > 3) ? ("found {$}" -> break)
   $
 }
@@ -306,11 +306,11 @@ list[1, 2, 3, 4, 5] -> each {
 In `each`, break returns partial results collected before the break:
 
 ```rill
-list["a", "b", "STOP", "c"] -> each {
+["a", "b", "STOP", "c"] -> each {
   ($ == "STOP") ? break
   $
 }
-# Returns list["a", "b"] (partial results before break)
+# Returns ["a", "b"] (partial results before break)
 ```
 
 ### Break Not Allowed
@@ -383,8 +383,8 @@ Provide a descriptive message as the second argument:
 "" -> assert !.empty "Empty input not allowed"
 # Error: Empty input not allowed
 
-list[1, 2, 3] -> assert (.len > 0) "List cannot be empty"
-# Returns list[1, 2, 3] (assertion passes)
+[1, 2, 3] -> assert (.len > 0) "List cannot be empty"
+# Returns [1, 2, 3] (assertion passes)
 ```
 
 ### Type Assertions
@@ -401,12 +401,12 @@ Combine with type checks to validate input:
 Assert validates each iteration. The loop halts on the first failing assertion:
 
 ```rill
-list[1, 2, 3] -> each {
+[1, 2, 3] -> each {
   assert ($ > 0) "Must be positive"
 }
-# Returns list[1, 2, 3] (all elements valid)
+# Returns [1, 2, 3] (all elements valid)
 
-list[1, 0, 3] -> each {
+[1, 0, 3] -> each {
   assert ($ > 0) "Must be positive"
 }
 # Error: Must be positive
@@ -634,8 +634,8 @@ Use `pass` when one branch should preserve the piped value:
 Use `pass` to include the piped value in dict construction:
 
 ```rill
-"success" -> { dict[status: pass, code: 0] }
-# Returns dict[status: "success", code: 0]
+"success" -> { [status: pass, code: 0] }
+# Returns [status: "success", code: 0]
 ```
 
 ### In Collection Operators
@@ -643,8 +643,8 @@ Use `pass` to include the piped value in dict construction:
 Preserve elements conditionally:
 
 ```rill
-list[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }
-# Returns list[1, 0, 3, 0]
+[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }
+# Returns [1, 0, 3, 0]
 ```
 
 ### Why Use Pass?
@@ -710,7 +710,7 @@ true
   app::prompt("Try operation")
 } ? (.contains("RETRY"))
 
-.contains("SUCCESS") ? list[0, "Done"] ! list[1, "Failed"]
+.contains("SUCCESS") ? [0, "Done"] ! list[1, "Failed"]
 ```
 
 ### State Machine
@@ -725,7 +725,7 @@ true
 ### Find First Match
 
 ```rill
-list[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> each {
   ($ > 3) ? ($ -> break)
   $
 }

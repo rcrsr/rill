@@ -794,13 +794,8 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return parseBareHostCall(this.state);
   }
 
-  // Bare '[' at expression start: not valid without keyword prefix (RILL-P008)
   if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    throw new ParseError(
-      'RILL-P008',
-      "bare '[' is not valid; use list[...] for a list or dict[...] for a dict",
-      current(this.state).span.start
-    );
+    return this.parseTupleOrDict();
   }
 
   // Common constructs
@@ -971,6 +966,17 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // String literal
   if (check(this.state, TOKEN_TYPES.STRING)) {
     return this.parseString();
+  }
+
+  // Bare bracket literal as dispatch target: ["a", "b"] or [a: 1]
+  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    const literal = this.parseTupleOrDict();
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      const defaultValue = this.parseDefaultValue();
+      return { ...literal, defaultValue };
+    }
+    return literal;
   }
 
   // Keyword list literal as dispatch target: list["a", "b"]

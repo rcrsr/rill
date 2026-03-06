@@ -147,8 +147,8 @@ The structural type formats as a human-readable string via `formatStructuralType
 
 | Expression | `.str` output |
 |------------|---------------|
-| `list[1, 2, 3] -> ^type` | `"list(number)"` |
-| `dict[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
+| `[1, 2, 3] -> ^type` | `"list(number)"` |
+| `[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
 | `tuple[1, "x"] -> ^type` | `"tuple(number, string)"` |
 | `ordered[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
 
@@ -316,9 +316,9 @@ Namespaces help organize host APIs and avoid name collisions without requiring t
 LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. The provider enforces the schema at the API level and returns a consistent dict.
 
 ```rill
-dict[name: "string", age: "number", active: "bool"] => $schema
+[name: "string", age: "number", active: "bool"] => $schema
 
-llm::generate("Extract user info from the following text: Alice, 30, active.", dict[
+llm::generate("Extract user info from the following text: Alice, 30, active.", [
   schema: $schema,
 ]) => $result
 

@@ -11,8 +11,8 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | String | `"text"` | `"hello"` |
 | Number | `123`, `0.5` | `42`, `0.9` |
 | Bool | `true`, `false` | `true` |
-| List | `list[a, b]` | `list["file.ts", 42]` |
-| Dict | `dict[k: v]` | `dict[output: "text", code: 0]` |
+| List | `[a, b]` or `list[a, b]` | `list["file.ts", 42]` |
+| Dict | `[k: v]` or `dict[k: v]` | `dict[output: "text", code: 0]` |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
 | Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
@@ -23,7 +23,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
 - **Type-locked variables**: A variable that holds a string always holds a string
 - **Value-based**: All copies are deep, all comparisons by value
-- **No null/undefined**: Empty values are valid (`""`, `list[]`, `dict[]`), but "no value" cannot exist
+- **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
 ---
@@ -135,17 +135,22 @@ Use explicit boolean checks when needed:
 
 ```rill
 "" -> .empty -> (!$) ? "has content" ! "empty"         # Negate boolean result
-list[1,2,3] -> .empty -> (!$) ? "has items" ! "none"   # Check non-empty
+[1,2,3] -> .empty -> (!$) ? "has items" ! "none"   # Check non-empty
 ```
 
 ---
 
 ## Lists
 
-Ordered sequences of values:
+Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent — `list[...]` is canonical (used in output and the LLM reference).
 
 ```rill
-list[1, 2, 3] => $nums
+[1, 2, 3]         # bare form
+list[1, 2, 3]     # keyword form (canonical)
+```
+
+```rill
+[1, 2, 3] => $nums
 $nums[0]                   # 1
 $nums[-1]                  # 3 (last element)
 $nums -> .len              # 3
@@ -156,24 +161,24 @@ $nums -> .len              # 3
 Inline elements from another list using `...` spread syntax:
 
 ```rill
-list[1, 2] => $a
-list[...$a, 3]             # list[1, 2, 3]
-list[...$a, ...$a]         # list[1, 2, 1, 2] (concatenation)
-list[...list[], 1]         # list[1] (empty spread contributes nothing)
+[1, 2] => $a
+[...$a, 3]             # list[1, 2, 3]
+[...$a, ...$a]         # list[1, 2, 1, 2] (concatenation)
+[...[], 1]         # list[1] (empty spread contributes nothing)
 ```
 
 Spread expressions evaluate before inlining:
 
 ```rill
-list[1, 2, 3] => $nums
-list[...($nums -> map {$ * 2})]  # list[2, 4, 6]
+[1, 2, 3] => $nums
+[...($nums -> map {$ * 2})]  # list[2, 4, 6]
 ```
 
 Spreading a non-list throws an error:
 
 ```text
 "hello" => $str
-list[...$str]              # Error: Spread in list literal requires list, got string
+[...$str]              # Error: Spread in list literal requires list, got string
 ```
 
 **Access methods:**
@@ -186,15 +191,15 @@ list[...$str]              # Error: Spread in list literal requires list, got st
 **Out-of-bounds access** throws an error:
 
 ```text
-list[] -> .at(0)           # Error: List index out of bounds
-list["a"] -> .at(5)        # Error: List index out of bounds
+[] -> .at(0)           # Error: List index out of bounds
+["a"] -> .at(5)        # Error: List index out of bounds
 ```
 
 Use `??` for safe access with default:
 
 ```rill
-list["a"] => $list
-$list[0] ?? "default"  # "a"
+["a"] => $list
+$[0] ?? "default"  # "a"
 ```
 
 See [Collections](topic-collections.md) for iteration operators.
@@ -203,41 +208,48 @@ See [Collections](topic-collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with identifier, number, boolean, variable, or computed keys:
+Key-value mappings with identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent — `dict[...]` is canonical.
+
+```rill
+[name: "alice", age: 30]         # bare form
+dict[name: "alice", age: 30]     # keyword form (canonical)
+[:]                               # empty dict (bare)
+dict[:]                           # empty dict (canonical)
+```
 
 ```rill
 # Identifier keys
-dict[name: "alice", age: 30] => $person
+[name: "alice", age: 30] => $person
 $person.name               # "alice"
 $person.age                # 30
 ```
 
 ```text
 # Number keys (including negative)
-dict[1: "one", 2: "two", -1: "minus one"] => $numbers
+[1: "one", 2: "two", -1: "minus one"] => $numbers
 1 -> $numbers              # "one"
 (-1) -> $numbers           # "minus one"
 
 # Boolean keys
-dict[true: "yes", false: "no"] => $yesno
+[true: "yes", false: "no"] => $yesno
 true -> $yesno             # "yes"
 
 # Variable keys (key value from variable, must be string)
 "status" => $key
-dict[$key: "active"]       # dict[status: "active"]
+[$key: "active"]       # dict[status: "active"]
 
 # Computed keys (key from expression, must be string)
 "user" => $prefix
-dict[($prefix -> "{$}_name"): "alice"]  # dict[user_name: "alice"]
+[($prefix -> "{$}_name"): "alice"]  # dict[user_name: "alice"]
 
 # Multi-key syntax (same value for multiple keys)
-dict[list["a", "b"]: 1]    # dict[a: 1, b: 1]
-dict[list[1, "1"]: "x"]    # dict[1: "x", "1": "x"] (mixed types)
-dict[a: 0, list["b", "c"]: 1]  # dict[a: 0, b: 1, c: 1] (mixed entries)
-dict[a: 0, list["a", "b"]: 1]  # dict[a: 1, b: 1] (last-write-wins)
+[["a", "b"]: 1]    # dict[a: 1, b: 1]
+[[1, "1"]: "x"]    # dict[1: "x", "1": "x"] (mixed types)
+[a: 0, ["b", "c"]: 1]  # dict[a: 0, b: 1, c: 1] (mixed entries)
+[a: 0, ["a", "b"]: 1]  # dict[a: 1, b: 1] (last-write-wins)
 
 # Multi-key dispatch
-dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
+[["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
 "GET" -> $methods          # "safe"
 "POST" -> $methods         # "unsafe"
 ```
@@ -245,8 +257,8 @@ dict[list["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
 Multi-key errors:
 
 ```text
-dict[list[]: 1]            # Error: Multi-key dict entry requires non-empty list
-dict[list[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boolean, got list
+[[]: 1]            # Error: Multi-key dict entry requires non-empty list
+[[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boolean, got list
 ```
 
 **Access patterns:**
@@ -265,7 +277,7 @@ dict[list[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boo
 **Missing key access** throws an error. Use `??` for safe access:
 
 ```rill
-dict[] => $d
+[:] => $d
 $d.missing ?? ""           # "" (safe default)
 ```
 
@@ -296,9 +308,9 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 | `.entries` | List of `[key, value]` pairs |
 
 ```rill
-dict[name: "test", count: 42] -> .keys      # list["count", "name"]
-dict[name: "test", count: 42] -> .values    # list[42, "test"]
-dict[a: 1, b: 2] -> .entries                # list[list["a", 1], list["b", 2]]
+[name: "test", count: 42] -> .keys      # ["count", "name"]
+[name: "test", count: 42] -> .values    # [42, "test"]
+[a: 1, b: 2] -> .entries                # [list["a", 1], list["b", 2]]
 ```
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
@@ -308,7 +320,7 @@ dict[a: 1, b: 2] -> .entries                # list[list["a", 1], list["b", 2]]
 Closures in dicts have `$` late-bound to the containing dict. See [Closures](topic-closures.md) for details.
 
 ```rill
-dict[
+[
   name: "toolkit",
   count: 3,
   str: ||"{$.name}: {$.count} items"
@@ -378,7 +390,7 @@ Ordered containers auto-unpack when passed as a single argument to a multi-param
 
 ```rill
 # List of ordered containers with multi-arg closure
-list[ordered[x: 1, y: 2], ordered[x: 3, y: 4]] -> map |x, y|($x * $y)    # list[2, 12]
+[ordered[x: 1, y: 2], ordered[x: 3, y: 4]] -> map |x, y|($x * $y)    # list[2, 12]
 ```
 
 ---
@@ -485,13 +497,13 @@ $vec -> each { $ * 2 }
 ### `^type` Returns Structural Types
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
 
 ```rill
-dict[a: 1, b: "hello"] => $d
+[a: 1, b: "hello"] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -523,13 +535,13 @@ $lt.^type.name
 ### Comparing Structural Types
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type == list(number)
 # Result: true
 ```
 
 ```rill
-dict[a: 1, b: "hello"] => $d
+[a: 1, b: "hello"] => $d
 $d.^type == dict(a: number, b: string)
 # Result: true
 ```
@@ -539,13 +551,13 @@ $d.^type == dict(a: number, b: string)
 `.^type.name` returns the coarse type name as a string:
 
 ```rill
-list[1, 2, 3] => $list
+[1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
 ```
 
 ```rill
-dict[a: 1] => $d
+[a: 1] => $d
 $d.^type.name
 # Result: "dict"
 ```
@@ -664,7 +676,7 @@ $x -> .model
 
 ```rill
 # Assert type and continue processing
-list[1, 2, 3] -> :list -> each { $ * 2 }
+[1, 2, 3] -> :list -> each { $ * 2 }
 
 # Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4
@@ -734,11 +746,11 @@ $n.^type == number
 $s.^type == string
 # Result: true
 
-list[1, 2] => $l
+[1, 2] => $l
 $l.^type == list(number)
 # Result: true
 
-dict[a: 1] => $d
+[a: 1] => $d
 $d.^type == dict(a: number)
 # Result: true
 ```
@@ -794,7 +806,7 @@ $s.^type.name
 ```
 
 ```rill
-list[1, 2] => $l
+[1, 2] => $l
 $l.^type.name
 # Result: "list"
 ```
@@ -835,13 +847,13 @@ $a.^type == $b.^type
 ```
 
 ```rill
-list[1, 2] => $l
+[1, 2] => $l
 $l.^type == list(number)
 # Result: true
 ```
 
 ```rill
-list["a", "b"] => $strs
+["a", "b"] => $strs
 $strs.^type == list(number)
 # Result: false
 ```
@@ -866,7 +878,7 @@ $t.^type == type
 | `json` | Convert to JSON string |
 
 ```rill
-dict[a: 1, b: 2] -> json
+[a: 1, b: 2] -> json
 # Result: '{"a":1,"b":2}'
 ```
 

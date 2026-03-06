@@ -106,7 +106,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    "hello" -> $x                 -- terminal capture (ends chain)
    "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
    "hello" => $x -> .len         -- capture arrow (clearer, same effect)
-   list[1,2,3] -> each { break } -- break terminates (exits loop)
+   [1,2,3] -> each { break } -- break terminates (exits loop)
    "result" -> return            -- return terminates (exits function) *)
 
 statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
@@ -190,7 +190,7 @@ primary       = literal
    Examples:
      cond ? pass ! "fallback"      -- preserve $ when condition true
      cond ? "value" ! pass         -- preserve $ when condition false
-     dict[key: pass]               -- include $ as dict value
+     [key: pass]               -- include $ as dict value
      -> { pass }                   -- block returns $
 
    Semantic: pass requires pipe context. Using pass without $ bound
@@ -257,40 +257,50 @@ interpolation = "{" , expression , "}" ;
 number        = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
 bool          = "true" | "false" ;
 
-(* List literal: keyword-prefixed form.
-   list[...] — keyword and "[" must be adjacent (no whitespace).
-   list[] is an empty list.
+(* List literal: bare bracket form or keyword-prefixed form.
+   Both [1, 2, 3] and list[1, 2, 3] are valid and produce the same result.
+   For keyword form, keyword and "[" must be adjacent (no whitespace).
+   [] and list[] are empty lists.
 
    Examples:
-     list[]                           -- empty list
-     list[1, 2, 3]                    -- three-element list
-     list[1, ...$other, 2]            -- spread inlines $other elements *)
-list          = "list" , "[" , "]"
+     []                               -- empty list (bare)
+     [1, 2, 3]                        -- three-element list (bare)
+     [1, ...$other, 2]                -- spread inlines $other elements (bare)
+     list[]                           -- empty list (keyword)
+     list[1, 2, 3]                    -- three-element list (keyword) *)
+list          = "[" , "]"
+              | "[" , list-element , { "," , list-element } , "]"
+              | "list" , "[" , "]"
               | "list" , "[" , list-element , { "," , list-element } , "]" ;
 list-element  = "..." , expression           (* spread: inline list elements *)
               | expression ;                 (* regular element *)
-              (* List spread syntax: list[1, ...$list, 2] inlines $list elements.
+              (* List spread syntax: [1, ...$list, 2] inlines $list elements.
                  The spread expression must evaluate to a list at runtime.
-                 Example: list[1, 2] => $a; list[...$a, 3] yields list[1, 2, 3]
+                 Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
                  Error: spreading non-list throws RUNTIME_TYPE_ERROR *)
 
-(* Dict literal: keyword-prefixed form.
-   dict[...] — keyword and "[" must be adjacent (no whitespace).
-   dict[:] is an empty dict.
+(* Dict literal: bare bracket form or keyword-prefixed form.
+   Both [a: 1] and dict[a: 1] are valid and produce the same result.
+   For keyword form, keyword and "[" must be adjacent (no whitespace).
+   [:] and dict[:] are empty dicts.
 
    Examples:
-     dict[:]                          -- empty dict
-     dict[name: "Alice", age: 30]     -- two-key dict
-     dict[$key: "value"]              -- variable key *)
-dict          = "dict" , "[" , ":" , "]"
+     [:]                              -- empty dict (bare)
+     [name: "Alice", age: 30]         -- two-key dict (bare)
+     [$key: "value"]                  -- variable key (bare)
+     dict[:]                          -- empty dict (keyword)
+     dict[name: "Alice", age: 30]     -- two-key dict (keyword) *)
+dict          = "[" , ":" , "]"
+              | "[" , dict-entry , { "," , dict-entry } , "]"
+              | "dict" , "[" , ":" , "]"
               | "dict" , "[" , dict-entry , { "," , dict-entry } , "]" ;
 dict-key      = identifier | number | bool
-              | "$" , identifier                      (* variable key: dict[$keyName: value] *)
-              | "(" , pipe-chain , ")" ;              (* computed key: dict[($expr): value] *)
+              | "$" , identifier                      (* variable key: [$keyName: value] *)
+              | "(" , pipe-chain , ")" ;              (* computed key: [($expr): value] *)
 dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , ":" , expression ;
               (* Keys can be identifiers, numbers, booleans, variables, computed expressions, or multi-key lists.
-                 Variable key: dict[$varName: value] uses variable value as key (must be string).
-                 Computed key: dict[($x -> .upper): value] evaluates expression as key (must be string).
+                 Variable key: [$varName: value] uses variable value as key (must be string).
+                 Computed key: [($x -> .upper): value] evaluates expression as key (must be string).
                  Multi-key syntax [k1, k2]: expr maps multiple keys to same value.
                  Semantic: keys "keys", "values", "entries" are reserved (cannot be used as dict keys).
                  Semantic: closure values become "dict closures" where $ is late-bound
@@ -403,7 +413,7 @@ host-name = identifier , { "::" , identifier } ;
                  - identity($value) -- returns value unchanged
                  - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
                  - repeat(value, count) -- iterator repeating value count times
-                 - chain($fn) or chain(list[$f, $g]) -- compose closures left-to-right
+                 - chain($fn) or chain([$f, $g]) -- compose closures left-to-right
 
                  All other functions are registered by the host via RuntimeContext.functions. *)
 
@@ -495,15 +505,15 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
    When piping to a dict or list literal, dispatch rules apply:
 
    1. Scalar -> dict: key lookup
-      "apple" -> dict[apple: "fruit", carrot: "veg"]   -- "fruit"
+      "apple" -> [apple: "fruit", carrot: "veg"]   -- "fruit"
 
    2. Number -> list: index access
-      0 -> list["first", "second"]                     -- "first"
+      0 -> ["first", "second"]                     -- "first"
 
    3. List -> dict/list: hierarchical navigation (path dispatch)
-      list["name", "first"] -> dict[name: dict[first: "Alice"]]  -- "Alice"
-      list[0, 1] -> list[list[1, 2], list[3, 4]]                  -- 4
-      list["users", 0, "name"] -> dict[users: list[dict[name: "X"]]] -- "X"
+      ["name", "first"] -> [name: [first: "Alice"]]  -- "Alice"
+      [0, 1] -> [[1, 2], [3, 4]]                  -- 4
+      ["users", 0, "name"] -> [users: [[name: "X"]]] -- "X"
 
    Path elements: strings for dict keys, numbers for list indexes.
    Negative indexes supported. Terminal closures receive $ = final key.
@@ -517,19 +527,19 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
    They return the extracted values while optionally binding to variables.
 
    Destructure: extract elements into variables
-   - list[1, 2, 3] -> destruct<$a, $b, $c>
-   - dict[name: "x"] -> destruct<name: $n>
-   - Skip:  list[1, 2, 3] -> destruct<$a, _, $c>
-   - Nested: list[list[1, 2], 3] -> destruct<destruct<$a, $b>, $c>
+   - [1, 2, 3] -> destruct<$a, $b, $c>
+   - [name: "x"] -> destruct<name: $n>
+   - Skip:  [1, 2, 3] -> destruct<$a, _, $c>
+   - Nested: [[1, 2], 3] -> destruct<destruct<$a, $b>, $c>
 
    Slice: extract portions using Python-style start:stop:step
-   - list[1, 2, 3, 4, 5] -> slice<1:4>     -> list[2, 3, 4]
-   - list[1, 2, 3, 4, 5] -> slice<::-1>    -> list[5, 4, 3, 2, 1]
+   - [1, 2, 3, 4, 5] -> slice<1:4>     -> [2, 3, 4]
+   - [1, 2, 3, 4, 5] -> slice<::-1>    -> [5, 4, 3, 2, 1]
    - "hello" -> slice<1:4>                 -> "ell"
 
    Enumerate: use global enumerate() function instead
-   - enumerate(list[10, 20])   -> list[dict[index: 0, value: 10], dict[index: 1, value: 20]]
-   - enumerate(dict[a: 1])     -> list[dict[index: 0, key: "a", value: 1]] *)
+   - enumerate([10, 20])   -> [[index: 0, value: 10], [index: 1, value: 20]]
+   - enumerate([a: 1])     -> [[index: 0, key: "a", value: 1]] *)
 
 destructure       = "destruct" , "<" , [ destruct-pattern , { "," , destruct-pattern } ] , ">" ;
 destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
@@ -544,16 +554,16 @@ slice-bound       = number | variable | grouped-expr ;
    Only dict operands are valid.
 
    Syntax:
-     ...dict[x: 1, y: 2]         -- named spread from dict literal → ordered
+     ...[x: 1, y: 2]         -- named spread from dict literal → ordered
      ...$myDict                  -- named spread from dict variable → ordered
-     list[1, ...$other, 2]       -- spread inside list literal
+     [1, ...$other, 2]       -- spread inside list literal
 
    Key-based matching at invocation:
      - String keys (from dict): match parameters by name
 
    Example:
-     |a, b| { list[$b, $a] } -> $flip
-     ...dict[a: 1, b: 2] -> $flip() -- $a=1, $b=2, returns list[2, 1]
+     |a, b| { [$b, $a] } -> $flip
+     ...[a: 1, b: 2] -> $flip() -- $a=1, $b=2, returns [2, 1]
 
    Strict validation: missing or extra arguments error at invocation.
    Parameter defaults provide explicit opt-in leniency.
@@ -561,7 +571,7 @@ slice-bound       = number | variable | grouped-expr ;
    Note: ordered values convert to plain objects via toNative() — native field holds { key: value }. *)
 
 spread            = "..." , postfix-expr ;
-              (* Spread converts a dict to ordered for arg unpacking: ...dict[a: 1, b: 2]
+              (* Spread converts a dict to ordered for arg unpacking: ...[a: 1, b: 2]
                  Only dict spread is valid.
                  Bare ... in pipe position uses implicit $: each { ... } ≡ each { $ -> ... } *)
 
@@ -689,9 +699,9 @@ else-clause   = conditional | body ;
    Examples:
      ($x < 10) @ { ($x + 1) => $x }     -- while loop (condition is bool)
      @ { $ } ? ($x < 10)                -- do-while (body, then check)
-     list[1, 2, 3] -> each { $ * 2 }    -- for-each (use each operator)
+     [1, 2, 3] -> each { $ * 2 }    -- for-each (use each operator)
      "abc" -> each { $ }                -- iterate over string chars
-     dict[a: 1, b: 2] -> each { $.key } -- iterate over dict entries
+     [a: 1, b: 2] -> each { $.key } -- iterate over dict entries
      $items -> each { process($) }      -- iterate over variable *)
 
 loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
@@ -729,12 +739,12 @@ loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
    Dict iteration binds $ to { key, value } objects.
 
    Examples:
-     list[1, 2, 3] -> each { $ * 2 }           -- list[2, 4, 6]
-     list[1, 2, 3] -> map ($ + 10)             -- list[11, 12, 13]
-     list[1, 2, 3, 4, 5] -> filter { $ > 2 }   -- list[3, 4, 5]
-     list[1, 2, 3] -> fold(0) { $@ + $ }       -- 6
-     list[1, 2, 3] -> each(0) { $@ + $ }       -- list[1, 3, 6] (running sum)
-     list[1, 2, 3] -> each |x, s = 0| ($s + $x) -- list[1, 3, 6]
+     [1, 2, 3] -> each { $ * 2 }           -- [2, 4, 6]
+     [1, 2, 3] -> map ($ + 10)             -- [11, 12, 13]
+     [1, 2, 3, 4, 5] -> filter { $ > 2 }   -- [3, 4, 5]
+     [1, 2, 3] -> fold(0) { $@ + $ }       -- 6
+     [1, 2, 3] -> each(0) { $@ + $ }       -- [1, 3, 6] (running sum)
+     [1, 2, 3] -> each |x, s = 0| ($s + $x) -- [1, 3, 6]
 *)
 
 iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
@@ -745,7 +755,7 @@ iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
                  postfix-expr: includes variables ($fn), bare $ for identity, and .method shorthand
                  host-name: bare function name (func or ns::func), element passed as first arg
                  Note: variable not listed separately since postfix-expr -> primary -> variable
-                 .method shorthand applies method to each element: list["a","b"] -> map .upper *)
+                 .method shorthand applies method to each element: ["a","b"] -> map .upper *)
 
 each-expr     = "each" , [ "(" , expression , ")" ] , [ annotation ] , iterator-body ;
               (* Sequential iteration returning list of all body results.
@@ -753,9 +763,9 @@ each-expr     = "each" , [ "(" , expression , ")" ] , [ annotation ] , iterator-
                  With accumulator: $@ is accumulator, $ is current element.
                  Supports break for early termination.
                  Optional annotation before body attaches operational metadata.
-                 list[1, 2, 3] -> each { $ * 2 }              -- list[2, 4, 6]
-                 list[1, 2, 3] -> each(0) { $@ + $ }          -- list[1, 3, 6]
-                 list[1, 2, 3] -> each ^(limit: 1000) { $ }   -- with annotation *)
+                 [1, 2, 3] -> each { $ * 2 }              -- [2, 4, 6]
+                 [1, 2, 3] -> each(0) { $@ + $ }          -- [1, 3, 6]
+                 [1, 2, 3] -> each ^(limit: 1000) { $ }   -- with annotation *)
 
 map-expr      = "map" , [ annotation ] , iterator-body ;
               (* Parallel iteration returning list of all body results.
@@ -764,7 +774,7 @@ map-expr      = "map" , [ annotation ] , iterator-body ;
                  No accumulator (parallel has no "previous" value).
                  No break support.
                  Optional annotation before body controls concurrency limit.
-                 list[1, 2, 3] -> map { $ * 2 }               -- list[2, 4, 6]
+                 [1, 2, 3] -> map { $ * 2 }               -- [2, 4, 6]
                  $urls -> map |url| fetch($url)                -- concurrent fetch
                  $urls -> map ^(limit: 10) { fetch($) }       -- limit concurrency *)
 
@@ -775,8 +785,8 @@ fold-expr     = "fold" , ( "(" , expression , ")" , [ annotation ] , iterator-bo
                  Closure form: |x, acc = init| body.
                  Variable form: $fn where closure defines accumulator.
                  No break support.
-                 list[1, 2, 3] -> fold(0) { $@ + $ }                    -- 6
-                 list[1, 2, 3] -> fold ^(limit: 20) |x, s = 0| ($s + $x) -- with annotation *)
+                 [1, 2, 3] -> fold(0) { $@ + $ }                    -- 6
+                 [1, 2, 3] -> fold ^(limit: 20) |x, s = 0| ($s + $x) -- with annotation *)
 
 filter-expr   = "filter" , [ annotation ] , iterator-body ;
               (* Parallel filtering returning elements where predicate is true.
@@ -786,7 +796,7 @@ filter-expr   = "filter" , [ annotation ] , iterator-body ;
                  Order is preserved despite parallel execution.
                  No accumulator (each element evaluated independently).
                  Optional annotation before body attaches operational metadata.
-                 list[1, 2, 3, 4, 5] -> filter { $ > 2 }          -- list[3, 4, 5]
+                 [1, 2, 3, 4, 5] -> filter { $ > 2 }          -- [3, 4, 5]
                  $users -> filter |u| ($u.active)                  -- active users
                  $users -> filter ^(limit: 50) { $.active }        -- with annotation *)
 
@@ -795,7 +805,7 @@ block         = "{" , statement , { statement } , "}" ;
 
                  EXPRESSION POSITION (creates closure):
                  - { body } => $fn                  -- stored as closure
-                 - dict[key: { body }]               -- dict value is closure
+                 - [key: { body }]               -- dict value is closure
                  - log({ body })                    -- arg is closure
                  Block creates ScriptCallable with implicit $ parameter.
 

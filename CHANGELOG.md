@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native return values** — `ExecutionResult.result` returns host-native JS values (string, number, boolean, null, arrays, plain objects) instead of internal wrappers. `onLog` callback receives formatted strings
 - **Dict-form tools for tool_loop** — Tools declared as plain dicts instead of `tool()` calls. Script tools use annotated closures; host functions use bare `ns::name` references
 - **Annotation system overhaul** — Annotations precede params (`|^("desc") name: type|`), loops accept `^(limit: N)`, `vector`/`any` types added
+- **Explicit literal syntax** — Keyword prefixes replace ambiguous brackets: `list[`, `dict[` replace bare `[`, `tuple[`, `ordered[` replace `*[`, `destruct<` replaces `*<`, `slice<` replaces `/<`, `chain()` replaces `@[`/`@$`. New `:>` convert operator for type conversions
 
 #### Fixed
 

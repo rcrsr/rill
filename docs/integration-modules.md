@@ -75,7 +75,7 @@ export:
 ---
 |x|($x * 2) => $double
 |x|($x * 3) => $triple
-dict[pi: 3.14159, e: 2.71828] => $constants
+[pi: 3.14159, e: 2.71828] => $constants
 ```
 
 The host:
@@ -102,7 +102,7 @@ export:
   ($x < $min) ? $min ! ($x > $max) ? $max ! $x
 } => $clamp
 
-dict[pi: 3.14159, e: 2.71828, phi: 1.61803] => $constants
+[pi: 3.14159, e: 2.71828, phi: 1.61803] => $constants
 ```
 
 Usage:

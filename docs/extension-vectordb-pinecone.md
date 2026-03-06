@@ -49,16 +49,16 @@ const ext = createPineconeExtension({
 **upsert(id, vector, metadata?)** — Insert or update a vector:
 
 ```rill
-pinecone::upsert("doc-1", list[0.1, 0.2, 0.3], dict[title: "Example", page: 1]) => $result
+pinecone::upsert("doc-1", [0.1, 0.2, 0.3], [title: "Example", page: 1]) => $result
 $result.upsertedCount -> log
 ```
 
 **upsert_batch(items)** — Batch insert or update multiple vectors:
 
 ```rill
-list[
-  dict[id: "doc-1", vector: list[0.1, 0.2, 0.3], metadata: dict[title: "First"]],
-  dict[id: "doc-2", vector: list[0.4, 0.5, 0.6], metadata: dict[title: "Second"]],
+[
+  [id: "doc-1", vector: [0.1, 0.2, 0.3], metadata: dict[title: "First"]],
+  [id: "doc-2", vector: [0.4, 0.5, 0.6], metadata: dict[title: "Second"]],
 ] -> pinecone::upsert_batch => $result
 $result.upsertedCount -> log
 ```
@@ -66,7 +66,7 @@ $result.upsertedCount -> log
 **search(vector, options?)** — Search for k-nearest neighbor vectors:
 
 ```rill
-pinecone::search(list[0.1, 0.2, 0.3], dict[limit: 5, minScore: 0.8]) => $results
+pinecone::search([0.1, 0.2, 0.3], [limit: 5, minScore: 0.8]) => $results
 $results.matches -> log
 ```
 
@@ -95,7 +95,7 @@ pinecone::delete("doc-1")
 **delete_batch(ids)** — Delete multiple vectors by ID:
 
 ```rill
-pinecone::delete_batch(list["doc-1", "doc-2", "doc-3"])
+pinecone::delete_batch(["doc-1", "doc-2", "doc-3"])
 ```
 
 **count()** — Count total vectors in the namespace:
@@ -108,7 +108,7 @@ $result.vectorCount -> log
 **create_collection(name, options?)** — Create a new collection from the current index:
 
 ```rill
-pinecone::create_collection("backup-2024", dict[source: "my-index"]) => $result
+pinecone::create_collection("backup-2024", [source: "my-index"]) => $result
 $result.name -> log
 ```
 

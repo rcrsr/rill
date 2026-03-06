@@ -61,14 +61,14 @@ Pipes chain naturally:
 
 ```rill
 "  hello world  " -> .trim -> .split(" ")
-# Result: list["hello", "world"]
+# Result: ["hello", "world"]
 ```
 
 Methods can also chain directly without `->`:
 
 ```rill
 "  hello world  ".trim.split(" ")
-# Result: list["hello", "world"]
+# Result: ["hello", "world"]
 ```
 
 Each `->` passes its left side to its right side. The result flows through the chain.
@@ -95,8 +95,8 @@ rill has seven value types:
 | String | `"hello"` |
 | Number | `42`, `3.14`, `-7` |
 | Boolean | `true`, `false` |
-| List | `list[1, 2, 3]` |
-| Dict | `dict[name: "alice", age: 30]` |
+| List | `[1, 2, 3]` |
+| Dict | `[name: "alice", age: 30]` |
 | Tuple | `tuple[1, 2, 3]` |
 | Closure | `\|x\|($x + 1)` |
 
@@ -135,19 +135,21 @@ Line two
 
 ### Lists and Dicts
 
-Lists hold ordered values:
+Lists hold ordered values. Both `[...]` (bare) and `list[...]` (keyword) are valid — `list[...]` is canonical:
 
 ```rill
-list[1, 2, 3] => $nums
+[1, 2, 3] => $nums          # bare form
+list[1, 2, 3] => $nums      # keyword form (canonical)
 $nums[0]        # 1
 $nums[-1]       # 3 (last element)
 $nums -> .len   # 3
 ```
 
-Dicts hold key-value pairs:
+Dicts hold key-value pairs. Both `[k: v]` (bare) and `dict[...]` (keyword) are valid — `dict[...]` is canonical:
 
 ```rill
-dict[name: "alice", age: 30] => $person
+[name: "alice", age: 30] => $person         # bare form
+dict[name: "alice", age: 30] => $person     # keyword form (canonical)
 $person.name    # "alice"
 $person.age     # 30
 ```
@@ -158,13 +160,13 @@ Methods are called with `.name()` syntax. The pipe value becomes the implicit fi
 
 ```rill
 "hello world" -> .split(" ")
-# Result: list["hello", "world"]
+# Result: ["hello", "world"]
 
 "hello" -> .contains("ell")
 # Result: true
 
-list[1, 2, 3] -> map |x|($x * 2)
-# Result: list[2, 4, 6]
+[1, 2, 3] -> map |x|($x * 2)
+# Result: [2, 4, 6]
 ```
 
 Common string methods: `.len`, `.trim`, `.split()`, `.contains()`, `.match()`, `.is_match()`, `.lower`, `.upper`, `.replace()`, `.replace_all()`
@@ -220,8 +222,8 @@ $input -> .contains("x")
 Iterate over a list with `each { body }`:
 
 ```rill
-list[1, 2, 3] -> each { $ * 2 }
-# Result: list[2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }
+# Result: [2, 4, 6]
 ```
 
 Inside the loop body, `$` is the current element. The loop collects all body results into a new list.
@@ -244,11 +246,11 @@ The body's result becomes the next iteration's `$`. The loop exits when the cond
 Use `break` to exit a loop early:
 
 ```rill
-list[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> each {
   ($ == 3) ? break
   $
 }
-# Result: list[1, 2]
+# Result: [1, 2]
 ```
 
 ## Closures (Functions)
@@ -261,8 +263,8 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](topic-
 5 -> $double()
 # Result: 10
 
-list[1, 2, 3] -> map $double
-# Result: list[2, 4, 6]
+[1, 2, 3] -> map $double
+# Result: [2, 4, 6]
 ```
 
 ### Multiple Parameters
@@ -288,7 +290,7 @@ $fn("Alice", 30)
 Access dict fields and list indices:
 
 ```rill
-dict[name: "alice", scores: list[85, 92, 78]] => $data
+[name: "alice", scores: [85, 92, 78]] => $data
 
 $data.name           # "alice"
 $data.scores[0]      # 85
@@ -349,7 +351,7 @@ Without a limit, while loops default to 10,000 max iterations.
 Here's a complete example that processes a list of names:
 
 ```rill
-list["alice", "bob", "charlie"] => $names
+["alice", "bob", "charlie"] => $names
 $names -> map |name| { "{$name}: {$name -> .len} chars" } => $descriptions
 $descriptions -> .join(", ")
 ```
@@ -381,8 +383,8 @@ $                           # current pipe value
 "string"                    # string
 42, 3.14                    # number
 true, false                 # boolean
-list[1, 2, 3]               # list
-dict[a: 1, b: 2]            # dict
+[1, 2, 3]               # list
+[a: 1, b: 2]            # dict
 tuple[1, 2, 3]              # tuple (positional)
 |x|($x + 1)                 # closure
 
@@ -407,7 +409,7 @@ return                      # exit block
 
 # Access
 $data.field                 # dict field
-$list[0]                    # list index
+$[0]                    # list index
 $data.field ?? default      # with default
 $data.?field                # existence check
 

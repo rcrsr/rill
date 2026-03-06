@@ -229,7 +229,7 @@ export const SPACING_BRACES: ValidationRule = {
 
 /**
  * Enforces no inner spaces for indexing brackets.
- * Array/dict indexing should use $list[0] not $list[ 0 ].
+ * Array/dict indexing should use $var[0] not $var[ 0 ].
  *
  * Detection:
  * - PostfixExpr nodes with index access

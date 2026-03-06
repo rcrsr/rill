@@ -12,13 +12,13 @@
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison Methods | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` |
 | Logical | `!` (unary), `&&`, `||` |
-| Chain | `chain($fn)`, `chain(list[...])` |
+| Chain | `chain($fn)`, `chain([...])` |
 | Ordered | `ordered[k: v]` (named ordered container) |
 | Extraction | `destruct<...>` (destructure), `slice<...>` (slice) |
 | Convert | `:>type` (conversion) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
-| Hierarchical Dispatch | `list[path] -> target` |
+| Hierarchical Dispatch | `[path] -> target` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?field&type` |
 
@@ -31,7 +31,7 @@ The pipe operator passes the left-hand value to the right-hand side:
 ```rill
 "hello" -> .upper              # "HELLO"
 42 -> ($ + 8)                  # 50
-list[1, 2, 3] -> each { $ * 2 }    # list[2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }    # list[2, 4, 6]
 ```
 
 ### Piped Value as `$`
@@ -164,8 +164,8 @@ All operands must be numbers. No implicit conversion:
 All comparisons are by value, not reference:
 
 ```rill
-list[1, 2, 3] == list[1, 2, 3]         # true
-dict[a: 1] == dict[a: 1]               # true
+[1, 2, 3] == list[1, 2, 3]         # true
+[a: 1] == dict[a: 1]               # true
 "hello" == "hello"                     # true
 ```
 
@@ -262,7 +262,7 @@ Chain a list of closures:
 |x|($x + 10) => $add10
 
 # Chain: (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
-5 -> chain(list[$inc, $double, $add10])    # 22
+5 -> chain([$inc, $double, $add10])    # 22
 ```
 
 Chain a single closure:
@@ -296,43 +296,43 @@ Extract elements from lists or dicts into variables. Returns the original value 
 **List destructuring** (pattern count must match list length):
 
 ```rill
-list[1, 2, 3] -> destruct<$a, $b, $c>
+[1, 2, 3] -> destruct<$a, $b, $c>
 # $a = 1, $b = 2, $c = 3
 ```
 
 **With dict destructuring:**
 
 ```rill
-dict[code: 0, msg: "ok"] -> destruct<code: $code, msg: $msg>
+[code: 0, msg: "ok"] -> destruct<code: $code, msg: $msg>
 # $code = 0, $msg = "ok"
 ```
 
 **Skip elements with `_`:**
 
 ```rill
-list[1, 2, 3, 4] -> destruct<$first, _, _, $last>
+[1, 2, 3, 4] -> destruct<$first, _, _, $last>
 # $first = 1, $last = 4
 ```
 
 **Dict destructuring** (explicit key mapping):
 
 ```rill
-dict[name: "test", count: 42] -> destruct<name: $n, count: $c>
+[name: "test", count: 42] -> destruct<name: $n, count: $c>
 # $n = "test", $c = 42
 ```
 
 **Nested destructuring:**
 
 ```rill
-list[list[1, 2], list[3, 4]] -> destruct<destruct<$a, $b>, destruct<$c, $d>>
+[list[1, 2], list[3, 4]] -> destruct<destruct<$a, $b>, destruct<$c, $d>>
 # $a = 1, $b = 2, $c = 3, $d = 4
 ```
 
 **Errors:**
 
 ```text
-list[1, 2] -> destruct<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
-dict[name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
+[1, 2] -> destruct<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
+[name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
 ```
 
 ### Slice `slice<>`
@@ -342,29 +342,29 @@ Extract a portion using Python-style `start:stop:step`. Works on lists and strin
 **Basic slicing:**
 
 ```rill
-list[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
-list[0, 1, 2, 3, 4] -> slice<1:4>        # list[1, 2, 3]
+[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
+[0, 1, 2, 3, 4] -> slice<1:4>        # list[1, 2, 3]
 ```
 
 **Omitted bounds:**
 
 ```rill
-list[0, 1, 2, 3, 4] -> slice<:3>         # list[0, 1, 2] (first 3)
-list[0, 1, 2, 3, 4] -> slice<2:>         # list[2, 3, 4] (from index 2)
+[0, 1, 2, 3, 4] -> slice<:3>         # list[0, 1, 2] (first 3)
+[0, 1, 2, 3, 4] -> slice<2:>         # list[2, 3, 4] (from index 2)
 ```
 
 **Negative indices:**
 
 ```rill
-list[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4] (last 2)
-list[0, 1, 2, 3, 4] -> slice<:-1>        # list[0, 1, 2, 3] (all but last)
+[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4] (last 2)
+[0, 1, 2, 3, 4] -> slice<:-1>        # list[0, 1, 2, 3] (all but last)
 ```
 
 **Step:**
 
 ```rill
-list[0, 1, 2, 3, 4] -> slice<::2>        # list[0, 2, 4] (every 2nd)
-list[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0] (reversed)
+[0, 1, 2, 3, 4] -> slice<::2>        # list[0, 2, 4] (every 2nd)
+[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0] (reversed)
 ```
 
 **String slicing:**
@@ -377,12 +377,12 @@ list[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0] (reversed)
 **Edge cases:**
 
 ```rill
-list[1, 2, 3] -> slice<0:100>            # list[1, 2, 3] (clamped)
-list[1, 2, 3] -> slice<2:1>              # list[] (empty when start >= stop)
+[1, 2, 3] -> slice<0:100>            # list[1, 2, 3] (clamped)
+[1, 2, 3] -> slice<2:1>              # [] (empty when start >= stop)
 ```
 
 ```text
-list[1, 2, 3] -> slice<::0>              # Error: step cannot be zero
+[1, 2, 3] -> slice<::0>              # Error: step cannot be zero
 ```
 
 ---
@@ -394,7 +394,7 @@ list[1, 2, 3] -> slice<::0>              # Error: step cannot be zero
 Access dict fields:
 
 ```rill
-dict[name: "alice", age: 30] => $person
+[name: "alice", age: 30] => $person
 $person.name                     # "alice"
 $person.age                      # 30
 ```
@@ -406,10 +406,10 @@ See [Types](topic-types.md) for dict `.keys` and `.entries` documentation.
 Access list elements (0-based, negative from end):
 
 ```rill
-list["a", "b", "c"] => $list
-$list[0]                         # "a"
-$list[-1]                        # "c"
-$list[1]                         # "b"
+["a", "b", "c"] => $list
+$[0]                         # "a"
+$[-1]                        # "c"
+$[1]                         # "b"
 ```
 
 ### Variable Key `.$key`
@@ -448,7 +448,7 @@ $user.(name || nickname)         # "Al"
 Navigate nested data structures using a list of keys/indexes as a path:
 
 ```rill
-list["name", "first"] -> dict[name: dict[first: "Alice", last: "Smith"]]
+["name", "first"] -> [name: dict[first: "Alice", last: "Smith"]]
 # Result: "Alice"
 ```
 
@@ -463,36 +463,36 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 ### Dict Path
 
 ```rill
-list["address", "city"] -> dict[address: dict[street: "Main", city: "Boston"]]
+["address", "city"] -> [address: dict[street: "Main", city: "Boston"]]
 # Result: "Boston"
 ```
 
 ### List Path
 
 ```rill
-list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]
+[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]
 # Result: 2 (first list, second element)
 ```
 
 ### Mixed Path
 
 ```text
-list["users", 0, "name"] -> dict[users: list[dict[name: "Alice"], dict[name: "Bob"]]]
+["users", 0, "name"] -> [users: list[dict[name: "Alice"], dict[name: "Bob"]]]
 # Result: "Alice"
 ```
 
 ### Empty Path
 
 ```rill
-list[] -> dict[name: "test"]
-# Result: dict[name: "test"] (unchanged)
+[] -> [name: "test"]
+# Result: [name: "test"] (unchanged)
 ```
 
 ### Error Handling
 
 ```text
-list["missing"] -> dict[name: "test"]    # Error: key 'missing' not found
-list[5] -> list[1, 2, 3]                 # Error: index 5 out of bounds
+["missing"] -> [name: "test"]    # Error: key 'missing' not found
+[5] -> list[1, 2, 3]                 # Error: index 5 out of bounds
 ```
 
 See [Reference](ref-language.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
@@ -504,10 +504,10 @@ See [Reference](ref-language.md) for full dispatch semantics including dict disp
 Provide a default value if field is missing or access fails:
 
 ```rill
-dict[] => $empty
+[:] => $empty
 $empty.name ?? "unknown"         # "unknown"
 
-dict[name: "alice"] => $user
+[name: "alice"] => $user
 $user.name ?? "unknown"          # "alice"
 $user.age ?? 0                   # 0
 ```
@@ -542,7 +542,7 @@ Method calls evaluate fully before the default operator applies.
 Returns boolean:
 
 ```rill
-dict[name: "alice"] => $user
+[name: "alice"] => $user
 $user.?name                      # true
 $user.?age                       # false
 ```
@@ -552,7 +552,7 @@ $user.?age                       # false
 Check existence AND type:
 
 ```rill
-dict[name: "alice", age: 30] => $user
+[name: "alice", age: 30] => $user
 $user.?name&string               # true
 $user.?age&number                # true
 $user.?age&string                # false
@@ -596,8 +596,8 @@ Returns boolean:
 Coarse checks return boolean directly:
 
 ```rill
-list[1, 2, 3] -> :?list              # true
-dict[a: 1] -> :?dict                 # true
+[1, 2, 3] -> :?list              # true
+[a: 1] -> :?dict                 # true
 ```
 
 Structural checks are also supported. These match element and field types:
@@ -677,22 +677,22 @@ collection -> fold ^(limit: N) |acc, x=0| { body }
 **Examples:**
 
 ```rill
-list[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
-# list[2, 4, 6]
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+# [2, 4, 6]
 ```
 
 ```rill
-list[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
-# list[2, 3, 4]
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+# [2, 3, 4]
 ```
 
 ```rill
-list[1, 2, 3, 4] -> filter ^(limit: 50) { $ > 2 }
-# list[3, 4]
+[1, 2, 3, 4] -> filter ^(limit: 50) { $ > 2 }
+# [3, 4]
 ```
 
 ```rill
-list[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
 # 6
 ```
 

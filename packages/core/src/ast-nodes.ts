@@ -297,6 +297,7 @@ export type LiteralNode =
   | StringLiteralNode
   | NumberLiteralNode
   | BoolLiteralNode
+  | ListLiteralNode
   | DictNode
   | ClosureNode;
 

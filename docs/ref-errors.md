@@ -259,27 +259,17 @@ func($a, $b
 # Space between keyword and bracket
 list [1, 2, 3]    # RILL-P007: use list[1, 2, 3]
 dict [a: 1]       # RILL-P007: use dict[a: 1]
+tuple [1, 2]      # RILL-P007: use tuple[1, 2]
+ordered [a: 1]    # RILL-P007: use ordered[a: 1]
 ```
 
 ---
 
 ### rill-p008
 
-**Description:** Bare bracket literal
+**Description:** Bare bracket literal (deprecated)
 
-**Cause:** Code uses bare `[...]` syntax for list or dict literals. The explicit `list[...]` or `dict[...]` form is required.
-
-**Resolution:** Replace `[a, b]` with `list[a, b]` for lists. Replace `[k: v]` with `dict[k: v]` for dicts.
-
-**Example:**
-
-```text
-# Bare list literal
-[1, 2, 3]             # RILL-P008: use list[1, 2, 3]
-
-# Bare dict literal
-[name: "Alice"]       # RILL-P008: use dict[name: "Alice"]
-```
+**Cause:** This error was removed. Bare `[...]` syntax is valid for list and dict literals. Both `[1, 2]` and `list[1, 2]` are accepted.
 
 ---
 
@@ -305,10 +295,10 @@ dict [a: 1]       # RILL-P007: use dict[a: 1]
 *[1, 2, 3] -> $fn()   # RILL-P009: use tuple[1, 2, 3] -> $fn()
 
 # Old destruct sigil
-list[1, 2] -> *<$a, $b>   # RILL-P009: use list[1, 2] -> destruct<$a, $b>
+[1, 2] -> *<$a, $b>   # RILL-P009: use [1, 2] -> destruct<$a, $b>
 
 # Old slice sigil
-list[0,1,2] -> /<1:3>     # RILL-P009: use list[0,1,2] -> slice<1:3>
+[0,1,2] -> /<1:3>     # RILL-P009: use [0,1,2] -> slice<1:3>
 ```
 
 ---
@@ -323,14 +313,14 @@ list[0,1,2] -> /<1:3>     # RILL-P009: use list[0,1,2] -> slice<1:3>
 
 | Old syntax | New syntax |
 |------------|------------|
-| `5 -> @[$inc, $double]` | `5 -> chain(list[$inc, $double])` |
+| `5 -> @[$inc, $double]` | `5 -> chain([$inc, $double])` |
 | `5 -> @$fn` | `5 -> chain($fn)` |
 
 **Example:**
 
 ```text
 # Old chain sigil
-5 -> @[$inc, $double]      # RILL-P010: use 5 -> chain(list[$inc, $double])
+5 -> @[$inc, $double]      # RILL-P010: use 5 -> chain([$inc, $double])
 5 -> @$fn                  # RILL-P010: use 5 -> chain($fn)
 ```
 
@@ -753,7 +743,7 @@ $x -> :>$t  # $t is string, not a type value
 
 **Description:** List dispatch non-integer index
 
-**Cause:** The index piped to a `list[...]` dispatch is not an integer.
+**Cause:** The index piped to a `[...]` dispatch is not an integer.
 
 **Resolution:** Ensure the index is a whole number. Use math operations to convert if needed.
 
@@ -761,7 +751,7 @@ $x -> :>$t  # $t is string, not a type value
 
 ```text
 # Floating-point index
-1.5 -> list["a", "b"]  # Not an integer
+1.5 -> ["a", "b"]  # Not an integer
 ```
 
 ---
@@ -770,7 +760,7 @@ $x -> :>$t  # $t is string, not a type value
 
 **Description:** List dispatch index out of range
 
-**Cause:** The index piped to a `list[...]` dispatch is outside the valid range.
+**Cause:** The index piped to a `[...]` dispatch is outside the valid range.
 
 **Resolution:** Use an index within `[0, length-1]` or add a fallback with `??`.
 
@@ -778,7 +768,7 @@ $x -> :>$t  # $t is string, not a type value
 
 ```text
 # Index beyond end
-5 -> list["a", "b"]  # Only 2 elements (indices 0-1)
+5 -> ["a", "b"]  # Only 2 elements (indices 0-1)
 ```
 
 ---
@@ -869,7 +859,7 @@ Prevent runtime errors with existence and type checks:
 
 ```rill
 # Check variable existence before use
-dict[apiKey: "secret123"] => $config
+[apiKey: "secret123"] => $config
 $config.?apiKey ? $config.apiKey ! "default-key"
 
 # Check type before method call
@@ -887,7 +877,7 @@ Provide fallbacks for missing properties:
 
 ```rill
 # Field with default
-dict[name: "Alice", age: 30] => $user
+[name: "Alice", age: 30] => $user
 $user.email ?? "no-email@example.com"
 
 # Annotation with default
@@ -895,7 +885,7 @@ $user.email ?? "no-email@example.com"
 $fn.^timeout ?? 30
 
 # Dict dispatch with default
-dict[a: 1, b: 2, c: 3] => $lookup
+[a: 1, b: 2, c: 3] => $lookup
 "b" -> $lookup ?? "not found"
 ```
 
@@ -909,7 +899,7 @@ Explicitly verify and convert types:
 $input:string -> .trim
 
 # Check type before calling method
-list[1, 2, 3] => $items
+[1, 2, 3] => $items
 $items :? list ? ($items -> .len) ! 0
 
 # Convert with validation
