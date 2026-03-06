@@ -9,12 +9,15 @@ import type {
   ExpressionNode,
   HostCallNode,
   MethodCallNode,
+  PipeChainNode,
   PipeInvokeNode,
   PostfixExprNode,
   PrimaryNode,
   SourceSpan,
+  SpreadArgNode,
   TypeAssertionNode,
   TypeCheckNode,
+  VariableNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
@@ -32,7 +35,9 @@ import { parseTypeRef } from './parser-types.js';
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
-    parseArgumentList(): ExpressionNode[];
+    parseArgumentList(
+      allowSpread?: boolean
+    ): (ExpressionNode | SpreadArgNode)[];
     parseHostCall(): HostCallNode;
     parseClosureCall(): ClosureCallNode;
     parsePipeInvoke(): PipeInvokeNode;
@@ -49,20 +54,100 @@ declare module './parser.js' {
 // ARGUMENT LIST PARSING
 // ============================================================
 
-Parser.prototype.parseArgumentList = function (this: Parser): ExpressionNode[] {
-  const args: ExpressionNode[] = [];
+Parser.prototype.parseArgumentList = function (
+  this: Parser,
+  allowSpread: boolean = false
+): (ExpressionNode | SpreadArgNode)[] {
+  const args: (ExpressionNode | SpreadArgNode)[] = [];
+  let hasSpread = false;
   skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(this.parseExpression());
+    args.push(parseOneArg(this, allowSpread, hasSpread));
+    if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(this.parseExpression());
+      args.push(parseOneArg(this, allowSpread, hasSpread));
+      if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     }
   }
   skipNewlines(this.state);
   return args;
 };
+
+/**
+ * Parse one argument, handling spread if allowed.
+ * Enforces max-one-spread per list.
+ */
+function parseOneArg(
+  parser: Parser,
+  allowSpread: boolean,
+  hasSpread: boolean
+): ExpressionNode | SpreadArgNode {
+  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
+    if (!allowSpread) {
+      throw new ParseError(
+        'RILL-P006',
+        'Spread not supported in method call argument lists',
+        current(parser.state).span.start
+      );
+    }
+    if (hasSpread) {
+      throw new ParseError(
+        'RILL-P007',
+        'Only one spread argument (...) is allowed per argument list',
+        current(parser.state).span.start
+      );
+    }
+    const start = current(parser.state).span.start;
+    advance(parser.state); // consume ...
+
+    // Bare `...` before `)` or `,` → synthesize VariableNode for `$`
+    if (
+      check(parser.state, TOKEN_TYPES.RPAREN) ||
+      check(parser.state, TOKEN_TYPES.COMMA)
+    ) {
+      const spreadSpan = makeSpan(start, current(parser.state).span.start);
+      const varNode: VariableNode = {
+        type: 'Variable',
+        name: null,
+        isPipeVar: true,
+        accessChain: [],
+        defaultValue: null,
+        existenceCheck: null,
+        span: spreadSpan,
+      };
+      const postfixNode: PostfixExprNode = {
+        type: 'PostfixExpr',
+        primary: varNode,
+        methods: [],
+        defaultValue: null,
+        span: spreadSpan,
+      };
+      const pipeChainNode: PipeChainNode = {
+        type: 'PipeChain',
+        head: postfixNode,
+        pipes: [],
+        terminator: null,
+        span: spreadSpan,
+      };
+      return {
+        type: 'SpreadArg',
+        expression: pipeChainNode,
+        span: spreadSpan,
+      } satisfies SpreadArgNode;
+    }
+
+    const expression = parser.parseExpression();
+    return {
+      type: 'SpreadArg',
+      expression,
+      span: makeSpan(start, current(parser.state).span.end),
+    } satisfies SpreadArgNode;
+  }
+
+  return parser.parseExpression();
+}
 
 // ============================================================
 // FUNCTION CALLS
@@ -93,7 +178,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   }
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-  const args = this.parseArgumentList();
+  const args = this.parseArgumentList(true);
   const rparen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,
@@ -129,7 +214,7 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
   }
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-  const args = this.parseArgumentList();
+  const args = this.parseArgumentList(true);
   const rparen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,
@@ -150,7 +235,7 @@ Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.PIPE_VAR, 'Expected $');
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-  const args = this.parseArgumentList();
+  const args = this.parseArgumentList(true);
   const rparen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,
@@ -185,7 +270,8 @@ Parser.prototype.parseMethodCall = function (
   let endLoc = current(this.state).span.end;
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     advance(this.state);
-    args = this.parseArgumentList();
+    // allowSpread defaults to false — spread not supported in method calls
+    args = this.parseArgumentList() as ExpressionNode[];
     const rparen = expect(
       this.state,
       TOKEN_TYPES.RPAREN,

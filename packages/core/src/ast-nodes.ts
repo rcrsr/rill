@@ -286,7 +286,7 @@ export type PipeTargetNode =
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
   readonly type: 'PipeInvoke';
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 // ============================================================
@@ -601,7 +601,7 @@ export interface AnnotatedExprNode extends BaseNode {
 export interface HostCallNode extends BaseNode {
   readonly type: 'HostCall';
   readonly name: string;
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 export interface HostRefNode extends BaseNode {
@@ -619,7 +619,7 @@ export interface MethodCallNode extends BaseNode {
 /** Postfix invocation: expr(args) - calls the result of expr as a closure */
 export interface InvokeNode extends BaseNode {
   readonly type: 'Invoke';
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 /** Annotation reflection access on expressions: expr.^key */
@@ -633,7 +633,7 @@ export interface ClosureCallNode extends BaseNode {
   readonly type: 'ClosureCall';
   readonly name: string; // Variable name (without $)
   readonly accessChain: string[]; // Property access chain (e.g., ['double'] for $math.double)
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 // ============================================================

@@ -103,8 +103,13 @@ See [Types](topic-types.md) for detailed documentation.
 | `\|p = default\|{ }` | Parameter with default |
 | `\|^(min: 0) p\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
-| `arg -> $fn()` | Call function with pipe value |
+| `arg -> $fn()` | Call with pipe value as single arg |
+| `arg -> $fn(...)` | Spread pipe value into call arguments |
+| `$fn(...$expr)` | Spread a variable into call arguments |
+| `$fn(a, ...$rest)` | Mix fixed args with a spread |
 | `arg -> $fn` | Pipe-style invoke |
+
+Spreading is opt-in via `...` or `...$expr`. Passing a tuple or ordered value without `...` passes it as a single argument. The implicit auto-spread behavior has been removed. At most one spread is permitted per call.
 
 See [Closures](topic-closures.md) for detailed documentation.
 
@@ -339,7 +344,7 @@ When constructs appear without explicit input, `$` is used implicitly:
 |---------|---------------|
 | `? { }` | `$ -> ? { }` |
 | `.method()` | `$ -> .method()` |
-| `$fn()` | `$fn($)` (when no args, no default) |
+| `$fn()` | Passes `$` as a single argument (no auto-spread) |
 
 ---
 
@@ -600,14 +605,14 @@ $add(3, 4)    # 7
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-ordered[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named args by key)
+dict[c: 3, a: 1, b: 2] -> $fmt(...)    # "1-2-3" (named args by key, key order irrelevant)
 ```
 
-Tuples are positional containers. Use `tuple[...]` for positional argument unpacking:
+Tuples are positional containers. Use `tuple[...]` with explicit spread `...` for positional argument unpacking:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-tuple[1, 2, 3] -> $fmt()    # "1-2-3" (positional args)
+tuple[1, 2, 3] -> $fmt(...)    # "1-2-3" (positional args, explicit spread)
 ```
 
 See [Types](topic-types.md) for detailed ordered and tuple documentation.

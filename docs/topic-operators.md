@@ -278,7 +278,7 @@ Chain a single closure:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-ordered[c: 3, a: 1, b: 2] -> $fmt()       # "1-2-3" (names matched, order irrelevant)
+dict[c: 3, a: 1, b: 2] -> $fmt(...)       # "1-2-3" (names matched, key order irrelevant)
 ```
 
 `ordered` values convert to plain objects via `toNative()` — the `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
@@ -633,6 +633,66 @@ To get the type name only, chain `.name` on the type value:
 ```
 
 See [Types](topic-types.md) for detailed type system documentation.
+
+---
+
+## Spread Call Operator
+
+The spread call operator expands a value into the positional or named arguments of a function call. Spreading is opt-in — passing a tuple or ordered value without `...` passes it as a single argument.
+
+### Syntax Forms
+
+| Form | Description |
+|------|-------------|
+| `$fn(...)` | Spread piped value into call arguments |
+| `$fn(...$expr)` | Spread a specific expression into call arguments |
+| `$fn(a, ...$rest)` | Mix fixed args with a spread |
+
+`...` (bare) is equivalent to `...$` — it spreads the current piped value.
+
+At most one spread is permitted per call.
+
+### Piped Spread
+
+Spread the piped value into a multi-param closure:
+
+```rill
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+tuple[1, 2, 3] -> $fmt(...)
+# Result: "1-2-3"
+```
+
+### Variable Spread
+
+Spread a stored value directly:
+
+```rill
+|a, b| { $a + $b } => $add
+tuple[3, 4] => $args
+$add(...$args)
+# Result: 7
+```
+
+### Mixed Args
+
+Combine fixed arguments with a spread:
+
+```rill
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+tuple[2, 3] => $rest
+$fmt(1, ...$rest)
+# Result: "1-2-3"
+```
+
+### No Spread (Pass-Through)
+
+Without `...`, a tuple passes as a single argument:
+
+```rill
+|t| { $t.len } => $size
+tuple[1, 2, 3] -> $size()
+# Result: 3
+```
 
 ---
 

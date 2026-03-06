@@ -345,7 +345,7 @@ Use `ordered` for named argument unpacking:
 
 ```rill
 |a, b| { "{$a}-{$b}" } => $fmt
-ordered[a: 1, b: "hello"] -> $fmt()
+ordered[a: 1, b: "hello"] -> $fmt(...)
 # Result: "1-hello"
 ```
 
@@ -365,7 +365,7 @@ For named unpacking, use `ordered[...]`:
 
 ```rill
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
-ordered[c: 3, a: 1, b: 2] -> $fmt()   # "1-2-3" (named, via ordered)
+dict[c: 3, a: 1, b: 2] -> $fmt(...)   # "1-2-3" (named, via dict; key order irrelevant)
 ```
 
 ### Strict Validation
@@ -374,23 +374,23 @@ When invoking with ordered containers, missing required parameters error, and ex
 
 ```rill
 |x, y|($x + $y) => $fn
-ordered[x: 1, y: 2] -> $fn()          # 3
+ordered[x: 1, y: 2] -> $fn(...)        # 3
 ```
 
 ### Parameter Defaults with Ordered
 
 ```rill
 |x, y = 10, z = 20|($x + $y + $z) => $fn
-ordered[x: 5] -> $fn()                # 35 (5 + 10 + 20)
+ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ```
 
-### Parallel Spread with Ordered
+### Parallel Spread with Tuples
 
-Ordered containers auto-unpack when passed as a single argument to a multi-param closure:
+Use tuples with explicit spread `...` to pass positional args in `map`:
 
 ```rill
-# List of ordered containers with multi-arg closure
-[ordered[x: 1, y: 2], ordered[x: 3, y: 4]] -> map |x, y|($x * $y)    # list[2, 12]
+|x, y|($x * $y) => $mul
+[tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
 ```
 
 ---

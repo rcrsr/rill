@@ -30,6 +30,7 @@ import type {
   ListLiteralNode,
   SourceLocation,
   SourceSpan,
+  SpreadArgNode,
   TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
@@ -509,13 +510,16 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   skipNewlines(this.state);
 
-  const args: ExpressionNode[] = [];
+  const args: (ExpressionNode | SpreadArgNode)[] = [];
+  let hasSpread = false;
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(this.parsePipeChain());
+    args.push(parseInvokeArg(this, hasSpread));
+    if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(this.parsePipeChain());
+      args.push(parseInvokeArg(this, hasSpread));
+      if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     }
   }
   skipNewlines(this.state);
@@ -533,6 +537,72 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
     span: makeSpan(start, rparen.span.end),
   };
 };
+
+/**
+ * Parse one argument inside parseInvoke, with spread support.
+ * Bare `...` synthesizes VariableNode for `$`. Max one spread per list.
+ */
+function parseInvokeArg(
+  parser: Parser,
+  hasSpread: boolean
+): ExpressionNode | SpreadArgNode {
+  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
+    if (hasSpread) {
+      throw new ParseError(
+        'RILL-P007',
+        'Only one spread argument (...) is allowed per argument list',
+        current(parser.state).span.start
+      );
+    }
+    const start = current(parser.state).span.start;
+    advance(parser.state); // consume ...
+
+    // Bare `...` before `)` or `,` → synthesize VariableNode for `$`
+    if (
+      check(parser.state, TOKEN_TYPES.RPAREN) ||
+      check(parser.state, TOKEN_TYPES.COMMA)
+    ) {
+      const spreadSpan = makeSpan(start, current(parser.state).span.start);
+      const varNode: VariableNode = {
+        type: 'Variable',
+        name: null,
+        isPipeVar: true,
+        accessChain: [],
+        defaultValue: null,
+        existenceCheck: null,
+        span: spreadSpan,
+      };
+      const postfixNode: PostfixExprNode = {
+        type: 'PostfixExpr',
+        primary: varNode,
+        methods: [],
+        defaultValue: null,
+        span: spreadSpan,
+      };
+      const pipeChainNode: PipeChainNode = {
+        type: 'PipeChain',
+        head: postfixNode,
+        pipes: [],
+        terminator: null,
+        span: spreadSpan,
+      };
+      return {
+        type: 'SpreadArg',
+        expression: pipeChainNode,
+        span: spreadSpan,
+      } satisfies SpreadArgNode;
+    }
+
+    const expression = parser.parsePipeChain();
+    return {
+      type: 'SpreadArg',
+      expression,
+      span: makeSpan(start, current(parser.state).span.end),
+    } satisfies SpreadArgNode;
+  }
+
+  return parser.parsePipeChain();
+}
 
 // ============================================================
 // CLOSURE SIG LITERAL HELPERS

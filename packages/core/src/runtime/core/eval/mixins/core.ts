@@ -28,6 +28,7 @@ import type {
   PrimaryNode,
   PipeTargetNode,
   SourceLocation,
+  SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
@@ -703,11 +704,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluates arguments in order, preserving pipe value.
      * The pipe value is saved and restored so arguments don't affect it.
      */
-    async evaluateArgs(argExprs: ExpressionNode[]): Promise<RillValue[]> {
+    async evaluateArgs(
+      argExprs: (ExpressionNode | SpreadArgNode)[]
+    ): Promise<RillValue[]> {
       const savedPipeValue = this.ctx.pipeValue;
       const args: RillValue[] = [];
       for (const arg of argExprs) {
-        args.push(await this.evaluateExpression(arg));
+        const expr = arg.type === 'SpreadArg' ? arg.expression : arg;
+        args.push(await this.evaluateExpression(expr));
       }
       this.ctx.pipeValue = savedPipeValue;
       return args;

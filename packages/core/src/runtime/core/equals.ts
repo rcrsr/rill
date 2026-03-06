@@ -47,6 +47,7 @@ import type {
   OrderedLiteralNode,
   DestructNode,
   ConvertNode,
+  SpreadArgNode,
 } from '../../types.js';
 
 /**
@@ -383,10 +384,21 @@ function pipeInvokeEquals(a: PipeInvokeNode, b: PipeInvokeNode): boolean {
   return argsListEquals(a.args, b.args);
 }
 
-function argsListEquals(a: ExpressionNode[], b: ExpressionNode[]): boolean {
+function argsListEquals(
+  a: (ExpressionNode | SpreadArgNode)[],
+  b: (ExpressionNode | SpreadArgNode)[]
+): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
-    if (!expressionEquals(a[i]!, b[i]!)) return false;
+    const aItem = a[i]!;
+    const bItem = b[i]!;
+    if (aItem.type === 'SpreadArg' || bItem.type === 'SpreadArg') {
+      if (aItem.type !== 'SpreadArg' || bItem.type !== 'SpreadArg')
+        return false;
+      if (!expressionEquals(aItem.expression, bItem.expression)) return false;
+    } else {
+      if (!expressionEquals(aItem, bItem)) return false;
+    }
   }
   return true;
 }

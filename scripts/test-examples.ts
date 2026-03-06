@@ -926,8 +926,8 @@ function shouldSkipBlock(code: string): string | null {
     return 'comments only';
   }
 
-  // Skip blocks with "..." continuation markers (but not in strings or spread)
-  if (/(?<!\[)\.\.\.[^$\]]/.test(code) && !/"\.\.\."/.test(code)) {
+  // Skip blocks with "# ..." continuation markers
+  if (/^[ \t]*#[ \t]+\.\.\./m.test(code)) {
     return 'contains ellipsis placeholder';
   }
 
