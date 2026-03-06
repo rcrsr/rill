@@ -11,11 +11,13 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | String | `"text"` | `"hello"` |
 | Number | `123`, `0.5` | `42`, `0.9` |
 | Bool | `true`, `false` | `true` |
-| List | `[a, b]` | `["file.ts", 42]` |
-| Dict | `[k: v]` | `[output: "text", code: 0]` |
-| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` |
+| List | `[a, b]` or `list[a, b]` | `list["file.ts", 42]` |
+| Dict | `[k: v]` or `dict[k: v]` | `dict[output: "text", code: 0]` |
+| Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
+| Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
+| Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
 
 **Key principles:**
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
@@ -132,15 +134,20 @@ The negation operator (`!`) requires a boolean operand. There is no truthiness c
 Use explicit boolean checks when needed:
 
 ```rill
-"" -> .empty -> (!$) ? "has content" ! "empty"    # Negate boolean result
-[1,2,3] -> .empty -> (!$) ? "has items" ! "none"  # Check non-empty
+"" -> .empty -> (!$) ? "has content" ! "empty"         # Negate boolean result
+[1,2,3] -> .empty -> (!$) ? "has items" ! "none"   # Check non-empty
 ```
 
 ---
 
 ## Lists
 
-Ordered sequences of values:
+Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent — `list[...]` is canonical (used in output and the LLM reference).
+
+```rill
+[1, 2, 3]         # bare form
+list[1, 2, 3]     # keyword form (canonical)
+```
 
 ```rill
 [1, 2, 3] => $nums
@@ -155,23 +162,23 @@ Inline elements from another list using `...` spread syntax:
 
 ```rill
 [1, 2] => $a
-[...$a, 3]                 # [1, 2, 3]
-[...$a, ...$a]             # [1, 2, 1, 2] (concatenation)
-[...[], 1]                 # [1] (empty spread contributes nothing)
+[...$a, 3]             # list[1, 2, 3]
+[...$a, ...$a]         # list[1, 2, 1, 2] (concatenation)
+[...[], 1]         # list[1] (empty spread contributes nothing)
 ```
 
 Spread expressions evaluate before inlining:
 
 ```rill
 [1, 2, 3] => $nums
-[...($nums -> map {$ * 2})]  # [2, 4, 6]
+[...($nums -> map {$ * 2})]  # list[2, 4, 6]
 ```
 
 Spreading a non-list throws an error:
 
 ```text
 "hello" => $str
-[...$str]                  # Error: Spread in list literal requires list, got string
+[...$str]              # Error: Spread in list literal requires list, got string
 ```
 
 **Access methods:**
@@ -184,8 +191,8 @@ Spreading a non-list throws an error:
 **Out-of-bounds access** throws an error:
 
 ```text
-[] -> .at(0)               # Error: List index out of bounds
-["a"] -> .at(5)            # Error: List index out of bounds
+[] -> .at(0)           # Error: List index out of bounds
+["a"] -> .at(5)        # Error: List index out of bounds
 ```
 
 Use `??` for safe access with default:
@@ -201,7 +208,14 @@ See [Collections](topic-collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with identifier, number, boolean, variable, or computed keys:
+Key-value mappings with identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent — `dict[...]` is canonical.
+
+```rill
+[name: "alice", age: 30]         # bare form
+dict[name: "alice", age: 30]     # keyword form (canonical)
+[:]                               # empty dict (bare)
+dict[]                            # empty dict (canonical)
+```
 
 ```rill
 # Identifier keys
@@ -222,20 +236,20 @@ true -> $yesno             # "yes"
 
 # Variable keys (key value from variable, must be string)
 "status" => $key
-[$key: "active"]           # [status: "active"]
+[$key: "active"]       # dict[status: "active"]
 
 # Computed keys (key from expression, must be string)
 "user" => $prefix
-[($prefix -> "{$}_name"): "alice"]  # [user_name: "alice"]
+[($prefix -> "{$}_name"): "alice"]  # dict[user_name: "alice"]
 
 # Multi-key syntax (same value for multiple keys)
-[["a", "b"]: 1]            # [a: 1, b: 1]
-[[1, "1"]: "x"]            # [1: "x", "1": "x"] (mixed types)
-[a: 0, ["b", "c"]: 1]      # [a: 0, b: 1, c: 1] (mixed entries)
-[a: 0, ["a", "b"]: 1]      # [a: 1, b: 1] (last-write-wins)
+[["a", "b"]: 1]    # dict[a: 1, b: 1]
+[[1, "1"]: "x"]    # dict[1: "x", "1": "x"] (mixed types)
+[a: 0, ["b", "c"]: 1]  # dict[a: 0, b: 1, c: 1] (mixed entries)
+[a: 0, ["a", "b"]: 1]  # dict[a: 1, b: 1] (last-write-wins)
 
 # Multi-key dispatch
-[["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"] => $methods
+[["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"] => $methods
 "GET" -> $methods          # "safe"
 "POST" -> $methods         # "unsafe"
 ```
@@ -243,8 +257,8 @@ true -> $yesno             # "yes"
 Multi-key errors:
 
 ```text
-[[]: 1]                    # Error: Multi-key dict entry requires non-empty list
-[[[1, 2], "a"]: 1]         # Error: Dict key must be string, number, or boolean, got list
+[[]: 1]            # Error: Multi-key dict entry requires non-empty list
+[[list[1, 2], "a"]: 1]  # Error: Dict key must be string, number, or boolean, got list
 ```
 
 **Access patterns:**
@@ -296,7 +310,7 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
 [name: "test", count: 42] -> .values    # [42, "test"]
-[a: 1, b: 2] -> .entries                # [["a", 1], ["b", 2]]
+[a: 1, b: 2] -> .entries                # [list["a", 1], list["b", 2]]
 ```
 
 **Reserved methods** (`keys`, `values`, `entries`) cannot be used as dict keys.
@@ -317,62 +331,66 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 
 ---
 
-## Tuples
+## Ordered
 
-Tuples package values for explicit argument unpacking at closure invocation. Created with the `*` spread operator:
+`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
 
 ```rill
-# From list (positional)
-*[1, 2, 3] => $t              # tuple with positional values
-
-# From dict (named)
-*[x: 1, y: 2] => $t           # tuple with named values
-
-# Via pipe target
-[1, 2, 3] -> * => $t          # convert list to tuple
+ordered[a: 1, b: "hello"] => $o
+$o.^type.name
+# Result: "ordered"
 ```
 
-### Using Tuples at Invocation
+Use `ordered` for named argument unpacking:
+
+```rill
+|a, b| { "{$a}-{$b}" } => $fmt
+ordered[a: 1, b: "hello"] -> $fmt(...)
+# Result: "1-hello"
+```
+
+Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
+
+`ordered` converts to a plain object via `toNative()` — the result's `native` field holds `{ key: value, ... }`.
+
+---
+
+## Tuples
+
+Tuples are positional containers created with `tuple[...]` syntax.
+
+### Using Ordered for Named Unpacking
+
+For named unpacking, use `ordered[...]`:
 
 ```rill
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
-
-# Positional unpacking
-*[1, 2, 3] -> $fmt()          # "1-2-3"
-
-# Named unpacking (order doesn't matter)
-*[c: 3, a: 1, b: 2] -> $fmt() # "1-2-3"
+dict[c: 3, a: 1, b: 2] -> $fmt(...)   # "1-2-3" (named, via dict; key order irrelevant)
 ```
 
 ### Strict Validation
 
-When invoking with tuples, missing required parameters error, and extra arguments error:
+When invoking with ordered containers, missing required parameters error, and extra keys error:
 
 ```rill
 |x, y|($x + $y) => $fn
-*[1] -> $fn()                 # Error: missing argument 'y'
-*[1, 2, 3] -> $fn()           # Error: extra positional argument
-*[x: 1, z: 3] -> $fn()        # Error: unknown argument 'z'
+ordered[x: 1, y: 2] -> $fn(...)        # 3
 ```
 
-### Parameter Defaults with Tuples
+### Parameter Defaults with Ordered
 
 ```rill
 |x, y = 10, z = 20|($x + $y + $z) => $fn
-*[5] -> $fn()                 # 35 (5 + 10 + 20)
-*[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
+ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ```
 
-### Auto-Unpacking with Parallel Spread
+### Parallel Spread with Tuples
 
-When a closure is invoked with a single tuple argument, the tuple auto-unpacks:
+Use tuples with explicit spread `...` to pass positional args in `map`:
 
 ```rill
-# List of tuples with multi-arg closure
-[*[1,2], *[3,4]] -> map |x,y|($x * $y)    # [2, 12]
-
-# Named tuples work too
-[*[x:1, y:2], *[x:3, y:4]] -> map |x,y|($x + $y)  # [3, 7]
+|x, y|($x * $y) => $mul
+[tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
 ```
 
 ---
@@ -385,8 +403,8 @@ Vectors represent dense numeric embeddings from language models or other ML syst
 
 ```rill
 app::embed("hello world") => $vec
-$vec
-# Result: vector(mock-embed, 3d)
+$vec -> .model
+# Result: "mock-embed"
 ```
 
 ### Properties
@@ -472,6 +490,110 @@ $vec -> each { $ * 2 }
 
 ---
 
+## Structural Type Values
+
+`^type` returns a structural type value — a first-class value describing the full structure of a collection, not just a coarse type name.
+
+### `^type` Returns Structural Types
+
+```rill
+[1, 2, 3] => $list
+$list.^type == list(number)
+# Result: true
+```
+
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type.name
+# Result: "dict"
+```
+
+```rill
+42 => $n
+$n.^type == number
+# Result: true
+```
+
+### Type Constructors
+
+Type constructors produce structural type values. They are primary expressions — valid anywhere an expression is valid.
+
+```rill
+list(number) => $lt
+$lt.^type.name
+# Result: "type"
+```
+
+| Constructor | Example | Produced Type |
+|-------------|---------|---------------|
+| `list(T)` | `list(number)` | List-of-number type |
+| `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
+| `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
+| `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
+| `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
+
+### Comparing Structural Types
+
+```rill
+[1, 2, 3] => $list
+$list.^type == list(number)
+# Result: true
+```
+
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type == dict(a: number, b: string)
+# Result: true
+```
+
+### `.^type.name` for Coarse Type Name
+
+`.^type.name` returns the coarse type name as a string:
+
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+```rill
+[a: 1] => $d
+$d.^type.name
+# Result: "dict"
+```
+
+### Metatype Fixed Point
+
+The `^type` of a type value is always `type`. `type.^type` is `type`:
+
+```rill
+list(number) => $lt
+$lt.^type == type
+# Result: true
+```
+
+```rill
+type => $t
+$t.^type == type
+# Result: true
+```
+
+### `formatStructuralType` Output Format
+
+The string representation of structural types follows this format:
+
+| Value | `^type` string |
+|-------|---------------|
+| Any value | `"any"` |
+| Primitive | `"string"`, `"number"`, `"bool"` |
+| List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
+| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
+| Tuple | `"tuple(number, string, bool)"` (positional) |
+| Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
+| Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
+
+---
+
 ## Type Assertions
 
 Use type assertions to validate values at runtime.
@@ -511,7 +633,44 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `vector`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+
+The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
+
+Both types are valid in closure parameter positions, capture annotations, and type assertions:
+
+```rill
+# Closure parameter with vector type annotation
+|x: vector| { $x } => $fn
+app::embed("hello") => $v
+$fn($v) -> .model
+# Result: "mock-embed"
+```
+
+```rill
+# Closure parameter with any type annotation
+|x: any| { $x } => $fn
+$fn("hello")
+# Result: "hello"
+```
+
+```rill
+# Type assertion: :vector and :any
+app::embed("hello") => $v
+$v -> :vector
+# Result: vector(mock-embed, 3d)
+
+$v -> :any
+# Result: vector(mock-embed, 3d)
+true
+```
+
+```rill
+# Capture annotation with vector type
+app::embed("hello") => $x:vector
+$x -> .model
+# Result: "mock-embed"
+```
 
 ### In Pipe Chains
 
@@ -570,26 +729,157 @@ Type annotations validate on assignment and prevent accidental type changes:
 
 ---
 
-## Global Type Functions
+## Type Values
 
-| Function | Description |
-|----------|-------------|
-| `type` | Returns type name as string |
-| `json` | Convert to JSON string |
+rill has a runtime type named `type`. A type value represents a rill type — including full structural information for collection types.
+
+### `.^type` Operator
+
+`.^type` returns the structural type value for any rill value:
 
 ```rill
-42 -> type                      # "number"
-"hello" -> type                 # "string"
-[1, 2] -> type                  # "list"
-*[1, 2] -> type                 # "tuple"
-[a: 1] -> type                  # "dict"
-||{ $ } -> type                 # "closure"
+42 => $n
+$n.^type == number
+# Result: true
 
-[a: 1, b: 2] -> json            # '{"a":1,"b":2}'
+"hello" => $s
+$s.^type == string
+# Result: true
+
+[1, 2] => $l
+$l.^type == list(number)
+# Result: true
+
+[a: 1] => $d
+$d.^type == dict(a: number)
+# Result: true
 ```
 
 ```rill
-app::embed("test") -> type      # "vector"
+ordered[a: 1, b: 2] => $o
+$o.^type.name
+# Result: "ordered"
+
+||{ $ } => $fn
+$fn.^type == closure
+# Result: true
+```
+
+```rill
+app::embed("hello world") => $vec
+$vec.^type == vector
+# Result: true
+```
+
+### Type Name Expressions
+
+All type names are valid expressions that produce type values:
+
+```rill
+string => $st
+$st.^type == type
+# Result: true
+
+number => $nt
+$nt.^type == type
+# Result: true
+
+type => $tt
+$tt.^type == type
+# Result: true
+```
+
+### `.^type.name` Property
+
+Access the coarse type name via `.^type.name` on any value:
+
+```rill
+42 => $n
+$n.^type.name
+# Result: "number"
+```
+
+```rill
+"hello" => $s
+$s.^type.name
+# Result: "string"
+```
+
+```rill
+[1, 2] => $l
+$l.^type.name
+# Result: "list"
+```
+
+Type values also have `.name` when accessed through a variable:
+
+```rill
+dict => $t
+$t.name
+# Result: "dict"
+
+number => $t
+$t.name
+# Result: "number"
+```
+
+### Type Value Equality
+
+Type values compare with `==` and `!=`. Structural types compare structurally:
+
+```rill
+42 => $n
+$n.^type == number
+# Result: true
+```
+
+```rill
+42 => $n
+$n.^type == string
+# Result: false
+```
+
+```rill
+"hello" => $a
+"world" => $b
+$a.^type == $b.^type
+# Result: true
+```
+
+```rill
+[1, 2] => $l
+$l.^type == list(number)
+# Result: true
+```
+
+```rill
+["a", "b"] => $strs
+$strs.^type == list(number)
+# Result: false
+```
+
+The type of a type value is `type`:
+
+```rill
+42 => $n
+$n.^type => $tv
+$tv.^type == type
+# Result: true
+
+type => $t
+$t.^type == type
+# Result: true
+```
+
+### Global Type Utilities
+
+| Function | Description |
+|----------|-------------|
+| `json` | Convert to JSON string |
+
+```rill
+[a: 1, b: 2] -> json
+# Result: '{"a":1,"b":2}'
 ```
 
 **`json` closure handling:**

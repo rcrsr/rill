@@ -13,7 +13,14 @@ import type {
   VariableNode,
 } from '../types.js';
 import { TOKEN_TYPES, ParseError } from '../types.js';
-import { check, advance, expect, makeSpan, current } from './state.js';
+import {
+  check,
+  advance,
+  expect,
+  makeSpan,
+  current,
+  skipNewlinesIfFollowedBy,
+} from './state.js';
 import {
   isMethodCallWithArgs,
   VALID_TYPE_NAMES,
@@ -116,6 +123,10 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
   const accessChain: PropertyAccess[] = [];
   let existenceCheck: ExistenceCheck | null = null;
 
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
+
   while (
     check(
       this.state,
@@ -142,6 +153,9 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       );
       const span = makeSpan(openBracket.span.start, closeBracket.span.end);
       accessChain.push({ accessKind: 'bracket', expression, span });
+      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
+      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
       continue;
     }
 
@@ -169,6 +183,9 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       break;
     }
     accessChain.push(access);
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
   }
 
   return { accessChain, existenceCheck };

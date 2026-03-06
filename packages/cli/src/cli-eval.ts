@@ -12,9 +12,10 @@ import {
   createRuntimeContext,
   execute,
   parse,
+  toNative,
   type ExecutionResult,
 } from '@rcrsr/rill';
-import { formatOutput, determineExitCode, VERSION } from './cli-shared.js';
+import { determineExitCode, VERSION } from './cli-shared.js';
 
 /**
  * Parse command-line arguments into structured command
@@ -60,7 +61,7 @@ export async function evaluateExpression(
 ): Promise<ExecutionResult> {
   const ctx = createRuntimeContext({
     callbacks: {
-      onLog: (value) => console.log(formatOutput(value)),
+      onLog: (msg) => console.log(msg),
     },
   });
 
@@ -115,12 +116,13 @@ async function main(): Promise<void> {
 
     if (command.mode === 'eval') {
       const result = await evaluateExpression(command.expression);
-      const { code, message } = determineExitCode(result.result);
+      const nativeResult = toNative(result.result);
+      const { code, message } = determineExitCode(nativeResult.native);
 
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(formatOutput(result.result));
+        console.log(String(nativeResult.native));
       }
       process.exit(code);
     }

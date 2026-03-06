@@ -60,7 +60,7 @@ line2: value2
 
     it('parses frontmatter with array syntax', () => {
       const ast = parse(`---
-items: [a, b, c]
+items: list[a, b, c]
 ---
 1`);
       expect(ast.frontmatter?.content).toContain('items');
@@ -83,7 +83,7 @@ model: sonnet
 x: 1
 y: 2
 ---
-[1, 2, 3] -> .len`;
+list[1, 2, 3] -> .len`;
       expect(await run(script)).toBe(3);
     });
 
@@ -93,7 +93,7 @@ description: Capture test
 ---
 "a" => $x
 "b" => $y
-[$x, $y]`;
+list[$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
@@ -143,7 +143,7 @@ not: frontmatter
       const script = `---
 name: test
 ---
-[1, 2, 3] -> each { ($ * 2) }`;
+list[1, 2, 3] -> each { ($ * 2) }`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 

@@ -388,7 +388,7 @@ Replace the generated `src/agent.rill` with your agent logic. Use the data flow 
 
 The agent script calls extension functions using `namespace::function()` syntax. The namespace matches the first argument to `hoistExtension` in `host.ts`:
 
-```rill
+```text
 // If host.ts has: hoistExtension('newsapi', createFetchExtension({...}))
 // Then agent.rill calls: newsapi::top_headlines(...)
 newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
@@ -573,7 +573,7 @@ All three share identical function signatures and return shapes.
 | `namespace::messages(messages)` | dict | Same shape — `messages` contains full conversation history |
 | `namespace::embed(text)` | vector | Float32Array vector for similarity search |
 | `namespace::embed_batch(texts)` | list | List of vectors |
-| `namespace::tool_loop(prompt, options)` | dict | Same shape + `turns` (number of loop iterations) |
+| `namespace::tool_loop(prompt, options)` | dict | Same shape + `turns`; `options.tools` is `dict<string, callable>` — keys are tool names, values are `ScriptCallable` or `ApplicationCallable` |
 
 **Accessing LLM results:**
 
@@ -834,5 +834,4 @@ These patterns cause broken projects or runtime errors. Avoid them.
 
 | Document | Description |
 |----------|-------------|
-| [Compose](agent-bundle.md) | Manifest format and programmatic composition API |
-| [Agent Host](agent-harness.md) | Production HTTP server for rill agents |
+| [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework, harness, bundle, and proxy |

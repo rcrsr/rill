@@ -47,6 +47,7 @@ Name closures for their action:
 |x|($x * 2) => $double            # verb describing transformation
 |s|($s -> .trim) => $cleanup      # verb describing action
 ||{ $.count * $.price } => $total # noun for computed value
+true
 ```
 
 ## Capture and Flow
@@ -118,7 +119,7 @@ Method chains work too:
 ["", "a", "b"] -> filter (!.empty)
 
 # wrong: .empty returns truthy elements
-["", "a", "b"] -> filter .empty    # returns [""]
+["", "a", "b"] -> filter .empty    # returns list[""]
 ```
 
 ### Use fold for reduction, each(init) for running totals
@@ -128,7 +129,7 @@ Method chains work too:
 [1, 2, 3] -> fold(0) { $@ + $ }    # 6
 
 # running sum: use each (returns all intermediates)
-[1, 2, 3] -> each(0) { $@ + $ }    # [1, 3, 6]
+[1, 2, 3] -> each(0) { $@ + $ }    # list[1, 3, 6]
 ```
 
 ### Break returns partial results in each
@@ -260,6 +261,7 @@ condition
 |n| {
   ($n < 1) ? 1 ! ($n * $factorial($n - 1))
 } => $factorial
+true
 ```
 
 ### Capture loop variable explicitly for deferred closures
@@ -272,6 +274,7 @@ condition
 } => $closures
 
 # result: closures return [1, 2, 3] when called
+true
 ```
 
 ### Dict closures for computed properties
@@ -306,6 +309,7 @@ $obj.greet("hello")    # "test: hello"
 |name: string, count: number| {
   "{$name}: {$count}"
 } => $format
+$format("test", 1)
 ```
 
 ### Capture with type annotation for documentation
@@ -410,6 +414,7 @@ Variables lock to their first type. Reassigning suggests misuse:
 
 # clear: explicit parameter
 |x| { $x + 1 } => $fn
+$fn(5)
 ```
 
 ### Avoid break in parallel operators
@@ -504,11 +509,11 @@ $x->.upper
 
 ```text
 # good
-$list[0]
+$[0]
 $dict.items[1]
 
 # avoid
-$list[ 0 ]
+$[ 0 ]
 ```
 
 **List/dict literals**: space after colons and commas
@@ -576,11 +581,11 @@ $list.join (", ")
 # global functions: foo($) -> foo
 # good
 "hello" -> log -> .upper
-42 -> type
+$val.^type
 
 # avoid
 "hello" -> log($) -> .upper
-42 -> type($)
+$val.^type()
 
 # closures: $fn($) -> $fn
 # good
@@ -663,11 +668,9 @@ $input -> .trim -> .lower -> .split(" ")
 ### Indent block contents
 
 ```rill
-{
-  "first" => $a
-  "second" => $b
-  "{$a} {$b}"
-}
+"first" => $a
+"second" => $b
+"{$a} {$b}"
 ```
 
 ### Align related captures

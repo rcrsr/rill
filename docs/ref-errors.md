@@ -14,8 +14,8 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P006)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016)](#runtime-errors)
+- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R042)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -245,22 +245,83 @@ func($a, $b
 
 ---
 
-### rill-p006
+### rill-p007
 
-**Description:** Deprecated capture arrow syntax
+**Description:** Whitespace between keyword and bracket in literal
 
-**Cause:** Code uses old capture arrow syntax (:>) instead of current syntax (=>).
+**Cause:** A space appears between a collection keyword (`list`, `dict`, `tuple`, `ordered`) and its opening bracket. This is a parse error.
 
-**Resolution:** Replace :> with => for all variable captures. The `:>` syntax is no longer supported.
+**Resolution:** Remove the space between the keyword and `[`. Write `list[1, 2]` not `list [1, 2]`.
 
 **Example:**
 
 ```text
-# Old capture syntax
-"value" :> $x  # Change to "value" => $x
+# Space between keyword and bracket
+list [1, 2, 3]    # RILL-P007: use list[1, 2, 3]
+dict [a: 1]       # RILL-P007: use dict[a: 1]
+tuple [1, 2]      # RILL-P007: use tuple[1, 2]
+ordered [a: 1]    # RILL-P007: use ordered[a: 1]
+```
 
-# Old typed capture
-5 :> $x:number  # Change to 5 => $x:number
+---
+
+### rill-p008
+
+**Description:** Bare bracket literal (deprecated)
+
+**Cause:** This error was removed. Bare `[...]` syntax is valid for list and dict literals. Both `[1, 2]` and `list[1, 2]` are accepted.
+
+---
+
+### rill-p009
+
+**Description:** Old sigil syntax for collection literals or extraction operators
+
+**Cause:** Code uses removed sigil-based syntax: `*[...]` for tuples/ordered, `*<...>` for destructure, or `/<...>` for slice.
+
+**Resolution:** Replace old sigil forms with keyword forms.
+
+| Old syntax | New syntax |
+|------------|------------|
+| `*[1, 2]` | `tuple[1, 2]` |
+| `*[a: 1]` | `ordered[a: 1]` |
+| `*<$a, $b>` | `destruct<$a, $b>` |
+| `/<1:3>` | `slice<1:3>` |
+
+**Example:**
+
+```text
+# Old tuple sigil
+*[1, 2, 3] -> $fn()   # RILL-P009: use tuple[1, 2, 3] -> $fn(...)
+
+# Old destruct sigil
+[1, 2] -> *<$a, $b>   # RILL-P009: use [1, 2] -> destruct<$a, $b>
+
+# Old slice sigil
+[0,1,2] -> /<1:3>     # RILL-P009: use [0,1,2] -> slice<1:3>
+```
+
+---
+
+### rill-p010
+
+**Description:** Old chain sigil syntax
+
+**Cause:** Code uses the removed `@[...]` or `@$fn` chain sigil syntax.
+
+**Resolution:** Replace chain sigil with the `chain()` built-in function.
+
+| Old syntax | New syntax |
+|------------|------------|
+| `5 -> @[$inc, $double]` | `5 -> chain([$inc, $double])` |
+| `5 -> @$fn` | `5 -> chain($fn)` |
+
+**Example:**
+
+```text
+# Old chain sigil
+5 -> @[$inc, $double]      # RILL-P010: use 5 -> chain([$inc, $double])
+5 -> @$fn                  # RILL-P010: use 5 -> chain($fn)
 ```
 
 ---
@@ -588,6 +649,126 @@ error "Invalid configuration"
 
 # Conditional error
 ($status == "failed") ? { error "Process failed" } ! "ok"
+```
+
+---
+
+### rill-r036
+
+**Description:** Incompatible convert source/target
+
+**Cause:** The `:>` operator does not support conversion between the given source and target types.
+
+**Resolution:** Check the type conversion compatibility matrix. Not all combinations are valid (e.g. `string :>list` is not allowed).
+
+**Example:**
+
+```text
+# String to list conversion
+"hello" -> :>list  # Not allowed
+```
+
+---
+
+### rill-r037
+
+**Description:** dict :>ordered without structural signature
+
+**Cause:** Converting a dict to ordered with `:>ordered` requires an explicit `ordered(field: type, ...)` type signature to determine field order.
+
+**Resolution:** Provide a structural type signature: `$dict -> :>ordered(name: string, age: number)`
+
+**Example:**
+
+```text
+# Missing structural signature
+$dict -> :>ordered  # Ambiguous field order
+```
+
+---
+
+### rill-r038
+
+**Description:** Non-parseable string to number
+
+**Cause:** The string does not represent a valid number.
+
+**Resolution:** Ensure the string contains a valid numeric format before converting with `:>number`.
+
+**Example:**
+
+```text
+# Non-numeric string
+"hello" -> :>number  # Not a number
+```
+
+---
+
+### rill-r039
+
+**Description:** :>$var not a type value
+
+**Cause:** The variable used with `:>$var` does not hold a type value.
+
+**Resolution:** Ensure the variable holds a type value (e.g. from a type name expression like `list` or `string`).
+
+**Example:**
+
+```text
+# Variable is a string, not a type
+"list" => $t
+$x -> :>$t  # $t is string, not a type value
+```
+
+---
+
+### rill-r040
+
+**Description:** chain() non-closure argument
+
+**Cause:** The `chain()` built-in received a value that is neither a closure nor a list of closures.
+
+**Resolution:** Pass a single closure or a list of closures to `chain()`.
+
+**Example:**
+
+```text
+# Passing a number to chain()
+5 -> chain(42)  # 42 is not a closure
+```
+
+---
+
+### rill-r041
+
+**Description:** List dispatch non-integer index
+
+**Cause:** The index piped to a `[...]` dispatch is not an integer.
+
+**Resolution:** Ensure the index is a whole number. Use math operations to convert if needed.
+
+**Example:**
+
+```text
+# Floating-point index
+1.5 -> ["a", "b"]  # Not an integer
+```
+
+---
+
+### rill-r042
+
+**Description:** List dispatch index out of range
+
+**Cause:** The index piped to a `[...]` dispatch is outside the valid range.
+
+**Resolution:** Use an index within `[0, length-1]` or add a fallback with `??`.
+
+**Example:**
+
+```text
+# Index beyond end
+5 -> ["a", "b"]  # Only 2 elements (indices 0-1)
 ```
 
 ---

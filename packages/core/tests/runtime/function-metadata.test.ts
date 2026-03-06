@@ -10,11 +10,6 @@
  * - AC-3: Script closure reports returnType 'any'
  * - AC-14: All 6 return types preserved in metadata
  *
- * Error Contract Tests (EC-1, EC-4, EC-5):
- * - EC-1: Invalid return type 'void' throws Error (AC-6)
- * - EC-4: Invalid return type null throws Error (AC-9)
- * - EC-5: Invalid return type 42 (number) throws Error (AC-10)
- *
  * requireDescriptions Tests (AC-4, AC-7, AC-8, EC-2, EC-3):
  * - AC-4: requireDescriptions false allows undocumented functions
  * - AC-7: requireDescriptions true + missing function description throws [EC-2]
@@ -229,108 +224,6 @@ describe('Rill Runtime: Function Metadata', () => {
         );
         expect(functions.find((f) => f.name === 'getAny')?.returnType).toBe(
           'any'
-        );
-      });
-    });
-
-    describe('EC-1: Invalid return type literal throws Error', () => {
-      it('throws Error for invalid returnType "void" (AC-6)', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => undefined,
-                returnType: 'void' as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
-        );
-      });
-
-      it('throws Error for invalid returnType "object"', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => ({}),
-                returnType: 'object' as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
-        );
-      });
-
-      it('throws Error for invalid returnType "undefined"', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => undefined,
-                returnType: 'undefined' as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
-        );
-      });
-    });
-
-    describe('EC-4: Invalid return type null throws Error', () => {
-      it('throws Error for returnType null (AC-9)', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => null,
-                returnType: null as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
-        );
-      });
-    });
-
-    describe('EC-5: Invalid return type number throws Error', () => {
-      it('throws Error for returnType 42 (AC-10)', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => 'result',
-                returnType: 42 as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
-        );
-      });
-
-      it('throws Error for returnType as number value 0', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              invalid: {
-                params: [],
-                fn: () => 'result',
-                returnType: 0 as any,
-              },
-            },
-          })
-        ).toThrow(
-          "Invalid returnType for function 'invalid': expected one of string, number, bool, list, dict, vector, any"
         );
       });
     });

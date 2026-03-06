@@ -68,8 +68,8 @@ describe('Rill Runtime: Closure Equality', () => {
       const code = `
         "a" => $a
         "b" => $b
-        { [$a, $b] } => $f1
-        { [$a, $b] } => $f2
+        { list[$a, $b] } => $f1
+        { list[$a, $b] } => $f2
         ($f1 == $f2) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -148,8 +148,8 @@ describe('Rill Runtime: Closure Equality', () => {
   describe('closures in collections', () => {
     it('tuples containing different closures are not equal', async () => {
       const code = `
-        [||{ .trim }, ||{ .len }] => $a
-        [||{ .trim }, ||{ .str }] => $b
+        list[||{ .trim }, ||{ .len }] => $a
+        list[||{ .trim }, ||{ .str }] => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -157,8 +157,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('dicts containing different closures are not equal', async () => {
       const code = `
-        [f: ||{ .trim }] => $a
-        [f: ||{ .len }] => $b
+        dict[f: ||{ .trim }] => $a
+        dict[f: ||{ .len }] => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);
@@ -203,8 +203,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with tuples are equal', async () => {
       const code = `
-        { [1, 2, 3] } => $a
-        { [1, 2, 3] } => $b
+        { list[1, 2, 3] } => $a
+        { list[1, 2, 3] } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(true);
@@ -212,8 +212,8 @@ describe('Rill Runtime: Closure Equality', () => {
 
     it('closures with different tuples are not equal', async () => {
       const code = `
-        { [1, 2, 3] } => $a
-        { [1, 2, 4] } => $b
+        { list[1, 2, 3] } => $a
+        { list[1, 2, 4] } => $b
         ($a == $b) ? true ! false
       `;
       expect(await run(code)).toBe(false);

@@ -8,7 +8,6 @@
  * - Invoke operations
  * - Pipe invocations
  * - Property access on piped values
- * - Closure chains
  *
  * Interface requirements (from spec):
  * - invokeCallable(callable, args, location) -> Promise<RillValue>
@@ -20,7 +19,6 @@
  * - evaluatePipeInvoke(node, input) -> Promise<RillValue>
  * - evaluateMethod(node, receiver) -> Promise<RillValue>
  * - evaluateInvoke(node, receiver) -> Promise<RillValue>
- * - evaluateClosureChain(node, input) -> Promise<RillValue>
  *
  * Error Handling:
  * - Undefined functions throw RuntimeError(RUNTIME_UNDEFINED_FUNCTION) [EC-18]
@@ -48,14 +46,15 @@
 
 import type {
   HostCallNode,
+  HostRefNode,
   ClosureCallNode,
   MethodCallNode,
   InvokeNode,
   PipeInvokeNode,
-  ClosureChainNode,
   VariableNode,
   SourceLocation,
   ExpressionNode,
+  SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type {
@@ -71,14 +70,29 @@ import {
   isApplicationCallable,
   isDict,
   validateCallableArgs,
+  paramsToStructuralType,
 } from '../../callable.js';
 import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
-import type { RillValue, RillTuple } from '../../values.js';
-import { inferType, isTuple } from '../../values.js';
+import type { RillValue, RillTypeValue } from '../../values.js';
+import {
+  inferType,
+  isTypeValue,
+  isTuple,
+  isOrdered,
+  inferStructuralType,
+} from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
+
+/**
+ * Result of bindArgsToParams: parameter names mapped to evaluated values.
+ * @internal
+ */
+interface BoundArgs {
+  readonly params: Map<string, RillValue>;
+}
 
 /**
  * ClosuresMixin implementation.
@@ -101,14 +115,13 @@ import type { CallFrame } from '../../../../types.js';
  * - evaluatePipeInvoke(node, input) -> Promise<RillValue>
  * - evaluateMethod(node, receiver) -> Promise<RillValue>
  * - evaluateInvoke(node, receiver) -> Promise<RillValue>
- * - evaluateClosureChain(node, input) -> Promise<RillValue>
  * - evaluateArgs(argExprs) -> Promise<RillValue[]> (helper)
  * - invokeFnCallable(callable, args, location) -> Promise<RillValue> (helper)
  * - invokeScriptCallable(callable, args, location) -> Promise<RillValue> (helper)
- * - invokeScriptCallableWithArgs(callable, tuple, location) -> Promise<RillValue> (helper)
  * - createCallableContext(callable) -> RuntimeContext (helper)
  * - validateParamType(param, value, location) -> void (helper)
  * - inferTypeFromDefault(defaultValue) -> RillTypeName | null (helper)
+ * - bindArgsToParams(argNodes, callable, callLocation) -> Promise<BoundArgs> (helper)
  */
 function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ClosuresEvaluator extends Base {
@@ -117,13 +130,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Used by all callable invocations to prepare arguments.
      */
     protected async evaluateArgs(
-      argExprs: ExpressionNode[]
+      argExprs: (ExpressionNode | SpreadArgNode)[]
     ): Promise<RillValue[]> {
       const savedPipeValue = this.ctx.pipeValue;
       const args: RillValue[] = [];
       for (const arg of argExprs) {
+        const expr = arg.type === 'SpreadArg' ? arg.expression : arg;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        args.push(await (this as any).evaluateExpression(arg));
+        args.push(await (this as any).evaluateExpression(expr));
       }
       this.ctx.pipeValue = savedPipeValue;
       return args;
@@ -262,6 +276,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): void {
       const expectedType =
         param.typeName ?? this.inferTypeFromDefault(param.defaultValue);
+      if (expectedType === 'any') return;
       if (expectedType !== null) {
         const valueType = inferType(value);
         if (valueType !== expectedType) {
@@ -284,15 +299,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       args: RillValue[],
       callLocation?: SourceLocation
     ): Promise<RillValue> {
-      const firstArg = args[0];
-      if (args.length === 1 && firstArg !== undefined && isTuple(firstArg)) {
-        return this.invokeScriptCallableWithArgs(
-          callable,
-          firstArg,
-          callLocation
-        );
-      }
-
       const callableCtx = this.createCallableContext(callable);
 
       // Validate excess arguments (EC-8)
@@ -334,109 +340,20 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx = callableCtx;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateBodyExpression(callable.body);
-      } finally {
-        this.ctx = savedCtx;
-      }
-    }
-
-    /**
-     * Invoke script callable with tuple arguments (named or positional).
-     * Handles *[...] and *[name: val] argument unpacking.
-     */
-    protected async invokeScriptCallableWithArgs(
-      closure: ScriptCallable,
-      tupleValue: RillTuple,
-      callLocation?: SourceLocation
-    ): Promise<RillValue> {
-      const closureCtx = this.createCallableContext(closure);
-
-      const hasNumericKeys = [...tupleValue.entries.keys()].some(
-        (k) => typeof k === 'number'
-      );
-      const hasStringKeys = [...tupleValue.entries.keys()].some(
-        (k) => typeof k === 'string'
-      );
-
-      if (hasNumericKeys && hasStringKeys) {
-        throw new RuntimeError(
-          'RILL-R001',
-          'Tuple cannot mix positional (numeric) and named (string) keys',
-          callLocation
+        const result = await (this as any).evaluateBodyExpression(
+          callable.body
         );
-      }
-
-      const boundParams = new Set<string>();
-
-      if (hasNumericKeys) {
-        for (const [key, value] of tupleValue.entries) {
-          const position = key as number;
-          const param = closure.params[position];
-
-          if (param === undefined) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Extra argument at position ${position} (closure has ${closure.params.length} params)`,
-              callLocation,
-              { position, paramCount: closure.params.length }
-            );
-          }
-
-          this.validateParamType(param, value, callLocation);
-          closureCtx.variables.set(param.name, value);
-          boundParams.add(param.name);
+        // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
+        if (callable.returnShape !== undefined) {
+          // EC-4: Type assertion — value must match the declared scalar type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).assertType(
+            result,
+            callable.returnShape.typeName,
+            callLocation
+          );
         }
-      } else if (hasStringKeys) {
-        const paramNames = new Set(closure.params.map((p) => p.name));
-
-        for (const [key, value] of tupleValue.entries) {
-          const name = key as string;
-
-          if (!paramNames.has(name)) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Unknown argument '${name}' (valid params: ${[...paramNames].join(', ')})`,
-              callLocation,
-              { argName: name, validParams: [...paramNames] }
-            );
-          }
-
-          const param = closure.params.find((p) => p.name === name)!;
-          this.validateParamType(param, value, callLocation);
-          closureCtx.variables.set(name, value);
-          // Block-closures have param named '$': sync with pipeValue for bare $ references
-          if (name === '$') {
-            closureCtx.pipeValue = value;
-          }
-          boundParams.add(name);
-        }
-      }
-
-      for (const param of closure.params) {
-        if (!boundParams.has(param.name)) {
-          if (param.defaultValue !== null) {
-            closureCtx.variables.set(param.name, param.defaultValue);
-            // Block-closures have param named '$': sync with pipeValue for bare $ references
-            if (param.name === '$') {
-              closureCtx.pipeValue = param.defaultValue;
-            }
-          } else {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Missing argument '${param.name}' (no default value)`,
-              callLocation,
-              { paramName: param.name }
-            );
-          }
-        }
-      }
-
-      // Switch context to callable context
-      const savedCtx = this.ctx;
-      this.ctx = closureCtx;
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateBodyExpression(closure.body);
+        return result;
       } finally {
         this.ctx = savedCtx;
       }
@@ -457,6 +374,51 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this.getNodeLocation(node),
           { functionName: node.name }
         );
+      }
+
+      // EC-10/EC-11: spread-aware path for host calls
+      const hasSpread = node.args.some((a) => a.type === 'SpreadArg');
+      if (hasSpread) {
+        if (typeof fn === 'function') {
+          // EC-10: raw built-in (RuntimeCallable) — spread not supported
+          throw new RuntimeError(
+            'RILL-R001',
+            `Spread not supported for built-in function '${node.name}'`,
+            this.getNodeLocation(node),
+            { functionName: node.name }
+          );
+        }
+        // EC-11: ApplicationCallable — bindArgsToParams handles no-params guard
+        const boundArgs = await this.bindArgsToParams(
+          node.args,
+          fn,
+          node.span.start
+        );
+        const orderedArgs = fn.params!.map(
+          (p) => boundArgs.params.get(p.name)!
+        );
+
+        // Observability: onHostCall before execution
+        this.ctx.observability.onHostCall?.({
+          name: node.name,
+          args: orderedArgs,
+        });
+
+        const startTime = performance.now();
+        const wrappedPromise = this.withTimeout(
+          this.invokeCallable(fn, orderedArgs, node.span.start, node.name),
+          this.ctx.timeout,
+          node.name,
+          node
+        );
+        const result = await wrappedPromise;
+        const durationMs = performance.now() - startTime;
+        this.ctx.observability.onFunctionReturn?.({
+          name: node.name,
+          value: result,
+          durationMs,
+        });
+        return result;
       }
 
       const args = await this.evaluateArgs(node.args);
@@ -518,6 +480,65 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       });
 
       return result;
+    }
+
+    /**
+     * Evaluate host function reference: ns::name (no parens, namespaced).
+     *
+     * When pipeValue is null (value-capture context): returns the
+     * ApplicationCallable directly without invoking [IR-4].
+     *
+     * When pipeValue is set (pipe/branch context): invokes the callable
+     * with the pipe value as the implicit argument, consistent with how
+     * bare HostRef behaves as a pipe-stage expression [IR-4].
+     *
+     * Throws RILL-R006 when the function name is not registered [EC-4].
+     */
+    protected async evaluateHostRef(node: HostRefNode): Promise<RillValue> {
+      this.checkAborted(node);
+
+      const fn = this.ctx.functions.get(node.name);
+      if (!fn) {
+        throw new RuntimeError(
+          'RILL-R006',
+          `Function "${node.name}" not found`,
+          this.getNodeLocation(node),
+          { functionName: node.name }
+        );
+      }
+
+      // Build ApplicationCallable wrapper for raw CallableFn; pass through
+      // ApplicationCallable objects directly.
+      let appCallable: ApplicationCallable;
+      if (typeof fn === 'function') {
+        appCallable = {
+          __type: 'callable' as const,
+          kind: 'application' as const,
+          fn,
+          params: undefined,
+          isProperty: false,
+        };
+      } else {
+        appCallable = fn;
+      }
+
+      // Value-capture context: no pipe value → return callable without invoking [IR-4]
+      if (this.ctx.pipeValue === null) {
+        return appCallable as RillValue;
+      }
+
+      // Pipe/branch context: pipe value present → invoke with it as implicit argument
+      const fnHasTypedZeroParams =
+        appCallable.params !== undefined && appCallable.params.length === 0;
+      const args: RillValue[] = fnHasTypedZeroParams
+        ? []
+        : [this.ctx.pipeValue];
+      return this.invokeCallable(
+        appCallable,
+        args,
+        this.getNodeLocation(node),
+        node.name
+      );
     }
 
     /**
@@ -587,6 +608,32 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const closure = value;
+
+      // Spread-aware path: when args contain a SpreadArgNode use bindArgsToParams
+      if (node.args.some((a) => a.type === 'SpreadArg')) {
+        if (!isScriptCallable(closure) && !isApplicationCallable(closure)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Spread not supported for built-in callable at '${fullPath}'`,
+            this.getNodeLocation(node)
+          );
+        }
+        const boundArgs = await this.bindArgsToParams(
+          node.args,
+          closure,
+          node.span.start
+        );
+        const orderedArgs = closure.params!.map(
+          (p) => boundArgs.params.get(p.name)!
+        );
+        return this.invokeCallable(
+          closure,
+          orderedArgs,
+          node.span.start,
+          fullPath
+        );
+      }
+
       const args = await this.evaluateArgs(node.args);
 
       // If no explicit args and has pipe input, add pipe value as first arg
@@ -699,6 +746,19 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
+      // Spread-aware path: when args contain a SpreadArgNode use bindArgsToParams
+      if (node.args.some((a) => a.type === 'SpreadArg')) {
+        const boundArgs = await this.bindArgsToParams(
+          node.args,
+          input,
+          node.span.start
+        );
+        const orderedArgs = input.params.map(
+          (p) => boundArgs.params.get(p.name)!
+        );
+        return this.invokeScriptCallable(input, orderedArgs, node.span.start);
+      }
+
       const args = await this.evaluateArgs(node.args);
 
       return this.invokeScriptCallable(input, args, node.span.start);
@@ -726,6 +786,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this.getNodeLocation(node),
           { methodName: node.name, receiverType: 'callable' }
         );
+      }
+
+      // IR-3: .name on type values returns the typeName string (method path)
+      if (isTypeValue(receiver) && node.name === 'name') {
+        return receiver.typeName;
       }
 
       const args = await this.evaluateArgs(node.args);
@@ -782,50 +847,28 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      const args = await this.evaluateArgs(node.args);
-      return this.invokeCallable(receiver, args, this.getNodeLocation(node));
-    }
-
-    /**
-     * Evaluate closure chain: >>expr
-     * Chains multiple closures for composition.
-     */
-    protected async evaluateClosureChain(
-      node: ClosureChainNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      // Evaluate the target expression to get the closure(s)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const target = await (this as any).evaluateExpression(node.target);
-
-      if (Array.isArray(target)) {
-        // List of closures: chain them left-to-right
-        let result = input;
-        for (const closure of target) {
-          if (!isCallable(closure)) {
-            throw new RuntimeError(
-              'RILL-R002',
-              `Closure chain element must be callable, got ${inferType(closure)}`,
-              this.getNodeLocation(node)
-            );
-          }
-          result = await this.invokeCallable(
-            closure,
-            [result],
+      // Spread-aware path: when args contain a SpreadArgNode use bindArgsToParams
+      if (node.args.some((a) => a.type === 'SpreadArg')) {
+        if (!isScriptCallable(receiver) && !isApplicationCallable(receiver)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Spread not supported for built-in callable`,
             this.getNodeLocation(node)
           );
         }
-        return result;
-      } else if (isCallable(target)) {
-        // Single closure: invoke with input
-        return this.invokeCallable(target, [input], this.getNodeLocation(node));
-      } else {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Closure chain requires callable or list of callables, got ${inferType(target)}`,
-          this.getNodeLocation(node)
+        const boundArgs = await this.bindArgsToParams(
+          node.args,
+          receiver,
+          node.span.start
         );
+        const orderedArgs = receiver.params!.map(
+          (p) => boundArgs.params.get(p.name)!
+        );
+        return this.invokeCallable(receiver, orderedArgs, node.span.start);
       }
+
+      const args = await this.evaluateArgs(node.args);
+      return this.invokeCallable(receiver, args, this.getNodeLocation(node));
     }
 
     /**
@@ -841,11 +884,58 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       key: string,
       location: SourceLocation
     ): Promise<RillValue> {
+      // IR-2: .^type returns a RillTypeValue for any rill value
+      if (key === 'type') {
+        const typeValue: RillTypeValue = Object.freeze({
+          __rill_type: true as const,
+          typeName: inferType(value),
+          structure: inferStructuralType(value),
+        });
+        return typeValue;
+      }
+
+      // IR-3: .name on type values returns the typeName string
+      if (isTypeValue(value) && key === 'name') {
+        return value.typeName;
+      }
+
+      // IR-2/IR-5: .^input returns the input shape for callable values
+      if (key === 'input') {
+        if (isScriptCallable(value)) {
+          return value.inputShape;
+        }
+        if (isApplicationCallable(value)) {
+          if (value.params === undefined) {
+            // IR-5: untyped host function — no shape available
+            return false;
+          }
+          return paramsToStructuralType(value.params);
+        }
+        // Non-callable: fall through to existing RILL-R003 guard below
+      }
+
+      // IR-3: .^output returns the declared output contract for callable values
+      if (key === 'output') {
+        if (isScriptCallable(value)) {
+          if (value.returnShape !== undefined) {
+            return value.returnShape;
+          }
+          // No :type-target declared — return type value `any` (AC-17, AC-18, AC-19)
+          const anyTypeValue: RillTypeValue = Object.freeze({
+            __rill_type: true as const,
+            typeName: 'any',
+            structure: { kind: 'any' as const },
+          });
+          return anyTypeValue;
+        }
+        // Non-callable: fall through to existing RILL-R003 guard below
+      }
+
       // Only ScriptCallable supports annotation reflection
       if (!isScriptCallable(value)) {
         throw new RuntimeError(
           'RILL-R003',
-          `Cannot access annotation on ${inferType(value)}`,
+          `annotation not found: ^${key}`,
           location,
           { actualType: inferType(value) }
         );
@@ -865,6 +955,190 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       return annotationValue;
+    }
+
+    /**
+     * Bind argument nodes to callable parameters when a SpreadArgNode is present.
+     *
+     * Evaluates positional args LTR, evaluates the spread expression, dispatches
+     * by value type (Tuple, Ordered, or Dict), validates bindings, and returns
+     * a Map of param name → value.
+     *
+     * EC-3: bare ... with null pipe value → RuntimeError
+     * EC-4: spread value is not tuple/dict/ordered → RuntimeError
+     * EC-5: dict spread key matches no parameter → RuntimeError
+     * EC-6: ordered spread key at position N mismatches param at position N → RuntimeError
+     * EC-7: duplicate binding (positional + spread) → RuntimeError
+     * EC-8: missing required parameter after all args processed → RuntimeError
+     * EC-9: extra tuple values exceed param count → RuntimeError
+     * EC-11: ApplicationCallable with no params metadata → RuntimeError
+     */
+    protected async bindArgsToParams(
+      argNodes: (ExpressionNode | SpreadArgNode)[],
+      callable: ScriptCallable | ApplicationCallable,
+      callLocation: SourceLocation
+    ): Promise<BoundArgs> {
+      // EC-11: ApplicationCallable must have params metadata for spread to work
+      if (callable.kind === 'application' && callable.params === undefined) {
+        const name = callable.fn.name !== '' ? callable.fn.name : '<anonymous>';
+        throw new RuntimeError(
+          'RILL-R001',
+          `Spread not supported for host function '${name}': parameter metadata required`,
+          callLocation
+        );
+      }
+
+      const params =
+        callable.params as import('../../callable.js').CallableParam[];
+      const bound = new Map<string, RillValue>();
+
+      // Positional index: next unbound parameter position
+      let positionalIndex = 0;
+
+      // Save pipe value so evaluating args does not mutate it permanently
+      const savedPipeValue = this.ctx.pipeValue;
+
+      try {
+        for (const argNode of argNodes) {
+          if (argNode.type !== 'SpreadArg') {
+            // Positional argument
+            const param = params[positionalIndex];
+            if (param === undefined) {
+              // Extra positional arg beyond param count — EC-9 reports after spread
+              // but for pure positional excess, error here with the positional count
+              throw new RuntimeError(
+                'RILL-R001',
+                `Extra positional argument at position ${positionalIndex} (function has ${params.length} parameters)`,
+                callLocation
+              );
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const value = await (this as any).evaluateExpression(argNode);
+            bound.set(param.name, value);
+            positionalIndex++;
+          } else {
+            // SpreadArg: evaluate the expression
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const spreadValue = await (this as any).evaluateExpression(
+              argNode.expression
+            );
+
+            // EC-3: bare ... with no pipe value evaluates to null
+            if (spreadValue === null) {
+              throw new RuntimeError(
+                'RILL-R001',
+                'Spread requires an active pipe value ($)',
+                callLocation
+              );
+            }
+
+            // Dispatch by type: isOrdered BEFORE isDict per spec (IC-3 algorithm step 2)
+            if (isTuple(spreadValue)) {
+              // Tuple: fill remaining params positionally LTR (EC-9)
+              const tupleEntries = spreadValue.entries;
+              const remaining = params.length - positionalIndex;
+              if (tupleEntries.length > remaining) {
+                throw new RuntimeError(
+                  'RILL-R001',
+                  `Spread tuple has ${tupleEntries.length} values but only ${remaining} parameter(s) remain`,
+                  callLocation
+                );
+              }
+              for (let i = 0; i < tupleEntries.length; i++) {
+                const param = params[positionalIndex + i]!;
+                // EC-7: duplicate binding
+                if (bound.has(param.name)) {
+                  throw new RuntimeError(
+                    'RILL-R001',
+                    `Duplicate binding for parameter '${param.name}': already bound positionally`,
+                    callLocation
+                  );
+                }
+                bound.set(param.name, tupleEntries[i]!);
+              }
+              positionalIndex += tupleEntries.length;
+            } else if (isOrdered(spreadValue)) {
+              // Ordered: match key by name AND position
+              // Key at position N within ordered value must match param at (spreadStart + N)
+              const orderedEntries = spreadValue.entries;
+              for (let i = 0; i < orderedEntries.length; i++) {
+                const [key, value] = orderedEntries[i]!;
+                const expectedParam = params[positionalIndex + i];
+                // EC-6: key-order mismatch
+                if (expectedParam === undefined || expectedParam.name !== key) {
+                  const expectedName = expectedParam?.name ?? '<none>';
+                  throw new RuntimeError(
+                    'RILL-R001',
+                    `Ordered spread key '${key}' at position ${i} does not match expected parameter '${expectedName}' at position ${positionalIndex + i}`,
+                    callLocation
+                  );
+                }
+                // EC-7: duplicate binding
+                if (bound.has(key)) {
+                  throw new RuntimeError(
+                    'RILL-R001',
+                    `Duplicate binding for parameter '${key}': already bound positionally`,
+                    callLocation
+                  );
+                }
+                bound.set(key, value);
+              }
+              positionalIndex += orderedEntries.length;
+            } else if (isDict(spreadValue)) {
+              // Dict: match each key to param by name (order irrelevant)
+              const dictValue = spreadValue as Record<string, RillValue>;
+              const paramNames = new Set(params.map((p) => p.name));
+              for (const [key, value] of Object.entries(dictValue)) {
+                // EC-5: key matches no parameter
+                if (!paramNames.has(key)) {
+                  const validParams = params.map((p) => p.name).join(', ');
+                  throw new RuntimeError(
+                    'RILL-R001',
+                    `Dict spread key '${key}' does not match any parameter. Valid parameters: ${validParams}`,
+                    callLocation
+                  );
+                }
+                // EC-7: duplicate binding
+                if (bound.has(key)) {
+                  throw new RuntimeError(
+                    'RILL-R001',
+                    `Duplicate binding for parameter '${key}': already bound positionally`,
+                    callLocation
+                  );
+                }
+                bound.set(key, value);
+              }
+            } else {
+              // EC-4: spread value is not tuple/dict/ordered
+              const actualType = inferType(spreadValue);
+              throw new RuntimeError(
+                'RILL-R001',
+                `Spread requires a tuple, dict, or ordered value, got ${actualType}`,
+                callLocation
+              );
+            }
+          }
+        }
+      } finally {
+        this.ctx.pipeValue = savedPipeValue;
+      }
+
+      // EC-8: check for missing required parameters
+      for (const param of params) {
+        if (!bound.has(param.name)) {
+          if (param.defaultValue !== null) {
+            bound.set(param.name, param.defaultValue);
+          } else {
+            throw new RuntimeError(
+              'RILL-R001',
+              `Missing required parameter '${param.name}'`,
+              callLocation
+            );
+          }
+        }
+      }
+
+      return { params: bound };
     }
 
     /**

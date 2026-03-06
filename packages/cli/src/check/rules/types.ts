@@ -64,7 +64,11 @@ export const UNNECESSARY_ASSERTION: ValidationRule = {
 
     // Check if the assertion matches the literal type
     const literalType = getLiteralType(primary);
-    const assertedType = assertionNode.typeName;
+    const typeRef = assertionNode.typeRef;
+    if (typeRef.kind !== 'static') {
+      return [];
+    }
+    const assertedType = typeRef.typeName;
 
     if (literalType === assertedType) {
       const fix = this.fix?.(node, context) ?? null;
@@ -95,6 +99,11 @@ export const UNNECESSARY_ASSERTION: ValidationRule = {
       return null;
     }
 
+    const typeRef = assertionNode.typeRef;
+    if (typeRef.kind !== 'static') {
+      return null;
+    }
+
     // Find the end of the type assertion (:type part)
     const assertionSource = context.source.substring(
       assertionNode.span.start.offset,
@@ -110,7 +119,7 @@ export const UNNECESSARY_ASSERTION: ValidationRule = {
 
     // Calculate the actual end of ":type" part
     const typeStart = assertionNode.span.start.offset + colonIndex;
-    const typeEnd = typeStart + 1 + assertionNode.typeName.length;
+    const typeEnd = typeStart + 1 + typeRef.typeName.length;
 
     return {
       description: 'Remove unnecessary type assertion',
@@ -137,7 +146,7 @@ function getLiteralType(
       return 'string';
     case 'BoolLiteral':
       return 'bool';
-    case 'Tuple':
+    case 'TupleLiteral':
       return 'list';
     case 'Dict':
       return 'dict';

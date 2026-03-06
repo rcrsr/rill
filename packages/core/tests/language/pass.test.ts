@@ -10,17 +10,17 @@ import { run } from '../helpers/runtime.js';
 describe('Rill Language: Pass Keyword', () => {
   describe('Pass in Dict Values', () => {
     it('pass as dict value in block context (AC-10)', async () => {
-      const result = await run('"success" -> { ["status": pass] }');
+      const result = await run('"success" -> { dict["status": pass] }');
       expect(result).toEqual({ status: 'success' });
     });
 
     it('handles multiple independent pass values in block (AC-16)', async () => {
-      const result = await run('"test" -> { [a: pass, b: pass] }');
+      const result = await run('"test" -> { dict[a: pass, b: pass] }');
       expect(result).toEqual({ a: 'test', b: 'test' });
     });
 
     it('pass in nested dict within block', async () => {
-      const result = await run('42 -> { [result: [value: pass]] }');
+      const result = await run('42 -> { dict[result: dict[value: pass]] }');
       expect(result).toEqual({ result: { value: 42 } });
     });
   });
@@ -63,35 +63,41 @@ describe('Rill Language: Pass Keyword', () => {
 
   describe('Pass in Collection Operators', () => {
     it('preserves matching items in map (AC-12)', async () => {
-      const result = await run('[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }');
+      const result = await run(
+        'list[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }'
+      );
       expect(result).toEqual([1, 0, 3, 0]);
     });
 
     it('preserves items in each', async () => {
-      const result = await run('[10, 20, 30] -> each { pass }');
+      const result = await run('list[10, 20, 30] -> each { pass }');
       expect(result).toEqual([10, 20, 30]);
     });
 
     it('uses each to iterate and preserve with pass', async () => {
-      const result = await run('[1, 2, 3] -> each { $ }');
+      const result = await run('list[1, 2, 3] -> each { $ }');
       expect(result).toEqual([1, 2, 3]);
     });
   });
 
   describe('Pass as Dispatch Value', () => {
     it('returns piped value when pass as dispatch value (AC-18)', async () => {
-      const result = await run('"match" -> ["match": pass, "other": "value"]');
+      const result = await run(
+        '"match" -> dict["match": pass, "other": "value"]'
+      );
       expect(result).toBe('match');
     });
 
     it('returns piped value for different key', async () => {
-      const result = await run('"other" -> ["match": "found", "other": pass]');
+      const result = await run(
+        '"other" -> dict["match": "found", "other": pass]'
+      );
       expect(result).toBe('other');
     });
 
     it('handles pass in dispatch with multiple keys', async () => {
       const result = await run(
-        '"key2" -> ["key1": "val1", "key2": pass, "key3": "val3"]'
+        '"key2" -> dict["key1": "val1", "key2": pass, "key3": "val3"]'
       );
       expect(result).toBe('key2');
     });
@@ -120,7 +126,9 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('uses pass in variable assignment chain with block', async () => {
-      const result = await run('"value" => $a\n$a -> { pass } => $b\n[$a, $b]');
+      const result = await run(
+        '"value" => $a\n$a -> { pass } => $b\nlist[$a, $b]'
+      );
       expect(result).toEqual(['value', 'value']);
     });
   });
@@ -174,7 +182,7 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('throws error when pass used in dict without pipe context', async () => {
-      await expect(run('["key": pass]')).rejects.toThrow("Variable '$'");
+      await expect(run('dict["key": pass]')).rejects.toThrow("Variable '$'");
     });
 
     it('throws error when pass used in conditional without pipe', async () => {
@@ -199,22 +207,22 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('handles pass with empty list', async () => {
-      const result = await run('[] => $list\n$list -> { pass }');
+      const result = await run('list[] => $list\n$list -> { pass }');
       expect(result).toEqual([]);
     });
 
     it('handles pass with empty dict', async () => {
-      const result = await run('[:] -> { pass }');
+      const result = await run('dict[] -> { pass }');
       expect(result).toEqual({});
     });
 
     it('handles pass in nested dicts within block', async () => {
-      const result = await run('"val" -> { [outer: [inner: pass]] }');
+      const result = await run('"val" -> { dict[outer: dict[inner: pass]] }');
       expect(result).toEqual({ outer: { inner: 'val' } });
     });
 
     it('handles pass in list within dict within block', async () => {
-      const result = await run('"item" -> { [items: [pass, pass]] }');
+      const result = await run('"item" -> { dict[items: list[pass, pass]] }');
       expect(result).toEqual({ items: ['item', 'item'] });
     });
   });

@@ -27,27 +27,34 @@
 
 import type {
   StringLiteralNode,
-  TupleNode,
+  ListLiteralNode,
   DictNode,
   ClosureNode,
   BlockNode,
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
+  RillTypeName,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
   SpreadArgNode,
-  ListSpreadNode,
   DictKeyVariable,
   DictKeyComputed,
   PassNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { formatValue, isReservedMethod, isVector } from '../../values.js';
+import {
+  formatValue,
+  inferElementType,
+  isReservedMethod,
+  isTypeValue,
+  isVector,
+} from '../../values.js';
 import {
   isCallable,
+  paramsToStructuralType,
   type ScriptCallable,
   type CallableParam,
 } from '../../callable.js';
@@ -80,12 +87,13 @@ async function captureClosureAnnotations(
   annotations: Record<string, RillValue>;
   paramAnnotations: Record<string, Record<string, RillValue>>;
 }> {
-  // Capture closure-level annotations from annotation stack
-  // When a closure is created within an annotated statement like:
+  // Capture closure-level annotations from immediateAnnotation field [IR-7].
+  // When a closure is created within a directly-annotated statement like:
   // ^(doc: "test") |x|($x * 2) :> $fn
-  // The annotation stack contains the evaluated annotations from the statement
-  const annotations: Record<string, RillValue> =
-    ctx.annotationStack.at(-1) ?? {};
+  // immediateAnnotation holds the evaluated annotations set by executeAnnotatedStatement.
+  // Consumed once: cleared after capture to prevent unintended re-use.
+  const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
+  ctx.immediateAnnotation = undefined;
 
   // Capture parameter-level annotations
   const paramAnnotations: Record<string, Record<string, RillValue>> = {};
@@ -237,94 +245,41 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate tuple literal.
+     * Evaluate list literal elements into a flat array.
      * Elements are evaluated in order and collected into an array.
-     * ListSpreadNode elements are flattened inline.
      *
      * Errors from element evaluation propagate to caller.
      */
-    protected async evaluateTuple(node: TupleNode): Promise<RillValue[]> {
+    protected async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
-        if (elem.type === 'ListSpread') {
-          // ListSpreadNode: evaluate expression and flatten
-          const spreadResult = await this.evaluateTupleElement(elem);
-          // Spread result should be an array - flatten it
-          if (Array.isArray(spreadResult)) {
-            elements.push(...spreadResult);
-          } else {
-            // Single value returned - should not happen for ListSpread
-            elements.push(spreadResult);
-          }
-        } else {
-          // Regular element: evaluate and add
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          elements.push(await (this as any).evaluateExpression(elem));
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        elements.push(await (this as any).evaluateExpression(elem));
       }
+      // Validate homogeneity: all elements must share the same structural type [C-1]
+      inferElementType(elements);
       return elements;
     }
 
     /**
-     * Evaluate single tuple element.
-     * Returns spread-able array when element is ListSpreadNode, single value otherwise.
-     *
-     * @param elem - Element to evaluate (ExpressionNode or ListSpreadNode)
-     * @returns Flattened array for spread, single value otherwise
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if spread on non-list [EC-3]
+     * Evaluate multi-key dict entry from a ListLiteralNode key.
      */
-    protected async evaluateTupleElement(
-      elem: ExpressionNode | ListSpreadNode
-    ): Promise<RillValue | RillValue[]> {
-      if (elem.type === 'ListSpread') {
-        // Evaluate spread expression
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const spreadValue = await (this as any).evaluateExpression(
-          elem.expression
-        );
-
-        // Verify it's a list
-        if (!Array.isArray(spreadValue)) {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Spread in list literal requires list, got ${typeof spreadValue}`,
-            elem.span?.start,
-            { got: typeof spreadValue }
-          );
-        }
-
-        return spreadValue;
-      } else {
-        // Regular expression: evaluate and return single value
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateExpression(elem);
-      }
-    }
-
-    /**
-     * Evaluate multi-key dict entry.
-     * Expands `[["k1", "k2"]: value]` to array of key-value pairs.
-     * Evaluates value once, creates entry for each key.
-     *
-     * @param keyTuple - TupleNode containing list of keys
-     * @param value - Value expression to associate with all keys
-     * @returns Array of [key, value] pairs
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if tuple empty [EC-4]
-     * @throws RuntimeError with RUNTIME_TYPE_ERROR if key element non-primitive [EC-5]
-     */
-    protected async evaluateDictMultiKey(
-      keyTuple: TupleNode,
+    protected async evaluateDictMultiKeyFromList(
+      keyList: ListLiteralNode,
       value: ExpressionNode
     ): Promise<Array<[string, RillValue]>> {
-      // Evaluate key tuple to get list of keys
-      const keys = await this.evaluateTuple(keyTuple);
+      // Evaluate list elements to get keys
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const keys: RillValue[] = await (this as any).evaluateListLiteralElements(
+        keyList.elements
+      );
 
       // Validate non-empty [EC-4]
       if (keys.length === 0) {
         throw new RuntimeError(
           'RILL-R002',
           'Multi-key dict entry requires non-empty list',
-          keyTuple.span?.start
+          keyList.span?.start
         );
       }
 
@@ -339,7 +294,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           throw new RuntimeError(
             'RILL-R002',
             `Dict key must be string, number, or boolean, got ${keyType}`,
-            keyTuple.span?.start,
+            keyList.span?.start,
             { got: keyType }
           );
         }
@@ -348,12 +303,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate value once
       let evaluatedValue: RillValue;
       if (this.isBlockExpr(value)) {
-        // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
         const head = value.head as PostfixExprNode;
         const blockNode = head.primary as BlockNode;
         evaluatedValue = this.createBlockClosure(blockNode);
       } else if (this.isClosureExpr(value)) {
-        // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
         const head = value.head as PostfixExprNode;
         const fnLit = head.primary as ClosureNode;
         evaluatedValue = await this.createClosure(fnLit);
@@ -501,9 +454,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               continue;
             }
           }
-          // At this point, entry.key must be TupleNode (multi-key entry)
-          const pairs = await this.evaluateDictMultiKey(
-            entry.key as TupleNode,
+          // At this point, entry.key is ListLiteralNode (multi-key entry)
+          const pairs = await this.evaluateDictMultiKeyFromList(
+            entry.key as ListLiteralNode,
             entry.value
           );
           for (const [stringKey, value] of pairs) {
@@ -611,9 +564,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               entry.span.start
             );
           }
-          // Tuple key - evaluate to get list of candidates
-          // Parser ensures entry.key is TupleNode, evaluateTuple always returns array
-          const keyValue = await this.evaluateTuple(entry.key);
+          // ListLiteralNode key - evaluate to get list of candidates
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const keyValue = (await (this as any).evaluateListLiteralElements(
+            (entry.key as ListLiteralNode).elements
+          )) as RillValue[];
 
           // Check if input matches any element in the list (type-aware)
           for (const candidate of keyValue) {
@@ -660,30 +615,29 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Takes numeric index and returns element at that position.
      * Supports negative indices and default values.
      *
-     * @param node - TupleNode representing list literal
+     * @param node - ListLiteralNode representing list literal
      * @param input - Piped value to use as index (must be number)
      * @returns Element at index
      * @throws RuntimeError if input not number or index out of bounds
      */
     protected async evaluateListDispatch(
-      node: TupleNode,
+      node: ListLiteralNode,
       input: RillValue
     ): Promise<RillValue> {
-      // Validate input is number
-      if (typeof input !== 'number') {
+      // Validate input is an integer (EC-15)
+      if (typeof input !== 'number' || !Number.isInteger(input)) {
         throw new RuntimeError(
-          'RILL-R002',
-          `List dispatch requires number index, got ${typeof input}`,
+          'RILL-R041',
+          `List dispatch requires integer index, got ${typeof input !== 'number' ? typeof input : 'non-integer number'}`,
           node.span?.start,
-          { input, expectedType: 'number' }
+          { input, expectedType: 'integer' }
         );
       }
 
       // Evaluate all elements to get the list
       const elements = await this.evaluateTuple(node);
 
-      // Truncate decimal to integer
-      const index = Math.trunc(input);
+      const index = input;
 
       // Normalize negative indices
       const normalizedIndex = index < 0 ? elements.length + index : index;
@@ -696,10 +650,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return await (this as any).evaluateExpression(node.defaultValue);
         }
 
-        // No match and no default - throw error
+        // No default - throw EC-16 out-of-bounds error
         throw new RuntimeError(
-          'RILL-R009',
-          `List dispatch: index '${index}' not found`,
+          'RILL-R042',
+          `List dispatch: index ${index} out of range (length: ${elements.length})`,
           node.span?.start,
           { index, listLength: elements.length }
         );
@@ -958,15 +912,48 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             param.defaultValue
           );
         }
+
+        // Resolve typeRef at closure-creation time (AC-12).
+        // Dynamic refs ($var) are resolved against the current context now,
+        // so the closure captures the concrete type, not the variable reference.
+        let resolvedTypeName: RillTypeName | null = null;
+        if (param.typeRef !== null) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const resolved = (this as any).resolveTypeRef(
+            param.typeRef,
+            (name: string) => getVariable(this.ctx, name)
+          );
+          if (!isTypeValue(resolved)) {
+            throw new RuntimeError(
+              'RILL-R004',
+              `Closure parameter '${param.name}' type must be a type value, not a shape`
+            );
+          }
+          resolvedTypeName = resolved.typeName;
+        }
+
         params.push({
           name: param.name,
-          typeName: param.typeName,
+          typeName: resolvedTypeName,
           defaultValue,
           annotations: paramAnnotations[param.name] ?? {},
         });
       }
 
       const isProperty = params.length === 0;
+      const inputShape = paramsToStructuralType(params);
+
+      // Evaluate returnTypeTarget at closure creation time (IR-4).
+      // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
+      // Absent → returnShape remains undefined (omission implies :any, AC-17, AC-18, AC-19).
+      let returnShape: ScriptCallable['returnShape'] = undefined;
+      if (node.returnTypeTarget !== undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        returnShape = (this as any).resolveTypeRef(
+          node.returnTypeTarget,
+          (name: string) => getVariable(this.ctx, name)
+        );
+      }
 
       return {
         __type: 'callable',
@@ -977,6 +964,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isProperty,
         annotations,
         paramAnnotations,
+        inputShape,
+        returnShape,
       };
     }
 
@@ -1001,6 +990,12 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         },
       ];
 
+      const annotations = this.ctx.immediateAnnotation ?? {};
+      this.ctx.immediateAnnotation = undefined;
+
+      const paramAnnotations: Record<string, Record<string, RillValue>> = {};
+      const inputShape = paramsToStructuralType(params);
+
       return {
         __type: 'callable',
         kind: 'script',
@@ -1008,8 +1003,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         body: node,
         definingScope,
         isProperty: false,
-        annotations: {}, // Block closures: no annotation support (expression-position blocks)
-        paramAnnotations: {}, // Block closures have no parameter annotations
+        annotations,
+        paramAnnotations,
+        inputShape,
+        returnShape: undefined,
       };
     }
 

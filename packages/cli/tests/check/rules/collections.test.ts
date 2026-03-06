@@ -58,7 +58,7 @@ describe('BREAK_IN_PARALLEL', () => {
 
   it('detects break in map', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         ($ == 2) ? break
         $ * 2
       }
@@ -72,7 +72,7 @@ describe('BREAK_IN_PARALLEL', () => {
 
   it('detects break in filter', () => {
     const source = `
-      [1, 2, 3] -> filter {
+      list[1, 2, 3] -> filter {
         ($ > 2) ? break
         $ > 1
       }
@@ -85,7 +85,7 @@ describe('BREAK_IN_PARALLEL', () => {
 
   it('detects break in nested conditional within map', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         ($ == 2) ? {
           break
         } ! {
@@ -98,7 +98,7 @@ describe('BREAK_IN_PARALLEL', () => {
 
   it('detects break in pipe chain terminator within map', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         $ -> break
       }
     `;
@@ -107,21 +107,21 @@ describe('BREAK_IN_PARALLEL', () => {
 
   it('allows map without break', () => {
     const source = `
-      [1, 2, 3] -> map { $ * 2 }
+      list[1, 2, 3] -> map { $ * 2 }
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('allows filter without break', () => {
     const source = `
-      [1, 2, 3] -> filter { $ > 1 }
+      list[1, 2, 3] -> filter { $ > 1 }
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('returns error severity', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         ($ == 2) ? break
         $ * 2
       }
@@ -140,7 +140,7 @@ describe('PREFER_MAP', () => {
 
   it('suggests map for each without accumulator', () => {
     const source = `
-      [1, 2, 3] -> each { $ * 2 }
+      list[1, 2, 3] -> each { $ * 2 }
     `;
     expect(hasViolations(source, rule)).toBe(true);
 
@@ -151,21 +151,21 @@ describe('PREFER_MAP', () => {
 
   it('allows each with accumulator initialization', () => {
     const source = `
-      [1, 2, 3] -> each(0) { $@ + $ }
+      list[1, 2, 3] -> each(0) { $@ + $ }
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('allows each with closure having accumulator parameter', () => {
     const source = `
-      [1, 2, 3] -> each |x, acc = 0| ($acc + $x)
+      list[1, 2, 3] -> each |x, acc = 0| ($acc + $x)
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('returns info severity', () => {
     const source = `
-      [1, 2, 3] -> each { $ * 2 }
+      list[1, 2, 3] -> each { $ * 2 }
     `;
     const severities = getSeverities(source, rule);
     expect(severities[0]).toBe('info');
@@ -181,7 +181,7 @@ describe('FOLD_INTERMEDIATES', () => {
 
   it('is a placeholder rule (no violations yet)', () => {
     const source = `
-      [1, 2, 3] -> fold(0) { $@ + $ }
+      list[1, 2, 3] -> fold(0) { $@ + $ }
     `;
     // Placeholder - no implementation yet
     expect(hasViolations(source, rule)).toBe(false);
@@ -189,7 +189,7 @@ describe('FOLD_INTERMEDIATES', () => {
 
   it('does not flag each with accumulator', () => {
     const source = `
-      [1, 2, 3] -> each(0) { $@ + $ }
+      list[1, 2, 3] -> each(0) { $@ + $ }
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
@@ -204,7 +204,7 @@ describe('FILTER_NEGATION', () => {
 
   it('warns about filter with .empty method (likely unintended)', () => {
     const source = `
-      ["", "a", "b"] -> filter .empty
+      list["", "a", "b"] -> filter .empty
     `;
     expect(hasViolations(source, rule)).toBe(true);
 
@@ -215,7 +215,7 @@ describe('FILTER_NEGATION', () => {
 
   it('allows filter with other methods', () => {
     const source = `
-      ["a", "b", "c"] -> filter .upper
+      list["a", "b", "c"] -> filter .upper
     `;
     // Only .empty triggers warning for now
     expect(hasViolations(source, rule)).toBe(false);
@@ -223,14 +223,14 @@ describe('FILTER_NEGATION', () => {
 
   it('allows filter with grouped negation', () => {
     const source = `
-      ["", "a", "b"] -> filter (!.empty)
+      list["", "a", "b"] -> filter (!.empty)
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('allows filter with block containing complex logic', () => {
     const source = `
-      ["", "a", "b"] -> filter { !$.empty }
+      list["", "a", "b"] -> filter { !$.empty }
     `;
     // Block form doesn't trigger shorthand warning
     expect(hasViolations(source, rule)).toBe(false);
@@ -238,7 +238,7 @@ describe('FILTER_NEGATION', () => {
 
   it('returns warning severity', () => {
     const source = `
-      ["", "a", "b"] -> filter .empty
+      list["", "a", "b"] -> filter .empty
     `;
     const severities = getSeverities(source, rule);
     expect(severities[0]).toBe('warning');
@@ -254,7 +254,7 @@ describe('METHOD_SHORTHAND', () => {
 
   it('suggests shorthand for map with block wrapping method', () => {
     const source = `
-      ["hello", "world"] -> map { $.upper() }
+      list["hello", "world"] -> map { $.upper() }
     `;
     expect(hasViolations(source, rule)).toBe(true);
 
@@ -265,7 +265,7 @@ describe('METHOD_SHORTHAND', () => {
 
   it('suggests shorthand for each with block wrapping method', () => {
     const source = `
-      [1, 2, 3] -> each { $.str() }
+      list[1, 2, 3] -> each { $.str() }
     `;
     expect(hasViolations(source, rule)).toBe(true);
 
@@ -275,14 +275,14 @@ describe('METHOD_SHORTHAND', () => {
 
   it('suggests shorthand for filter with block wrapping method', () => {
     const source = `
-      ["", "a", "b"] -> filter { $.empty() }
+      list["", "a", "b"] -> filter { $.empty() }
     `;
     expect(hasViolations(source, rule)).toBe(true);
   });
 
   it('suggests shorthand for fold with block wrapping method', () => {
     const source = `
-      ["a", "b"] -> fold("") { $.upper() }
+      list["a", "b"] -> fold("") { $.upper() }
     `;
     // Note: This detects the pattern even though fold typically needs
     // accumulator logic. This is a valid detection - if user writes
@@ -292,14 +292,14 @@ describe('METHOD_SHORTHAND', () => {
 
   it('allows direct method shorthand', () => {
     const source = `
-      ["hello", "world"] -> map .upper
+      list["hello", "world"] -> map .upper
     `;
     expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('allows blocks with complex logic', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         ($ > 2) ? "big" ! "small"
       }
     `;
@@ -308,7 +308,7 @@ describe('METHOD_SHORTHAND', () => {
 
   it('allows blocks with multiple statements', () => {
     const source = `
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         $ * 2 => $doubled
         $doubled + 1
       }
@@ -318,7 +318,7 @@ describe('METHOD_SHORTHAND', () => {
 
   it('returns info severity', () => {
     const source = `
-      ["hello"] -> map { $.upper() }
+      list["hello"] -> map { $.upper() }
     `;
     const severities = getSeverities(source, rule);
     expect(severities[0]).toBe('info');
@@ -332,8 +332,8 @@ describe('METHOD_SHORTHAND', () => {
 describe('Collection Rules Integration', () => {
   it('detects multiple violations in same script', () => {
     const source = `
-      [1, 2, 3] -> each { $ * 2 }
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> each { $ * 2 }
+      list[1, 2, 3] -> map {
         ($ == 2) ? break
         $ * 2
       }
@@ -358,7 +358,7 @@ describe('Collection Rules Integration', () => {
 
   it('respects rule configuration', () => {
     const source = `
-      [1, 2, 3] -> each { $ * 2 }
+      list[1, 2, 3] -> each { $ * 2 }
     `;
 
     // Rule off

@@ -42,6 +42,9 @@ Thumbs.db
 *.tgz
 .npm
 
+# Test runtime artifacts
+**/test-data-integration/
+
 # Demo runtime artifacts
 demo/**/data/
 

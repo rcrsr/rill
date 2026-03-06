@@ -17,6 +17,7 @@ export {
   type ConfigFieldDescriptor,
   createRuntimeContext,
   createStepper,
+  createTuple,
   createVector,
   type DocumentationCoverageResult,
   emitExtensionEvent,
@@ -40,6 +41,12 @@ export {
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,
+  buildFieldDescriptor,
+  formatStructuralType,
+  inferElementType,
+  inferStructuralType,
+  inferType,
+  invokeCallable,
   isApplicationCallable,
   isTuple,
   isCallable,
@@ -48,8 +55,13 @@ export {
   isRillIterator,
   isRuntimeCallable,
   isScriptCallable,
+  isTypeValue,
   isVector,
   type KvExtensionContract,
+  type NativeArray,
+  type NativePlainObject,
+  type NativeResult,
+  type NativeValue,
   type LlmExtensionContract,
   type SchemaEntry,
   type ObservabilityCallbacks,
@@ -60,9 +72,11 @@ export {
   RESERVED_DICT_METHODS,
   ReturnSignal,
   type RillCallable,
+  type RillStructuralType,
   type RillFunctionReturnType,
   type RillIterator,
   type RillTuple,
+  type RillTypeValue,
   type RillValue,
   type RillVector,
   type RuntimeCallable,
@@ -74,8 +88,10 @@ export {
   type StepResult,
   type StepStartEvent,
   type VectorExtensionContract,
+  structuralTypeEquals,
+  structuralTypeMatches,
+  toNative,
   validateHostFunctionArgs,
-  validateReturnType,
   VERSION,
   VERSION_INFO,
   type VersionInfo,
@@ -93,6 +109,11 @@ export {
   getHelpUrl,
   createError,
 } from './types.js';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+export { VALID_TYPE_NAMES } from './constants.js';
 
 // ============================================================
 // SYNTAX HIGHLIGHTING

@@ -103,7 +103,7 @@ $x`;
 # Second comment
 "b" => $b
 # Third comment
-[$a, $b]`;
+list[$a, $b]`;
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
@@ -162,13 +162,13 @@ $x`;
     });
 
     it('interpolates field access', async () => {
-      expect(await run('[a: 1] => $d\n"val: {$d.a}"')).toBe('val: 1');
+      expect(await run('dict[a: 1] => $d\n"val: {$d.a}"')).toBe('val: 1');
     });
 
     it('interpolates tuple element via .at', async () => {
-      expect(await run('[1, 2, 3] => $t\n$t.at(1) => $v\n"second: {$v}"')).toBe(
-        'second: 2'
-      );
+      expect(
+        await run('list[1, 2, 3] => $t\n$t.at(1) => $v\n"second: {$v}"')
+      ).toBe('second: 2');
     });
 
     it('interpolates multiple values', async () => {
@@ -190,7 +190,7 @@ $x`;
 
     it('interpolates nested dict via intermediate variable', async () => {
       // Nested access in interpolation may need intermediate variable
-      const script = `[x: [y: "deep"]] => $d
+      const script = `dict[x: dict[y: "deep"]] => $d
 $d.x.y => $val
 "found: {$val}"`;
       expect(await run(script)).toBe('found: deep');
@@ -231,19 +231,19 @@ $d.x.y => $val
     });
 
     it('interpolates deep property access', async () => {
-      const script = `[users: [[name: "alice"], [name: "bob"]]] => $data
+      const script = `dict[users: list[dict[name: "alice"], dict[name: "bob"]]] => $data
 "first: {$data.users[0].name}"`;
       expect(await run(script)).toBe('first: alice');
     });
 
     it('interpolates list length', async () => {
-      const script = `[1, 2, 3] => $list
+      const script = `list[1, 2, 3] => $list
 "count: {$list -> .len}"`;
       expect(await run(script)).toBe('count: 3');
     });
 
     it('preserves pipeValue across multiple interpolations', async () => {
-      const script = `[name: "x", count: 3] -> { "{$.name}: {$.count} items" }`;
+      const script = `dict[name: "x", count: 3] -> { "{$.name}: {$.count} items" }`;
       expect(await run(script)).toBe('x: 3 items');
     });
 

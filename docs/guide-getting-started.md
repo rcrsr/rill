@@ -97,7 +97,7 @@ rill has seven value types:
 | Boolean | `true`, `false` |
 | List | `[1, 2, 3]` |
 | Dict | `[name: "alice", age: 30]` |
-| Tuple | `*[1, 2, 3]` |
+| Tuple | `tuple[1, 2, 3]` |
 | Closure | `\|x\|($x + 1)` |
 
 ### Strings
@@ -135,19 +135,21 @@ Line two
 
 ### Lists and Dicts
 
-Lists hold ordered values:
+Lists hold ordered values. Both `[...]` (bare) and `list[...]` (keyword) are valid — `list[...]` is canonical:
 
 ```rill
-[1, 2, 3] => $nums
+[1, 2, 3] => $nums          # bare form
+list[1, 2, 3] => $nums      # keyword form (canonical)
 $nums[0]        # 1
 $nums[-1]       # 3 (last element)
 $nums -> .len   # 3
 ```
 
-Dicts hold key-value pairs:
+Dicts hold key-value pairs. Both `[k: v]` (bare) and `dict[...]` (keyword) are valid — `dict[...]` is canonical:
 
 ```rill
-[name: "alice", age: 30] => $person
+[name: "alice", age: 30] => $person         # bare form
+dict[name: "alice", age: 30] => $person     # keyword form (canonical)
 $person.name    # "alice"
 $person.age     # 30
 ```
@@ -279,7 +281,8 @@ $add(3, 4)
 Optional type hints help catch errors:
 
 ```rill
-|name: string, age: number| "Name: {$name}, Age: {$age}"
+|name: string, age: number| "Name: {$name}, Age: {$age}" => $fn
+$fn("Alice", 30)
 ```
 
 ## Property Access
@@ -315,22 +318,18 @@ $data.?name          # true
 Group multiple statements in braces. The last value is the block's result:
 
 ```rill
-{
-  "hello" => $greeting
-  $greeting -> .upper => $shouted
-  "{$shouted}!"
-}
+"hello" => $greeting
+$greeting -> .upper => $shouted
+"{$shouted}!"
 # Result: "HELLO!"
 ```
 
 Use `return` to exit a block early:
 
 ```rill
-{
-  5 => $x
-  ($x > 3) ? ("big" -> return)
-  "small"
-}
+5 => $x
+($x > 3) ? ("big" -> return)
+"small"
 # Result: "big"
 ```
 
@@ -340,7 +339,7 @@ Annotations modify how statements execute. The most common is `limit` for loops:
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)
-^(limit: 100) false -> ($ == false) @ {
+false -> ($ == false) @ ^(limit: 100) {
   check_status()
 }
 ```
@@ -384,8 +383,9 @@ $                           # current pipe value
 "string"                    # string
 42, 3.14                    # number
 true, false                 # boolean
-[1, 2, 3]                   # list
-[a: 1, b: 2]                # dict
+[1, 2, 3]               # list
+[a: 1, b: 2]            # dict
+tuple[1, 2, 3]              # tuple (positional)
 |x|($x + 1)                 # closure
 
 # Conditionals
@@ -414,5 +414,5 @@ $data.field ?? default      # with default
 $data.?field                # existence check
 
 # Annotations
-^(limit: 100) statement     # set iteration limit
+statement @ ^(limit: 100) { body }     # set iteration limit
 ```

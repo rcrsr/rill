@@ -22,11 +22,11 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('asserts list type on pipe value', async () => {
-      expect(await run('[1, 2, 3] -> :list')).toEqual([1, 2, 3]);
+      expect(await run('list[1, 2, 3] -> :list')).toEqual([1, 2, 3]);
     });
 
     it('asserts dict type on pipe value', async () => {
-      expect(await run('[a: 1, b: 2] -> :dict')).toEqual({ a: 1, b: 2 });
+      expect(await run('dict[a: 1, b: 2] -> :dict')).toEqual({ a: 1, b: 2 });
     });
 
     it('asserts closure type on pipe value', async () => {
@@ -52,13 +52,13 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('errors on type mismatch - list expected, got dict', async () => {
-      await expect(run('[a: 1] -> :list')).rejects.toThrow(
+      await expect(run('dict[a: 1] -> :list')).rejects.toThrow(
         'expected list, got dict'
       );
     });
 
     it('errors on type mismatch - dict expected, got list', async () => {
-      await expect(run('[1, 2] -> :dict')).rejects.toThrow(
+      await expect(run('list[1, 2] -> :dict')).rejects.toThrow(
         'expected dict, got list'
       );
     });
@@ -90,19 +90,19 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('returns true when type matches - list', async () => {
-      expect(await run('[1, 2, 3] -> :?list')).toBe(true);
+      expect(await run('list[1, 2, 3] -> :?list')).toBe(true);
     });
 
     it('returns false when type mismatches - list', async () => {
-      expect(await run('[a: 1] -> :?list')).toBe(false);
+      expect(await run('dict[a: 1] -> :?list')).toBe(false);
     });
 
     it('returns true when type matches - dict', async () => {
-      expect(await run('[a: 1] -> :?dict')).toBe(true);
+      expect(await run('dict[a: 1] -> :?dict')).toBe(true);
     });
 
     it('returns false when type mismatches - dict', async () => {
-      expect(await run('[1, 2] -> :?dict')).toBe(false);
+      expect(await run('list[1, 2] -> :?dict')).toBe(false);
     });
 
     it('returns true when type matches - closure', async () => {
@@ -152,8 +152,8 @@ describe('Rill Runtime: Type Assertions', () => {
     it('type check with list processing', async () => {
       // Type check returns bool, so we need to use the original value in the branch
       const script = `
-        [1, 2, 3] => $data
-        $data -> :?list ? ($data -> each { ($ * 2) }) ! []
+        list[1, 2, 3] => $data
+        $data -> :?list ? ($data -> each { ($ * 2) }) ! list[]
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
@@ -174,8 +174,8 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('identity("test") -> :string')).toBe('test');
     });
 
-    it('asserts type() function returns string', async () => {
-      expect(await run('type(42) -> :string')).toBe('number');
+    it('asserts .^type.^name returns string', async () => {
+      expect(await run('42 => $v\n$v.^type.^name -> :string')).toBe('number');
     });
   });
 
@@ -193,11 +193,11 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('empty list is still list type', async () => {
-      expect(await run('[] -> :list')).toEqual([]);
+      expect(await run('list[] -> :list')).toEqual([]);
     });
 
     it('empty dict is still dict type', async () => {
-      expect(await run('[:] -> :dict')).toEqual({});
+      expect(await run('dict[] -> :dict')).toEqual({});
     });
 
     it('negative number is number type', async () => {
@@ -220,19 +220,8 @@ describe('Rill Runtime: Type Assertions', () => {
   });
 
   describe('Type Assertion with Tuple Type', () => {
-    it('asserts tuple type on spread result', async () => {
-      expect(await run('*[1, 2, 3] -> :tuple')).toHaveProperty(
-        '__rill_tuple',
-        true
-      );
-    });
-
-    it('type check for tuple', async () => {
-      expect(await run('*[1, 2] -> :?tuple')).toBe(true);
-    });
-
     it('list is not tuple', async () => {
-      expect(await run('[1, 2] -> :?tuple')).toBe(false);
+      expect(await run('list[1, 2] -> :?tuple')).toBe(false);
     });
   });
 
@@ -259,7 +248,7 @@ describe('Rill Runtime: Type Assertions', () => {
         |val| {
           $val -> :?number ? ($val * 2) ! ($val -> :?string ? ($val -> .len) ! 0)
         } => $process
-        [$process(5), $process("hello"), $process(true)]
+        list[$process(5), $process("hello"), $process(true)]
       `;
       expect(await run(script)).toEqual([10, 5, 0]);
     });
@@ -267,7 +256,7 @@ describe('Rill Runtime: Type Assertions', () => {
     it('chained type checks', async () => {
       const script = `
         "test" => $v
-        [
+        list[
           $v -> :?string,
           $v -> :?number,
           $v -> :?bool

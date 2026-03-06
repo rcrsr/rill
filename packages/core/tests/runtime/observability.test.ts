@@ -91,7 +91,7 @@ describe('Rill Runtime: Observability', () => {
 
     it('includes function arguments', async () => {
       const { events, callbacks } = createEventCollector();
-      await run('identity(["a", "b"])', { observability: callbacks });
+      await run('identity(list["a", "b"])', { observability: callbacks });
 
       expect(events.hostCall[0]?.name).toBe('identity');
       expect(events.hostCall[0]?.args).toEqual([['a', 'b']]);

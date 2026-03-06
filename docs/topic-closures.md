@@ -119,7 +119,7 @@ Block-closures check type at runtime:
 ```rill
 { $ + 1 } => $fn
 
-type($fn)             # "closure"
+$fn.^type == closure  # true
 $fn(5)                # 6
 $fn("text")           # Error: Cannot add string and number
 ```
@@ -142,8 +142,8 @@ Block-closures can contain multiple statements:
 Block-closures integrate with collection operators:
 
 ```rill
-[1, 2, 3] -> map { $ * 2 }                    # [2, 4, 6]
-[1, 2, 3] -> filter { $ > 1 }                 # [2, 3]
+[1, 2, 3] -> map { $ * 2 }                    # list[2, 4, 6]
+[1, 2, 3] -> filter { $ > 1 }                 # list[2, 3]
 [1, 2, 3] -> fold(0) { $@ + $ }               # 6 ($@ is accumulator)
 ```
 
@@ -158,9 +158,7 @@ $result                # 6 (number, already computed)
 
 # Deferred: braces create closure
 { $ + 1 } => $addOne
-type($addOne)          # "closure"
-5 -> $addOne           # 6
-10 -> $addOne          # 11 (invoked later with different value)
+$addOne.^type == closure  # true
 
 # Practical difference
 (5 + 1) => $six        # 6 (immediate)
@@ -168,6 +166,10 @@ type($addOne)          # "closure"
 
 $six                   # 6
 10 -> $fn              # 11
+
+# Same closure, reused with different inputs
+5 -> $addOne           # 6
+10 -> $addOne          # 11
 ```
 
 Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
@@ -229,7 +231,7 @@ Closures see the current value of captured variables:
 
 5 => $counter
 
-[$get(), $getPlus1()]    # [5, 6]
+[$get(), $getPlus1()]    # list[5, 6]
 ```
 
 ---
@@ -320,7 +322,7 @@ $transforms[2](5)    # 25
 |n| { $n + 1 } => $inc
 |n| { $n * 2 } => $double
 
-5 -> @[$inc, $double, $inc]    # 13: (5+1)*2+1
+5 -> chain([$inc, $double, $inc])    # 13: (5+1)*2+1
 ```
 
 ---
@@ -330,9 +332,9 @@ $transforms[2](5)    # 25
 Closures can appear inline in expressions:
 
 ```rill
-[1, 2, 3] -> map |x| { $x * 2 }    # [2, 4, 6]
+[1, 2, 3] -> map |x| { $x * 2 }    # list[2, 4, 6]
 
-[1, 2, 3] -> filter |x| { $x > 1 }    # [2, 3]
+[1, 2, 3] -> filter |x| { $x > 1 }    # list[2, 3]
 
 [1, 2, 3] -> fold(0) |acc, x| { $acc + $x }    # 6
 ```
@@ -408,7 +410,7 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
   || { $item }
 } => $closures
 
-[$closures[0](), $closures[1](), $closures[2]()]    # [1, 2, 3]
+[$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
 ```
 
 **Note:** `$` (pipeValue) is a context property, not a variable. Use explicit capture for closure access.
@@ -475,7 +477,7 @@ $factory()(5)    # 10 (chained invocation)
 $list[0] -> .upper    # "HELLO"
 ```
 
-Note: `$list[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
+Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
 
 ---
 
@@ -563,19 +565,20 @@ Parameters can have their own annotations using `^(key: value)` syntax after the
 Parameter annotations appear in a specific order:
 
 ```text
-|paramName: type ^(annotations) = default| body
+|^(annotations) paramName: type = default| body
 ```
 
 **Ordering rules:**
-1. Parameter name (required)
-2. Type annotation with `:` (optional)
-3. Parameter annotations with `^()` (optional)
+1. Parameter annotations with `^()` (optional)
+2. Parameter name (required)
+3. Type annotation with `:` (optional)
 4. Default value with `=` (optional)
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) => $validate
-|name: string ^(required: true) = "guest"|($name) => $greet
-|count ^(cache: true) = 0|($count) => $process
+|^(min: 0, max: 100) x: number|($x) => $validate
+|^(required: true) name: string = "guest"|($name) => $greet
+|^(cache: true) count = 0|($count) => $process
+true
 ```
 
 ### Access Pattern
@@ -583,7 +586,7 @@ Parameter annotations appear in a specific order:
 Parameter annotations are accessed via `.params.paramName.__annotations.key`:
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
+|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -602,7 +605,7 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 Use parameter annotations to specify constraints:
 
 ```rill
-|value: number ^(min: 0, max: 100)|($value) => $bounded
+|^(min: 0, max: 100) value: number|($value) => $bounded
 
 $bounded.params.value.__annotations.min  # 0
 $bounded.params.value.__annotations.max  # 100
@@ -612,7 +615,7 @@ $bounded.params.value.__annotations.max  # 100
 
 ```text
 |fn, arg| {
-  $fn.params -> .entries -> .head -> *<$name, $meta>
+  $fn.params -> .entries -> .head -> destruct<$name, $meta>
   $meta.?__annotations ? {
     ($arg < $meta.__annotations.min) ? "Value {$arg} below min {$meta.__annotations.min}" !
     ($arg > $meta.__annotations.max) ? "Value {$arg} above max {$meta.__annotations.max}" !
@@ -620,7 +623,7 @@ $bounded.params.value.__annotations.max  # 100
   } ! ""
 } => $validate
 
-|x: number ^(min: 0, max: 10)|($x) => $ranged
+|^(min: 0, max: 10) x: number|($x) => $ranged
 $validate($ranged, 15)  # "Value 15 above max 10"
 ```
 
@@ -629,7 +632,7 @@ $validate($ranged, 15)  # "Value 15 above max 10"
 Mark parameters that should trigger caching behavior:
 
 ```rill
-|key: string ^(cache: true)|($key) => $fetch
+|^(cache: true) key: string|($key) => $fetch
 
 $fetch.params.key.__annotations.cache  # true
 ```
@@ -639,7 +642,7 @@ $fetch.params.key.__annotations.cache  # true
 Attach formatting metadata to parameters:
 
 ```rill
-|timestamp: string ^(format: "ISO8601")|($timestamp) => $formatDate
+|^(format: "ISO8601") timestamp: string|($timestamp) => $formatDate
 
 $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 ```
@@ -649,7 +652,7 @@ $formatDate.params.timestamp.__annotations.format  # "ISO8601"
 Parameters can have multiple annotations:
 
 ```rill
-|email: string ^(required: true, pattern: ".*@.*", maxLength: 100)|($email) => $validateEmail
+|^(required: true, pattern: ".*@.*", maxLength: 100) email: string|($email) => $validateEmail
 
 $validateEmail.params.email.__annotations.required    # true
 $validateEmail.params.email.__annotations.pattern     # ".*@.*"
@@ -669,7 +672,7 @@ Use parameter annotations to drive runtime behavior:
   } -> filter { !$ -> .empty }
 } => $getRequiredParams
 
-|x, y: string ^(required: true), z|($x) => $fn
+|x, ^(required: true) y: string, z|($x) => $fn
 $getRequiredParams($fn)  # ["Parameter y is required"]
 ```
 
@@ -678,10 +681,66 @@ $getRequiredParams($fn)  # ["Parameter y is required"]
 Use existence check `.?__annotations` to determine if a parameter has annotations:
 
 ```rill
-|x: number ^(min: 0), y: string|($x + $y) => $fn
+|^(min: 0) x: number, y: string|($x + $y) => $fn
 
 $fn.params.x.?__annotations  # true
 $fn.params.y.?__annotations  # false
+```
+
+---
+
+## Description Shorthand
+
+A bare string in `^(...)` expands to `description: <string>`. This shorthand works in all three annotation positions.
+
+```rill
+^("Get current weather for a city")
+|city: string|($city) => $weather
+$weather.^description    # "Get current weather for a city"
+```
+
+The shorthand is equivalent to the explicit key form:
+
+```rill
+^(description: "Get current weather for a city")
+|city: string|($city) => $weather
+$weather.^description    # "Get current weather for a city"
+```
+
+Mix explicit keys with the shorthand in the same annotation:
+
+```rill
+^("Fetch user profile", cache: true)
+|id: string|($id) => $get_user
+$get_user.^description    # "Fetch user profile"
+$get_user.^cache          # true
+```
+
+---
+
+## Return Type Assertions
+
+The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
+
+```rill
+|x: number| { "{$x}" }:string => $fn
+$fn(42)    # "42" (string from interpolation)
+```
+
+Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`).
+
+Mismatched return type halts with `RILL-R004`:
+
+```text
+|x: number| { $x * 2 }:string => $double
+$double(5)    # RILL-R004: Type assertion failed: expected string, got number
+```
+
+Declared return type is accessible via `$fn.^output`. Whitespace and newlines are allowed between `}` and `:`:
+
+```rill
+|a: number, b: number| { $a + $b }:number => $add
+$add(3, 4)    # 7
 ```
 
 ---
@@ -742,6 +801,27 @@ Annotation values are evaluated at closure creation:
 $fn.^limit  # 100
 ```
 
+### Scope Rule: Direct Annotation Only
+
+Annotations apply only to the closure directly targeted by `^(...)`. Closures nested inside an annotated statement do not inherit the annotation.
+
+```rill
+# Direct annotation: works
+^("doubles input") { $ * 2 } => $fn
+$fn.^description    # "doubles input"
+```
+
+```text
+# Nested closure does NOT inherit outer annotation
+^(version: 2)
+"" -> {
+  |x|($x) => $fn
+}
+$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+Only the closure immediately following `^(...)` carries the annotation.
+
 ### Error Cases
 
 **Undefined Annotation Key:**
@@ -777,7 +857,7 @@ $fn()    # Error: Undefined variable: $undefined
 
 ```rill
 [1, 2, 3] => $list
-$list[0]()    # Error: Cannot invoke non-callable value (got number)
+$[0]()    # Error: Cannot invoke non-callable value (got number)
 ```
 
 ### Type Errors

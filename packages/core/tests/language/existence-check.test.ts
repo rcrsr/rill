@@ -10,7 +10,7 @@ describe('Existence Check', () => {
   describe('Basic Existence Check (.?field)', () => {
     it('returns true when field exists', async () => {
       const result = await run(`
-        [type: "blocked"] => $result
+        dict[type: "blocked"] => $result
         $result.?type
       `);
       expect(result).toBe(true);
@@ -18,7 +18,7 @@ describe('Existence Check', () => {
 
     it('returns false when field does not exist', async () => {
       const result = await run(`
-        [name: "test"] => $result
+        dict[name: "test"] => $result
         $result.?missing
       `);
       expect(result).toBe(false);
@@ -26,7 +26,7 @@ describe('Existence Check', () => {
 
     it('returns true for nested field access when field exists', async () => {
       const result = await run(`
-        [user: [name: "alice"]] => $data
+        dict[user: dict[name: "alice"]] => $data
         $data.user.?name
       `);
       expect(result).toBe(true);
@@ -34,7 +34,7 @@ describe('Existence Check', () => {
 
     it('returns false for nested field access when field does not exist', async () => {
       const result = await run(`
-        [user: [name: "alice"]] => $data
+        dict[user: dict[name: "alice"]] => $data
         $data.user.?age
       `);
       expect(result).toBe(false);
@@ -44,7 +44,7 @@ describe('Existence Check', () => {
   describe('Existence Check in Conditionals', () => {
     it('can be used as condition in if-else', async () => {
       const result = await run(`
-        [type: "blocked"] => $result
+        dict[type: "blocked"] => $result
         ($result.?type) ? "has type" ! "no type"
       `);
       expect(result).toBe('has type');
@@ -52,7 +52,7 @@ describe('Existence Check', () => {
 
     it('returns "no type" when field missing', async () => {
       const result = await run(`
-        [name: "test"] => $result
+        dict[name: "test"] => $result
         ($result.?type) ? "has type" ! "no type"
       `);
       expect(result).toBe('no type');
@@ -60,7 +60,7 @@ describe('Existence Check', () => {
 
     it('can check multiple fields', async () => {
       const result = await run(`
-        [type: "blocked", reason: "dependency"] => $result
+        dict[type: "blocked", reason: "dependency"] => $result
         ($result.?type && $result.?reason) ? "both exist" ! "missing"
       `);
       expect(result).toBe('both exist');
@@ -70,14 +70,14 @@ describe('Existence Check', () => {
   describe('Existence Check with Pipe Variable', () => {
     it('works with pipe variable ($)', async () => {
       const result = await run(`
-        [name: "test"] -> ($.?name)
+        dict[name: "test"] -> ($.?name)
       `);
       expect(result).toBe(true);
     });
 
     it('returns false for missing field on pipe variable', async () => {
       const result = await run(`
-        [name: "test"] -> ($.?age)
+        dict[name: "test"] -> ($.?age)
       `);
       expect(result).toBe(false);
     });
@@ -86,7 +86,7 @@ describe('Existence Check', () => {
   describe('Existence Check with Variable Key', () => {
     it('checks existence using named variable as key', async () => {
       const result = await run(`
-        [name: "test", age: 30] => $data
+        dict[name: "test", age: 30] => $data
         "name" => $key
         $data.?$key
       `);
@@ -95,7 +95,7 @@ describe('Existence Check', () => {
 
     it('returns false when named variable key does not exist', async () => {
       const result = await run(`
-        [name: "test"] => $data
+        dict[name: "test"] => $data
         "age" => $key
         $data.?$key
       `);
@@ -107,7 +107,7 @@ describe('Existence Check', () => {
     it('EC-4: throws error when $ is not followed by variable name', async () => {
       await expect(
         run(`
-          [x: 1] => $data
+          dict[x: 1] => $data
           $data.?$true
         `)
       ).rejects.toThrow('Expected variable name after .?$');
@@ -116,7 +116,7 @@ describe('Existence Check', () => {
     it('EC-5, AC-11: throws error for invalid type in .?field&type', async () => {
       await expect(
         run(`
-          [name: "test"] => $data
+          dict[name: "test"] => $data
           $data.?name&invalid
         `)
       ).rejects.toThrow('Invalid type: invalid');

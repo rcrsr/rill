@@ -3,7 +3,7 @@
  * Functions to read specific token types from source
  */
 
-import type { Token } from '../types.js';
+import type { Token, TokenType } from '../types.js';
 import { TOKEN_TYPES } from '../types.js';
 import { LexerError } from './errors.js';
 import {
@@ -20,6 +20,64 @@ import {
   type LexerState,
   peek,
 } from './state.js';
+
+// ============================================================
+// COMPOUND KEYWORD TOKENIZATION
+// ============================================================
+
+/** Named shape returned by tokenizeCompoundKeyword. */
+export type CompoundToken = {
+  keyword: string;
+  bracket: string;
+  tokenType: TokenType;
+};
+
+/**
+ * Mapping from collection keyword to its expected bracket character
+ * and the compound token type emitted when the bracket immediately follows.
+ */
+const COMPOUND_KEYWORD_MAP: Record<
+  string,
+  { bracket: string; tokenType: TokenType }
+> = {
+  list: { bracket: '[', tokenType: TOKEN_TYPES.LIST_LBRACKET },
+  dict: { bracket: '[', tokenType: TOKEN_TYPES.DICT_LBRACKET },
+  tuple: { bracket: '[', tokenType: TOKEN_TYPES.TUPLE_LBRACKET },
+  ordered: { bracket: '[', tokenType: TOKEN_TYPES.ORDERED_LBRACKET },
+  destruct: { bracket: '<', tokenType: TOKEN_TYPES.DESTRUCT_LANGLE },
+  slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
+};
+
+/** Returns true when the identifier is one of the six collection keywords. */
+export function isCollectionKeyword(identifier: string): boolean {
+  return Object.prototype.hasOwnProperty.call(COMPOUND_KEYWORD_MAP, identifier);
+}
+
+/**
+ * Attempts to recognize a compound token at the given position in source.
+ * Checks whether the character sequence starting at `position` is a collection
+ * keyword immediately (zero whitespace) followed by its bracket character.
+ * Returns null when the condition is not met.
+ *
+ * This function is informational: the caller must consume the characters.
+ */
+export function tokenizeCompoundKeyword(
+  source: string,
+  position: number
+): CompoundToken | null {
+  for (const [keyword, { bracket, tokenType }] of Object.entries(
+    COMPOUND_KEYWORD_MAP
+  )) {
+    const end = position + keyword.length;
+    if (source.slice(position, end) === keyword) {
+      // The character immediately after the keyword must be the bracket (no whitespace).
+      if (source[end] === bracket) {
+        return { keyword, bracket, tokenType };
+      }
+    }
+  }
+  return null;
+}
 
 /** Process escape sequence and return the unescaped character */
 function processEscape(state: LexerState): string {
@@ -187,6 +245,31 @@ export function readNumber(state: LexerState): Token {
 
 export function readIdentifier(state: LexerState): Token {
   const start = currentLocation(state);
+
+  // Check for compound keyword (e.g. list[, dict[, destruct<) before consuming
+  // any characters, so we can emit a single compound token when the bracket
+  // immediately follows the keyword with zero whitespace.
+  //
+  // Guard: skip compound check when the character immediately before this
+  // identifier is '$'. That handles variable names that happen to match a
+  // collection keyword (e.g. `$list[0]` is subscript access, not a list literal).
+  const prevChar = state.pos > 0 ? state.source[state.pos - 1] : '';
+  if (prevChar !== '$') {
+    const compound = tokenizeCompoundKeyword(state.source, state.pos);
+    if (compound !== null) {
+      // Consume keyword + bracket character (keyword.length + 1)
+      const totalLen = compound.keyword.length + 1;
+      for (let i = 0; i < totalLen; i++) advance(state);
+      const value = compound.keyword + compound.bracket;
+      return makeToken(
+        compound.tokenType,
+        value,
+        start,
+        currentLocation(state)
+      );
+    }
+  }
+
   let value = '';
 
   while (!isAtEnd(state) && isIdentifierChar(peek(state))) {

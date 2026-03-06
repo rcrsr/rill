@@ -4,7 +4,7 @@ import { run } from '../helpers/runtime.js';
 describe('Variable Method Calls', () => {
   describe('.len method', () => {
     it('calls .len on list variable', async () => {
-      expect(await run('[0,1,2] => $v\n$v.len')).toBe(3);
+      expect(await run('list[0,1,2] => $v\n$v.len')).toBe(3);
     });
 
     it('calls .len on string variable', async () => {
@@ -12,12 +12,12 @@ describe('Variable Method Calls', () => {
     });
 
     it('calls .len on dict variable', async () => {
-      expect(await run('[a:1, b:2] => $d\n$d.len')).toBe(2);
+      expect(await run('dict[a:1, b:2] => $d\n$d.len')).toBe(2);
     });
 
     it('variable.len equals literal.len for lists', async () => {
-      const script = `[0,1,2].len => $l1
-[0,1,2] => $v
+      const script = `list[0,1,2].len => $l1
+list[0,1,2] => $v
 $v.len => $l2
 $l1 == $l2`;
       expect(await run(script)).toBe(true);
@@ -46,16 +46,16 @@ $l1 == $l2`;
     });
 
     it('calls .head on list variable', async () => {
-      expect(await run('[1,2,3] => $list\n$list.head')).toBe(1);
+      expect(await run('list[1,2,3] => $list\n$list.head')).toBe(1);
     });
 
     it('calls .tail on list variable', async () => {
-      expect(await run('[1,2,3] => $list\n$list.tail')).toBe(3);
+      expect(await run('list[1,2,3] => $list\n$list.tail')).toBe(3);
     });
 
     it('calls .empty on list variable', async () => {
-      expect(await run('[] => $list\n$list.empty')).toBe(true);
-      expect(await run('[1] => $list\n$list.empty')).toBe(false);
+      expect(await run('list[] => $list\n$list.empty')).toBe(true);
+      expect(await run('list[1] => $list\n$list.empty')).toBe(false);
     });
   });
 

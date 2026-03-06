@@ -100,6 +100,10 @@ export { validateHostFunctionArgs };
 // Value types
 export type { RillValue, RillArgs };
 
+// Value conversion
+export { toNative };
+export type { NativeResult, NativeValue, NativeArray, NativePlainObject };
+
 // Introspection
 export { getFunctions, getLanguageReference, getDocumentationCoverage };
 export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult };
@@ -125,9 +129,104 @@ export type { SourceLocation, SourceSpan };
 // Control flow (for advanced use)
 export { BreakSignal, ReturnSignal };
 
+// Syntax highlighting
+export { TOKEN_HIGHLIGHT_MAP };
+export type { HighlightCategory };
+
+// Error registry
+export { ERROR_REGISTRY };
+
 // Extension contracts
 export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, VectorExtensionContract, SchemaEntry };
 ```
+
+## TOKEN_HIGHLIGHT_MAP
+
+`TOKEN_HIGHLIGHT_MAP` maps each `TokenType` to a `HighlightCategory`. Use this to build syntax highlighters for rill scripts.
+
+```typescript
+import { TOKEN_HIGHLIGHT_MAP, tokenize } from '@rcrsr/rill';
+
+const tokens = tokenize(source);
+for (const token of tokens) {
+  const category = TOKEN_HIGHLIGHT_MAP.get(token.type);
+  if (category) applyHighlight(token, category);
+}
+```
+
+### HighlightCategory Values
+
+| Category | Description |
+|----------|-------------|
+| `keyword` | Language keywords and collection keyword prefixes |
+| `operator` | All binary and unary operators |
+| `string` | String literals |
+| `number` | Numeric literals |
+| `bool` | Boolean literals (`true`, `false`) |
+| `comment` | Line comments |
+| `variableName` | Variables (`$`), identifiers, `_` |
+| `punctuation` | Structural characters (`.`, `,`, `:`) |
+| `bracket` | Delimiters (`(`, `)`, `{`, `}`, `[`, `]`) |
+| `meta` | Frontmatter delimiters |
+
+### Token Changes in Explicit-Literal Syntax
+
+The explicit-literal-syntax initiative (replacing sigil-based forms with keyword-prefixed forms) changed which tokens exist:
+
+**7 tokens added:**
+
+| Token | Category | Syntax |
+|-------|----------|--------|
+| `LIST_LBRACKET` | `keyword` | `list[` |
+| `DICT_LBRACKET` | `keyword` | `dict[` |
+| `TUPLE_LBRACKET` | `keyword` | `tuple[` |
+| `ORDERED_LBRACKET` | `keyword` | `ordered[` |
+| `DESTRUCT_LANGLE` | `keyword` | `destruct<` |
+| `SLICE_LANGLE` | `keyword` | `slice<` |
+| `CONVERT` | `operator` | `:>` |
+
+**2 tokens removed:**
+
+| Token | Was | Replaced by |
+|-------|-----|-------------|
+| `STAR_LT` | Destruct sigil (`*<`) | `DESTRUCT_LANGLE` |
+| `SLASH_LT` | Slice sigil (`/<`) | `SLICE_LANGLE` |
+
+Highlighters that mapped the removed tokens must update to the replacement tokens.
+
+`AT` remains in `TOKEN_HIGHLIGHT_MAP` as `operator` for the `@` while-loop operator. Only the chain-sigil use of `@` was removed; the token itself was not.
+
+## ERROR_REGISTRY
+
+`ERROR_REGISTRY` provides structured access to all error definitions. Use this to build diagnostic tools or format error messages with links.
+
+```typescript
+import { ERROR_REGISTRY } from '@rcrsr/rill';
+
+const entry = ERROR_REGISTRY.get('RILL-P008');
+console.log(entry?.description);  // "Bare bracket literal"
+console.log(entry?.helpUrl);      // "https://rill.run/docs/reference/errors/#rill-p008"
+```
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(code)` | `ErrorEntry \| undefined` | Look up an error by code |
+| `all()` | `ErrorEntry[]` | All registered error entries |
+
+### Error Code Ranges
+
+| Range | Category |
+|-------|----------|
+| `RILL-L001` – `RILL-L005` | Lexer errors |
+| `RILL-P001` – `RILL-P005`, `RILL-P007` – `RILL-P010` | Parse errors |
+| `RILL-R001` – `RILL-R016` | Runtime errors |
+| `RILL-C001` – `RILL-C004` | Check errors |
+
+Note: `RILL-P006` (deprecated capture arrow syntax) was removed. `RILL-P007` through `RILL-P010` cover explicit-literal-syntax violations.
+
+See [Error Reference](ref-errors.md) for full error descriptions and resolution strategies.
 
 ## Extension Contracts
 
@@ -283,7 +382,7 @@ type LlmExtensionContract = {
 | `messages` | `(messages: list, options?: dict)` | `dict` | Multi-turn conversation |
 | `embed` | `(text: string)` | `vector` | Generate embedding vector |
 | `embed_batch` | `(texts: list)` | `list` | Batch embeddings |
-| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration |
+| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration; `options.tools` is `dict<string, ScriptCallable \| ApplicationCallable>` — keys are tool names, values are callables (`RuntimeCallable` is rejected) |
 | `generate` | `(prompt: string, options: dict)` | `dict` | Structured output extraction |
 
 **Usage:**
@@ -348,4 +447,4 @@ const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ })
 - [Host Integration](integration-host.md) — Embedding guide and runtime configuration
 - [Extensions](integration-extensions.md) — Reusable function packages
 - [Modules](integration-modules.md) — Module convention
-- [Compose](agent-bundle.md) — Manifest format and composeAgent API for @rcrsr/rill-agent-harness
+

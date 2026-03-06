@@ -77,23 +77,26 @@ describe('Lexer: Capture Arrow Token Emission', () => {
       expect(tokens[2]!.type).toBe(TOKEN_TYPES.EOF);
     });
 
-    it('emits valid slice tokens for /<2:> (AC-6)', () => {
+    it('emits separate SLASH+LT tokens for /< (AC-6)', () => {
       const tokens = tokenize('/<2:>');
-      expect(tokens).toHaveLength(5); // SLASH_LT, NUMBER, COLON, GT, EOF
+      expect(tokens).toHaveLength(6); // SLASH, LT, NUMBER, COLON, GT, EOF
 
-      expect(tokens[0]!.type).toBe(TOKEN_TYPES.SLASH_LT);
-      expect(tokens[0]!.value).toBe('/<');
+      expect(tokens[0]!.type).toBe(TOKEN_TYPES.SLASH);
+      expect(tokens[0]!.value).toBe('/');
 
-      expect(tokens[1]!.type).toBe(TOKEN_TYPES.NUMBER);
-      expect(tokens[1]!.value).toBe('2');
+      expect(tokens[1]!.type).toBe(TOKEN_TYPES.LT);
+      expect(tokens[1]!.value).toBe('<');
 
-      expect(tokens[2]!.type).toBe(TOKEN_TYPES.COLON);
-      expect(tokens[2]!.value).toBe(':');
+      expect(tokens[2]!.type).toBe(TOKEN_TYPES.NUMBER);
+      expect(tokens[2]!.value).toBe('2');
 
-      expect(tokens[3]!.type).toBe(TOKEN_TYPES.GT);
-      expect(tokens[3]!.value).toBe('>');
+      expect(tokens[3]!.type).toBe(TOKEN_TYPES.COLON);
+      expect(tokens[3]!.value).toBe(':');
 
-      expect(tokens[4]!.type).toBe(TOKEN_TYPES.EOF);
+      expect(tokens[4]!.type).toBe(TOKEN_TYPES.GT);
+      expect(tokens[4]!.value).toBe('>');
+
+      expect(tokens[5]!.type).toBe(TOKEN_TYPES.EOF);
     });
   });
 

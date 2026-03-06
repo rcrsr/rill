@@ -5,44 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.0] - 2026-03-06
 
-### Added
+### Restructure
 
-- **Agent harness** (`@rcrsr/rill-agent-harness`) — HTTP server for rill agents with session management, Prometheus metrics, SSE streaming, and graceful shutdown. Multi-agent mode runs N agents in one process with shared extensions, per-agent routing (`/:agentName/*`), per-agent concurrency caps, and in-process AHI shortcut for co-located agents
-- **Agent-to-agent invocation** (`@rcrsr/rill-agent-ext-ahi`) — AHI extension for HTTP invocation with static URL and registry modes. Correlation ID forwarding via `ctx.metadata`. Registry client at `@rcrsr/rill-agent-registry`
-- **Agent bundle CLI** (`@rcrsr/rill-agent-bundle`) — Manifest-driven agent composition with `build`, `init`, and `check` subcommands. Compiles `agent.json` manifests into deployable bundles with SHA-256 checksums, platform compatibility checking, and esbuild-compiled custom functions. Env sources load variables from process.env and .env files
-- **Agent run CLI** (`@rcrsr/rill-agent-run`) — Execute bundled agents in-process with param injection, stdin support, and timeout control
-- **Agent shared types** (`@rcrsr/rill-agent-shared`) — Consolidated types, schemas, error classes, and A2A-compatible agent card generation. IO contracts validate `input`/`output` schemas declared in `agent.json` at runtime
-- **LLM `generate()` function** — Provider-agnostic structured output for Anthropic, OpenAI, and Gemini extensions. Rill schema dicts convert to JSON Schema automatically
-- **Content pipeline demo** — Multi-agent pipeline with classifier, summarizer, and orchestrator agents under `demo/content-pipeline/`
+- **Monorepo split** — Extensions (14 packages) extracted to [rill-ext](https://github.com/rcrsr/rill-ext). Agent framework (8 packages) extracted to [rill-agent](https://github.com/rcrsr/rill-agent). Core repo retains `@rcrsr/rill`, `@rcrsr/rill-cli`, fiddle, and website
 
-### Removed
+### Language
 
-- **@rcrsr/rill-create-agent** — Replaced by `rill-agent-bundle init`
+#### Added
 
-### Changed
+- **Structural type identity** — `^type` returns precise structural types for lists, dicts, tuples, ordered dicts, and closures. Type constructors `list()`, `dict()`, `tuple()`, `ordered()`, and closure signatures `|p: T| -> R` work in `:?` type checks
+- **Return type assertions for closures** — `{ body }:string` asserts return values on every call. Declared return type accessible via `$fn.^output`
+- **Type values** — `type` is a first-class runtime type. Variables accepted in all type positions: closure params, capture bindings, and assertions
+- **Whitespace continuations** — Split long expressions across lines at operators, closures, access chains, type assertions, and spread elements
 
-- **Agent bootstrapping docs** — Reference `rill-agent-bundle init` instead of `rill-create-agent`
-- **OutputDescriptor → OutputSchema** — Renamed for consistency across agent packages
+#### Changed
 
-### Fixed
+- **Native return values** — `ExecutionResult.result` returns host-native JS values (string, number, boolean, null, arrays, plain objects) instead of internal wrappers. `onLog` callback receives formatted strings
+- **Dict-form tools for tool_loop** — Tools declared as plain dicts instead of `tool()` calls. Script tools use annotated closures; host functions use bare `ns::name` references
+- **Annotation system overhaul** — Annotations precede params (`|^("desc") name: type|`), loops accept `^(limit: N)`, `vector`/`any` types added
+- **Explicit literal syntax** — Keyword prefixes replace ambiguous brackets: `list[`, `dict[` replace bare `[`, `tuple[`, `ordered[` replace `*[`, `destruct<` replaces `*<`, `slice<` replaces `/<`, `chain()` replaces `@[`/`@$`. New `:>` convert operator for type conversions
+- **Explicit spread call syntax** — Function calls now require opt-in spreading via `...` operator for tuples, dicts, and ordered values, replacing implicit auto-spread
 
-- **Variable method calls returned null** — `$var.len`, `$var.trim` fell through to null because `evaluateVariableAsync` treated access chains as dict lookups. Fix checks `BUILTIN_METHODS` first
-- **kv::set rejected non-string values** — Changed `value` parameter type from `'string'` to `'any'`
-- **AgentHost.listen() port errors** — EADDRINUSE now wrapped in `AgentHostError('port in use', 'init')` per EC-4
-- **Registry client teardown** — Dispose registry client on extension teardown to prevent resource leaks
-- **LSP column numbers** — `formatErrorJson` outputs 0-based columns for LSP compatibility
-- **OpenAI `max_completion_tokens`** — API calls send `max_completion_tokens` instead of deprecated `max_tokens`
-- **Demo runtime config** — Demos supply extension config via `--config` flag and `ComposeOptions.config`
+#### Fixed
+
+- **Variable method calls returned null** — `$var.len`, `$var.trim` now resolve correctly
+- **LSP column numbers** — Error output uses 0-based columns for LSP compatibility
+- **Multi-line function calls** — Newlines allowed after `(`, after `,`, and before `)` in all call forms
 
 ### Dependencies
 
-- **Node 22** — esbuild targets and Dockerfile base images updated from Node 20
-- **chromadb** 1.10.5 → 3.3.1, **@pinecone-database/pinecone** 3.0.3 → 7.1.0
-- **@anthropic-ai/sdk** 0.74.0 → 0.78.0, **openai** 6.18.0 → 6.25.0, **@google/genai** 1.40.0 → 1.42.0
-- **better-sqlite3** 11.10.0 → 12.6.2, **eslint** 9.39.2 → 10.0.2, **tailwindcss** 4.1.18 → 4.2.1
-- Patch updates across @codemirror/\*, MCP SDK, AWS SDK, and others
+- **Node 22** required (updated from Node 20)
+- **eslint** 9.39.2 → 10.0.2, **tailwindcss** 4.1.18 → 4.2.1
 
 ## [0.8.6] - 2026-02-15
 

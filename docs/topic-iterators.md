@@ -23,7 +23,7 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 ```rill
 range(0, 5) -> each { $ * 2 }           # [0, 2, 4, 6, 8]
 repeat("x", 3) -> each { $ }            # ["x", "x", "x"]
-[1, 2, 3] -> .first() -> each { $ }     # [1, 2, 3]
+[1, 2, 3] -> .first() -> each { $ } # list[1, 2, 3]
 ```
 
 ---
@@ -38,7 +38,7 @@ Iterators are dicts with three fields:
 | `done` | bool | True if exhausted |
 | `next` | closure | Returns new iterator at next position |
 
-```rill
+```text
 # Iterator structure
 [
   value: 0,
@@ -69,7 +69,7 @@ Generate a sequence of numbers from `start` (inclusive) to `end` (exclusive).
 | `end` | number | required | Stop value (exclusive) |
 | `step` | number | 1 | Increment (can be negative) |
 
-```rill
+```text
 range(0, 5)           # 0, 1, 2, 3, 4
 range(1, 6)           # 1, 2, 3, 4, 5
 range(0, 10, 2)       # 0, 2, 4, 6, 8
@@ -99,7 +99,8 @@ Generate a value repeated n times.
 ```rill
 repeat("x", 3)        # "x", "x", "x"
 repeat(0, 5)          # 0, 0, 0, 0, 0
-repeat([a: 1], 2)     # [a: 1], [a: 1]
+repeat([a: 1], 2) # dict[a: 1], dict[a: 1]
+true
 ```
 
 **Edge cases:**
@@ -124,23 +125,25 @@ Returns an iterator for any collection. Provides a consistent interface for manu
 
 ```rill
 [1, 2, 3] -> .first()        # iterator at 1
-"abc" -> .first()            # iterator at "a"
-[a: 1, b: 2] -> .first()     # iterator at [key: "a", value: 1]
-range(0, 5) -> .first()      # iterator at 0 (identity)
+"abc" -> .first()                # iterator at "a"
+[a: 1, b: 2] -> .first()     # iterator at dict[key: "a", value: 1]
+range(0, 5) -> .first()          # iterator at 0 (identity)
+true
 ```
 
 **Empty collections** return a done iterator:
 
 ```rill
-[] -> .first()               # [done: true, next: ...]
-"" -> .first()               # [done: true, next: ...]
+[] -> .first()           # done iterator
+"" -> .first()               # done iterator
+true
 ```
 
 **Using `.first()` with collection operators:**
 
 ```rill
-[1, 2, 3] -> .first() -> each { $ * 2 }    # [2, 4, 6]
-"hello" -> .first() -> each { $ }          # ["h", "e", "l", "l", "o"]
+[1, 2, 3] -> .first() -> each { $ * 2 }    # list[2, 4, 6]
+"hello" -> .first() -> each { $ }              # ["h", "e", "l", "l", "o"]
 ```
 
 ---
@@ -183,6 +186,7 @@ $it.value                    # 2
 **Check before access:**
 
 ```rill
+[1, 2, 3] => $list
 $list -> .first() => $it
 $it.done ? "empty" ! $it.value
 ```
@@ -248,14 +252,14 @@ For direct element access (not iteration), use `.head` and `.tail`:
 ```rill
 [1, 2, 3] -> .head    # 1
 [1, 2, 3] -> .tail    # 3
-"hello" -> .head      # "h"
-"hello" -> .tail      # "o"
+"hello" -> .head          # "h"
+"hello" -> .tail          # "o"
 ```
 
 **Empty collections error** (no null in rill):
 
 ```rill
-[] -> .head           # ERROR: Cannot get head of empty list
+[] -> .head       # ERROR: Cannot get head of empty list
 "" -> .tail           # ERROR: Cannot get tail of empty string
 ```
 
@@ -306,7 +310,7 @@ range(0, 20) -> filter { ($ % 2) == 0 }
 
 ```rill
 range(1, 4) -> each { $ => $row -> range(1, 4) -> each { $row * $ } }
-# [[1, 2, 3], [2, 4, 6], [3, 6, 9]]
+# [list[1, 2, 3], list[2, 4, 6], list[3, 6, 9]]
 ```
 
 ---

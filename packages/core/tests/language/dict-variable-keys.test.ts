@@ -11,7 +11,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
   describe('Variable keys', () => {
     it('parses variable key syntax in dict context', () => {
       // Start with static key to establish dict context
-      const source = '[static: 0, $key: "value"]';
+      const source = 'dict[static: 0, $key: "value"]';
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
@@ -31,7 +31,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
     });
 
     it('throws when $ is not followed by identifier in dict context', () => {
-      const source = '[static: 0, $: "value"]';
+      const source = 'dict[static: 0, $: "value"]';
 
       try {
         parse(source);
@@ -45,7 +45,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
   describe('Computed keys', () => {
     it('parses computed key syntax in dict context', () => {
       // Start with static key to establish dict context
-      const source = '[static: 0, ($x -> .upper): "value"]';
+      const source = 'dict[static: 0, ($x -> .upper): "value"]';
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
@@ -66,7 +66,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
     });
 
     it('throws when computed key missing closing paren in dict context', () => {
-      const source = '[static: 0, ($x, "value"]';
+      const source = 'dict[static: 0, ($x, "value"]';
 
       try {
         parse(source);
@@ -81,7 +81,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
 
   describe('Mixed dict entries', () => {
     it('parses dict with static, variable, and computed keys', () => {
-      const source = '[a: 1, $varKey: 2, ($computed): 3]';
+      const source = 'dict[a: 1, $varKey: 2, ($computed): 3]';
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
@@ -114,7 +114,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
   describe('Error Cases', () => {
     // EC-1: $ without identifier
     it('throws when $ has space after it instead of identifier', () => {
-      const source = '[static: 0, $ : 1]';
+      const source = 'dict[static: 0, $ : 1]';
 
       try {
         parse(source);
@@ -126,7 +126,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
 
     // EC-2: Unclosed computed key
     it('throws when computed key missing closing paren', () => {
-      const source = '[static: 0, ($expr, "value"]';
+      const source = 'dict[static: 0, ($expr, "value"]';
 
       try {
         parse(source);
@@ -140,7 +140,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
 
     // EC-3: Invalid token at key position
     it('throws when dict key is invalid token', () => {
-      const source = '[static: 0, @ : 1]';
+      const source = 'dict[static: 0, @ : 1]';
 
       try {
         parse(source);
@@ -162,7 +162,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // Note: Static key first required to establish dict context
         const code = `
           "done" => $k
-          [_static: 0, $k: 1]
+          dict[_static: 0, $k: 1]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('done', 1);
@@ -172,7 +172,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         const code = `
           "name" => $k1
           "age" => $k2
-          [_static: 0, $k1: "alice", $k2: 30]
+          dict[_static: 0, $k1: "alice", $k2: 30]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('name', 'alice');
@@ -182,7 +182,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict with mixed static and variable keys', async () => {
         const code = `
           "dynamic" => $key
-          [static: 1, $key: 2, another: 3]
+          dict[static: 1, $key: 2, another: 3]
         `;
         expect(await run(code)).toEqual({
           static: 1,
@@ -194,7 +194,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('resolves string from number variable as dict key', async () => {
         const code = `
           "42" => $numKey
-          [_static: 0, $numKey: "numeric-key"]
+          dict[_static: 0, $numKey: "numeric-key"]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('42', 'numeric-key');
@@ -205,7 +205,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('evaluates computed expression to create dict entry (AC-2)', async () => {
         // AC-2: [("a" -> .upper): 2] produces dict {A: 2}
         // Note: Static key first required to establish dict context
-        const code = `[_static: 0, ("a" -> .upper): 2]`;
+        const code = `dict[_static: 0, ("a" -> .upper): 2]`;
         const result = await run(code);
         expect(result).toHaveProperty('A', 2);
       });
@@ -213,7 +213,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict with computed key from arithmetic converted to string', async () => {
         const code = `
           2 => $base
-          [_static: 0, (($base + 3) -> .str): "computed"]
+          dict[_static: 0, (($base + 3) -> .str): "computed"]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('5', 'computed');
@@ -222,7 +222,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict with computed key from conditional', async () => {
         const code = `
           true => $flag
-          [_static: 0, ($flag ? "yes" ! "no"): "value"]
+          dict[_static: 0, ($flag ? "yes" ! "no"): "value"]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('yes', 'value');
@@ -230,7 +230,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('creates dict with multiple computed keys', async () => {
         const code = `
-          [_static: 0, ("a" -> .upper): 1, ("b" -> .upper): 2]
+          dict[_static: 0, ("a" -> .upper): 1, ("b" -> .upper): 2]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('A', 1);
@@ -240,7 +240,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict mixing static, variable, and computed keys', async () => {
         const code = `
           "var" => $k
-          [static: 1, $k: 2, ("comp" -> .upper): 3]
+          dict[static: 1, $k: 2, ("comp" -> .upper): 3]
         `;
         expect(await run(code)).toEqual({ static: 1, var: 2, COMP: 3 });
       });
@@ -250,7 +250,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('uses computed key with method chain', async () => {
         const code = `
           "  key  " => $raw
-          [_static: 0, ($raw -> .trim -> .upper): "cleaned"]
+          dict[_static: 0, ($raw -> .trim -> .upper): "cleaned"]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('KEY', 'cleaned');
@@ -260,7 +260,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         const code = `
           "outer" => $k1
           "inner" => $k2
-          [_static: 0, $k1: [_nested: 0, $k2: "nested"]]
+          dict[_static: 0, $k1: dict[_nested: 0, $k2: "nested"]]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('outer');
@@ -271,7 +271,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         const code = `
           "value" => $v
           "key" => $k
-          [_static: 0, $k: $v]
+          dict[_static: 0, $k: $v]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('key', 'value');
@@ -285,7 +285,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // AC-6: [$undefined: 1] throws RUNTIME_UNDEFINED_VARIABLE
         // EC-6: Variable '{name}' is undefined
         try {
-          await run('[_static: 0, $undefined: 1]');
+          await run('dict[_static: 0, $undefined: 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toHaveProperty('errorId', 'RILL-R005');
@@ -301,7 +301,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         try {
           await run(`
             42 => $n
-            [_static: 0, $n: 1]
+            dict[_static: 0, $n: 1]
           `);
           expect.fail('Should have thrown');
         } catch (err) {
@@ -317,7 +317,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         try {
           await run(`
             true => $bool
-            [_static: 0, $bool: 1]
+            dict[_static: 0, $bool: 1]
           `);
           expect.fail('Should have thrown');
         } catch (err) {
@@ -332,8 +332,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-7: Dict key must be string, got {type}
         try {
           await run(`
-            [1, 2, 3] => $list
-            [_static: 0, $list: 1]
+            list[1, 2, 3] => $list
+            dict[_static: 0, $list: 1]
           `);
           expect.fail('Should have thrown');
         } catch (err) {
@@ -348,8 +348,8 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // EC-7: Dict key must be string, got {type}
         try {
           await run(`
-            [a: 1] => $dict
-            [_static: 0, $dict: 1]
+            dict[a: 1] => $dict
+            dict[_static: 0, $dict: 1]
           `);
           expect.fail('Should have thrown');
         } catch (err) {
@@ -366,7 +366,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // AC-8: [(42): 1] throws RUNTIME_TYPE_ERROR
         // EC-8: "Dict key evaluated to number, expected string"
         try {
-          await run('[_static: 0, (42): 1]');
+          await run('dict[_static: 0, (42): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toHaveProperty('errorId');
@@ -381,7 +381,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('throws RUNTIME_TYPE_ERROR when computed key evaluates to boolean (EC-8)', async () => {
         // EC-8: Dict key evaluated to {type}, expected string
         try {
-          await run('[_static: 0, (true): 1]');
+          await run('dict[_static: 0, (true): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toHaveProperty('errorId');
@@ -396,7 +396,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('throws RUNTIME_TYPE_ERROR when computed key evaluates to list (EC-8)', async () => {
         // EC-8: Dict key evaluated to {type}, expected string
         try {
-          await run('[_static: 0, ([1, 2]): 1]');
+          await run('dict[_static: 0, (list[1, 2]): 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toHaveProperty('errorId');
@@ -413,7 +413,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         try {
           await run(`
             2 => $base
-            [_static: 0, ($base + 3): "value"]
+            dict[_static: 0, ($base + 3): "value"]
           `);
           expect.fail('Should have thrown');
         } catch (err) {
@@ -434,7 +434,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // AC-12: "" => $k then [$k: 1] produces dict {"": 1}
         const code = `
           "" => $k
-          [_static: 0, $k: 1]
+          dict[_static: 0, $k: 1]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('', 1);
@@ -444,7 +444,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // AC-13: " " => $k then [$k: 1] produces dict {" ": 1}
         const code = `
           " " => $k
-          [_static: 0, $k: 1]
+          dict[_static: 0, $k: 1]
         `;
         const result = await run(code);
         expect(result).toHaveProperty(' ', 1);
@@ -453,7 +453,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict with multiple whitespace key', async () => {
         const code = `
           "   " => $k
-          [_static: 0, $k: 1]
+          dict[_static: 0, $k: 1]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('   ', 1);
@@ -465,7 +465,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         // AC-14: [a: 1, $key: 2] where $key = "a" should produce {a: 2}
         const code = `
           "a" => $key
-          [a: 1, $key: 2]
+          dict[a: 1, $key: 2]
         `;
         const result = await run(code);
         expect(result).toEqual({ a: 2 });
@@ -474,7 +474,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('uses last-write-wins when dynamic key precedes static key', async () => {
         const code = `
           "a" => $key
-          [_static: 0, $key: 1, a: 2]
+          dict[_static: 0, $key: 1, a: 2]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('a', 2);
@@ -483,7 +483,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
 
       it('uses last-write-wins when computed key and static key collide', async () => {
         const code = `
-          [a: 1, ("a"): 2]
+          dict[a: 1, ("a"): 2]
         `;
         const result = await run(code);
         expect(result).toEqual({ a: 2 });
@@ -493,7 +493,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         const code = `
           "key" => $k1
           "key" => $k2
-          [_static: 0, $k1: 1, $k2: 2]
+          dict[_static: 0, $k1: 1, $k2: 2]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('key', 2);
@@ -502,7 +502,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('uses last-write-wins when computed and variable keys collide', async () => {
         const code = `
           "a" => $key
-          [_static: 0, $key: 1, ("a"): 2]
+          dict[_static: 0, $key: 1, ("a"): 2]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('a', 2);

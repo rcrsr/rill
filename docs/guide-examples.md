@@ -13,8 +13,8 @@ Demonstrates destructuring, slicing, and enumeration.
 ### Destructuring Function Results
 
 ```rill
-# Destructure list results into named variables
-["test output", 0] -> *<$out, $code>
+# Destructure dict results into named variables
+[output: "test output", code: 0] -> destruct<output: $out, code: $code>
 
 $code -> .gt(0) ? {
   "Tests failed:\n{$out}" -> log
@@ -26,13 +26,13 @@ $code -> .gt(0) ? {
 ### Processing Structured Data
 
 ```rill
-# Process list of [file, mode] pairs
+# Process list of file-mode pairs
 [
   ["src/auth.ts", "security"],
   ["src/api.ts", "performance"],
   ["src/db.ts", "security"]
 ] -> each {
-  $ -> *<$f, $mode>
+  $ -> destruct<$f, $mode>
   "Review {$f} for {$mode} issues" -> log
 }
 ```
@@ -41,13 +41,13 @@ $code -> .gt(0) ? {
 
 ```rill
 # Get first 3 items
-["a", "b", "c", "d", "e"] -> /<:3>
+["a", "b", "c", "d", "e"] -> slice<:3>
 # ["a", "b", "c"]
 ```
 
 ```rill
 # Process in reverse order
-["a", "b", "c"] -> /<::-1>
+["a", "b", "c"] -> slice<::-1>
 # ["c", "b", "a"]
 ```
 
@@ -71,7 +71,9 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 |x| { $x * 2 } => $double
 [1, 2, 3, 4, 5] -> map $double
 # [2, 4, 6, 8, 10]
+```
 
+```rill
 # Map with inline block
 ["alice", "bob", "carol"] -> map { "Hello, {$}!" }
 # ["Hello, alice!", "Hello, bob!", "Hello, carol!"]
@@ -83,28 +85,36 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # Keep elements matching condition (block form)
 [1, 2, 3, 4, 5] -> filter { .gt(2) }
 # [3, 4, 5]
+```
 
+```rill
 # Filter with closure predicate
 |x| { $x % 2 == 0 } => $even
 [1, 2, 3, 4, 5, 6] -> filter $even
 # [2, 4, 6]
+```
 
+```rill
 # Filter non-empty strings
 ["hello", "", "world", ""] -> filter { !.empty }
 # ["hello", "world"]
+```
 
+```rill
 # Chain filter and map
 |x| { $x * 2 } => $dbl
 [1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
 # [6, 8, 10]
+```
 
+```rill
 # Filter structured data
 [
   [name: "alice", age: 30],
   [name: "bob", age: 17],
   [name: "carol", age: 25]
 ] -> filter { $.age -> .ge(18) }
-# [[name: "alice", age: 30], [name: "carol", age: 25]]
+# [[name: "alice", age: 30], dict[name: "carol", age: 25]]
 ```
 
 ### Reduce with Sequential Spread
@@ -115,14 +125,14 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 |s|"{$s} -> processed" => $process
 |s|"{$s} -> complete" => $complete
 
-"input" -> @[$validate, $process, $complete]
+"input" -> chain([$validate, $process, $complete])
 # "input -> validated -> processed -> complete"
 
 # Numeric reduction
 |x|($x + 10) => $add10
 |x|($x * 2) => $double
 
-5 -> @[$add10, $double, $add10]
+5 -> chain([$add10, $double, $add10])
 # ((5 + 10) * 2) + 10 = 40
 ```
 
@@ -166,48 +176,53 @@ $items -> filter { .contains("error") } -> .len => $count
 
 Explicit argument unpacking with validation.
 
-### Positional Args
+### Named Args (Strict Invocation)
 
 ```rill
 # Define a function
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
-# Create args from tuple and invoke
-*[1, 2, 3] -> $fmt()    # "1-2-3"
+# Create named args and invoke
+ordered[a: 1, b: 2, c: 3] -> $fmt(...)    # "1-2-3"
 
 # Store args for later use
-*[1, 2, 3] => $myArgs
-$myArgs -> $fmt()       # "1-2-3"
+ordered[a: 1, b: 2, c: 3] => $myArgs
+$myArgs -> $fmt(...)       # "1-2-3"
 ```
 
 ### Named Args
 
 ```rill
-# Named args match by parameter name, order doesn't matter
+# Named args spread positionally into parameters
 |width, height|($width * $height) => $area
 
-*[height: 20, width: 10] -> $area()  # 200
+ordered[width: 10, height: 20] -> $area(...)  # 200
 ```
 
 ### Parameter Defaults
 
 ```rill
-# Defaults provide opt-in leniency
+# Defaults fill missing trailing arguments
 |x, y = 10, z = 20|($x + $y + $z) => $fn
 
-*[5] -> $fn()                 # 35 (5 + 10 + 20)
-*[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
+ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
+ordered[x: 5, y: 10, z: 30] -> $fn(...)  # 45 (5 + 10 + 30)
 ```
 
-### Type Checking with Global Functions
+### Type Checking with `.^type`
 
 ```rill
-# Use type() to inspect values
-42 -> type              # "number"
-"hello" -> type         # "string"
-[1, 2] -> type          # "list"
-*[1, 2] -> type         # "tuple"
-[a: 1] -> type          # "dict"
+# Use .^type to inspect values
+42 => $x
+$x.^type == number      # true
+"hello" => $s
+$s.^type == string      # true
+[1, 2] => $l
+$l.^type == list        # true
+ordered[a: 1, b: 2] => $t
+$t.^type == ordered     # true
+[a: 1] => $d
+$d.^type == dict        # true
 
 # Use json() to serialize
 [name: "test", count: 42] -> json
@@ -314,7 +329,7 @@ Based on this status:
 
 Runs tests, fixes failures, repeats until passing.
 
-```rill
+```text
 args: target: string
 
 # Run tests
@@ -420,7 +435,7 @@ args: operation: string
 ---
 
 # Do-while: body runs first, then condition checked
-^(limit: 5) @ {
+@ ^(limit: 5) {
   """
 Perform: {$operation}
 
@@ -429,7 +444,7 @@ Output SUCCESS, RETRY, or FAILED.
 } ? (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
-$result -> .contains("SUCCESS") ? [0, "Succeeded"] ! [1, "Failed: {$result}"]
+$result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! dict[code: 1, msg: "Failed: {$result}"]
 ```
 
 The do-while form eliminates the separate first-attempt code since the body always executes at least once.
@@ -719,51 +734,43 @@ $collections -> each { $ -> log }
 
 Vector search as an LLM tool within `anthropic::tool_loop`.
 
-```text
+```rill
+---
 args: user_query: string
+---
 
-# Define search tool
-tool(
-  "search_knowledge_base",
-  "Search the knowledge base for relevant information",
-  [query: "string"],
-  {
-    # Embed the query and search
-    .query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
-      "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
-    } -> .join("\n\n---\n\n")
-  }
-) => $search_tool
+# Define search tool with closure annotation
+^("Search the knowledge base for relevant information")
+|^("Search query text") query: string| {
+  $query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
+    "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
+  } -> .join("\n\n---\n\n")
+} => $search_knowledge_base
 
-# Define store tool
-tool(
-  "store_document",
-  "Store a new document in the knowledge base",
-  [id: "string", text: "string", title: "string"],
-  {
-    # Create dict, embed text, upsert
-    [
-      id: .id,
-      vector: .text -> openai::embed,
-      metadata: [title: .title, text: .text]
-    ] => $item
+# Define store tool with closure annotation
+^("Store a new document in the knowledge base")
+|^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string| {
+  [
+    id: $id,
+    vector: $text -> openai::embed,
+    metadata: [title: $title, text: $text]
+  ] => $item
 
-    $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
-    "Stored document {$item.id}"
-  }
-) => $store_tool
+  $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
+  "Stored document {$item.id}"
+} => $store_document
 
-# Run tool loop with both tools
+# Run tool loop with dict-form tools
 anthropic::tool_loop(
   "Answer the user's question. Use search_knowledge_base to find relevant information. If the user provides new information to remember, use store_document.",
   [
-    tools: [$search_tool, $store_tool],
+    tools: [search_knowledge_base: $search_knowledge_base, store_document: $store_document],
     max_turns: 10,
     user_message: $user_query
   ]
-) => $response
+) => $loop_result
 
-$response.content
+$loop_result.content
 ```
 
 ## See Also

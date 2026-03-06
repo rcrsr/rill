@@ -61,7 +61,6 @@ export {
   isRuntimeCallable,
   isScriptCallable,
   validateHostFunctionArgs,
-  validateReturnType,
 } from './core/callable.js';
 
 // ============================================================
@@ -69,20 +68,37 @@ export {
 // ============================================================
 
 export type {
+  NativeArray,
+  NativePlainObject,
+  NativeResult,
+  NativeValue,
   RillIterator,
+  RillStructuralType,
   RillTuple,
+  RillTypeValue,
   RillValue,
   RillVector,
 } from './core/values.js';
 
 export {
+  createTuple,
   createVector,
+  formatStructuralType,
+  inferElementType,
+  inferStructuralType,
+  inferType,
   isRillIterator,
   isTuple,
+  isTypeValue,
   isVector,
   isReservedMethod,
   RESERVED_DICT_METHODS,
+  structuralTypeEquals,
+  structuralTypeMatches,
+  toNative,
 } from './core/values.js';
+
+export { buildFieldDescriptor } from './core/field-descriptor.js';
 
 // ============================================================
 // CONTROL FLOW SIGNALS
@@ -135,6 +151,12 @@ export { getCallStack, pushCallFrame, popCallFrame } from './core/context.js';
 // ============================================================
 
 export { createStepper, execute } from './core/execute.js';
+
+// ============================================================
+// CALLABLE INVOCATION
+// ============================================================
+
+export { invokeCallable } from './core/eval/index.js';
 
 // ============================================================
 // INTROSPECTION API

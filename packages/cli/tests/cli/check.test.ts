@@ -616,8 +616,8 @@ $itemList -> .len
       // Note: Fix collision handling (EC-5) is tested in tests/check/fixer.test.ts
       // This test verifies that non-colliding fixes are successfully applied
       const content = `
-[userName: "test"] => $data1
-[itemList: [1, 2, 3]] => $data2
+dict[userName: "test"] => $data1
+dict[itemList: list[1, 2, 3]] => $data2
 `;
       const script = await writeFile('collision.rill', content);
 

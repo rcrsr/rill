@@ -119,25 +119,6 @@ describe('exec extension factory', () => {
       });
     });
 
-    it.skip('passes stdin to command when provided', async () => {
-      // Note: Skipped due to test environment stdin handling complexity
-      // The implementation correctly passes input option to execFile
-      const config: ExecConfig = {
-        commands: {
-          cat: { binary: 'cat', stdin: true },
-        },
-      };
-
-      const ext = createExecExtension(config);
-      const result = await ext.cat.fn([[], 'hello from stdin']);
-
-      expect(result).toMatchObject({
-        stdout: 'hello from stdin',
-        stderr: '',
-        exitCode: 0,
-      });
-    });
-
     it('converts args to strings', async () => {
       const config: ExecConfig = {
         commands: {

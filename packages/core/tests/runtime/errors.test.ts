@@ -30,17 +30,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(definition?.category).toBe('runtime');
     });
 
-    it('RILL-P006 exists in registry with correct fields', () => {
-      const definition = ERROR_REGISTRY.get('RILL-P006');
-      expect(definition).toBeDefined();
-      expect(definition?.errorId).toBe('RILL-P006');
-      expect(definition?.category).toBe('parse');
-      expect(definition?.description).toBe('Deprecated capture arrow syntax');
-      expect(definition?.messageTemplate).toBe(
-        'The capture arrow syntax changed from :> to =>'
-      );
-    });
-
     it('No duplicate errorIds [AC-1, AC-2]', () => {
       const seen = new Set<string>();
       for (const [errorId] of ERROR_REGISTRY.entries()) {
@@ -877,6 +866,119 @@ describe('Rill Runtime: Error Taxonomy', () => {
       };
 
       expect(definition.examples?.length).toBe(3);
+    });
+  });
+
+  describe('AC-36: Phase 3 parse error codes exist with required fields', () => {
+    it('RILL-P007 exists in ERROR_REGISTRY with cause, resolution, and examples', () => {
+      // AC-36: whitespace adjacency error must have all documentation fields
+      const definition = ERROR_REGISTRY.get('RILL-P007');
+      expect(definition).toBeDefined();
+      expect(definition?.errorId).toBe('RILL-P007');
+      expect(definition?.category).toBe('parse');
+      expect(definition?.cause).toBeTruthy();
+      expect(definition?.resolution).toBeTruthy();
+      expect(definition?.examples).toBeDefined();
+      expect(definition?.examples!.length).toBeGreaterThan(0);
+    });
+
+    it('RILL-P008 exists in ERROR_REGISTRY with cause, resolution, and examples', () => {
+      // AC-36: bare bracket error must have all documentation fields
+      const definition = ERROR_REGISTRY.get('RILL-P008');
+      expect(definition).toBeDefined();
+      expect(definition?.errorId).toBe('RILL-P008');
+      expect(definition?.category).toBe('parse');
+      expect(definition?.cause).toBeTruthy();
+      expect(definition?.resolution).toBeTruthy();
+      expect(definition?.examples).toBeDefined();
+      expect(definition?.examples!.length).toBeGreaterThan(0);
+    });
+
+    it('RILL-P009 exists in ERROR_REGISTRY with cause, resolution, and examples', () => {
+      // AC-36: removed sigil forms error must have all documentation fields
+      const definition = ERROR_REGISTRY.get('RILL-P009');
+      expect(definition).toBeDefined();
+      expect(definition?.errorId).toBe('RILL-P009');
+      expect(definition?.category).toBe('parse');
+      expect(definition?.cause).toBeTruthy();
+      expect(definition?.resolution).toBeTruthy();
+      expect(definition?.examples).toBeDefined();
+      expect(definition?.examples!.length).toBeGreaterThan(0);
+    });
+
+    it('RILL-P010 exists in ERROR_REGISTRY with cause, resolution, and examples', () => {
+      // AC-36: AT chain replacement error must have all documentation fields
+      const definition = ERROR_REGISTRY.get('RILL-P010');
+      expect(definition).toBeDefined();
+      expect(definition?.errorId).toBe('RILL-P010');
+      expect(definition?.category).toBe('parse');
+      expect(definition?.cause).toBeTruthy();
+      expect(definition?.resolution).toBeTruthy();
+      expect(definition?.examples).toBeDefined();
+      expect(definition?.examples!.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('AC-37: Phase 3 resolution fields reference keyword-prefixed replacements', () => {
+    it('RILL-P009 resolution references keyword-prefixed replacement forms', () => {
+      // AC-37: removed sigil forms (*[, *<, /<) resolution must guide users to keyword syntax
+      const definition = ERROR_REGISTRY.get('RILL-P009');
+      expect(definition).toBeDefined();
+
+      const resolution = definition?.resolution ?? '';
+      // Resolution must mention the keyword-prefixed syntax (tuple, destruct, or slice)
+      const mentionsKeywordForm =
+        resolution.includes('tuple') ||
+        resolution.includes('destruct') ||
+        resolution.includes('slice') ||
+        resolution.includes('keyword');
+      expect(
+        mentionsKeywordForm,
+        `RILL-P009 resolution must reference keyword-prefixed replacements, got: "${resolution}"`
+      ).toBe(true);
+    });
+
+    it('RILL-P009 examples reference specific keyword-prefixed forms', () => {
+      // AC-37: examples must show the keyword-prefixed alternatives
+      const definition = ERROR_REGISTRY.get('RILL-P009');
+      expect(definition).toBeDefined();
+
+      const exampleCodes =
+        definition?.examples?.map((ex) => ex.code).join('\n') ?? '';
+      // Examples must contain at least one keyword-prefixed form
+      const mentionsKeywordForm =
+        exampleCodes.includes('tuple[') ||
+        exampleCodes.includes('ordered[') ||
+        exampleCodes.includes('destruct<') ||
+        exampleCodes.includes('slice<');
+      expect(
+        mentionsKeywordForm,
+        'RILL-P009 examples must show keyword-prefixed replacement forms'
+      ).toBe(true);
+    });
+
+    it('RILL-P010 resolution references chain() as the replacement', () => {
+      // AC-37: AT chain replacement (@[, @$fn) resolution must reference chain()
+      const definition = ERROR_REGISTRY.get('RILL-P010');
+      expect(definition).toBeDefined();
+
+      const resolution = definition?.resolution ?? '';
+      expect(
+        resolution.includes('chain('),
+        `RILL-P010 resolution must reference chain(), got: "${resolution}"`
+      ).toBe(true);
+    });
+
+    it('RILL-P010 messageTemplate references chain() as the replacement', () => {
+      // AC-37: the error message itself must guide users toward chain()
+      const definition = ERROR_REGISTRY.get('RILL-P010');
+      expect(definition).toBeDefined();
+
+      const template = definition?.messageTemplate ?? '';
+      expect(
+        template.includes('chain('),
+        `RILL-P010 messageTemplate must reference chain(), got: "${template}"`
+      ).toBe(true);
     });
   });
 

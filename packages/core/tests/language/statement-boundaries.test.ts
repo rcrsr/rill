@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Statement Boundaries', () => {
   describe('Single Line Continuations', () => {
@@ -70,13 +70,13 @@ true`;
 
       it('tuple starts new statement', async () => {
         const script = `"ignored" => $a
-[1, 2, 3]`;
+list[1, 2, 3]`;
         expect(await run(script)).toEqual([1, 2, 3]);
       });
 
       it('dict starts new statement', async () => {
         const script = `"ignored" => $a
-[x: 1]`;
+dict[x: 1]`;
         expect(await run(script)).toEqual({ x: 1 });
       });
     });
@@ -147,10 +147,13 @@ $x`;
 
   describe('Complex Multi-Statement Scripts', () => {
     it('multiple capture statements', async () => {
-      const script = `"hello" => $greeting
+      // Mixed-type list [$greeting, $count] (string + number) not allowed.
+      // Verify each variable independently via runWithContext.
+      const { context } = await runWithContext(`"hello" => $greeting
 5 => $count
-[$greeting, $count]`;
-      expect(await run(script)).toEqual(['hello', 5]);
+$greeting`);
+      expect(context.variables.get('greeting')).toBe('hello');
+      expect(context.variables.get('count')).toBe(5);
     });
 
     it('capture then use in expression', async () => {
@@ -160,7 +163,7 @@ $length -> ($ * 2)`;
     });
 
     it('for loop with block on same line', async () => {
-      const script = `[1, 2, 3] -> each { ($ > 1) ? ($ * 10) ! $ }`;
+      const script = `list[1, 2, 3] -> each { ($ > 1) ? ($ * 10) ! $ }`;
       expect(await run(script)).toEqual([1, 20, 30]);
     });
 
@@ -171,7 +174,7 @@ $parts -> each { "{$}!" }`;
     });
 
     it('nested control flow on single lines', async () => {
-      const script = `[1, 2, 3] -> each { ($ > 1) ? "big" ! "small" }`;
+      const script = `list[1, 2, 3] -> each { ($ > 1) ? "big" ! "small" }`;
       expect(await run(script)).toEqual(['small', 'big', 'big']);
     });
   });
@@ -192,7 +195,7 @@ $parts -> each { "{$}!" }`;
     });
 
     it('handles CRLF line endings', async () => {
-      const script = '"a" => $x\r\n"b" => $y\r\n[$x, $y]';
+      const script = '"a" => $x\r\n"b" => $y\r\nlist[$x, $y]';
       expect(await run(script)).toEqual(['a', 'b']);
     });
 
@@ -221,6 +224,77 @@ $parts -> each { "{$}!" }`;
 ! { "no" }`;
       // This now parses as a single conditional with else branch
       expect(await run(script)).toBe('no');
+    });
+
+    describe('Multi-line Function Call Arguments', () => {
+      it('newline after opening paren in host call', async () => {
+        const script = `identity(
+"hello")`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline after comma in multi-arg closure call', async () => {
+        const script = `|a, b| { $a + $b } => $add
+$add(10,
+20)`;
+        expect(await run(script)).toBe(30);
+      });
+
+      it('multiple newlines between args in closure call', async () => {
+        const script = `|a, b, c| { $a + $b + $c } => $sum
+$sum(1,
+
+2,
+
+3)`;
+        expect(await run(script)).toBe(6);
+      });
+
+      it('newline after opening paren in closure call', async () => {
+        const script = `|x| { $x } => $fn
+$fn(
+"world")`;
+        expect(await run(script)).toBe('world');
+      });
+
+      it('newline after opening paren in method call', async () => {
+        const script = `"hello world".split(
+" ") -> .head`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline before closing paren in host call', async () => {
+        const script = `identity(
+"hello"
+)`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('newline before closing paren in closure call', async () => {
+        const script = `|a, b| { $a + $b } => $add
+$add(
+10,
+20
+)`;
+        expect(await run(script)).toBe(30);
+      });
+
+      it('newline before closing paren in method call', async () => {
+        const script = `"hello world".split(
+" "
+) -> .head`;
+        expect(await run(script)).toBe('hello');
+      });
+
+      it('fully expanded multi-line call', async () => {
+        const script = `|a, b, c| { $a + $b + $c } => $sum
+$sum(
+  1,
+  2,
+  3
+)`;
+        expect(await run(script)).toBe(6);
+      });
     });
 
     describe('Conditional Block Boundaries', () => {

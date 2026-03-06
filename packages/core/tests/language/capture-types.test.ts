@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Capture Type Annotations', () => {
   describe('String Type', () => {
@@ -60,15 +60,15 @@ describe('Rill Runtime: Capture Type Annotations', () => {
 
   describe('List Type', () => {
     it('captures list with list type', async () => {
-      expect(await run('[1, 2, 3] => $t:list\n$t')).toEqual([1, 2, 3]);
+      expect(await run('list[1, 2, 3] => $t:list\n$t')).toEqual([1, 2, 3]);
     });
 
     it('captures empty list', async () => {
-      expect(await run('[] => $t:list\n$t')).toEqual([]);
+      expect(await run('list[] => $t:list\n$t')).toEqual([]);
     });
 
     it('rejects dict captured as list', async () => {
-      await expect(run('[a: 1] => $t:list')).rejects.toThrow();
+      await expect(run('dict[a: 1] => $t:list')).rejects.toThrow();
     });
 
     it('rejects string captured as list', async () => {
@@ -78,15 +78,18 @@ describe('Rill Runtime: Capture Type Annotations', () => {
 
   describe('Dict Type', () => {
     it('captures dict with dict type', async () => {
-      expect(await run('[a: 1, b: 2] => $d:dict\n$d')).toEqual({ a: 1, b: 2 });
+      expect(await run('dict[a: 1, b: 2] => $d:dict\n$d')).toEqual({
+        a: 1,
+        b: 2,
+      });
     });
 
     it('captures empty dict', async () => {
-      expect(await run('[:] => $d:dict\n$d')).toEqual({});
+      expect(await run('dict[] => $d:dict\n$d')).toEqual({});
     });
 
     it('rejects tuple captured as dict', async () => {
-      await expect(run('[1, 2] => $d:dict')).rejects.toThrow();
+      await expect(run('list[1, 2] => $d:dict')).rejects.toThrow();
     });
   });
 
@@ -107,12 +110,12 @@ describe('Rill Runtime: Capture Type Annotations', () => {
   describe('Type Validation in Context', () => {
     it('validates type in for loop capture', async () => {
       // Each iteration captures as number
-      const script = `[1, 2, 3] -> each { $ => $n:number\n$n }`;
+      const script = `list[1, 2, 3] -> each { $ => $n:number\n$n }`;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
     it('rejects wrong type in for loop', async () => {
-      const script = `["a", "b"] -> each { $ => $n:number }`;
+      const script = `list["a", "b"] -> each { $ => $n:number }`;
       await expect(run(script)).rejects.toThrow();
     });
 
@@ -144,7 +147,7 @@ describe('Rill Runtime: Capture Type Annotations', () => {
       expect(await run('"string" => $v\n$v')).toBe('string');
       expect(await run('42 => $v\n$v')).toBe(42);
       expect(await run('true => $v\n$v')).toBe(true);
-      expect(await run('[1, 2] => $v\n$v')).toEqual([1, 2]);
+      expect(await run('list[1, 2] => $v\n$v')).toEqual([1, 2]);
     });
 
     it('type-locks variable after first assignment', async () => {
@@ -164,16 +167,34 @@ $v`;
 
   describe('Variables in Result', () => {
     it('captures typed variable in result', async () => {
-      const result = await runFull('"hello" => $msg:string');
-      expect(result.variables['msg']).toBe('hello');
+      const { context } = await runWithContext('"hello" => $msg:string');
+      expect(context.variables.get('msg')).toBe('hello');
     });
 
     it('captures multiple typed variables', async () => {
-      const result = await runFull(`"a" => $s:string
+      // Mixed-type list [$s, $n] not allowed; verify variables directly via runWithContext
+      const { context } = await runWithContext(`"a" => $s:string
 42 => $n:number
-[$s, $n]`);
-      expect(result.variables['s']).toBe('a');
-      expect(result.variables['n']).toBe(42);
+$s`);
+      expect(context.variables.get('s')).toBe('a');
+      expect(context.variables.get('n')).toBe(42);
+    });
+  });
+
+  describe('Dynamic Type Reference (AC-13)', () => {
+    it('AC-13 success: $t = string, capture accepts string value', async () => {
+      expect(await run('string => $t\n"hello" => $x:$t\n$x')).toBe('hello');
+    });
+
+    it('AC-13 rejection: $t = number, capture rejects string value', async () => {
+      await expect(run('number => $t\n"hello" => $x:$t')).rejects.toThrow();
+    });
+
+    it('AC-13 capture-time resolution: $t reassigned after capture executes', async () => {
+      // $x:$t is resolved when the capture runs; reassigning $t afterward has no effect
+      expect(
+        await run('string => $t\n"hello" => $x:$t\nnumber => $t\n$x')
+      ).toBe('hello');
     });
   });
 });

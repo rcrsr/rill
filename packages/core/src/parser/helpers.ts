@@ -4,27 +4,22 @@
  * @internal This module contains internal parser utilities
  */
 
-import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
+import type {
+  BlockNode,
+  HostCallNode,
+  HostRefNode,
+  SourceSpan,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
+import { VALID_TYPE_NAMES } from '../constants.js';
 
 // ============================================================
 // VALID TYPE NAMES
 // ============================================================
 
 /** @internal */
-export const VALID_TYPE_NAMES = [
-  'string',
-  'number',
-  'bool',
-  'closure',
-  'list',
-  'dict',
-  'tuple',
-] as const;
-
-/** @internal */
-export const FUNC_PARAM_TYPES = ['string', 'number', 'bool'] as const;
+export { VALID_TYPE_NAMES };
 
 // ============================================================
 // LOOKAHEAD PREDICATES
@@ -65,7 +60,9 @@ export function isHostCall(state: ParserState): boolean {
   }
 
   // Simple case: identifier(
-  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
+  let simpleOffset = 1;
+  while (peek(state, simpleOffset).type === TOKEN_TYPES.NEWLINE) simpleOffset++;
+  if (peek(state, simpleOffset).type === TOKEN_TYPES.LPAREN) {
     return true;
   }
 
@@ -81,8 +78,13 @@ export function isHostCall(state: ParserState): boolean {
     offset++; // skip identifier/keyword
   }
 
-  // If we consumed at least one ::, check for (
-  return offset > 1 && peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  // If we consumed at least one ::, skip newlines then check for (
+  if (offset > 1) {
+    while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
+    return peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  }
+
+  return false;
 }
 
 /**
@@ -91,11 +93,11 @@ export function isHostCall(state: ParserState): boolean {
  * @internal
  */
 export function isClosureCall(state: ParserState): boolean {
-  return (
-    check(state, TOKEN_TYPES.DOLLAR) &&
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
-    peek(state, 2).type === TOKEN_TYPES.LPAREN
-  );
+  if (!check(state, TOKEN_TYPES.DOLLAR)) return false;
+  if (peek(state, 1).type !== TOKEN_TYPES.IDENTIFIER) return false;
+  let offset = 2;
+  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
+  return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
 /**
@@ -115,6 +117,7 @@ export function isClosureCallWithAccess(state: ParserState): boolean {
     offset++; // skip identifier
   }
 
+  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
   return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
@@ -141,14 +144,12 @@ export function isMethodCall(state: ParserState): boolean {
 }
 
 /**
- * Check for sequential spread target: @$ or @[ (not @{ which is for-loop)
+ * Check for annotation access: .^identifier
  * @internal
  */
-export function isClosureChainTarget(state: ParserState): boolean {
+export function isAnnotationAccess(state: ParserState): boolean {
   return (
-    check(state, TOKEN_TYPES.AT) &&
-    (peek(state, 1).type === TOKEN_TYPES.DOLLAR ||
-      peek(state, 1).type === TOKEN_TYPES.LBRACKET)
+    check(state, TOKEN_TYPES.DOT) && peek(state, 1).type === TOKEN_TYPES.CARET
   );
 }
 
@@ -249,32 +250,11 @@ export function isLiteralStart(state: ParserState): boolean {
     TOKEN_TYPES.NUMBER,
     TOKEN_TYPES.TRUE,
     TOKEN_TYPES.FALSE,
-    TOKEN_TYPES.LBRACKET
-  );
-}
-
-/**
- * Check if current token can start an expression (for bare spread detection)
- * @internal
- */
-export function canStartExpression(state: ParserState): boolean {
-  return (
-    isLiteralStart(state) ||
-    isClosureStart(state) ||
-    check(
-      state,
-      TOKEN_TYPES.DOLLAR,
-      TOKEN_TYPES.PIPE_VAR,
-      TOKEN_TYPES.IDENTIFIER,
-      TOKEN_TYPES.DOT,
-      TOKEN_TYPES.LPAREN,
-      TOKEN_TYPES.LBRACE,
-      TOKEN_TYPES.AT,
-      TOKEN_TYPES.QUESTION,
-      TOKEN_TYPES.BANG,
-      TOKEN_TYPES.STAR,
-      TOKEN_TYPES.MINUS
-    )
+    TOKEN_TYPES.LBRACKET,
+    TOKEN_TYPES.LIST_LBRACKET,
+    TOKEN_TYPES.DICT_LBRACKET,
+    TOKEN_TYPES.TUPLE_LBRACKET,
+    TOKEN_TYPES.ORDERED_LBRACKET
   );
 }
 
@@ -349,21 +329,26 @@ export function makeBoolLiteralBlock(
 // since it depends on parseExpression
 
 // ============================================================
-// BARE HOST CALL PARSING
+// BARE HOST CALL / REF PARSING
 // ============================================================
 
 /**
  * Parse a bare function name (no parens): `func` or `ns::func` or `ns::sub::func`
- * Returns a HostCallNode with empty args.
+ * Returns a HostRefNode for namespaced names (ns::name) and a HostCallNode
+ * with empty args for simple bare identifiers (no ::).
  * @internal
  */
-export function parseBareHostCall(state: ParserState): HostCallNode {
+export function parseBareHostCall(
+  state: ParserState
+): HostCallNode | HostRefNode {
   const start = state.tokens[state.pos]!.span.start;
   let name = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier').value;
+  let hasNamespace = false;
 
   // Collect namespaced name: ident::ident::...
   while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
     state.pos++; // consume ::
+    hasNamespace = true;
 
     // After ::, accept identifier or keyword
     const token = current(state);
@@ -380,10 +365,21 @@ export function parseBareHostCall(state: ParserState): HostCallNode {
     state.pos++; // consume the identifier or keyword
   }
 
+  const span = { start, end: state.tokens[state.pos - 1]!.span.end };
+
+  // Namespaced bare identifier → host function reference (IR-4)
+  if (hasNamespace) {
+    return {
+      type: 'HostRef',
+      name,
+      span,
+    };
+  }
+
   return {
     type: 'HostCall',
     name,
     args: [],
-    span: { start, end: state.tokens[state.pos - 1]!.span.end },
+    span,
   };
 }

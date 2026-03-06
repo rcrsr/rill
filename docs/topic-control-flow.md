@@ -179,10 +179,32 @@ initial -> (condition) @ { body }
 Use `^(limit: N)` annotation to set maximum iterations (default: 10,000):
 
 ```rill
-^(limit: 100) 0 -> ($ < 10) @ { $ + 1 }   # Runs 10 iterations, returns 10
+0 -> ($ < 10) @ ^(limit: 100) { $ + 1 }   # Runs 10 iterations, returns 10
 ```
 
 Exceeding the limit throws `RuntimeError` with code `RUNTIME_LIMIT_EXCEEDED`.
+
+### Operator-Level Annotation Position
+
+The `^(...)` annotation appears between `@` and the loop body. It attaches metadata to that specific loop evaluation, not to the body closure itself.
+
+```text
+# while-loop: annotation between @ and body
+initial -> (condition) @ ^(limit: N) { body }
+
+# do-while: annotation between @ and body
+@ ^(limit: N) { body } ? (condition)
+```
+
+```rill
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+```
+
+```rill
+@ ^(limit: 5) {
+  app::prompt("Perform operation")
+} ? (.contains("RETRY"))
+```
 
 ### Multiple State Values
 
@@ -235,7 +257,7 @@ initial -> @ { body } ? (condition)
 Do-while is ideal for retry patterns:
 
 ```rill
-^(limit: 5) @ {
+@ ^(limit: 5) {
   app::prompt("Perform operation")
 } ? (.contains("RETRY"))
 # Loop exits when result doesn't contain RETRY
@@ -244,7 +266,7 @@ Do-while is ideal for retry patterns:
 ### Loop Limit
 
 ```rill
-^(limit: 100) 0 -> @ { $ + 1 } ? ($ < 10)   # Returns 10
+0 -> @ ^(limit: 100) { $ + 1 } ? ($ < 10)   # Returns 10
 ```
 
 ---
@@ -315,22 +337,18 @@ $value -> return         # exit with value
 ### In Blocks
 
 ```rill
-{
-  5 => $x
-  ($x > 3) ? ("big" -> return)
-  "small"
-}
+5 => $x
+($x > 3) ? ("big" -> return)
+"small"
 # Returns "big"
 ```
 
 ### Multi-Phase Pipeline
 
 ```rill
-{
-  "content" => $data
-  $data -> .contains("ERROR") ? ("Read failed" -> return)
-  "processed: {$data}"
-}
+"content" => $content
+$content -> .contains("ERROR") ? ("Read failed" -> return)
+"processed: {$content}"
 # Returns "processed: content" or "Read failed"
 ```
 
@@ -434,6 +452,7 @@ Guard clauses at function start:
   assert !$data.empty "List cannot be empty"
   $data -> each { $ * 2 }
 } => $process
+true
 ```
 
 Multi-step validation:
@@ -541,6 +560,7 @@ Use `error` in blocks for multi-step validation:
   ($age > 150) ? { error "Age out of range: {$age}" }
   "Valid age: {$age}"
 } => $validate_age
+true
 ```
 
 ### Error Behavior
@@ -680,16 +700,17 @@ Exit early on invalid conditions (assumes host provides `error()`):
   $data -> :?list ? $ ! app::error("Expected list")
   $data -> each { $ * 2 }
 } => $process
+true
 ```
 
 ### Retry with Limit
 
 ```text
-^(limit: 3) @ {
+@ ^(limit: 3) {
   app::prompt("Try operation")
 } ? (.contains("RETRY"))
 
-.contains("SUCCESS") ? [0, "Done"] ! [1, "Failed"]
+.contains("SUCCESS") ? [0, "Done"] ! list[1, "Failed"]
 ```
 
 ### State Machine

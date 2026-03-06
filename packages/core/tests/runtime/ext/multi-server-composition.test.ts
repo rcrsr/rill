@@ -124,10 +124,10 @@ describe('Multi-Server Composition', () => {
 
       // Execute script that calls functions from all three namespaces
       const script = `
-        gh::list_pull_requests([state: "open"]) => $prs
+        gh::list_pull_requests(dict[state: "open"]) => $prs
         $prs -> .len => $count
         pg::query("SELECT status FROM deployments WHERE pr_id = 42") => $deploy
-        slack::post_message([channel: "#engineering", text: "{$count} PRs found"]) => $result
+        slack::post_message(dict[channel: "#engineering", text: "{$count} PRs found"]) => $result
         $result
       `;
 
@@ -367,9 +367,9 @@ describe('Multi-Server Composition', () => {
       // Complex workflow: fetch from API, save to DB, cache result
       const script = `
         api::fetch("/users") => $apiResponse
-        db::insert("users", [id: 1, name: "Alice"]) => $dbResult
+        db::insert("users", dict[id: 1, name: "Alice"]) => $dbResult
         cache::set("user_1", $dbResult) => $cacheResult
-        [api: $apiResponse, db: $dbResult, cache: $cacheResult]
+        dict[api: $apiResponse, db: $dbResult, cache: $cacheResult]
       `;
 
       const result = (await run(script, {

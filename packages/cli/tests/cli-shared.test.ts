@@ -1,16 +1,15 @@
 /**
  * CLI Shared Utilities Tests
- * Tests for formatError, formatOutput, and determineExitCode functions
+ * Tests for formatError and determineExitCode functions
  */
 
 import { describe, expect, it } from 'vitest';
 import {
   formatError,
-  formatOutput,
   determineExitCode,
   detectHelpVersionFlag,
 } from '../src/cli-shared.js';
-import { callable, LexerError, ParseError, RuntimeError } from '@rcrsr/rill';
+import { LexerError, ParseError, RuntimeError } from '@rcrsr/rill';
 
 describe('cli-shared', () => {
   describe('formatError', () => {
@@ -275,62 +274,6 @@ describe('cli-shared', () => {
         const formatted = formatError(err);
         expect(formatted).not.toContain('RILL-P001');
       });
-    });
-  });
-
-  describe('formatOutput', () => {
-    it('formats string values', () => {
-      expect(formatOutput('hello')).toBe('hello');
-      expect(formatOutput('')).toBe('');
-    });
-
-    it('formats number values', () => {
-      expect(formatOutput(42)).toBe('42');
-      expect(formatOutput(0)).toBe('0');
-      expect(formatOutput(-3.14)).toBe('-3.14');
-    });
-
-    it('formats boolean values', () => {
-      expect(formatOutput(true)).toBe('true');
-      expect(formatOutput(false)).toBe('false');
-    });
-
-    it('formats null value', () => {
-      expect(formatOutput(null)).toBe('null');
-    });
-
-    it('formats arrays as JSON', () => {
-      expect(formatOutput([1, 2, 3])).toBe('[\n  1,\n  2,\n  3\n]');
-      expect(formatOutput([])).toBe('[]');
-    });
-
-    it('formats dicts as JSON', () => {
-      const output = formatOutput({ a: 1, b: 2 });
-      expect(output).toContain('"a": 1');
-      expect(output).toContain('"b": 2');
-    });
-
-    it('formats iterators as "[iterator]"', () => {
-      const iterator = {
-        done: false,
-        value: 1,
-        next: callable(() => ({
-          done: true,
-          next: callable(() => ({ done: true, next: callable(() => ({})) })),
-        })),
-      };
-      expect(formatOutput(iterator)).toBe('[iterator]');
-    });
-
-    it('formats done iterators as "[iterator]"', () => {
-      const doneIterator = {
-        done: true,
-        next: callable(() => ({
-          done: true,
-          next: callable(() => ({ done: true, next: callable(() => ({})) })),
-        })),
-      };
-      expect(formatOutput(doneIterator)).toBe('[iterator]');
     });
   });
 

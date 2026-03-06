@@ -1,5 +1,5 @@
 import type { SourceSpan } from './source-location.js';
-import type { RillTypeName } from './value-types.js';
+import type { RillTypeName, TypeRef } from './value-types.js';
 
 interface BaseNode {
   readonly span: SourceSpan;
@@ -34,11 +34,16 @@ export interface FrontmatterNode extends BaseNode {
  * - Simple: |x| $x (postfix-expr)
  * - Grouped: |x| ($x * 2) (compound expression)
  * - Block: |x| { $a ↵ $b } (multiple statements)
+ *
+ * Optional postfix return type target: |params| body :type-target
+ * Asserts the closure return value against the type target at invocation time.
+ * `:any` is valid and equivalent to omission.
  */
 export interface ClosureNode extends BaseNode {
   readonly type: 'Closure';
   readonly params: ClosureParamNode[];
   readonly body: BodyNode;
+  readonly returnTypeTarget?: TypeRef | TypeConstructorNode | undefined;
 }
 
 /**
@@ -51,7 +56,7 @@ export interface ClosureNode extends BaseNode {
 export interface ClosureParamNode extends BaseNode {
   readonly type: 'ClosureParam';
   readonly name: string;
-  readonly typeName: 'string' | 'number' | 'bool' | null; // null = untyped
+  readonly typeRef: TypeRef | null; // null = untyped
   readonly defaultValue: LiteralNode | null;
   readonly annotations?: AnnotationArg[] | undefined; // Parameter-level annotations (default: empty array)
 }
@@ -130,8 +135,11 @@ export interface SpreadArgNode extends BaseNode {
 export interface CaptureNode extends BaseNode {
   readonly type: 'Capture';
   readonly name: string;
-  /** Optional explicit type annotation: $name:string */
-  readonly typeName: RillTypeName | null;
+  /**
+   * Optional explicit type annotation: $name:type or $name:$t
+   */
+  readonly typeRef: TypeRef | null;
+  readonly inlineShape: null;
 }
 
 /**
@@ -214,14 +222,20 @@ export interface PipeChainNode extends BaseNode {
 export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;
-  readonly methods: (MethodCallNode | InvokeNode)[];
+  readonly methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
   readonly defaultValue: BodyNode | null;
 }
 
 export type PrimaryNode =
   | LiteralNode
+  | ListLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
   | VariableNode
   | HostCallNode
+  | HostRefNode
+  | AnnotatedExprNode
   | ClosureCallNode
   | MethodCallNode
   | ConditionalNode
@@ -232,12 +246,15 @@ export type PrimaryNode =
   | ErrorNode
   | PassNode
   | GroupedExprNode
-  | SpreadNode
   | TypeAssertionNode
-  | TypeCheckNode;
+  | TypeCheckNode
+  | TypeNameExprNode
+  | TypeConstructorNode
+  | ClosureSigLiteralNode;
 
 export type PipeTargetNode =
   | HostCallNode
+  | HostRefNode
   | ClosureCallNode
   | MethodCallNode
   | PipeInvokeNode
@@ -248,12 +265,9 @@ export type PipeTargetNode =
   | ClosureNode
   | StringLiteralNode
   | DictNode
-  | TupleNode
   | GroupedExprNode
-  | ClosureChainNode
   | DestructureNode
   | SliceNode
-  | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
   | EachExprNode
@@ -263,12 +277,16 @@ export type PipeTargetNode =
   | PostfixExprNode
   | VariableNode
   | AssertNode
-  | ErrorNode;
+  | ErrorNode
+  | AnnotationAccessNode
+  | ConvertNode
+  | DestructNode
+  | ListLiteralNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
   readonly type: 'PipeInvoke';
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 // ============================================================
@@ -279,7 +297,7 @@ export type LiteralNode =
   | StringLiteralNode
   | NumberLiteralNode
   | BoolLiteralNode
-  | TupleNode
+  | ListLiteralNode
   | DictNode
   | ClosureNode;
 
@@ -302,12 +320,6 @@ export interface NumberLiteralNode extends BaseNode {
 export interface BoolLiteralNode extends BaseNode {
   readonly type: 'BoolLiteral';
   readonly value: boolean;
-}
-
-export interface TupleNode extends BaseNode {
-  readonly type: 'Tuple';
-  readonly elements: (ExpressionNode | ListSpreadNode)[];
-  readonly defaultValue: BodyNode | null;
 }
 
 export interface ListSpreadNode extends BaseNode {
@@ -337,10 +349,46 @@ export interface DictEntryNode extends BaseNode {
     | string
     | number
     | boolean
-    | TupleNode
+    | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
+}
+
+/**
+ * Type constructor: list(string), dict(string, number), tuple(string, number), ordered(string)
+ * Constructs a parameterized type expression for use in type assertions and shape constraints.
+ *
+ * Examples:
+ *   list(string)
+ *   dict(string, number)
+ *   tuple(string, number, boolean)
+ *   ordered(string)
+ *   list(element: string)
+ */
+export interface TypeConstructorNode extends BaseNode {
+  readonly type: 'TypeConstructor';
+  readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered';
+  readonly args: TypeConstructorArg[];
+}
+
+export type TypeConstructorArg =
+  | { kind: 'positional'; value: ExpressionNode }
+  | { kind: 'named'; name: string; value: ExpressionNode };
+
+/**
+ * Closure signature literal: |param: type, ...| :returnType
+ * Represents a closure type signature as a first-class value.
+ * Distinguished from a closure literal by absence of a `{` body block.
+ *
+ * Examples:
+ *   |x: string| :number
+ *   |a: string, b: number| :boolean
+ */
+export interface ClosureSigLiteralNode extends BaseNode {
+  readonly type: 'ClosureSigLiteral';
+  readonly params: { name: string; typeExpr: ExpressionNode }[];
+  readonly returnType: ExpressionNode;
 }
 
 // ============================================================
@@ -530,6 +578,22 @@ export interface BracketAccess {
  */
 export type PropertyAccess = FieldAccess | BracketAccess;
 
+/**
+ * Annotated expression: ^(key: value, ...) expression
+ * Attaches annotation data to a primary expression value.
+ * When the expression is a closure, annotations are captured by createClosure().
+ * When the expression is a non-closure, annotations are ignored at runtime.
+ *
+ * Examples:
+ *   ^("describe it") |x| ($x * 2)    -- closure gets description annotation
+ *   ^(label: "add") app::add         -- host ref gets annotation (runtime: ignored)
+ */
+export interface AnnotatedExprNode extends BaseNode {
+  readonly type: 'AnnotatedExpr';
+  readonly annotations: AnnotationArg[];
+  readonly expression: PrimaryNode;
+}
+
 // ============================================================
 // FUNCTIONS & METHODS
 // ============================================================
@@ -537,7 +601,12 @@ export type PropertyAccess = FieldAccess | BracketAccess;
 export interface HostCallNode extends BaseNode {
   readonly type: 'HostCall';
   readonly name: string;
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
+}
+
+export interface HostRefNode extends BaseNode {
+  readonly type: 'HostRef';
+  readonly name: string;
 }
 
 export interface MethodCallNode extends BaseNode {
@@ -550,7 +619,13 @@ export interface MethodCallNode extends BaseNode {
 /** Postfix invocation: expr(args) - calls the result of expr as a closure */
 export interface InvokeNode extends BaseNode {
   readonly type: 'Invoke';
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
+}
+
+/** Annotation reflection access on expressions: expr.^key */
+export interface AnnotationAccessNode extends BaseNode {
+  readonly type: 'AnnotationAccess';
+  readonly key: string;
 }
 
 /** Call a closure stored in a variable: $fn(args) or $obj.method(args) */
@@ -558,7 +633,7 @@ export interface ClosureCallNode extends BaseNode {
   readonly type: 'ClosureCall';
   readonly name: string; // Variable name (without $)
   readonly accessChain: string[]; // Property access chain (e.g., ['double'] for $math.double)
-  readonly args: ExpressionNode[];
+  readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
 // ============================================================
@@ -586,6 +661,7 @@ export interface WhileLoopNode extends BaseNode {
   readonly type: 'WhileLoop';
   readonly condition: ExpressionNode; // must evaluate to boolean
   readonly body: BodyNode;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 export interface DoWhileLoopNode extends BaseNode {
@@ -593,6 +669,7 @@ export interface DoWhileLoopNode extends BaseNode {
   readonly input: ExpressionNode | null; // null = implied $
   readonly body: BodyNode;
   readonly condition: BodyNode;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 export interface BlockNode extends BaseNode {
@@ -614,8 +691,8 @@ export type IteratorBody =
   | GroupedExprNode // (expr)
   | VariableNode // $fn
   | PostfixExprNode // $ or other simple expression
-  | SpreadNode // * (spread element to tuple)
-  | HostCallNode; // greet (bare function name)
+  | HostCallNode // greet (bare function name)
+  | HostRefNode; // ns::func (namespaced host function reference)
 
 /**
  * Each expression: sequential iteration returning list of all results.
@@ -643,6 +720,7 @@ export interface EachExprNode extends BaseNode {
    * or when no accumulator is used.
    */
   readonly accumulator: ExpressionNode | null;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -664,6 +742,7 @@ export interface MapExprNode extends BaseNode {
   readonly type: 'MapExpr';
   /** The body to execute for each element (in parallel) */
   readonly body: IteratorBody;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -687,6 +766,7 @@ export interface FoldExprNode extends BaseNode {
    * null when using inline closure (accumulator is in closure params).
    */
   readonly accumulator: ExpressionNode | null;
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 /**
@@ -706,23 +786,7 @@ export interface FilterExprNode extends BaseNode {
   readonly type: 'FilterExpr';
   /** The predicate body to evaluate for each element */
   readonly body: IteratorBody;
-}
-
-// ============================================================
-// SPREAD OPERATIONS
-// ============================================================
-
-/**
- * Sequential spread: $input -> @$closures
- * Chains closures where each receives the previous result.
- *
- * Equivalent to a fold: $input -> [$f, $g, $h] -> @ { $() }
- * - With stored closures: the $ is the current closure, $() invokes it
- * - With inline blocks: $ is the accumulated value directly
- */
-export interface ClosureChainNode extends BaseNode {
-  readonly type: 'ClosureChain';
-  readonly target: ExpressionNode; // The closure(s) to chain
+  readonly annotations?: AnnotationArg[] | undefined;
 }
 
 // ============================================================
@@ -781,21 +845,6 @@ export interface SliceNode extends BaseNode {
 /** A slice bound: number, variable, or grouped expression */
 export type SliceBoundNode = NumberLiteralNode | VariableNode | GroupedExprNode;
 
-/**
- * Spread operator: *expr or -> *
- * Converts tuple or dict to args type for unpacking at closure invocation.
- *
- * Prefix form: *[1, 2, 3], *$tuple, *[x: 1, y: 2]
- * Pipe target form: [1, 2, 3] -> *
- *
- * Creates an args value that unpacks into separate arguments when passed to a closure.
- */
-export interface SpreadNode extends BaseNode {
-  readonly type: 'Spread';
-  /** The expression to spread (null when used as pipe target: -> *) */
-  readonly operand: ExpressionNode | null;
-}
-
 // ============================================================
 // TYPE OPERATIONS
 // ============================================================
@@ -818,8 +867,8 @@ export interface TypeAssertionNode extends BaseNode {
   readonly type: 'TypeAssertion';
   /** The expression to assert (null for bare :type which uses $) */
   readonly operand: PostfixExprNode | null;
-  /** The expected type */
-  readonly typeName: RillTypeName;
+  /** The expected type reference (static or dynamic) */
+  readonly typeRef: TypeRef;
 }
 
 /**
@@ -840,8 +889,119 @@ export interface TypeCheckNode extends BaseNode {
   readonly type: 'TypeCheck';
   /** The expression to check (null for bare :?type which uses $) */
   readonly operand: PostfixExprNode | null;
-  /** The type to check for */
+  /** The type reference to check for (static or dynamic) */
+  readonly typeRef: TypeRef;
+}
+
+/**
+ * Type name expression: a bare type keyword used as a first-class value.
+ * Produces a type value that can be passed to type assertion/check operators
+ * or stored in variables.
+ *
+ * Examples:
+ *   string          # the type value for 'string'
+ *   number -> :type # assert the result is of kind 'type'
+ */
+export interface TypeNameExprNode extends BaseNode {
+  readonly type: 'TypeNameExpr';
+  /** The rill type name this expression represents */
   readonly typeName: RillTypeName;
+}
+
+// ============================================================
+// COLLECTION LITERALS
+// ============================================================
+
+/**
+ * List literal: list[expr, expr, ...]
+ * Constructs a list collection from comma-separated expressions.
+ *
+ * Examples:
+ *   list[1, 2, 3]
+ *   list["a", "b", $x]
+ */
+export interface ListLiteralNode extends BaseNode {
+  readonly type: 'ListLiteral';
+  readonly elements: ExpressionNode[];
+  readonly defaultValue: BodyNode | null;
+}
+
+/**
+ * Dict literal: dict[key: value, ...]
+ * Constructs a dict collection from comma-separated key-value pairs.
+ *
+ * Examples:
+ *   dict[name: "Alice", age: 30]
+ *   dict["x": 1, "y": 2]
+ */
+export interface DictLiteralNode extends BaseNode {
+  readonly type: 'DictLiteral';
+  readonly entries: DictEntryNode[];
+}
+
+/**
+ * Tuple literal: tuple[expr, expr, ...]
+ * Constructs a typed tuple from comma-separated expressions (mixed types allowed).
+ *
+ * Examples:
+ *   tuple[1, "hello", true]
+ *   tuple[$a, $b]
+ */
+export interface TupleLiteralNode extends BaseNode {
+  readonly type: 'TupleLiteral';
+  readonly elements: ExpressionNode[];
+}
+
+/**
+ * Ordered literal: ordered[key: value, ...]
+ * Constructs an ordered collection from comma-separated key-value pairs.
+ *
+ * Examples:
+ *   ordered[name: "Alice", score: 42]
+ */
+export interface OrderedLiteralNode extends BaseNode {
+  readonly type: 'OrderedLiteral';
+  readonly entries: DictEntryNode[];
+}
+
+// ============================================================
+// DESTRUCT OPERATOR
+// ============================================================
+
+/**
+ * Destruct operator: destruct<$a, $b, ...>
+ * Extracts elements from collections into named captures.
+ * Supports skip placeholders (_), typed captures, and key-value patterns.
+ *
+ * Examples:
+ *   $tuple -> destruct<$a, $b, $c>
+ *   $tuple -> destruct<$a, _, $c>
+ *   $dict  -> destruct<name: $n, age: $a>
+ */
+export interface DestructNode extends BaseNode {
+  readonly type: 'Destruct';
+  readonly elements: DestructPatternNode[];
+}
+
+// ============================================================
+// CONVERT OPERATOR
+// ============================================================
+
+/**
+ * Convert operator: -> :>type or -> :>$var
+ * Converts the pipe value to the specified type.
+ * Accepts a static type name, a dynamic type variable, or a structural
+ * ordered type signature for field-ordered conversion.
+ *
+ * Examples:
+ *   $items -> :>list
+ *   $data  -> :>$targetType
+ *   $row   -> :>ordered(name: string, age: number)
+ */
+export interface ConvertNode extends BaseNode {
+  readonly type: 'Convert';
+  /** Static or dynamic type reference, or a structural type constructor */
+  readonly typeRef: TypeRef | TypeConstructorNode;
 }
 
 export type SimplePrimaryNode =
@@ -876,7 +1036,9 @@ export type ASTNode =
   | PostfixExprNode
   | MethodCallNode
   | InvokeNode
+  | AnnotationAccessNode
   | HostCallNode
+  | HostRefNode
   | ClosureCallNode
   | PipeInvokeNode
   | VariableNode
@@ -888,21 +1050,21 @@ export type ASTNode =
   | InterpolationNode
   | NumberLiteralNode
   | BoolLiteralNode
-  | TupleNode
   | ListSpreadNode
   | DictNode
   | DictEntryNode
   | BinaryExprNode
   | UnaryExprNode
   | GroupedExprNode
-  | ClosureChainNode
   | DestructureNode
   | DestructPatternNode
   | SliceNode
-  | SpreadNode
   | TypeAssertionNode
   | TypeCheckNode
+  | TypeConstructorNode
+  | ClosureSigLiteralNode
   | AnnotatedStatementNode
+  | AnnotatedExprNode
   | NamedArgNode
   | SpreadArgNode
   | EachExprNode
@@ -910,4 +1072,11 @@ export type ASTNode =
   | FoldExprNode
   | FilterExprNode
   | RecoveryErrorNode
-  | ErrorNode;
+  | ErrorNode
+  | TypeNameExprNode
+  | ListLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
+  | DestructNode
+  | ConvertNode;

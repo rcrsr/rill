@@ -6,6 +6,8 @@
  *
  * Acceptance Criteria:
  * - AC-25: TOKEN_HIGHLIGHT_MAP missing category returns undefined
+ * - AC-38: TOKEN_HIGHLIGHT_MAP contains entries for all 7 new compound tokens
+ * - AC-39: No new token type exists without a corresponding highlight map entry
  *
  * Implementation Coverage:
  * - IC-3: Test file for highlight map completeness
@@ -245,6 +247,104 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       const size2 = TOKEN_HIGHLIGHT_MAP.size;
       expect(size1).toBe(size2);
       expect(size1).toBeGreaterThan(0);
+    });
+  });
+
+  describe('AC-38: All 7 new compound tokens are present', () => {
+    it('LIST_LBRACKET is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: list[ compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('LIST_LBRACKET')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('LIST_LBRACKET')).toBeDefined();
+    });
+
+    it('DICT_LBRACKET is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: dict[ compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('DICT_LBRACKET')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('DICT_LBRACKET')).toBeDefined();
+    });
+
+    it('TUPLE_LBRACKET is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: tuple[ compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('TUPLE_LBRACKET')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('TUPLE_LBRACKET')).toBeDefined();
+    });
+
+    it('ORDERED_LBRACKET is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: ordered[ compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('ORDERED_LBRACKET')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('ORDERED_LBRACKET')).toBeDefined();
+    });
+
+    it('DESTRUCT_LANGLE is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: destruct< compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('DESTRUCT_LANGLE')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('DESTRUCT_LANGLE')).toBeDefined();
+    });
+
+    it('SLICE_LANGLE is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: slice< compound token must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('SLICE_LANGLE')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('SLICE_LANGLE')).toBeDefined();
+    });
+
+    it('CONVERT is in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: :> conversion operator must have a highlight entry
+      expect(TOKEN_HIGHLIGHT_MAP.has('CONVERT')).toBe(true);
+      expect(TOKEN_HIGHLIGHT_MAP.get('CONVERT')).toBeDefined();
+    });
+
+    it('all 7 new compound tokens resolve to valid HighlightCategory values', () => {
+      // AC-38: each compound token maps to a valid category
+      const compoundTokens = [
+        'LIST_LBRACKET',
+        'DICT_LBRACKET',
+        'TUPLE_LBRACKET',
+        'ORDERED_LBRACKET',
+        'DESTRUCT_LANGLE',
+        'SLICE_LANGLE',
+        'CONVERT',
+      ] as const;
+
+      for (const token of compoundTokens) {
+        const category = TOKEN_HIGHLIGHT_MAP.get(token);
+        expect(
+          category,
+          `${token} must have a highlight category`
+        ).toBeDefined();
+      }
+    });
+  });
+
+  describe('AC-38: Removed sigil tokens are absent from TOKEN_HIGHLIGHT_MAP', () => {
+    it('STAR_LT is not in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: *[ sigil token was removed and must not appear in the map
+      expect(TOKEN_HIGHLIGHT_MAP.has('STAR_LT' as TokenType)).toBe(false);
+      expect(TOKEN_HIGHLIGHT_MAP.get('STAR_LT' as TokenType)).toBeUndefined();
+    });
+
+    it('SLASH_LT is not in TOKEN_HIGHLIGHT_MAP', () => {
+      // AC-38: /< sigil token was removed and must not appear in the map
+      expect(TOKEN_HIGHLIGHT_MAP.has('SLASH_LT' as TokenType)).toBe(false);
+      expect(TOKEN_HIGHLIGHT_MAP.get('SLASH_LT' as TokenType)).toBeUndefined();
+    });
+  });
+
+  describe('AC-39: Every TOKEN_TYPES entry has a highlight map entry', () => {
+    it('no token type in TOKEN_TYPES is missing from TOKEN_HIGHLIGHT_MAP (except NEWLINE and EOF)', () => {
+      // AC-39: every token type must have a highlight entry or be intentionally excluded
+      const intentionallyExcluded: TokenType[] = ['NEWLINE', 'EOF'];
+      const allTokenTypes = Object.values(TOKEN_TYPES) as TokenType[];
+
+      const unmappedTokens = allTokenTypes.filter(
+        (tokenType) =>
+          !TOKEN_HIGHLIGHT_MAP.has(tokenType) &&
+          !intentionallyExcluded.includes(tokenType)
+      );
+
+      expect(
+        unmappedTokens,
+        `Tokens missing from TOKEN_HIGHLIGHT_MAP: ${unmappedTokens.join(', ')}`
+      ).toHaveLength(0);
     });
   });
 

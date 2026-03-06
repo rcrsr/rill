@@ -225,7 +225,7 @@ Extensions without `suspend` are excluded from state snapshots. Extensions witho
 Extensions follow this layout:
 
 ```
-packages/ext/my-extension/
+my-extension/
 ├── src/
 │   ├── index.ts        # Public exports
 │   ├── types.ts         # Type definitions
@@ -439,99 +439,8 @@ fn: async (args, ctx) => {
 },
 ```
 
-**Examples:** The [qdrant](extension-vectordb-qdrant.md), [pinecone](extension-vectordb-pinecone.md), and [chroma](extension-vectordb-chroma.md) extensions show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
+**Examples:** The qdrant, pinecone, and chroma extensions in [rill-ext](https://github.com/rcrsr/rill-ext) show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
 
-
-## AHI Extension (`@rcrsr/rill-agent-ext-ahi`)
-
-*Agent-to-agent Host Invocation (AHI) lets rill scripts call remote agents over HTTP.*
-
-Install the package:
-
-```typescript
-import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
-```
-
-The factory registers one `ahi::<name>` host function per configured agent. Scripts call remote agents the same way they call any host function.
-
-### Static URL Mode
-
-Use static URL mode when agent endpoints are known at build time:
-
-```typescript
-import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
-
-const ext = createAhiExtension({
-  agents: {
-    parser:     { url: 'http://parser-agent:8080' },
-    classifier: { url: '${CLASSIFIER_URL}' },
-  },
-  timeout: 10000,
-});
-```
-
-`agents` is a `Record<string, AhiAgentConfig>`. Each key becomes an `ahi::<name>` host function. `${VAR}` in a URL is substituted from `process.env` at factory init time. A missing environment variable throws synchronously.
-
-### Registry Mode
-
-Use registry mode when agent endpoints are resolved at boot from a central registry:
-
-```typescript
-import { createAhiExtension } from '@rcrsr/rill-agent-ext-ahi';
-
-const ext = createAhiExtension({
-  registry: 'http://registry:8080',
-  agents: ['parser', 'classifier'],
-  timeout: 10000,
-});
-```
-
-`agents` is a `string[]` and `registry` is required. At boot, the extension calls `GET /api/registry/{name}` for each agent and caches the endpoint and contract. If resolution fails at boot, the extension logs a warning and defers to the first call (lazy resolution). If the lazy resolve also fails, the call throws a runtime error.
-
-Passing `agents` as an array without `registry` throws synchronously at factory init time.
-
-### Configuration Reference
-
-```typescript
-interface AhiAgentConfig {
-  url: string;  // Resolved endpoint after env substitution
-}
-
-interface AhiExtensionConfig {
-  registry?: string;                                  // Registry base URL (required for registry mode)
-  agents: Record<string, AhiAgentConfig> | string[];  // Static URLs or symbolic names
-  timeout?: number;                                   // Default call timeout ms (default: 30000)
-}
-```
-
-### Calling AHI Functions in rill Scripts
-
-`ahi::<name>` accepts a rill dict as its argument:
-
-```text
-[document: "The quick brown fox", language: "en"] -> ahi::parser => $parsed
-$parsed.entities
-```
-
-The extension POSTs to `{agent.url}/run` with the dict as `params`. It forwards the `X-Correlation-ID` header from `ctx.metadata.correlationId` and returns the downstream `RunResponse.result`. `dispose()` cancels all in-flight requests.
-
-### Error Mapping
-
-| Downstream | Caller sees |
-|------------|-------------|
-| HTTP 400 | Runtime error with validation details |
-| HTTP 404 | Runtime error: agent unreachable |
-| HTTP 429 | Runtime error: rate limited |
-| HTTP 500 | Runtime error: downstream execution failed |
-| Timeout | Runtime error: timeout exceeded |
-| Network error | Runtime error: connection refused |
-
-### Init-Time Error Contracts
-
-| Condition | Behavior |
-|-----------|----------|
-| `agents` is array, `registry` absent | Throws synchronously at factory init |
-| `${MISSING_VAR}` in URL | Throws synchronously at factory init |
 
 ## API Reference
 

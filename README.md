@@ -2,6 +2,11 @@
   <img src="docs/assets/rill.png" alt="rill logo" width="280">
 </p>
 
+[![CI](https://github.com/rcrsr/rill/actions/workflows/pr-check.yml/badge.svg)](https://github.com/rcrsr/rill/actions/workflows/pr-check.yml)
+[![npm](https://img.shields.io/npm/v/@rcrsr/rill)](https://www.npmjs.com/package/@rcrsr/rill)
+[![Node](https://img.shields.io/node/v/@rcrsr/rill)](https://www.npmjs.com/package/@rcrsr/rill)
+[![License](https://img.shields.io/npm/l/@rcrsr/rill)](https://github.com/rcrsr/rill/blob/main/LICENSE)
+
 **[rill](https://rill.run)**: *Scripting designed for machine-generated code*
 
 > [!WARNING]
@@ -124,18 +129,16 @@ Switch providers by changing one line — `createAnthropicExtension` or `createG
 
 ## Extensions
 
-Core extensions ship with `@rcrsr/rill` (fs, fetch, exec, kv, crypto). External extensions are separate packages grouped by category:
+Core extensions ship with `@rcrsr/rill`: fs, fetch, exec, kv, crypto. Vendor extensions (LLM providers, vector databases, storage backends, MCP) live in [rill-ext](https://github.com/rcrsr/rill-ext).
 
-| Category | Packages | Shared functions |
-|----------|----------|-----------------|
-| LLM | `rill-ext-anthropic`, `rill-ext-openai`, `rill-ext-gemini` | `message`, `messages`, `embed`, `embed_batch`, `tool_loop` |
-| Vector DB | `rill-ext-qdrant`, `rill-ext-pinecone`, `rill-ext-chroma` | `upsert`, `search`, `get`, `delete`, batch + collection ops |
-| Storage | `rill-ext-kv-sqlite`, `rill-ext-kv-redis`, `rill-ext-fs-s3` | Backend-swappable kv and fs mounts |
-| Integration | `rill-ext-claude-code`, `rill-ext-mcp` | Provider-specific |
+See [Bundled Extensions](docs/bundled-extensions.md) for core extension docs and [Developing Extensions](docs/integration-extensions.md) to write your own.
 
-All packages are scoped under `@rcrsr/`. Extensions in the same category share function signatures — swap providers with no script changes.
+## Related Repositories
 
-See [Bundled Extensions](docs/bundled-extensions.md) for full documentation and [Developing Extensions](docs/integration-extensions.md) to write your own.
+| Repository | Description |
+|------------|-------------|
+| [rill-ext](https://github.com/rcrsr/rill-ext) | Vendor extensions — LLM providers, vector databases, storage backends, MCP |
+| [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework — harness, bundle, proxy, build, run CLIs |
 
 ## Language Overview
 

@@ -202,7 +202,7 @@ describe('VALIDATE_EXTERNAL', () => {
   });
 
   it('does not warn when already type-asserted (with property access)', () => {
-    const source = 'ccr::read_frontmatter($path, [status: ""]):dict.status';
+    const source = 'ccr::read_frontmatter($path, dict[status: ""]):dict.status';
 
     const violations = hasViolations(source, config);
     expect(violations).toBe(false);

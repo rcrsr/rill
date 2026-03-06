@@ -11,15 +11,19 @@ import type {
   DictEntryNode,
   DictKeyComputed,
   DictKeyVariable,
+  DictLiteralNode,
   DictNode,
   ExpressionNode,
   InterpolationNode,
+  ListLiteralNode,
   LiteralNode,
   ListSpreadNode,
   BodyNode,
+  OrderedLiteralNode,
   SourceLocation,
   StringLiteralNode,
-  TupleNode,
+  TupleLiteralNode,
+  TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { tokenize } from '../lexer/index.js';
@@ -31,12 +35,8 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import {
-  isDictStart,
-  FUNC_PARAM_TYPES,
-  parseTypeName,
-  isNegativeNumber,
-} from './helpers.js';
+import { isDictStart, isNegativeNumber } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -53,14 +53,21 @@ declare module './parser.js' {
       baseLocation: SourceLocation
     ): InterpolationNode;
     unescapeBraces(s: string): string;
-    parseTupleOrDict(): TupleNode | DictNode;
-    parseTuple(start: SourceLocation): TupleNode;
+    parseTuple(start: SourceLocation): ListLiteralNode;
+    parseTupleOrDict(): ListLiteralNode | DictNode;
     parseTupleElement(): ExpressionNode | ListSpreadNode;
     parseDict(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
     parseClosure(): ClosureNode;
     parseBody(): BodyNode;
     parseClosureParam(): ClosureParamNode;
+    parseCollectionLiteral(
+      collectionType: 'list' | 'dict' | 'tuple' | 'ordered'
+    ):
+      | ListLiteralNode
+      | DictLiteralNode
+      | TupleLiteralNode
+      | OrderedLiteralNode;
   }
 }
 
@@ -295,48 +302,10 @@ Parser.prototype.parseInterpolationExpr = function (
 // TUPLE & DICT PARSING
 // ============================================================
 
-Parser.prototype.parseTupleOrDict = function (
-  this: Parser
-): TupleNode | DictNode {
-  const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.LBRACKET, 'Expected [');
-  skipNewlines(this.state);
-
-  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-    advance(this.state);
-    return {
-      type: 'Tuple',
-      elements: [],
-      defaultValue: null,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  if (
-    check(this.state, TOKEN_TYPES.COLON) &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
-  ) {
-    advance(this.state);
-    advance(this.state);
-    return {
-      type: 'Dict',
-      entries: [],
-      defaultValue: null,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  if (isDictStart(this.state)) {
-    return this.parseDict(start);
-  }
-
-  return this.parseTuple(start);
-};
-
 Parser.prototype.parseTuple = function (
   this: Parser,
   start: SourceLocation
-): TupleNode {
+): ListLiteralNode {
   const elements: (ExpressionNode | ListSpreadNode)[] = [];
   elements.push(this.parseTupleElement());
   skipNewlines(this.state);
@@ -356,11 +325,51 @@ Parser.prototype.parseTuple = function (
     'RILL-P005'
   );
   return {
-    type: 'Tuple',
-    elements,
+    type: 'ListLiteral',
+    elements: elements as ExpressionNode[],
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
-  };
+  } satisfies ListLiteralNode;
+};
+
+Parser.prototype.parseTupleOrDict = function (
+  this: Parser
+): ListLiteralNode | DictNode {
+  const start = current(this.state).span.start;
+  expect(this.state, TOKEN_TYPES.LBRACKET, 'Expected [');
+  skipNewlines(this.state);
+
+  // [] → empty list
+  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+    const rbracket = advance(this.state);
+    return {
+      type: 'ListLiteral',
+      elements: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+
+  // [:] → empty dict
+  if (
+    check(this.state, TOKEN_TYPES.COLON) &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.RBRACKET
+  ) {
+    advance(this.state); // consume :
+    const rbracket = advance(this.state); // consume ]
+    return {
+      type: 'Dict',
+      entries: [],
+      defaultValue: null,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+
+  if (isDictStart(this.state)) {
+    return this.parseDict(start);
+  }
+
+  return this.parseTuple(start);
 };
 
 Parser.prototype.parseTupleElement = function (
@@ -370,6 +379,7 @@ Parser.prototype.parseTupleElement = function (
   if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
     const start = current(this.state).span.start;
     advance(this.state); // consume ELLIPSIS
+    skipNewlines(this.state);
 
     // ELLIPSIS must be followed by an expression
     if (
@@ -435,7 +445,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     | string
     | number
     | boolean
-    | TupleNode
+    | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
 
@@ -478,16 +488,33 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
       expression,
     };
   } else if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    // Parse list literal as key (tuple for multi-key)
-    const literal = this.parseTupleOrDict();
-    if (literal.type !== 'Tuple') {
-      throw new ParseError(
-        'RILL-P004',
-        'Dict entry key must be identifier or list, not dict',
-        literal.span.start
-      );
+    // Parse bare [a, b] or [] as multi-key
+    const tupleStart = current(this.state).span.start;
+    advance(this.state); // consume [
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      const rbracket = advance(this.state);
+      key = {
+        type: 'ListLiteral',
+        elements: [],
+        defaultValue: null,
+        span: makeSpan(tupleStart, rbracket.span.end),
+      } as ListLiteralNode;
+    } else {
+      key = this.parseTuple(tupleStart);
     }
+  } else if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    // Parse list[...] literal as multi-key: dict[list["a", "b"]: value]
+    advance(this.state); // consume list[
+    const literal = this.parseCollectionLiteral('list') as ListLiteralNode;
     key = literal;
+  } else if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
+    // dict[...] is not a valid key — reject with clear error
+    throw new ParseError(
+      'RILL-P004',
+      'Dict entry key must be identifier or list, not dict',
+      current(this.state).span.start
+    );
   } else if (check(this.state, TOKEN_TYPES.STRING)) {
     // Parse string literal as key
     const keyToken = advance(this.state);
@@ -537,40 +564,75 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
 // CLOSURE PARSING
 // ============================================================
 
+/**
+ * Parse the optional postfix `:type-target` after a closure body.
+ *
+ * Grammar: [ ":" , type-target ]
+ * type-target = shape(...) | type-ref
+ *
+ * Returns the parsed TypeRef or ShapeLiteralNode, or undefined if absent.
+ * Follows the same disambiguation logic as parsePostfixTypeOperation.
+ */
+function parseClosureReturnTypeTarget(parser: Parser): TypeRef | undefined {
+  skipNewlines(parser.state);
+  if (!check(parser.state, TOKEN_TYPES.COLON)) {
+    return undefined;
+  }
+  advance(parser.state); // consume ':'
+  skipNewlines(parser.state);
+
+  // Default: plain type name or dynamic type reference
+  return parseTypeRef(parser.state);
+}
+
 Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   const start = current(this.state).span.start;
 
   if (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
+    skipNewlines(this.state);
     const body = this.parseBody();
+    const returnTypeTarget = parseClosureReturnTypeTarget(this);
     return {
       type: 'Closure',
       params: [],
       body,
-      span: makeSpan(start, body.span.end),
+      returnTypeTarget,
+      span: makeSpan(
+        start,
+        returnTypeTarget ? current(this.state).span.end : body.span.end
+      ),
     };
   }
 
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+  skipNewlines(this.state);
 
   const params: ClosureParamNode[] = [];
   if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
     params.push(this.parseClosureParam());
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
+      skipNewlines(this.state);
       params.push(this.parseClosureParam());
     }
   }
 
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+  skipNewlines(this.state);
 
   const body = this.parseBody();
+  const returnTypeTarget = parseClosureReturnTypeTarget(this);
 
   return {
     type: 'Closure',
     params,
     body,
-    span: makeSpan(start, body.span.end),
+    returnTypeTarget,
+    span: makeSpan(
+      start,
+      returnTypeTarget ? current(this.state).span.end : body.span.end
+    ),
   };
 };
 
@@ -595,22 +657,10 @@ Parser.prototype.parseBody = function (this: Parser): BodyNode {
 
 Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   const start = current(this.state).span.start;
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected parameter name'
-  );
 
-  let typeName: 'string' | 'number' | 'bool' | null = null;
-  let defaultValue: LiteralNode | null = null;
   let annotations: AnnotationArg[] | undefined = undefined;
 
-  if (check(this.state, TOKEN_TYPES.COLON)) {
-    advance(this.state);
-    typeName = parseTypeName(this.state, FUNC_PARAM_TYPES);
-  }
-
-  // Parse parameter annotations (after type, before default)
+  // Parse parameter annotations before the name: ^(annots) name : type = default
   if (check(this.state, TOKEN_TYPES.CARET)) {
     advance(this.state); // consume ^
     expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
@@ -618,17 +668,263 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
   }
 
+  const nameToken = expect(
+    this.state,
+    TOKEN_TYPES.IDENTIFIER,
+    'Expected parameter name'
+  );
+
+  let typeRef: TypeRef | null = null;
+  let defaultValue: LiteralNode | null = null;
+
+  skipNewlines(this.state);
+  if (check(this.state, TOKEN_TYPES.COLON)) {
+    advance(this.state);
+    skipNewlines(this.state);
+    typeRef = parseTypeRef(this.state);
+  }
+
+  skipNewlines(this.state);
   if (check(this.state, TOKEN_TYPES.ASSIGN)) {
     advance(this.state);
+    skipNewlines(this.state);
     defaultValue = this.parseLiteral();
   }
 
   return {
     type: 'ClosureParam',
     name: nameToken.value,
-    typeName,
+    typeRef,
     defaultValue,
     annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
+};
+
+// ============================================================
+// KEYWORD-PREFIXED COLLECTION LITERAL PARSING
+// ============================================================
+
+/**
+ * Track seen keys for dict/ordered literals to enforce key uniqueness.
+ * Returns the string form of a key for comparison purposes.
+ */
+function keyToString(key: DictEntryNode['key']): string {
+  if (
+    typeof key === 'string' ||
+    typeof key === 'number' ||
+    typeof key === 'boolean'
+  ) {
+    return String(key);
+  }
+  if ('kind' in key && key.kind === 'variable') {
+    return `$${key.variableName}`;
+  }
+  if ('kind' in key && key.kind === 'computed') {
+    return '(computed)';
+  }
+  // TupleNode key — use type tag to avoid collisions; uniqueness not enforced for tuple keys
+  return '(tuple-key)';
+}
+
+/**
+ * Parse a keyword-prefixed collection literal.
+ *
+ * Called after consuming LIST_LBRACKET, DICT_LBRACKET, TUPLE_LBRACKET, or
+ * ORDERED_LBRACKET. The opening token is already consumed by the caller.
+ *
+ * Grammar (all variants close with `]`):
+ *   list[    expr ("," expr)*  [","]  "]"
+ *   tuple[   expr ("," expr)*  [","]  "]"
+ *   dict[    (key ":" expr) ("," key ":" expr)*  [","]  "]"
+ *   ordered[ (key ":" expr) ("," key ":" expr)*  [","]  "]"
+ *
+ * Spread (`...$x`) is valid inside all four variants.
+ */
+Parser.prototype.parseCollectionLiteral = function (
+  this: Parser,
+  collectionType: 'list' | 'dict' | 'tuple' | 'ordered'
+): ListLiteralNode | DictLiteralNode | TupleLiteralNode | OrderedLiteralNode {
+  const start = current(this.state).span.start;
+  skipNewlines(this.state);
+
+  const isValueOnly = collectionType === 'list' || collectionType === 'tuple';
+
+  if (isValueOnly) {
+    // list[ ... ] or tuple[ ... ]
+    const elements: ExpressionNode[] = [];
+
+    while (!check(this.state, TOKEN_TYPES.RBRACKET)) {
+      if (check(this.state, TOKEN_TYPES.EOF)) {
+        throw new ParseError(
+          'RILL-P005',
+          `expected ']' to close ${collectionType} literal`,
+          current(this.state).span.start
+        );
+      }
+
+      // Spread element: ...$other
+      if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+        const spreadStart = current(this.state).span.start;
+        advance(this.state); // consume ELLIPSIS
+        skipNewlines(this.state);
+        if (
+          check(this.state, TOKEN_TYPES.COMMA) ||
+          check(this.state, TOKEN_TYPES.RBRACKET) ||
+          check(this.state, TOKEN_TYPES.EOF)
+        ) {
+          throw new ParseError(
+            'RILL-P004',
+            "Expected expression after '...'",
+            current(this.state).span.start
+          );
+        }
+        const spreadExpr = this.parseExpression();
+        elements.push({
+          type: 'ListSpread',
+          expression: spreadExpr,
+          span: makeSpan(spreadStart, spreadExpr.span.end),
+        } as unknown as ExpressionNode);
+        skipNewlines(this.state);
+      } else {
+        // Check for key: value pair — not allowed in list/tuple
+        // Lookahead: IDENTIFIER COLON (or STRING COLON, etc.) → error
+        if (
+          (check(this.state, TOKEN_TYPES.IDENTIFIER) ||
+            check(this.state, TOKEN_TYPES.STRING) ||
+            check(this.state, TOKEN_TYPES.NUMBER)) &&
+          this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.COLON
+        ) {
+          throw new ParseError(
+            'RILL-P004',
+            `unexpected key-value pair in ${collectionType} literal`,
+            current(this.state).span.start
+          );
+        }
+
+        elements.push(this.parseExpression());
+        skipNewlines(this.state);
+      }
+
+      if (check(this.state, TOKEN_TYPES.COMMA)) {
+        advance(this.state);
+        skipNewlines(this.state);
+      } else {
+        break;
+      }
+    }
+
+    const rbracket = expect(
+      this.state,
+      TOKEN_TYPES.RBRACKET,
+      `expected ']' to close ${collectionType} literal`,
+      'RILL-P005'
+    );
+
+    const span = makeSpan(start, rbracket.span.end);
+
+    if (collectionType === 'list') {
+      return {
+        type: 'ListLiteral',
+        elements,
+        defaultValue: null,
+        span,
+      } satisfies ListLiteralNode;
+    }
+    return { type: 'TupleLiteral', elements, span } satisfies TupleLiteralNode;
+  }
+
+  // dict[ ... ] or ordered[ ... ]
+  const entries: DictEntryNode[] = [];
+  const seenKeys = new Set<string>();
+
+  while (!check(this.state, TOKEN_TYPES.RBRACKET)) {
+    if (check(this.state, TOKEN_TYPES.EOF)) {
+      throw new ParseError(
+        'RILL-P005',
+        `expected ']' to close ${collectionType} literal`,
+        current(this.state).span.start
+      );
+    }
+
+    // Spread entry: ...$other
+    if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+      const spreadStart = current(this.state).span.start;
+      advance(this.state); // consume ELLIPSIS
+      skipNewlines(this.state);
+      if (
+        check(this.state, TOKEN_TYPES.COMMA) ||
+        check(this.state, TOKEN_TYPES.RBRACKET) ||
+        check(this.state, TOKEN_TYPES.EOF)
+      ) {
+        throw new ParseError(
+          'RILL-P004',
+          "Expected expression after '...'",
+          current(this.state).span.start
+        );
+      }
+      const spreadExpr = this.parseExpression();
+      entries.push({
+        type: 'DictEntry',
+        key: '...',
+        value: spreadExpr,
+        span: makeSpan(spreadStart, spreadExpr.span.end),
+      } as unknown as DictEntryNode);
+      skipNewlines(this.state);
+    } else {
+      // Require key: value pair
+      const entryStart = current(this.state).span.start;
+
+      // Detect missing key (e.g. dict[1] without colon after)
+      // LIST_LBRACKET and LBRACKET keys are multi-token, skip this check for them
+      if (
+        this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.COLON &&
+        !check(this.state, TOKEN_TYPES.DOLLAR) &&
+        !check(this.state, TOKEN_TYPES.LPAREN) &&
+        !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
+        !check(this.state, TOKEN_TYPES.LBRACKET) &&
+        !check(this.state, TOKEN_TYPES.DICT_LBRACKET)
+      ) {
+        throw new ParseError(
+          'RILL-P004',
+          `expected 'key: value' pair in ${collectionType} literal`,
+          entryStart
+        );
+      }
+
+      const entry = this.parseDictEntry();
+      const keyStr = keyToString(entry.key);
+      if (seenKeys.has(keyStr)) {
+        throw new ParseError(
+          'RILL-P004',
+          `duplicate key '${keyStr}' in ${collectionType} literal`,
+          entryStart
+        );
+      }
+      seenKeys.add(keyStr);
+      entries.push(entry);
+      skipNewlines(this.state);
+    }
+
+    if (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      skipNewlines(this.state);
+    } else {
+      break;
+    }
+  }
+
+  const rbracket = expect(
+    this.state,
+    TOKEN_TYPES.RBRACKET,
+    `expected ']' to close ${collectionType} literal`,
+    'RILL-P005'
+  );
+
+  const span = makeSpan(start, rbracket.span.end);
+
+  if (collectionType === 'dict') {
+    return { type: 'DictLiteral', entries, span } satisfies DictLiteralNode;
+  }
+  return { type: 'OrderedLiteral', entries, span } satisfies OrderedLiteralNode;
 };

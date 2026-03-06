@@ -173,13 +173,13 @@ describe('Rill Runtime: Arithmetic', () => {
   describe('In Loops', () => {
     it('uses arithmetic in loop', async () => {
       // For loop returns array of results
-      expect(await run('[1, 2, 3] -> each { ($ * 2) }')).toEqual([2, 4, 6]);
+      expect(await run('list[1, 2, 3] -> each { ($ * 2) }')).toEqual([2, 4, 6]);
     });
 
     it('captures last element from loop', async () => {
       // Use while loop to get last value
       expect(
-        await run('[1, 2, 3] -> each { ($ * 2) } => $result\n$result')
+        await run('list[1, 2, 3] -> each { ($ * 2) } => $result\n$result')
       ).toEqual([2, 4, 6]);
     });
   });

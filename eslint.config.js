@@ -86,7 +86,7 @@ export default [
       'src/**/*.ts', // When run from packages/fiddle
       'src/**/*.tsx', // When run from packages/fiddle
     ],
-    ignores: ['packages/core/**', 'packages/cli/**', 'packages/ext/**'],
+    ignores: ['packages/core/**', 'packages/cli/**'],
     languageOptions: {
       globals: {
         ...globals.browser,

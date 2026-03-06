@@ -10,9 +10,13 @@
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
  * - evaluateTypeAssertionPrimary(node) -> Promise<RillValue>
  * - evaluateTypeCheckPrimary(node) -> Promise<boolean>
+ * - evaluateTypeConstructor(node) -> Promise<RillTypeValue> [IR-7]
+ * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue> [IR-8]
  *
  * Error Handling:
  * - Type assertion failures throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-24]
+ * - Type constructor argument errors throw RuntimeError [EC-4 through EC-7]
+ * - Closure sig literal errors throw RuntimeError [EC-8, EC-9]
  *
  * @internal
  */
@@ -20,12 +24,20 @@
 import type {
   TypeAssertionNode,
   TypeCheckNode,
+  TypeConstructorNode,
+  ClosureSigLiteralNode,
   RillTypeName,
   SourceLocation,
+  TypeRef,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { inferType, checkType } from '../../values.js';
+import type {
+  RillValue,
+  RillTypeValue,
+  RillStructuralType,
+} from '../../values.js';
+import { inferType, checkType, isTypeValue } from '../../values.js';
+import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -39,6 +51,7 @@ import type { EvaluatorBase } from '../base.js';
  * Depends on:
  * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
  * - evaluatePostfixExpr() (from future CoreMixin composition)
+ * - evaluateExpression() (from CoreMixin, for type constructor arg evaluation)
  *
  * Methods added:
  * - assertType(value, expected, location?) -> RillValue
@@ -46,9 +59,49 @@ import type { EvaluatorBase } from '../base.js';
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
  * - evaluateTypeAssertionPrimary(node) -> Promise<RillValue>
  * - evaluateTypeCheckPrimary(node) -> Promise<boolean>
+ * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
+ * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue>
  */
 function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class TypesEvaluator extends Base {
+    /**
+     * Resolve a TypeRef to a RillTypeValue [IR-12].
+     *
+     * Static refs return a frozen RillTypeValue directly.
+     * Dynamic refs call getVariable, then dispatch on the result:
+     * - RillTypeValue → return as-is
+     * - Otherwise → throw RILL-R004
+     *
+     * EC-1: Variable not found → undefined from getVariable → RILL-R005.
+     * EC-2/EC-3: Non-type value → RILL-R004.
+     */
+    resolveTypeRef(
+      typeRef: TypeRef,
+      getVariable: (name: string) => RillValue | undefined
+    ): RillTypeValue {
+      if (typeRef.kind === 'static') {
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: typeRef.typeName,
+          structure: { kind: 'primitive' as const, name: typeRef.typeName },
+        });
+      }
+
+      const result = getVariable(typeRef.varName);
+      if (result === undefined) {
+        throw new RuntimeError(
+          'RILL-R005',
+          `Variable $${typeRef.varName} is not defined`
+        );
+      }
+      if (isTypeValue(result)) return result;
+
+      throw new RuntimeError(
+        'RILL-R004',
+        `Variable $${typeRef.varName} is not a valid type reference (got ${inferType(result)})`
+      );
+    }
+
     /**
      * Assert that a value is of the expected type.
      * Returns the value unchanged if assertion passes, throws on mismatch.
@@ -59,6 +112,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       expected: RillTypeName,
       location?: SourceLocation
     ): RillValue {
+      if (expected === 'any') return value;
       const actual = inferType(value);
       if (actual !== expected) {
         throw new RuntimeError(
@@ -86,7 +140,10 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           await (this as any).evaluatePostfixExpr(node.operand)
         : input;
 
-      return this.assertType(value, node.typeName, node.span.start);
+      const resolved = this.resolveTypeRef(node.typeRef, (name) =>
+        getVariable(this.ctx, name)
+      );
+      return this.assertType(value, resolved.typeName, node.span.start);
     }
 
     /**
@@ -104,7 +161,10 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           await (this as any).evaluatePostfixExpr(node.operand)
         : input;
 
-      return checkType(value, node.typeName);
+      const resolved = this.resolveTypeRef(node.typeRef, (name) =>
+        getVariable(this.ctx, name)
+      );
+      return checkType(value, resolved.typeName);
     }
 
     /**
@@ -141,6 +201,226 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const value = await (this as any).evaluatePostfixExpr(node.operand);
       return this.evaluateTypeCheck(node, value);
+    }
+
+    /**
+     * Evaluate a type constructor node into a RillTypeValue [IR-7].
+     *
+     * Handles list(T), dict(k: T, ...), tuple(T1, T2, ...), ordered(k: T, ...).
+     * All arguments must evaluate to RillTypeValue.
+     *
+     * Error contracts:
+     * - EC-4: list() with != 1 arg -> RILL-R004
+     * - EC-5: non-type argument -> RILL-R004
+     * - EC-6: positional arg in dict/ordered -> RILL-R004
+     * - EC-7: named arg in tuple -> RILL-R004
+     */
+    async evaluateTypeConstructor(
+      node: TypeConstructorNode
+    ): Promise<RillTypeValue> {
+      const name = node.constructorName;
+      const location = node.span.start;
+
+      // Helper: evaluate one arg expression and assert it is a RillTypeValue
+      const resolveArgAsType = async (
+        argValue: RillValue
+      ): Promise<RillStructuralType> => {
+        if (!isTypeValue(argValue)) {
+          throw new RuntimeError(
+            'RILL-R004',
+            `Type constructor argument must be a type value, got ${inferType(argValue)}`,
+            location
+          );
+        }
+        return argValue.structure.kind === 'any' &&
+          argValue.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: argValue.typeName }
+          : argValue.structure;
+      };
+
+      if (name === 'list') {
+        // EC-4: list() requires exactly 1 argument
+        if (node.args.length !== 1) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'list() requires exactly 1 type argument',
+            location
+          );
+        }
+        const arg = node.args[0]!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const argVal: RillValue = await (this as any).evaluateExpression(
+          arg.value
+        );
+        const elementType = await resolveArgAsType(argVal);
+        const structure: RillStructuralType = {
+          kind: 'list',
+          element: elementType,
+        };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'list' as RillTypeName,
+          structure,
+        });
+      }
+
+      if (name === 'dict') {
+        // EC-6: dict() requires named arguments
+        for (const arg of node.args) {
+          if (arg.kind === 'positional') {
+            throw new RuntimeError(
+              'RILL-R004',
+              'dict() requires named arguments (field: type)',
+              location
+            );
+          }
+        }
+        const fields: Record<string, RillStructuralType> = {};
+        for (const arg of node.args) {
+          if (arg.kind === 'named') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const argVal: RillValue = await (this as any).evaluateExpression(
+              arg.value
+            );
+            fields[arg.name] = await resolveArgAsType(argVal);
+          }
+        }
+        const structure: RillStructuralType = { kind: 'dict', fields };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'dict' as RillTypeName,
+          structure,
+        });
+      }
+
+      if (name === 'tuple') {
+        // EC-7: tuple() requires positional arguments
+        for (const arg of node.args) {
+          if (arg.kind === 'named') {
+            throw new RuntimeError(
+              'RILL-R004',
+              'tuple() requires positional arguments',
+              location
+            );
+          }
+        }
+        const elements: RillStructuralType[] = [];
+        for (const arg of node.args) {
+          if (arg.kind === 'positional') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const argVal: RillValue = await (this as any).evaluateExpression(
+              arg.value
+            );
+            elements.push(await resolveArgAsType(argVal));
+          }
+        }
+        const structure: RillStructuralType = { kind: 'tuple', elements };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'tuple' as RillTypeName,
+          structure,
+        });
+      }
+
+      // name === 'ordered'
+      // EC-6: ordered() requires named arguments
+      for (const arg of node.args) {
+        if (arg.kind === 'positional') {
+          throw new RuntimeError(
+            'RILL-R004',
+            'ordered() requires named arguments (field: type)',
+            location
+          );
+        }
+      }
+      const orderedFields: [string, RillStructuralType][] = [];
+      for (const arg of node.args) {
+        if (arg.kind === 'named') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const argVal: RillValue = await (this as any).evaluateExpression(
+            arg.value
+          );
+          orderedFields.push([arg.name, await resolveArgAsType(argVal)]);
+        }
+      }
+      const structure: RillStructuralType = {
+        kind: 'ordered',
+        fields: orderedFields,
+      };
+      return Object.freeze({
+        __rill_type: true as const,
+        typeName: 'ordered' as RillTypeName,
+        structure,
+      });
+    }
+
+    /**
+     * Evaluate a closure signature literal into a RillTypeValue [IR-8].
+     *
+     * Creates a closure type value from |param: T, ...|: R syntax.
+     * Each parameter produces a [name, RillStructuralType] entry.
+     *
+     * Error contracts:
+     * - EC-8: missing return type -> RILL-R004 (enforced at parse time; node always has returnType)
+     * - EC-9: non-type in parameter position -> RILL-R004
+     */
+    async evaluateClosureSigLiteral(
+      node: ClosureSigLiteralNode
+    ): Promise<RillTypeValue> {
+      const location = node.span.start;
+
+      // Helper: evaluate a type expression and extract RillStructuralType
+      const resolveTypeExpr = async (
+        argVal: RillValue
+      ): Promise<RillStructuralType> => {
+        if (!isTypeValue(argVal)) {
+          throw new RuntimeError(
+            'RILL-R004',
+            `Parameter type must be a type value, got ${inferType(argVal)}`,
+            location
+          );
+        }
+        return argVal.structure.kind === 'any' &&
+          argVal.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: argVal.typeName }
+          : argVal.structure;
+      };
+
+      // Evaluate parameter types
+      const params: [string, RillStructuralType][] = [];
+      for (const param of node.params) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const paramVal: RillValue = await (this as any).evaluateExpression(
+          param.typeExpr
+        );
+        const paramType = await resolveTypeExpr(paramVal);
+        params.push([param.name, paramType]);
+      }
+
+      // Evaluate return type (EC-8: required — parser enforces this at parse time)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retVal: RillValue = await (this as any).evaluateExpression(
+        node.returnType
+      );
+      if (!isTypeValue(retVal)) {
+        throw new RuntimeError(
+          'RILL-R004',
+          `Closure type literal requires return type after |, got ${inferType(retVal)}`,
+          location
+        );
+      }
+      const ret: RillStructuralType =
+        retVal.structure.kind === 'any' &&
+        retVal.typeName !== ('any' as RillTypeName)
+          ? { kind: 'primitive', name: retVal.typeName }
+          : retVal.structure;
+
+      const structure: RillStructuralType = { kind: 'closure', params, ret };
+      return Object.freeze({
+        __rill_type: true as const,
+        typeName: 'closure' as RillTypeName,
+        structure,
+      });
     }
   };
 }

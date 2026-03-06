@@ -237,16 +237,16 @@ Map multiple inputs to the same handler:
 Combine dispatch with `??` for fallback behavior:
 
 ```rill
-[
+dict[
   success: |r|{ "Completed: {$r.data}" },
-  error: |r|{ "Failed: {$r.message}" },
+  failure: |r|{ "Failed: {$r.message}" },
   pending: |r|{ "Waiting..." }
 ] => $handlers
 
-[status: "unknown", data: "test"] => $response
+dict[status: "unknown", data: "test"] => $req
 
-$response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
--> |handler|{ $handler($response) }
+$req.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
+-> |handler|{ $handler($req) }
 # Result: "Unknown status: unknown"
 ```
 
@@ -306,12 +306,8 @@ Remove duplicates while preserving order:
 ["a", "b", "a", "c", "b", "d", "a"] => $items
 
 $items -> fold([seen: [], result: []]) {
-  $@.seen -> .has($) ? $@ ! {
-    [
-      seen: [...$@.seen, $],
-      result: [...$@.result, $]
-    ]
-  }
+  $ => $item
+  $@.seen -> .has($item) ? [seen: $@.seen, result: $@.result] ! dict[seen: [...$@.seen, $item], result: list[...$@.result, $item]]
 } -> .result
 # Result: ["a", "b", "c", "d"]
 ```
@@ -341,7 +337,7 @@ Retry an operation with exponential backoff:
 ```rill
 # Simulate flaky operation (host would provide real implementation)
 |attempt|{
-  ($attempt < 3) ? [ok: false, err: "Network error"] ! [ok: true, data: "Success"]
+  ($attempt < 3) ? [ok: false, err: "Network error"] ! dict[ok: true, data: "Success"]
 } => $operation
 
 # Retry loop with backoff
@@ -367,12 +363,12 @@ Process steps that can fail at any point:
 
 |input|{
   $input -> .len => $len
-  ($len < 3) ? [ok: false, err: "Too short"] ! [ok: true, value: $input -> .upper]
+  ($len < 3) ? [ok: false, err: "Too short"] ! dict[ok: true, value: $input -> .upper]
 } => $step2
 
 |input|{
   $input -> .contains("HELLO") => $hasHello
-  $hasHello ? [ok: true, value: $input] ! [ok: false, err: "Must contain HELLO"]
+  $hasHello ? [ok: true, value: $input] ! dict[ok: false, err: "Must contain HELLO"]
 } => $step3
 
 # Chain steps with early exit
@@ -398,11 +394,11 @@ Flatten arbitrarily nested lists:
 
 ```rill
 # For known depth, chain operations
-[[1, 2], [3, [4, 5]], [6]] => $nested
+[list[1, 2], list[3, 4], list[5, 6]] => $nested
 
 # Flatten one level
 $nested -> fold([]) { [...$@, ...$] }
-# Result: [1, 2, 3, [4, 5], 6]
+# Result: [1, 2, 3, 4, 5, 6]
 ```
 
 ### Transpose Matrix
@@ -419,21 +415,21 @@ Convert rows to columns:
 range(0, $matrix[0] -> .len) -> map |col|{
   $matrix -> map |row|{ $row[$col] }
 }
-# Result: [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
+# Result: [list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
 ```
 
 ### Zip Lists
 
-Combine parallel lists into tuples:
+Combine parallel lists into dicts:
 
 ```rill
 ["a", "b", "c"] => $zipKeys
 [1, 2, 3] => $zipValues
 
 range(0, $zipKeys -> .len) -> map |i|{
-  [$zipKeys[$i], $zipValues[$i]]
+  [key: $zipKeys[$i], value: $zipValues[$i]]
 }
-# Result: [["a", 1], ["b", 2], ["c", 3]]
+# Result: [[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
 ```
 
 Converting to a dict requires dict spread (not yet implemented):
@@ -473,8 +469,8 @@ Extract structured data from formatted text:
 
 $input
   -> .split(";")
-  -> fold([]) {
-    $ -> .split("=") -> *<$key, $value>
+  -> fold([:]) {
+    $ -> .split("=") -> destruct<$key, $value>
     [...$@, ($key): $value]
   }
 # Result: [name: "Alice", age: "30", city: "Seattle"]
@@ -523,7 +519,7 @@ $angle("html")    # "<html>"
 
 Cache expensive computations:
 
-```rill
+```text
 # Build cache alongside computation
 |n, cache|{
   $cache.?($n -> .str) ? $cache.($n -> .str) ! {

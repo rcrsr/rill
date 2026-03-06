@@ -3,8 +3,8 @@
  * Common formatting functions for CLI tools
  */
 
-import { isCallable, isRillIterator, VERSION } from '@rcrsr/rill';
-import type { RillValue } from '@rcrsr/rill';
+import { VERSION } from '@rcrsr/rill';
+import type { NativeValue } from '@rcrsr/rill';
 import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
 import { enrichError, type ScopeInfo } from './cli-error-enrichment.js';
@@ -12,23 +12,6 @@ import {
   formatError as formatEnrichedError,
   type FormatOptions,
 } from './cli-error-formatter.js';
-
-/**
- * Convert execution result to human-readable string
- *
- * @param value - The value to format
- * @returns Formatted string representation
- */
-export function formatOutput(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (isCallable(value)) return '[closure]';
-  if (isRillIterator(value)) return '[iterator]';
-  return JSON.stringify(value, null, 2);
-}
 
 /**
  * Format error for stderr output
@@ -122,7 +105,7 @@ export function formatError(
  * @param value - The script return value
  * @returns Exit code and optional message
  */
-export function determineExitCode(value: RillValue): {
+export function determineExitCode(value: NativeValue | null): {
   code: number;
   message?: string;
 } {

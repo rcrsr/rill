@@ -24,19 +24,19 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('returns true for empty tuple', async () => {
-      expect(await run('[] -> .empty')).toBe(true);
+      expect(await run('list[] -> .empty')).toBe(true);
     });
 
     it('returns false for non-empty tuple', async () => {
-      expect(await run('[1] -> .empty')).toBe(false);
+      expect(await run('list[1] -> .empty')).toBe(false);
     });
 
     it('returns true for empty dict', async () => {
-      expect(await run('[:] -> .empty')).toBe(true);
+      expect(await run('dict[] -> .empty')).toBe(true);
     });
 
     it('returns false for non-empty dict', async () => {
-      expect(await run('[a: 1] -> .empty')).toBe(false);
+      expect(await run('dict[a: 1] -> .empty')).toBe(false);
     });
   });
 
@@ -78,13 +78,13 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('logs numbers', async () => {
       const { logs, callbacks } = createLogCollector();
       await run('42 -> log', { callbacks });
-      expect(logs).toEqual([42]);
+      expect(logs).toEqual(['42']);
     });
 
     it('logs tuples', async () => {
       const { logs, callbacks } = createLogCollector();
-      await run('[1, 2, 3] -> log', { callbacks });
-      expect(logs).toEqual([[1, 2, 3]]);
+      await run('list[1, 2, 3] -> log', { callbacks });
+      expect(logs).toEqual(['list[1, 2, 3]']);
     });
   });
 

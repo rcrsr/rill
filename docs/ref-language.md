@@ -35,8 +35,9 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Logical | `!` (unary), `&&`, `\|\|` |
 | Pipe | `->` |
 | Capture | `=>` |
-| Spread | `@` (sequential), `*` (tuple) |
-| Extraction | `*<>` (destructure), `/<>` (slice) |
+| Spread | `...` (list/tuple spread), `ordered[...]` spread |
+| Extraction | `destruct<>` (destructure), `slice<>` (slice) |
+| Conversion | `:>type` (convert type) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
@@ -79,11 +80,17 @@ See [Collections](topic-collections.md) for detailed documentation.
 | String | `"text"`, `"""text"""` | `"hello"`, `"""line 1\nline 2"""` | String value |
 | Number | `123`, `0.5` | `42`, `0.9` | Number value |
 | Bool | `true`, `false` | `true` | Boolean value |
-| List | `[a, b]`, `[...$list]` | `["file.ts", 42]`, `[...$a, 3]` | List value |
-| Dict | `[k: v]`, `[$k: v]`, `[($e): v]` | `[output: "text"]`, `[$key: 1]` | Dict value |
-| Tuple | `*[...]` | `*[1, 2]`, `*[x: 1, y: 2]` | Tuple value |
+| List | `[a, b]` or `list[a, b]` (canonical) | `list["file.ts", 42]`, `list[...$a, 3]` | List value |
+| Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
+| Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
+| Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
+| Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
+
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+
+> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical — they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
 See [Types](topic-types.md) for detailed documentation.
 
@@ -92,11 +99,17 @@ See [Types](topic-types.md) for detailed documentation.
 | Syntax | Description |
 |--------|-------------|
 | `\|p: type\|{ } => $fn` | Define and capture function |
+| `\|p: type\| { }:rtype` | Define closure with enforced return type assertion |
 | `\|p = default\|{ }` | Parameter with default |
-| `\|p ^(min: 0)\|{ }` | Parameter with annotation |
+| `\|^(min: 0) p\|{ }` | Parameter with annotation |
 | `$fn(arg)` | Call function directly |
-| `arg -> $fn()` | Call function with pipe value |
+| `arg -> $fn()` | Call with pipe value as single arg |
+| `arg -> $fn(...)` | Spread pipe value into call arguments |
+| `$fn(...$expr)` | Spread a variable into call arguments |
+| `$fn(a, ...$rest)` | Mix fixed args with a spread |
 | `arg -> $fn` | Pipe-style invoke |
+
+Spreading is opt-in via `...` or `...$expr`. Passing a tuple or ordered value without `...` passes it as a single argument. The implicit auto-spread behavior has been removed. At most one spread is permitted per call.
 
 See [Closures](topic-closures.md) for detailed documentation.
 
@@ -140,6 +153,50 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
+### Type Constructors
+
+Type constructors are primary expressions that produce structural type values. They describe the internal structure of a collection type.
+
+| Constructor | Syntax | Example |
+|-------------|--------|---------|
+| List type | `list(T)` | `list(number)`, `list(list(string))` |
+| Dict type | `dict(k: T, ...)` | `dict(a: number, b: string)` |
+| Tuple type | `tuple(T, T2, ...)` | `tuple(number, string, bool)` |
+| Ordered type | `ordered(k: T, ...)` | `ordered(a: number, b: string)` |
+| Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
+
+`^type` returns a structural type value — not a coarse string:
+
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+```rill
+[a: 1, b: "hello"] => $d
+$d.^type.name
+# Result: "dict"
+```
+
+Type constructors appear as values and can be compared:
+
+```rill
+[1, 2, 3] => $list
+$list.^type == list(number)
+# Result: true
+```
+
+`.^type.name` returns the coarse type name string:
+
+```rill
+[1, 2, 3] => $list
+$list.^type.name
+# Result: "list"
+```
+
+See [Types](topic-types.md) for detailed structural type documentation.
+
 ### Dispatch
 
 Pipe a value to a collection (dict or list) to retrieve the corresponding element.
@@ -155,7 +212,7 @@ Pipe a value to a collection (dict or list) to retrieve the corresponding elemen
 ```text
 $value -> [apple: "fruit", carrot: "vegetable"]  # Returns "fruit" if $value is "apple"
 $value -> [apple: "fruit"] ?? "not found"        # Returns "not found" if no match
-$method -> [["GET", "HEAD"]: "safe", ["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
+$method -> [["GET", "HEAD"]: "safe", list["POST", "PUT"]: "unsafe"]  # Multi-key dispatch
 ```
 
 **Type-Aware Dispatch:** Keys match by both value and type.
@@ -186,10 +243,10 @@ Path element types: string keys for dict lookup, number indexes for list access 
 Terminal closures receive `$` bound to the final path key.
 
 ```text
-["name", "first"] -> [name: [first: "Alice"]]              # "Alice" (dict path)
-[0, 1] -> [[1, 2, 3], [4, 5, 6]]                           # 2 (list path)
-["users", 0, "name"] -> [users: [[name: "Alice"]]]         # "Alice" (mixed path)
-["req", "draft"] -> [req: [draft: { "key={$}" }]]          # "key=draft" (terminal closure)
+["name", "first"] -> [name: dict[first: "Alice"]]              # "Alice" (dict path)
+[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
+["users", 0, "name"] -> [users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
+["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
 ```
 
 **List Dispatch:** Index into a list using a number.
@@ -211,7 +268,9 @@ Terminal closures receive `$` bound to the final path key.
 ```rill
 [apple: "fruit", carrot: "vegetable"] => $lookup
 "apple" -> $lookup                    # "fruit"
+```
 
+```rill
 ["a", "b", "c"] => $items
 1 -> $items                           # "b"
 ```
@@ -270,6 +329,8 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
 | `enumerate(collection)` | Add index to elements |
+| `chain($fn)` | Apply single closure sequentially |
+| `chain([$f, $g])` | Apply list of closures sequentially |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 
@@ -283,33 +344,33 @@ When constructs appear without explicit input, `$` is used implicitly:
 |---------|---------------|
 | `? { }` | `$ -> ? { }` |
 | `.method()` | `$ -> .method()` |
-| `$fn()` | `$fn($)` (when no args, no default) |
+| `$fn()` | Passes `$` as a single argument (no auto-spread) |
 
 ---
 
 ## Extraction Operators
 
-### Destructure `*<>`
+### Destructure `destruct<>`
 
 Extract elements from lists or dicts into variables:
 
 ```rill
-[1, 2, 3] -> *<$a, $b, $c>
+[1, 2, 3] -> destruct<$a, $b, $c>
 # $a = 1, $b = 2, $c = 3
 
-[name: "test", count: 42] -> *<name: $n, count: $c>
+[name: "test", count: 42] -> destruct<name: $n, count: $c>
 # $n = "test", $c = 42
 ```
 
-### Slice `/<>`
+### Slice `slice<>`
 
 Extract portions using Python-style `start:stop:step`:
 
 ```rill
-[0, 1, 2, 3, 4] -> /<0:3>        # [0, 1, 2]
-[0, 1, 2, 3, 4] -> /<-2:>        # [3, 4]
-[0, 1, 2, 3, 4] -> /<::-1>       # [4, 3, 2, 1, 0]
-"hello" -> /<1:4>                # "ell"
+[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
+[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4]
+[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0]
+"hello" -> slice<1:4>                    # "ell"
 ```
 
 See [Operators](topic-operators.md) for detailed extraction operator documentation.
@@ -318,19 +379,59 @@ See [Operators](topic-operators.md) for detailed extraction operator documentati
 
 ## Annotation Reflection
 
-Access annotation values on closures using `.^key` syntax.
+Access annotation values using `.^key` syntax. Annotations attach to closures. The key `type` is special-cased and works on any value — it returns the structural type.
 
-**Type Restriction:** Annotations attach to closures only. Accessing `.^key` on primitives (string, number, boolean, list, dict) throws `RUNTIME_TYPE_ERROR`.
+### `.^key` Dispatch Table
+
+| Value | Key | Result |
+|-------|-----|--------|
+| Any value | `type` | Structural type value via `.^type` |
+| Type value | `name` | Type name string |
+| Closure | any other key | Closure annotation value |
+| Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
 ```rill
 ^(min: 0, max: 100) |x|($x) => $fn
 
 $fn.^min     # 0
 $fn.^max     # 100
-$fn.^missing # Error: RUNTIME_UNDEFINED_ANNOTATION
 ```
 
-Annotations are metadata attached to closures during creation. They enable runtime configuration and introspection.
+Annotations are metadata attached at definition time. They enable runtime configuration and introspection.
+
+**Scope rule:** Annotations apply only to the closure directly targeted by `^(...)`. A closure nested inside an annotated statement does not inherit the annotation.
+
+```rill
+# Direct annotation: works
+^(version: 2) |x|($x) => $fn
+$fn.^version    # 2
+```
+
+```text
+# Nested closure does NOT inherit outer annotation
+^(version: 2)
+"" -> {
+  |x|($x) => $fn
+}
+$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+```
+
+### Description Shorthand
+
+A bare string in `^(...)` expands to `description: <string>`:
+
+```rill
+^("Validates user input") |input|($input) => $validate
+$validate.^description    # "Validates user input"
+```
+
+Mix the shorthand with explicit keys:
+
+```rill
+^("Fetch user profile", cache: true) |id|($id) => $get_user
+$get_user.^description    # "Fetch user profile"
+$get_user.^cache          # true
+```
 
 ### Common Use Cases
 
@@ -377,25 +478,47 @@ Use default value operator for optional annotations:
 $fn.^timeout ?? 30  # 30 (uses default since annotation missing)
 ```
 
-Accessing `.^key` on non-closure values throws `RUNTIME_TYPE_ERROR`:
+Accessing `.^key` with a non-`type` key on primitives, lists, or dicts throws `RUNTIME_TYPE_ERROR`. Use `.^type` first to get a type value, then access `.name` on the result:
 
 ```text
 "hello" => $str
 $str.^key        # Error: Cannot access annotation on string
 ```
 
+### Reserved Annotation Keys
+
+The parser rejects annotation keys that conflict with built-in dispatch semantics.
+
+| Key | Status | Reason |
+|-----|--------|--------|
+| `type` | Reserved | Intercepted at evaluation time for any value |
+| `input` | Reserved | Reserved for future Closure Shapes feature |
+| `output` | Reserved | Reserved for future Closure Shapes feature |
+| `description` | User-defined | Not reserved; common metadata key |
+| `enum` | User-defined | Not reserved; common metadata key |
+| `default` | User-defined | Not reserved; common metadata key |
+
+```text
+^(type: "custom") name: string   # Error: annotation key "type" is reserved
+^(input: "text") name: string    # Error: annotation key "input" is reserved
+^(output: "text") name: string   # Error: annotation key "output" is reserved
+```
+
+The `name` key is intercepted on type values (`.^type.name` returns the type name string) but is not reserved — user annotations may use `name` on closures without restriction.
+
 ### Parameter Annotations
 
 Parameters can have their own annotations using `^(key: value)` syntax. These attach metadata to individual parameters.
 
-**Syntax:** `|paramName ^(annotation: value)| body`
+**Syntax:** `|^(annotation: value) paramName| body`
 
-**Order:** Parameter annotations appear after the type annotation (if present) and before the default value (if present).
+**Order:** Parameter annotations appear before the parameter name, before the type annotation (if present) and default value (if present).
 
 ```rill
-|x: number ^(min: 0, max: 100)|($x) => $validate
-|name: string ^(required: true) = "guest"|($name) => $greet
-|count ^(cache: true) = 0|($count) => $process
+|^(min: 0, max: 100) x: number|($x) => $validate
+|^(required: true) name: string = "guest"|($name) => $greet
+|^(cache: true) count = 0|($count) => $process
+true
 ```
 
 **Access via `.params`:**
@@ -406,7 +529,7 @@ The `.params` property returns a dict keyed by parameter name. Each entry is a d
 - `__annotations` — Dict of parameter-level annotations if present
 
 ```rill
-|x: number ^(min: 0, max: 100), y: string|($x + $y) => $fn
+|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
 
 $fn.params
 # Returns:
@@ -423,41 +546,110 @@ $fn.params.y.?__annotations     # false (no annotations on y)
 
 ```rill
 # Validation metadata
-|value ^(min: 0, max: 100)|($value) => $bounded
+|^(min: 0, max: 100) value|($value) => $bounded
 
 # Caching hints
-|key ^(cache: true)|($key) => $fetch
+|^(cache: true) key|($key) => $fetch
 
 # Format specifications
-|timestamp ^(format: "ISO8601")|($timestamp) => $formatDate
+|^(format: "ISO8601") timestamp|($timestamp) => $formatDate
+true
 ```
 
 See [Closures](topic-closures.md) for parameter annotation examples and patterns.
 
 ---
 
-## Tuples
+## Return Type Assertions
 
-Tuples package values for argument unpacking:
+The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
+
+**Syntax:** `|params| { body }:returnType`
+
+```rill
+|x: number| { "{$x}" }:string => $fn
+$fn(42)    # "42"
+```
+
+Valid return type targets:
+
+| Type Target | Description |
+|-------------|-------------|
+| `string` | String value |
+| `number` | Numeric value |
+| `bool` | Boolean value |
+| `list` | List value |
+| `dict` | Dict value |
+| `ordered` | Ordered container value |
+| `any` | Any type (no assertion) |
+
+Mismatched return type halts with `RILL-R004`:
+
+```text
+|x: number| { $x * 2 }:string => $double
+$double(5)    # RILL-R004: Type assertion failed: expected string, got number
+```
+
+Declared return type is accessible via `$fn.^output`:
+
+```rill
+|a: number, b: number| { $a + $b }:number => $add
+$add(3, 4)    # 7
+```
+
+---
+
+## Ordered and Tuples
+
+`ordered[...]` produces a named container that preserves insertion order. Use it for named argument unpacking:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-*[1, 2, 3] -> $fmt()             # "1-2-3"
-*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named)
+dict[c: 3, a: 1, b: 2] -> $fmt(...)    # "1-2-3" (named args by key, key order irrelevant)
 ```
 
-See [Types](topic-types.md) for detailed tuple documentation.
+Tuples are positional containers. Use `tuple[...]` with explicit spread `...` for positional argument unpacking:
+
+```rill
+|a, b, c|"{$a}-{$b}-{$c}" => $fmt
+tuple[1, 2, 3] -> $fmt(...)    # "1-2-3" (positional args, explicit spread)
+```
+
+See [Types](topic-types.md) for detailed ordered and tuple documentation.
 
 ---
+
+## Operator-Level Annotations
+
+Place `^(...)` between the operator name and its body to attach metadata to that operation. Annotations apply per evaluation, not per definition.
+
+**Loops:**
+
+```rill
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+```
+
+**Collection operators:**
+
+```rill
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+```
+
+Invalid annotation keys for operator context produce a runtime error.
+
+See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md) for detailed examples.
 
 ## Runtime Limits
 
 ### Iteration Limits
 
-Loops have a default maximum of **10,000 iterations**. Override with `^(limit: N)`:
+Loops have a default maximum of **10,000 iterations**. Place `^(limit: N)` at operator level, before the body:
 
 ```rill
-^(limit: 100) 0 -> ($ < 50) @ { $ + 1 }
+0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
 ```
 
 ### Concurrency Limits
@@ -465,7 +657,7 @@ Loops have a default maximum of **10,000 iterations**. Override with `^(limit: N
 The `^(limit: N)` annotation also controls parallel concurrency in `map`:
 
 ```text
-^(limit: 3) $items -> map { slow_process($) }
+$items -> map ^(limit: 3) { slow_process($) }
 ```
 
 See [Host Integration](integration-host.md) for timeout and cancellation configuration.
@@ -530,6 +722,70 @@ Single-line comments start with `#`:
 # This is a comment
 "hello"  # inline comment
 ```
+
+---
+
+## Newlines
+
+**Invariant: whitespace is insignificant inside a syntactic continuation.**
+
+Newlines are statement terminators. A newline ends a statement unless the parser is inside a syntactic continuation — any position where the preceding token cannot end a valid statement.
+
+### Continuation tokens
+
+A newline after any of these continues the current statement:
+
+| Class | Tokens |
+|-------|--------|
+| Binary arithmetic | `+` `-` `*` `/` `%` |
+| Logical | `&&` `\|\|` |
+| Comparison | `==` `!=` `<` `>` `<=` `>=` |
+| Pipe / capture | `->` `=>` |
+| Conditional | `?` `!` |
+| Member access | `.` `.?` |
+| Type annotation | `:` |
+| Spread | `...` |
+| Annotation | `^` |
+| Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` |
+
+A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
+
+```rill
+"hello"
+  => $greeting
+  -> .upper
+  -> .trim
+```
+
+```rill
+(5 > 0)
+  ? "yes"
+  ! "no"
+```
+
+Arithmetic, logical, and comparison operators work as **trailing continuations** only — place the operator at the end of the line, not the beginning:
+
+```rill
+1 +
+  2 +
+  3
+```
+
+### Statement-start tokens
+
+These always begin a new statement:
+
+| Token | Starts |
+|-------|--------|
+| `$` | Variable reference or closure call |
+| identifier | Host function call |
+| `@` | Loop |
+| `\|` `\|\|` | Closure definition |
+| literals | String, number, bool, `[...]`, `[...]`, `tuple[...]`, `ordered[...]` |
+
+### Disjoint sets
+
+The two token classes are disjoint. No token is both a continuation token and a statement-start token. This makes the grammar unambiguous with one token of lookahead — no symbol table, no backtracking.
 
 ---
 

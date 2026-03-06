@@ -6,6 +6,7 @@
 import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
+  AnnotationArg,
   AssertNode,
   BlockNode,
   ConditionalNode,
@@ -117,6 +118,14 @@ Parser.prototype.parseLoop = function (
     : current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.AT, 'Expected @');
 
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.CARET)) {
+    advance(this.state); // consume ^
+    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+    annotations = this.parseAnnotationArgs();
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  }
+
   const body = this.parseBody();
 
   // Check for do-while: @ body ? cond
@@ -129,6 +138,7 @@ Parser.prototype.parseLoop = function (
       input: condition,
       body,
       condition: doWhileCondition,
+      annotations,
       span: makeSpan(start, current(this.state).span.end),
     };
   }
@@ -146,6 +156,7 @@ Parser.prototype.parseLoop = function (
     type: 'WhileLoop',
     condition,
     body,
+    annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

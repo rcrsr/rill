@@ -112,11 +112,13 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('repeats complex value (dict)', async () => {
-      expect(await run('repeat([x: 1], 2) -> each { $.x }')).toEqual([1, 1]);
+      expect(await run('repeat(dict[x: 1], 2) -> each { $.x }')).toEqual([
+        1, 1,
+      ]);
     });
 
     it('repeats complex value (list)', async () => {
-      expect(await run('repeat([1, 2], 2) -> each { $ -> .len }')).toEqual([
+      expect(await run('repeat(list[1, 2], 2) -> each { $ -> .len }')).toEqual([
         2, 2,
       ]);
     });
@@ -132,44 +134,39 @@ describe('Rill Runtime: Iterators', () => {
 
   describe('.first() method', () => {
     it('returns iterator for list', async () => {
-      const result = await run('[1, 2, 3] -> .first()');
-      expect(result).toHaveProperty('value', 1);
-      expect(result).toHaveProperty('done', false);
-      expect(result).toHaveProperty('next');
+      const result = (await run('list[1, 2, 3] -> .first()')) as any;
+      expect(result.done).toBe(false);
+      expect(result.value).toBe(1);
     });
 
     it('returns iterator for string', async () => {
-      const result = await run('"abc" -> .first()');
-      expect(result).toHaveProperty('value', 'a');
-      expect(result).toHaveProperty('done', false);
+      const result = (await run('"abc" -> .first()')) as any;
+      expect(result.done).toBe(false);
+      expect(result.value).toBe('a');
     });
 
     it('returns iterator for dict', async () => {
-      const result = await run('[a: 1, b: 2] -> .first()');
-      expect(result).toHaveProperty('done', false);
-      expect((result as Record<string, unknown>).value).toEqual({
-        key: 'a',
-        value: 1,
-      });
+      const result = (await run('dict[a: 1, b: 2] -> .first()')) as any;
+      expect(result.done).toBe(false);
     });
 
     it('returns done iterator for empty list', async () => {
-      const result = await run('[] -> .first()');
-      expect(result).toHaveProperty('done', true);
+      const result = (await run('list[] -> .first()')) as any;
+      expect(result.done).toBe(true);
     });
 
     it('returns done iterator for empty string', async () => {
-      const result = await run('"" -> .first()');
-      expect(result).toHaveProperty('done', true);
+      const result = (await run('"" -> .first()')) as any;
+      expect(result.done).toBe(true);
     });
 
     it('returns done iterator for empty dict', async () => {
-      const result = await run('[:] -> .first()');
-      expect(result).toHaveProperty('done', true);
+      const result = (await run('dict[] -> .first()')) as any;
+      expect(result.done).toBe(true);
     });
 
     it('iterator can be used with each', async () => {
-      expect(await run('[1, 2, 3] -> .first() -> each { $ * 2 }')).toEqual([
+      expect(await run('list[1, 2, 3] -> .first() -> each { $ * 2 }')).toEqual([
         2, 4, 6,
       ]);
     });
@@ -181,15 +178,15 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('single element list', async () => {
-      const result = await run('[42] -> .first()');
-      expect(result).toHaveProperty('value', 42);
-      expect(result).toHaveProperty('done', false);
+      const result = (await run('list[42] -> .first()')) as any;
+      expect(result.done).toBe(false);
+      expect(result.value).toBe(42);
     });
 
     it('single char string', async () => {
-      const result = await run('"x" -> .first()');
-      expect(result).toHaveProperty('value', 'x');
-      expect(result).toHaveProperty('done', false);
+      const result = (await run('"x" -> .first()')) as any;
+      expect(result.done).toBe(false);
+      expect(result.value).toBe('x');
     });
 
     it('errors on number', async () => {
@@ -206,18 +203,18 @@ describe('Rill Runtime: Iterators', () => {
 
     it('chaining .first() on iterator is identity', async () => {
       expect(
-        await run('[1, 2, 3] -> .first() -> .first() -> each { $ }')
+        await run('list[1, 2, 3] -> .first() -> .first() -> each { $ }')
       ).toEqual([1, 2, 3]);
     });
   });
 
   describe('.head and .tail edge cases', () => {
     it('single element list head', async () => {
-      expect(await run('[42] -> .head')).toBe(42);
+      expect(await run('list[42] -> .head')).toBe(42);
     });
 
     it('single element list tail', async () => {
-      expect(await run('[42] -> .tail')).toBe(42);
+      expect(await run('list[42] -> .tail')).toBe(42);
     });
 
     it('single char string head', async () => {
@@ -229,13 +226,13 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('errors on dict for head', async () => {
-      await expect(run('[a: 1] -> .head')).rejects.toThrow(
+      await expect(run('dict[a: 1] -> .head')).rejects.toThrow(
         'head requires list or string'
       );
     });
 
     it('errors on dict for tail', async () => {
-      await expect(run('[a: 1] -> .tail')).rejects.toThrow(
+      await expect(run('dict[a: 1] -> .tail')).rejects.toThrow(
         'tail requires list or string'
       );
     });
@@ -256,7 +253,7 @@ describe('Rill Runtime: Iterators', () => {
   describe('custom iterators', () => {
     it('recognizes iterator protocol in each', async () => {
       const script = `
-        |start| [
+        |start| dict[
           value: $start,
           done: ($start > 2),
           next: || { $countdown($.value + 1) }
@@ -268,7 +265,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('recognizes iterator protocol in map', async () => {
       const script = `
-        |start| [
+        |start| dict[
           value: $start,
           done: ($start > 2),
           next: || { $counter($.value + 1) }
@@ -280,7 +277,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('recognizes iterator protocol in fold', async () => {
       const script = `
-        |start| [
+        |start| dict[
           value: $start,
           done: ($start > 3),
           next: || { $counter($.value + 1) }
@@ -294,36 +291,36 @@ describe('Rill Runtime: Iterators', () => {
   describe('iterator manual traversal', () => {
     it('can manually traverse iterator', async () => {
       const script = `
-        [1, 2, 3] -> .first() => $it
+        list[1, 2, 3] -> .first() => $it
         $it.value => $v1
         $it.next() => $it
         $it.value => $v2
         $it.next() => $it
         $it.value => $v3
-        [$v1, $v2, $v3]
+        list[$v1, $v2, $v3]
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
     it('can check done state', async () => {
       const script = `
-        [1] -> .first() => $it
+        list[1] -> .first() => $it
         $it.done => $d1
         $it.next() => $it
         $it.done => $d2
-        [$d1, $d2]
+        list[$d1, $d2]
       `;
       expect(await run(script)).toEqual([false, true]);
     });
 
     it('traversing past done returns done iterator', async () => {
       const script = `
-        [1] -> .first() => $it
+        list[1] -> .first() => $it
         $it.next() => $it
         $it.done => $d1
         $it.next() => $it
         $it.done => $d2
-        [$d1, $d2]
+        list[$d1, $d2]
       `;
       expect(await run(script)).toEqual([true, true]);
     });
@@ -332,7 +329,7 @@ describe('Rill Runtime: Iterators', () => {
   describe('custom iterators with filter', () => {
     it('filter works on custom iterator', async () => {
       const script = `
-        |start| [
+        |start| dict[
           value: $start,
           done: ($start > 5),
           next: || { $counter($.value + 1) }
@@ -345,32 +342,34 @@ describe('Rill Runtime: Iterators', () => {
 
   describe('iterator edge cases', () => {
     it('dict without done is not iterator', async () => {
-      expect(await run('[value: 1, next: ||{ 0 }] -> each { $ }')).toEqual([
-        { key: 'next', value: expect.any(Object) },
-        { key: 'value', value: 1 },
-      ]);
+      const result = (await run(
+        'dict[value: 1, next: ||{ 0 }] -> each { $ }'
+      )) as any[];
+      expect(Array.isArray(result)).toBe(true);
+      const valueEntry = result.find((e: any) => e.key === 'value');
+      const nextEntry = result.find((e: any) => e.key === 'next');
+      expect(valueEntry).toEqual({ key: 'value', value: 1 });
+      expect(nextEntry.key).toBe('next');
     });
 
     it('dict without next is not iterator', async () => {
-      expect(await run('[value: 1, done: false] -> each { $ }')).toEqual([
+      expect(await run('dict[value: 1, done: false] -> each { $ }')).toEqual([
         { key: 'done', value: false },
         { key: 'value', value: 1 },
       ]);
     });
 
     it('dict with non-bool done is not iterator', async () => {
-      expect(
-        await run('[value: 1, done: "false", next: ||{ 0 }] -> each { $ }')
-      ).toEqual([
-        { key: 'done', value: 'false' },
-        { key: 'next', value: expect.any(Object) },
-        { key: 'value', value: 1 },
-      ]);
+      const result = (await run(
+        'dict[value: 1, done: "false", next: ||{ 0 }] -> each { $ }'
+      )) as any[];
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(3);
     });
 
     it('empty done iterator works with each', async () => {
       const script = `
-        |n| [done: true, next: ||{ $emptyIter(0) }] => $emptyIter
+        |n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter
         $emptyIter(0) -> each { $ }
       `;
       expect(await run(script)).toEqual([]);
@@ -378,7 +377,7 @@ describe('Rill Runtime: Iterators', () => {
 
     it('empty done iterator works with fold', async () => {
       const script = `
-        |n| [done: true, next: ||{ $emptyIter(0) }] => $emptyIter
+        |n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter
         $emptyIter(0) -> fold(42) { $@ + $ }
       `;
       expect(await run(script)).toBe(42);

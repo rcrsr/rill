@@ -14,17 +14,16 @@ import type {
   RuntimeOptions,
 } from './types.js';
 import { bindDictCallables } from './types.js';
-import { formatValue, inferType, type RillValue } from './values.js';
+import { inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
-  validateReturnType,
   type CallableParam,
 } from './callable.js';
 
 const defaultCallbacks: RuntimeCallbacks = {
-  onLog: (value) => {
-    console.log(formatValue(value));
+  onLog: (message) => {
+    console.log(message);
   },
 };
 
@@ -67,11 +66,6 @@ export function createRuntimeContext(
     for (const [name, definition] of Object.entries(options.functions)) {
       // All functions must be HostFunctionDefinition with params
       const { params, fn, description, returnType } = definition;
-
-      // Validate return type at registration time (IR-1)
-      if (returnType !== undefined) {
-        validateReturnType(returnType, name);
-      }
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {
@@ -179,6 +173,7 @@ export function createRuntimeContext(
     annotationStack: [],
     callStack: [],
     metadata: options.metadata,
+    immediateAnnotation: undefined,
   };
 }
 
@@ -204,6 +199,7 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
     metadata: parent.metadata,
+    immediateAnnotation: undefined,
   };
 }
 

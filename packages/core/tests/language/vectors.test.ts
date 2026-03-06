@@ -3,16 +3,16 @@
  * Tests for vector type operations, methods, and error conditions
  */
 
-import { createVector, type RillValue } from '@rcrsr/rill';
+import { createVector, isVector, type RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Vector Type', () => {
-  describe('type() function [AC-9]', () => {
+  describe('.^type.^name operator [AC-9]', () => {
     it('returns "vector" for vector values', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'test-model');
-      const actual = await run('get_vector() => $v\ntype($v)', {
+      const actual = await run('get_vector() => $v\n$v.^type.^name', {
         functions: {
           get_vector: {
             params: [],
@@ -154,7 +154,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for dict argument', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> .similarity([a: 1])', {
+        run('$v -> .similarity(dict[a: 1])', {
           variables: { v: vec },
         })
       ).rejects.toThrow('expected vector, got dict');
@@ -284,7 +284,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[1, 2, 3] -> .dimensions')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] -> .dimensions')).rejects.toThrow(
         'dimensions requires vector receiver'
       );
     });
@@ -422,7 +422,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[3, 4] -> .norm')).rejects.toThrow(
+      await expect(run('list[3, 4] -> .norm')).rejects.toThrow(
         'norm requires vector receiver'
       );
     });
@@ -439,18 +439,15 @@ describe('Rill Runtime: Vector Type', () => {
 
     it('preserves direction', async () => {
       const vec = createVector(new Float32Array([3.0, 4.0]), 'model-a');
-      const normalized = (await run('$v -> .normalize', {
-        variables: { v: vec },
-      })) as RillValue;
-      expect(normalized).toHaveProperty('__rill_vector', true);
-      if (
-        typeof normalized === 'object' &&
-        normalized !== null &&
-        '__rill_vector' in normalized
-      ) {
-        const vecNorm = normalized as { data: Float32Array };
-        expect(vecNorm.data[0]).toBeCloseTo(0.6, 5);
-        expect(vecNorm.data[1]).toBeCloseTo(0.8, 5);
+      const { context } = await runWithContext(
+        '$v -> .normalize => $result\ntrue',
+        { variables: { v: vec } }
+      );
+      const normalized = context.variables.get('result') as RillValue;
+      expect(isVector(normalized)).toBe(true);
+      if (isVector(normalized)) {
+        expect(normalized.data[0]).toBeCloseTo(0.6, 5);
+        expect(normalized.data[1]).toBeCloseTo(0.8, 5);
       }
     });
 
@@ -463,7 +460,7 @@ describe('Rill Runtime: Vector Type', () => {
     });
 
     it('throws RILL-R003 for non-vector receiver', async () => {
-      await expect(run('[3, 4] -> .normalize')).rejects.toThrow(
+      await expect(run('list[3, 4] -> .normalize')).rejects.toThrow(
         'normalize requires vector receiver'
       );
     });
@@ -527,4 +524,15 @@ describe('Rill Runtime: Vector Type', () => {
   // Note: Type assertion tests (:vector, :?vector) omitted because vector type
   // is not yet registered in the parser's type system. These will be added when
   // the parser is updated to recognize "vector" as a valid type name.
+
+  describe('json() serialization [AC-13]', () => {
+    it('throws RuntimeError with "vectors are not JSON-serializable" (AC-13)', async () => {
+      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+      await expect(
+        run('$v -> json', {
+          variables: { v: vec },
+        })
+      ).rejects.toThrow('vectors are not JSON-serializable');
+    });
+  });
 });

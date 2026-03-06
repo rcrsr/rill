@@ -144,8 +144,8 @@ $m -> !.empty ? process($m.groups[0])
 "a,b,c" -> .split(",")               # ["a", "b", "c"]
 "a\nb\nc" -> .lines                  # ["a", "b", "c"]
 
-["a", "b", "c"] -> .join("-")        # "a-b-c"
-["a", "b", "c"] -> .join("\n")       # "a\nb\nc"
+["a", "b", "c"] -> .join("-")    # "a-b-c"
+["a", "b", "c"] -> .join("\n")   # "a\nb\nc"
 ```
 
 ---
@@ -199,7 +199,7 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email"
 ### Format Output
 
 ```rill
-[[name: "Alice", value: 100], [name: "Bob", value: 42]] => $items
+[[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $items
 $items -> each {
   $.name -> .pad_end(20) => $name
   $.value -> .str -> .pad_start(10) => $val

@@ -62,14 +62,6 @@ export function createStepper(
   let lastValue: RillValue = null;
   let isDone = total === 0;
 
-  const collectVariables = (): Record<string, RillValue> => {
-    const vars: Record<string, RillValue> = {};
-    for (const [name, value] of context.variables) {
-      vars[name] = value;
-    }
-    return vars;
-  };
-
   return {
     get done() {
       return isDone;
@@ -198,15 +190,9 @@ export function createStepper(
             { variable: '$' }
           );
         }
-        return {
-          result: context.pipeValue,
-          variables: collectVariables(),
-        };
+        return { result: context.pipeValue };
       }
-      return {
-        result: lastValue,
-        variables: collectVariables(),
-      };
+      return { result: lastValue };
     },
   };
 }

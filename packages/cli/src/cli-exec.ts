@@ -10,10 +10,9 @@ import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
-import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, toNative } from '@rcrsr/rill';
 import type { RillValue, ExecutionResult } from '@rcrsr/rill';
 import {
-  formatOutput,
   formatError,
   determineExitCode,
   VERSION,
@@ -248,7 +247,7 @@ export async function executeScript(
   const ctx = createRuntimeContext({
     variables,
     callbacks: {
-      onLog: (value) => console.log(formatOutput(value)),
+      onLog: (msg) => console.log(msg),
     },
   });
 
@@ -359,13 +358,14 @@ Examples:
           source,
         });
 
-        const { code, message } = determineExitCode(result.result);
+        const nativeResult = toNative(result.result);
+        const { code, message } = determineExitCode(nativeResult.native);
 
         // Output message if present, otherwise output the result value
         if (message !== undefined) {
           console.log(message);
         } else {
-          console.log(formatOutput(result.result));
+          console.log(String(nativeResult.native));
         }
 
         // Exit with computed code

@@ -239,7 +239,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       let error: RuntimeError | undefined;
 
       try {
-        await run('[1, 2] -> .missing'); // Missing method
+        await run('list[1, 2] -> .missing'); // Missing method
         expect.fail('Should have thrown');
       } catch (err) {
         error = err as RuntimeError;

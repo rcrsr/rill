@@ -18,7 +18,7 @@ describe('Rill Runtime: Built-in Functions', () => {
     });
 
     it('returns tuple unchanged', async () => {
-      expect(await run('identity([1, 2, 3])')).toEqual([1, 2, 3]);
+      expect(await run('identity(list[1, 2, 3])')).toEqual([1, 2, 3]);
     });
 
     it('works with pipe', async () => {
@@ -100,19 +100,19 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('returns tuple length', async () => {
-      expect(await run('[1, 2, 3] -> .len')).toBe(3);
+      expect(await run('list[1, 2, 3] -> .len')).toBe(3);
     });
 
     it('returns empty tuple length as 0', async () => {
-      expect(await run('[] -> .len')).toBe(0);
+      expect(await run('list[] -> .len')).toBe(0);
     });
 
     it('returns dict entry count', async () => {
-      expect(await run('[a: 1, b: 2] -> .len')).toBe(2);
+      expect(await run('dict[a: 1, b: 2] -> .len')).toBe(2);
     });
 
     it('returns empty dict length as 0', async () => {
-      expect(await run('[:] -> .len')).toBe(0);
+      expect(await run('dict[] -> .len')).toBe(0);
     });
 
     it('works with method chain', async () => {
@@ -122,27 +122,27 @@ describe('Rill Runtime: Built-in Methods', () => {
 
   describe('.join', () => {
     it('joins with default separator (comma)', async () => {
-      expect(await run('["a", "b", "c"] -> .join')).toBe('a,b,c');
+      expect(await run('list["a", "b", "c"] -> .join')).toBe('a,b,c');
     });
 
     it('joins with custom separator', async () => {
-      expect(await run('["a", "b", "c"] -> .join("-")')).toBe('a-b-c');
+      expect(await run('list["a", "b", "c"] -> .join("-")')).toBe('a-b-c');
     });
 
     it('joins with empty separator', async () => {
-      expect(await run('["a", "b", "c"] -> .join("")')).toBe('abc');
+      expect(await run('list["a", "b", "c"] -> .join("")')).toBe('abc');
     });
 
     it('joins single element', async () => {
-      expect(await run('["only"] -> .join')).toBe('only');
+      expect(await run('list["only"] -> .join')).toBe('only');
     });
 
     it('returns empty string for empty tuple', async () => {
-      expect(await run('[] -> .join')).toBe('');
+      expect(await run('list[] -> .join')).toBe('');
     });
 
     it('converts non-string elements', async () => {
-      expect(await run('[1, 2, 3] -> .join(":")')).toBe('1:2:3');
+      expect(await run('list[1, 2, 3] -> .join(":")')).toBe('1:2:3');
     });
   });
 
@@ -200,7 +200,7 @@ describe('Rill Runtime: Built-in Methods', () => {
 
   describe('.head', () => {
     it('returns first list element', async () => {
-      expect(await run('["a", "b", "c"] -> .head')).toBe('a');
+      expect(await run('list["a", "b", "c"] -> .head')).toBe('a');
     });
 
     it('returns first string character', async () => {
@@ -208,7 +208,7 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('errors on empty list', async () => {
-      await expect(run('[] -> .head')).rejects.toThrow(
+      await expect(run('list[] -> .head')).rejects.toThrow(
         'Cannot get head of empty list'
       );
     });
@@ -220,13 +220,13 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('works with method chain', async () => {
-      expect(await run('[1, 2, 3] -> .head')).toBe(1);
+      expect(await run('list[1, 2, 3] -> .head')).toBe(1);
     });
   });
 
   describe('.tail', () => {
     it('returns last list element', async () => {
-      expect(await run('["a", "b", "c"] -> .tail')).toBe('c');
+      expect(await run('list["a", "b", "c"] -> .tail')).toBe('c');
     });
 
     it('returns last string character', async () => {
@@ -234,7 +234,7 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('errors on empty list', async () => {
-      await expect(run('[] -> .tail')).rejects.toThrow(
+      await expect(run('list[] -> .tail')).rejects.toThrow(
         'Cannot get tail of empty list'
       );
     });
@@ -246,17 +246,17 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('works with method chain', async () => {
-      expect(await run('[1, 2, 3] -> .tail')).toBe(3);
+      expect(await run('list[1, 2, 3] -> .tail')).toBe(3);
     });
   });
 
   describe('.at', () => {
     it('returns tuple element at index', async () => {
-      expect(await run('["a", "b", "c"] -> .at(1)')).toBe('b');
+      expect(await run('list["a", "b", "c"] -> .at(1)')).toBe('b');
     });
 
     it('returns first element at index 0', async () => {
-      expect(await run('["a", "b", "c"] -> .at(0)')).toBe('a');
+      expect(await run('list["a", "b", "c"] -> .at(0)')).toBe('a');
     });
 
     it('returns string character at index', async () => {
@@ -264,13 +264,13 @@ describe('Rill Runtime: Built-in Methods', () => {
     });
 
     it('errors for out of bounds', async () => {
-      await expect(run('["a"] -> .at(5)')).rejects.toThrow(
+      await expect(run('list["a"] -> .at(5)')).rejects.toThrow(
         'List index out of bounds'
       );
     });
 
     it('errors for negative index', async () => {
-      await expect(run('["a", "b"] -> .at(-1)')).rejects.toThrow(
+      await expect(run('list["a", "b"] -> .at(-1)')).rejects.toThrow(
         'List index out of bounds'
       );
     });
@@ -315,7 +315,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('$fn() in for loop receives loop value', async () => {
       expect(
-        await run('|x| { $x } => $echo\n[1, 2, 3] -> each { $echo() }')
+        await run('|x| { $x } => $echo\nlist[1, 2, 3] -> each { $echo() }')
       ).toEqual([1, 2, 3]);
     });
 
@@ -363,7 +363,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('rejects number in for loop with string param', async () => {
       await expect(
-        run('|r: string| { $r } => $fn\n[1, 2, 3] -> each { $fn() }')
+        run('|r: string| { $r } => $fn\nlist[1, 2, 3] -> each { $fn() }')
       ).rejects.toThrow(
         'Parameter type mismatch: r expects string, got number'
       );
@@ -371,7 +371,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('accepts string in for loop with string param', async () => {
       expect(
-        await run('|r: string| { $r } => $fn\n["a", "b"] -> each { $fn() }')
+        await run('|r: string| { $r } => $fn\nlist["a", "b"] -> each { $fn() }')
       ).toEqual(['a', 'b']);
     });
 

@@ -11,7 +11,7 @@ import { EvaluatorBase } from '../../src/runtime/core/eval/base.js';
 import { AnnotationsMixin } from '../../src/runtime/core/eval/mixins/annotations.js';
 import { createRuntimeContext } from '../../src/runtime/index.js';
 import { RuntimeError } from '@rcrsr/rill';
-import type { StatementNode, AnnotatedStatementNode } from '@rcrsr/rill';
+import type { StatementNode } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('AnnotationsMixin', () => {
@@ -52,12 +52,11 @@ describe('AnnotationsMixin', () => {
   describe('getIterationLimit', () => {
     it('returns annotation limit when set', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 100 });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(100);
+      expect(evaluator.getIterationLimit({ limit: 100 })).toBe(100);
     });
 
     it('returns default when limit not set', () => {
@@ -71,12 +70,11 @@ describe('AnnotationsMixin', () => {
 
     it('floors fractional limits', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 100.7 });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(100);
+      expect(evaluator.getIterationLimit({ limit: 100.7 })).toBe(100);
     });
 
     it('returns default for non-positive limits', () => {
@@ -85,22 +83,19 @@ describe('AnnotationsMixin', () => {
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      ctx.annotationStack.push({ limit: 0 });
-      expect(evaluator.getIterationLimit()).toBe(10000);
-
-      ctx.annotationStack.pop();
-      ctx.annotationStack.push({ limit: -5 });
-      expect(evaluator.getIterationLimit()).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: 0 })).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: -5 })).toBe(10000);
     });
 
     it('returns default for non-numeric limits', () => {
       const ctx = createRuntimeContext();
-      ctx.annotationStack.push({ limit: 'not a number' });
 
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      expect(evaluator.getIterationLimit()).toBe(10000);
+      expect(evaluator.getIterationLimit({ limit: 'not a number' })).toBe(
+        10000
+      );
     });
   });
 
@@ -159,7 +154,7 @@ describe('AnnotationsMixin', () => {
     it('propagates errors during loop execution within annotation', async () => {
       // Error during loop should propagate through annotation
       await expect(
-        run('^(limit: 10) [1, 2, 3] -> each { fail("boom") }', {
+        run('^(limit: 10) list[1, 2, 3] -> each { fail("boom") }', {
           functions: {
             fail: {
               params: [{ name: 'msg', type: 'string' }],
@@ -281,24 +276,24 @@ describe('AnnotationsMixin', () => {
     it('throws error for invalid spread annotation type (list)', async () => {
       // Spreading a list as annotations should fail
       await expect(
-        run('[1, 2, 3] => $list\n^(*$list) "hello"')
+        run('list[1, 2, 3] => $list\n^(...$list) "hello"')
       ).rejects.toThrow(/requires dict/);
     });
 
     it('throws error for invalid spread annotation type (primitive)', async () => {
       // Spreading a non-dict primitive should fail
-      await expect(run('^(*"string") "hello"')).rejects.toThrow(
+      await expect(run('^(..."string") "hello"')).rejects.toThrow(
         /requires dict/
       );
 
-      await expect(run('^(*42) "hello"')).rejects.toThrow(/requires dict/);
+      await expect(run('^(...42) "hello"')).rejects.toThrow(/requires dict/);
 
-      await expect(run('^(*true) "hello"')).rejects.toThrow(/requires dict/);
+      await expect(run('^(...true) "hello"')).rejects.toThrow(/requires dict/);
     });
 
     it('propagates errors from spread dict evaluation', async () => {
       // Error when evaluating the spread expression
-      await expect(run('^(*$missing) "hello"')).rejects.toThrow(
+      await expect(run('^(...$missing) "hello"')).rejects.toThrow(
         /Undefined variable/
       );
     });
@@ -324,12 +319,14 @@ describe('AnnotationsMixin', () => {
 
     it('validates spread annotation contains dict', async () => {
       // Create a dict and spread it (should work)
-      const result = await run('[limit: 100] => $opts\n^(*$opts) "hello"');
+      const result = await run(
+        'dict[limit: 100] => $opts\n^(...$opts) "hello"'
+      );
       expect(result).toBe('hello');
 
       // But list spread should fail
       await expect(
-        run('[100, 200] => $opts\n^(*$opts) "hello"')
+        run('list[100, 200] => $opts\n^(...$opts) "hello"')
       ).rejects.toThrow(/requires dict with named keys/);
     });
   });

@@ -59,7 +59,7 @@ describe('Rill Runtime: Loops', () => {
 
     it('requires boolean condition', async () => {
       // Non-boolean conditions should error
-      await expect(run('[1, 2, 3] @ { $ }')).rejects.toThrow(
+      await expect(run('list[1, 2, 3] @ { $ }')).rejects.toThrow(
         /condition must be boolean/i
       );
     });
@@ -95,7 +95,7 @@ describe('Rill Runtime: Loops', () => {
     it('exits each loop early with break', async () => {
       // Break in each terminates iteration and returns partial results
       const script = `
-        [1, 2, 3, 4, 5] -> each {
+        list[1, 2, 3, 4, 5] -> each {
           ($ == 3) ? break
           $
         }
@@ -206,7 +206,7 @@ describe('Rill Runtime: Loops', () => {
   describe('Nested Loops (using each)', () => {
     it('handles nested each loops', async () => {
       const script = `
-        [[1, 2], [3, 4]] -> each {
+        list[list[1, 2], list[3, 4]] -> each {
           $ -> each { $ * 2 }
         }
       `;
@@ -218,7 +218,7 @@ describe('Rill Runtime: Loops', () => {
 
     it('break only exits inner loop', async () => {
       const script = `
-        [[1, 2, 3], [4, 5, 6]] -> each {
+        list[list[1, 2, 3], list[4, 5, 6]] -> each {
           $ -> each {
             ($ == 2) ? break
             ($ == 5) ? break
@@ -236,17 +236,18 @@ describe('Rill Runtime: Loops', () => {
   describe('Iterator While Loops', () => {
     it('$ is consistent in condition and body (parenthesized)', async () => {
       // Parenthesize condition and body for clarity
+      // Capture exhausted iterator then return its .done field
       const script = `
-        [1, 2, 3] -> .first() -> (!$.done) @ ($.next())
+        list[1, 2, 3] -> .first() -> (!$.done) @ ($.next()) => $it
+        $it.done
       `;
-      const result = (await run(script)) as Record<string, unknown>;
-      expect(result.done).toBe(true);
+      expect(await run(script)).toBe(true);
     });
 
     it('loop advances iterator correctly', async () => {
       // After looping, iterator should be exhausted
       const script = `
-        [1, 2, 3] -> .first() -> (!$.done) @ ($.next()) => $it
+        list[1, 2, 3] -> .first() -> (!$.done) @ ($.next()) => $it
         $it.done
       `;
       expect(await run(script)).toBe(true);

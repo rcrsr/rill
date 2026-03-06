@@ -19,13 +19,13 @@ All four operators share similar syntax but differ in execution model and output
 
 ```rill
 # Sequential: results in order, one at a time
-[1, 2, 3] -> each { $ * 2 }     # [2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }     # list[2, 4, 6]
 
 # Parallel: results in order, concurrent execution
-[1, 2, 3] -> map { $ * 2 }      # [2, 4, 6]
+[1, 2, 3] -> map { $ * 2 }      # list[2, 4, 6]
 
 # Parallel filter: keep matching elements
-[1, 2, 3, 4, 5] -> filter { $ > 2 }  # [3, 4, 5]
+[1, 2, 3, 4, 5] -> filter { $ > 2 }  # list[3, 4, 5]
 
 # Reduction: accumulates to single value
 [1, 2, 3] -> fold(0) { $@ + $ } # 6
@@ -261,9 +261,6 @@ Use `map` when:
 - I/O-bound operations benefit from concurrency
 
 ```rill
-# Fetch pages concurrently (faster than sequential)
-["page1", "page2", "page3"] -> map |id| fetch_page($id)
-
 # CPU-bound: same result as each, but runs in parallel
 [1, 2, 3, 4, 5] -> map { $ * $ }
 # Result: [1, 4, 9, 16, 25]
@@ -329,7 +326,7 @@ When filtering a dict, `$` contains `key` and `value` fields. Returns list of ma
 
 ```rill
 [a: 1, b: 5, c: 3] -> filter { $.value > 2 }
-# Result: [{ key: "b", value: 5 }, { key: "c", value: 3 }]
+# Result: [[key: "b", value: 5], dict[key: "c", value: 3]]
 ```
 
 ### String Filtering
@@ -456,9 +453,9 @@ Define closures for common reductions.
 |x, max = 0| (($x > $max) ? $x ! $max) => $maxer
 
 # Use with different data
-[1, 2, 3] -> fold $summer     # 6
-[3, 7, 2] -> fold $maxer      # 7
-[9, 1, 5] -> fold $maxer      # 9
+[1, 2, 3] -> fold $summer => $r1     # 6
+[3, 7, 2] -> fold $maxer => $r2      # 7
+[9, 1, 5] -> fold $maxer => $r3      # 9
 ```
 
 ### Empty Collections
@@ -615,11 +612,11 @@ Process nested structures with nested operators.
 
 ```rill
 # Double nested values
-[[1, 2], [3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
-# Result: [[2, 4], [6, 8]]
+[list[1, 2], list[3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
+# Result: [list[2, 4], list[6, 8]]
 
 # Sum all nested values
-[[1, 2], [3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
+[list[1, 2], list[3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
 # Result: 10
 ```
 
@@ -645,19 +642,19 @@ Process nested structures with nested operators.
 
 ## Quick Reference
 
-```rill
+```text
 # each - sequential, all results
-[1, 2, 3] -> each { $ * 2 }           # [2, 4, 6]
-[1, 2, 3] -> each(0) { $@ + $ }       # [1, 3, 6] (running sum)
+[1, 2, 3] -> each { $ * 2 }           # list[2, 4, 6]
+[1, 2, 3] -> each(0) { $@ + $ }       # list[1, 3, 6] (running sum)
 
 # map - parallel, all results
-[1, 2, 3] -> map { $ * 2 }            # [2, 4, 6]
-["a", "b"] -> map |x| { "{$x}!" }     # ["a!", "b!"]
+[1, 2, 3] -> map { $ * 2 }            # list[2, 4, 6]
+["a", "b"] -> map |x| { "{$x}!" }     # list["a!", "b!"]
 
 # filter - parallel, matching elements
-[1, 2, 3, 4, 5] -> filter { $ > 2 }   # [3, 4, 5]
+[1, 2, 3, 4, 5] -> filter { $ > 2 }   # list[3, 4, 5]
 |x| { $x % 2 == 0 } => $isEven
-[1, 2, 3, 4, 5] -> filter $isEven     # [2, 4]
+[1, 2, 3, 4, 5] -> filter $isEven     # list[2, 4]
 
 # fold - sequential, final result only
 [1, 2, 3] -> fold(0) { $@ + $ }       # 6
@@ -668,7 +665,7 @@ Process nested structures with nested operators.
 [a: 1, b: 2] -> each { $.value }      # [1, 2]
 
 # Break (each only)
-[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # [1, 2] (partial results)
+[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # list[1, 2] (partial results)
 
 # Empty collections
 [] -> each { $ }      # []

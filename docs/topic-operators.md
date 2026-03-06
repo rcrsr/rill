@@ -12,8 +12,10 @@
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison Methods | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` |
 | Logical | `!` (unary), `&&`, `||` |
-| Spread | `@` (sequential), `*` (tuple) |
-| Extraction | `*<>` (destructure), `/<>` (slice) |
+| Chain | `chain($fn)`, `chain([...])` |
+| Ordered | `ordered[k: v]` (named ordered container) |
+| Extraction | `destruct<...>` (destructure), `slice<...>` (slice) |
+| Convert | `:>type` (conversion) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Hierarchical Dispatch | `[path] -> target` |
@@ -29,7 +31,7 @@ The pipe operator passes the left-hand value to the right-hand side:
 ```rill
 "hello" -> .upper              # "HELLO"
 42 -> ($ + 8)                  # 50
-[1, 2, 3] -> each { $ * 2 }    # [2, 4, 6]
+[1, 2, 3] -> each { $ * 2 }    # list[2, 4, 6]
 ```
 
 ### Piped Value as `$`
@@ -162,9 +164,9 @@ All operands must be numbers. No implicit conversion:
 All comparisons are by value, not reference:
 
 ```rill
-[1, 2, 3] == [1, 2, 3]         # true
-[a: 1] == [a: 1]               # true
-"hello" == "hello"             # true
+[1, 2, 3] == list[1, 2, 3]         # true
+[a: 1] == dict[a: 1]               # true
+"hello" == "hello"                     # true
 ```
 
 ### Comparison Methods
@@ -246,11 +248,13 @@ No grouping needed — `!.empty` is parsed as a unit before `?` or `=>`.
 
 ---
 
-## Spread Operators
+## Chain and Ordered
 
-### Sequential Spread `@`
+### `chain()` Built-in
 
-Chain closures where each receives the previous result (fold pattern):
+`chain` pipes a value through a sequence of closures. Each closure receives the result of the previous one.
+
+Chain a list of closures:
 
 ```rill
 |x|($x + 1) => $inc
@@ -258,139 +262,127 @@ Chain closures where each receives the previous result (fold pattern):
 |x|($x + 10) => $add10
 
 # Chain: (5 + 1) = 6, (6 * 2) = 12, (12 + 10) = 22
-5 -> @[$inc, $double, $add10]    # 22
+5 -> chain([$inc, $double, $add10])    # 22
 ```
 
-Single closure:
+Chain a single closure:
 
 ```rill
 |x|($x * 2) => $dbl
-5 -> @$dbl                       # 10
+5 -> chain($dbl)                           # 10
 ```
 
-### Tuple Spread `*`
+### `ordered[...]` Literal
 
-Create tuples for argument unpacking:
-
-```rill
-# From list (positional)
-*[1, 2, 3] => $args
-
-# From dict (named)
-*[x: 1, y: 2] => $named
-
-# Convert list to tuple via pipe
-[1, 2, 3] -> * => $tuple
-```
-
-Using tuples at invocation:
+`ordered[...]` produces a named, ordered container. It preserves insertion order and carries named keys. Use it to pass named arguments to closures:
 
 ```rill
 |a, b, c|"{$a}-{$b}-{$c}" => $fmt
-*[1, 2, 3] -> $fmt()             # "1-2-3"
-*[c: 3, a: 1, b: 2] -> $fmt()    # "1-2-3" (named, order doesn't matter)
+dict[c: 3, a: 1, b: 2] -> $fmt(...)       # "1-2-3" (names matched, key order irrelevant)
 ```
 
-See [Types](topic-types.md) for full tuple documentation.
+`ordered` values convert to plain objects via `toNative()` — the `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
+
+See [Types](topic-types.md) for full type documentation.
 
 ---
 
 ## Extraction Operators
 
-### Destructure `*<>`
+### Destructure `destruct<>`
 
 Extract elements from lists or dicts into variables. Returns the original value unchanged.
 
 **List destructuring** (pattern count must match list length):
 
 ```rill
-[1, 2, 3] -> *<$a, $b, $c>
+[1, 2, 3] -> destruct<$a, $b, $c>
 # $a = 1, $b = 2, $c = 3
 ```
 
-**With type annotations:**
+**With dict destructuring:**
 
 ```rill
-[0, "ok"] -> *<$code:number, $msg:string>
+[code: 0, msg: "ok"] -> destruct<code: $code, msg: $msg>
 # $code = 0, $msg = "ok"
 ```
 
 **Skip elements with `_`:**
 
 ```rill
-[1, 2, 3, 4] -> *<$first, _, _, $last>
+[1, 2, 3, 4] -> destruct<$first, _, _, $last>
 # $first = 1, $last = 4
 ```
 
 **Dict destructuring** (explicit key mapping):
 
 ```rill
-[name: "test", count: 42] -> *<name: $n, count: $c>
+[name: "test", count: 42] -> destruct<name: $n, count: $c>
 # $n = "test", $c = 42
 ```
 
 **Nested destructuring:**
 
 ```rill
-[[1, 2], 3] -> *<*<$a, $b>, $c>
-# $a = 1, $b = 2, $c = 3
+[list[1, 2], list[3, 4]] -> destruct<destruct<$a, $b>, destruct<$c, $d>>
+# $a = 1, $b = 2, $c = 3, $d = 4
 ```
 
 **Errors:**
 
 ```text
-[1, 2] -> *<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
-[name: "x"] -> *<name: $n, age: $a>  # Error: key 'age' not found
+[1, 2] -> destruct<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
+[name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
 ```
 
-### Slice `/<>`
+### Slice `slice<>`
 
 Extract a portion using Python-style `start:stop:step`. Works on lists and strings.
 
 **Basic slicing:**
 
 ```rill
-[0, 1, 2, 3, 4] -> /<0:3>        # [0, 1, 2]
-[0, 1, 2, 3, 4] -> /<1:4>        # [1, 2, 3]
+[0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]
+[0, 1, 2, 3, 4] -> slice<1:4>        # list[1, 2, 3]
 ```
 
 **Omitted bounds:**
 
 ```rill
-[0, 1, 2, 3, 4] -> /<:3>         # [0, 1, 2] (first 3)
-[0, 1, 2, 3, 4] -> /<2:>         # [2, 3, 4] (from index 2)
+[0, 1, 2, 3, 4] -> slice<:3>         # list[0, 1, 2] (first 3)
+[0, 1, 2, 3, 4] -> slice<2:>         # list[2, 3, 4] (from index 2)
 ```
 
 **Negative indices:**
 
 ```rill
-[0, 1, 2, 3, 4] -> /<-2:>        # [3, 4] (last 2)
-[0, 1, 2, 3, 4] -> /<:-1>        # [0, 1, 2, 3] (all but last)
+[0, 1, 2, 3, 4] -> slice<-2:>        # list[3, 4] (last 2)
+[0, 1, 2, 3, 4] -> slice<:-1>        # list[0, 1, 2, 3] (all but last)
 ```
 
 **Step:**
 
 ```rill
-[0, 1, 2, 3, 4] -> /<::2>        # [0, 2, 4] (every 2nd)
-[0, 1, 2, 3, 4] -> /<::-1>       # [4, 3, 2, 1, 0] (reversed)
+[0, 1, 2, 3, 4] -> slice<::2>        # list[0, 2, 4] (every 2nd)
+[0, 1, 2, 3, 4] -> slice<::-1>       # list[4, 3, 2, 1, 0] (reversed)
 ```
 
 **String slicing:**
 
 ```rill
-"hello" -> /<1:4>                # "ell"
-"hello" -> /<::-1>               # "olleh"
+"hello" -> slice<1:4>                    # "ell"
+"hello" -> slice<::-1>                   # "olleh"
 ```
 
 **Edge cases:**
 
 ```rill
-[1, 2, 3] -> /<0:100>            # [1, 2, 3] (clamped)
-[1, 2, 3] -> /<2:1>              # [] (empty when start >= stop)
+[1, 2, 3] -> slice<0:100>            # list[1, 2, 3] (clamped)
+[1, 2, 3] -> slice<2:1>              # [] (empty when start >= stop)
 ```
 
 ```text
-[1, 2, 3] -> /<::0>              # Error: step cannot be zero
+[1, 2, 3] -> slice<::0>              # Error: step cannot be zero
 ```
 
 ---
@@ -407,15 +399,17 @@ $person.name                     # "alice"
 $person.age                      # 30
 ```
 
+See [Types](topic-types.md) for dict `.keys` and `.entries` documentation.
+
 ### Index Access `[n]`
 
 Access list elements (0-based, negative from end):
 
 ```rill
 ["a", "b", "c"] => $list
-$list[0]                         # "a"
-$list[-1]                        # "c"
-$list[1]                         # "b"
+$list[0]                     # "a"
+$list[-1]                    # "c"
+$list[1]                     # "b"
 ```
 
 ### Variable Key `.$key`
@@ -454,7 +448,7 @@ $user.(name || nickname)         # "Al"
 Navigate nested data structures using a list of keys/indexes as a path:
 
 ```rill
-["name", "first"] -> [name: [first: "Alice", last: "Smith"]]
+["name", "first"] -> [name: dict[first: "Alice", last: "Smith"]]
 # Result: "Alice"
 ```
 
@@ -469,21 +463,21 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 ### Dict Path
 
 ```rill
-["address", "city"] -> [address: [street: "Main", city: "Boston"]]
+["address", "city"] -> [address: dict[street: "Main", city: "Boston"]]
 # Result: "Boston"
 ```
 
 ### List Path
 
 ```rill
-[0, 1] -> [[1, 2, 3], [4, 5, 6]]
+[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]
 # Result: 2 (first list, second element)
 ```
 
 ### Mixed Path
 
-```rill
-["users", 0, "name"] -> [users: [[name: "Alice"], [name: "Bob"]]]
+```text
+["users", 0, "name"] -> [users: list[dict[name: "Alice"], dict[name: "Bob"]]]
 # Result: "Alice"
 ```
 
@@ -498,7 +492,7 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 
 ```text
 ["missing"] -> [name: "test"]    # Error: key 'missing' not found
-[5] -> [1, 2, 3]                 # Error: index 5 out of bounds
+[5] -> list[1, 2, 3]                 # Error: index 5 out of bounds
 ```
 
 See [Reference](ref-language.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
@@ -577,6 +571,14 @@ Error if type doesn't match, returns value unchanged:
 "hello" -> :string               # "hello"
 ```
 
+Structural type syntax is supported in assertions. The structural form specifies element or field types:
+
+```text
+[1, 2, 3] -> :list(number)                    # passes: all elements are number
+[a: 1, b: 2] -> :dict(a: number, b: number)   # passes: fields match types
+[1, "x"] -> :list(number)                     # ERROR: structural type mismatch
+```
+
 ```text
 "hello" -> :number               # ERROR: expected number, got string
 ```
@@ -591,7 +593,106 @@ Returns boolean:
 "hello" -> :?string              # true
 ```
 
+Coarse checks return boolean directly:
+
+```rill
+[1, 2, 3] -> :?list              # true
+[a: 1] -> :?dict                 # true
+```
+
+Structural checks are also supported. These match element and field types:
+
+```text
+[1, 2, 3] -> :?list(number)      # true
+[1, "x"] -> :?list(number)       # false
+[a: 1] -> :?dict(a: number)      # true
+```
+
+### `^type` Operator
+
+`^type` returns the structural `RillTypeValue` for a value. The type value carries both a coarse name and a full structural description:
+
+```text
+[1, 2, 3] -> ^type               # list(number)
+[a: 1, b: "x"] -> ^type         # dict(a: number, b: string)
+42 -> ^type                      # number
+```
+
+The type value formats as a structural string via `.str` or string interpolation:
+
+```text
+[1, 2, 3] -> ^type -> .str       # "list(number)"
+"hello {[1,2,3] -> ^type}"       # "hello list(number)"
+```
+
+To get the type name only, chain `.name` on the type value:
+
+```text
+[1, 2, 3] -> ^type -> .name      # "list"
+42 -> ^type -> .name             # "number"
+```
+
 See [Types](topic-types.md) for detailed type system documentation.
+
+---
+
+## Spread Call Operator
+
+The spread call operator expands a value into the positional or named arguments of a function call. Spreading is opt-in — passing a tuple or ordered value without `...` passes it as a single argument.
+
+### Syntax Forms
+
+| Form | Description |
+|------|-------------|
+| `$fn(...)` | Spread piped value into call arguments |
+| `$fn(...$expr)` | Spread a specific expression into call arguments |
+| `$fn(a, ...$rest)` | Mix fixed args with a spread |
+
+`...` (bare) is equivalent to `...$` — it spreads the current piped value.
+
+At most one spread is permitted per call.
+
+### Piped Spread
+
+Spread the piped value into a multi-param closure:
+
+```rill
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+tuple[1, 2, 3] -> $fmt(...)
+# Result: "1-2-3"
+```
+
+### Variable Spread
+
+Spread a stored value directly:
+
+```rill
+|a, b| { $a + $b } => $add
+tuple[3, 4] => $args
+$add(...$args)
+# Result: 7
+```
+
+### Mixed Args
+
+Combine fixed arguments with a spread:
+
+```rill
+|a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
+tuple[2, 3] => $rest
+$fmt(1, ...$rest)
+# Result: "1-2-3"
+```
+
+### No Spread (Pass-Through)
+
+Without `...`, a tuple passes as a single argument:
+
+```rill
+|t| { $t.len } => $size
+tuple[1, 2, 3] -> $size()
+# Result: 3
+```
 
 ---
 
@@ -617,6 +718,45 @@ Use parentheses to override precedence:
 (2 + 3) * 4                      # 20
 5 -> ($ > 3) ? "big" ! "small"   # "big"
 ```
+
+---
+
+## Operator-Level Annotations
+
+Place `^(...)` between the collection operator name and its body to attach operational metadata to that evaluation. Annotations apply per evaluation, not per definition.
+
+**Syntax:**
+
+```text
+collection -> each ^(limit: N) { body }
+collection -> map ^(limit: N) { body }
+collection -> filter ^(limit: N) { body }
+collection -> fold ^(limit: N) |acc, x=0| { body }
+```
+
+**Examples:**
+
+```rill
+[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+# [2, 4, 6]
+```
+
+```rill
+[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+# [2, 3, 4]
+```
+
+```rill
+[1, 2, 3, 4] -> filter ^(limit: 50) { $ > 2 }
+# [3, 4]
+```
+
+```rill
+[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+# 6
+```
+
+The `limit` key controls maximum iterations for sequential operators and maximum concurrency for parallel operators (`map`, `filter`). Invalid annotation keys produce a runtime error.
 
 ---
 

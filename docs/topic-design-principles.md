@@ -64,7 +64,7 @@ Conditions must evaluate to boolean. Empty strings, zero, and empty lists are no
 # These are errors — conditions must be boolean:
 # "" ? "yes"          ERROR
 # 0 ? "yes"           ERROR
-# [] ? "yes"          ERROR
+# [] ? "yes"      ERROR
 
 # Explicit boolean conversion required:
 "" -> .empty ? "empty"
@@ -103,10 +103,10 @@ $count  # Still 0
 
 # Use accumulators instead:
 [1, 2, 3] -> fold(0) { $@ + 1 }            # Final: 3
-[1, 2, 3] -> each(0) { $@ + $ }            # Running: [1, 3, 6]
-0 -> ($ < 5) @ { $ + 1 }                   # While: 5
+[1, 2, 3] -> each(0) { $@ + $ }            # Running: list[1, 3, 6]
+0 -> ($ < 5) @ { $ + 1 }                       # While: 5
 [result: "", done: false] -> (!.done) @ {  # While: "aaaaa"
-  [result: "a{.result}", .result.len == 5]
+  [result: "a{.result}", done: (.result.len == 5)]
 }
 ```
 
@@ -117,9 +117,9 @@ $count  # Still 0
 No references. All copies are deep. All comparisons are by value. Types lock on first assignment.
 
 ```rill
-[1, 2, 3] == [1, 2, 3]    # true — content equality
+[1, 2, 3] == list[1, 2, 3]    # true — content equality
 [1, 2] => $a
-$a => $b                   # $b is an independent deep copy
+$a => $b                          # $b is an independent deep copy
 ```
 
 **Mainstream habit to break:** Expecting two variables to point at the same object. In rill, every binding holds its own copy.
@@ -143,8 +143,8 @@ Without `$`, `process(data)` is ambiguous: is `process` a host function or a sto
 
 **Additional disambiguation:**
 
-- **Capture syntax:** `=> $x` requires `$` for lookahead. Without it, slice syntax `/<1:>` becomes ambiguous.
-- **Destructuring:** `*<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
+- **Capture syntax:** `=> $x` requires `$` for lookahead. Without it, slice syntax `slice<1:>` becomes ambiguous.
+- **Destructuring:** `destruct<$a, $b>` uses `$` to mark variables vs. skip patterns or dict keys.
 - **Dynamic field access:** `$data.$key` distinguishes variable-as-key from literal field.
 - **Visual clarity:** Code is readable without context. `$total` is always a variable.
 

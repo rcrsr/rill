@@ -95,7 +95,7 @@ function containsBreak(node: ASTNode): boolean {
         (part) => typeof part !== 'string' && containsBreak(part)
       );
 
-    case 'Tuple':
+    case 'TupleLiteral':
       return node.elements.some((elem) => containsBreak(elem));
 
     case 'Dict':

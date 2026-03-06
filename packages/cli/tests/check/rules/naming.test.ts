@@ -93,7 +93,6 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects kebab-case variables', () => {
-      const messages = getDiagnostics('"test" => $user_name');
       // This should pass - it's already snake_case
       expect(hasViolations('"test" => $user_name')).toBe(false);
 
@@ -183,16 +182,16 @@ describe('NAMING_SNAKE_CASE', () => {
 
   describe('dict keys', () => {
     it('accepts valid snake_case dict keys', () => {
-      expect(hasViolations('[user_name: "Alice"]')).toBe(false);
-      expect(hasViolations('[first_name: "Alice", last_name: "Smith"]')).toBe(
-        false
-      );
-      expect(hasViolations('[is_active: true]')).toBe(false);
-      expect(hasViolations('[count: 42]')).toBe(false);
+      expect(hasViolations('dict[user_name: "Alice"]')).toBe(false);
+      expect(
+        hasViolations('dict[first_name: "Alice", last_name: "Smith"]')
+      ).toBe(false);
+      expect(hasViolations('dict[is_active: true]')).toBe(false);
+      expect(hasViolations('dict[count: 42]')).toBe(false);
     });
 
     it('rejects camelCase dict keys', () => {
-      const messages = getDiagnostics('[userName: "Alice"]');
+      const messages = getDiagnostics('dict[userName: "Alice"]');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Dict key 'userName' should use snake_case"
@@ -200,7 +199,7 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('rejects PascalCase dict keys', () => {
-      const messages = getDiagnostics('[UserName: "Alice"]');
+      const messages = getDiagnostics('dict[UserName: "Alice"]');
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Dict key 'UserName' should use snake_case"
@@ -209,7 +208,7 @@ describe('NAMING_SNAKE_CASE', () => {
 
     it('detects violations in multiple dict keys', () => {
       const messages = getDiagnostics(
-        '[firstName: "Alice", lastName: "Smith"]'
+        'dict[firstName: "Alice", lastName: "Smith"]'
       );
       expect(messages).toHaveLength(2);
       expect(messages[0]).toContain(
@@ -221,14 +220,16 @@ describe('NAMING_SNAKE_CASE', () => {
     });
 
     it('provides fix suggestion for camelCase dict key', () => {
-      const fixes = getFixes('[userName: "Alice"]');
+      const fixes = getFixes('dict[userName: "Alice"]');
       expect(fixes).toHaveLength(1);
       expect(fixes[0].description).toBe("Rename 'userName' to 'user_name'");
       expect(fixes[0].replacement).toContain('user_name:');
     });
 
     it('handles mixed valid and invalid keys', () => {
-      const messages = getDiagnostics('[user_name: "Alice", isActive: true]');
+      const messages = getDiagnostics(
+        'dict[user_name: "Alice", isActive: true]'
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0]).toContain(
         "Dict key 'isActive' should use snake_case"
@@ -271,7 +272,7 @@ describe('NAMING_SNAKE_CASE', () => {
     it('handles numbers in names', () => {
       expect(hasViolations('"test" => $item_1')).toBe(false);
       expect(hasViolations('"test" => $user_2_name')).toBe(false);
-      expect(hasViolations('[item_1: "test"]')).toBe(false);
+      expect(hasViolations('dict[item_1: "test"]')).toBe(false);
     });
 
     it('handles single underscore', () => {
@@ -301,7 +302,7 @@ describe('NAMING_SNAKE_CASE', () => {
       const source = `
         "Alice" => $userName
         "Smith" => $lastName
-        [firstName: $userName, lastName: $lastName]
+        dict[firstName: $userName, lastName: $lastName]
       `;
       const messages = getDiagnostics(source);
       expect(messages.length).toBeGreaterThanOrEqual(4); // 2 variables + 2 dict keys

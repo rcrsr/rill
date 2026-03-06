@@ -9,6 +9,8 @@ import type { RillTypeName } from '../../types.js';
 import type { CallableFn, HostFunctionDefinition } from './callable.js';
 import type { RillValue } from './values.js';
 
+export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
+
 /**
  * Method signature for built-in methods.
  * Methods are called on a receiver value: $val.method(args)
@@ -24,7 +26,7 @@ export type RillMethod = (
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
   /** Called when .log is invoked */
-  onLog: (value: RillValue) => void;
+  onLog: (message: string) => void;
   /** Called when extensions emit diagnostic events */
   onLogEvent?: (event: ExtensionEvent) => void;
 }
@@ -145,9 +147,15 @@ export interface RuntimeContext {
   /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
-   * Inner scopes inherit and can override outer annotations.
+   * Annotations do not inherit — each annotated statement carries only its own annotations.
    */
   readonly annotationStack: Record<string, RillValue>[];
+  /**
+   * Annotations for the immediate next child statement only.
+   * Set by executeAnnotatedStatement() and read by captureClosureAnnotations().
+   * Not inherited through the scope chain — cleared after one statement.
+   */
+  immediateAnnotation: Record<string, RillValue> | undefined;
   /**
    * Call stack for error context.
    * Managed by evaluator; pushed on function entry, popped on exit.
@@ -185,8 +193,6 @@ export interface RuntimeOptions {
 export interface ExecutionResult {
   /** Final result returned by the script */
   result: RillValue;
-  /** All captured variables */
-  variables: Record<string, RillValue>;
 }
 
 /** Result of a single step execution */

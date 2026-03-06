@@ -40,15 +40,6 @@
 | [CLI Tools](integration-cli.md) | rill-exec, rill-eval, rill-check commands |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects |
 
-## Agent
-
-| Topic | Description |
-|-------|-------------|
-| [Harness](agent-harness.md) | Production HTTP server for rill agents |
-| [Bundle CLI](agent-bundle.md) | Build agents into self-contained bundles |
-| [Run CLI](agent-run.md) | Execute bundled agents from the command line |
-| [Shared Types](agent-shared.md) | Shared agent types, validation, and card generation |
-
 ## Extensions
 
 | Topic | Description |
@@ -73,11 +64,10 @@ The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
 3. **Advanced patterns?** Check the [Cookbook](cookbook.md) for agent scripting patterns
 4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
 5. **Embedding rill?** Read [Host Integration](integration-host.md)
-6. **Deploying agents?** See [Harness](agent-harness.md)
-7. **Composing from manifests?** See [Bundle CLI](agent-bundle.md)
-8. **Packaging functions?** See [Extensions](integration-extensions.md)
-9. **Agent-to-agent calls?** See [Developing Extensions](integration-extensions.md) for the AHI extension
-10. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
+6. **Packaging functions?** See [Extensions](integration-extensions.md)
+7. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
+8. **Agent framework?** See [rill-agent](https://github.com/rcrsr/rill-agent)
+9. **Vendor extensions?** See [rill-ext](https://github.com/rcrsr/rill-ext)
 
 ## Design Principles
 

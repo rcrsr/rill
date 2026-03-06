@@ -26,6 +26,8 @@ import {
   makeSpan,
 } from './state.js';
 
+const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
+
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
@@ -256,24 +258,22 @@ Parser.prototype.parseAnnotatedStatement = function (
   const annotations = this.parseAnnotationArgs();
 
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  skipNewlines(this.state);
 
   // Parse the inner statement (which could also be annotated)
   const statement = this.parseStatement();
 
-  // If inner is annotated, wrap it; otherwise use directly
-  const innerStatement: StatementNode =
-    statement.type === 'AnnotatedStatement'
-      ? {
-          type: 'Statement',
-          expression: statement.statement.expression,
-          span: statement.span,
-        }
-      : statement;
+  // If inner is already annotated, return it unchanged.
+  // BC-2: The immediately-preceding annotation attaches to the closure;
+  // the outer annotation is discarded.
+  if (statement.type === 'AnnotatedStatement') {
+    return statement;
+  }
 
   return {
     type: 'AnnotatedStatement',
     annotations,
-    statement: innerStatement,
+    statement,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -301,9 +301,9 @@ Parser.prototype.parseAnnotationArgs = function (
 Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
   const start = current(this.state).span.start;
 
-  // Spread argument: *expr
-  if (check(this.state, TOKEN_TYPES.STAR)) {
-    advance(this.state); // consume *
+  // Spread argument: ...expr
+  if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
+    advance(this.state); // consume ...
     const expression = this.parseExpression();
     return {
       type: 'SpreadArg',
@@ -312,12 +312,30 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     } satisfies SpreadArgNode;
   }
 
+  // Description shorthand: bare string expands to description: <string>
+  if (check(this.state, TOKEN_TYPES.STRING)) {
+    const value = this.parseExpression();
+    return {
+      type: 'NamedArg',
+      name: 'description',
+      value,
+      span: makeSpan(start, current(this.state).span.end),
+    } satisfies NamedArgNode;
+  }
+
   // Named argument: key: value
   const nameToken = expect(
     this.state,
     TOKEN_TYPES.IDENTIFIER,
     'Expected annotation name'
   );
+  if (RESERVED_ANNOTATION_KEYS.includes(nameToken.value)) {
+    throw new ParseError(
+      'RILL-P001',
+      `Annotation key "${nameToken.value}" is reserved`,
+      nameToken.span.start
+    );
+  }
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
   const value = this.parseExpression();
 

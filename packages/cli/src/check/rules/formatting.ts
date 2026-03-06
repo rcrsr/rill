@@ -229,7 +229,7 @@ export const SPACING_BRACES: ValidationRule = {
 
 /**
  * Enforces no inner spaces for indexing brackets.
- * Array/dict indexing should use $list[0] not $list[ 0 ].
+ * Array/dict indexing should use $var[0] not $var[ 0 ].
  *
  * Detection:
  * - PostfixExpr nodes with index access
@@ -619,7 +619,11 @@ export const IMPLICIT_DOLLAR_FUNCTION: ValidationRule = {
 
     // EC-11: Single arg not bare $ - Return []
     const singleArg = hostCallNode.args[0];
-    if (!isBareReference(singleArg)) {
+    if (
+      !singleArg ||
+      singleArg.type === 'SpreadArg' ||
+      !isBareReference(singleArg)
+    ) {
       return [];
     }
 
@@ -679,7 +683,11 @@ export const IMPLICIT_DOLLAR_CLOSURE: ValidationRule = {
 
     // EC-14: Single arg not bare $ - Return []
     const singleArg = closureCallNode.args[0];
-    if (!isBareReference(singleArg)) {
+    if (
+      !singleArg ||
+      singleArg.type === 'SpreadArg' ||
+      !isBareReference(singleArg)
+    ) {
       return [];
     }
 

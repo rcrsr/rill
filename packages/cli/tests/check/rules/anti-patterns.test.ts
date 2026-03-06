@@ -271,7 +271,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('accepts captures of new variables in loop body', () => {
     // This is fine - $temp is new, not modifying outer scope
     const source = `
-      [1, 2, 3] -> each {
+      list[1, 2, 3] -> each {
         $ * 2 => $temp
         $temp
       }
@@ -280,19 +280,19 @@ describe('LOOP_OUTER_CAPTURE', () => {
   });
 
   it('accepts loops without captures', () => {
-    const source = '[1, 2, 3] -> each { $ * 2 }';
+    const source = 'list[1, 2, 3] -> each { $ * 2 }';
     expect(hasViolations(source, config)).toBe(false);
   });
 
   it('accepts fold with accumulator pattern', () => {
-    const source = '[1, 2, 3] -> fold(0) { $@ + $ }';
+    const source = 'list[1, 2, 3] -> fold(0) { $@ + $ }';
     expect(hasViolations(source, config)).toBe(false);
   });
 
   it('warns when each body captures outer variable', () => {
     const source = `
       0 => $count
-      [1, 2, 3] -> each { $count + 1 => $count }
+      list[1, 2, 3] -> each { $count + 1 => $count }
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -303,7 +303,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('warns when map body captures outer variable', () => {
     const source = `
       "" => $result
-      [1, 2, 3] -> map { $result + $ => $result }
+      list[1, 2, 3] -> map { $result + $ => $result }
     `;
 
     expect(hasViolations(source, config)).toBe(true);
@@ -328,7 +328,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('warns when filter body captures outer variable', () => {
     const source = `
       0 => $count
-      [1, 2, 3] -> filter {
+      list[1, 2, 3] -> filter {
         $count + 1 => $count
         ($ > 1)
       }
@@ -342,7 +342,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('provides helpful message with line reference', () => {
     const source = `
       0 => $sum
-      [1, 2, 3] -> each { $sum + $ => $sum }
+      list[1, 2, 3] -> each { $sum + $ => $sum }
     `;
 
     const messages = getDiagnostics(source, config);
@@ -356,7 +356,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('has warning severity', () => {
     const source = `
       0 => $x
-      [1, 2, 3] -> each { $x + 1 => $x }
+      list[1, 2, 3] -> each { $x + 1 => $x }
     `;
 
     const ast = parse(source);
@@ -373,7 +373,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
     const source = `
       0 => $a
       0 => $b
-      [1, 2, 3] -> each {
+      list[1, 2, 3] -> each {
         $a + 1 => $a
         $b + 1 => $b
       }
@@ -406,7 +406,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
     // Closures have their own scope, so captures inside them shouldn't trigger
     const source = `
       10 => $multiplier
-      [1, 2, 3] -> map {
+      list[1, 2, 3] -> map {
         |x| ($x * $multiplier) => $fn
         $fn($)
       }
@@ -418,7 +418,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
   it('warns when fold body captures outer variable (distinct from accumulator)', () => {
     const source = `
       0 => $extraSum
-      [1, 2, 3] -> fold(0) {
+      list[1, 2, 3] -> fold(0) {
         $extraSum + 1 => $extraSum
         $@ + $ + $extraSum
       }
@@ -454,7 +454,7 @@ describe('LOOP_OUTER_CAPTURE', () => {
     const source = `
       |outer_param| {
         0 => $count
-        [1, 2, 3] -> each {
+        list[1, 2, 3] -> each {
           $count + 1 => $count
         }
       } => $fn

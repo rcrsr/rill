@@ -18,34 +18,11 @@ import {
   isEmpty,
   isRillIterator,
   isVector,
+  valueToJSON,
   type RillValue,
   type RillVector,
 } from '../core/values.js';
-
-// ============================================================
-// BUILT-IN FUNCTIONS
-// ============================================================
-
-/** Recursively remove closures from a value for JSON serialization */
-function stripClosures(value: RillValue): RillValue {
-  if (isCallable(value)) {
-    return undefined as unknown as RillValue; // Will be filtered out
-  }
-  if (Array.isArray(value)) {
-    return value.filter((v) => !isCallable(v)).map(stripClosures);
-  }
-  if (isDict(value)) {
-    const result: Record<string, RillValue> = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (!isCallable(v)) {
-        result[k] = stripClosures(v);
-      }
-    }
-    return result;
-  }
-  return value;
-}
-
+import { invokeCallable } from '../core/eval/index.js';
 // ============================================================
 // ITERATOR HELPERS
 // ============================================================
@@ -111,28 +88,27 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
   /** Identity function - returns its argument */
   identity: (args) => args[0] ?? null,
 
-  /** Return the type name of a value */
-  type: (args) => inferType(args[0] ?? null),
-
   /** Log a value and return it unchanged (passthrough) */
   log: (args, ctx) => {
     const value = args[0] ?? null;
-    // ctx is RuntimeContext but CallableFn uses a minimal interface
-    (ctx as RuntimeContext).callbacks.onLog(value);
+    const message = formatValue(value);
+    (ctx as RuntimeContext).callbacks.onLog(message);
     return value;
   },
 
-  /** Convert any value to JSON string (errors on direct closure, skips closures in containers) */
+  /** Convert any value to JSON string (throws RuntimeError RILL-R004 on closures, tuples, vectors) */
   json: (args, _ctx, location) => {
     const value = args[0] ?? null;
-    if (isCallable(value)) {
-      throw new RuntimeError(
-        'RILL-R004',
-        'Cannot serialize closure to JSON',
-        location
-      );
+    try {
+      const jsonValue = valueToJSON(value);
+      return JSON.stringify(jsonValue);
+    } catch (err) {
+      if (err instanceof RuntimeError) throw err;
+      if (err instanceof Error) {
+        throw new RuntimeError('RILL-R004', err.message, location);
+      }
+      throw err;
     }
-    return JSON.stringify(stripClosures(value));
   },
 
   /**
@@ -225,116 +201,56 @@ export const BUILTIN_FUNCTIONS: Record<string, CallableFn> = {
   },
 
   /**
-   * Create a tool descriptor from a closure or host function.
-   *
-   * Call signatures:
-   * - tool(name, description, params, closure) - 4 args, arg[3] callable
-   * - tool("host_fn::name") - 1 arg, string with :: separator
-   * - tool("host_fn::name", overrides) - 2 args, string + dict
-   *
-   * Returns dict: { name, description, params, fn }
+   * Pipe a value through one or more closures, left-to-right.
+   * chain(value, closure)        -> closure(value)
+   * chain(value, [f, g, h])     -> h(g(f(value)))
+   * chain(value, [])             -> value unchanged
+   * Non-closure/non-list second arg throws RILL-R040 (EC-14).
    */
-  tool: (args, ctx, location) => {
-    // Signature 1: tool(name, description, params, closure) - 4 args
-    if (args.length === 4) {
-      const name = args[0] ?? '';
-      const description = args[1] ?? '';
-      const params = args[2] ?? {};
-      const fn = args[3] ?? null;
-
-      if (!isCallable(fn)) {
-        throw new RuntimeError(
-          'RILL-R001',
-          'tool() invalid arguments',
-          location
-        );
-      }
-
-      return {
-        name,
-        description,
-        params,
-        fn,
-      } as Record<string, RillValue>;
+  chain: async (args, ctx, location) => {
+    // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
+    // Detect this by checking if there is exactly one arg and a pipe value is set.
+    let value: RillValue;
+    let arg: RillValue;
+    if (args.length === 1 && ctx.pipeValue !== null) {
+      value = ctx.pipeValue;
+      arg = args[0] ?? null;
+    } else {
+      value = args[0] ?? null;
+      arg = args[1] ?? null;
     }
 
-    // Signatures 2 & 3: tool("host_fn::name") or tool("host_fn::name", overrides)
-    if (args.length === 1 || args.length === 2) {
-      const hostRef = args[0];
-
-      if (typeof hostRef !== 'string' || !hostRef.includes('::')) {
-        throw new RuntimeError(
-          'RILL-R001',
-          'tool() invalid arguments',
-          location
-        );
-      }
-
-      const functionName = hostRef;
-      const runtimeCtx = ctx as RuntimeContext;
-      const hostFunction = runtimeCtx.functions.get(functionName);
-
-      if (!hostFunction) {
-        throw new RuntimeError(
-          'RILL-R004',
-          `function '${functionName}' not found`,
-          location
-        );
-      }
-
-      // Extract metadata from host function
-      let description: string = '';
-      let params: RillValue = {};
-
-      if (typeof hostFunction === 'object' && 'kind' in hostFunction) {
-        // ApplicationCallable with metadata
-        description = hostFunction.description ?? '';
-        if (hostFunction.params) {
-          // Convert CallableParam[] to dict
-          const paramsDict: Record<string, RillValue> = {};
-          for (const param of hostFunction.params) {
-            paramsDict[param.name] = {
-              type: param.typeName ?? 'any',
-              description: param.description ?? '',
-            } as Record<string, RillValue>;
-          }
-          params = paramsDict;
-        }
-      }
-
-      // Apply overrides if provided
-      if (args.length === 2) {
-        const overrides = args[1] ?? null;
-        if (!isDict(overrides)) {
+    if (Array.isArray(arg)) {
+      // List of closures: fold left-to-right
+      let result = value;
+      for (const item of arg) {
+        if (!isCallable(item)) {
           throw new RuntimeError(
-            'RILL-R001',
-            'tool() invalid arguments',
+            'RILL-R040',
+            `chain: list element must be a closure, got ${inferType(item)}`,
             location
           );
         }
-
-        // Merge overrides into result
-        if (
-          'description' in overrides &&
-          typeof overrides['description'] === 'string'
-        ) {
-          description = overrides['description'];
-        }
-        if ('params' in overrides && isDict(overrides['params'])) {
-          params = overrides['params'] as RillValue;
-        }
+        result = await invokeCallable(
+          item,
+          [result],
+          ctx as RuntimeContext,
+          location
+        );
       }
-
-      return {
-        name: functionName,
-        description,
-        params,
-        fn: hostFunction as RillValue,
-      } as Record<string, RillValue>;
+      return result;
     }
 
-    // Invalid argument count
-    throw new RuntimeError('RILL-R001', 'tool() invalid arguments', location);
+    if (isCallable(arg)) {
+      // Single closure: invoke with value
+      return invokeCallable(arg, [value], ctx as RuntimeContext, location);
+    }
+
+    throw new RuntimeError(
+      'RILL-R040',
+      `chain: second argument must be a closure or list of closures, got ${inferType(arg)}`,
+      location
+    );
   },
 };
 

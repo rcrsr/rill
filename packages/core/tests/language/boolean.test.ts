@@ -255,7 +255,7 @@ describe('Rill Runtime: Boolean Expressions', () => {
     });
 
     it('rejects list operand', async () => {
-      await expect(run('! [1, 2]')).rejects.toThrow(
+      await expect(run('! list[1, 2]')).rejects.toThrow(
         'Negation operator (!) requires boolean operand, got list'
       );
     });

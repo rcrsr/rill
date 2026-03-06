@@ -25,10 +25,16 @@
  * - Mutation occurs before host function receives args, maintaining immutability contract
  */
 
-import type { BodyNode, SourceLocation } from '../../types.js';
+import type {
+  BodyNode,
+  RillFunctionReturnType,
+  RillTypeName,
+  SourceLocation,
+} from '../../types.js';
+export type { RillFunctionReturnType } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
-import type { RillValue } from './values.js';
+import type { RillStructuralType, RillTypeValue, RillValue } from './values.js';
 import { formatValue, inferType, isTuple } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -58,34 +64,13 @@ export type CallableFn = (
  */
 export interface CallableParam {
   readonly name: string;
-  readonly typeName:
-    | 'string'
-    | 'number'
-    | 'bool'
-    | 'list'
-    | 'dict'
-    | 'vector'
-    | 'any'
-    | null;
+  readonly typeName: RillTypeName | null;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
   /** Human-readable parameter description (optional, from host functions) */
   readonly description?: string;
 }
-
-/**
- * Return type declaration for host-provided functions.
- * Limited to 6 primitive types plus 'any' (default).
- */
-export type RillFunctionReturnType =
-  | 'string'
-  | 'number'
-  | 'bool'
-  | 'list'
-  | 'dict'
-  | 'vector'
-  | 'any';
 
 /**
  * Parameter metadata for host-provided functions.
@@ -162,6 +147,10 @@ export interface ScriptCallable extends CallableBase {
   readonly annotations: Record<string, RillValue>;
   /** Evaluated parameter annotations keyed by parameter name */
   readonly paramAnnotations: Record<string, Record<string, RillValue>>;
+  /** Cached input structural type built from params at creation time — used by `$fn.^input` */
+  readonly inputShape: RillStructuralType;
+  /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
+  readonly returnShape?: RillTypeValue | undefined;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */
@@ -340,6 +329,37 @@ export function callableEquals(
 }
 
 /**
+ * Build a RillStructuralType closure variant from a closure's parameter list.
+ *
+ * Called at closure creation time to build the structural type for `$fn.^input`.
+ * - Typed params map to { kind: 'primitive', name }
+ * - Untyped params (typeName: null) map to { kind: 'any' }
+ * - Return type is always { kind: 'any' }
+ *
+ * No validation: parser already validates type names.
+ *
+ * @param params - Closure parameter definitions
+ * @returns Frozen RillStructuralType with closure variant
+ */
+export function paramsToStructuralType(
+  params: CallableParam[]
+): RillStructuralType {
+  const closureParams: [string, RillStructuralType][] = params.map((param) => {
+    const paramType: RillStructuralType =
+      param.typeName !== null
+        ? { kind: 'primitive', name: param.typeName }
+        : { kind: 'any' };
+    return [param.name, paramType];
+  });
+
+  return Object.freeze({
+    kind: 'closure' as const,
+    params: closureParams,
+    ret: { kind: 'any' as const },
+  });
+}
+
+/**
  * Validate defaultValue type matches declared parameter type.
  *
  * Called at registration time to catch configuration errors early.
@@ -364,37 +384,6 @@ export function validateDefaultValueType(
   if (actualType !== expectedType) {
     throw new Error(
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
-    );
-  }
-}
-
-/**
- * Validate returnType is a valid RillFunctionReturnType literal.
- *
- * Called at registration time to catch configuration errors early.
- * Throws Error (not RuntimeError) to indicate registration failure.
- *
- * @param returnType - Return type value to validate
- * @param functionName - Function name for error messages
- * @throws Error if returnType is not a valid literal
- */
-export function validateReturnType(
-  returnType: unknown,
-  functionName: string
-): void {
-  const validTypes: readonly RillFunctionReturnType[] = [
-    'string',
-    'number',
-    'bool',
-    'list',
-    'dict',
-    'vector',
-    'any',
-  ] as const;
-
-  if (!validTypes.includes(returnType as RillFunctionReturnType)) {
-    throw new Error(
-      `Invalid returnType for function '${functionName}': expected one of string, number, bool, list, dict, vector, any`
     );
   }
 }

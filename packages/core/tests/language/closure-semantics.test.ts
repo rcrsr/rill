@@ -8,14 +8,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
     it('AC-1: captured block has closure type', async () => {
       const script = `
         { "result" } => $a
-        type($a)
+        $a.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });
@@ -41,7 +41,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Dict Value Block-Closure', () => {
     it('AC-4: dict value block-closure invoked via pipe', async () => {
       const script = `
-        [x: { $ + 1 }] => $d
+        dict[x: { $ + 1 }] => $d
         5 -> $d.x
       `;
       expect(await run(script)).toBe(6);
@@ -50,7 +50,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
   describe('Dict Dispatch Block-Closure', () => {
     it('AC-5: dict dispatch invokes block-closure', async () => {
-      const script = `"x" -> [x: { "{$} matched" }]`;
+      const script = `"x" -> dict[x: { "{$} matched" }]`;
       expect(await run(script)).toBe('x matched');
     });
   });
@@ -77,16 +77,27 @@ describe('Rill Runtime: Closure Semantics', () => {
 
   describe('Mixed Dict Value Types', () => {
     it('AC-8: dict values have distinct types (closure, eager, literal)', async () => {
-      const script = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
-        [type($d.a), $d.b, $d.c]
+      // Mixed-type list ['closure', 10, 42] not allowed; verify each field separately
+      const scriptA = `
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        $d.a.^type.^name
       `;
-      expect(await run(script)).toEqual(['closure', 10, 42]);
+      expect(await run(scriptA)).toBe('closure');
+      const scriptB = `
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        $d.b
+      `;
+      expect(await run(scriptB)).toBe(10);
+      const scriptC = `
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        $d.c
+      `;
+      expect(await run(scriptC)).toBe(42);
     });
 
     it('AC-8 variant: invoking closure produces correct result', async () => {
       const script = `
-        [a: { $ * 2 }, b: (5 + 5), c: 42] => $d
+        dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         7 -> $d.a
       `;
       expect(await run(script)).toBe(14);
@@ -96,7 +107,7 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Block-Closure Edge Cases', () => {
     it('block-closure in list can be invoked', async () => {
       const script = `
-        [{ $ + 1 }, { $ * 2 }] => $fns
+        list[{ $ + 1 }, { $ * 2 }] => $fns
         10 -> $fns[0]
       `;
       expect(await run(script)).toBe(11);
@@ -132,7 +143,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('block-closure passed as argument', async () => {
       const script = `
-        [1, 2, 3] -> map { $ * 2 }
+        list[1, 2, 3] -> map { $ * 2 }
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
@@ -181,7 +192,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Note: Empty blocks { } are disallowed by parser. Use minimal block with empty string.
       const script = `
         { "" } => $a
-        type($a)
+        $a.^type.^name
       `;
       expect(await run(script)).toBe('closure');
     });
@@ -199,29 +210,31 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Fixed: Originally piped "outer" -> $a, but unified dispatch would
       // try to find key "outer" in dict, throwing RUNTIME_PROPERTY_NOT_FOUND.
       // Test intent is to verify dict contains block-closure, not test dispatch.
-      const script = `
-        [y: { "inner" }] => $a
-        $a
-      `;
-      const result = await run(script);
-      expect(result).toHaveProperty('y');
-      expect(await run('type($result.y)', { variables: { result } })).toBe(
-        'closure'
-      );
+      // Using runWithContext to capture $a as a raw RillValue (dict with closure),
+      // since toNative() rejects dicts that contain closure values.
+      const { context } = await runWithContext(`
+        dict[y: { "inner" }] => $a
+        true
+      `);
+      const a = context.variables.get('a');
+      expect(a).toHaveProperty('y');
+      expect(
+        await run('$result.y.^type.^name', { variables: { result: a } })
+      ).toBe('closure');
     });
 
     it('AC-16: block-closure in list', async () => {
       const script = `
-        [{ $ + 1 }, { $ + 2 }] => $list
-        [type($list[0]), type($list[1])]
+        list[{ $ + 1 }, { $ + 2 }] => $list
+        list[$list[0].^type.^name, $list[1].^type.^name]
       `;
       expect(await run(script)).toEqual(['closure', 'closure']);
     });
 
     it('AC-16 variant: verify both closures execute correctly', async () => {
       const script = `
-        [{ $ + 1 }, { $ + 2 }] => $list
-        [5 -> $list[0], 5 -> $list[1]]
+        list[{ $ + 1 }, { $ + 2 }] => $list
+        list[5 -> $list[0], 5 -> $list[1]]
       `;
       expect(await run(script)).toEqual([6, 7]);
     });
@@ -229,8 +242,8 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-17: dict with all value types', async () => {
       // Note: ||{ 42 } is property-style (isProperty: true), auto-invokes on access
       const script = `
-        [a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        [type($d.a), type($d.b), type($d.c), type($d.d)]
+        dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
+        list[$d.a.^type.^name, $d.b.^type.^name, $d.c.^type.^name, $d.d.^type.^name]
       `;
       expect(await run(script)).toEqual([
         'closure', // block-closure: no auto-invoke
@@ -241,12 +254,15 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
-      // Note: ||{ 42 } auto-invokes on access, so $d.d returns 42 directly
-      const script = `
-        [a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        [10 -> $d.a, $d.b, $d.c, $d.d]
-      `;
-      expect(await run(script)).toEqual([10, 1, 's', 42]);
+      // Mixed-type list [10, 1, 's', 42] not allowed; verify each value separately
+      const scriptA = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n10 -> $d.a`;
+      expect(await run(scriptA)).toBe(10);
+      const scriptB = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.b`;
+      expect(await run(scriptB)).toBe(1);
+      const scriptC = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.c`;
+      expect(await run(scriptC)).toBe('s');
+      const scriptD = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n$d.d`;
+      expect(await run(scriptD)).toBe(42);
     });
 
     it('AC-18: chained pipe through block-closure', async () => {
@@ -336,7 +352,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Dict value block-closure also requires implicit $ when called directly
       try {
         await run(`
-          [x: { $ + 1 }] => $d
+          dict[x: { $ + 1 }] => $d
           $d.x()
         `);
         expect.fail('Should have thrown');
@@ -383,7 +399,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "keys" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'keys' as dict key
       try {
-        await run('[keys: { $ }]');
+        await run('dict[keys: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -399,7 +415,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "values" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'values' as dict key
       try {
-        await run('[values: { $ }]');
+        await run('dict[values: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -415,7 +431,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-5: reserved method name "entries" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
       // Cannot use reserved method name 'entries' as dict key
       try {
-        await run('[entries: { $ }]');
+        await run('dict[entries: { $ }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
@@ -431,7 +447,7 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-10: undefined variable in dict dispatch closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
       // Dict dispatch closure body references undefined variable - error propagated
       try {
-        await run('"x" -> [x: { $undefined }]');
+        await run('"x" -> dict[x: { $undefined }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId', 'RILL-R005');
@@ -441,13 +457,47 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-10: type error in dict dispatch closure body throws RUNTIME_TYPE_ERROR', async () => {
       // Dict dispatch closure body contains type error (number + string) - error propagated
       try {
-        await run('"x" -> [x: { 5 + "text" }]');
+        await run('"x" -> dict[x: { 5 + "text" }]');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId');
         const errorId = (err as { errorId: string }).errorId;
         expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
+    });
+  });
+
+  describe('AC-12: Closure Param Dynamic Type Resolution via $t', () => {
+    it('AC-12 success: $t bound to string — closure accepts string argument', async () => {
+      const script = `
+        string => $t
+        |val: $t| { $val } => $f
+        $f("hello")
+      `;
+      expect(await run(script)).toBe('hello');
+    });
+
+    it('AC-12 rejection: $t bound to number — closure rejects string argument', async () => {
+      const script = `
+        number => $t
+        |val: $t| { $val } => $f
+        $f("hello")
+      `;
+      await expect(run(script)).rejects.toThrow(
+        'Parameter type mismatch: val expects number, got string'
+      );
+    });
+
+    it('AC-12 creation-time capture: $t reassigned after closure creation — closure uses type from creation time', async () => {
+      // Closure was created when $t held string; later reassigning $t to number
+      // must not change the closure's captured parameter type.
+      const script = `
+        string => $t
+        |val: $t| { $val } => $f
+        number => $t
+        $f("hello")
+      `;
+      expect(await run(script)).toBe('hello');
     });
   });
 
@@ -514,6 +564,107 @@ describe('Rill Runtime: Closure Semantics', () => {
       //       1 -> prev=1, reset()=0, prev-1=0
       //       0 -> condition (0 > 0) is false, exits
       expect(await run(script)).toBe(0);
+    });
+  });
+
+  // ============================================================
+  // Return Type Assertions
+  // ============================================================
+
+  describe('Closure Return Type Assertions', () => {
+    it('return type :number passes when closure returns number', async () => {
+      expect(await run('|x: number| { $x * 2 }:number => $fn\n$fn(5)')).toBe(
+        10
+      );
+    });
+
+    it('return type :string passes when closure returns string', async () => {
+      expect(await run('|x: number| { "{$x}" }:string => $fn\n$fn(42)')).toBe(
+        '42'
+      );
+    });
+
+    it('return type :number halts with RILL-R004 on mismatch', async () => {
+      try {
+        await run('|x: number| { "{$x}" }:number => $fn\n$fn(5)');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R004');
+      }
+    });
+
+    it('^output reflects declared return type', async () => {
+      expect(
+        await run('|x: number| { $x }:number => $fn\n$fn.^output.^name')
+      ).toBe('number');
+    });
+
+    it('^output defaults to any when no return type declared', async () => {
+      expect(await run('|x: number| { $x } => $fn\n$fn.^output.^name')).toBe(
+        'any'
+      );
+    });
+
+    it('^type includes return type when declared', async () => {
+      // Closure with :number matches sig literal with :number
+      expect(
+        await run(`
+          |x: number| { $x }:number => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(true);
+    });
+
+    it('^type shows any for return type when not declared', async () => {
+      // Without :type, return defaults to any — differs from explicit :number
+      expect(
+        await run(`
+          |x: number| { $x } => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // Closure Sig Literals
+  // ============================================================
+
+  describe('Closure Sig Literals', () => {
+    it('parses |x: number| :string as a type value', async () => {
+      expect(await run('(|x: number| :string) => $t\n$t.^name')).toBe(
+        'closure'
+      );
+    });
+
+    it('sig literal equality: same signature', async () => {
+      expect(await run('(|x: number| :string) == (|x: number| :string)')).toBe(
+        true
+      );
+    });
+
+    it('sig literal inequality: different return type', async () => {
+      expect(await run('(|x: number| :number) == (|x: number| :string)')).toBe(
+        false
+      );
+    });
+
+    it('sig literal inequality: different param name', async () => {
+      expect(await run('(|x: number| :string) == (|y: number| :string)')).toBe(
+        false
+      );
+    });
+
+    it('sig literal matches ^type of closure with return annotation', async () => {
+      expect(
+        await run(`
+          |x: number| { $x }:number => $fn
+          (|x: number| :number) => $sig
+          $fn.^type == $sig
+        `)
+      ).toBe(true);
     });
   });
 });

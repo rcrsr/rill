@@ -160,11 +160,11 @@ describe('CoreMixin Error Contracts', () => {
       );
 
       await expect(
-        run('[1, 2, 3]', { signal: controller.signal })
+        run('list[1, 2, 3]', { signal: controller.signal })
       ).rejects.toThrow(AbortError);
 
       await expect(
-        run('[a: 1, b: 2]', { signal: controller.signal })
+        run('dict[a: 1, b: 2]', { signal: controller.signal })
       ).rejects.toThrow(AbortError);
     });
 
@@ -174,7 +174,7 @@ describe('CoreMixin Error Contracts', () => {
       // Abort during pipe target processing
       let callCount = 0;
       await expect(
-        run('[1, 2, 3] -> each { count() }', {
+        run('list[1, 2, 3] -> each { count() }', {
           functions: {
             count: {
               params: [],
@@ -251,7 +251,7 @@ describe('CoreMixin Error Contracts', () => {
 
     it('evaluatePipeChain handles break terminator', async () => {
       const result = await run(
-        '[1, 2, 3] -> each { ($ == 2) ? ($ -> break)\n$ }'
+        'list[1, 2, 3] -> each { ($ == 2) ? ($ -> break)\n$ }'
       );
       expect(result).toEqual([1]);
     });
@@ -270,8 +270,8 @@ describe('CoreMixin Error Contracts', () => {
       expect(await run('"string"')).toBe('string');
       expect(await run('42')).toBe(42);
       expect(await run('true')).toBe(true);
-      expect(await run('[1, 2, 3]')).toEqual([1, 2, 3]);
-      expect(await run('[a: 1]')).toEqual({ a: 1 });
+      expect(await run('list[1, 2, 3]')).toEqual([1, 2, 3]);
+      expect(await run('dict[a: 1]')).toEqual({ a: 1 });
     });
 
     it('evaluatePipeTarget sets pipe value', async () => {

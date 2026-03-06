@@ -130,9 +130,30 @@ export function visitNode(
       // Leaf nodes - no children
       break;
 
-    case 'Tuple':
+    case 'TupleLiteral':
       for (const element of node.elements) {
         visitNode(element, context, visitor);
+      }
+      break;
+
+    case 'ListLiteral':
+      for (const element of node.elements) {
+        visitNode(element, context, visitor);
+      }
+      if (node.defaultValue) {
+        visitNode(node.defaultValue, context, visitor);
+      }
+      break;
+
+    case 'DictLiteral':
+      for (const entry of node.entries) {
+        visitNode(entry, context, visitor);
+      }
+      break;
+
+    case 'OrderedLiteral':
+      for (const entry of node.entries) {
+        visitNode(entry, context, visitor);
       }
       break;
 
@@ -191,6 +212,10 @@ export function visitNode(
       for (const arg of node.args) {
         visitNode(arg, context, visitor);
       }
+      break;
+
+    case 'AnnotationAccess':
+      // Leaf node - no children
       break;
 
     case 'PipeInvoke':
@@ -253,10 +278,6 @@ export function visitNode(
       visitNode(node.body, context, visitor);
       break;
 
-    case 'ClosureChain':
-      visitNode(node.target, context, visitor);
-      break;
-
     case 'Destructure':
       for (const element of node.elements) {
         visitNode(element, context, visitor);
@@ -281,10 +302,14 @@ export function visitNode(
       }
       break;
 
-    case 'Spread':
-      if (node.operand) {
-        visitNode(node.operand, context, visitor);
+    case 'Destruct':
+      for (const element of node.elements) {
+        visitNode(element, context, visitor);
       }
+      break;
+
+    case 'Convert':
+      // Leaf node - typeRef is not an ASTNode
       break;
 
     case 'TypeAssertion':
@@ -322,6 +347,31 @@ export function visitNode(
       if (node.message) {
         visitNode(node.message, context, visitor);
       }
+      break;
+
+    case 'TypeNameExpr':
+    case 'HostRef':
+      // Leaf nodes - no children
+      break;
+
+    case 'AnnotatedExpr':
+      for (const arg of node.annotations) {
+        visitNode(arg, context, visitor);
+      }
+      visitNode(node.expression, context, visitor);
+      break;
+
+    case 'TypeConstructor':
+      for (const arg of node.args) {
+        visitNode(arg.value, context, visitor);
+      }
+      break;
+
+    case 'ClosureSigLiteral':
+      for (const param of node.params) {
+        visitNode(param.typeExpr, context, visitor);
+      }
+      visitNode(node.returnType, context, visitor);
       break;
 
     default: {

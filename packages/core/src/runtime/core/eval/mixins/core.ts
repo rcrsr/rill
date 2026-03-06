@@ -28,11 +28,12 @@ import type {
   PrimaryNode,
   PipeTargetNode,
   SourceLocation,
+  SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { isTuple } from '../../values.js';
-import { isCallable, isDict } from '../../callable.js';
+import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -48,11 +49,11 @@ import type { EvaluatorBase } from '../base.js';
  * - ExpressionsMixin: evaluateBinaryExpr(), evaluateUnaryExpr(), evaluateGroupedExpr()
  * - LiteralsMixin: evaluateString(), evaluateDict(), evaluateTuple(), createClosure()
  * - VariablesMixin: evaluateVariable(), evaluateVariableAsync(), evaluatePipePropertyAccess(), evaluateVariableInvoke(), handleCapture()
- * - ClosuresMixin: evaluateHostCall(), evaluateClosureCall(), evaluatePipeInvoke(), evaluateClosureChain()
+ * - ClosuresMixin: evaluateHostCall(), evaluateClosureCall(), evaluatePipeInvoke()
  * - ControlFlowMixin: evaluateConditional(), evaluateWhileLoop(), evaluateDoWhileLoop(), evaluateBlockExpression()
  * - TypesMixin: evaluateTypeAssertion(), evaluateTypeCheck()
  * - CollectionsMixin: evaluateEach(), evaluateMap(), evaluateFold(), evaluateFilter()
- * - ExtractionMixin: evaluateDestructure(), evaluateSlice(), evaluateSpread()
+ * - ExtractionMixin: evaluateDestructure(), evaluateSlice(), evaluateCollectionLiteral()
  *
  * Methods added:
  * - evaluateExpression(expr) -> Promise<RillValue>
@@ -111,7 +112,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Handle inline captures (act as identity: store and pass through)
         if (target.type === 'Capture') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).handleCapture(target, value);
+          await (this as any).handleCapture(target, value);
           // Value flows through unchanged
           continue;
         }
@@ -134,7 +135,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         // Capture
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).handleCapture(chain.terminator, value);
+        await (this as any).handleCapture(chain.terminator, value);
       }
 
       // Restore parent's $ - chain result is returned, but $ doesn't leak
@@ -160,8 +161,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let value = await this.evaluatePrimary(expr.primary);
 
         for (const method of expr.methods) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          value = await (this as any).evaluateMethod(method, value);
+          if (method.type === 'AnnotationAccess') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateAnnotationAccess(
+              value,
+              method.key,
+              method.span.start
+            );
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            value = await (this as any).evaluateMethod(method, value);
+          }
         }
 
         return value;
@@ -203,10 +213,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'BoolLiteral':
           return primary.value;
 
-        case 'Tuple':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTuple(primary);
-
         case 'Dict':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateDict(primary);
@@ -222,6 +228,32 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'HostCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateHostCall(primary);
+
+        case 'HostRef':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateHostRef(primary);
+
+        case 'AnnotatedExpr': {
+          // Set immediateAnnotation before evaluating the inner primary so
+          // createClosure() can consume it via captureClosureAnnotations [IR-5].
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const annots = await (this as any).evaluateAnnotations(
+            primary.annotations
+          );
+          this.ctx.immediateAnnotation = annots;
+          try {
+            const innerResult = await this.evaluatePrimary(primary.expression);
+            if (!isScriptCallable(innerResult)) {
+              // Non-closure: annotation silently ignored [EC-5]
+              this.ctx.immediateAnnotation = undefined;
+            }
+            // ScriptCallable: immediateAnnotation was consumed by createClosure()
+            return innerResult;
+          } finally {
+            // Ensure immediateAnnotation is cleared even on error paths
+            this.ctx.immediateAnnotation = undefined;
+          }
+        }
 
         case 'ClosureCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,10 +290,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'GroupedExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateGroupedExpr(primary);
-
-        case 'Spread':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateSpread(primary);
 
         case 'Assert':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,6 +331,41 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateTypeCheck(primary, checkValue);
         }
 
+        case 'TypeNameExpr':
+          // Bare type names that are primitives get primitive structure; others get 'any'.
+          return Object.freeze({
+            __rill_type: true as const,
+            typeName: primary.typeName,
+            structure:
+              primary.typeName === 'string' ||
+              primary.typeName === 'number' ||
+              primary.typeName === 'bool' ||
+              primary.typeName === 'closure' ||
+              primary.typeName === 'list' ||
+              primary.typeName === 'dict' ||
+              primary.typeName === 'tuple' ||
+              primary.typeName === 'ordered' ||
+              primary.typeName === 'vector' ||
+              primary.typeName === 'type'
+                ? ({ kind: 'primitive', name: primary.typeName } as const)
+                : ({ kind: 'any' } as const),
+          });
+
+        case 'TypeConstructor':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateTypeConstructor(primary);
+
+        case 'ClosureSigLiteral':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateClosureSigLiteral(primary);
+
+        case 'ListLiteral':
+        case 'DictLiteral':
+        case 'TupleLiteral':
+        case 'OrderedLiteral':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateCollectionLiteral(primary);
+
         default:
           throw new RuntimeError(
             'RILL-R004',
@@ -328,6 +391,12 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'HostCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateHostCall(target);
+
+        case 'HostRef':
+          // pipeValue is already set to input above; evaluateHostRef invokes
+          // with it when pipeValue is non-null [IR-4].
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateHostRef(target);
 
         case 'ClosureCall':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -419,12 +488,27 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateDictDispatch(target, input);
         }
 
-        case 'Tuple': {
+        case 'GroupedExpr':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateGroupedExpr(target);
+
+        case 'Destructure':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateDestructure(target, input);
+
+        case 'Destruct':
+          // Keyword-based destruct<$a, $b, ...> form [IR-26]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateDestruct(target, input);
+
+        case 'ListLiteral': {
           // Hierarchical dispatch: detect list input (not tuple)
           if (Array.isArray(input) && !isTuple(input)) {
             // Evaluate list literal first, then dispatch through path
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const listValue = await (this as any).evaluateTuple(target);
+            const listValue = await (this as any).evaluateCollectionLiteral(
+              target
+            );
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return await (this as any).evaluateHierarchicalDispatch(
               listValue,
@@ -433,30 +517,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               this.getNodeLocation(target)
             );
           }
-          // Tuple dispatch: index lookup matching piped value
+          // list[...] as pipe target: index-based dispatch [IR-11]
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateListDispatch(target, input);
+          return (this as any).evaluateListLiteralDispatch(target, input);
         }
-
-        case 'GroupedExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateGroupedExpr(target);
-
-        case 'ClosureChain':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateClosureChain(target, input);
-
-        case 'Destructure':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDestructure(target, input);
 
         case 'Slice':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateSlice(target, input);
-
-        case 'Spread':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateSpread(target);
 
         case 'TypeAssertion':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -586,11 +654,28 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // The primary is implicit $ (pipe value)
           let value = input;
           for (const method of target.methods) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateMethod(method, value);
+            if (method.type === 'AnnotationAccess') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value = await (this as any).evaluateAnnotationAccess(
+                value,
+                method.key,
+                method.span.start
+              );
+            } else {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value = await (this as any).evaluateMethod(method, value);
+            }
           }
           return value;
         }
+
+        case 'AnnotationAccess':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateAnnotationAccess(
+            input,
+            target.key,
+            target.span.start
+          );
 
         case 'Assert':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -599,6 +684,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'Error':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateError(target, input);
+
+        case 'Convert':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateConvert(target, input);
 
         default:
           throw new RuntimeError(
@@ -615,11 +704,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluates arguments in order, preserving pipe value.
      * The pipe value is saved and restored so arguments don't affect it.
      */
-    async evaluateArgs(argExprs: ExpressionNode[]): Promise<RillValue[]> {
+    async evaluateArgs(
+      argExprs: (ExpressionNode | SpreadArgNode)[]
+    ): Promise<RillValue[]> {
       const savedPipeValue = this.ctx.pipeValue;
       const args: RillValue[] = [];
       for (const arg of argExprs) {
-        args.push(await this.evaluateExpression(arg));
+        const expr = arg.type === 'SpreadArg' ? arg.expression : arg;
+        args.push(await this.evaluateExpression(expr));
       }
       this.ctx.pipeValue = savedPipeValue;
       return args;

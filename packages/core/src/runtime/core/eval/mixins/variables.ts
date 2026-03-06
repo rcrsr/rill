@@ -41,7 +41,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType } from '../../values.js';
+import { inferType, isTypeValue } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -83,7 +83,12 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const valueType = inferType(value);
 
       // Check explicit type annotation matches value
-      if (explicitType !== undefined && explicitType !== valueType) {
+      // 'any' type bypasses type checking: accepts any value by definition
+      if (
+        explicitType !== undefined &&
+        explicitType !== 'any' &&
+        explicitType !== valueType
+      ) {
         throw new RuntimeError(
           'RILL-R001',
           `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
@@ -113,7 +118,11 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Check if variable already has a locked type in current scope
       const lockedType = this.ctx.variableTypes.get(name);
-      if (lockedType !== undefined && lockedType !== valueType) {
+      if (
+        lockedType !== undefined &&
+        lockedType !== 'any' &&
+        lockedType !== valueType
+      ) {
         throw new RuntimeError(
           'RILL-R001',
           `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
@@ -330,6 +339,16 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             value = await (this as any).evaluateMethod(methodNode, value);
+          } else if (isTypeValue(value)) {
+            if (field === 'name') {
+              value = value.typeName;
+            } else {
+              throw new RuntimeError(
+                'RILL-R003',
+                `Type value has no property "${field}"`,
+                this.getNodeLocation(node)
+              );
+            }
           } else if (isDict(value)) {
             // Allow missing fields if there's a default value or existence check
             const allowMissing =
@@ -751,13 +770,21 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Handles capture syntax which assigns the piped value to a variable.
      * Calls setVariable for type checking and fires observability callback.
      */
-    protected evaluateCapture(node: CaptureNode, input: RillValue): RillValue {
-      this.setVariable(
-        node.name,
-        input,
-        node.typeName ?? undefined,
-        node.span.start
-      );
+    protected async evaluateCapture(
+      node: CaptureNode,
+      input: RillValue
+    ): Promise<RillValue> {
+      if (node.typeRef !== null) {
+        // Resolve TypeRef and validate against the declared type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const resolved = (this as any).resolveTypeRef(
+          node.typeRef,
+          (name: string) => getVariable(this.ctx, name) as RillValue
+        );
+        this.setVariable(node.name, input, resolved.typeName, node.span.start);
+      } else {
+        this.setVariable(node.name, input, undefined, node.span.start);
+      }
       this.ctx.observability.onCapture?.({ name: node.name, value: input });
       return input;
     }
@@ -767,13 +794,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Returns capture info if a capture occurred.
      * This overrides the stub in EvaluatorBase.
      */
-    protected override handleCapture(
+    protected override async handleCapture(
       capture: CaptureNode | null,
       value: RillValue
-    ): { name: string; value: RillValue } | undefined {
+    ): Promise<{ name: string; value: RillValue } | undefined> {
       if (!capture) return undefined;
 
-      this.evaluateCapture(capture, value);
+      await this.evaluateCapture(capture, value);
       return { name: capture.name, value };
     }
   };

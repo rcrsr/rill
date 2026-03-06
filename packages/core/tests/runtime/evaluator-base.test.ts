@@ -260,12 +260,12 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
 
     it('evaluates list literals', async () => {
-      const result = await run('[1, 2, 3]');
+      const result = await run('list[1, 2, 3]');
       expect(result).toEqual([1, 2, 3]);
     });
 
     it('evaluates dict literals', async () => {
-      const result = await run('[a: 1, b: 2]');
+      const result = await run('dict[a: 1, b: 2]');
       expect(result).toEqual({ a: 1, b: 2 });
     });
 
@@ -298,8 +298,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         "hello" => $str
         42 => $num
         true => $bool
-        [1, 2, 3] => $list
-        [a: "test"] => $dict
+        list[1, 2, 3] => $list
+        dict[a: "test"] => $dict
         $dict.a
       `);
       expect(result).toBe('test');
@@ -307,7 +307,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('evaluates complex pipe chains with multiple operations', async () => {
       const result = await run(`
-        [1, 2, 3, 4, 5]
+        list[1, 2, 3, 4, 5]
         -> map |x| { $x * 2 }
         -> filter { $ > 5 }
         -> fold(0) { $@ + $ }
@@ -347,7 +347,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('evaluates each loops with break', async () => {
       const result = await run(`
-        [1, 2, 3, 4, 5] -> each {
+        list[1, 2, 3, 4, 5] -> each {
           ($ > 2) ? ($ -> break)
           $
         }
@@ -396,7 +396,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('error propagates through collection operator', async () => {
       try {
-        await run('[1, 2, 3] -> map { $undefined }');
+        await run('list[1, 2, 3] -> map { $undefined }');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -446,7 +446,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('type assertion failure with list expected, got dict', async () => {
         try {
-          await run('[a: 1] :list');
+          await run('dict[a: 1] :list');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -459,7 +459,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('type assertion failure with dict expected, got list', async () => {
         try {
-          await run('[1, 2, 3] :dict');
+          await run('list[1, 2, 3] :dict');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -498,7 +498,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('type assertion failure with tuple expected, got list', async () => {
         try {
-          await run('[1, 2] :tuple');
+          await run('list[1, 2] :tuple');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -587,7 +587,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for multiplication with list', async () => {
         try {
-          await run('5 * [1, 2]');
+          await run('5 * list[1, 2]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -601,7 +601,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for division with dict', async () => {
         try {
-          await run('10 / [a: 1]');
+          await run('10 / dict[a: 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -778,7 +778,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for ordering comparison with list', async () => {
         try {
-          await run('[1, 2] > 5');
+          await run('list[1, 2] > 5');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -912,7 +912,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws when reassigning list to boolean variable', async () => {
         try {
-          await run('true => $flag\n[1, 2] => $flag');
+          await run('true => $flag\nlist[1, 2] => $flag');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -944,7 +944,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-14: List destructure size mismatch', () => {
       it('throws RuntimeError for too few elements', async () => {
         try {
-          await run('[1, 2] -> *<$a, $b, $c>');
+          await run('list[1, 2] -> destruct<$a, $b, $c>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -955,7 +955,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('error message includes pattern size and list size', async () => {
         try {
-          await run('[1, 2] -> *<$a, $b, $c>');
+          await run('list[1, 2] -> destruct<$a, $b, $c>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -967,7 +967,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for too many elements', async () => {
         try {
-          await run('[1, 2, 3, 4] -> *<$a, $b>');
+          await run('list[1, 2, 3, 4] -> destruct<$a, $b>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -979,7 +979,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       });
 
       it('allows exact size match', async () => {
-        const result = await run('[1, 2, 3] -> *<$a, $b, $c>\n[$a, $b, $c]');
+        const result = await run(
+          'list[1, 2, 3] -> destruct<$a, $b, $c>\nlist[$a, $b, $c]'
+        );
         expect(result).toEqual([1, 2, 3]);
       });
     });
@@ -987,7 +989,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-13: Destructure on wrong type', () => {
       it('throws RuntimeError when destructuring non-list as positional', async () => {
         try {
-          await run('"hello" -> *<$a, $b>');
+          await run('"hello" -> destruct<$a, $b>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -999,7 +1001,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError when destructuring non-dict as key pattern', async () => {
         try {
-          await run('[1, 2] -> *<key: $v>');
+          await run('list[1, 2] -> destruct<key: $v>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1011,7 +1013,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws when destructuring number', async () => {
         try {
-          await run('42 -> *<$x>');
+          await run('42 -> destruct<$x>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1022,7 +1024,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws when destructuring boolean', async () => {
         try {
-          await run('true -> *<$x>');
+          await run('true -> destruct<$x>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1035,7 +1037,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-13: Slice on wrong type', () => {
       it('throws RuntimeError for slice on number', async () => {
         try {
-          await run('42 -> /<0:2>');
+          await run('42 -> slice<0:2>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1047,7 +1049,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for slice on boolean', async () => {
         try {
-          await run('true -> /<0:1>');
+          await run('true -> slice<0:1>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1059,7 +1061,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('throws RuntimeError for slice on dict', async () => {
         try {
-          await run('[a: 1, b: 2] -> /<0:1>');
+          await run('dict[a: 1, b: 2] -> slice<0:1>');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1070,36 +1072,36 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       });
 
       it('allows slice on list', async () => {
-        const result = await run('[1, 2, 3, 4, 5] -> /<1:4>');
+        const result = await run('list[1, 2, 3, 4, 5] -> slice<1:4>');
         expect(result).toEqual([2, 3, 4]);
       });
 
       it('allows slice on string', async () => {
-        const result = await run('"hello" -> /<1:4>');
+        const result = await run('"hello" -> slice<1:4>');
         expect(result).toBe('ell');
       });
     });
 
     describe('Extraction success cases', () => {
       it('destructures list correctly', async () => {
-        const result = await run('[1, 2, 3] -> *<$a, $b, $c>\n$b');
+        const result = await run('list[1, 2, 3] -> destruct<$a, $b, $c>\n$b');
         expect(result).toBe(2);
       });
 
       it('destructures dict correctly', async () => {
         const result = await run(
-          '[name: "Alice", age: 30] -> *<name: $n, age: $a>\n$n'
+          'dict[name: "Alice", age: 30] -> destruct<name: $n, age: $a>\n$n'
         );
         expect(result).toBe('Alice');
       });
 
       it('slices list correctly', async () => {
-        const result = await run('[1, 2, 3, 4, 5] -> /<2:>');
+        const result = await run('list[1, 2, 3, 4, 5] -> slice<2:>');
         expect(result).toEqual([3, 4, 5]);
       });
 
       it('slices string correctly', async () => {
-        const result = await run('"hello world" -> /<0:5>');
+        const result = await run('"hello world" -> slice<0:5>');
         expect(result).toBe('hello');
       });
     });
@@ -1157,7 +1159,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from complex interpolation expression', async () => {
         try {
-          await run('[a: 1] => $d\n"field: {$d.missing}"');
+          await run('dict[a: 1] => $d\n"field: {$d.missing}"');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1195,7 +1197,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-7: Dict evaluation error propagation', () => {
       it('propagates undefined variable error from dict value', async () => {
         try {
-          await run('[key: $undefined]');
+          await run('dict[key: $undefined]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1207,7 +1209,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates type error from dict value expression', async () => {
         try {
-          await run('[result: "string" + 5]');
+          await run('dict[result: "string" + 5]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1219,7 +1221,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from nested dict evaluation', async () => {
         try {
-          await run('[outer: [inner: $missing]]');
+          await run('dict[outer: dict[inner: $missing]]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1231,7 +1233,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from dict value computation', async () => {
         try {
-          await run('[value: 10 / 0]');
+          await run('dict[value: 10 / 0]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1243,7 +1245,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('preserves error code from nested expression', async () => {
         try {
-          await run('[fn: undefined_func()]');
+          await run('dict[fn: undefined_func()]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1254,7 +1256,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from multiple dict entries (first value fails)', async () => {
         try {
-          await run('[first: $undefined, second: 42]');
+          await run('dict[first: $undefined, second: 42]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1265,7 +1267,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from dict with non-closure expression value', async () => {
         try {
-          await run('[computed: $undefined + 1]');
+          await run('dict[computed: $undefined + 1]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1278,7 +1280,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     describe('EC-7: Tuple evaluation error propagation', () => {
       it('propagates undefined variable error from tuple element', async () => {
         try {
-          await run('[1, $undefined, 3]');
+          await run('list[1, $undefined, 3]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1290,7 +1292,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates type error from tuple element expression', async () => {
         try {
-          await run('[1, "string" + 5, 3]');
+          await run('list[1, "string" + 5, 3]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1302,7 +1304,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from nested tuple evaluation', async () => {
         try {
-          await run('[1, [2, $missing], 3]');
+          await run('list[1, list[2, $missing], 3]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1314,7 +1316,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from tuple element computation', async () => {
         try {
-          await run('[1, 10 / 0, 3]');
+          await run('list[1, 10 / 0, 3]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1326,7 +1328,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('preserves error code from nested expression in tuple', async () => {
         try {
-          await run('[missing_func(), 42]');
+          await run('list[missing_func(), 42]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1337,7 +1339,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from method call in tuple element', async () => {
         try {
-          await run('["hello" -> .nonexistent(), "world"]');
+          await run('list["hello" -> .nonexistent(), "world"]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);
@@ -1355,17 +1357,17 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       });
 
       it('evaluates dict with computed values', async () => {
-        const result = await run('5 => $x\n[a: $x * 2, b: $x + 1]');
+        const result = await run('5 => $x\ndict[a: $x * 2, b: $x + 1]');
         expect(result).toEqual({ a: 10, b: 6 });
       });
 
       it('evaluates tuple with expressions', async () => {
-        const result = await run('3 => $n\n[$n, $n * 2, $n * 3]');
+        const result = await run('3 => $n\nlist[$n, $n * 2, $n * 3]');
         expect(result).toEqual([3, 6, 9]);
       });
 
       it('evaluates nested structures without errors', async () => {
-        const result = await run('[outer: [inner: [1, 2, 3]]]');
+        const result = await run('dict[outer: dict[inner: list[1, 2, 3]]]');
         expect(result).toEqual({ outer: { inner: [1, 2, 3] } });
       });
     });

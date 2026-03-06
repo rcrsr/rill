@@ -5,11 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  ERROR_REGISTRY,
-  LexerError,
-  type SourceLocation,
-} from '@rcrsr/rill';
+import { ERROR_REGISTRY, LexerError, type SourceLocation } from '@rcrsr/rill';
 
 describe('LexerError Constructor Validation (Task 1.5)', () => {
   describe('IR-7: LexerError constructor signature', () => {

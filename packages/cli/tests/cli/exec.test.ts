@@ -4,12 +4,8 @@
 
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { parseArgs, executeScript } from '../../src/cli-exec.js';
-import {
-  formatOutput,
-  formatError,
-  determineExitCode,
-} from '../../src/cli-shared.js';
-import { ParseError, RuntimeError, callable } from '@rcrsr/rill';
+import { formatError, determineExitCode } from '../../src/cli-shared.js';
+import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -228,9 +224,9 @@ describe('rill-exec', () => {
     });
 
     it('keeps arguments as strings', async () => {
-      const script = await writeScript('type.rill', '$[0] -> type');
+      const script = await writeScript('type.rill', '$[0] -> :?string');
       const result = await executeScript(script, ['42']);
-      expect(result.result).toBe('string');
+      expect(result.result).toBe(true);
     });
 
     it('throws for non-existent file', async () => {
@@ -256,28 +252,11 @@ describe('rill-exec', () => {
       expect(result.result).toEqual([]);
     });
 
-    it('handles closure return', async () => {
+    it('returns closure as RillValue when script returns a closure', async () => {
       const script = await writeScript('closure.rill', '|x| { $x }');
       const result = await executeScript(script, []);
-      expect(formatOutput(result.result)).toBe('[closure]');
-    });
-  });
-
-  describe('formatOutput', () => {
-    it('formats primitives', () => {
-      expect(formatOutput('hello')).toBe('hello');
-      expect(formatOutput(42)).toBe('42');
-      expect(formatOutput(true)).toBe('true');
-      expect(formatOutput(null)).toBe('null');
-    });
-
-    it('formats collections as JSON', () => {
-      expect(formatOutput([1, 2])).toBe('[\n  1,\n  2\n]');
-      expect(formatOutput({ a: 1 })).toContain('"a": 1');
-    });
-
-    it('formats closures', () => {
-      expect(formatOutput(callable(() => 'x'))).toBe('[closure]');
+      expect(result.result).not.toBeNull();
+      expect(typeof result.result).toBe('object');
     });
   });
 

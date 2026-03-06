@@ -131,7 +131,7 @@ $math.constants.pi      # 3.14159
 
 # Standard dict operations work
 $math -> .keys          # ["double", "triple", "clamp", "constants"]
-$math -> type           # "dict"
+$math.^type             # dict
 ```
 
 This aligns with rill's existing patterns:
@@ -363,6 +363,7 @@ export:
 ---
 |name|"Hello, {$name}!" => $hello
 |name|"Goodbye, {$name}!" => $goodbye
+true
 ```
 
 ### Using a Module
@@ -415,6 +416,7 @@ export:
 |items|{
   $items -> map $normalizeItem
 } => $processAll
+true
 ```
 
 ## Module Loading Phases

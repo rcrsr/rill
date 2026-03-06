@@ -51,8 +51,6 @@ export const TOKEN_TYPES = {
   GE: 'GE', // >=
 
   // Extraction operators
-  STAR_LT: 'STAR_LT', // *< (destructure)
-  SLASH_LT: 'SLASH_LT', // /< (slice)
   UNDERSCORE: 'UNDERSCORE', // _ (skip in destructure)
 
   // Spread operator
@@ -73,6 +71,17 @@ export const TOKEN_TYPES = {
   RBRACE: 'RBRACE', // }
   LBRACKET: 'LBRACKET', // [
   RBRACKET: 'RBRACKET', // ]
+
+  // Compound keywords (keyword + bracket fused into one token)
+  LIST_LBRACKET: 'LIST_LBRACKET', // list[
+  DICT_LBRACKET: 'DICT_LBRACKET', // dict[
+  TUPLE_LBRACKET: 'TUPLE_LBRACKET', // tuple[
+  ORDERED_LBRACKET: 'ORDERED_LBRACKET', // ordered[
+  DESTRUCT_LANGLE: 'DESTRUCT_LANGLE', // destruct<
+  SLICE_LANGLE: 'SLICE_LANGLE', // slice<
+
+  // Type conversion operator
+  CONVERT: 'CONVERT', // :>
 
   // Keywords
   BREAK: 'BREAK',

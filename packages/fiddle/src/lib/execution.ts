@@ -1,19 +1,17 @@
 /**
  * Execution module for Rill Fiddle
  *
- * Provides executeRill and formatResult functions for running Rill code
- * and formatting execution results.
+ * Provides executeRill for running Rill code and returning structured results.
  */
 
 import {
   parse,
   createRuntimeContext,
   execute,
-  isCallable,
+  toNative,
   ERROR_REGISTRY,
   getHelpUrl,
   VERSION,
-  type RillValue,
   type ScriptNode,
 } from '@rcrsr/rill';
 import { EXECUTION_TIMEOUT_MS } from './constants.js';
@@ -96,8 +94,8 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     // Create runtime context with log capture and timeout
     const ctx = createRuntimeContext({
       callbacks: {
-        onLog: (value: RillValue) => {
-          logs.push(formatResult(value));
+        onLog: (value: string) => {
+          logs.push(value);
         },
       },
       timeout: EXECUTION_TIMEOUT_MS,
@@ -108,7 +106,16 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     const duration = performance.now() - startTime;
 
     // Format result: final value only
-    const formattedValue = formatResult(executionResult.result);
+    // Use JSON.stringify for objects/arrays (produces readable output instead of
+    // '[object Object]' or '1,2,3'). Use String() for primitives to avoid adding
+    // quotes around string values. Handle null explicitly.
+    const { native } = toNative(executionResult.result);
+    const formattedValue =
+      native === null
+        ? 'null'
+        : typeof native === 'object'
+          ? JSON.stringify(native, null, 2)
+          : String(native);
 
     return {
       status: 'success',
@@ -208,26 +215,4 @@ function getErrorCategory(name: string): 'lexer' | 'parse' | 'runtime' {
   if (name === 'LexerError') return 'lexer';
   if (name === 'ParseError') return 'parse';
   return 'runtime';
-}
-
-// ============================================================
-// FORMATTING
-// ============================================================
-
-/**
- * Convert execution result to display string.
- *
- * Based on formatOutput from packages/cli/src/cli-shared.ts:22-30
- *
- * @param value - RillValue to format
- * @returns Formatted string representation
- */
-export function formatResult(value: RillValue): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (isCallable(value)) return '[closure]';
-  return JSON.stringify(value, null, 2);
 }

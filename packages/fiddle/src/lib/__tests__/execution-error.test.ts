@@ -3,8 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { executeRill, formatResult } from '../execution.js';
-import { callable, type RillValue } from '@rcrsr/rill';
+import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
   describe('error paths', () => {
@@ -231,54 +230,6 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       // Timeout is applied internally; no way to verify without triggering it
-    });
-  });
-});
-
-describe('formatResult', () => {
-  describe('callable formatting', () => {
-    it('formats closure as "[closure]"', () => {
-      const closure = callable(() => 42);
-
-      expect(formatResult(closure)).toBe('[closure]');
-    });
-
-    it('formats closure with parameters as "[closure]"', () => {
-      const closure = callable((args: RillValue[]) => args[0] ?? null);
-
-      expect(formatResult(closure)).toBe('[closure]');
-    });
-  });
-
-  describe('edge cases', () => {
-    it('handles zero', () => {
-      expect(formatResult(0)).toBe('0');
-    });
-
-    it('handles negative numbers', () => {
-      expect(formatResult(-42)).toBe('-42');
-    });
-
-    it('handles empty string', () => {
-      expect(formatResult('')).toBe('');
-    });
-
-    it('handles string with newlines', () => {
-      expect(formatResult('line1\nline2')).toBe('line1\nline2');
-    });
-
-    it('handles string with special characters', () => {
-      expect(formatResult('hello "world"')).toBe('hello "world"');
-    });
-
-    it('handles very large numbers', () => {
-      expect(formatResult(Number.MAX_SAFE_INTEGER)).toBe(
-        String(Number.MAX_SAFE_INTEGER)
-      );
-    });
-
-    it('handles floating point precision', () => {
-      expect(formatResult(0.1 + 0.2)).toBe(String(0.1 + 0.2));
     });
   });
 });
