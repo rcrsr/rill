@@ -2,7 +2,7 @@
 
 *Pre-built extensions shipped with rill*
 
-rill provides extensions in two forms: core extensions bundled with `@rcrsr/rill` and external extensions as separate packages.
+rill provides core extensions bundled with `@rcrsr/rill`. Vendor extensions ship separately from [rill-ext](https://github.com/rcrsr/rill-ext).
 
 ## Core Extensions
 
@@ -210,80 +210,11 @@ interface CryptoConfig {
 
 ---
 
-## External Extensions
+## Vendor Extensions
 
-External extensions ship as separate npm packages. Install and integrate as needed.
-
-| Extension | Package | Namespace | Description |
-|-----------|---------|-----------|-------------|
-| [claude-code](extension-claude-code.md) | `@rcrsr/rill-ext-claude-code` | `claude_code` | Claude Code CLI integration |
-| [ahi](integration-extensions.md#ahi-extension-rcsrrill-agent-ext-ahi) | `@rcrsr/rill-agent-ext-ahi` | `ahi` | Agent-to-agent invocation |
-| [fs-s3](extension-fs-s3.md) | `@rcrsr/rill-ext-fs-s3` | `fs` | S3-compatible object storage backend |
-| [kv-redis](extension-kv-redis.md) | `@rcrsr/rill-ext-kv-redis` | `kv` | Redis key-value storage backend |
-| [kv-sqlite](extension-kv-sqlite.md) | `@rcrsr/rill-ext-kv-sqlite` | `kv` | SQLite key-value storage backend |
-| [llm-anthropic](extension-llm-anthropic.md) | `@rcrsr/rill-ext-anthropic` | `anthropic` | Anthropic Claude API integration |
-| [llm-gemini](extension-llm-gemini.md) | `@rcrsr/rill-ext-gemini` | `gemini` | Gemini API integration |
-| [llm-openai](extension-llm-openai.md) | `@rcrsr/rill-ext-openai` | `openai` | OpenAI API integration |
-| [mcp](extension-mcp.md) | `@rcrsr/rill-ext-mcp` | (dynamic) | MCP server integration |
-| [vectordb-chroma](extension-vectordb-chroma.md) | `@rcrsr/rill-ext-chroma` | `chroma` | ChromaDB vector database |
-| [vectordb-pinecone](extension-vectordb-pinecone.md) | `@rcrsr/rill-ext-pinecone` | `pinecone` | Pinecone vector database |
-| [vectordb-qdrant](extension-vectordb-qdrant.md) | `@rcrsr/rill-ext-qdrant` | `qdrant` | Qdrant vector database |
-
-All three LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. The `schema` option accepts either a dict descriptor (legacy) or a `RillStructuralType` value. See each provider's doc for usage.
-
----
-
-## AHI In-Process Shortcut
-
-When agents are co-located in a harness, AHI calls between them bypass the HTTP layer entirely. The `ComposedHarness.bindHost(host)` method replaces the HTTP-calling function with a direct `host.run()` call for each co-located target.
-
-Call `bindHost()` after `createAgentHost()` returns:
-
-```typescript
-import { validateHarnessManifest } from '@rcrsr/rill-agent-shared';
-import { composeHarness, createAgentHost } from '@rcrsr/rill-agent-harness';
-
-const manifest = validateHarnessManifest(json);
-const harness = await composeHarness(manifest, { basePath: import.meta.dirname });
-const host = createAgentHost(harness.agents);
-
-// Wire in-process shortcuts AFTER host is created
-harness.bindHost(host);
-
-await host.listen(8080);
-```
-
-### Resolution Order
-
-For each AHI call, the extension resolves the target in this order:
-
-| Priority | Condition | Transport |
-|----------|-----------|-----------|
-| 1 | Target agent name exists in the harness | In-process via `host.run()` (no network socket) |
-| 2 | Target agent has a static URL in config | HTTP call |
-| 3 | Registry mode | Registry resolution → HTTP call |
-
-### Error Mapping
-
-In-process calls produce the same error codes as the HTTP path:
-
-| Condition | Error Code |
-|-----------|------------|
-| `AgentHostError('capacity')` (concurrency cap reached) | RILL-R032 |
-| `response.state === 'failed'` | RILL-R029 |
-
-### Concurrency and Security
-
-In-process calls go through `host.run()`. All existing session isolation guarantees apply, including per-agent concurrency caps. The shortcut does not bypass capacity enforcement.
-
-`bindHost()` is not idempotent. Calling it twice overwrites the previously injected functions. Call it once after `createAgentHost()`.
-
-`bindHost()` never throws. It silently skips agents with no AHI config.
-
-See [Developing Extensions](integration-extensions.md) for full AHI extension documentation.
+Vendor extensions (LLM providers, vector databases, storage backends, MCP) live in [rill-ext](https://github.com/rcrsr/rill-ext). Agent framework extensions live in [rill-agent](https://github.com/rcrsr/rill-agent).
 
 ## See Also
 
 - [Developing Extensions](integration-extensions.md) — Writing custom extensions
 - [Host Integration](integration-host.md) — Embedding API
-- [Compose](agent-bundle.md) — Declaring extensions in agent.json manifests

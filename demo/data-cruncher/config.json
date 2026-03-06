@@ -1,5 +1,0 @@
-{
-  "kv": {
-    "store": "./data/state.json"
-  }
-}

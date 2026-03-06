@@ -2,30 +2,6 @@
 
 > Scripting language designed for machine-generated code. LLMs generate rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. No null, no exceptions, no truthiness.
 
-## Documentation
-
-- [Getting Started](https://rill.run/docs/guide/getting-started/): Beginner-friendly introduction to rill
-- [Language Reference](https://rill.run/docs/reference/language/): Core language specification
-- [Examples](https://rill.run/docs/guide/examples/): Workflow patterns and use cases
-- [Cookbook](https://rill.run/docs/guide/cookbook/): Advanced agent scripting patterns
-- [Types](https://rill.run/docs/language/types/): Primitives, tuples, dicts, type assertions
-- [Variables](https://rill.run/docs/language/variables/): Declaration, scope rules, `$` binding
-- [Control Flow](https://rill.run/docs/language/control-flow/): Conditionals, loops, break/return
-- [Operators](https://rill.run/docs/language/operators/): Arithmetic, comparison, spread, extraction
-- [Closures](https://rill.run/docs/language/closures/): Late binding, dict-bound closures
-- [Collections](https://rill.run/docs/data/collections/): `each`, `map`, `filter`, `fold` operators
-- [Iterators](https://rill.run/docs/data/iterators/): Lazy sequences with `range`, `repeat`, `.first()`
-- [Strings](https://rill.run/docs/data/strings/): String methods for text manipulation
-- [Host Integration](https://rill.run/docs/integration/host/): Embedding rill in applications
-- [Agent Host](https://rill.run/docs/agent/harness/): Production HTTP server for rill agents
-- [Compose](https://rill.run/docs/agent/bundle/): Manifest-based agent composition API and CLI
-- [Host API Reference](https://rill.run/docs/reference/host-api/): Complete TypeScript API exports
-- [Developing Extensions](https://rill.run/docs/integration/extensions/): Writing reusable host function packages
-- [Modules](https://rill.run/docs/integration/modules/): Convention for host-provided module systems
-- [CLI Tools](https://rill.run/docs/integration/cli/): `rill-exec`, `rill-eval`, `rill-check` commands
-- [Creating Rill Apps](https://rill.run/docs/guide/make/): Bootstrap new rill projects with `rill-agent-bundle init`
-- [Error Reference](https://rill.run/docs/reference/errors/): Error codes and resolution
-
 ## Essentials
 
 1. Variables use `$` prefix ALWAYS: `5 => $x` (no assignment operator `=`)
@@ -33,78 +9,6 @@
 3. No null/undefined, no try/catch, no truthiness (conditions must be boolean)
 4. Variables lock to first type: `"hi" => $x; 42 => $x` is an ERROR
 5. Loops cannot modify outer vars: use `fold`, `each(init)`, or `$` as state dict
-
-## Strengths and Use Cases
-
-Strengths:
-- Unambiguous syntax: `$` prefix, explicit operators, no implicit coercion
-- Single-pass parseable: LLMs generate correct code without symbol tables
-- Readable by humans: pipe chains show data flow left-to-right
-- Safe defaults: immutable values, type locking, no null/undefined
-
-Use cases:
-- Workflow orchestration: chain LLM calls, API requests, transformations
-- State machines: `(cond) @ { }` loops with `$` as state dict
-- Data pipelines: `each`/`map`/`filter`/`fold` process collections declaratively
-
-State machine pattern (`$` carries state through iterations):
-
-    dict[state: "init", data: $input]
-      -> ($.state != "done") @ {
-        $.state -> dict[
-          init: { dict[state: "process", data: transform($.data)] },
-          process: { dict[state: "done", data: finalize($.data)] }
-        ]
-      }
-
-## Naming Convention: snake_case
-
-Use snake_case for all identifiers:
-
-    $user_name, $item_list, $is_valid             # variables
-    $double_value, $cleanup_text                  # closures
-    dict[first_name: "x", last_name: "y"]         # dict keys
-
-## Why Variables Use $ Prefix
-
-The `$` prefix enables single-pass parsing without a symbol table:
-
-    name()    -> host function call
-    $name()   -> closure invocation
-    $name     -> variable reference
-    name      -> dict key literal
-
-Without `$`, `process(data)` is ambiguous: is `process` a host function or stored closure? Is `data` a variable or key? This would require tracking all declarations.
-
-## Spacing Rules
-
-    Operators:     space both sides       5 + 3, $x -> .upper, "a" => $b
-    Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
-    Braces:        space inside           { $x + 1 }, each { $ * 2 }
-    Brackets:      no inner space         $list[0], $dict.items[1]
-    Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
-    Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
-    Closures:      space after params     |x| ($x * 2), |a, b| { $a + $b }
-    Methods:       no space before . or ( $str.upper(), $list.join(", ")
-    Pipes:         space both sides       "x" -> .upper -> .len
-    Continuations: indent 2 spaces        $data
-                                            -> .filter { $.active }
-                                            -> map { $.name }
-
-## Implicit $ Shorthand (Always Prefer)
-
-    $.method()  ->  .method            "x" -> .upper  (not $.upper())
-    func($)     ->  func               "x" -> log     (not log($))
-    $fn($)      ->  $fn                5 -> $double   (not $double($))
-
-Don't capture just to continue — use line continuation instead:
-
-    # avoid                          # good
-    "x" => $a                        "x"
-    $a -> .upper => $b                 -> .upper
-    $b -> .len                         -> .len
-
-Only capture when the variable is reused later in the code.
 
 ## Critical Differences from Mainstream Languages
 
@@ -146,11 +50,10 @@ Negation (`!`) also requires boolean:
 Child scopes can READ parent variables but cannot WRITE or redeclare them.
 Variables created inside blocks/loops do NOT leak out.
 
-WRONG — outer variable modification (NEVER works):
+WRONG — outer variable modification (runtime error):
 
     0 => $count
-    list[1, 2, 3] -> each { $count + 1 => $count }  # creates LOCAL $count
-    $count                                           # still 0!
+    list[1, 2, 3] -> each { $count + 1 => $count }  # ERROR: Cannot reassign outer variable
 
 RIGHT — use `fold` for reduction:
 
@@ -190,6 +93,45 @@ All copies are deep. All comparisons are by value. No object identity.
     list[1, 2] => $a
     $a => $b                          # $b is an independent deep copy
 
+## Grammar Patterns
+
+rill uses two bracket forms as grammar constructs (not function calls):
+
+**`keyword[...]`** — collection literals. Keyword and `[` must be adjacent (no space):
+
+    list[1, 2, 3]                       # list
+    dict[name: "alice", age: 30]        # dict (key: value pairs)
+    tuple[1, 2, 3]                      # positional argument unpacking
+    ordered[a: 1, b: 2]                 # named argument unpacking
+
+    list [1, 2]                         # ERROR: RILL-P007 (space before bracket)
+
+**`keyword<...>`** — extraction operators. Custom grammar with `,` or `:` separators:
+
+    list[1, 2, 3] -> destruct<$a, $b, $c>    # destructure into variables
+    list[0,1,2,3] -> slice<1:3>               # slice with start:stop:step
+
+These are NOT function calls. They are parsed as special syntax by the compiler.
+
+## Callable Types
+
+rill has three callable types:
+
+| Type | Source | Examples |
+|------|--------|---------|
+| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
+| Built-in function | Shipped with runtime | `log`, `json`, `range`, `chain`, `error` |
+| Host function | Registered by host app | `app::fetch()`, `app::prompt()` |
+
+The `$` prefix disambiguates callables from variables and keys:
+
+    name()    -> built-in or host function call
+    $name()   -> closure invocation
+    $name     -> variable reference
+    name      -> dict key literal
+
+Without `$`, `process(data)` is ambiguous: is `process` a function or stored closure? Is `data` a variable or key? This would require tracking all declarations.
+
 ## Syntax Quick Reference
 
     Variables:     $name (always prefixed with $)
@@ -204,7 +146,7 @@ All copies are deep. All comparisons are by value. No object identity.
                    dict[true: "yes", false: "no"]  # boolean keys
                    dict[list["a", "b"]: 1]         # multi-key: dict[a: 1, b: 1]
                    dict[$keyVar: value]             # variable key (must eval to string)
-                   dict[($expr): value]             # computed key (must eval to string)
+                   dict[("{$a}{$b}"): value]         # computed key (must eval to string)
     Tuples:        tuple[1, 2, 3]              # positional argument unpacking
     Ordered:       ordered[a: 1, b: 2]         # named argument unpacking (preserves order)
     Closures:      |x|($x + 1)                 # like lambda/arrow functions
@@ -234,7 +176,7 @@ Example: `"hello" -> .upper` is the same as `"hello" -> $.upper()`.
 Conditional (if-else):
 
     cond ? then_expr ! else_expr
-    cond ? then_expr                    # else returns ""
+    cond ? then_expr                    # else returns null
 
 Piped conditional (`$` becomes condition):
 
@@ -262,11 +204,16 @@ Do-condition loop (body runs at least once):
 
 Break (exits loop, returns collected results before break):
 
-    list[1,2,3,4,5] -> each { ($ == 3) ? break; $ }  # returns list[1, 2]
+    list[1,2,3,4,5] -> each {
+      ($ == 3) ? break
+      $
+    }                                                # returns list[1, 2]
 
 Return (exits block or script with value):
 
-    { 5 => $x; ($x > 3) ? ("big" -> return); "small" }  # returns "big"
+    5 => $x
+    ($x > 3) ? ("big" -> return)
+    "small"                                          # returns "big"
     "done" -> return                                     # exits script with "done"
 
 Assert (validate condition, halt if false, pass through if true):
@@ -317,7 +264,7 @@ Body forms (all operators accept these):
     -> each |x| ($x * 2)               # inline closure
     -> each $double                     # variable closure
     -> each .upper                      # method shorthand
-    -> each log                         # host function
+    -> each log                         # built-in function
 
 Dict iteration (`$` contains `key` and `value` fields):
 
@@ -339,7 +286,7 @@ Two ways to create closures:
     $inc(5)                            # 6
     5 -> $inc                          # 6 (pipe invocation)
     dict[x: { $ * 2 }]                # dict value is closure
-    type({ "hi" })                     # "closure"
+    { "hi" }:?closure                  # true
 
 **Explicit closures:** `|params| body`
 
@@ -426,9 +373,13 @@ Type-aware matching (keys matched by value AND type):
 
     list["name", "first"] -> dict[name: dict[first: "Alice"]]              # "Alice"
     list[0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2
-    list["users", 0, "name"] -> dict[users: list[dict[name: "Alice"]]]    # "Alice"
     list[] -> dict[a: 1]                                                    # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"              # "default"
+
+Note: lists require same-type elements. For mixed paths (strings and numbers), use property access:
+
+    dict[users: list[dict[name: "Alice"]]] => $d
+    $d.users[0].name                                                       # "Alice"
 
 ## Type Operations
 
@@ -475,8 +426,6 @@ Slice (`slice<start:stop:step>`):
 
 ## List Spread in Literals
 
-Inline list elements into a new list using `...` (spread operator):
-
     list[1, 2] => $a
     list[...$a, 3]                      # list[1, 2, 3]
     list[...$a, ...$b]                  # concatenate lists
@@ -484,16 +433,9 @@ Inline list elements into a new list using `...` (spread operator):
 
 ## Tuples and Ordered for Argument Unpacking
 
-    tuple[1, 2, 3] -> $fn()                # positional: $fn(1, 2, 3)
-    ordered[b: 2, a: 1] -> $fn()           # named: $fn(a=1, b=2) (preserves declaration order, matches by key)
-    tuple[...$list, 3] -> $fn()            # spread in tuple: combines elements
-
-## Closure Chain
-
-Chains closures sequentially (each receives previous result):
-
-    5 -> chain(list[$inc, $double, $add10])   # (5+1)*2+10 = 22
-    5 -> chain($fn)                           # apply single closure
+    tuple[1, 2, 3] -> $fn(...)             # positional spread: $fn(1, 2, 3)
+    ordered[a: 10, b: 2] -> $fn(...)       # named spread: keys must match parameter order
+    tuple[...$list, 3] -> $fn(...)         # spread in tuple then spread into call
 
 ## String Methods
 
@@ -540,19 +482,17 @@ Chains closures sequentially (each receives previous result):
 | `.has_any(list)` | list contains any value from candidates |
 | `.has_all(list)` | list contains all values from candidates |
 
-## Global Functions
+## Built-in Functions
 
 | Function | Description |
 |---|---|
-| `type(val)` | returns type name |
 | `log(val)` | print and pass through |
 | `json(val)` | convert to JSON string |
 | `identity(val)` | returns input unchanged |
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator) |
 | `enumerate(coll)` | lists: `tuple[index, value]`; dicts: `tuple[index, key, value]` |
-| `chain($fn)` | apply single closure sequentially |
-| `chain(list[$f, $g])` | apply list of closures sequentially |
+| `chain($fn)` | apply single closure; chain(val, list[$f, $g]) applies in sequence |
 
 ## Iterators
 
@@ -580,8 +520,6 @@ Override: `^(limit: N)` at operator level (between operator name and body).
     0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }         # while loop
     $items -> each ^(limit: 1000) { process($) }     # each operator
     $items -> map ^(limit: 3) { slow_process($) }    # concurrency limit
-    $items -> filter ^(limit: 50) { $ > 0 }          # filter operator
-    $items -> fold ^(limit: 20) |acc, x=0| { $acc + $x }  # fold operator
 
 Invalid annotation keys produce a runtime error.
 
@@ -593,3 +531,41 @@ Invalid annotation keys produce a runtime error.
 | `false` / empty string | 1 |
 | `list[0, "message"]` | 0 with message |
 | `list[1, "message"]` | 1 with message |
+
+## Style
+
+### Naming: snake_case
+
+    $user_name, $item_list, $is_valid             # variables
+    $double_value, $cleanup_text                  # closures
+    dict[first_name: "x", last_name: "y"]         # dict keys
+
+### Spacing
+
+    Operators:     space both sides       5 + 3, $x -> .upper, "a" => $b
+    Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
+    Braces:        space inside           { $x + 1 }, each { $ * 2 }
+    Brackets:      no inner space         $list[0], $dict.items[1]
+    Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
+    Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
+    Closures:      space after params     |x| ($x * 2), |a, b| { $a + $b }
+    Methods:       no space before . or ( $str.upper(), $list.join(", ")
+    Pipes:         space both sides       "x" -> .upper -> .len
+    Continuations: indent 2 spaces        $data
+                                            -> .filter { $.active }
+                                            -> map { $.name }
+
+### Implicit $ Shorthand (Always Prefer)
+
+    $.method()  ->  .method            "x" -> .upper  (not $.upper())
+    func($)     ->  func               "x" -> log     (not log($))
+    $fn($)      ->  $fn                5 -> $double   (not $double($))
+
+Don't capture just to continue — use line continuation instead:
+
+    # avoid                          # good
+    "x" => $a                        "x"
+    $a -> .upper => $b                 -> .upper
+    $b -> .len                         -> .len
+
+Only capture when the variable is reused later in the code.

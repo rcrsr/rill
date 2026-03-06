@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.0] - 2026-03-06
+
+### Restructure
+
+- **Monorepo split** — Extensions (14 packages) extracted to [rill-ext](https://github.com/rcrsr/rill-ext). Agent framework (8 packages) extracted to [rill-agent](https://github.com/rcrsr/rill-agent). Core repo retains `@rcrsr/rill`, `@rcrsr/rill-cli`, fiddle, and website
 
 ### Language
 
@@ -22,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dict-form tools for tool_loop** — Tools declared as plain dicts instead of `tool()` calls. Script tools use annotated closures; host functions use bare `ns::name` references
 - **Annotation system overhaul** — Annotations precede params (`|^("desc") name: type|`), loops accept `^(limit: N)`, `vector`/`any` types added
 - **Explicit literal syntax** — Keyword prefixes replace ambiguous brackets: `list[`, `dict[` replace bare `[`, `tuple[`, `ordered[` replace `*[`, `destruct<` replaces `*<`, `slice<` replaces `/<`, `chain()` replaces `@[`/`@$`. New `:>` convert operator for type conversions
+- **Explicit spread call syntax** — Function calls now require opt-in spreading via `...` operator for tuples, dicts, and ordered values, replacing implicit auto-spread
 
 #### Fixed
 
@@ -29,50 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LSP column numbers** — Error output uses 0-based columns for LSP compatibility
 - **Multi-line function calls** — Newlines allowed after `(`, after `,`, and before `)` in all call forms
 
-### Extensions
-
-#### Added
-
-- **LLM `generate()` function** — Provider-agnostic structured output for Anthropic, OpenAI, and Gemini. Rill schema dicts convert to JSON Schema automatically
-
-#### Fixed
-
-- **kv::set accepts all value types** — No longer restricted to strings
-- **OpenAI `max_completion_tokens`** — Uses current API parameter instead of deprecated `max_tokens`
-- **Tool loop multi-turn messaging** — Correct message ordering for OpenAI protocol
-- **Script closures as tools** — Closures defined in rill scripts work as tool_loop tools across all LLM providers
-- **Tool loop error detail** — Error messages include tool name and error text for debuggability
-
-### Agent Framework
-
-#### Added
-
-- **Agent harness** — HTTP server with session management, metrics, SSE streaming, and graceful shutdown. Multi-agent mode runs N agents in one process with per-agent routing and concurrency caps
-- **Agent-to-agent invocation (AHI)** — Call other agents via HTTP with static URL or registry discovery. Correlation ID forwarding for tracing
-- **Agent bundle CLI** — `rill-agent-bundle build|init|check` composes agents from `agent.json` manifests into deployable bundles with integrity checksums and env source loading
-- **Agent build CLI** — `rill-agent-build --harness <type>` generates entry points for http, stdio, gateway, and worker transports
-- **Agent run CLI** — Execute bundled agents with param injection, stdin support, and timeout control
-- **Agent proxy** — `rill-agent-proxy --bundles <dir>` routes requests across agents with hot-reload, concurrency limits, health checks, and Prometheus metrics
-- **Transport subpath exports** — Import `/http`, `/stdio`, `/gateway`, or `/worker` individually to avoid bundling unused transports
-- **Content pipeline demo** — Multi-agent pipeline with classifier, summarizer, and orchestrator agents
-
-#### Changed
-
-- **Agent bootstrapping** — `rill-agent-bundle init` replaces the removed `rill-create-agent` package
-
-#### Fixed
-
-- **Port conflict errors** — Harness reports clear error when port is already in use
-- **Registry client teardown** — No more resource leaks on extension shutdown
-- **Agent run log routing** — `log` output routes to stderr. Supports `LOG_LEVEL` env var and `--log-level` flag
-
 ### Dependencies
 
 - **Node 22** required (updated from Node 20)
-- **chromadb** 1.10.5 → 3.3.1, **@pinecone-database/pinecone** 3.0.3 → 7.1.0
-- **@anthropic-ai/sdk** 0.74.0 → 0.78.0, **openai** 6.18.0 → 6.25.0, **@google/genai** 1.40.0 → 1.42.0
-- **better-sqlite3** 11.10.0 → 12.6.2, **eslint** 9.39.2 → 10.0.2, **tailwindcss** 4.1.18 → 4.2.1
-- Patch updates across @codemirror/\*, MCP SDK, AWS SDK, and others
+- **eslint** 9.39.2 → 10.0.2, **tailwindcss** 4.1.18 → 4.2.1
 
 ## [0.8.6] - 2026-02-15
 

@@ -834,5 +834,4 @@ These patterns cause broken projects or runtime errors. Avoid them.
 
 | Document | Description |
 |----------|-------------|
-| [Compose](agent-bundle.md) | Manifest format and programmatic composition API |
-| [Agent Host](agent-harness.md) | Production HTTP server for rill agents |
+| [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework, harness, bundle, and proxy |

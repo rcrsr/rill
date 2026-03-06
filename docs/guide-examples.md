@@ -183,11 +183,11 @@ Explicit argument unpacking with validation.
 |a, b, c| { "{$a}-{$b}-{$c}" } => $fmt
 
 # Create named args and invoke
-ordered[a: 1, b: 2, c: 3] -> $fmt()    # "1-2-3"
+ordered[a: 1, b: 2, c: 3] -> $fmt(...)    # "1-2-3"
 
 # Store args for later use
 ordered[a: 1, b: 2, c: 3] => $myArgs
-$myArgs -> $fmt()       # "1-2-3"
+$myArgs -> $fmt(...)       # "1-2-3"
 ```
 
 ### Named Args
@@ -196,7 +196,7 @@ $myArgs -> $fmt()       # "1-2-3"
 # Named args match by parameter name, order doesn't matter
 |width, height|($width * $height) => $area
 
-ordered[height: 20, width: 10] -> $area()  # 200
+ordered[height: 20, width: 10] -> $area(...)  # 200
 ```
 
 ### Parameter Defaults
@@ -205,8 +205,8 @@ ordered[height: 20, width: 10] -> $area()  # 200
 # Defaults provide opt-in leniency
 |x, y = 10, z = 20|($x + $y + $z) => $fn
 
-ordered[x: 5] -> $fn()              # 35 (5 + 10 + 20)
-ordered[x: 5, z: 30] -> $fn()       # 45 (5 + 10 + 30)
+ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
+ordered[x: 5, z: 30] -> $fn(...)       # 45 (5 + 10 + 30)
 ```
 
 ### Type Checking with `.^type`

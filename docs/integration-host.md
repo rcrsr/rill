@@ -351,7 +351,7 @@ type CallableFn = (
 
 Host functions receive session metadata via `ctx.metadata: Record<string, string> | undefined`.
 
-When running under `rill-agent-harness`, the runtime populates these keys:
+When running under [`rill-agent-harness`](https://github.com/rcrsr/rill-agent), the runtime populates these keys:
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -375,7 +375,7 @@ functions: {
 }
 ```
 
-`ctx.metadata` is `undefined` when the script runs outside `rill-agent-harness` (e.g., direct `execute()` calls).
+`ctx.metadata` is `undefined` when the script runs outside the agent harness (e.g., direct `execute()` calls).
 
 ## Host Function Type Declarations
 
@@ -1072,26 +1072,6 @@ try {
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
 | `RILL-R004` | `valueToJSON()` called on non-serializable type (closure, iterator, vector, type value, tuple, ordered) |
-
-## Agent Registry
-
-Set `RILL_REGISTRY_URL` to enable automatic self-registration with a service registry.
-
-```shell
-RILL_REGISTRY_URL=http://registry.internal:8080 node server.js
-```
-
-When `RILL_REGISTRY_URL` is set, `rill-agent-harness` follows this lifecycle:
-
-| Event | Action |
-|-------|--------|
-| `listen()` binds port | Registers with the registry immediately after port is bound |
-| Every 30s while running | Sends a heartbeat to the registry |
-| `stop()` drain begins | Calls `deregister()` before draining connections |
-
-If the registry is unreachable at startup, `rill-agent-harness` logs a warning and `listen()` resolves normally. The host continues running without registration.
-
-See [Agent Host](agent-harness.md) for the extended trigger object form used in agent-to-agent invocation.
 
 ## See Also
 

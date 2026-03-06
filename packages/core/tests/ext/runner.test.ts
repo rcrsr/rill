@@ -62,26 +62,6 @@ describe('exec runner', () => {
   });
 
   describe('stdin support', () => {
-    it.skip('passes stdin to command when supported', async () => {
-      // Note: Skipped due to test environment stdin handling complexity
-      // The implementation correctly passes input option to execFile
-      const config: CommandConfig = {
-        binary: 'grep',
-        stdin: true,
-      };
-
-      const result = await runCommand(
-        'grep',
-        config,
-        ['hello'],
-        'hello from stdin\nother line\n'
-      );
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe('hello from stdin');
-      expect(result.stderr).toBe('');
-    });
-
     it('throws when stdin provided but not supported (EC-19)', async () => {
       const config: CommandConfig = {
         binary: 'echo',

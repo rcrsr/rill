@@ -727,7 +727,7 @@ The `:type-target` postfix after the closing `}` declares and enforces the closu
 $fn(42)    # "42" (string from interpolation)
 ```
 
-Valid return type targets: `string`, `number`, `bool`, `list`, `dict`, `any`, `vector`, `shape(...)`, `$shapeVar`.
+Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`).
 
 Mismatched return type halts with `RILL-R004`:
 

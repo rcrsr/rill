@@ -292,7 +292,7 @@ ordered [a: 1]    # RILL-P007: use ordered[a: 1]
 
 ```text
 # Old tuple sigil
-*[1, 2, 3] -> $fn()   # RILL-P009: use tuple[1, 2, 3] -> $fn()
+*[1, 2, 3] -> $fn()   # RILL-P009: use tuple[1, 2, 3] -> $fn(...)
 
 # Old destruct sigil
 [1, 2] -> *<$a, $b>   # RILL-P009: use [1, 2] -> destruct<$a, $b>
