@@ -237,16 +237,16 @@ Map multiple inputs to the same handler:
 Combine dispatch with `??` for fallback behavior:
 
 ```rill
-[
+dict[
   success: |r|{ "Completed: {$r.data}" },
-  error: |r|{ "Failed: {$r.message}" },
+  failure: |r|{ "Failed: {$r.message}" },
   pending: |r|{ "Waiting..." }
 ] => $handlers
 
-[status: "unknown", data: "test"] => $response
+dict[status: "unknown", data: "test"] => $req
 
-$response.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
--> |handler|{ $handler($response) }
+$req.status -> $handlers ?? |r|{ "Unknown status: {$r.status}" }
+-> |handler|{ $handler($req) }
 # Result: "Unknown status: unknown"
 ```
 
@@ -519,7 +519,7 @@ $angle("html")    # "<html>"
 
 Cache expensive computations:
 
-```rill
+```text
 # Build cache alongside computation
 |n, cache|{
   $cache.?($n -> .str) ? $cache.($n -> .str) ! {

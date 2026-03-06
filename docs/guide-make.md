@@ -388,7 +388,7 @@ Replace the generated `src/agent.rill` with your agent logic. Use the data flow 
 
 The agent script calls extension functions using `namespace::function()` syntax. The namespace matches the first argument to `hoistExtension` in `host.ts`:
 
-```rill
+```text
 // If host.ts has: hoistExtension('newsapi', createFetchExtension({...}))
 // Then agent.rill calls: newsapi::top_headlines(...)
 newsapi::top_headlines([country: "us", pageSize: 5]) => $articles

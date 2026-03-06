@@ -199,7 +199,7 @@ Use `??` for safe access with default:
 
 ```rill
 ["a"] => $list
-$[0] ?? "default"  # "a"
+$list[0] ?? "default"  # "a"
 ```
 
 See [Collections](topic-collections.md) for iteration operators.
@@ -214,7 +214,7 @@ Key-value mappings with identifier, number, boolean, variable, or computed keys.
 [name: "alice", age: 30]         # bare form
 dict[name: "alice", age: 30]     # keyword form (canonical)
 [:]                               # empty dict (bare)
-dict[:]                           # empty dict (canonical)
+dict[]                            # empty dict (canonical)
 ```
 
 ```rill

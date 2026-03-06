@@ -193,20 +193,20 @@ $myArgs -> $fmt(...)       # "1-2-3"
 ### Named Args
 
 ```rill
-# Named args match by parameter name, order doesn't matter
+# Named args spread positionally into parameters
 |width, height|($width * $height) => $area
 
-ordered[height: 20, width: 10] -> $area(...)  # 200
+ordered[width: 10, height: 20] -> $area(...)  # 200
 ```
 
 ### Parameter Defaults
 
 ```rill
-# Defaults provide opt-in leniency
+# Defaults fill missing trailing arguments
 |x, y = 10, z = 20|($x + $y + $z) => $fn
 
 ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
-ordered[x: 5, z: 30] -> $fn(...)       # 45 (5 + 10 + 30)
+ordered[x: 5, y: 10, z: 30] -> $fn(...)  # 45 (5 + 10 + 30)
 ```
 
 ### Type Checking with `.^type`
@@ -329,7 +329,7 @@ Based on this status:
 
 Runs tests, fixes failures, repeats until passing.
 
-```rill
+```text
 args: target: string
 
 # Run tests

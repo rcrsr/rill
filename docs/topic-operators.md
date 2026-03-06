@@ -407,9 +407,9 @@ Access list elements (0-based, negative from end):
 
 ```rill
 ["a", "b", "c"] => $list
-$[0]                         # "a"
-$[-1]                        # "c"
-$[1]                         # "b"
+$list[0]                     # "a"
+$list[-1]                    # "c"
+$list[1]                     # "b"
 ```
 
 ### Variable Key `.$key`

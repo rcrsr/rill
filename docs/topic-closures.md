@@ -471,10 +471,10 @@ $factory()(5)    # 10 (chained invocation)
 ["hello", "world"] => $list
 
 # Use grouping to call method on bracket result
-($[0]).upper    # "HELLO"
+($list[0]).upper    # "HELLO"
 
 # Or use pipe syntax
-$[0] -> .upper    # "HELLO"
+$list[0] -> .upper    # "HELLO"
 ```
 
 Note: `$[0].upper` parses `.upper` as field access on `$list`, not as a method call on the element. This throws an error since lists don't have an `upper` field.
