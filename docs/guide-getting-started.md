@@ -409,7 +409,7 @@ return                      # exit block
 
 # Access
 $data.field                 # dict field
-$[0]                    # list index
+$list[0]                    # list index
 $data.field ?? default      # with default
 $data.?field                # existence check
 

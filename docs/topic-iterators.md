@@ -69,14 +69,13 @@ Generate a sequence of numbers from `start` (inclusive) to `end` (exclusive).
 | `end` | number | required | Stop value (exclusive) |
 | `step` | number | 1 | Increment (can be negative) |
 
-```rill
+```text
 range(0, 5)           # 0, 1, 2, 3, 4
 range(1, 6)           # 1, 2, 3, 4, 5
 range(0, 10, 2)       # 0, 2, 4, 6, 8
 range(5, 0, -1)       # 5, 4, 3, 2, 1
 range(-3, 2)          # -3, -2, -1, 0, 1
 range(0, 1, 0.25)     # 0, 0.25, 0.5, 0.75
-true
 ```
 
 **Edge cases:**
