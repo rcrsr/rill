@@ -450,9 +450,11 @@ export function structuralTypeMatches(
       const param = value.params[i]!;
       if (param.name !== expectedName) return false;
       const paramType: RillStructuralType =
-        param.typeName !== null
-          ? ({ type: param.typeName } as RillStructuralType)
-          : { type: 'any' };
+        param.typeStructure !== undefined
+          ? param.typeStructure
+          : param.typeName !== null
+            ? ({ type: param.typeName } as RillStructuralType)
+            : { type: 'any' };
       if (!structuralTypeEquals(paramType, expectedType)) return false;
     }
     let retType: RillStructuralType = { type: 'any' };
@@ -481,7 +483,7 @@ export function formatStructuralType(type: RillStructuralType): string {
 
   if (type.type === 'list') {
     if (type.element === undefined) return 'list';
-    return `list<${formatStructuralType(type.element)}>`;
+    return `list(${formatStructuralType(type.element)})`;
   }
 
   if (type.type === 'dict') {
@@ -489,7 +491,7 @@ export function formatStructuralType(type: RillStructuralType): string {
     const parts = Object.keys(type.fields)
       .sort()
       .map((k) => `${k}: ${formatStructuralType(type.fields![k]!)}`);
-    return `dict{${parts.join(', ')}}`;
+    return `dict(${parts.join(', ')})`;
   }
 
   if (type.type === 'tuple') {
@@ -618,7 +620,7 @@ export type NativePlainObject = { [key: string]: NativeValue };
 export interface NativeResult {
   /** Rill type kind — matches RillTypeName, or 'iterator' for lazy sequences */
   kind: string;
-  /** Human-readable type signature, e.g. "string", "list<number>", "|x: number| :string" */
+  /** Human-readable type signature, e.g. "string", "list(number)", "|x: number| :string" */
   typeSig: string;
   /** Native JS representation, or null if the value is not natively representable */
   native: NativeValue | null;

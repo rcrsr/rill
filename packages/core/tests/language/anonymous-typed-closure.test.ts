@@ -364,4 +364,170 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
       await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
     });
   });
+
+  // ============================================================
+  // Parameterized Type Annotations — Success Cases
+  // (AC-1, AC-2, AC-3, AC-8, AC-9, AC-12)
+  // ============================================================
+
+  describe('Parameterized Type: Named Param list(string) (AC-1)', () => {
+    it('AC-1: closure with list(string) param accepts list of strings', async () => {
+      const script = `
+        |items: list(string)| { $items } => $fn
+        $fn(list["a"])
+      `;
+      expect(await run(script)).toEqual(['a']);
+    });
+
+    it('AC-1: closure with list(string) param passes through multi-element list', async () => {
+      const script = `
+        |items: list(string)| { $items } => $fn
+        $fn(list["x", "y", "z"])
+      `;
+      expect(await run(script)).toEqual(['x', 'y', 'z']);
+    });
+  });
+
+  describe('Parameterized Type: Pipe-form list(string) annotation (AC-2)', () => {
+    it('AC-2: list["a", "b"] piped through |list(string)| block returns list', async () => {
+      const result = await run('list["a", "b"] -> |list(string)| { $ }');
+      expect(result).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('Parameterized Type: Return type list(string) annotation (AC-3)', () => {
+    it('AC-3: closure with :list(string) return type returns ["a"] for string input', async () => {
+      const script = `
+        |string| { [$] } :list(string) => $fn
+        $fn("a")
+      `;
+      expect(await run(script)).toEqual(['a']);
+    });
+  });
+
+  describe('Parameterized Type: Bare list annotation unchanged (AC-12, AC-24)', () => {
+    it('AC-12: |list| param accepts list of numbers unchanged', async () => {
+      const script = `
+        |items: list| { $items } => $fn
+        $fn(list[1, 2, 3])
+      `;
+      expect(await run(script)).toEqual([1, 2, 3]);
+    });
+
+    it('AC-12: bare list annotation accepts list of strings unchanged', async () => {
+      const script = `
+        |items: list| { $items } => $fn
+        $fn(list["a", "b"])
+      `;
+      expect(await run(script)).toEqual(['a', 'b']);
+    });
+
+    it('AC-24: bare list pipe annotation accepts any list element type', async () => {
+      expect(await run('list[1, 2] -> |list| { $ }')).toEqual([1, 2]);
+    });
+  });
+
+  describe('Parameterized Type: Dynamic type variable (AC-8, AC-20)', () => {
+    it('AC-8: dynamic list(string) type variable used as param annotation accepts matching list', async () => {
+      const script = `
+        list(string) => $t
+        |$t| { $ } => $fn
+        $fn(list["a"])
+      `;
+      expect(await run(script)).toEqual(['a']);
+    });
+
+    it('AC-20: dynamic list(string) type variable rejects list of numbers with RILL-R001', async () => {
+      const script = `
+        list(string) => $t
+        |$t| { $ } => $fn
+        $fn(list[1])
+      `;
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
+    });
+  });
+
+  describe('Parameterized Type: Nested list(list(string)) (AC-9, AC-21, AC-29)', () => {
+    it('AC-9: closure with list(list(string)) param accepts nested list', async () => {
+      const script = `
+        |x: list(list(string))| { $x } => $fn
+        $fn(list[list["a"], list["b"]])
+      `;
+      expect(await run(script)).toEqual([['a'], ['b']]);
+    });
+
+    it('AC-21: nested type error message contains list(list(string)) not just list', async () => {
+      const script = `
+        |x: list(list(string))| { $x } => $fn
+        $fn(list[list[1], list[2]])
+      `;
+      const err = await run(script).catch((e: unknown) => e);
+      expect((err as Error).message).toContain('list(list(string))');
+    });
+
+    it('AC-29: deeply nested list(list(dict(name: string))) validates at full depth', async () => {
+      const script = `
+        |x: list(list(dict(name: string)))| { $x } => $fn
+        $fn(list[list[dict[name: "alice"]], list[dict[name: "bob"]]])
+      `;
+      expect(await run(script)).toEqual([
+        [{ name: 'alice' }],
+        [{ name: 'bob' }],
+      ]);
+    });
+  });
+
+  describe('Parameterized Type: Bare closure annotation unchanged (AC-27)', () => {
+    it('AC-27: bare closure annotation continues to accept any closure', async () => {
+      const script = `
+        |fn: closure| { $fn() } => $apply
+        $apply(|| 42)
+      `;
+      expect(await run(script)).toBe(42);
+    });
+  });
+
+  // ============================================================
+  // Parameterized Type Annotations — Error Cases
+  // (AC-13, AC-14, AC-15, EC-8)
+  // ============================================================
+
+  describe('Parameterized Type: Param type mismatch list(string) (AC-13, EC-8)', () => {
+    it('AC-13: list(string) param rejects list of numbers with RILL-R001', async () => {
+      const script = `
+        |items: list(string)| { $items } => $fn
+        $fn(list[1, 2])
+      `;
+      const err = await run(script).catch((e: unknown) => e);
+      expect((err as Error & { errorId: string }).errorId).toBe('RILL-R001');
+      expect((err as Error).message).toContain('list(string)');
+    });
+  });
+
+  describe('Parameterized Type: Dict param type mismatch (AC-14)', () => {
+    it('AC-14: dict(name: string, age: number) param rejects wrong field type with RILL-R001', async () => {
+      const script = `
+        |x: dict(name: string, age: number)| { $x } => $fn
+        $fn(dict[name: "alice", age: "thirty"])
+      `;
+      const err = await run(script).catch((e: unknown) => e);
+      expect((err as Error & { errorId: string }).errorId).toBe('RILL-R001');
+      // dict fields are sorted alphabetically in formatStructuralType
+      expect((err as Error).message).toContain(
+        'dict(age: number, name: string)'
+      );
+    });
+  });
+
+  describe('Parameterized Type: Return type assertion mismatch (AC-15)', () => {
+    it('AC-15: closure declared :list(string) that returns list[1, 2] halts with RILL-R004', async () => {
+      const script = `
+        || { list[1, 2] } :list(string) => $fn
+        $fn()
+      `;
+      const err = await run(script).catch((e: unknown) => e);
+      expect((err as Error & { errorId: string }).errorId).toBe('RILL-R004');
+      expect((err as Error).message).toContain('list(string)');
+    });
+  });
 });

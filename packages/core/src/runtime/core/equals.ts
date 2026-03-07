@@ -48,6 +48,8 @@ import type {
   DestructNode,
   ConvertNode,
   SpreadArgNode,
+  TypeRef,
+  TypeRefArg,
 } from '../../types.js';
 
 /**
@@ -188,10 +190,10 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       if (aRef === null && bRef === null) return true;
       if (aRef === null || bRef === null) return false;
       if (aRef.kind !== bRef.kind) return false;
-      if (aRef.kind === 'static' && bRef.kind === 'static')
-        return aRef.typeName === bRef.typeName;
       if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic')
         return aRef.varName === bRef.varName;
+      if (aRef.kind === 'static' && bRef.kind === 'static')
+        return typeRefStaticEquals(aRef, bRef);
       return false;
     }
 
@@ -589,12 +591,53 @@ function convertEquals(a: ConvertNode, b: ConvertNode): boolean {
   }
   if ('kind' in aRef && 'kind' in bRef) {
     if (aRef.kind !== bRef.kind) return false;
-    if (aRef.kind === 'static' && bRef.kind === 'static') {
-      return aRef.typeName === bRef.typeName;
-    }
-    if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic') {
+    if (aRef.kind === 'static' && bRef.kind === 'static')
+      return typeRefStaticEquals(aRef, bRef);
+    if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic')
       return aRef.varName === bRef.varName;
-    }
   }
+  return false;
+}
+
+/**
+ * Compare two static TypeRef variants for structural equality.
+ * Recursively compares args arrays, including named/positional forms.
+ */
+function typeRefStaticEquals(
+  a: TypeRef & { kind: 'static' },
+  b: TypeRef & { kind: 'static' }
+): boolean {
+  if (a.typeName !== b.typeName) return false;
+  return typeRefArgListEquals(a.args, b.args);
+}
+
+/**
+ * Compare two optional TypeRefArg arrays for structural equality.
+ */
+function typeRefArgListEquals(
+  a: TypeRefArg[] | undefined,
+  b: TypeRefArg[] | undefined
+): boolean {
+  const aArgs = a ?? [];
+  const bArgs = b ?? [];
+  if (aArgs.length !== bArgs.length) return false;
+  for (let i = 0; i < aArgs.length; i++) {
+    const aArg = aArgs[i]!;
+    const bArg = bArgs[i]!;
+    if (aArg.name !== bArg.name) return false;
+    if (!typeRefEquals(aArg.ref, bArg.ref)) return false;
+  }
+  return true;
+}
+
+/**
+ * Compare two TypeRef values for structural equality.
+ */
+function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'dynamic' && b.kind === 'dynamic')
+    return a.varName === b.varName;
+  if (a.kind === 'static' && b.kind === 'static')
+    return typeRefStaticEquals(a, b);
   return false;
 }

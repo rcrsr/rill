@@ -82,6 +82,8 @@ import {
   isOrdered,
   createOrdered,
   inferStructuralType,
+  structuralTypeMatches,
+  formatStructuralType,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -275,6 +277,33 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       value: RillValue,
       callLocation?: SourceLocation
     ): void {
+      // IR-4: Structural dispatch — use typeStructure when sub-fields present
+      if (param.typeStructure !== undefined) {
+        const ts = param.typeStructure;
+        const hasSubFields =
+          'element' in ts ||
+          'fields' in ts ||
+          'elements' in ts ||
+          'params' in ts ||
+          'ret' in ts;
+        if (hasSubFields) {
+          if (!structuralTypeMatches(value, ts)) {
+            throw new RuntimeError(
+              'RILL-R001',
+              `Parameter type mismatch: ${param.name} expects ${formatStructuralType(ts)}, got ${formatStructuralType(inferStructuralType(value))}`,
+              callLocation,
+              {
+                paramName: param.name,
+                expectedType: formatStructuralType(ts),
+                actualType: formatStructuralType(inferStructuralType(value)),
+              }
+            );
+          }
+          return;
+        }
+      }
+
+      // Backward-compatible leaf type check
       const expectedType =
         param.typeName ?? this.inferTypeFromDefault(param.defaultValue);
       if (expectedType === 'any') return;
@@ -350,7 +379,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any).assertType(
             result,
-            callable.returnShape.typeName,
+            callable.returnShape.structure,
             callLocation
           );
         }

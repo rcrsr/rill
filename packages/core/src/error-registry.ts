@@ -261,8 +261,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$x => int  # Use "number" for all numeric types',
       },
       {
-        description: 'Generic type syntax not supported',
-        code: '$x => list<string>  # Use "list" only',
+        description: 'Angle-bracket generic syntax not supported',
+        code: '$x => list<string>  # Use list(string) for typed lists',
       },
     ],
   },

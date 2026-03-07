@@ -6,7 +6,7 @@
  *
  * Implementation notes:
  * - AC-48 (*[] spread on empty list) is skipped: list spread is removed.
- * - formatStructuralType output: list<number>, dict{a: number}, tuple(number, string),
+ * - formatStructuralType output: list(number), dict(a: number), tuple(number, string),
  *   ordered(a: number), any. Dict fields are sorted alphabetically.
  * - ordered[] produces an empty RillOrdered = ordered().
  */
@@ -31,9 +31,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('list');
     });
 
-    it('[].^type.str returns "list<any>"', async () => {
+    it('[].^type.str returns "list(any)"', async () => {
       const result = await run('list[].^type.str');
-      expect(result).toBe('list<any>');
+      expect(result).toBe('list(any)');
     });
   });
 
@@ -52,9 +52,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('dict');
     });
 
-    it('[:].^type.str returns "dict{}"', async () => {
+    it('[:].^type.str returns "dict()"', async () => {
       const result = await run('dict[].^type.str');
-      expect(result).toBe('dict{}');
+      expect(result).toBe('dict()');
     });
   });
 
@@ -96,9 +96,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[1].^type.str returns "list<number>"', async () => {
+    it('[1].^type.str returns "list(number)"', async () => {
       const result = await run('list[1].^type.str');
-      expect(result).toBe('list<number>');
+      expect(result).toBe('list(number)');
     });
 
     it('[1, 2, 3].^type == list(number) evaluates to true', async () => {
@@ -124,9 +124,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[a: [x: 1]].^type.str returns "dict{a: dict{x: number}}"', async () => {
+    it('[a: [x: 1]].^type.str returns "dict(a: dict(x: number))"', async () => {
       const result = await run('dict[a: dict[x: 1]].^type.str');
-      expect(result).toBe('dict{a: dict{x: number}}');
+      expect(result).toBe('dict(a: dict(x: number))');
     });
   });
 
@@ -142,9 +142,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[[1, 2], [3, 4]].^type.str returns "list<list<number>>"', async () => {
+    it('[[1, 2], [3, 4]].^type.str returns "list(list(number))"', async () => {
       const result = await run('list[list[1, 2], list[3, 4]].^type.str');
-      expect(result).toBe('list<list<number>>');
+      expect(result).toBe('list(list(number))');
     });
   });
 
@@ -192,9 +192,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
 
   describe('Dict field sort order in structural type', () => {
-    it('[b: 2, a: 1].^type.str returns "dict{a: number, b: number}" (sorted)', async () => {
+    it('[b: 2, a: 1].^type.str returns "dict(a: number, b: number)" (sorted)', async () => {
       const result = await run('dict[b: 2, a: 1].^type.str');
-      expect(result).toBe('dict{a: number, b: number}');
+      expect(result).toBe('dict(a: number, b: number)');
     });
 
     it('[b: 2, a: 1].^type == dict(a: number, b: number) evaluates to true', async () => {

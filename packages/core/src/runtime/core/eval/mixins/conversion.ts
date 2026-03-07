@@ -74,9 +74,22 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       const typeRef = node.typeRef;
 
-      // Structural ordered type: :>ordered(name: type, ...)
+      // Structural type constructor: :>ordered(name: type, ...) or :>list(T), :>dict(...), :>tuple(...)
       if (isTypeConstructorNode(typeRef)) {
-        return this.convertToOrderedWithSig(input, typeRef, node);
+        if (typeRef.constructorName === 'ordered') {
+          return this.convertToOrderedWithSig(input, typeRef, node);
+        }
+        // Non-ordered constructors: convert first, then assert structural type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
+        const result = this.applyConversion(
+          input,
+          typeRef.constructorName,
+          node
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).assertType(result, typeValue.structure, node.span.start);
+        return result;
       }
 
       // Static type ref: :>list, :>dict, etc.

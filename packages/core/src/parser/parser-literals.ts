@@ -628,6 +628,11 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
         current(this.state).value as (typeof VALID_TYPE_NAMES)[number]
       )
     ) {
+      // Parameterized type name: list(string), dict(name: type), etc.
+      // Next token is LPAREN — this is an anonymous typed closure with type args.
+      if (peek(this.state, 1).type === TOKEN_TYPES.LPAREN) {
+        return true;
+      }
       // Static type name: peek past any newlines to find PIPE_BAR (not COLON)
       let lookahead = 1;
       while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {

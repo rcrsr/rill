@@ -595,8 +595,8 @@ describe('toNative', () => {
       expect(toNative(true).typeSig).toBe('bool');
     });
 
-    it('returns "list<number>" for number list', () => {
-      expect(toNative([1, 2, 3]).typeSig).toBe('list<number>');
+    it('returns "list(number)" for number list', () => {
+      expect(toNative([1, 2, 3]).typeSig).toBe('list(number)');
     });
   });
 });

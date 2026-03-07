@@ -358,4 +358,102 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
   });
+
+  // ============================================================
+  // Display Format for Parameterized Type Values (AC-10)
+  // ============================================================
+
+  describe('Display format for parameterized type values (AC-10)', () => {
+    it('AC-10: list(string) type value .str returns "list(string)"', async () => {
+      const result = await run('list(string) => $t\n$t.str');
+      expect(result).toBe('list(string)');
+    });
+
+    it('AC-10: list(number) type value .str returns "list(number)"', async () => {
+      const result = await run('list(number) => $t\n$t.str');
+      expect(result).toBe('list(number)');
+    });
+
+    it('AC-10: dict(name: string) type value .str returns "dict(name: string)"', async () => {
+      const result = await run('dict(name: string) => $t\n$t.str');
+      expect(result).toBe('dict(name: string)');
+    });
+
+    it('AC-10: list(string) type value .name returns "list"', async () => {
+      const result = await run('list(string) => $t\n$t.name');
+      expect(result).toBe('list');
+    });
+  });
+
+  // ============================================================
+  // Reflection: .^input for parameterized param type (AC-11)
+  // ============================================================
+
+  describe('Reflection: .^input reflects parameterized param type (AC-11)', () => {
+    it('AC-11: |x: list(string)| closure .^input has x typed list(string)', async () => {
+      const script = `
+        |x: list(string)| { $x } => $fn
+        $fn.^input
+      `;
+      const result = (await run(script)) as {
+        type: string;
+        params: {
+          __rill_ordered: true;
+          entries: [string, { type: string; element: { type: string } }][];
+        };
+        ret: { type: string };
+      };
+      expect(result.type).toBe('closure');
+      expect(result.params.__rill_ordered).toBe(true);
+      expect(result.params.entries).toHaveLength(1);
+      expect(result.params.entries[0]![0]).toBe('x');
+      expect(result.params.entries[0]![1]).toEqual({
+        type: 'list',
+        element: { type: 'string' },
+      });
+    });
+
+    it('AC-11: |x: dict(name: string)| closure .^input reflects dict structure', async () => {
+      const script = `
+        |x: dict(name: string)| { $x } => $fn
+        $fn.^input
+      `;
+      const result = (await run(script)) as {
+        params: {
+          entries: [
+            string,
+            { type: string; fields: Record<string, unknown> },
+          ][];
+        };
+      };
+      expect(result.params.entries[0]![1]).toEqual({
+        type: 'dict',
+        fields: { name: { type: 'string' } },
+      });
+    });
+  });
+
+  // ============================================================
+  // Structure Preserved Through Variable (AC-26)
+  // ============================================================
+
+  describe('Structure preserved through variable (AC-26)', () => {
+    it('AC-26: list(dict(name: string, age: number)) => $t preserves full structure', async () => {
+      const script = `
+        list(dict(name: string, age: number)) => $t
+        "ok"
+      `;
+      await expect(run(script)).resolves.toBe('ok');
+    });
+
+    it('AC-26: stored $t can be used for structural type check via ^type equality', async () => {
+      const script = `
+        list(dict(name: string)) => $t
+        dict[name: "alice"] => $d
+        list[$d].^type == $t
+      `;
+      const result = await run(script);
+      expect(result).toBe(true);
+    });
+  });
 });

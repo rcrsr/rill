@@ -65,6 +65,8 @@ export type CallableFn = (
 export interface CallableParam {
   readonly name: string;
   readonly typeName: RillTypeName | null;
+  /** Full resolved structural type. Absent means bare type (uses typeName only). Present supersedes typeName for structural validation and reflection. */
+  readonly typeStructure?: RillStructuralType;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
@@ -346,9 +348,11 @@ export function paramsToStructuralType(
 ): RillStructuralType {
   const closureParams: [string, RillStructuralType][] = params.map((param) => {
     const paramType: RillStructuralType =
-      param.typeName !== null
-        ? ({ type: param.typeName } as RillStructuralType)
-        : { type: 'any' };
+      param.typeStructure !== undefined
+        ? param.typeStructure
+        : param.typeName !== null
+          ? ({ type: param.typeName } as RillStructuralType)
+          : { type: 'any' };
     return [param.name, paramType];
   });
 
