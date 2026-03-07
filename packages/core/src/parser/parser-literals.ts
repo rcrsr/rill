@@ -32,10 +32,11 @@ import {
   advance,
   expect,
   current,
+  peek,
   skipNewlines,
   makeSpan,
 } from './state.js';
-import { isDictStart, isNegativeNumber } from './helpers.js';
+import { isDictStart, isNegativeNumber, VALID_TYPE_NAMES } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
@@ -608,6 +609,61 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
   skipNewlines(this.state);
 
+  // Anonymous typed closure detection: |type| body or |$typeVar| body
+  // Static: current is IDENTIFIER in VALID_TYPE_NAMES, next non-newline is PIPE_BAR
+  // Dynamic: current is DOLLAR ($typeVar form)
+  const isAnonymousTyped = (() => {
+    if (check(this.state, TOKEN_TYPES.DOLLAR)) {
+      // Dynamic type ref: $identifier — next non-newline after $ and name must be PIPE_BAR.
+      // Delegate detection to lookahead: offset 1 is identifier, offset 2 is PIPE_BAR (skip newlines).
+      let lookahead = 2;
+      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+    }
+    if (
+      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+      VALID_TYPE_NAMES.includes(
+        current(this.state).value as (typeof VALID_TYPE_NAMES)[number]
+      )
+    ) {
+      // Static type name: peek past any newlines to find PIPE_BAR (not COLON)
+      let lookahead = 1;
+      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+    }
+    return false;
+  })();
+
+  if (isAnonymousTyped) {
+    const paramStart = current(this.state).span.start;
+    const typeRef = parseTypeRef(this.state);
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+    skipNewlines(this.state);
+    const body = this.parseBody();
+    const returnTypeTarget = parseClosureReturnTypeTarget(this);
+    const param: ClosureParamNode = {
+      type: 'ClosureParam',
+      name: '$',
+      typeRef,
+      defaultValue: null,
+      span: makeSpan(paramStart, current(this.state).span.start),
+    };
+    return {
+      type: 'Closure',
+      params: [param],
+      body,
+      returnTypeTarget,
+      span: makeSpan(
+        start,
+        returnTypeTarget ? current(this.state).span.end : body.span.end
+      ),
+    };
+  }
+
   const params: ClosureParamNode[] = [];
   if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
     params.push(this.parseClosureParam());
@@ -673,6 +729,18 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     TOKEN_TYPES.IDENTIFIER,
     'Expected parameter name'
   );
+
+  if (
+    VALID_TYPE_NAMES.includes(
+      nameToken.value as (typeof VALID_TYPE_NAMES)[number]
+    )
+  ) {
+    throw new ParseError(
+      'RILL-P003',
+      `Reserved type keyword cannot be used as parameter name: ${nameToken.value}`,
+      nameToken.span.start
+    );
+  }
 
   let typeRef: TypeRef | null = null;
   let defaultValue: LiteralNode | null = null;

@@ -52,20 +52,173 @@ The last row shows the key difference: `( )` requires `$` to already be defined,
 ## Closure Syntax
 
 ```text
-# Block-closure (implicit $ parameter)
+# Block-closure (implicit $ parameter, desugars to |any|{ body }:any)
 { body }
 
 # Zero-parameter closure (property-style, no parameters)
 || { body }
 ||body           # shorthand for simple expressions
 
-# With parameters
+# Anonymous typed closure (type-checks piped input)
+|type| { body }
+|type| { body }:returnType    # with return type annotation
+
+# With named parameters
 |x| { body }
 |x|body          # shorthand
 |x, y| { body }  # multiple parameters
 |x: string| { body }           # typed parameter
 |x: number = 10| { body }      # default value (type inferred)
 |x: string = "hi"| { body }    # default with explicit type
+```
+
+### Three-Form Closure Model
+
+| Form | Syntax | `$` Behavior | Use Case |
+|------|--------|--------------|----------|
+| Bare block | `{ body }` | Piped input (desugars to `\|any\|`) | Untyped transformations, collection operators |
+| Anonymous typed | `\|type\|{ body }` | Piped input, type-checked | Type-safe pipe stages |
+| Named parameter | `\|x: type\|{ body }` | Hard error (RILL-R005) | Named arguments, multi-param closures |
+
+Zero-parameter closures (`\|\|{ body }`) have no `$` binding. Accessing `$` inside one throws RILL-R005.
+
+---
+
+## Anonymous Typed Closures
+
+Anonymous typed closures use a reserved type keyword as the sole parameter. The syntax is `|type|{ body }`. The closure type-checks the piped input against the declared type and binds it to `$`.
+
+### Basic Syntax
+
+```rill
+"hello" -> |string|{ $ -> .upper }
+# Result: "HELLO"
+```
+
+```rill
+5 -> |number|{ $ * 2 }
+# Result: 10
+```
+
+The type keyword before `{` is the input type, not a parameter name. The runtime rejects values that do not match.
+
+### Return Type Annotation
+
+Append `:type` after the closing `}` to declare and enforce the return type. A mismatch halts with RILL-R004. See [Error Reference](ref-errors.md) for RILL-R004 details.
+
+```rill
+|number|{ $ * 2 }:number => $double
+$double(5)
+# Result: 10
+```
+
+When the body result does not match the declared return type, execution halts with RILL-R004. Use a `text` fence to illustrate the error case:
+
+```text
+# EC-13: return type mismatch halts with RILL-R004
+5 -> |number|{ "hello" }:number
+# Error: RILL-R004: Type assertion failed: expected number, got string
+```
+
+### Pipe Chain Example
+
+Anonymous typed closures compose naturally in pipe chains:
+
+```rill
+"hello" -> |string|{ $ -> .upper } -> |string|{ $ -> .lower }
+# Result: "hello"
+```
+
+### Reserved Type Keywords
+
+All 11 reserved type keywords are valid as the anonymous typed closure parameter:
+
+| Keyword | Accepts |
+|---------|---------|
+| `string` | String values |
+| `number` | Numeric values |
+| `bool` | Boolean values |
+| `closure` | Closure values |
+| `list` | List values |
+| `dict` | Dict values |
+| `tuple` | Tuple values |
+| `ordered` | Ordered dict values (internal) |
+| `vector` | Vector values |
+| `any` | All value types |
+| `type` | Type values (e.g., `number`, `string` as values) |
+
+A non-keyword identifier in the same position (e.g., `|x|{ body }`) parses as a named parameter, not an anonymous typed closure.
+
+### Bare Block Desugaring
+
+A bare block `{ body }` desugars to `|any|{ body }:any` at parse time. The runtime produces an identical `ClosureNode` with a `$` parameter typed `any`. These two forms are equivalent:
+
+```rill
+5 -> { $ * 2 }
+# Result: 10
+```
+
+```rill
+5 -> |any|{ $ * 2 }:any
+# Result: 10
+```
+
+### `$` Binding Rules
+
+| Form | `$` in body | Behavior on violation |
+|------|-------------|----------------------|
+| `{ body }` (bare block) | Piped input, type `any` | N/A — no type check |
+| `\|type\|{ body }` (anonymous typed) | Piped input, type-checked | RILL-R001 on mismatch |
+| `\|x: type\|{ body }` (named param) | Hard error | RILL-R005 |
+| `\|\|{ body }` (zero-param) | Hard error | RILL-R005 |
+
+Accessing `$` inside a named-param or zero-param closure is a hard error (RILL-R005) because those forms define no pipe binding.
+
+### Input Type Mismatch
+
+When the piped value does not match the declared type, execution halts with RILL-R001:
+
+```text
+# EC-4: input type mismatch halts with RILL-R001
+"hello" -> |number|{ $ * 2 }
+# Error: RILL-R001: Type mismatch: expected number, got string
+```
+
+### Zero-Param `$` Error
+
+Accessing `$` in a zero-parameter closure halts with RILL-R005:
+
+```text
+# EC-6: $ not defined in zero-param closure
+||{ $ } => $fn
+$fn()
+# Error: RILL-R005: $ is not defined in this closure form
+```
+
+### `.^input` Reflection
+
+The `.^input` annotation returns a structural type describing the closure signature. For an anonymous typed closure, the `$` parameter carries the declared type:
+
+```rill
+|string|{ $ } => $fn
+$fn.^input
+# Result: closure structural type with $ param typed string
+# formatStructuralType output: closure($: string) -> any
+```
+
+```rill
+{ $ * 2 } => $fn
+$fn.^input
+# Result: closure structural type with $ param typed any
+# formatStructuralType output: closure($: any) -> any
+```
+
+The `.^output` annotation returns the declared return type as a type value. Unannotated closures return `any`:
+
+```rill
+|number|{ $ * 2 }:number => $fn
+$fn.^output == number
+# Result: true
 ```
 
 ---

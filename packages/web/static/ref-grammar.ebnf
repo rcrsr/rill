@@ -236,11 +236,26 @@ closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , 
               | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
 param-type    = type-ref ;  (* all type names and type variables accepted for closure params *)
 body   = block | grouped-expr | postfix-expr ;
-closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":" , type-target ] ;
+closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":" , type-target ]
+              | "|" , type-name , "|" , body , [ ":" , type-target ] ;
               (* Return type assertion — enforced at runtime (RILL-R004 on mismatch).
                  |x: number| { "{$x}" }:string  -- asserts string return type
                  Whitespace and newlines allowed between "}" and ":".
-                 Declared return type accessible via $fn.^output annotation. *)
+                 Declared return type accessible via $fn.^output annotation.
+
+                 Anonymous typed closure (second alternative):
+                 When the single token between | ... | is a type-name keyword, the parser
+                 produces an anonymous typed closure. The implicit parameter is $ and the
+                 declared type is enforced at pipe invocation (RILL-R001 on mismatch).
+                 Example: "hello" -> |string|{ $ -> .upper }
+
+                 Disambiguation rule: the 11 reserved type keywords trigger anonymous typed
+                 parsing when they appear as the sole token between | ... |. These keywords
+                 are: string, number, bool, closure, list, dict, tuple, ordered, vector, any, type.
+                 Any other identifier between | ... | is parsed as a named parameter.
+
+                 Bare block desugar: { body } desugars to |any|{ body }:any — an anonymous
+                 typed closure that accepts any piped value without type enforcement. *)
 
 string        = '"' , { char | escape | brace-escape | interpolation } , '"'
               | '"""' , { char | escape | brace-escape | interpolation } , '"""' ;

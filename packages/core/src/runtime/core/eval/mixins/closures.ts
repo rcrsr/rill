@@ -80,6 +80,7 @@ import {
   isTypeValue,
   isTuple,
   isOrdered,
+  createOrdered,
   inferStructuralType,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -900,16 +901,37 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // IR-2/IR-5: .^input returns the input shape for callable values
+      // Params are converted from internal tuples to RillOrdered so the
+      // value survives rill's homogeneous-list constraint.
       if (key === 'input') {
         if (isScriptCallable(value)) {
-          return value.inputShape;
+          const shape = value.inputShape;
+          if (shape.kind === 'closure') {
+            return {
+              kind: shape.kind,
+              params: createOrdered(shape.params as [string, RillValue][]),
+              ret:
+                value.returnShape !== undefined
+                  ? (value.returnShape as RillTypeValue).structure
+                  : shape.ret,
+            };
+          }
+          return shape;
         }
         if (isApplicationCallable(value)) {
           if (value.params === undefined) {
             // IR-5: untyped host function — no shape available
             return false;
           }
-          return paramsToStructuralType(value.params);
+          const shape = paramsToStructuralType(value.params);
+          if (shape.kind === 'closure') {
+            return {
+              kind: shape.kind,
+              params: createOrdered(shape.params as [string, RillValue][]),
+              ret: shape.ret,
+            };
+          }
+          return shape;
         }
         // Non-callable: fall through to existing RILL-R003 guard below
       }

@@ -334,7 +334,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Parameter type mismatch
 
-**Cause:** Argument passed to function does not match declared parameter type.
+**Cause:** Argument passed to function does not match declared parameter type. Also raised when a piped value does not match the declared anonymous parameter type in an anonymous typed closure (`|type|{ body }`).
 
 **Resolution:** Pass value of correct type, or convert the value before passing. Check function signature for expected types.
 
@@ -347,6 +347,10 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 # Number passed to string method
 123 -> .split(",")  # split expects string
+
+# Anonymous typed closure: piped value type does not match declared parameter type
+"hello" -> |number|{ $ * 2 }
+# Error: RILL-R001: Parameter type mismatch: $ expects number, got string
 ```
 
 ---
@@ -396,11 +400,14 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r004
 
-**Description:** Type conversion failure
+**Description:** Type conversion failure or return type assertion failure
 
-**Cause:** Value cannot be converted to target type (invalid format or incompatible types).
+**Cause:** Two distinct causes raise RILL-R004:
 
-**Resolution:** Ensure value has valid format for target type. For string-to-number: check numeric format. For parse operations: validate input structure.
+1. **Type conversion failure** — Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
+2. **Return type assertion failure** — Closure return type annotation (`:type` after `}`) does not match the actual return value type.
+
+**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type.
 
 **Example:**
 
@@ -410,6 +417,10 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 # Closure serialization
 json({ "hi" })
+
+# Return type annotation mismatch
+5 -> |number|{ "hello" }:number
+# Error: RILL-R004: Type assertion failed: expected number, got string
 ```
 
 ---
@@ -418,9 +429,9 @@ json({ "hi" })
 
 **Description:** Undefined variable
 
-**Cause:** Variable referenced before assignment, or variable name misspelled.
+**Cause:** Variable referenced before assignment, or variable name misspelled. Also raised when `$` is accessed inside a no-args closure (`||{ }`) where no piped value is bound.
 
-**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference.
+**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference. Do not access `$` in no-args closures — use named parameters or pipe a value to an anonymous typed closure instead.
 
 **Example:**
 
@@ -435,6 +446,10 @@ $message  # Typo: mesage vs message
 # Variable out of scope
 { "local" => $x }
 $x  # $x only exists inside block
+
+# $ accessed in no-args closure ($ is not bound)
+||{ $ }
+# Error: RILL-R005: Undefined variable: $
 ```
 
 ---
