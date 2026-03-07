@@ -190,6 +190,19 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // entries[1][1].structure -> { type: 'string' }
 ```
 
+```typescript
+// Parameterized closure: |x: list(string), y: number| { $x }
+// entries[0][1].structure -> { type: 'list', element: { type: 'string' } }
+// entries[1][1].structure -> { type: 'number' }
+//
+// Use structure.element to inspect the list's element type:
+// if (entries[0][1].structure.type === 'list') {
+//   const elementType = entries[0][1].structure.element; // { type: 'string' }
+// }
+```
+
+> **Behavioral change (v0.x):** Hosts inspecting `.^input` on parameterized closures now see full structural sub-fields. Code that checks `structure.type === 'list'` is unaffected. Code that assumed `element` was always absent must handle the populated case.
+
 **`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ type: 'any' }`:
 
 ```typescript

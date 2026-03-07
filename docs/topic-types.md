@@ -616,6 +616,16 @@ Error if type doesn't match, returns value unchanged:
 $val -> :dict -> .keys        # assert dict, then get keys
 ```
 
+```rill
+# Parameterized type assertions
+[1, 2, 3] -> :list(number)                          # passes, returns list[1, 2, 3]
+[a: 1, b: "hello"] -> :dict(a: number, b: string)  # passes
+```
+
+```text
+["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
+```
+
 ### Check Type (`:?type`)
 
 Returns boolean, no error:
@@ -629,6 +639,11 @@ Returns boolean, no error:
 "hello" -> :?string           # true
 ```
 
+```rill
+[1, 2, 3]:?list(number)               # true
+["a", "b"]:?list(number)              # false
+```
+
 Type checks work in conditionals:
 
 ```text
@@ -636,6 +651,8 @@ $val -> :?list ? process() ! skip()   # branch on type
 ```
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+
+Parameterized forms accept a type argument list: `list(string)`, `dict(a: number, b: string)`, `tuple(number, string)`. The runtime deep-validates element types on match.
 
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
 
@@ -674,11 +691,18 @@ $x -> .model
 # Result: "mock-embed"
 ```
 
+```rill
+# Capture type assertion with parameterized type
+[1, 2] => $x:list(number)
+$x[0]
+# Result: 1
+```
+
 ### In Pipe Chains
 
 ```rill
-# Assert type and continue processing
-[1, 2, 3] -> :list -> each { $ * 2 }
+# Assert typed list and continue processing
+[1, 2, 3] -> :list(number) -> each { $ * 2 }
 
 # Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4

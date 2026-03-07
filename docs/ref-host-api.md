@@ -571,11 +571,12 @@ Formats a structural type descriptor as a human-readable string.
 | `{ type: 'bool' }` | `"bool"` |
 | `{ type: 'any' }` | `"any"` |
 | `{ type: 'list' }` | `"list"` |
-| `{ type: 'list', element: { type: 'number' } }` | `"list<number>"` |
+| `{ type: 'list', element: { type: 'number' } }` | `"list(number)"` |
 | `{ type: 'dict' }` | `"dict"` |
-| `{ type: 'dict', fields: { x: { type: 'number' } } }` | `"dict{x: number}"` |
+| `{ type: 'dict', fields: { x: { type: 'number' } } }` | `"dict(x: number)"` |
 | `{ type: 'closure' }` | `"closure"` |
 | `{ type: 'closure', params: [['x', { type: 'number' }]], ret: { type: 'string' } }` | `"\|x: number\| :string"` |
+| `{ type: 'closure', params: [['$', { type: 'list', element: { type: 'string' } }]], ret: { type: 'any' } }` | `"\|$: list(string)\| :any"` |
 
 Absent sub-fields on compound variants format as the bare type name.
 
@@ -603,8 +604,17 @@ Builds a `RillStructuralType` closure variant from a closure's parameter list. R
 
 | Param shape | Maps to |
 |-------------|---------|
-| Typed param (`typeName` non-null) | `{ type: param.typeName }` |
+| Parameterized typed param (`typeStructure` present) | The full `RillStructuralType` from `param.typeStructure` |
+| Bare typed param (`typeName` non-null, no `typeStructure`) | `{ type: param.typeName }` |
 | Untyped param (`typeName: null`) | `{ type: 'any' }` |
+
+When the script closure uses parameterized annotations (`|x: list(string)|`), the `typeStructure` field carries the full structural type. The resulting `.^input` structure on the host side reflects the full parameterized shape:
+
+```typescript
+// Script: |x: list(string), y: number| { $x }
+// entries[0][1].structure -> { type: 'list', element: { type: 'string' } }
+// entries[1][1].structure -> { type: 'number' }
+```
 
 ---
 
