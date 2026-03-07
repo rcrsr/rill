@@ -55,9 +55,8 @@ function makeTypeValue(typeName: string): RillTypeValue {
     __rill_type: true as const,
     typeName: typeName as RillTypeValue['typeName'],
     structure: {
-      kind: 'primitive',
-      name: typeName as RillTypeValue['typeName'],
-    },
+      type: typeName as RillTypeValue['typeName'],
+    } as RillTypeValue['structure'],
   };
 }
 
@@ -596,8 +595,8 @@ describe('toNative', () => {
       expect(toNative(true).typeSig).toBe('bool');
     });
 
-    it('returns "list(number)" for number list', () => {
-      expect(toNative([1, 2, 3]).typeSig).toBe('list(number)');
+    it('returns "list<number>" for number list', () => {
+      expect(toNative([1, 2, 3]).typeSig).toBe('list<number>');
     });
   });
 });

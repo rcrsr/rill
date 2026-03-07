@@ -62,17 +62,21 @@ export interface RillVector {
  * Used by RillTypeValue to carry type structure information at runtime.
  */
 export type RillStructuralType =
-  | { kind: 'primitive'; name: RillTypeName }
-  | { kind: 'list'; element: RillStructuralType }
-  | { kind: 'dict'; fields: Record<string, RillStructuralType> }
-  | { kind: 'tuple'; elements: RillStructuralType[] }
-  | { kind: 'ordered'; fields: [string, RillStructuralType][] }
+  | { type: 'number' }
+  | { type: 'string' }
+  | { type: 'bool' }
+  | { type: 'vector' }
+  | { type: 'type' }
+  | { type: 'any' }
+  | { type: 'dict'; fields?: Record<string, RillStructuralType> }
+  | { type: 'list'; element?: RillStructuralType }
   | {
-      kind: 'closure';
-      params: [string, RillStructuralType][];
-      ret: RillStructuralType;
+      type: 'closure';
+      params?: [string, RillStructuralType][];
+      ret?: RillStructuralType;
     }
-  | { kind: 'any' };
+  | { type: 'tuple'; elements?: RillStructuralType[] }
+  | { type: 'ordered'; fields?: [string, RillStructuralType][] };
 
 /**
  * Type value - represents a first-class type name at runtime.
@@ -184,11 +188,11 @@ export function inferType(value: RillValue): RillTypeName {
 
 /**
  * Infer the element type for a homogeneous list.
- * Empty arrays return { kind: 'any' }.
+ * Empty arrays return { type: 'any' }.
  * Mixed types throw RILL-R002.
  */
 export function inferElementType(elements: RillValue[]): RillStructuralType {
-  if (elements.length === 0) return { kind: 'any' };
+  if (elements.length === 0) return { type: 'any' };
   const firstElem = elements[0]!;
   const firstType = inferStructuralType(firstElem);
   for (let i = 1; i < elements.length; i++) {
@@ -209,19 +213,29 @@ export function structuralTypeEquals(
   a: RillStructuralType,
   b: RillStructuralType
 ): boolean {
-  if (a.kind !== b.kind) return false;
+  if (a.type !== b.type) return false;
 
-  if (a.kind === 'any' && b.kind === 'any') return true;
-
-  if (a.kind === 'primitive' && b.kind === 'primitive') {
-    return a.name === b.name;
+  // Leaf variants compare by type alone
+  if (
+    a.type === 'number' ||
+    a.type === 'string' ||
+    a.type === 'bool' ||
+    a.type === 'vector' ||
+    a.type === 'type' ||
+    a.type === 'any'
+  ) {
+    return true;
   }
 
-  if (a.kind === 'list' && b.kind === 'list') {
+  if (a.type === 'list' && b.type === 'list') {
+    if (a.element === undefined && b.element === undefined) return true;
+    if (a.element === undefined || b.element === undefined) return false;
     return structuralTypeEquals(a.element, b.element);
   }
 
-  if (a.kind === 'dict' && b.kind === 'dict') {
+  if (a.type === 'dict' && b.type === 'dict') {
+    if (a.fields === undefined && b.fields === undefined) return true;
+    if (a.fields === undefined || b.fields === undefined) return false;
     const aKeys = Object.keys(a.fields).sort();
     const bKeys = Object.keys(b.fields).sort();
     if (aKeys.length !== bKeys.length) return false;
@@ -235,7 +249,9 @@ export function structuralTypeEquals(
     return true;
   }
 
-  if (a.kind === 'tuple' && b.kind === 'tuple') {
+  if (a.type === 'tuple' && b.type === 'tuple') {
+    if (a.elements === undefined && b.elements === undefined) return true;
+    if (a.elements === undefined || b.elements === undefined) return false;
     if (a.elements.length !== b.elements.length) return false;
     for (let i = 0; i < a.elements.length; i++) {
       if (!structuralTypeEquals(a.elements[i]!, b.elements[i]!)) return false;
@@ -243,7 +259,9 @@ export function structuralTypeEquals(
     return true;
   }
 
-  if (a.kind === 'ordered' && b.kind === 'ordered') {
+  if (a.type === 'ordered' && b.type === 'ordered') {
+    if (a.fields === undefined && b.fields === undefined) return true;
+    if (a.fields === undefined || b.fields === undefined) return false;
     if (a.fields.length !== b.fields.length) return false;
     for (let i = 0; i < a.fields.length; i++) {
       const aField = a.fields[i]!;
@@ -254,14 +272,22 @@ export function structuralTypeEquals(
     return true;
   }
 
-  if (a.kind === 'closure' && b.kind === 'closure') {
-    if (a.params.length !== b.params.length) return false;
-    for (let i = 0; i < a.params.length; i++) {
-      const aParam = a.params[i]!;
-      const bParam = b.params[i]!;
-      if (aParam[0] !== bParam[0]) return false;
-      if (!structuralTypeEquals(aParam[1], bParam[1])) return false;
+  if (a.type === 'closure' && b.type === 'closure') {
+    if (a.params === undefined && b.params === undefined) {
+      // Both absent: compare ret
+    } else if (a.params === undefined || b.params === undefined) {
+      return false;
+    } else {
+      if (a.params.length !== b.params.length) return false;
+      for (let i = 0; i < a.params.length; i++) {
+        const aParam = a.params[i]!;
+        const bParam = b.params[i]!;
+        if (aParam[0] !== bParam[0]) return false;
+        if (!structuralTypeEquals(aParam[1], bParam[1])) return false;
+      }
     }
+    if (a.ret === undefined && b.ret === undefined) return true;
+    if (a.ret === undefined || b.ret === undefined) return false;
     return structuralTypeEquals(a.ret, b.ret);
   }
 
@@ -271,51 +297,51 @@ export function structuralTypeEquals(
 /** Infer the structural type descriptor for any Rill value. */
 export function inferStructuralType(value: RillValue): RillStructuralType {
   if (value === null || typeof value === 'string') {
-    return { kind: 'primitive', name: 'string' };
+    return { type: 'string' };
   }
   if (typeof value === 'number') {
-    return { kind: 'primitive', name: 'number' };
+    return { type: 'number' };
   }
   if (typeof value === 'boolean') {
-    return { kind: 'primitive', name: 'bool' };
+    return { type: 'bool' };
   }
   if (isTypeValue(value)) {
-    return { kind: 'primitive', name: 'type' };
+    return { type: 'type' };
   }
   if (Array.isArray(value)) {
-    return { kind: 'list', element: inferElementType(value) };
+    return { type: 'list', element: inferElementType(value) };
   }
   if (isTuple(value)) {
     return {
-      kind: 'tuple',
+      type: 'tuple',
       elements: value.entries.map(inferStructuralType),
     };
   }
   if (isOrdered(value)) {
     return {
-      kind: 'ordered',
+      type: 'ordered',
       fields: value.entries.map(([k, v]) => [k, inferStructuralType(v)]),
     };
   }
   if (isVector(value)) {
-    return { kind: 'primitive', name: 'vector' };
+    return { type: 'vector' };
   }
   if (isCallable(value)) {
     if (isScriptCallable(value)) {
       const params: [string, RillStructuralType][] = value.params.map((p) => [
         p.name,
         p.typeName !== null
-          ? { kind: 'primitive', name: p.typeName }
-          : { kind: 'any' },
+          ? ({ type: p.typeName } as RillStructuralType)
+          : { type: 'any' },
       ]);
-      let ret: RillStructuralType = { kind: 'any' };
+      let ret: RillStructuralType = { type: 'any' };
       if (isTypeValue(value.returnShape as RillValue)) {
         ret = (value.returnShape as RillTypeValue).structure;
       }
-      return { kind: 'closure', params, ret };
+      return { type: 'closure', params, ret };
     }
     // Non-script callables have no annotations
-    return { kind: 'closure', params: [], ret: { kind: 'any' } };
+    return { type: 'closure', params: [], ret: { type: 'any' } };
   }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;
@@ -323,7 +349,7 @@ export function inferStructuralType(value: RillValue): RillStructuralType {
     for (const [k, v] of Object.entries(dict)) {
       fields[k] = inferStructuralType(v);
     }
-    return { kind: 'dict', fields };
+    return { type: 'dict', fields };
   }
   throw new RuntimeError(
     'RILL-R004',
@@ -343,22 +369,33 @@ export function structuralTypeMatches(
     throw new RuntimeError('RILL-R004', 'Cannot type-check non-value');
   }
 
-  if (type.kind === 'any') return true;
+  if (type.type === 'any') return true;
 
-  if (type.kind === 'primitive') {
-    return inferType(value) === type.name;
+  // Leaf primitive variants: match by inferred type name
+  if (
+    type.type === 'number' ||
+    type.type === 'string' ||
+    type.type === 'bool' ||
+    type.type === 'vector' ||
+    type.type === 'type'
+  ) {
+    return inferType(value) === type.type;
   }
 
-  if (type.kind === 'list') {
+  if (type.type === 'list') {
     if (!Array.isArray(value)) return false;
-    if (type.element.kind === 'any') return true;
-    return value.every((elem) => structuralTypeMatches(elem, type.element));
+    // Absent element sub-field: matches any list value
+    if (type.element === undefined) return true;
+    if (type.element.type === 'any') return true;
+    return value.every((elem) => structuralTypeMatches(elem, type.element!));
   }
 
-  if (type.kind === 'dict') {
+  if (type.type === 'dict') {
     if (!isDict(value)) return false;
+    // Absent fields sub-field: matches any dict value
+    if (type.fields === undefined) return true;
     const dictKeys = Object.keys(type.fields);
-    // Empty dict type matches any dict
+    // Empty fields object matches any dict
     if (dictKeys.length === 0) return true;
     const dict = value as Record<string, RillValue>;
     for (const key of dictKeys) {
@@ -368,8 +405,10 @@ export function structuralTypeMatches(
     return true;
   }
 
-  if (type.kind === 'tuple') {
+  if (type.type === 'tuple') {
     if (!isTuple(value)) return false;
+    // Absent elements sub-field: matches any tuple value
+    if (type.elements === undefined) return true;
     if (type.elements.length === 0) return value.entries.length === 0;
     if (value.entries.length !== type.elements.length) return false;
     for (let i = 0; i < type.elements.length; i++) {
@@ -379,8 +418,10 @@ export function structuralTypeMatches(
     return true;
   }
 
-  if (type.kind === 'ordered') {
+  if (type.type === 'ordered') {
     if (!isOrdered(value)) return false;
+    // Absent fields sub-field: matches any ordered value
+    if (type.fields === undefined) return true;
     if (type.fields.length === 0) return value.entries.length === 0;
     if (value.entries.length !== type.fields.length) return false;
     for (let i = 0; i < type.fields.length; i++) {
@@ -392,13 +433,15 @@ export function structuralTypeMatches(
     return true;
   }
 
-  if (type.kind === 'closure') {
+  if (type.type === 'closure') {
     if (!isCallable(value)) return false;
+    // Absent params sub-field: matches any closure value of that compound type
+    if (type.params === undefined) return true;
     if (!isScriptCallable(value)) {
       // Non-script callables: match if type has no param constraints
       return (
-        type.params.every((_, i) => type.params[i]![1].kind === 'any') &&
-        type.ret.kind === 'any'
+        type.params.every((_, i) => type.params![i]![1].type === 'any') &&
+        (type.ret === undefined || type.ret.type === 'any')
       );
     }
     if (value.params.length !== type.params.length) return false;
@@ -408,14 +451,15 @@ export function structuralTypeMatches(
       if (param.name !== expectedName) return false;
       const paramType: RillStructuralType =
         param.typeName !== null
-          ? { kind: 'primitive', name: param.typeName }
-          : { kind: 'any' };
+          ? ({ type: param.typeName } as RillStructuralType)
+          : { type: 'any' };
       if (!structuralTypeEquals(paramType, expectedType)) return false;
     }
-    let retType: RillStructuralType = { kind: 'any' };
+    let retType: RillStructuralType = { type: 'any' };
     if (isTypeValue(value.returnShape as RillValue)) {
       retType = (value.returnShape as RillTypeValue).structure;
     }
+    if (type.ret === undefined) return true;
     return structuralTypeEquals(retType, type.ret);
   }
 
@@ -424,38 +468,51 @@ export function structuralTypeMatches(
 
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructuralType(type: RillStructuralType): string {
-  if (type.kind === 'any') return 'any';
-
-  if (type.kind === 'primitive') return type.name;
-
-  if (type.kind === 'list') {
-    return `list(${formatStructuralType(type.element)})`;
+  if (
+    type.type === 'any' ||
+    type.type === 'number' ||
+    type.type === 'string' ||
+    type.type === 'bool' ||
+    type.type === 'vector' ||
+    type.type === 'type'
+  ) {
+    return type.type;
   }
 
-  if (type.kind === 'dict') {
+  if (type.type === 'list') {
+    if (type.element === undefined) return 'list';
+    return `list<${formatStructuralType(type.element)}>`;
+  }
+
+  if (type.type === 'dict') {
+    if (type.fields === undefined) return 'dict';
     const parts = Object.keys(type.fields)
       .sort()
-      .map((k) => `${k}: ${formatStructuralType(type.fields[k]!)}`);
-    return `dict(${parts.join(', ')})`;
+      .map((k) => `${k}: ${formatStructuralType(type.fields![k]!)}`);
+    return `dict{${parts.join(', ')}}`;
   }
 
-  if (type.kind === 'tuple') {
+  if (type.type === 'tuple') {
+    if (type.elements === undefined) return 'tuple';
     const parts = type.elements.map(formatStructuralType);
     return `tuple(${parts.join(', ')})`;
   }
 
-  if (type.kind === 'ordered') {
+  if (type.type === 'ordered') {
+    if (type.fields === undefined) return 'ordered';
     const parts = type.fields.map(
       ([k, t]) => `${k}: ${formatStructuralType(t)}`
     );
     return `ordered(${parts.join(', ')})`;
   }
 
-  if (type.kind === 'closure') {
+  if (type.type === 'closure') {
+    if (type.params === undefined) return 'closure';
     const params = type.params
       .map(([name, t]) => `${name}: ${formatStructuralType(t)}`)
       .join(', ');
-    return `|${params}| :${formatStructuralType(type.ret)}`;
+    const ret = type.ret !== undefined ? formatStructuralType(type.ret) : 'any';
+    return `|${params}| :${ret}`;
   }
 
   return 'any';

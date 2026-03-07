@@ -906,17 +906,17 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'input') {
         if (isScriptCallable(value)) {
           const shape = value.inputShape;
-          if (shape.kind === 'closure') {
+          if (shape.type === 'closure') {
             return {
-              kind: shape.kind,
+              type: shape.type,
               params: createOrdered(shape.params as [string, RillValue][]),
               ret:
                 value.returnShape !== undefined
                   ? (value.returnShape as RillTypeValue).structure
                   : shape.ret,
-            };
+            } as unknown as RillValue;
           }
-          return shape;
+          return shape as unknown as RillValue;
         }
         if (isApplicationCallable(value)) {
           if (value.params === undefined) {
@@ -924,14 +924,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             return false;
           }
           const shape = paramsToStructuralType(value.params);
-          if (shape.kind === 'closure') {
+          if (shape.type === 'closure') {
             return {
-              kind: shape.kind,
+              type: shape.type,
               params: createOrdered(shape.params as [string, RillValue][]),
               ret: shape.ret,
-            };
+            } as unknown as RillValue;
           }
-          return shape;
+          return shape as unknown as RillValue;
         }
         // Non-callable: fall through to existing RILL-R003 guard below
       }
@@ -946,7 +946,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const anyTypeValue: RillTypeValue = Object.freeze({
             __rill_type: true as const,
             typeName: 'any',
-            structure: { kind: 'any' as const },
+            structure: { type: 'any' as const },
           });
           return anyTypeValue;
         }

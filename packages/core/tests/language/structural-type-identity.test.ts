@@ -244,7 +244,7 @@ describe('Rill Language: Structural Type Identity', () => {
         (|x: number, y: number| :number) => $sigType
         $fn.^type == $sigType
       `);
-      // No return type annotation on the closure → ret = {kind:'any'}.
+      // No return type annotation on the closure → ret = {type:'any'}.
       // Sig literal has :number → ret = primitive(number). They differ.
       expect(result).toBe(false);
     });

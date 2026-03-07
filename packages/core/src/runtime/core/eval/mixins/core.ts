@@ -347,8 +347,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               primary.typeName === 'ordered' ||
               primary.typeName === 'vector' ||
               primary.typeName === 'type'
-                ? ({ kind: 'primitive', name: primary.typeName } as const)
-                : ({ kind: 'any' } as const),
+                ? ({ type: primary.typeName } as const)
+                : ({ type: 'any' } as const),
           });
 
         case 'TypeConstructor':

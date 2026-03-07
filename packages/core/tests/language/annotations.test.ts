@@ -1193,7 +1193,7 @@ describe('Rill Runtime: Annotations', () => {
           isScriptCallable(fn) ||
             (fn !== null && typeof fn === 'object' && '__type' in fn)
         ).toBe(true);
-        // $fn.^input returns { kind: 'closure', params: RillOrdered, ret: { kind: 'any' } }
+        // $fn.^input returns { type: 'closure', params: RillOrdered, ret: { type: 'any' } }
         // params is { __rill_ordered: true, entries: [['name', ...], ['age', ...]] }
         const inputResult = await run(`app::fn => $fn\n$fn.^input`, {
           functions: {
@@ -1207,20 +1207,20 @@ describe('Rill Runtime: Annotations', () => {
           },
         });
         const shape = inputResult as {
-          kind: string;
+          type: string;
           params: {
             __rill_ordered: true;
-            entries: [string, { kind: string; name?: string }][];
+            entries: [string, { type: string }][];
           };
-          ret: { kind: string };
+          ret: { type: string };
         };
-        expect(shape.kind).toBe('closure');
+        expect(shape.type).toBe('closure');
         expect(shape.params.__rill_ordered).toBe(true);
         expect(shape.params.entries).toEqual([
-          ['name', { kind: 'primitive', name: 'string' }],
-          ['age', { kind: 'primitive', name: 'number' }],
+          ['name', { type: 'string' }],
+          ['age', { type: 'number' }],
         ]);
-        expect(shape.ret).toEqual({ kind: 'any' });
+        expect(shape.ret).toEqual({ type: 'any' });
       });
     });
 
@@ -1238,8 +1238,8 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('AC-34: Concurrent read access to $fn.^input on the same closure is safe', () => {
       it('structural type param entry is stable across multiple reads (AC-34)', async () => {
-        // $fn.^input returns { kind: 'closure', params: RillOrdered, ret: { kind: 'any' } }
-        // params is { __rill_ordered: true, entries: [['data', { kind: 'primitive', name: 'string' }]] }
+        // $fn.^input returns { type: 'closure', params: RillOrdered, ret: { type: 'any' } }
+        // params is { __rill_ordered: true, entries: [['data', { type: 'string' }]] }
         // Access the structural type twice and verify both reads return the same closure structural type
         const result1 = await run(`app::process => $fn\n$fn.^input`, {
           functions: {
@@ -1259,19 +1259,17 @@ describe('Rill Runtime: Annotations', () => {
         });
         expect(result1).toEqual(result2);
         const shape = result1 as {
-          kind: string;
+          type: string;
           params: {
             __rill_ordered: true;
-            entries: [string, { kind: string; name?: string }][];
+            entries: [string, { type: string }][];
           };
-          ret: { kind: string };
+          ret: { type: string };
         };
-        expect(shape.kind).toBe('closure');
+        expect(shape.type).toBe('closure');
         expect(shape.params.__rill_ordered).toBe(true);
-        expect(shape.params.entries).toEqual([
-          ['data', { kind: 'primitive', name: 'string' }],
-        ]);
-        expect(shape.ret).toEqual({ kind: 'any' });
+        expect(shape.params.entries).toEqual([['data', { type: 'string' }]]);
+        expect(shape.ret).toEqual({ type: 'any' });
       });
     });
 
@@ -1286,20 +1284,20 @@ describe('Rill Runtime: Annotations', () => {
           },
         });
         const shape = result as {
-          kind: string;
+          type: string;
           params: { __rill_ordered: true; entries: unknown[] };
-          ret: { kind: string };
+          ret: { type: string };
         };
-        expect(shape.kind).toBe('closure');
+        expect(shape.type).toBe('closure');
         expect(shape.params.__rill_ordered).toBe(true);
         expect(shape.params.entries).toEqual([]);
-        expect(shape.ret).toEqual({ kind: 'any' });
+        expect(shape.ret).toEqual({ type: 'any' });
       });
     });
 
     describe('EC-5: paramsToStructuralType has no error conditions — invalid typeName maps blindly', () => {
       it('host callable with any typeName maps to primitive structural type without throwing (EC-5)', async () => {
-        // paramsToStructuralType has no validation — it blindly maps typeName to { kind: 'primitive', name: typeName }
+        // paramsToStructuralType has no validation — it blindly maps typeName to { type: typeName }
         // Build an ApplicationCallable with a custom typeName via CallableParam.
         const customParam: CallableParam = {
           name: 'x',
@@ -1316,19 +1314,17 @@ describe('Rill Runtime: Annotations', () => {
         };
         const result = await run(`$fn.^input`, { variables: { fn } });
         const shape = result as {
-          kind: string;
+          type: string;
           params: {
             __rill_ordered: true;
-            entries: [string, { kind: string; name?: string }][];
+            entries: [string, { type: string }][];
           };
-          ret: { kind: string };
+          ret: { type: string };
         };
-        expect(shape.kind).toBe('closure');
+        expect(shape.type).toBe('closure');
         expect(shape.params.__rill_ordered).toBe(true);
-        expect(shape.params.entries).toEqual([
-          ['x', { kind: 'primitive', name: 'string' }],
-        ]);
-        expect(shape.ret).toEqual({ kind: 'any' });
+        expect(shape.params.entries).toEqual([['x', { type: 'string' }]]);
+        expect(shape.ret).toEqual({ type: 'any' });
       });
     });
   });
@@ -1337,35 +1333,33 @@ describe('Rill Runtime: Annotations', () => {
     it('typed param returns primitive structural type entry (VAL-1)', async () => {
       const result = await run(`|x: number| ($x) => $fn\n$fn.^input`);
       const shape = result as {
-        kind: string;
+        type: string;
         params: {
           __rill_ordered: true;
-          entries: [string, { kind: string; name?: string }][];
+          entries: [string, { type: string }][];
         };
-        ret: { kind: string };
+        ret: { type: string };
       };
-      expect(shape.kind).toBe('closure');
+      expect(shape.type).toBe('closure');
       expect(shape.params.__rill_ordered).toBe(true);
-      expect(shape.params.entries).toEqual([
-        ['x', { kind: 'primitive', name: 'number' }],
-      ]);
-      expect(shape.ret).toEqual({ kind: 'any' });
+      expect(shape.params.entries).toEqual([['x', { type: 'number' }]]);
+      expect(shape.ret).toEqual({ type: 'any' });
     });
 
     it('untyped param returns any structural type entry (VAL-1)', async () => {
       const result = await run(`|x| ($x) => $fn\n$fn.^input`);
       const shape = result as {
-        kind: string;
+        type: string;
         params: {
           __rill_ordered: true;
-          entries: [string, { kind: string }][];
+          entries: [string, { type: string }][];
         };
-        ret: { kind: string };
+        ret: { type: string };
       };
-      expect(shape.kind).toBe('closure');
+      expect(shape.type).toBe('closure');
       expect(shape.params.__rill_ordered).toBe(true);
-      expect(shape.params.entries).toEqual([['x', { kind: 'any' }]]);
-      expect(shape.ret).toEqual({ kind: 'any' });
+      expect(shape.params.entries).toEqual([['x', { type: 'any' }]]);
+      expect(shape.ret).toEqual({ type: 'any' });
     });
   });
 });

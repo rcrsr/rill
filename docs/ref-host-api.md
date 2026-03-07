@@ -442,6 +442,172 @@ import { createMyVectorBackend } from './my-vector-backend';
 const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ });
 ```
 
+## RillStructuralType
+
+`RillStructuralType` is a discriminated union that describes the structural shape of any rill value. The runtime uses it for type checking, type inference, and formatting.
+
+```typescript
+type RillStructuralType =
+  | { type: 'number' }
+  | { type: 'string' }
+  | { type: 'bool' }
+  | { type: 'vector' }
+  | { type: 'type' }
+  | { type: 'any' }
+  | { type: 'dict';    fields?: Record<string, RillStructuralType> }
+  | { type: 'list';    element?: RillStructuralType }
+  | { type: 'closure'; params?: [string, RillStructuralType][]; ret?: RillStructuralType }
+  | { type: 'tuple';   elements?: RillStructuralType[] }
+  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+```
+
+The `type` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `vector`, `type`, `any`) carry no sub-fields. Compound variants carry optional sub-fields — absent sub-fields match any value of that compound type.
+
+### Field Constraints
+
+| Variant | Field | Type | Required | Semantics |
+|---------|-------|------|----------|-----------|
+| `dict` | `fields` | `Record<string, RillStructuralType>` | No | Absent = any dict |
+| `list` | `element` | `RillStructuralType` | No | Absent = any list |
+| `closure` | `params` | `[string, RillStructuralType][]` | No | Absent = any closure |
+| `closure` | `ret` | `RillStructuralType` | No | Absent = any return type |
+| `tuple` | `elements` | `RillStructuralType[]` | No | Absent = any tuple |
+| `ordered` | `fields` | `[string, RillStructuralType][]` | No | Absent = any ordered |
+
+### Breaking Change: `kind` Removed
+
+Prior versions used a `kind` field as the discriminator. That shape is removed. Update all code that reads `kind`, `name`, or checks for a `primitive` variant.
+
+| Old Shape | New Shape |
+|-----------|-----------|
+| `{ kind: 'primitive', name: 'string' }` | `{ type: 'string' }` |
+| `{ kind: 'primitive', name: 'number' }` | `{ type: 'number' }` |
+| `{ kind: 'primitive', name: 'bool' }` | `{ type: 'bool' }` |
+| `{ kind: 'list', element: T }` | `{ type: 'list', element?: T }` |
+| `{ kind: 'dict', fields: F }` | `{ type: 'dict', fields?: F }` |
+| `{ kind: 'closure', params: P, ret: R }` | `{ type: 'closure', params?: P, ret?: R }` |
+| `{ kind: 'tuple', elements: E }` | `{ type: 'tuple', elements?: E }` |
+| `{ kind: 'ordered', fields: F }` | `{ type: 'ordered', fields?: F }` |
+| `{ kind: 'any' }` | `{ type: 'any' }` |
+
+### Exports
+
+```typescript
+// Structural type system
+export type { RillStructuralType, RillFieldDescriptor };
+export {
+  inferStructuralType,
+  inferElementType,
+  structuralTypeEquals,
+  structuralTypeMatches,
+  formatStructuralType,
+  buildFieldDescriptor,
+  paramsToStructuralType,
+};
+```
+
+### `inferStructuralType`
+
+```typescript
+inferStructuralType(value: RillValue): RillStructuralType
+```
+
+Returns the structural type descriptor for any rill value. Primitive values return leaf variants. Compound values return their respective variants with sub-fields populated from the value's actual structure. Callable values return `{ type: 'closure' }` with `params` and `ret` populated.
+
+Pure function. Result is a frozen object.
+
+### `inferElementType`
+
+```typescript
+inferElementType(elements: RillValue[]): RillStructuralType
+```
+
+Infers the element type for a homogeneous list. All elements must share the same structural type (verified via `structuralTypeEquals`).
+
+| Input | Result |
+|-------|--------|
+| Empty array | `{ type: 'any' }` |
+| Uniform-type array | Structural type of the common element |
+| Mixed-type array | Throws `RILL-R002` |
+
+### `structuralTypeEquals`
+
+```typescript
+structuralTypeEquals(a: RillStructuralType, b: RillStructuralType): boolean
+```
+
+Compares two structural types for deep structural equality. Switches on the `type` discriminator. Leaf variants compare by `type` alone. Compound variants compare sub-fields recursively.
+
+Pure function. Variants with different `type` values always return `false`. Absent sub-fields on compound variants are equal to other absent sub-fields.
+
+### `structuralTypeMatches`
+
+```typescript
+structuralTypeMatches(value: RillValue, type: RillStructuralType): boolean
+```
+
+Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator.
+
+| Type descriptor | Matching behavior |
+|-----------------|-------------------|
+| `{ type: 'any' }` | Matches all values |
+| Compound with absent sub-fields | Matches any value of that compound type |
+| Compound with sub-fields present | Deep structural match against sub-fields |
+
+Pure function.
+
+### `formatStructuralType`
+
+```typescript
+formatStructuralType(type: RillStructuralType): string
+```
+
+Formats a structural type descriptor as a human-readable string.
+
+| Input | Output |
+|-------|--------|
+| `{ type: 'number' }` | `"number"` |
+| `{ type: 'string' }` | `"string"` |
+| `{ type: 'bool' }` | `"bool"` |
+| `{ type: 'any' }` | `"any"` |
+| `{ type: 'list' }` | `"list"` |
+| `{ type: 'list', element: { type: 'number' } }` | `"list<number>"` |
+| `{ type: 'dict' }` | `"dict"` |
+| `{ type: 'dict', fields: { x: { type: 'number' } } }` | `"dict{x: number}"` |
+| `{ type: 'closure' }` | `"closure"` |
+| `{ type: 'closure', params: [['x', { type: 'number' }]], ret: { type: 'string' } }` | `"\|x: number\| :string"` |
+
+Absent sub-fields on compound variants format as the bare type name.
+
+### `buildFieldDescriptor`
+
+```typescript
+buildFieldDescriptor(
+  structuralType: RillStructuralType & { type: 'dict' },
+  fieldName: string,
+  location: SourceLocation
+): RillFieldDescriptor
+```
+
+Builds a frozen `RillFieldDescriptor` for a named field within a structural dict type.
+
+`structuralType` must narrow to `{ type: 'dict' }` at the call site. `structuralType.fields` must contain `fieldName` or `RILL-R003` is thrown.
+
+### `paramsToStructuralType`
+
+```typescript
+paramsToStructuralType(params: CallableParam[]): RillStructuralType
+```
+
+Builds a `RillStructuralType` closure variant from a closure's parameter list. Return type is always `{ type: 'any' }`. Result is a frozen object.
+
+| Param shape | Maps to |
+|-------------|---------|
+| Typed param (`typeName` non-null) | `{ type: param.typeName }` |
+| Untyped param (`typeName: null`) | `{ type: 'any' }` |
+
+---
+
 ## See Also
 
 - [Host Integration](integration-host.md) — Embedding guide and runtime configuration

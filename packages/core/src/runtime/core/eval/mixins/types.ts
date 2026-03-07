@@ -83,7 +83,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return Object.freeze({
           __rill_type: true as const,
           typeName: typeRef.typeName,
-          structure: { kind: 'primitive' as const, name: typeRef.typeName },
+          structure: { type: typeRef.typeName } as RillStructuralType,
         });
       }
 
@@ -232,9 +232,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             location
           );
         }
-        return argValue.structure.kind === 'any' &&
+        return argValue.structure.type === 'any' &&
           argValue.typeName !== ('any' as RillTypeName)
-          ? { kind: 'primitive', name: argValue.typeName }
+          ? ({ type: argValue.typeName } as RillStructuralType)
           : argValue.structure;
       };
 
@@ -254,7 +254,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
         const elementType = await resolveArgAsType(argVal);
         const structure: RillStructuralType = {
-          kind: 'list',
+          type: 'list',
           element: elementType,
         };
         return Object.freeze({
@@ -285,7 +285,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             fields[arg.name] = await resolveArgAsType(argVal);
           }
         }
-        const structure: RillStructuralType = { kind: 'dict', fields };
+        const structure: RillStructuralType = { type: 'dict', fields };
         return Object.freeze({
           __rill_type: true as const,
           typeName: 'dict' as RillTypeName,
@@ -314,7 +314,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             elements.push(await resolveArgAsType(argVal));
           }
         }
-        const structure: RillStructuralType = { kind: 'tuple', elements };
+        const structure: RillStructuralType = { type: 'tuple', elements };
         return Object.freeze({
           __rill_type: true as const,
           typeName: 'tuple' as RillTypeName,
@@ -344,7 +344,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
       const structure: RillStructuralType = {
-        kind: 'ordered',
+        type: 'ordered',
         fields: orderedFields,
       };
       return Object.freeze({
@@ -380,9 +380,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             location
           );
         }
-        return argVal.structure.kind === 'any' &&
+        return argVal.structure.type === 'any' &&
           argVal.typeName !== ('any' as RillTypeName)
-          ? { kind: 'primitive', name: argVal.typeName }
+          ? ({ type: argVal.typeName } as RillStructuralType)
           : argVal.structure;
       };
 
@@ -410,12 +410,12 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
       const ret: RillStructuralType =
-        retVal.structure.kind === 'any' &&
+        retVal.structure.type === 'any' &&
         retVal.typeName !== ('any' as RillTypeName)
-          ? { kind: 'primitive', name: retVal.typeName }
+          ? ({ type: retVal.typeName } as RillStructuralType)
           : retVal.structure;
 
-      const structure: RillStructuralType = { kind: 'closure', params, ret };
+      const structure: RillStructuralType = { type: 'closure', params, ret };
       return Object.freeze({
         __rill_type: true as const,
         typeName: 'closure' as RillTypeName,

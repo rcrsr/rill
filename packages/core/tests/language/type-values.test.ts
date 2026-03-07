@@ -394,7 +394,7 @@ describe('Rill Language: Type Value Expressions', () => {
 
     it('type value formats as structural type in string interpolation', async () => {
       const result = await run('dict[a: 1].^type => $t\n"kind: {$t}"');
-      expect(result).toBe('kind: dict(a: number)');
+      expect(result).toBe('kind: dict{a: number}');
     });
   });
 });

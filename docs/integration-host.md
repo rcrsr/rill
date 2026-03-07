@@ -143,6 +143,25 @@ interface RillTypeValue {
 }
 ```
 
+`RillStructuralType` uses a `type` discriminator field. The `kind`, `name`, and `primitive` fields no longer exist:
+
+```typescript
+type RillStructuralType =
+  | { type: 'number' }
+  | { type: 'string' }
+  | { type: 'bool' }
+  | { type: 'vector' }
+  | { type: 'type' }
+  | { type: 'any' }
+  | { type: 'dict';    fields?: Record<string, RillStructuralType> }
+  | { type: 'list';    element?: RillStructuralType }
+  | { type: 'closure'; params?: [string, RillStructuralType][]; ret?: RillStructuralType }
+  | { type: 'tuple';   elements?: RillStructuralType[] }
+  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+```
+
+**Breaking change from previous versions:** `{ kind: 'primitive', name: 'string' }` is now `{ type: 'string' }`. `{ kind: 'any' }` is now `{ type: 'any' }`. `{ kind: 'dict', fields: F }` is now `{ type: 'dict', fields?: F }`. Switch on `structure.type`, not `structure.kind`.
+
 The structural type formats as a human-readable string via `formatStructuralType`:
 
 | Expression | `.str` output |
@@ -153,6 +172,37 @@ The structural type formats as a human-readable string via `formatStructuralType
 | `ordered[a: 1, b: 2] -> ^type` | `"ordered(a: number, b: number)"` |
 
 Dict fields are sorted alphabetically in the formatted output.
+
+### Closure Introspection: .^input and .^output
+
+Script closures expose their parameter and return type shapes via `.^input` and `.^output`.
+
+**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. Only `ScriptCallable` closures populate this — other callable kinds return an empty ordered value.
+
+```typescript
+// Script closure returned from execute():
+// |x: number, y: string| x -> .str
+
+const closure = result.result; // RillCallable (ScriptCallable)
+// $fn.^input -> ordered[x: ^number, y: ^string]
+// Host side: RillOrdered with entries [["x", RillTypeValue], ["y", RillTypeValue]]
+// entries[0][1].structure -> { type: 'number' }
+// entries[1][1].structure -> { type: 'string' }
+```
+
+**`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ type: 'any' }`:
+
+```typescript
+// Closure with declared return: |x: number| :string -> ...
+// $fn.^output -> ^string
+// Host side: RillTypeValue with structure { type: 'string' }
+
+// Closure with no declared return type:
+// $fn.^output -> ^any
+// Host side: RillTypeValue with structure { type: 'any' }
+```
+
+Both accessors use `structure.type` (not `structure.kind`) to discriminate the structural type.
 
 ## Value Conversion
 
