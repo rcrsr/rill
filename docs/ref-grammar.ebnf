@@ -396,13 +396,13 @@ existence-check = ".?" , ( identifier
 
 digits        = digit , { digit } ;
 
-(* Capture with optional type annotation.
+(* Capture with optional type assertion.
    Variables are type-locked after first assignment.
 
    Capture arrow (=>) captures value into variable:
    "hello" => $name           -- capture, chain continues with "hello"
    "hello" => $name -> .upper -- capture, then transform (result: "HELLO")
-   "hello" => $name:string    -- explicit type (validated on assignment)
+   "hello" => $name:string    -- capture type assertion (validated on assignment)
 
    Pipe arrow (-> $var) invokes closure stored in $var:
    "hello" -> $fn             -- invoke $fn("hello") if $fn is closure

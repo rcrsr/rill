@@ -639,7 +639,7 @@ $val -> :?list ? process() ! skip()   # branch on type
 
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
 
-Both types are valid in closure parameter positions, capture annotations, and type assertions:
+Both types are valid in closure parameter positions, capture type assertions, and type assertions:
 
 ```rill
 # Closure parameter with vector type annotation
@@ -668,7 +668,7 @@ true
 ```
 
 ```rill
-# Capture annotation with vector type
+# Capture type assertion with vector type
 app::embed("hello") => $x:vector
 $x -> .model
 # Result: "mock-embed"

@@ -312,7 +312,7 @@ $obj.greet("hello")    # "test: hello"
 $format("test", 1)
 ```
 
-### Capture with type annotation for documentation
+### Capture with type assertion for documentation
 
 ```rill
 "processing" => $status:string
