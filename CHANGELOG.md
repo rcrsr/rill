@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Anonymous typed closure parameters** — Use `|type|{ body }` syntax for type-safe pipe stages without named parameters. Type is validated on piped input with full reflection parity
 
+### Changed
+
+- **Structural type discriminator** — Type inspection returns flat `type` field for all runtime values. Direct shape access replaces previous wrapper variants
+
 ## [0.9.0] - 2026-03-06
 
 ### Restructure

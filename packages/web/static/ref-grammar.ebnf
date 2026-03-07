@@ -253,6 +253,8 @@ closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":"
                  parsing when they appear as the sole token between | ... |. These keywords
                  are: string, number, bool, closure, list, dict, tuple, ordered, vector, any, type.
                  Any other identifier between | ... | is parsed as a named parameter.
+                 Using a reserved type keyword as a named parameter name (e.g., |string: string|)
+                 raises a parse error (RILL-P003).
 
                  Bare block desugar: { body } desugars to |any|{ body }:any — an anonymous
                  typed closure that accepts any piped value without type enforcement. *)

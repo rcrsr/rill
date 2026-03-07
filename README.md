@@ -2,10 +2,12 @@
   <img src="docs/assets/rill.png" alt="rill logo" width="280">
 </p>
 
-[![CI](https://github.com/rcrsr/rill/actions/workflows/pr-check.yml/badge.svg)](https://github.com/rcrsr/rill/actions/workflows/pr-check.yml)
-[![npm](https://img.shields.io/npm/v/@rcrsr/rill)](https://www.npmjs.com/package/@rcrsr/rill)
-[![Node](https://img.shields.io/node/v/@rcrsr/rill)](https://www.npmjs.com/package/@rcrsr/rill)
-[![License](https://img.shields.io/npm/l/@rcrsr/rill)](https://github.com/rcrsr/rill/blob/main/LICENSE)
+<p align="center">
+  <a href="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml"><img src="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/@rcrsr/rill"><img src="https://img.shields.io/npm/v/@rcrsr/rill" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@rcrsr/rill"><img src="https://img.shields.io/node/v/@rcrsr/rill" alt="Node"></a>
+  <a href="https://github.com/rcrsr/rill/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@rcrsr/rill" alt="License"></a>
+</p>
 
 **[rill](https://rill.run)**: *Scripting designed for machine-generated code*
 
