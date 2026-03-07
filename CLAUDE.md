@@ -46,6 +46,20 @@ pnpm lint           # Check lint errors
 pnpm check          # Complete validation (build, test, lint)
 ```
 
+## Running rill CLI Tools
+
+Use wrapper scripts in `scripts/` to run CLI tools without a global install. Build the CLI package first.
+
+```bash
+pnpm --filter @rcrsr/rill-cli build   # Required before first use
+
+./scripts/rill-eval.sh '1 + 2'        # Evaluate a rill expression
+./scripts/rill-exec.sh script.rill    # Execute a rill script file
+./scripts/rill-check.sh script.rill   # Type-check a rill script (no execution)
+```
+
+Do **not** use `npx`, `pnpm exec`, or call `node packages/cli/dist/cli-*.js` directly. The wrapper scripts resolve paths correctly from any working directory.
+
 ## Test Organization
 
 | Directory | Purpose | Policy |
