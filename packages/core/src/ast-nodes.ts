@@ -388,7 +388,7 @@ export type TypeConstructorArg =
 export interface ClosureSigLiteralNode extends BaseNode {
   readonly type: 'ClosureSigLiteral';
   readonly params: { name: string; typeExpr: ExpressionNode }[];
-  readonly returnType: ExpressionNode;
+  readonly returnType: PostfixExprNode;
 }
 
 // ============================================================

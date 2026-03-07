@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { createLogCollector, run } from '../helpers/runtime.js';
 
 describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
@@ -182,6 +182,163 @@ describe('Rill Language: Structural Type Identity', () => {
         '(|x: number| :number) == (|x: number| :string)'
       );
       expect(result).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // Closure sig literal equality — param and return type discrimination
+  // ============================================================
+
+  describe('Closure sig literal equality — param and return type discrimination', () => {
+    // ----------------------------------------------------------
+    // Parsing correctness (enabled by parsePostfixExpr fix)
+    // ----------------------------------------------------------
+
+    it('bare syntax pipes correctly: |x: string| :string -> log logs the sig value', async () => {
+      const { logs, callbacks } = createLogCollector();
+      await run('|x: string| :string -> log', { callbacks });
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toContain('x');
+      expect(logs[0]).toContain('string');
+    });
+
+    it('bare syntax with assignment: $t.str equals the sig literal representation', async () => {
+      const result = await run('|x: string| :string => $t\n$t.str');
+      expect(result).toContain('x');
+      expect(result).toContain('string');
+    });
+
+    it('multi-pipe after bare sig: |x: string| :string -> .str -> .len returns string length', async () => {
+      const result = await run('|x: string| :string -> .str -> .len');
+      expect(typeof result).toBe('number');
+      expect(result as number).toBeGreaterThan(0);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — param type discrimination
+    // ----------------------------------------------------------
+
+    it('same params + same return type → true', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('same params + different return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param types + same return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: number| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param names + same types → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |y: string| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param count + same return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string, y: number| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — multi-param
+    // ----------------------------------------------------------
+
+    it('multi-param: same params same return → true', async () => {
+      const result = await run(`
+        |x: string, y: number| :bool => $a
+        |x: string, y: number| :bool => $b
+        $a == $b
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('multi-param: one param type differs → false', async () => {
+      const result = await run(`
+        |x: string, y: number| :bool => $a
+        |x: string, y: string| :bool => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — nested type params
+    // ----------------------------------------------------------
+
+    it('nested list type params: list(string) vs list(number) param → false', async () => {
+      const result = await run(`
+        |x: list(string)| :number => $a
+        |x: list(number)| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('nested dict type params: dict(a: string) vs dict(b: string) param → false', async () => {
+      const result = await run(`
+        |x: dict(a: string)| :number => $a
+        |x: dict(b: string)| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Display format
+    // ----------------------------------------------------------
+
+    it('display format: .str of |x: string| :number contains x, string, and number', async () => {
+      const result = await run('|x: string| :number => $t\n$t.str');
+      expect(result).toContain('x');
+      expect(result).toContain('string');
+      expect(result).toContain('number');
+    });
+
+    it('display format: .str of |x: string, y: number| :bool is exactly the sig', async () => {
+      const result = await run('|x: string, y: number| :bool => $t\n$t.str');
+      expect(result).toBe('|x: string, y: number| :bool');
+    });
+
+    // ----------------------------------------------------------
+    // Compatibility — parenthesized and bare forms are equivalent
+    // ----------------------------------------------------------
+
+    it('parenthesized form equals bare form', async () => {
+      const result = await run(
+        '|x: string| :string => $a\n(|x: string| :string) => $b\n$a == $b'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('parenthesized inline equality matches bare variable equality', async () => {
+      const result = await run(
+        '(|x: number| :string) == (|x: number| :string)'
+      );
+      expect(result).toBe(true);
     });
   });
 

@@ -556,8 +556,10 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Evaluate return type (EC-8: required — parser enforces this at parse time)
+      // returnType is PostfixExprNode (stops before pipe operators) so the
+      // return type annotation cannot accidentally consume a trailing pipe chain.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const retVal: RillValue = await (this as any).evaluateExpression(
+      const retVal: RillValue = await (this as any).evaluatePostfixExpr(
         node.returnType
       );
       if (!isTypeValue(retVal)) {

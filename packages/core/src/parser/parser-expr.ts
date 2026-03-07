@@ -1418,7 +1418,7 @@ Parser.prototype.parseClosureSigLiteral = function (
   );
   skipNewlines(this.state);
 
-  const returnType = this.parseExpression();
+  const returnType = this.parsePostfixExpr();
 
   return {
     type: 'ClosureSigLiteral',
