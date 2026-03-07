@@ -7,8 +7,9 @@
  * AC = Acceptance Criterion from anonymous-typed-closure spec.
  *
  * Runtime internals:
- * - `.^input` returns RillStructuralType: { kind: 'closure', params: [...], ret: {...} }
+ * - `.^input` returns an object: { kind: 'closure', params: RillOrdered, ret: {...} }
  * - `.^output` returns RillTypeValue: { __rill_type: true, typeName, structure }
+ * - params is a RillOrdered: { __rill_ordered: true, entries: [string, RillStructuralType][] }
  *
  * Anonymous typed closure `|T|{ body }` produces param `$` with type T.
  * Bare block `{ body }` produces param `$` with no type (any).
@@ -96,13 +97,17 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const result = await run(script);
       const shape = result as {
         kind: string;
-        params: [string, { kind: string; name?: string }][];
+        params: {
+          __rill_ordered: true;
+          entries: [string, { kind: string; name?: string }][];
+        };
         ret: { kind: string };
       };
       expect(shape.kind).toBe('closure');
-      expect(shape.params).toHaveLength(1);
-      expect(shape.params[0]![0]).toBe('$');
-      expect(shape.params[0]![1]).toEqual({
+      expect(shape.params.__rill_ordered).toBe(true);
+      expect(shape.params.entries).toHaveLength(1);
+      expect(shape.params.entries[0]![0]).toBe('$');
+      expect(shape.params.entries[0]![1]).toEqual({
         kind: 'primitive',
         name: 'string',
       });
@@ -117,11 +122,14 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const result = await run(script);
       const shape = result as {
         kind: string;
-        params: [string, { kind: string; name?: string }][];
+        params: {
+          __rill_ordered: true;
+          entries: [string, { kind: string; name?: string }][];
+        };
         ret: { kind: string };
       };
       expect(shape.kind).toBe('closure');
-      expect(shape.params[0]![1]).toEqual({
+      expect(shape.params.entries[0]![1]).toEqual({
         kind: 'primitive',
         name: 'number',
       });
@@ -155,14 +163,18 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const result = await run(script);
       const shape = result as {
         kind: string;
-        params: [string, { kind: string }][];
+        params: { __rill_ordered: true; entries: [string, { kind: string }][] };
         ret: { kind: string };
       };
       expect(shape.kind).toBe('closure');
-      expect(shape.params).toHaveLength(1);
-      expect(shape.params[0]![0]).toBe('$');
+      expect(shape.params.__rill_ordered).toBe(true);
+      expect(shape.params.entries).toHaveLength(1);
+      expect(shape.params.entries[0]![0]).toBe('$');
       // Bare block uses typeName: 'any' internally, which maps to primitive(any)
-      expect(shape.params[0]![1]).toEqual({ kind: 'primitive', name: 'any' });
+      expect(shape.params.entries[0]![1]).toEqual({
+        kind: 'primitive',
+        name: 'any',
+      });
       expect(shape.ret).toEqual({ kind: 'any' });
     });
 
@@ -198,6 +210,75 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const script = `
         ^(label: "id") |string|{ $ } => $fn
         $fn.^output == any
+      `;
+      expect(await run(script)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // .^input.ret reflects declared return type from :type-target
+  // ============================================================
+
+  describe('.^input.ret reflects :type-target return annotation', () => {
+    it('anonymous param with :number return — ret is primitive number', async () => {
+      const script = `
+        |number|{ $ * 2 }:number => $fn
+        $fn.^input
+      `;
+      const result = await run(script);
+      const shape = result as { ret: { kind: string; name?: string } };
+      expect(shape.ret).toEqual({ kind: 'primitive', name: 'number' });
+    });
+
+    it('no return type annotation — ret is any', async () => {
+      const script = `
+        |string|{ $ } => $fn
+        $fn.^input
+      `;
+      const result = await run(script);
+      const shape = result as { ret: { kind: string } };
+      expect(shape.ret).toEqual({ kind: 'any' });
+    });
+
+    it('named param with :number return — ret is primitive number', async () => {
+      const script = `
+        |d: number|{ $d * 2 }:number => $fn
+        $fn.^input
+      `;
+      const result = await run(script);
+      const shape = result as { ret: { kind: string; name?: string } };
+      expect(shape.ret).toEqual({ kind: 'primitive', name: 'number' });
+    });
+  });
+
+  // ============================================================
+  // .^input flows through rill without RILL-R002
+  // ============================================================
+
+  describe('.^input value survives rill operations (no RILL-R002)', () => {
+    it('$fn.^input assigned to variable, .kind access returns "closure"', async () => {
+      const script = `
+        |string|{ $ } => $fn
+        $fn.^input => $shape
+        $shape.kind
+      `;
+      expect(await run(script)).toBe('closure');
+    });
+
+    it('$fn.^input compared to itself is true', async () => {
+      const script = `
+        |number|{ $ * 2 } => $fn
+        $fn.^input => $shape
+        $shape == $shape
+      `;
+      expect(await run(script)).toBe(true);
+    });
+
+    it('two closures with same param type have equal .^input', async () => {
+      const script = `
+        |string|{ $ } => $fn1
+        |string|{ "other" } => $fn2
+        $fn1.^input == $fn2.^input
       `;
       expect(await run(script)).toBe(true);
     });
