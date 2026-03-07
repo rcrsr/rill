@@ -26,6 +26,8 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
+The type keywords (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`) are reserved in the `|...|` closure position for anonymous typed parsing. See [Closures](topic-closures.md) for full documentation of anonymous typed closures.
+
 ---
 
 ## Strings

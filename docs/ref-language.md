@@ -102,6 +102,7 @@ See [Types](topic-types.md) for detailed documentation.
 | `\|p: type\| { }:rtype` | Define closure with enforced return type assertion |
 | `\|p = default\|{ }` | Parameter with default |
 | `\|^(min: 0) p\|{ }` | Parameter with annotation |
+| `\|type\|{ } => $fn` | Anonymous typed closure; `$` holds piped value of declared type |
 | `$fn(arg)` | Call function directly |
 | `arg -> $fn()` | Call with pipe value as single arg |
 | `arg -> $fn(...)` | Spread pipe value into call arguments |
@@ -136,6 +137,8 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Piped conditional `-> ? { }` | Piped value |
 | Stored closure `\|x\|{ }` | N/A — use params |
 | Dict closure `\|\|{ $.x }` | Dict self |
+| Anonymous typed closure `\|type\|{ }` | Piped value (typed) |
+| No-args closure `\|\|{ }` outside dict | Not bound — `$` access raises RILL-R005 |
 
 ### Property Access
 

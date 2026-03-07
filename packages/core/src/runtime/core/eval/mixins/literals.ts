@@ -984,7 +984,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const params: CallableParam[] = [
         {
           name: '$',
-          typeName: null,
+          // 'any' (not null) so paramsToStructuralType produces { kind: 'primitive', name: 'any' },
+          // matching the structural type of an explicit `|any|{}` closure. The { kind: 'any' }
+          // branch only fires for non-$ params with typeName: null (untyped explicit parameters).
+          typeName: 'any',
           defaultValue: null,
           annotations: {}, // Block closures have no parameter annotations
         },
