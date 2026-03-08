@@ -1,17 +1,7 @@
+import { VALID_TYPE_NAMES } from './constants.js';
+
 /** Rill type names for type annotations */
-export type RillTypeName =
-  | 'string'
-  | 'number'
-  | 'bool'
-  | 'closure'
-  | 'list'
-  | 'dict'
-  | 'tuple'
-  | 'ordered'
-  | 'vector'
-  | 'any'
-  | 'type'
-  | 'iterator';
+export type RillTypeName = (typeof VALID_TYPE_NAMES)[number];
 
 /**
  * A reference to a type — either a static type name literal or a dynamic

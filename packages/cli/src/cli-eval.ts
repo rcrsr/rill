@@ -122,7 +122,7 @@ async function main(): Promise<void> {
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(String(nativeResult.value));
+        console.log(JSON.stringify(nativeResult, null, 2));
       }
       process.exit(code);
     }

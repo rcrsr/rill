@@ -11,7 +11,9 @@ describe('executeRill', () => {
       const result = await executeRill('1 + 2');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('3');
+      expect(result.result).toBe(
+        '{"rillTypeName":"number","rillTypeSignature":"number","value":3}'
+      );
       expect(result.error).toBe(null);
       expect(result.duration).toBeGreaterThanOrEqual(0);
       expect(result.logs).toEqual([]);
@@ -21,7 +23,9 @@ describe('executeRill', () => {
       const result = await executeRill('"hello world"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('hello world');
+      expect(result.result).toBe(
+        '{"rillTypeName":"string","rillTypeSignature":"string","value":"hello world"}'
+      );
       expect(result.error).toBe(null);
       expect(result.logs).toEqual([]);
     });
@@ -30,7 +34,9 @@ describe('executeRill', () => {
       const result = await executeRill('42 => $x\n$x * 2');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('84');
+      expect(result.result).toBe(
+        '{"rillTypeName":"number","rillTypeSignature":"number","value":84}'
+      );
       expect(result.error).toBe(null);
       expect(result.logs).toEqual([]);
     });
@@ -39,7 +45,9 @@ describe('executeRill', () => {
       const result = await executeRill('"test" -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('final');
+      expect(result.result).toBe(
+        '{"rillTypeName":"string","rillTypeSignature":"string","value":"final"}'
+      );
       expect(result.logs).toEqual(['test']);
       expect(result.error).toBe(null);
     });
@@ -50,7 +58,9 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('third');
+      expect(result.result).toBe(
+        '{"rillTypeName":"string","rillTypeSignature":"string","value":"third"}'
+      );
       expect(result.logs).toEqual(['first', 'second']);
       expect(result.error).toBe(null);
     });
@@ -87,14 +97,16 @@ describe('executeRill', () => {
       const result = await executeRill('true ? "yes" ! "no"');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('yes');
+      expect(result.result).toBe(
+        '{"rillTypeName":"string","rillTypeSignature":"string","value":"yes"}'
+      );
     });
 
     it('executes loops', async () => {
       const result = await executeRill('range(1, 3) -> each { $ }');
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('1');
+      expect(result.result).toContain('"value"');
     });
 
     it('executes closures', async () => {
@@ -103,14 +115,18 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('42');
+      expect(result.result).toBe(
+        '{"rillTypeName":"number","rillTypeSignature":"number","value":42}'
+      );
     });
 
     it('returns arrays as JSON output', async () => {
       const result = await executeRill('[1, 2, 3]');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('[\n  1,\n  2,\n  3\n]');
+      expect(result.result).toBe(
+        '{"rillTypeName":"list","rillTypeSignature":"list(number)","value":[1,2,3]}'
+      );
     });
 
     it('returns dicts as success', async () => {
@@ -124,9 +140,9 @@ describe('executeRill', () => {
       const result = await executeRill('[1, 2, 3] -> map { $ * 2 }');
 
       expect(result.status).toBe('success');
-      expect(result.result).toContain('2');
-      expect(result.result).toContain('4');
-      expect(result.result).toContain('6');
+      expect(result.result).toBe(
+        '{"rillTypeName":"list","rillTypeSignature":"list(number)","value":[2,4,6]}'
+      );
     });
   });
 });

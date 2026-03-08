@@ -680,7 +680,7 @@ export function valueToJSON(value: RillValue): unknown {
  * Tuples convert to native arrays. Ordered values convert to plain objects.
  */
 export function toNative(value: RillValue): NativeResult {
-  const rillTypeName = isRillIterator(value) ? 'iterator' : inferType(value);
+  const rillTypeName = inferType(value);
   const rillTypeSignature = formatStructuralType(inferStructuralType(value));
   const nativeValue = toNativeValue(value);
   return { rillTypeName, rillTypeSignature, value: nativeValue };
