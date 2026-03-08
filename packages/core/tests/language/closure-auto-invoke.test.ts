@@ -94,10 +94,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       const script = `
         || { |x|($x + 1) } => $outer
         $outer() => $inner
-        $inner.^type.^name
+        $inner.^type
       `;
-      // Invoking $outer returns the inner closure; check its type
-      expect(await run(script)).toBe('closure');
+      // Invoking $outer returns the inner closure; check its type via host typeName
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
 
     it('AC-35: both closures auto-invoked in && operator', async () => {
@@ -122,15 +123,16 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
     it('AC-36: fallback closure in ?? operator (NOT auto-invoked)', async () => {
       // Default value is evaluated but NOT auto-invoked
       // This is because default value evaluation happens outside expression context.
-      // Capture the ?? result into $r, then return its type name (representable).
+      // Capture the ?? result into $r, then check its type via host typeName.
       const script = `
         || { $ * 2 } => $fallback
         dict[x: 10] => $data
         5 -> ($data.y ?? $fallback) => $r
-        $r.^type.^name
+        $r.^type
       `;
       // $data.y missing, $fallback is returned unevaluated (closure, not invoked)
-      expect(await run(script)).toBe('closure');
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
 
     it('double negation with closure auto-invoke', async () => {
@@ -302,9 +304,10 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       const script = `
         |x|($x + 1) => $add
         $add => $captured
-        $captured.^type.^name
+        $captured.^type
       `;
-      expect(await run(script)).toBe('closure');
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
 
     it('direct pipe target does not auto-invoke', async () => {
@@ -320,9 +323,10 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
       // Closure referenced in expression context, not auto-invoked
       const script = `
         |x|($x + 1) => $add
-        $add.^type.^name
+        $add.^type
       `;
-      expect(await run(script)).toBe('closure');
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
   });
 

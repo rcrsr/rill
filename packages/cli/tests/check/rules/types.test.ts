@@ -146,6 +146,21 @@ describe('UNNECESSARY_ASSERTION', () => {
       expect(fixed).toBe('"test" => $s');
     }
   });
+
+  it('fix removes full parameterized type assertion (AC-22)', () => {
+    // :list(string) is 13 characters; old code only removed :list (5 chars)
+    const source = 'tuple[1, 2]:list(string) => $items';
+    const ast = parse(source);
+    const diagnostics = validateScript(ast, source, config);
+
+    expect(diagnostics.length).toBeGreaterThan(0);
+    const diagnostic = diagnostics[0];
+    expect(diagnostic?.fix).toBeDefined();
+    if (diagnostic?.fix) {
+      const fixed = applyFix(source, diagnostic.fix);
+      expect(fixed).toBe('tuple[1, 2] => $items');
+    }
+  });
 });
 
 // ============================================================

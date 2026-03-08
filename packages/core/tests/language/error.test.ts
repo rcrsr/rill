@@ -291,11 +291,12 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('works with type checks in message', async () => {
+      // .^type.^name no longer works; use .^type == number comparison instead
       const script = `
         42 => $val
-        error "Value {$val} is {$val.^type.^name}"
+        error "Value {$val} is number: {$val.^type == number}"
       `;
-      await expect(run(script)).rejects.toThrow('Value 42 is number');
+      await expect(run(script)).rejects.toThrow('Value 42 is number: true');
     });
 
     it('works with method calls in interpolation', async () => {

@@ -65,6 +65,8 @@ export type CallableFn = (
 export interface CallableParam {
   readonly name: string;
   readonly typeName: RillTypeName | null;
+  /** Full resolved structural type. Absent means bare type (uses typeName only). Present supersedes typeName for structural validation and reflection. */
+  readonly typeStructure?: RillStructuralType;
   readonly defaultValue: RillValue | null;
   /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
   readonly annotations: Record<string, RillValue>;
@@ -332,9 +334,9 @@ export function callableEquals(
  * Build a RillStructuralType closure variant from a closure's parameter list.
  *
  * Called at closure creation time to build the structural type for `$fn.^input`.
- * - Typed params map to { kind: 'primitive', name }
- * - Untyped params (typeName: null) map to { kind: 'any' }
- * - Return type is always { kind: 'any' }
+ * - Typed params map to { type: typeName }
+ * - Untyped params (typeName: null) map to { type: 'any' }
+ * - Return type is always { type: 'any' }
  *
  * No validation: parser already validates type names.
  *
@@ -346,16 +348,18 @@ export function paramsToStructuralType(
 ): RillStructuralType {
   const closureParams: [string, RillStructuralType][] = params.map((param) => {
     const paramType: RillStructuralType =
-      param.typeName !== null
-        ? { kind: 'primitive', name: param.typeName }
-        : { kind: 'any' };
+      param.typeStructure !== undefined
+        ? param.typeStructure
+        : param.typeName !== null
+          ? ({ type: param.typeName } as RillStructuralType)
+          : { type: 'any' };
     return [param.name, paramType];
   });
 
   return Object.freeze({
-    kind: 'closure' as const,
+    type: 'closure' as const,
     params: closureParams,
-    ret: { kind: 'any' as const },
+    ret: { type: 'any' as const },
   });
 }
 
@@ -398,7 +402,7 @@ export function validateDefaultValueType(
  * @param params - Parameter declarations from function definition
  * @param functionName - Function name for error messages
  * @param location - Source location for error reporting
- * @throws RuntimeError with RUNTIME_TYPE_ERROR on validation failure
+ * @throws RuntimeError with RILL-R001 on validation failure
  */
 export function validateHostFunctionArgs(
   args: RillValue[],
@@ -479,7 +483,7 @@ export function validateHostFunctionArgs(
  * @param params - Parameter definitions
  * @param functionName - Function name for error messages
  * @param location - Source location for error reporting
- * @throws RuntimeError with RUNTIME_TYPE_ERROR on validation failure
+ * @throws RuntimeError with RILL-R001 on validation failure
  */
 export function validateCallableArgs(
   args: RillValue[],

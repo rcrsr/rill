@@ -1,13 +1,13 @@
 /**
- * Rill Runtime Tests: Capture Type Annotations
- * Tests for type-annotated variable capture ($var:type)
+ * Rill Runtime Tests: Capture Type Assertions
+ * Tests for type-asserted variable capture ($var:type)
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 
-describe('Rill Runtime: Capture Type Annotations', () => {
+describe('Rill Runtime: Capture Type Assertions', () => {
   describe('String Type', () => {
     it('captures string with string type', async () => {
       expect(await run('"hello" => $s:string\n$s')).toBe('hello');

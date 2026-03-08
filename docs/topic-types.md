@@ -353,7 +353,7 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
-`ordered` converts to a plain object via `toNative()` — the result's `native` field holds `{ key: value, ... }`.
+`ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
 
 ---
 
@@ -616,6 +616,16 @@ Error if type doesn't match, returns value unchanged:
 $val -> :dict -> .keys        # assert dict, then get keys
 ```
 
+```rill
+# Parameterized type assertions
+[1, 2, 3] -> :list(number)                          # passes, returns list[1, 2, 3]
+[a: 1, b: "hello"] -> :dict(a: number, b: string)  # passes
+```
+
+```text
+["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
+```
+
 ### Check Type (`:?type`)
 
 Returns boolean, no error:
@@ -629,6 +639,11 @@ Returns boolean, no error:
 "hello" -> :?string           # true
 ```
 
+```rill
+[1, 2, 3]:?list(number)               # true
+["a", "b"]:?list(number)              # false
+```
+
 Type checks work in conditionals:
 
 ```text
@@ -637,9 +652,11 @@ $val -> :?list ? process() ! skip()   # branch on type
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
 
+Parameterized forms accept a type argument list: `list(string)`, `dict(a: number, b: string)`, `tuple(number, string)`. The runtime deep-validates element types on match.
+
 The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
 
-Both types are valid in closure parameter positions, capture annotations, and type assertions:
+Both types are valid in closure parameter positions, capture type assertions, and type assertions:
 
 ```rill
 # Closure parameter with vector type annotation
@@ -668,17 +685,24 @@ true
 ```
 
 ```rill
-# Capture annotation with vector type
+# Capture type assertion with vector type
 app::embed("hello") => $x:vector
 $x -> .model
 # Result: "mock-embed"
 ```
 
+```rill
+# Capture type assertion with parameterized type
+[1, 2] => $x:list(number)
+$x[0]
+# Result: 1
+```
+
 ### In Pipe Chains
 
 ```rill
-# Assert type and continue processing
-[1, 2, 3] -> :list -> each { $ * 2 }
+# Assert typed list and continue processing
+[1, 2, 3] -> :list(number) -> each { $ * 2 }
 
 # Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4
@@ -813,16 +837,65 @@ $l.^type.name
 # Result: "list"
 ```
 
-Type values also have `.name` when accessed through a variable:
+### Dot-Notation Properties on Type Values
+
+Type values expose two properties via dot notation:
+
+| Property | Return Type | Description |
+|----------|-------------|-------------|
+| `.name` | `string` | Coarse type name (`"number"`, `"list"`, `"dict"`, etc.) |
+| `.signature` | `string` | Full structural type string |
+
+```rill
+number => $t
+$t.name
+# Result: "number"
+```
 
 ```rill
 dict => $t
 $t.name
 # Result: "dict"
+```
 
-number => $t
-$t.name
+`.signature` returns the full structural representation via `formatStructuralType`:
+
+```rill
+list(number) => $t
+$t.signature
+# Result: "list(number)"
+```
+
+```rill
+|y: string|($y):string => $fn
+$fn.^type.signature
+# Result: "|y: string| :string"
+```
+
+Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
+
+```rill
+42.^type.name
 # Result: "number"
+```
+
+```rill
+42.^type.signature
+# Result: "number"
+```
+
+Unknown dot properties on type values raise RILL-R009:
+
+```text
+number.unknownProp
+# Error: RILL-R009: Unknown property 'unknownProp' on type value
+```
+
+`.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"). Use `.name` (dot notation) instead:
+
+```text
+number.^name
+# Error: RILL-R008: Annotation access not supported on type values
 ```
 
 ### Type Value Equality

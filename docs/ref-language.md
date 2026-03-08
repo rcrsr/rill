@@ -90,6 +90,8 @@ See [Collections](topic-collections.md) for detailed documentation.
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
 
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime.
+
 > **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical — they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
 See [Types](topic-types.md) for detailed documentation.
@@ -98,8 +100,8 @@ See [Types](topic-types.md) for detailed documentation.
 
 | Syntax | Description |
 |--------|-------------|
-| `\|p: type\|{ } => $fn` | Define and capture function |
-| `\|p: type\| { }:rtype` | Define closure with enforced return type assertion |
+| `\|p: type\|{ } => $fn` | Define and capture function; type can be parameterized (e.g., `\|x: list(string)\|`) |
+| `\|p: type\| { }:rtype` | Define closure with enforced return type; rtype can be parameterized (e.g., `:list(string)`) |
 | `\|p = default\|{ }` | Parameter with default |
 | `\|^(min: 0) p\|{ }` | Parameter with annotation |
 | `\|type\|{ } => $fn` | Anonymous typed closure; `$` holds piped value of declared type |
@@ -190,12 +192,25 @@ $list.^type == list(number)
 # Result: true
 ```
 
-`.^type.name` returns the coarse type name string:
+`.^type.name` returns the coarse type name string. `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
 
 ```rill
 [1, 2, 3] => $list
 $list.^type.name
 # Result: "list"
+```
+
+Type constructors are also valid in annotation positions:
+
+```rill
+|x: list(number)| { $x -> each { $ * 2 } } => $fn
+$fn(list[1, 2, 3])
+# Result: list[2, 4, 6]
+```
+
+```rill
+list[1, 2, 3] -> :list(number)
+# Result: list[1, 2, 3]
 ```
 
 See [Types](topic-types.md) for detailed structural type documentation.
@@ -389,7 +404,7 @@ Access annotation values using `.^key` syntax. Annotations attach to closures. T
 | Value | Key | Result |
 |-------|-----|--------|
 | Any value | `type` | Structural type value via `.^type` |
-| Type value | `name` | Type name string |
+| Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
 | Closure | any other key | Closure annotation value |
 | Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
@@ -507,7 +522,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
 ```
 
-The `name` key is intercepted on type values (`.^type.name` returns the type name string) but is not reserved — user annotations may use `name` on closures without restriction.
+The `name` key is not reserved — user annotations may use `name` on closures without restriction. On type values, `.name` is a dot-notation property (not annotation access). Accessing `.^name` on a type value raises RILL-R008. Use `.^type.name` to get the type name: `.^type` returns the type value, then `.name` accesses the dot-notation property.
 
 ### Parameter Annotations
 
@@ -585,6 +600,12 @@ Valid return type targets:
 | `dict` | Dict value |
 | `ordered` | Ordered container value |
 | `any` | Any type (no assertion) |
+| `list(T)`, `dict(k: T, ...)`, `tuple(T, ...)` | Parameterized structural types (deep-validates) |
+
+```rill
+|x: number| { list[1, $x, 3] }:list(number) => $fn
+$fn(2)    # list[1, 2, 3]
+```
 
 Mismatched return type halts with `RILL-R004`:
 

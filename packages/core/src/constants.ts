@@ -27,4 +27,5 @@ export const VALID_TYPE_NAMES = [
   'vector',
   'any',
   'type',
+  'iterator',
 ] as const;

@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { createLogCollector, run } from '../helpers/runtime.js';
 
 describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
@@ -186,6 +186,163 @@ describe('Rill Language: Structural Type Identity', () => {
   });
 
   // ============================================================
+  // Closure sig literal equality — param and return type discrimination
+  // ============================================================
+
+  describe('Closure sig literal equality — param and return type discrimination', () => {
+    // ----------------------------------------------------------
+    // Parsing correctness (enabled by parsePostfixExpr fix)
+    // ----------------------------------------------------------
+
+    it('bare syntax pipes correctly: |x: string| :string -> log logs the sig value', async () => {
+      const { logs, callbacks } = createLogCollector();
+      await run('|x: string| :string -> log', { callbacks });
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toContain('x');
+      expect(logs[0]).toContain('string');
+    });
+
+    it('bare syntax with assignment: $t.str equals the sig literal representation', async () => {
+      const result = await run('|x: string| :string => $t\n$t.str');
+      expect(result).toContain('x');
+      expect(result).toContain('string');
+    });
+
+    it('multi-pipe after bare sig: |x: string| :string -> .str -> .len returns string length', async () => {
+      const result = await run('|x: string| :string -> .str -> .len');
+      expect(typeof result).toBe('number');
+      expect(result as number).toBeGreaterThan(0);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — param type discrimination
+    // ----------------------------------------------------------
+
+    it('same params + same return type → true', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('same params + different return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param types + same return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: number| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param names + same types → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |y: string| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('different param count + same return type → false', async () => {
+      const result = await run(`
+        |x: string| :string => $a
+        |x: string, y: number| :string => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — multi-param
+    // ----------------------------------------------------------
+
+    it('multi-param: same params same return → true', async () => {
+      const result = await run(`
+        |x: string, y: number| :bool => $a
+        |x: string, y: number| :bool => $b
+        $a == $b
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('multi-param: one param type differs → false', async () => {
+      const result = await run(`
+        |x: string, y: number| :bool => $a
+        |x: string, y: string| :bool => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Equality — nested type params
+    // ----------------------------------------------------------
+
+    it('nested list type params: list(string) vs list(number) param → false', async () => {
+      const result = await run(`
+        |x: list(string)| :number => $a
+        |x: list(number)| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('nested dict type params: dict(a: string) vs dict(b: string) param → false', async () => {
+      const result = await run(`
+        |x: dict(a: string)| :number => $a
+        |x: dict(b: string)| :number => $b
+        $a == $b
+      `);
+      expect(result).toBe(false);
+    });
+
+    // ----------------------------------------------------------
+    // Display format
+    // ----------------------------------------------------------
+
+    it('display format: .str of |x: string| :number contains x, string, and number', async () => {
+      const result = await run('|x: string| :number => $t\n$t.str');
+      expect(result).toContain('x');
+      expect(result).toContain('string');
+      expect(result).toContain('number');
+    });
+
+    it('display format: .str of |x: string, y: number| :bool is exactly the sig', async () => {
+      const result = await run('|x: string, y: number| :bool => $t\n$t.str');
+      expect(result).toBe('|x: string, y: number| :bool');
+    });
+
+    // ----------------------------------------------------------
+    // Compatibility — parenthesized and bare forms are equivalent
+    // ----------------------------------------------------------
+
+    it('parenthesized form equals bare form', async () => {
+      const result = await run(
+        '|x: string| :string => $a\n(|x: string| :string) => $b\n$a == $b'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('parenthesized inline equality matches bare variable equality', async () => {
+      const result = await run(
+        '(|x: number| :string) == (|x: number| :string)'
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================
   // Type Constructors as Values (AC-21 through AC-23)
   // ============================================================
 
@@ -244,7 +401,7 @@ describe('Rill Language: Structural Type Identity', () => {
         (|x: number, y: number| :number) => $sigType
         $fn.^type == $sigType
       `);
-      // No return type annotation on the closure → ret = {kind:'any'}.
+      // No return type annotation on the closure → ret = {type:'any'}.
       // Sig literal has :number → ret = primitive(number). They differ.
       expect(result).toBe(false);
     });
@@ -355,6 +512,104 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(
         'tuple[1, "hello"].^type == tuple(number, string)'
       );
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // Display Format for Parameterized Type Values (AC-10)
+  // ============================================================
+
+  describe('Display format for parameterized type values (AC-10)', () => {
+    it('AC-10: list(string) type value .str returns "list(string)"', async () => {
+      const result = await run('list(string) => $t\n$t.str');
+      expect(result).toBe('list(string)');
+    });
+
+    it('AC-10: list(number) type value .str returns "list(number)"', async () => {
+      const result = await run('list(number) => $t\n$t.str');
+      expect(result).toBe('list(number)');
+    });
+
+    it('AC-10: dict(name: string) type value .str returns "dict(name: string)"', async () => {
+      const result = await run('dict(name: string) => $t\n$t.str');
+      expect(result).toBe('dict(name: string)');
+    });
+
+    it('AC-10: list(string) type value .name returns "list"', async () => {
+      const result = await run('list(string) => $t\n$t.name');
+      expect(result).toBe('list');
+    });
+  });
+
+  // ============================================================
+  // Reflection: .^input for parameterized param type (AC-11)
+  // ============================================================
+
+  describe('Reflection: .^input reflects parameterized param type (AC-11)', () => {
+    it('AC-11: |x: list(string)| closure .^input has x typed list(string)', async () => {
+      const script = `
+        |x: list(string)| { $x } => $fn
+        $fn.^input
+      `;
+      const result = (await run(script)) as {
+        type: string;
+        params: {
+          __rill_ordered: true;
+          entries: [string, { type: string; element: { type: string } }][];
+        };
+        ret: { type: string };
+      };
+      expect(result.type).toBe('closure');
+      expect(result.params.__rill_ordered).toBe(true);
+      expect(result.params.entries).toHaveLength(1);
+      expect(result.params.entries[0]![0]).toBe('x');
+      expect(result.params.entries[0]![1]).toEqual({
+        type: 'list',
+        element: { type: 'string' },
+      });
+    });
+
+    it('AC-11: |x: dict(name: string)| closure .^input reflects dict structure', async () => {
+      const script = `
+        |x: dict(name: string)| { $x } => $fn
+        $fn.^input
+      `;
+      const result = (await run(script)) as {
+        params: {
+          entries: [
+            string,
+            { type: string; fields: Record<string, unknown> },
+          ][];
+        };
+      };
+      expect(result.params.entries[0]![1]).toEqual({
+        type: 'dict',
+        fields: { name: { type: 'string' } },
+      });
+    });
+  });
+
+  // ============================================================
+  // Structure Preserved Through Variable (AC-26)
+  // ============================================================
+
+  describe('Structure preserved through variable (AC-26)', () => {
+    it('AC-26: list(dict(name: string, age: number)) => $t preserves full structure', async () => {
+      const script = `
+        list(dict(name: string, age: number)) => $t
+        "ok"
+      `;
+      await expect(run(script)).resolves.toBe('ok');
+    });
+
+    it('AC-26: stored $t can be used for structural type check via ^type equality', async () => {
+      const script = `
+        list(dict(name: string)) => $t
+        dict[name: "alice"] => $d
+        list[$d].^type == $t
+      `;
+      const result = await run(script);
       expect(result).toBe(true);
     });
   });

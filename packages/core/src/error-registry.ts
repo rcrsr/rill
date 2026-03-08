@@ -261,8 +261,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$x => int  # Use "number" for all numeric types',
       },
       {
-        description: 'Generic type syntax not supported',
-        code: '$x => list<string>  # Use "list" only',
+        description: 'Angle-bracket generic syntax not supported',
+        code: '$x => list<string>  # Use list(string) for typed lists',
       },
     ],
   },
@@ -1138,6 +1138,26 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Index beyond end',
         code: '5 -> list["a", "b"]  # Only 2 elements (indices 0-1)',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R043',
+    category: 'runtime',
+    description: 'Non-producing closure body or script',
+    messageTemplate: '{context} produced no value',
+    cause:
+      'A closure body or script contains no statements that produce a value.',
+    resolution:
+      'Ensure the closure body or script ends with an expression that produces a value.',
+    examples: [
+      {
+        description: 'Empty closure body',
+        code: '|x: number| { }  # No value produced',
+      },
+      {
+        description: 'Script with only comments',
+        code: '# just a comment  # No value produced',
       },
     ],
   },

@@ -15,9 +15,10 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('AC-1: captured block has closure type', async () => {
       const script = `
         { "result" } => $a
-        $a.^type.^name
+        $a.^type
       `;
-      expect(await run(script)).toBe('closure');
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
   });
 
@@ -80,9 +81,9 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Mixed-type list ['closure', 10, 42] not allowed; verify each field separately
       const scriptA = `
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
-        $d.a.^type.^name
+        $d.a.^type
       `;
-      expect(await run(scriptA)).toBe('closure');
+      expect(((await run(scriptA)) as any).typeName).toBe('closure');
       const scriptB = `
         dict[a: { $ * 2 }, b: (5 + 5), c: 42] => $d
         $d.b
@@ -192,9 +193,10 @@ describe('Rill Runtime: Closure Semantics', () => {
       // Note: Empty blocks { } are disallowed by parser. Use minimal block with empty string.
       const script = `
         { "" } => $a
-        $a.^type.^name
+        $a.^type
       `;
-      expect(await run(script)).toBe('closure');
+      const result = (await run(script)) as any;
+      expect(result.typeName).toBe('closure');
     });
 
     it('AC-14 variant: minimal block-closure returns empty string when invoked', async () => {
@@ -219,16 +221,21 @@ describe('Rill Runtime: Closure Semantics', () => {
       const a = context.variables.get('a');
       expect(a).toHaveProperty('y');
       expect(
-        await run('$result.y.^type.^name', { variables: { result: a } })
+        ((await run('$result.y.^type', { variables: { result: a } })) as any)
+          .typeName
       ).toBe('closure');
     });
 
     it('AC-16: block-closure in list', async () => {
-      const script = `
-        list[{ $ + 1 }, { $ + 2 }] => $list
-        list[$list[0].^type.^name, $list[1].^type.^name]
-      `;
-      expect(await run(script)).toEqual(['closure', 'closure']);
+      // Verify each element is closure type via host typeName property
+      const t0 = (await run(
+        'list[{ $ + 1 }, { $ + 2 }] => $list\n$list[0].^type'
+      )) as any;
+      const t1 = (await run(
+        'list[{ $ + 1 }, { $ + 2 }] => $list\n$list[1].^type'
+      )) as any;
+      expect(t0.typeName).toBe('closure');
+      expect(t1.typeName).toBe('closure');
     });
 
     it('AC-16 variant: verify both closures execute correctly', async () => {
@@ -241,16 +248,14 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('AC-17: dict with all value types', async () => {
       // Note: ||{ 42 } is property-style (isProperty: true), auto-invokes on access
-      const script = `
-        dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d
-        list[$d.a.^type.^name, $d.b.^type.^name, $d.c.^type.^name, $d.d.^type.^name]
-      `;
-      expect(await run(script)).toEqual([
-        'closure', // block-closure: no auto-invoke
-        'number', // eager evaluation
-        'string', // literal
-        'number', // property-style: auto-invokes, returns 42
-      ]);
+      // Verify each field type via host typeName property (mixed-type list not allowed)
+      const dict = `dict[a: { $ }, b: (1), c: "s", d: ||{ 42 }] => $d\n`;
+      expect(((await run(dict + '$d.a.^type')) as any).typeName).toBe(
+        'closure'
+      );
+      expect(((await run(dict + '$d.b.^type')) as any).typeName).toBe('number');
+      expect(((await run(dict + '$d.c.^type')) as any).typeName).toBe('string');
+      expect(((await run(dict + '$d.d.^type')) as any).typeName).toBe('number');
     });
 
     it('AC-17 variant: verify closure values execute correctly', async () => {
@@ -465,6 +470,13 @@ describe('Rill Runtime: Closure Semantics', () => {
         expect(errorId).toMatch(/^RILL-R\d{3}$/);
       }
     });
+
+    it('AC-17: typed-param empty closure body raises RILL-R043 on invocation (not RILL-R005)', async () => {
+      // |x: number| { } has no producing statements — invocation raises RILL-R043
+      await expect(
+        run('|x: number| { } => $fn\n5 -> $fn()')
+      ).rejects.toHaveProperty('errorId', 'RILL-R043');
+    });
   });
 
   describe('AC-12: Closure Param Dynamic Type Resolution via $t', () => {
@@ -594,15 +606,18 @@ describe('Rill Runtime: Closure Semantics', () => {
     });
 
     it('^output reflects declared return type', async () => {
-      expect(
-        await run('|x: number| { $x }:number => $fn\n$fn.^output.^name')
-      ).toBe('number');
+      // .^output returns a type value; access typeName via host API
+      const result = (await run(
+        '|x: number| { $x }:number => $fn\n$fn.^output'
+      )) as any;
+      expect(result.typeName).toBe('number');
     });
 
     it('^output defaults to any when no return type declared', async () => {
-      expect(await run('|x: number| { $x } => $fn\n$fn.^output.^name')).toBe(
-        'any'
-      );
+      const result = (await run(
+        '|x: number| { $x } => $fn\n$fn.^output'
+      )) as any;
+      expect(result.typeName).toBe('any');
     });
 
     it('^type includes return type when declared', async () => {
@@ -634,9 +649,10 @@ describe('Rill Runtime: Closure Semantics', () => {
 
   describe('Closure Sig Literals', () => {
     it('parses |x: number| :string as a type value', async () => {
-      expect(await run('(|x: number| :string) => $t\n$t.^name')).toBe(
-        'closure'
-      );
+      // Closure sig literal is a type value; typeName accessible via host API
+      const result = (await run('(|x: number| :string) => $t\n$t')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('closure');
     });
 
     it('sig literal equality: same signature', async () => {

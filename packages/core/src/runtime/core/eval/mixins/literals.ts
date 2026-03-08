@@ -44,7 +44,7 @@ import type {
   PassNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
+import type { RillStructuralType, RillValue } from '../../values.js';
 import {
   formatValue,
   inferElementType,
@@ -917,6 +917,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Dynamic refs ($var) are resolved against the current context now,
         // so the closure captures the concrete type, not the variable reference.
         let resolvedTypeName: RillTypeName | null = null;
+        let resolvedTypeStructure: RillStructuralType | undefined = undefined;
         if (param.typeRef !== null) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const resolved = (this as any).resolveTypeRef(
@@ -930,11 +931,15 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
           resolvedTypeName = resolved.typeName;
+          resolvedTypeStructure = resolved.structure;
         }
 
         params.push({
           name: param.name,
           typeName: resolvedTypeName,
+          ...(resolvedTypeStructure !== undefined && {
+            typeStructure: resolvedTypeStructure,
+          }),
           defaultValue,
           annotations: paramAnnotations[param.name] ?? {},
         });
@@ -984,8 +989,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const params: CallableParam[] = [
         {
           name: '$',
-          // 'any' (not null) so paramsToStructuralType produces { kind: 'primitive', name: 'any' },
-          // matching the structural type of an explicit `|any|{}` closure. The { kind: 'any' }
+          // 'any' (not null) so paramsToStructuralType produces { type: 'any' },
+          // matching the structural type of an explicit `|any|{}` closure. The { type: 'any' }
           // branch only fires for non-$ params with typeName: null (untyped explicit parameters).
           typeName: 'any',
           defaultValue: null,

@@ -43,7 +43,7 @@ declare module './parser.js' {
       condition: ExpressionNode | null
     ): WhileLoopNode | DoWhileLoopNode;
     parseLoopWithInput(condition: BodyNode): WhileLoopNode | DoWhileLoopNode;
-    parseBlock(): BlockNode;
+    parseBlock(allowEmpty?: boolean): BlockNode;
     parseAssert(): AssertNode;
     parseError(requireMessage?: boolean): ErrorNode;
   }
@@ -194,7 +194,10 @@ Parser.prototype.parseLoopWithInput = function (
 // BLOCKS
 // ============================================================
 
-Parser.prototype.parseBlock = function (this: Parser): BlockNode {
+Parser.prototype.parseBlock = function (
+  this: Parser,
+  allowEmpty?: boolean
+): BlockNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LBRACE, 'Expected {');
   skipNewlines(this.state);
@@ -205,7 +208,7 @@ Parser.prototype.parseBlock = function (this: Parser): BlockNode {
     skipNewlines(this.state);
   }
 
-  if (statements.length === 0) {
+  if (statements.length === 0 && !allowEmpty) {
     throw new ParseError('RILL-P004', 'Empty blocks are not allowed', start);
   }
 

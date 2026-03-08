@@ -70,6 +70,8 @@ The last row shows the key difference: `( )` requires `$` to already be defined,
 |x: string| { body }           # typed parameter
 |x: number = 10| { body }      # default value (type inferred)
 |x: string = "hi"| { body }    # default with explicit type
+|x: list(string)| { body }     # parameterized typed parameter
+|x: dict(a: number)| { body }  # dict-typed parameter
 ```
 
 ### Three-Form Closure Model
@@ -149,6 +151,21 @@ All 11 reserved type keywords are valid as the anonymous typed closure parameter
 
 A non-keyword identifier in the same position (e.g., `|x|{ body }`) parses as a named parameter, not an anonymous typed closure.
 
+### Parameterized Anonymous Typed Closures
+
+The `list`, `dict`, `tuple`, and `ordered` keywords accept type arguments in the anonymous typed position for deep structural validation:
+
+```rill
+[1, 2, 3] -> |list(number)|{ $ -> each { $ * 2 } }
+# Result: list[2, 4, 6]
+```
+
+```text
+# Type mismatch with parameterized anonymous type
+["a", "b"] -> |list(number)|{ $ }
+# Error: RILL-R001: Type mismatch: expected list(number), got list(string)
+```
+
 ### Bare Block Desugaring
 
 A bare block `{ body }` desugars to `|any|{ body }:any` at parse time. The runtime produces an identical `ClosureNode` with a `$` parameter typed `any`. These two forms are equivalent:
@@ -204,6 +221,13 @@ The `.^input` annotation returns a structural type describing the closure signat
 $fn.^input
 # Result: closure structural type with $ param typed string
 # formatStructuralType output: closure($: string) -> any
+```
+
+```rill
+|list(string)|{ $ } => $fn
+$fn.^input
+# Result: closure structural type with $ param typed list(string)
+# formatStructuralType output: closure($: list(string)) -> any
 ```
 
 ```rill
@@ -880,7 +904,20 @@ The `:type-target` postfix after the closing `}` declares and enforces the closu
 $fn(42)    # "42" (string from interpolation)
 ```
 
-Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`).
+Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`), or a parameterized type constructor (`list(string)`, `dict(a: number, b: string)`).
+
+```rill
+|items: list(number)| { $items -> each { $ * 2 } }:list(number) => $double_all
+$double_all(list[1, 2, 3])
+# Result: list[2, 4, 6]
+```
+
+```text
+# Mismatch: string list cannot satisfy list(number)
+|items| { $items }:list(number) => $fn
+list["a", "b"] -> $fn
+# Error: RILL-R004: Type assertion failed: expected list(number), got list(string)
+```
 
 Mismatched return type halts with `RILL-R004`:
 
@@ -996,6 +1033,25 @@ All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ER
 ---
 
 ## Error Behavior
+
+### Non-Producing Body (RILL-R043)
+
+A closure body must produce a value. Invoking a closure with an empty body (or a body containing only comments) raises RILL-R043 at invocation time:
+
+```text
+|x: number| { } => $fn
+$fn(5)
+# Error: RILL-R043: Closure body produced no value
+```
+
+A script with no statements (only comments) also raises RILL-R043 at execution time:
+
+```text
+# only a comment — no expression produces a value
+# Error: RILL-R043: Script body produced no value
+```
+
+RILL-R043 replaces the former behavior where an empty script raised RILL-R005 ("Undefined variable") because `$` was never bound.
 
 ### Undefined Variables
 

@@ -28,11 +28,11 @@ export interface RillFieldDescriptor {
  * EC-1: Throws RILL-R003 when fieldName is absent from structuralType.fields.
  */
 export function buildFieldDescriptor(
-  structuralType: RillStructuralType & { kind: 'dict' },
+  structuralType: RillStructuralType & { type: 'dict' },
   fieldName: string,
   location: SourceLocation
 ): RillFieldDescriptor {
-  const fieldType = structuralType.fields[fieldName];
+  const fieldType = structuralType.fields?.[fieldName];
   if (fieldType === undefined) {
     throw new RuntimeError(
       'RILL-R003',

@@ -83,6 +83,7 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       const result = await run('ordered[].^type.str');
       expect(result).toBe('ordered()');
     });
+    // Note: ordered() with empty fields still formats as ordered() since fields array is present (empty)
   });
 
   // ============================================================

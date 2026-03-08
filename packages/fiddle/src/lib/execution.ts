@@ -105,21 +105,11 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     const executionResult = await execute(ast, ctx);
     const duration = performance.now() - startTime;
 
-    // Format result: final value only
-    // Use JSON.stringify for objects/arrays (produces readable output instead of
-    // '[object Object]' or '1,2,3'). Use String() for primitives to avoid adding
-    // quotes around string values. Handle null explicitly.
-    const { native } = toNative(executionResult.result);
-    const formattedValue =
-      native === null
-        ? 'null'
-        : typeof native === 'object'
-          ? JSON.stringify(native, null, 2)
-          : String(native);
+    const nativeResult = toNative(executionResult.result);
 
     return {
       status: 'success',
-      result: formattedValue,
+      result: JSON.stringify(nativeResult, null, 2),
       error: null,
       duration,
       logs,

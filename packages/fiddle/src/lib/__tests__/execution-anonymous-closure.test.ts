@@ -16,7 +16,11 @@ describe('executeRill', () => {
       const result = await executeRill('5 -> |number|{ $ * 2 }');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('10');
+      expect(JSON.parse(result.result!)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 10,
+      });
       expect(result.error).toBe(null);
       expect(result.logs).toEqual([]);
     });
@@ -25,7 +29,11 @@ describe('executeRill', () => {
       const result = await executeRill('"hello" -> |string|{ $ -> .upper }');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('HELLO');
+      expect(JSON.parse(result.result!)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'HELLO',
+      });
       expect(result.error).toBe(null);
       expect(result.logs).toEqual([]);
     });
@@ -117,7 +125,11 @@ describe('executeRill', () => {
       const result = await executeRill('"" -> |string|{ $ }');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('');
+      expect(JSON.parse(result.result!)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: '',
+      });
       expect(result.error).toBe(null);
     });
 
@@ -125,7 +137,11 @@ describe('executeRill', () => {
       const result = await executeRill('5 -> |number|{ $ * 2 }:number');
 
       expect(result.status).toBe('success');
-      expect(result.result).toBe('10');
+      expect(JSON.parse(result.result!)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 10,
+      });
       expect(result.error).toBe(null);
     });
 

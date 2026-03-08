@@ -1,6 +1,9 @@
 /**
  * Rill Runtime Tests: Type Assertions and Checks
  * Tests for type assertion (expr:type) and type check (expr:?type) syntax
+ * including parameterized structural type assertions.
+ *
+ * AC = Acceptance Criterion, EC = Error Contract from the type-assertions spec.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -174,8 +177,10 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('identity("test") -> :string')).toBe('test');
     });
 
-    it('asserts .^type.^name returns string', async () => {
-      expect(await run('42 => $v\n$v.^type.^name -> :string')).toBe('number');
+    it('asserts .^type returns type value (typeName via host API)', async () => {
+      // .^type.^name no longer works; typeName accessible via host typeName property
+      const result = (await run('42 => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('number');
     });
   });
 
@@ -263,6 +268,151 @@ describe('Rill Runtime: Type Assertions', () => {
         ]
       `;
       expect(await run(script)).toEqual([true, false, false]);
+    });
+  });
+
+  // ============================================================
+  // Parameterized Type Assertions (AC-4 through AC-7, AC-23, AC-25)
+  // ============================================================
+
+  describe('Parameterized type assertions (AC-4 to AC-7, AC-23, AC-25)', () => {
+    it('AC-4: list[list[1,2],list[3]] :list(list(number)) assertion succeeds', async () => {
+      const result = await run('list[list[1, 2], list[3]] :list(list(number))');
+      expect(result).toEqual([[1, 2], [3]]);
+    });
+
+    it('AC-5: list[list[1,2]] :? list(list(number)) returns true', async () => {
+      const result = await run('list[list[1, 2]] :? list(list(number))');
+      expect(result).toBe(true);
+    });
+
+    it('AC-6: list[] :? list(string) returns true (empty list vacuous truth)', async () => {
+      const result = await run('list[] :? list(string)');
+      expect(result).toBe(true);
+    });
+
+    it('AC-7: list[1, 2] :? list returns true (bare type matches any list)', async () => {
+      const result = await run('list[1, 2] :? list');
+      expect(result).toBe(true);
+    });
+
+    it('AC-23: empty list[] matches any list(T) (same as AC-6)', async () => {
+      const result = await run('list[] :? list(number)');
+      expect(result).toBe(true);
+    });
+
+    it('AC-25: dict(items: list(tuple(number, string))) validates fully (deeply nested)', async () => {
+      await expect(
+        run('dict(items: list(tuple(number, string))) => $t\n"ok"')
+      ).resolves.toBe('ok');
+    });
+  });
+
+  // ============================================================
+  // Leaf type with args error (AC-16, AC-17, AC-18)
+  // ============================================================
+
+  describe('Leaf type with type arguments rejects (AC-16, AC-17, AC-18)', () => {
+    it('AC-16: :string(number) halts with "string does not accept type arguments"', async () => {
+      await expect(run('"hello" :string(number)')).rejects.toThrow(
+        'string does not accept type arguments'
+      );
+    });
+
+    it('AC-17: :vector(string) halts with "vector does not accept type arguments"', async () => {
+      await expect(run('"hello" :vector(string)')).rejects.toThrow(
+        'vector does not accept type arguments'
+      );
+    });
+
+    it('AC-18: :closure(string, number) halts with "closure does not accept type arguments"', async () => {
+      await expect(run('"hello" :closure(string, number)')).rejects.toThrow(
+        'closure does not accept type arguments'
+      );
+    });
+  });
+
+  // ============================================================
+  // Post-conversion structural mismatch (AC-19, EC-12)
+  // ============================================================
+
+  describe('Post-conversion structural mismatch (AC-19, EC-12)', () => {
+    it('AC-19: list[1,2] -> :>list(string) halts with structural mismatch containing "list(string)"', async () => {
+      await expect(run('list[1, 2] -> :>list(string)')).rejects.toThrow(
+        'list(string)'
+      );
+    });
+
+    it('EC-12: post-conversion structural mismatch uses RILL-R004 error path', async () => {
+      await expect(run('list[1, 2] -> :>list(string)')).rejects.toThrow(
+        'Type assertion failed'
+      );
+    });
+  });
+
+  // ============================================================
+  // Error Contracts (EC-1 through EC-7, EC-10, EC-13, EC-14)
+  // ============================================================
+
+  describe('Error contracts (EC-1 through EC-7, EC-10, EC-13, EC-14)', () => {
+    it('EC-1: dynamic ref to undefined variable halts with "not defined"', async () => {
+      await expect(run('1 :$undeclared_type_var')).rejects.toThrow(
+        'not defined'
+      );
+    });
+
+    it('EC-2: dynamic ref to non-type variable halts with "not a valid type reference"', async () => {
+      const script = `
+        1 => $n
+        $n :$n
+      `;
+      await expect(run(script)).rejects.toThrow('not a valid type reference');
+    });
+
+    it('EC-3: leaf type with args via annotation syntax halts (same as AC-16)', async () => {
+      await expect(run('"hello" :string(number)')).rejects.toThrow(
+        'string does not accept type arguments'
+      );
+    });
+
+    it('EC-4: list(string, number) annotation halts with "requires exactly 1 type argument"', async () => {
+      await expect(run('"x" :list(string, number)')).rejects.toThrow(
+        'list() requires exactly 1 type argument'
+      );
+    });
+
+    it('EC-5: dict(string) annotation (positional) halts with "requires named arguments"', async () => {
+      await expect(run('"x" :dict(string)')).rejects.toThrow(
+        'dict() requires named arguments'
+      );
+    });
+
+    it('EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"', async () => {
+      await expect(run('"x" :tuple(x: string)')).rejects.toThrow(
+        'tuple() requires positional arguments'
+      );
+    });
+
+    it('EC-7: non-type-value as type arg halts with "not a valid type reference"', async () => {
+      const script = `
+        1 => $n
+        $n :list($n)
+      `;
+      await expect(run(script)).rejects.toThrow('not a valid type reference');
+    });
+
+    it('EC-10: structural assertion mismatch halts with "list(string)" in error', async () => {
+      await expect(run('list[1, 2] :list(string)')).rejects.toThrow(
+        'list(string)'
+      );
+    });
+
+    it('EC-13: invalid token at type position causes ParseError', async () => {
+      await expect(run('"x" :123')).rejects.toThrow();
+    });
+
+    it('EC-14: malformed arg list causes ParseError', async () => {
+      await expect(run('"x" :list(')).rejects.toThrow();
     });
   });
 });

@@ -105,7 +105,7 @@ export function formatError(
  * @param value - The script return value
  * @returns Exit code and optional message
  */
-export function determineExitCode(value: NativeValue | null): {
+export function determineExitCode(value: NativeValue): {
   code: number;
   message?: string;
 } {

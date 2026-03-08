@@ -56,7 +56,8 @@ export const UNNECESSARY_ASSERTION: ValidationRule = {
     const isLiteral =
       primary.type === 'NumberLiteral' ||
       primary.type === 'StringLiteral' ||
-      primary.type === 'BoolLiteral';
+      primary.type === 'BoolLiteral' ||
+      primary.type === 'TupleLiteral';
 
     if (!isLiteral) {
       return [];
@@ -118,8 +119,25 @@ export const UNNECESSARY_ASSERTION: ValidationRule = {
     }
 
     // Calculate the actual end of ":type" part
+    // Start after ":typeName", then consume optional "(args)" if present
     const typeStart = assertionNode.span.start.offset + colonIndex;
-    const typeEnd = typeStart + 1 + typeRef.typeName.length;
+    let typeEnd = typeStart + 1 + typeRef.typeName.length;
+    if (context.source[typeEnd] === '(') {
+      // Consume balanced parentheses to cover :list(string), :dict(a: number) etc.
+      let depth = 0;
+      let i = typeEnd;
+      while (i < context.source.length) {
+        if (context.source[i] === '(') depth++;
+        else if (context.source[i] === ')') {
+          depth--;
+          if (depth === 0) {
+            typeEnd = i + 1;
+            break;
+          }
+        }
+        i++;
+      }
+    }
 
     return {
       description: 'Remove unnecessary type assertion',

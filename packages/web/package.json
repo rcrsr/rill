@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-web",
-  "version": "0.8.6",
+  "version": "0.10.0",
   "private": true,
   "license": "MIT",
   "scripts": {

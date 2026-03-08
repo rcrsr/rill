@@ -224,6 +224,13 @@ $t.^type == ordered     # true
 [a: 1] => $d
 $d.^type == dict        # true
 
+# Parameterized type comparison
+[1, 2, 3] => $nums
+$nums.^type == list(number)    # true — exact structural match
+["a", "b"] => $strs
+$strs.^type == list(string)    # true
+$strs.^type == list(number)    # false
+
 # Use json() to serialize
 [name: "test", count: 42] -> json
 # '{"name":"test","count":42}'
@@ -513,6 +520,17 @@ app::prompt("Analyze {$file}") => $analysis:string
 }
 
 [0, "Processing complete"]
+```
+
+```rill
+# Parameterized type annotation on closure parameter
+|items: list(string)| {
+  $items -> each { $ -> .upper }
+} => $upper_all:closure
+
+# Runtime validates element types
+$upper_all(list["hello", "world"])
+# Result: list["HELLO", "WORLD"]
 ```
 
 ## Pattern Extraction

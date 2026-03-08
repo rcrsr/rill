@@ -116,7 +116,7 @@ interface RillOrdered {
 // Created by: ordered[a: 1, b: 2]
 ```
 
-`toNative()` converts `RillOrdered` to a plain object — the `NativeResult.native` field holds `{ key: value, ... }` with insertion-order keys.
+`toNative()` converts `RillOrdered` to a plain object — the `NativeResult.value` field holds `{ key: value, ... }` with insertion-order keys.
 
 ### RillTuple
 
@@ -129,7 +129,7 @@ interface RillTuple {
 }
 ```
 
-`toNative()` converts `RillTuple` to a native array — the `NativeResult.native` field holds the entries as a plain array.
+`toNative()` converts `RillTuple` to a native array — the `NativeResult.value` field holds the entries as a plain array.
 
 ### RillTypeValue
 
@@ -143,6 +143,25 @@ interface RillTypeValue {
 }
 ```
 
+`RillStructuralType` uses a `type` discriminator field. The `kind`, `name`, and `primitive` fields no longer exist:
+
+```typescript
+type RillStructuralType =
+  | { type: 'number' }
+  | { type: 'string' }
+  | { type: 'bool' }
+  | { type: 'vector' }
+  | { type: 'type' }
+  | { type: 'any' }
+  | { type: 'dict';    fields?: Record<string, RillStructuralType> }
+  | { type: 'list';    element?: RillStructuralType }
+  | { type: 'closure'; params?: [string, RillStructuralType][]; ret?: RillStructuralType }
+  | { type: 'tuple';   elements?: RillStructuralType[] }
+  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+```
+
+**Breaking change from previous versions:** `{ kind: 'primitive', name: 'string' }` is now `{ type: 'string' }`. `{ kind: 'any' }` is now `{ type: 'any' }`. `{ kind: 'dict', fields: F }` is now `{ type: 'dict', fields?: F }`. Switch on `structure.type`, not `structure.kind`.
+
 The structural type formats as a human-readable string via `formatStructuralType`:
 
 | Expression | `.str` output |
@@ -154,6 +173,50 @@ The structural type formats as a human-readable string via `formatStructuralType
 
 Dict fields are sorted alphabetically in the formatted output.
 
+### Closure Introspection: .^input and .^output
+
+Script closures expose their parameter and return type shapes via `.^input` and `.^output`.
+
+**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. Only `ScriptCallable` closures populate this — other callable kinds return an empty ordered value.
+
+```typescript
+// Script closure returned from execute():
+// |x: number, y: string| x -> .str
+
+const closure = result.result; // RillCallable (ScriptCallable)
+// $fn.^input -> ordered[x: ^number, y: ^string]
+// Host side: RillOrdered with entries [["x", RillTypeValue], ["y", RillTypeValue]]
+// entries[0][1].structure -> { type: 'number' }
+// entries[1][1].structure -> { type: 'string' }
+```
+
+```typescript
+// Parameterized closure: |x: list(string), y: number| { $x }
+// entries[0][1].structure -> { type: 'list', element: { type: 'string' } }
+// entries[1][1].structure -> { type: 'number' }
+//
+// Use structure.element to inspect the list's element type:
+// if (entries[0][1].structure.type === 'list') {
+//   const elementType = entries[0][1].structure.element; // { type: 'string' }
+// }
+```
+
+> **Behavioral change (v0.x):** Hosts inspecting `.^input` on parameterized closures now see full structural sub-fields. Code that checks `structure.type === 'list'` is unaffected. Code that assumed `element` was always absent must handle the populated case.
+
+**`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ type: 'any' }`:
+
+```typescript
+// Closure with declared return: |x: number| :string -> ...
+// $fn.^output -> ^string
+// Host side: RillTypeValue with structure { type: 'string' }
+
+// Closure with no declared return type:
+// $fn.^output -> ^any
+// Host side: RillTypeValue with structure { type: 'any' }
+```
+
+Both accessors use `structure.type` (not `structure.kind`) to discriminate the structural type.
+
 ## Value Conversion
 
 `toNative()` converts a `RillValue` to a structured result suitable for host consumption.
@@ -162,23 +225,24 @@ Dict fields are sorted alphabetically in the formatted output.
 import { toNative } from '@rcrsr/rill';
 
 const nativeResult = toNative(executionResult.result);
-console.log(nativeResult.kind);    // e.g. "string", "list", "ordered"
-console.log(nativeResult.typeSig); // e.g. "string", "list(number)"
-console.log(nativeResult.native);  // JS-native value, or null
+console.log(nativeResult.rillTypeName);      // e.g. "string", "list", "ordered"
+console.log(nativeResult.rillTypeSignature); // e.g. "string", "list(number)"
+console.log(nativeResult.value);             // JS-native value, always populated
 ```
 
 ### NativeResult
 
 ```typescript
 interface NativeResult {
-  /** Rill type name — "string", "number", "bool", "list", "dict",
+  /** Base rill type name — "string", "number", "bool", "list", "dict",
    *  "tuple", "ordered", "closure", "vector", "type", or "iterator" */
-  kind: string;
-  /** Human-readable structural type signature, e.g. "list(number)",
-   *  "dict(a: number, b: string)", "|x: number| :string" */
-  typeSig: string;
-  /** JS-native representation, or null for non-representable types */
-  native: NativeValue | null;
+  rillTypeName: string;
+  /** Full structural type signature from formatStructuralType,
+   *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
+  rillTypeSignature: string;
+  /** JS-native representation. Always populated — never undefined.
+   *  Non-native types produce descriptor objects (see Descriptor shapes below). */
+  value: NativeValue;
 }
 
 type NativeValue = string | number | boolean | null | NativeValue[] | { [key: string]: NativeValue };
@@ -186,9 +250,9 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 
 ### Conversion table
 
-| Rill value | `kind` | `native` |
-|------------|--------|----------|
-| `null` (empty string) | `"string"` | `null` |
+| Rill value | `rillTypeName` | `value` |
+|------------|----------------|---------|
+| `null` (rill null / empty string) | `"string"` | `null` |
 | string | `"string"` | string |
 | number | `"number"` | number |
 | bool | `"bool"` | boolean |
@@ -196,12 +260,68 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | dict | `"dict"` | plain object |
 | tuple | `"tuple"` | array of entry values |
 | ordered | `"ordered"` | plain object with insertion-order keys |
-| closure | `"closure"` | `null` |
-| vector | `"vector"` | `null` |
-| type value | `"type"` | `null` |
-| iterator | `"iterator"` | `null` |
+| closure | `"closure"` | descriptor: `{ signature: string }` |
+| vector | `"vector"` | descriptor: `{ model: string, dimensions: number }` |
+| type value | `"type"` | descriptor: `{ name: string, signature: string }` |
+| iterator | `"iterator"` | descriptor: `{ done: boolean }` |
 
-Non-representable types (`closure`, `vector`, `type`, `iterator`) return `native: null`. The `kind` and `typeSig` fields are always populated regardless.
+`value` is always a `NativeValue` — it is never `undefined`. JavaScript `null` is a valid `NativeValue` (rill null maps to JS null).
+
+### Descriptor shapes
+
+Non-native rill types produce descriptor objects in `value` instead of primitive values:
+
+**closure** — `value` is `{ signature: string }`:
+
+```typescript
+const result = toNative(closureValue);
+// result.rillTypeName      -> "closure"
+// result.rillTypeSignature -> "|x: number| :string"
+// result.value             -> { signature: "|x: number| :string" }
+```
+
+`signature` is identical to `rillTypeSignature` — both come from `formatStructuralType`.
+
+**vector** — `value` is `{ model: string, dimensions: number }`:
+
+```typescript
+const result = toNative(vectorValue);
+// result.rillTypeName      -> "vector"
+// result.rillTypeSignature -> "vector"
+// result.value             -> { model: "text-embedding-3-small", dimensions: 1536 }
+```
+
+**type value** — `value` is `{ name: string, signature: string }`:
+
+```typescript
+const result = toNative(typeValue);
+// result.rillTypeName      -> "type"
+// result.rillTypeSignature -> "list(number)"
+// result.value             -> { name: "list", signature: "list(number)" }
+```
+
+`name` is the coarse type name; `signature` is the full structural signature from `formatStructuralType`.
+
+**iterator** — `value` is `{ done: boolean }`:
+
+```typescript
+const result = toNative(iteratorValue);
+// result.rillTypeName      -> "iterator"
+// result.rillTypeSignature -> "iterator"
+// result.value             -> { done: false }
+```
+
+### Migration from previous NativeResult
+
+The `NativeResult` interface was redesigned. Hosts consuming `toNative()` must update field access.
+
+| Before | After | Action |
+|--------|-------|--------|
+| `result.kind` | `result.rillTypeName` | Rename field access |
+| `result.typeSig` | `result.rillTypeSignature` | Rename field access |
+| `result.native` | `result.value` | Rename field access |
+| `result.native === null` guard | Not needed — `value` is always populated | Remove null checks |
+| Non-native types return `native: null` | Non-native types return descriptor objects | Read descriptor fields instead |
 
 ### valueToJSON
 

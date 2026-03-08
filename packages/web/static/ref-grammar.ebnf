@@ -253,6 +253,8 @@ closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":"
                  parsing when they appear as the sole token between | ... |. These keywords
                  are: string, number, bool, closure, list, dict, tuple, ordered, vector, any, type.
                  Any other identifier between | ... | is parsed as a named parameter.
+                 Using a reserved type keyword as a named parameter name (e.g., |string: string|)
+                 raises a parse error (RILL-P003).
 
                  Bare block desugar: { body } desugars to |any|{ body }:any — an anonymous
                  typed closure that accepts any piped value without type enforcement. *)
@@ -394,13 +396,13 @@ existence-check = ".?" , ( identifier
 
 digits        = digit , { digit } ;
 
-(* Capture with optional type annotation.
+(* Capture with optional type assertion.
    Variables are type-locked after first assignment.
 
    Capture arrow (=>) captures value into variable:
    "hello" => $name           -- capture, chain continues with "hello"
    "hello" => $name -> .upper -- capture, then transform (result: "HELLO")
-   "hello" => $name:string    -- explicit type (validated on assignment)
+   "hello" => $name:string    -- capture type assertion (validated on assignment)
 
    Pipe arrow (-> $var) invokes closure stored in $var:
    "hello" -> $fn             -- invoke $fn("hello") if $fn is closure
@@ -634,8 +636,10 @@ type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tu
                  "shape" and "field" removed: shape system replaced by structural type constructors. *)
 
 (* type-ref: a type reference used in assertion, param, and capture positions.
-   Either a primitive/collection type name or a variable holding a type value. *)
-type-ref      = type-name | "$" , identifier ;
+   Either a primitive/collection type name (optionally parameterized) or a variable holding a type value. *)
+type-ref          = type-name [ "(" , type-ref-arg-list , ")" ] | "$" , identifier ;
+type-ref-arg-list = type-ref-arg , { "," , type-ref-arg } , [ "," ] ;
+type-ref-arg      = identifier , ":" , type-ref | type-ref ;
 
 (* type-target selects the assertion/check subject. *)
 type-target   = type-ref ;

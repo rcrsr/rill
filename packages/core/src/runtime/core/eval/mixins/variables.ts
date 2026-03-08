@@ -41,7 +41,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType, isTypeValue } from '../../values.js';
+import { formatStructuralType, inferType, isTypeValue } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -342,6 +342,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else if (isTypeValue(value)) {
             if (field === 'name') {
               value = value.typeName;
+            } else if (field === 'signature') {
+              value = formatStructuralType(value.structure);
             } else {
               throw new RuntimeError(
                 'RILL-R003',

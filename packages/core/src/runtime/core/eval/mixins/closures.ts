@@ -55,6 +55,7 @@ import type {
   SourceLocation,
   ExpressionNode,
   SpreadArgNode,
+  BlockNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type {
@@ -82,6 +83,8 @@ import {
   isOrdered,
   createOrdered,
   inferStructuralType,
+  structuralTypeMatches,
+  formatStructuralType,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -275,6 +278,33 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       value: RillValue,
       callLocation?: SourceLocation
     ): void {
+      // IR-4: Structural dispatch — use typeStructure when sub-fields present
+      if (param.typeStructure !== undefined) {
+        const ts = param.typeStructure;
+        const hasSubFields =
+          'element' in ts ||
+          'fields' in ts ||
+          'elements' in ts ||
+          'params' in ts ||
+          'ret' in ts;
+        if (hasSubFields) {
+          if (!structuralTypeMatches(value, ts)) {
+            throw new RuntimeError(
+              'RILL-R001',
+              `Parameter type mismatch: ${param.name} expects ${formatStructuralType(ts)}, got ${formatStructuralType(inferStructuralType(value))}`,
+              callLocation,
+              {
+                paramName: param.name,
+                expectedType: formatStructuralType(ts),
+                actualType: formatStructuralType(inferStructuralType(value)),
+              }
+            );
+          }
+          return;
+        }
+      }
+
+      // Backward-compatible leaf type check
       const expectedType =
         param.typeName ?? this.inferTypeFromDefault(param.defaultValue);
       if (expectedType === 'any') return;
@@ -336,6 +366,19 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
 
+      // EC-1: Reject empty block bodies before execution (AC-17)
+      if (
+        callable.body.type === 'Block' &&
+        (callable.body as BlockNode).statements.length === 0
+      ) {
+        throw new RuntimeError(
+          'RILL-R043',
+          'Closure body produced no value',
+          callLocation,
+          { context: 'Closure body' }
+        );
+      }
+
       // Switch context to callable context
       const savedCtx = this.ctx;
       this.ctx = callableCtx;
@@ -350,7 +393,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any).assertType(
             result,
-            callable.returnShape.typeName,
+            callable.returnShape.structure,
             callLocation
           );
         }
@@ -790,8 +833,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // IR-3: .name on type values returns the typeName string (method path)
-      if (isTypeValue(receiver) && node.name === 'name') {
-        return receiver.typeName;
+      // IR-4: .signature on type values returns formatStructuralType(structure)
+      if (isTypeValue(receiver)) {
+        if (node.name === 'name') {
+          return receiver.typeName;
+        }
+        if (node.name === 'signature') {
+          return formatStructuralType(receiver.structure);
+        }
       }
 
       const args = await this.evaluateArgs(node.args);
@@ -813,6 +862,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Fall back to property access on dict (no-arg only)
         if (isDict(receiver) && args.length === 0 && node.name in receiver) {
           return receiver[node.name] as RillValue;
+        }
+        // EC-5: Unknown dot property on type value raises RILL-R009
+        if (isTypeValue(receiver)) {
+          throw new RuntimeError(
+            'RILL-R009',
+            `Property '${node.name}' not found on type value (available: name, signature)`,
+            this.getNodeLocation(node),
+            { property: node.name, type: 'type value' }
+          );
         }
         throw new RuntimeError(
           'RILL-R007',
@@ -895,9 +953,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return typeValue;
       }
 
-      // IR-3: .name on type values returns the typeName string
+      // IR-5: .^name on type values raises RILL-R008 (type values are not annotation containers)
       if (isTypeValue(value) && key === 'name') {
-        return value.typeName;
+        throw new RuntimeError(
+          'RILL-R008',
+          `Annotation access not supported on type values`,
+          location,
+          { annotationKey: key }
+        );
       }
 
       // IR-2/IR-5: .^input returns the input shape for callable values
@@ -906,17 +969,17 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'input') {
         if (isScriptCallable(value)) {
           const shape = value.inputShape;
-          if (shape.kind === 'closure') {
+          if (shape.type === 'closure') {
             return {
-              kind: shape.kind,
+              type: shape.type,
               params: createOrdered(shape.params as [string, RillValue][]),
               ret:
                 value.returnShape !== undefined
                   ? (value.returnShape as RillTypeValue).structure
                   : shape.ret,
-            };
+            } as unknown as RillValue;
           }
-          return shape;
+          return shape as unknown as RillValue;
         }
         if (isApplicationCallable(value)) {
           if (value.params === undefined) {
@@ -924,14 +987,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             return false;
           }
           const shape = paramsToStructuralType(value.params);
-          if (shape.kind === 'closure') {
+          if (shape.type === 'closure') {
             return {
-              kind: shape.kind,
+              type: shape.type,
               params: createOrdered(shape.params as [string, RillValue][]),
               ret: shape.ret,
-            };
+            } as unknown as RillValue;
           }
-          return shape;
+          return shape as unknown as RillValue;
         }
         // Non-callable: fall through to existing RILL-R003 guard below
       }
@@ -946,7 +1009,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const anyTypeValue: RillTypeValue = Object.freeze({
             __rill_type: true as const,
             typeName: 'any',
-            structure: { kind: 'any' as const },
+            structure: { type: 'any' as const },
           });
           return anyTypeValue;
         }

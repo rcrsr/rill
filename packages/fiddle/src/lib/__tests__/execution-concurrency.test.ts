@@ -20,7 +20,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['test message']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
       expect(result.error).toBe(null);
     });
 
@@ -31,7 +35,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['first', 'second', 'third']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
       expect(result.error).toBe(null);
     });
 
@@ -46,7 +54,11 @@ describe('executeRill', () => {
       expect(result.logs[1]).toBe('true');
       expect(result.logs[2]).toBe('string');
       expect(result.logs[3]).toBe('list[1, 2, 3]');
-      expect(result.result).toBe('done');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'done',
+      });
     });
 
     it('captures log() output from loop iterations', async () => {
@@ -56,7 +68,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['1', '2', '3']);
-      expect(result.result).toBe('done');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'done',
+      });
     });
 
     it('captures log() output from conditional branches', async () => {
@@ -66,7 +82,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['yes']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
     });
 
     it('captures log() output from piped expressions', async () => {
@@ -76,7 +96,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['first', 'second', '6']);
-      expect(result.result).toBe('done');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'done',
+      });
     });
 
     it('handles log() with zero value', async () => {
@@ -84,7 +108,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['0']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
     });
 
     it('handles log() with empty string', async () => {
@@ -92,7 +120,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
     });
 
     it('handles log() with multiline string', async () => {
@@ -105,7 +137,11 @@ describe('executeRill', () => {
       expect(result.logs[0]).toContain('line1');
       expect(result.logs[0]).toContain('line2');
       expect(result.logs[0]).toContain('line3');
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
     });
 
     it('returns only final value when no log() calls', async () => {
@@ -113,7 +149,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual([]);
-      expect(result.result).toBe('50');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 50,
+      });
     });
   });
 
@@ -123,13 +163,21 @@ describe('executeRill', () => {
       const firstResult = await executeRill('"first run" -> log\n"result1"');
       expect(firstResult.status).toBe('success');
       expect(firstResult.logs).toEqual(['first run']);
-      expect(firstResult.result).toBe('result1');
+      expect(JSON.parse(firstResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result1',
+      });
 
       // Second execution - should not contain first run output
       const secondResult = await executeRill('"second run" -> log\n"result2"');
       expect(secondResult.status).toBe('success');
       expect(secondResult.logs).toEqual(['second run']);
-      expect(secondResult.result).toBe('result2');
+      expect(JSON.parse(secondResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result2',
+      });
     });
 
     it('clears previous error on successful re-execution', async () => {
@@ -141,7 +189,11 @@ describe('executeRill', () => {
       // Second execution with success
       const secondResult = await executeRill('"success"');
       expect(secondResult.status).toBe('success');
-      expect(secondResult.result).toBe('success');
+      expect(JSON.parse(secondResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'success',
+      });
       expect(secondResult.error).toBe(null);
     });
 
@@ -150,7 +202,11 @@ describe('executeRill', () => {
       const firstResult = await executeRill('"success" -> log\n42');
       expect(firstResult.status).toBe('success');
       expect(firstResult.logs).toEqual(['success']);
-      expect(firstResult.result).toBe('42');
+      expect(JSON.parse(firstResult.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 42,
+      });
 
       // Second execution with error
       const secondResult = await executeRill('$undefined_variable');
@@ -167,13 +223,21 @@ describe('executeRill', () => {
       );
       expect(firstResult.status).toBe('success');
       expect(firstResult.logs).toEqual(['log1', 'log2', 'log3']);
-      expect(firstResult.result).toBe('result1');
+      expect(JSON.parse(firstResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result1',
+      });
 
       // Second execution with different logs
       const secondResult = await executeRill('"newlog" -> log\n"result2"');
       expect(secondResult.status).toBe('success');
       expect(secondResult.logs).toEqual(['newlog']);
-      expect(secondResult.result).toBe('result2');
+      expect(JSON.parse(secondResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result2',
+      });
     });
 
     it('starts with fresh duration on re-execution', async () => {
@@ -198,7 +262,11 @@ describe('executeRill', () => {
       // Second execution - success
       const secondResult = await executeRill('"active"');
       expect(secondResult.status).toBe('success');
-      expect(secondResult.result).toBe('active');
+      expect(JSON.parse(secondResult.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'active',
+      });
     });
   });
 
@@ -217,7 +285,11 @@ describe('executeRill', () => {
       for (const result of results) {
         expect(result.status).toBe('success');
         expect(result.logs).toEqual(['output']);
-        expect(result.result).toBe('final');
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'string',
+          rillTypeSignature: 'string',
+          value: 'final',
+        });
       }
     });
 
@@ -234,17 +306,29 @@ describe('executeRill', () => {
       // First result should only contain "first"
       expect(results[0]?.status).toBe('success');
       expect(results[0]?.logs).toEqual(['first']);
-      expect(results[0]?.result).toBe('1');
+      expect(JSON.parse(results[0]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 1,
+      });
 
       // Second result should only contain "second"
       expect(results[1]?.status).toBe('success');
       expect(results[1]?.logs).toEqual(['second']);
-      expect(results[1]?.result).toBe('2');
+      expect(JSON.parse(results[1]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 2,
+      });
 
       // Third result should only contain "third"
       expect(results[2]?.status).toBe('success');
       expect(results[2]?.logs).toEqual(['third']);
-      expect(results[2]?.result).toBe('3');
+      expect(JSON.parse(results[2]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 3,
+      });
     });
 
     it('maintains independent log arrays for concurrent executions', async () => {
@@ -259,11 +343,23 @@ describe('executeRill', () => {
 
       // Verify each has correct log count and result
       expect(results[0]?.logs).toEqual(['a', 'b']);
-      expect(results[0]?.result).toBe('result-ab');
+      expect(JSON.parse(results[0]?.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result-ab',
+      });
       expect(results[1]?.logs).toEqual(['x']);
-      expect(results[1]?.result).toBe('result-x');
+      expect(JSON.parse(results[1]?.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result-x',
+      });
       expect(results[2]?.logs).toEqual(['1', '2', '3']);
-      expect(results[2]?.result).toBe('result-123');
+      expect(JSON.parse(results[2]?.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'result-123',
+      });
     });
 
     it('handles rapid re-execution with errors', async () => {
@@ -279,7 +375,11 @@ describe('executeRill', () => {
       // First execution succeeds
       expect(results[0]?.status).toBe('success');
       expect(results[0]?.logs).toEqual(['success1']);
-      expect(results[0]?.result).toBe('42');
+      expect(JSON.parse(results[0]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 42,
+      });
 
       // Second execution fails
       expect(results[1]?.status).toBe('error');
@@ -289,7 +389,11 @@ describe('executeRill', () => {
       // Third execution succeeds independently
       expect(results[2]?.status).toBe('success');
       expect(results[2]?.logs).toEqual(['success2']);
-      expect(results[2]?.result).toBe('84');
+      expect(JSON.parse(results[2]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 84,
+      });
     });
 
     it('maintains isolated log state across 10 rapid executions', async () => {
@@ -305,7 +409,11 @@ describe('executeRill', () => {
         const result = results[i];
         expect(result?.status).toBe('success');
         expect(result?.logs).toEqual([`log${i}`]);
-        expect(result?.result).toBe(`${i}`);
+        expect(JSON.parse(result?.result)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: i,
+        });
       }
     });
 
@@ -344,7 +452,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['a', 'b', 'c', 'd', 'e']);
-      expect(result.result).toBe('final');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final',
+      });
     });
 
     it('maintains correct final value position after logs', async () => {
@@ -354,7 +466,11 @@ describe('executeRill', () => {
 
       expect(result.status).toBe('success');
       expect(result.logs).toEqual(['log1', 'log2']);
-      expect(result.result).toBe('final value');
+      expect(JSON.parse(result.result)).toEqual({
+        rillTypeName: 'string',
+        rillTypeSignature: 'string',
+        value: 'final value',
+      });
     });
 
     it('handles concurrent executions with different log patterns', async () => {
@@ -368,11 +484,23 @@ describe('executeRill', () => {
       const results = await Promise.all(executions);
 
       expect(results[0]?.logs).toEqual([]);
-      expect(results[0]?.result).toBe('42');
+      expect(JSON.parse(results[0]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 42,
+      });
       expect(results[1]?.logs).toEqual(['single']);
-      expect(results[1]?.result).toBe('84');
+      expect(JSON.parse(results[1]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 84,
+      });
       expect(results[2]?.logs).toEqual(['m1', 'm2', 'm3']);
-      expect(results[2]?.result).toBe('126');
+      expect(JSON.parse(results[2]?.result)).toEqual({
+        rillTypeName: 'number',
+        rillTypeSignature: 'number',
+        value: 126,
+      });
     });
   });
 });

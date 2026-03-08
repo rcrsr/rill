@@ -13,15 +13,15 @@ import type { RillStructuralType, SourceLocation } from '@rcrsr/rill';
 const LOC: SourceLocation = { line: 1, column: 1, offset: 0 };
 
 // Minimal RillStructuralType entries for test structural types
-const STRING_TYPE: RillStructuralType = { kind: 'primitive', name: 'string' };
+const STRING_TYPE: RillStructuralType = { type: 'string' };
 
-const NUMBER_TYPE: RillStructuralType = { kind: 'primitive', name: 'number' };
+const NUMBER_TYPE: RillStructuralType = { type: 'number' };
 
 function makeStructuralDictType(
   fields: Record<string, RillStructuralType>
-): RillStructuralType & { kind: 'dict' } {
+): RillStructuralType & { type: 'dict' } {
   return Object.freeze({
-    kind: 'dict' as const,
+    type: 'dict' as const,
     fields: Object.freeze(fields),
   });
 }
@@ -57,8 +57,7 @@ describe('buildFieldDescriptor', () => {
       const descriptor = buildFieldDescriptor(structType, 'count', LOC);
       expect(descriptor.fieldName).toBe('count');
       expect(descriptor.fieldType).toEqual({
-        kind: 'primitive',
-        name: 'number',
+        type: 'number',
       });
     });
 

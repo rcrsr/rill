@@ -213,53 +213,53 @@ describe('Rill Language: Type Value Expressions', () => {
   });
 
   // ============================================================
-  // .name Property on Type Values (AC-7, AC-24)
+  // .^name on Type Values raises RILL-R008 (AC-16)
+  // Type values are not annotation containers.
   // ============================================================
 
-  describe('.name Property on Type Values (AC-7, AC-24)', () => {
-    it('number.name == "number" evaluates to true (AC-7)', async () => {
-      const result = await run('number => $v\n$v.^name == "number"');
-      expect(result).toBe(true);
+  describe('.^name on Type Values raises RILL-R008 (AC-16)', () => {
+    it('.^name on number type value raises RILL-R008', async () => {
+      try {
+        await run('number => $v\n$v.^name');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
     });
 
-    it('type.name == "type" evaluates to true (AC-24)', async () => {
-      const result = await run('type => $v\n$v.^name == "type"');
-      expect(result).toBe(true);
+    it('.^name on string type value raises RILL-R008', async () => {
+      try {
+        await run('string => $v\n$v.^name');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
     });
 
-    it('string.name returns "string"', async () => {
-      const result = await run('string => $v\n$v.^name');
-      expect(result).toBe('string');
+    it('.^name on type type value raises RILL-R008', async () => {
+      try {
+        await run('type => $v\n$v.^name');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
     });
 
-    it('number.name returns "number"', async () => {
-      const result = await run('number => $v\n$v.^name');
-      expect(result).toBe('number');
+    it('.^name on .^type result raises RILL-R008', async () => {
+      // .^type returns a type value; .^name on that type value raises RILL-R008
+      try {
+        await run('42 => $v\n$v.^type => $t\n$t.^name');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
     });
 
-    it('bool.name returns "bool"', async () => {
-      const result = await run('bool => $v\n$v.^name');
-      expect(result).toBe('bool');
-    });
-
-    it('dict.name returns "dict"', async () => {
-      const result = await run('dict => $v\n$v.^name');
-      expect(result).toBe('dict');
-    });
-
-    it('list.name returns "list"', async () => {
-      const result = await run('list => $v\n$v.^name');
-      expect(result).toBe('list');
-    });
-
-    it('closure.name returns "closure"', async () => {
-      const result = await run('closure => $v\n$v.^name');
-      expect(result).toBe('closure');
-    });
-
-    it('type.name returns "type"', async () => {
-      const result = await run('type => $v\n$v.^name');
-      expect(result).toBe('type');
+    it('typeName is accessible via host API (JS typeName property)', async () => {
+      // Type name is accessible from TypeScript via the typeName property
+      const result = (await run('number')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('number');
     });
   });
 
@@ -313,14 +313,19 @@ describe('Rill Language: Type Value Expressions', () => {
       expect(result).toBe(true);
     });
 
-    it('$v.^type.^type.name == "type" — full round-trip terminates correctly (AC-27)', async () => {
-      const result = await run(`
-        42 => $v
-        $v.^type => $t
-        $t.^type => $tt
-        $tt.^name
-      `);
-      expect(result).toBe('type');
+    it('$v.^type.^type.name — .^name on type value raises RILL-R008 (AC-27)', async () => {
+      // .^name on any type value now raises RILL-R008; use host typeName property instead
+      try {
+        await run(`
+          42 => $v
+          $v.^type => $t
+          $t.^type => $tt
+          $tt.^name
+        `);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
     });
 
     it('triple .^type chain: type of type of type is still type', async () => {
@@ -369,6 +374,65 @@ describe('Rill Language: Type Value Expressions', () => {
   describe('EC-7: type() removal', () => {
     it('42 -> type produces unknown-function error (EC-7)', async () => {
       await expect(run('42 -> type')).rejects.toThrow('Unknown function: type');
+    });
+  });
+
+  // ============================================================
+  // .signature Property on Type Values (AC-14, AC-15)
+  // ============================================================
+
+  describe('.signature Property on Type Values (AC-14, AC-15)', () => {
+    it('42.^type.signature returns "number" (AC-14)', async () => {
+      const result = await run('42.^type.signature');
+      expect(result).toBe('number');
+    });
+
+    it('$fn.^type.signature returns "|y: string| :string" for typed closure (AC-15)', async () => {
+      // rill return-type annotation syntax: body followed by :type
+      const result = await run(
+        '|y: string| { y }:string => $fn\n$fn.^type.signature'
+      );
+      expect(result).toBe('|y: string| :string');
+    });
+  });
+
+  // ============================================================
+  // AC-19: Unknown annotation key on type value → RILL-R003
+  // Type values are not annotation containers; ^key on them raises RILL-R003.
+  // ============================================================
+
+  describe('Unknown annotation key on type value raises RILL-R003 (AC-19)', () => {
+    it('42.^type.^unknownKey throws RILL-R003 (AC-19)', async () => {
+      try {
+        await run('42 => $v\n$v.^type => $t\n$t.^unknownKey');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R003');
+      }
+    });
+
+    it('number type value with .^someKey throws RILL-R003 (AC-19)', async () => {
+      try {
+        await run('number => $v\n$v.^someKey');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R003');
+      }
+    });
+  });
+
+  // ============================================================
+  // EC-5: Unknown dot property on type value → RILL-R009 (AC-20)
+  // ============================================================
+
+  describe('Unknown dot property on type value (AC-20)', () => {
+    it('42.^type.unknownProp throws RILL-R009 (AC-20)', async () => {
+      try {
+        await run('42.^type.unknownProp');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R009');
+      }
     });
   });
 

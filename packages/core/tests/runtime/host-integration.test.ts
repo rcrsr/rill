@@ -134,9 +134,9 @@ describe('Rill Runtime: Host Integration', () => {
     });
 
     it('location is undefined for internal calls', async () => {
-      // Built-in functions should still work
-      const result = await run('"hello" => $v\n$v.^type.^name');
-      expect(result).toBe('string');
+      // Built-in functions should still work; typeName via host API
+      const result = (await run('"hello" => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('string');
     });
   });
 

@@ -117,12 +117,12 @@ async function main(): Promise<void> {
     if (command.mode === 'eval') {
       const result = await evaluateExpression(command.expression);
       const nativeResult = toNative(result.result);
-      const { code, message } = determineExitCode(nativeResult.native);
+      const { code, message } = determineExitCode(nativeResult.value);
 
       if (message !== undefined) {
         console.log(message);
       } else {
-        console.log(String(nativeResult.native));
+        console.log(JSON.stringify(nativeResult, null, 2));
       }
       process.exit(code);
     }
