@@ -794,12 +794,12 @@ export interface FilterExprNode extends BaseNode {
 // ============================================================
 
 /**
- * Destructure operator: *<...>
+ * Destructure operator: destruct<...>
  * Extracts elements from tuples/dicts into variables.
  *
- * Tuple: [1, 2, 3] -> *<$a, $b, $c>
- * Dict:  [name: "x"] -> *<name: $n>
- * Nested: [[1, 2], 3] -> *<*<$a, $b>, $c>
+ * Tuple: [1, 2, 3] -> destruct<$a, $b, $c>
+ * Dict:  [name: "x"] -> destruct<name: $n>
+ * Nested: [[1, 2], 3] -> destruct<destruct<$a, $b>, $c>
  */
 export interface DestructureNode extends BaseNode {
   readonly type: 'Destructure';

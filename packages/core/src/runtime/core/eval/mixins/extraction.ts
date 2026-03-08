@@ -57,11 +57,11 @@ import type { EvaluatorBase } from '../base.js';
 function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ExtractionEvaluator extends Base {
     /**
-     * Evaluate destructure operator: *<$a, $b, $c>
+     * Evaluate destructure operator: destruct<$a, $b, $c>
      * Extracts values from list or dict into variables.
      *
-     * List destructure: [1, 2, 3] -> *<$a, $b, $c>  # $a=1, $b=2, $c=3
-     * Dict destructure: [x: 1, y: 2] -> *<x: $a, y: $b>  # $a=1, $b=2
+     * List destructure: [1, 2, 3] -> destruct<$a, $b, $c>  # $a=1, $b=2, $c=3
+     * Dict destructure: [x: 1, y: 2] -> destruct<x: $a, y: $b>  # $a=1, $b=2
      */
     protected evaluateDestructure(
       node: DestructureNode,

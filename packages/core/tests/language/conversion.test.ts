@@ -55,6 +55,23 @@ describe('Rill Language: :> Conversion Operator', () => {
     });
   });
 
+  describe('tuple -> :>list (AC-11b)', () => {
+    it('converts tuple[1, 2] to list with elements 1 and 2', async () => {
+      const result = await run('tuple[1, 2] -> :>list');
+      expect(result).toEqual([1, 2]);
+    });
+
+    it('converts empty tuple to empty list', async () => {
+      const result = await run('tuple[] -> :>list');
+      expect(result).toEqual([]);
+    });
+
+    it('converts tuple with string elements to list', async () => {
+      const result = await run('tuple["a", "b", "c"] -> :>list');
+      expect(result).toEqual(['a', 'b', 'c']);
+    });
+  });
+
   describe('ordered -> :>dict (AC-12)', () => {
     it('converts ordered[a: 1, b: 2] to dict with keys a and b', async () => {
       const result = await run('ordered[a: 1, b: 2] -> :>dict');
@@ -105,6 +122,23 @@ describe('Rill Language: :> Conversion Operator', () => {
     it('converts "-10" to negative number', async () => {
       const result = await run('"-10" -> :>number');
       expect(result).toBe(-10);
+    });
+  });
+
+  describe('number -> :>string (AC-14b)', () => {
+    it('converts integer 42 to string "42"', async () => {
+      const result = await run('42 -> :>string');
+      expect(result).toBe('42');
+    });
+
+    it('converts decimal 3.14 to string "3.14"', async () => {
+      const result = await run('3.14 -> :>string');
+      expect(result).toBe('3.14');
+    });
+
+    it('converts negative -7 to string "-7"', async () => {
+      const result = await run('-7 -> :>string');
+      expect(result).toBe('-7');
     });
   });
 
