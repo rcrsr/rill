@@ -39,9 +39,11 @@ describe('executeRill', () => {
 
         // Should complete without error
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          '{"rillTypeName":"number","rillTypeSignature":"number","value":42}'
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 42,
+        });
         expect(result.error).toBe(null);
         expect(result.duration).not.toBe(null);
         expect(result.duration).toBeGreaterThanOrEqual(0);
@@ -69,9 +71,11 @@ describe('executeRill', () => {
         const result = await executeRill(largeSource);
 
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          '{"rillTypeName":"number","rillTypeSignature":"number","value":42}'
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 42,
+        });
         expect(result.error).toBe(null);
       }, 10000);
     });
@@ -97,9 +101,11 @@ describe('executeRill', () => {
         if (result.status === 'success') {
           // Success path: must complete within 500ms
           expect(executionTime).toBeLessThan(500);
-          expect(result.result).toBe(
-            `{"rillTypeName":"number","rillTypeSignature":"number","value":${1 + depth}}`
-          ); // 1 + 50 additions
+          expect(JSON.parse(result.result)).toEqual({
+            rillTypeName: 'number',
+            rillTypeSignature: 'number',
+            value: 1 + depth,
+          }); // 1 + 50 additions
           expect(result.error).toBe(null);
         } else {
           // Error path: acceptable to fail on deep nesting
@@ -122,9 +128,11 @@ describe('executeRill', () => {
 
         // Either succeeds or fails gracefully
         if (result.status === 'success') {
-          expect(result.result).toBe(
-            '{"rillTypeName":"number","rillTypeSignature":"number","value":1}'
-          );
+          expect(JSON.parse(result.result)).toEqual({
+            rillTypeName: 'number',
+            rillTypeSignature: 'number',
+            value: 1,
+          });
         } else {
           expect(result.error).not.toBe(null);
         }
@@ -240,9 +248,11 @@ describe('executeRill', () => {
 
         // Should succeed with break value
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          '{"rillTypeName":"number","rillTypeSignature":"number","value":100}'
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 100,
+        });
         expect(result.error).toBe(null);
       });
 
@@ -258,9 +268,11 @@ describe('executeRill', () => {
 
         // Should succeed
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          '{"rillTypeName":"number","rillTypeSignature":"number","value":100}'
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 100,
+        });
         expect(result.error).toBe(null);
       });
     });
@@ -294,9 +306,11 @@ describe('executeRill', () => {
 
         // Either succeeds or fails gracefully
         if (result.status === 'success') {
-          expect(result.result).toBe(
-            '{"rillTypeName":"number","rillTypeSignature":"number","value":42}'
-          );
+          expect(JSON.parse(result.result)).toEqual({
+            rillTypeName: 'number',
+            rillTypeSignature: 'number',
+            value: 42,
+          });
         } else {
           expect(result.error).not.toBe(null);
         }
@@ -320,9 +334,11 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         if (result.status === 'success') {
-          expect(result.result).toBe(
-            '{"rillTypeName":"number","rillTypeSignature":"number","value":42}'
-          );
+          expect(JSON.parse(result.result)).toEqual({
+            rillTypeName: 'number',
+            rillTypeSignature: 'number',
+            value: 42,
+          });
         } else {
           expect(result.error).not.toBe(null);
         }
@@ -347,9 +363,11 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          '{"rillTypeName":"string","rillTypeSignature":"string","value":"done"}'
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'string',
+          rillTypeSignature: 'string',
+          value: 'done',
+        });
       }, 10000);
 
       it('handles deeply nested empty arrays', async () => {
@@ -377,13 +395,11 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        expect(result.result).toBe(
-          JSON.stringify({
-            rillTypeName: 'string',
-            rillTypeSignature: 'string',
-            value: largeString,
-          })
-        );
+        expect(JSON.parse(result.result)).toEqual({
+          rillTypeName: 'string',
+          rillTypeSignature: 'string',
+          value: largeString,
+        });
       }, 10000);
     });
   });
