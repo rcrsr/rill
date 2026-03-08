@@ -684,6 +684,16 @@ $format.params
 # ]
 ```
 
+### Union Type Parameters
+
+Parameters accept union types using `T1|T2` syntax. The `|` within `string|number` is a union separator, not a closure delimiter. Wrap the body in braces so the parser can locate the closing `|` of the parameter list:
+
+```rill
+|x:string|number| { $x } => $fn
+$fn("hello")
+# Result: "hello"
+```
+
 ### Block-Closures
 
 Block-closures have an implicit `$` parameter:

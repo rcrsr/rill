@@ -39,7 +39,7 @@ describe('executeRill', () => {
 
         // Should complete without error
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'number',
           rillTypeSignature: 'number',
           value: 42,
@@ -71,7 +71,7 @@ describe('executeRill', () => {
         const result = await executeRill(largeSource);
 
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'number',
           rillTypeSignature: 'number',
           value: 42,
@@ -101,7 +101,7 @@ describe('executeRill', () => {
         if (result.status === 'success') {
           // Success path: must complete within 500ms
           expect(executionTime).toBeLessThan(500);
-          expect(JSON.parse(result.result)).toEqual({
+          expect(JSON.parse(result.result!)).toEqual({
             rillTypeName: 'number',
             rillTypeSignature: 'number',
             value: 1 + depth,
@@ -128,7 +128,7 @@ describe('executeRill', () => {
 
         // Either succeeds or fails gracefully
         if (result.status === 'success') {
-          expect(JSON.parse(result.result)).toEqual({
+          expect(JSON.parse(result.result!)).toEqual({
             rillTypeName: 'number',
             rillTypeSignature: 'number',
             value: 1,
@@ -248,7 +248,7 @@ describe('executeRill', () => {
 
         // Should succeed with break value
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'number',
           rillTypeSignature: 'number',
           value: 100,
@@ -268,7 +268,7 @@ describe('executeRill', () => {
 
         // Should succeed
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'number',
           rillTypeSignature: 'number',
           value: 100,
@@ -306,7 +306,7 @@ describe('executeRill', () => {
 
         // Either succeeds or fails gracefully
         if (result.status === 'success') {
-          expect(JSON.parse(result.result)).toEqual({
+          expect(JSON.parse(result.result!)).toEqual({
             rillTypeName: 'number',
             rillTypeSignature: 'number',
             value: 42,
@@ -334,7 +334,7 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         if (result.status === 'success') {
-          expect(JSON.parse(result.result)).toEqual({
+          expect(JSON.parse(result.result!)).toEqual({
             rillTypeName: 'number',
             rillTypeSignature: 'number',
             value: 42,
@@ -363,7 +363,7 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'string',
           rillTypeSignature: 'string',
           value: 'done',
@@ -395,7 +395,7 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        expect(JSON.parse(result.result)).toEqual({
+        expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'string',
           rillTypeSignature: 'string',
           value: largeString,

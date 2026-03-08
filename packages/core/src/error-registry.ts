@@ -397,6 +397,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: 'RILL-P011',
+    category: 'parse',
+    description: 'Expected type name after pipe',
+    messageTemplate: "Expected type name after '|'",
+    cause:
+      "A '|' in a type annotation position was not followed by a valid type name or '$' variable reference.",
+    resolution:
+      "Provide a valid type name or '$variable' after '|'. Example: 'string|number' or '$T|string'.",
+    examples: [
+      {
+        description: 'Trailing pipe with no type',
+        code: '$x: string|  # Error: missing type after |',
+      },
+    ],
+  },
 
   // Runtime Errors (RILL-R0xx)
   {

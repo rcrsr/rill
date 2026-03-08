@@ -25,6 +25,7 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { RillValue } from '../../values.js';
 import { createOrdered, createTuple, inferElementType } from '../../values.js';
 import { isDict } from '../../callable.js';
+import { getVariable } from '../../context.js';
 import type { EvaluatorBase } from '../base.js';
 
 /**
@@ -125,13 +126,22 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
 
-          // Note: setVariable will be available from VariablesMixin
-          // which is applied before ExtractionMixin in the composition order
+          // Note: setVariable and resolveTypeRef will be available from VariablesMixin
+          // and TypesMixin which are applied before ExtractionMixin in the composition order
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const dictResolved =
+            elem.typeRef !== null
+              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (this as any).resolveTypeRef(
+                  elem.typeRef,
+                  (name: string) => getVariable(this.ctx, name) as RillValue
+                )
+              : undefined;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any).setVariable(
             elem.name,
             dictValue,
-            elem.typeName ?? undefined,
+            dictResolved?.structure,
             elem.span.start
           );
         }
@@ -177,12 +187,22 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
 
-          // Note: setVariable will be available from VariablesMixin
+          // Note: setVariable and resolveTypeRef will be available from VariablesMixin
+          // and TypesMixin which are applied before ExtractionMixin in the composition order
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const listResolved =
+            elem.typeRef !== null
+              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (this as any).resolveTypeRef(
+                  elem.typeRef,
+                  (name: string) => getVariable(this.ctx, name) as RillValue
+                )
+              : undefined;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any).setVariable(
             elem.name,
             value,
-            elem.typeName ?? undefined,
+            listResolved?.structure,
             elem.span.start
           );
         }

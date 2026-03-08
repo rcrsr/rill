@@ -335,6 +335,41 @@ Extract elements from lists or dicts into variables. Returns the original value 
 [name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
 ```
 
+### Type-Annotated Destructure
+
+Capture variables in `destruct<>` accept type annotations using `:type` syntax. The runtime validates the extracted element against the declared type before assignment.
+
+**Parameterized type on a destructure capture:**
+
+```rill
+[["a", "b"]] -> destruct<$a:list(string)>
+$a[0]
+# Result: "a"
+```
+
+**Dict structural type on a destructure capture:**
+
+```rill
+[[name: "alice"]] -> destruct<$a:dict(name: string)>
+$a.name
+# Result: "alice"
+```
+
+**Union type on a destructure capture:**
+
+```rill
+["hello"] -> destruct<$a:string|number>
+$a
+# Result: "hello"
+```
+
+**Type mismatch error:**
+
+```text
+# Error: Type mismatch: cannot assign list(number) to $a:list(string)
+[[1, 2]] -> destruct<$a:list(string)>
+```
+
 ### Slice `slice<>`
 
 Extract a portion using Python-style `start:stop:step`. Works on lists and strings.
@@ -557,6 +592,34 @@ $user.?name&string               # true
 $user.?age&number                # true
 $user.?age&string                # false
 ```
+
+The `&type` position accepts parameterized types and union types.
+
+**Parameterized type:**
+
+```rill
+[items: [1, 2, 3]] => $data
+$data.?items&list(number)
+# Result: true
+```
+
+**Dict structural type:**
+
+```rill
+[cfg: [key: "x"]] => $data
+$data.?cfg&dict(key: string)
+# Result: true
+```
+
+**Union type:**
+
+```rill
+[score: 42] => $data
+$data.?score&string|number
+# Result: true
+```
+
+The `&` operator binds to the entire union expression. `$data.?score&string|number` parses as `$data.?score & (string|number)`, not `($data.?score&string) | number`.
 
 ---
 

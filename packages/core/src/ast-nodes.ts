@@ -498,7 +498,7 @@ export interface ExistenceCheck {
   /** The final field/index being checked for existence */
   readonly finalAccess: FieldAccess;
   /** Optional type check: returns true only if exists AND matches type */
-  readonly typeName: RillTypeName | null;
+  readonly typeRef: TypeRef | null;
 }
 
 /**
@@ -818,7 +818,7 @@ export interface DestructPatternNode extends BaseNode {
   /** Key name (for 'keyValue' kind - dict destructuring) */
   readonly key: string | null;
   /** Type annotation (for 'variable' and 'keyValue' kinds) */
-  readonly typeName: RillTypeName | null;
+  readonly typeRef: TypeRef | null;
   /** Nested destructure pattern (for 'nested' kind) */
   readonly nested: DestructureNode | null;
 }

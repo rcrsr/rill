@@ -40,8 +40,13 @@ import type {
   MethodCallNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { formatStructuralType, inferType, isTypeValue } from '../../values.js';
+import type { RillStructuralType, RillValue } from '../../values.js';
+import {
+  formatStructuralType,
+  inferType,
+  isTypeValue,
+  structuralTypeMatches,
+} from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -77,28 +82,44 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected setVariable(
       name: string,
       value: RillValue,
-      explicitType?: RillTypeName,
+      explicitType?: RillTypeName | RillStructuralType,
       location?: SourceLocation
     ): void {
       const valueType = inferType(value);
 
-      // Check explicit type annotation matches value
-      // 'any' type bypasses type checking: accepts any value by definition
-      if (
-        explicitType !== undefined &&
-        explicitType !== 'any' &&
-        explicitType !== valueType
-      ) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
-          location,
-          {
-            variableName: name,
-            expectedType: explicitType,
-            actualType: valueType,
+      // Check explicit type annotation matches value.
+      // When explicitType is an object (RillStructuralType), use structural matching.
+      // When explicitType is a string (RillTypeName), use inferType comparison.
+      // 'any' type bypasses type checking: accepts any value by definition.
+      if (explicitType !== undefined) {
+        if (typeof explicitType === 'object') {
+          // Structural type check
+          if (!structuralTypeMatches(value, explicitType)) {
+            const expectedLabel = formatStructuralType(explicitType);
+            throw new RuntimeError(
+              'RILL-R001',
+              `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
+              location,
+              {
+                variableName: name,
+                expectedType: expectedLabel,
+                actualType: valueType,
+              }
+            );
           }
-        );
+        } else if (explicitType !== 'any' && explicitType !== valueType) {
+          // String (RillTypeName) type check
+          throw new RuntimeError(
+            'RILL-R001',
+            `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
+            location,
+            {
+              variableName: name,
+              expectedType: explicitType,
+              actualType: valueType,
+            }
+          );
+        }
       }
 
       // Check if this is a new variable that would reassign an outer scope variable
@@ -138,10 +159,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Set the variable and lock its type in current scope
       this.ctx.variables.set(name, value);
       if (!this.ctx.variableTypes.has(name)) {
-        // Lock type: use explicit annotation if provided, otherwise infer from value
-        // This enables `$x:string` to lock type before assignment while still
-        // supporting type inference for bare captures like `:> $x`
-        this.ctx.variableTypes.set(name, explicitType ?? valueType);
+        // Lock type using RillTypeName for subsequent re-assignment checks.
+        // When explicitType is a string (RillTypeName), use it directly.
+        // When explicitType is a RillStructuralType object, the structural
+        // check was already done above — lock by the inferred value type name.
+        const lockType =
+          typeof explicitType === 'string' ? explicitType : valueType;
+        this.ctx.variableTypes.set(name, lockType);
       }
     }
 
@@ -413,7 +437,18 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // value now contains the result of the access chain (without the final field)
         // Check if the final field exists in value
         const finalAccess = node.existenceCheck.finalAccess;
-        const typeName = node.existenceCheck.typeName;
+        const typeRef = node.existenceCheck.typeRef;
+
+        // Helper: check type match using structural resolution (EC-4: mismatch returns false)
+        const matchesType = (fieldValue: RillValue): boolean => {
+          if (typeRef === null) return true;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const resolved = (this as any).resolveTypeRef(
+            typeRef,
+            (name: string) => getVariable(this.ctx, name) as RillValue
+          );
+          return structuralTypeMatches(fieldValue, resolved.structure);
+        };
 
         if (finalAccess.kind === 'literal') {
           // Check if literal field exists in dict
@@ -424,8 +459,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const exists = fieldValue !== undefined && fieldValue !== null;
 
             // If type-qualified check, verify type matches
-            if (exists && typeName !== null) {
-              return inferType(fieldValue) === typeName;
+            if (exists && typeRef !== null) {
+              return matchesType(fieldValue);
             }
 
             return exists;
@@ -467,8 +502,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const exists = fieldValue !== undefined && fieldValue !== null;
 
             // If type-qualified check, verify type matches
-            if (exists && typeName !== null) {
-              return inferType(fieldValue) === typeName;
+            if (exists && typeRef !== null) {
+              return matchesType(fieldValue);
             }
 
             return exists;
@@ -507,8 +542,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const exists = fieldValue !== undefined && fieldValue !== null;
 
             // If type-qualified check, verify type matches
-            if (exists && typeName !== null) {
-              return inferType(fieldValue) === typeName;
+            if (exists && typeRef !== null) {
+              return matchesType(fieldValue);
             }
 
             return exists;
@@ -783,7 +818,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           node.typeRef,
           (name: string) => getVariable(this.ctx, name) as RillValue
         );
-        this.setVariable(node.name, input, resolved.typeName, node.span.start);
+        this.setVariable(node.name, input, resolved.structure, node.span.start);
       } else {
         this.setVariable(node.name, input, undefined, node.span.start);
       }

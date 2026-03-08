@@ -97,6 +97,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return this.applyConversion(input, typeRef.typeName, node);
       }
 
+      // Union type ref: :>(A | B) — full support added in task 1.3
+      if (typeRef.kind === 'union') {
+        throw new RuntimeError(
+          'RILL-R004',
+          'union type conversion is not yet supported'
+        );
+      }
+
       // Dynamic type ref: :>$var
       const typeValue = getVariable(this.ctx, typeRef.varName);
       if (typeValue === undefined) {

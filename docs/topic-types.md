@@ -727,6 +727,99 @@ $process("hello")  # 5
 
 ---
 
+## Union Types
+
+A union type matches any one of two or more listed types. Use `T1|T2` syntax wherever a type annotation is accepted.
+
+### Overview
+
+Union types appear in type assertions, type checks, capture annotations, and destructure patterns. The `|` separator joins members into a union. At runtime, a union matches if the value satisfies any member.
+
+```rill
+# Union assertion: number satisfies string|number
+42 -> :string|number
+# Result: 42
+```
+
+### Type Assertion
+
+Assert that a value matches at least one union member. Execution halts if no member matches:
+
+```rill
+42 -> :string|number
+# Result: 42
+```
+
+```text
+# Error: Type assertion failed: expected string|number, got bool
+true -> :string|number
+```
+
+### Type Check
+
+Check whether a value matches a union without halting on failure:
+
+```rill
+42:?string|number
+# Result: true
+```
+
+```rill
+"hello":?string|number
+# Result: true
+```
+
+```rill
+true:?string|number
+# Result: false
+```
+
+### Capture Annotation
+
+Annotate a capture variable with a union type. The runtime validates the assigned value against all union members:
+
+```rill
+"hello" => $x:string|number
+$x
+# Result: "hello"
+```
+
+```text
+# Error: Type mismatch: cannot assign bool to $x:string|number
+true => $x:string|number
+```
+
+### Parameterized Unions
+
+Union members can be parameterized types. Structural validation applies to each member:
+
+```rill
+["a", "b"] -> :list(string)|dict
+# Result: list["a", "b"]
+```
+
+### Three-or-More Members
+
+Chain additional members with `|`. The runtime checks each member left to right:
+
+```rill
+"hello" -> :string|number|bool
+# Result: "hello"
+```
+
+### Error Behavior
+
+A type assertion fails when the value does not satisfy any member. The error message names the full union:
+
+```text
+# Error: Type assertion failed: expected string|number, got bool
+true -> :string|number
+```
+
+See [Operators](topic-operators.md) for union types in destructure and existence positions.
+
+---
+
 ## Type-Locked Variables
 
 Variables lock type on first assignment. The type is inferred from the value or declared explicitly:

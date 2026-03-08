@@ -21,11 +21,8 @@ import {
   current,
   skipNewlinesIfFollowedBy,
 } from './state.js';
-import {
-  isMethodCallWithArgs,
-  VALID_TYPE_NAMES,
-  parseTypeName,
-} from './helpers.js';
+import { isMethodCallWithArgs } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -166,13 +163,13 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
         break;
       }
 
-      let typeName: ExistenceCheck['typeName'] = null;
+      let typeRef: ExistenceCheck['typeRef'] = null;
       if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
         advance(this.state);
-        typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+        typeRef = parseTypeRef(this.state);
       }
 
-      existenceCheck = { finalAccess, typeName };
+      existenceCheck = { finalAccess, typeRef };
       break;
     }
 

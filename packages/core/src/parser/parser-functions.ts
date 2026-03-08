@@ -321,10 +321,10 @@ Parser.prototype.parseTypeOperation = function (
     return { type: 'TypeAssertion', operand: null, typeRef, span };
   }
 
-  // Default: plain type name → existing TypeAssertion / TypeCheck
+  // Default: static or union type ref → TypeAssertion / TypeCheck
+  // parseTypeRef handles static and union kinds; dynamic ($var) is already
+  // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  if (typeRef.kind !== 'static')
-    throw new Error('Unreachable: $ already handled above');
   const span = makeSpan(start, current(this.state).span.end);
 
   if (isCheck) {
@@ -370,10 +370,10 @@ Parser.prototype.parsePostfixTypeOperation = function (
     return { type: 'TypeAssertion', operand, typeRef, span };
   }
 
-  // Default: plain type name → existing TypeAssertion / TypeCheck
+  // Default: static or union type ref → TypeAssertion / TypeCheck
+  // parseTypeRef handles static and union kinds; dynamic ($var) is already
+  // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  if (typeRef.kind !== 'static')
-    throw new Error('Unreachable: $ already handled above');
   const operand = makeOperand();
   const span = makeSpan(start, current(this.state).span.end);
 

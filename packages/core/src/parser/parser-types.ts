@@ -11,7 +11,14 @@ import {
   TOKEN_TYPES,
   ParseError,
 } from '../types.js';
-import { type ParserState, check, advance, expect, current } from './state.js';
+import {
+  type ParserState,
+  check,
+  advance,
+  expect,
+  current,
+  peek,
+} from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 
 /**
@@ -19,7 +26,8 @@ import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
  *
  * Grammar:
  * ```
- * type-ref          = type-name [ "(" type-ref-arg-list ")" ] | "$" identifier
+ * type-ref          = single-type { "|" single-type }
+ * single-type       = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]
  * type-ref-arg-list = type-ref-arg { "," type-ref-arg } [ "," ]
  * type-ref-arg      = identifier ":" type-ref | type-ref
  * ```
@@ -27,15 +35,106 @@ import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
  * - `$identifier`           → `{ kind: 'dynamic', varName: identifier }`
  * - `type-name`             → `{ kind: 'static', typeName }`
  * - `type-name(arg, ...)`   → `{ kind: 'static', typeName, args: [...] }`
+ * - `A | B | ...`           → `{ kind: 'union', members: [A, B, ...] }`
  *
  * Dynamic refs do not accept parameterization — `$T(...)` is not valid.
+ * Union members are flattened: nested unions are spread into the member list.
  *
  * Throws ParseError (EC-13) if neither a `$identifier` nor a valid type name
  * is found. Throws ParseError (EC-14) if the arg list is malformed.
+ * Throws ParseError (RILL-P011) if `|` is not followed by a valid type start.
  *
  * @internal
  */
-export function parseTypeRef(state: ParserState): TypeRef {
+export function parseTypeRef(
+  state: ParserState,
+  opts?: { allowTrailingPipe?: boolean }
+): TypeRef {
+  const first = parseSingleType(state);
+
+  // Union accumulation: collect additional members after each "|"
+  if (!check(state, TOKEN_TYPES.PIPE_BAR)) {
+    return first;
+  }
+
+  const members: TypeRef[] = [];
+
+  // Flatten: if the first member is itself a union, spread its members
+  if (first.kind === 'union') {
+    members.push(...first.members);
+  } else {
+    members.push(first);
+  }
+
+  while (check(state, TOKEN_TYPES.PIPE_BAR)) {
+    // Peek at what follows "|" without consuming it.
+    // Only treat "|" as a union separator when the next token is a valid type
+    // start ($identifier or a valid type name IDENTIFIER). If the next token is
+    // neither, the "|" belongs to the outer context (e.g. the closing delimiter
+    // of an anonymous typed closure param like |string|) and we stop without
+    // consuming it. RILL-P011 applies when the "|" is clearly a dangling union
+    // pipe: the next token is an IDENTIFIER but not a valid type name.
+    const afterPipe = peek(state, 1);
+    const afterPipeIsDollar = afterPipe.type === TOKEN_TYPES.DOLLAR;
+    const afterPipeIsTypeName =
+      afterPipe.type === TOKEN_TYPES.IDENTIFIER &&
+      (VALID_TYPE_NAMES as readonly string[]).includes(afterPipe.value);
+    const afterPipeIsUnknownIdent =
+      afterPipe.type === TOKEN_TYPES.IDENTIFIER && !afterPipeIsTypeName;
+
+    if (afterPipeIsUnknownIdent) {
+      // Dangling pipe followed by an unrecognized identifier: RILL-P011.
+      advance(state); // consume "|"
+      throw new ParseError(
+        'RILL-P011',
+        "Expected type name after '|'",
+        current(state).span.start
+      );
+    }
+
+    if (!afterPipeIsDollar && !afterPipeIsTypeName) {
+      // "|" is followed by a non-identifier token (e.g. "{", EOF, newline).
+      if (opts?.allowTrailingPipe) {
+        // Closure contexts own the trailing "|" as a delimiter — leave it unconsumed.
+        break;
+      }
+      // In non-closure contexts, a dangling "|" with no following type is an error.
+      advance(state); // consume "|"
+      throw new ParseError(
+        'RILL-P011',
+        "Expected type name after '|'",
+        current(state).span.start
+      );
+    }
+
+    advance(state); // consume "|"
+
+    const next = parseSingleType(state);
+
+    // Flatten nested unions
+    if (next.kind === 'union') {
+      members.push(...next.members);
+    } else {
+      members.push(next);
+    }
+  }
+
+  // If only one member accumulated (e.g. a "|" was present but belonged to the
+  // outer context such as an anonymous typed closure closing delimiter), return
+  // the single member as-is rather than wrapping in a union.
+  if (members.length === 1) {
+    return members[0]!;
+  }
+
+  return { kind: 'union', members };
+}
+
+/**
+ * Parse a single type (one member of a union, or the sole type-ref).
+ * Grammar: `single-type = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]`
+ * @internal
+ */
+function parseSingleType(state: ParserState): TypeRef {
   if (check(state, TOKEN_TYPES.DOLLAR)) {
     advance(state); // consume $
     const nameToken = expect(

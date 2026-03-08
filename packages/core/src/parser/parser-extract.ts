@@ -8,18 +8,14 @@ import type {
   DestructNode,
   DestructPatternNode,
   DestructureNode,
-  RillTypeName,
   SliceBoundNode,
   SliceNode,
+  TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan } from './state.js';
-import {
-  isDictStart,
-  isNegativeNumber,
-  VALID_TYPE_NAMES,
-  parseTypeName,
-} from './helpers.js';
+import { isDictStart, isNegativeNumber } from './helpers.js';
+import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -71,7 +67,7 @@ Parser.prototype.parseDestructPattern = function (
       kind: 'nested',
       name: null,
       key: null,
-      typeName: null,
+      typeRef: null,
       nested,
       span: makeSpan(start, current(this.state).span.end),
     };
@@ -87,7 +83,7 @@ Parser.prototype.parseDestructPattern = function (
       kind: 'skip',
       name: null,
       key: null,
-      typeName: null,
+      typeRef: null,
       nested: null,
       span: makeSpan(start, current(this.state).span.end),
     };
@@ -103,10 +99,10 @@ Parser.prototype.parseDestructPattern = function (
       'Expected variable name'
     );
 
-    let typeName: RillTypeName | null = null;
+    let typeRef: TypeRef | null = null;
     if (check(this.state, TOKEN_TYPES.COLON)) {
       advance(this.state);
-      typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+      typeRef = parseTypeRef(this.state);
     }
 
     return {
@@ -114,7 +110,7 @@ Parser.prototype.parseDestructPattern = function (
       kind: 'keyValue',
       name: nameToken.value,
       key: keyToken.value,
-      typeName,
+      typeRef,
       nested: null,
       span: makeSpan(start, current(this.state).span.end),
     };
@@ -127,10 +123,10 @@ Parser.prototype.parseDestructPattern = function (
     'Expected variable name'
   );
 
-  let typeName: RillTypeName | null = null;
+  let typeRef: TypeRef | null = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    typeName = parseTypeName(this.state, VALID_TYPE_NAMES);
+    typeRef = parseTypeRef(this.state);
   }
 
   return {
@@ -138,7 +134,7 @@ Parser.prototype.parseDestructPattern = function (
     kind: 'variable',
     name: nameToken.value,
     key: null,
-    typeName,
+    typeRef,
     nested: null,
     span: makeSpan(start, current(this.state).span.end),
   };
