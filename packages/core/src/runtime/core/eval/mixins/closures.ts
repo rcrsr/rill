@@ -55,6 +55,7 @@ import type {
   SourceLocation,
   ExpressionNode,
   SpreadArgNode,
+  BlockNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type {
@@ -363,6 +364,19 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (param.name === '$') {
           callableCtx.pipeValue = value;
         }
+      }
+
+      // EC-1: Reject empty block bodies before execution (AC-17)
+      if (
+        callable.body.type === 'Block' &&
+        (callable.body as BlockNode).statements.length === 0
+      ) {
+        throw new RuntimeError(
+          'RILL-R043',
+          'Closure body produced no value',
+          callLocation,
+          { context: 'Closure body' }
+        );
       }
 
       // Switch context to callable context
@@ -819,8 +833,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // IR-3: .name on type values returns the typeName string (method path)
-      if (isTypeValue(receiver) && node.name === 'name') {
-        return receiver.typeName;
+      // IR-4: .signature on type values returns formatStructuralType(structure)
+      if (isTypeValue(receiver)) {
+        if (node.name === 'name') {
+          return receiver.typeName;
+        }
+        if (node.name === 'signature') {
+          return formatStructuralType(receiver.structure);
+        }
       }
 
       const args = await this.evaluateArgs(node.args);
@@ -842,6 +862,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Fall back to property access on dict (no-arg only)
         if (isDict(receiver) && args.length === 0 && node.name in receiver) {
           return receiver[node.name] as RillValue;
+        }
+        // EC-5: Unknown dot property on type value raises RILL-R009
+        if (isTypeValue(receiver)) {
+          throw new RuntimeError(
+            'RILL-R009',
+            `Property '${node.name}' not found on type value (available: name, signature)`,
+            this.getNodeLocation(node),
+            { property: node.name, type: 'type value' }
+          );
         }
         throw new RuntimeError(
           'RILL-R007',
@@ -924,9 +953,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return typeValue;
       }
 
-      // IR-3: .name on type values returns the typeName string
+      // IR-5: .^name on type values raises RILL-R008 (type values are not annotation containers)
       if (isTypeValue(value) && key === 'name') {
-        return value.typeName;
+        throw new RuntimeError(
+          'RILL-R008',
+          `Annotation access not supported on type values`,
+          location,
+          { annotationKey: key }
+        );
       }
 
       // IR-2/IR-5: .^input returns the input shape for callable values

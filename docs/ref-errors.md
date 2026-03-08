@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R042)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -496,17 +496,23 @@ app::fetch($url)  # Host must provide app::fetch
 
 ### rill-r008
 
-**Description:** Undefined annotation
+**Description:** Undefined annotation or annotation access on type value
 
-**Cause:** Annotation key accessed but not set on statement or parameter.
+**Cause:** Two conditions raise RILL-R008:
 
-**Resolution:** Set annotation before accessing (^(key: value)), or check annotation key spelling.
+1. **Missing annotation** — Annotation key accessed but not set on a statement or named parameter.
+2. **Type value annotation access** — `.^key` accessed on a type value (e.g., `string`, `number`, `list`). Type values are not annotation containers and do not support annotation access.
+
+**Resolution:** For missing annotations: set the annotation before accessing (`^(key: value)`), or check annotation key spelling. For type value access: do not use `.^` on type values — use `.^` only on dict-bound closures or annotated statements.
 
 **Example:**
 
 ```text
-# Accessing undefined annotation
+# Accessing undefined annotation on a callable
 $stmt.^timeout  # No ^(timeout: ...) set
+
+# Annotation access on a type value
+string.^label  # Error: RILL-R008: Annotation access not supported on type values
 ```
 
 ---
@@ -784,6 +790,33 @@ $x -> :>$t  # $t is string, not a type value
 ```text
 # Index beyond end
 5 -> ["a", "b"]  # Only 2 elements (indices 0-1)
+```
+
+---
+
+### rill-r043
+
+**Description:** Non-producing body
+
+**Cause:** A closure body or script produced no value. Two conditions trigger this error:
+
+1. **Empty closure body** — A closure with a non-empty block that contains no pipe-producing statements (e.g., `|x| { }` invoked).
+2. **Non-producing script** — A script contains only comments or no statements that produce a pipe value.
+
+This replaces the former incorrect use of RILL-R005 for empty scripts.
+
+**Resolution:** Ensure the closure body or script ends with a statement that produces a value. Every closure and script must yield at least one pipe value.
+
+**Example:**
+
+```text
+# Empty closure body invoked
+|x| { } -> $(1)
+# Error: RILL-R043: Non-producing body
+
+# Script with only a comment (no pipe value)
+# This script produces nothing
+# Error: RILL-R043: Non-producing body
 ```
 
 ---

@@ -140,6 +140,40 @@ export { ERROR_REGISTRY };
 export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, VectorExtensionContract, SchemaEntry };
 ```
 
+## NativeResult
+
+`toNative(value: RillValue): NativeResult` converts any rill value to a host-consumable structure.
+
+```typescript
+interface NativeResult {
+  /** Base rill type name — matches RillTypeName, or "iterator" for lazy sequences */
+  rillTypeName: string;
+  /** Full structural signature from formatStructuralType,
+   *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
+  rillTypeSignature: string;
+  /** JS-native representation. Always populated — never undefined.
+   *  Non-native types produce descriptor objects. */
+  value: NativeValue;
+}
+
+type NativeValue =
+  | string | number | boolean | null
+  | NativeArray | NativePlainObject;
+```
+
+### Descriptor shapes for non-native types
+
+| Rill type | `value` shape |
+|-----------|---------------|
+| `closure` | `{ signature: string }` |
+| `vector` | `{ model: string, dimensions: number }` |
+| `type` | `{ name: string, signature: string }` |
+| `iterator` | `{ done: boolean }` |
+
+See [Host Integration](integration-host.md) for conversion examples and migration guidance.
+
+---
+
 ## TOKEN_HIGHLIGHT_MAP
 
 `TOKEN_HIGHLIGHT_MAP` maps each `TokenType` to a `HighlightCategory`. Use this to build syntax highlighters for rill scripts.

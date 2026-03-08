@@ -279,43 +279,45 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   describe('Spread operator *', () => {
     describe('Prefix form: *expr', () => {
       it('creates tuple from list literal', async () => {
-        const result = await run('tuple[1, 2, 3] => $t\n$t.^type.^name');
-        expect(result).toBe('tuple');
+        const result = (await run('tuple[1, 2, 3] => $t\n$t.^type')) as any;
+        expect(result.typeName).toBe('tuple');
       });
 
       it('creates ordered from dict literal', async () => {
-        const result = await run('ordered[x: 1, y: 2] => $t\n$t.^type.^name');
-        expect(result).toBe('ordered');
+        const result = (await run(
+          'ordered[x: 1, y: 2] => $t\n$t.^type'
+        )) as any;
+        expect(result.typeName).toBe('ordered');
       });
 
       it('creates tuple from list variable', async () => {
-        const result = await run(
-          'list[1, 2] => $t\n$t -> :>tuple => $u\n$u.^type.^name'
-        );
-        expect(result).toBe('tuple');
+        const result = (await run(
+          'list[1, 2] => $t\n$t -> :>tuple => $u\n$u.^type'
+        )) as any;
+        expect(result.typeName).toBe('tuple');
       });
 
       it('creates ordered from dict variable', async () => {
-        const result = await run(
-          'dict[a: 1] => $d\n$d -> :>ordered(a: number) => $u\n$u.^type.^name'
-        );
-        expect(result).toBe('ordered');
+        const result = (await run(
+          'dict[a: 1] => $d\n$d -> :>ordered(a: number) => $u\n$u.^type'
+        )) as any;
+        expect(result.typeName).toBe('ordered');
       });
     });
 
     describe('Pipe target form: -> :>type', () => {
       it('list pipe to :>tuple creates tuple', async () => {
-        const result = await run(
-          'list[1, 2, 3] -> :>tuple => $t\n$t.^type.^name'
-        );
-        expect(result).toBe('tuple');
+        const result = (await run(
+          'list[1, 2, 3] -> :>tuple => $t\n$t.^type'
+        )) as any;
+        expect(result.typeName).toBe('tuple');
       });
 
       it('ordered pipe to :>dict creates dict', async () => {
-        const result = await run(
-          'ordered[a: 1, b: 2] -> :>dict => $t\n$t.^type.^name'
-        );
-        expect(result).toBe('dict');
+        const result = (await run(
+          'ordered[a: 1, b: 2] -> :>dict => $t\n$t.^type'
+        )) as any;
+        expect(result.typeName).toBe('dict');
       });
     });
   });
@@ -419,11 +421,11 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
   describe('Storing ordered spread values', () => {
     it('stores ordered value in variable', async () => {
-      const result = await run(`
+      const result = (await run(`
         ordered[x: 1, y: 2] => $myOrdered
-        $myOrdered.^type.^name
-      `);
-      expect(result).toBe('ordered');
+        $myOrdered.^type
+      `)) as any;
+      expect(result.typeName).toBe('ordered');
     });
 
     it('uses stored ordered spread for named arg call', async () => {
@@ -436,11 +438,11 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
 
     it('supports type annotation with ordered', async () => {
-      const result = await run(`
+      const result = (await run(`
         ordered[x: 1, y: 2] => $a:ordered
-        $a.^type.^name
-      `);
-      expect(result).toBe('ordered');
+        $a.^type
+      `)) as any;
+      expect(result.typeName).toBe('ordered');
     });
   });
 
@@ -454,10 +456,11 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
   describe('Type identity', () => {
     it('ordered is distinct from list', async () => {
+      // Verify that list.^type != ordered.^type using type value inequality
       const result = await run(`
         list[1, 2] => $list
         ordered[a: 1, b: 2] => $ordered
-        $list.^type.^name -> .eq($ordered.^type.^name)
+        $list.^type == $ordered.^type
       `);
       expect(result).toBe(false);
     });
@@ -482,35 +485,42 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
   });
 
   describe('Global functions', () => {
-    describe('.^type.^name operator', () => {
+    describe('.^type typeName (via host API)', () => {
       it('returns "ordered" for dict spread value', async () => {
-        expect(await run('ordered[a: 1, b: 2] => $t\n$t.^type.^name')).toBe(
-          'ordered'
-        );
+        const result = (await run(
+          'ordered[a: 1, b: 2] => $t\n$t.^type'
+        )) as any;
+        expect(result.typeName).toBe('ordered');
       });
 
       it('returns "list" for list', async () => {
-        expect(await run('list[1, 2] => $v\n$v.^type.^name')).toBe('list');
+        const result = (await run('list[1, 2] => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('list');
       });
 
       it('returns "dict" for dict', async () => {
-        expect(await run('dict[a: 1] => $v\n$v.^type.^name')).toBe('dict');
+        const result = (await run('dict[a: 1] => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('dict');
       });
 
       it('returns "string" for string', async () => {
-        expect(await run('"hello" => $v\n$v.^type.^name')).toBe('string');
+        const result = (await run('"hello" => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('string');
       });
 
       it('returns "number" for number', async () => {
-        expect(await run('42 => $v\n$v.^type.^name')).toBe('number');
+        const result = (await run('42 => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('number');
       });
 
       it('returns "bool" for boolean', async () => {
-        expect(await run('true => $v\n$v.^type.^name')).toBe('bool');
+        const result = (await run('true => $v\n$v.^type')) as any;
+        expect(result.typeName).toBe('bool');
       });
 
       it('returns "closure" for closure', async () => {
-        expect(await run('|| { 1 } => $fn\n$fn.^type.^name')).toBe('closure');
+        const result = (await run('|| { 1 } => $fn\n$fn.^type')) as any;
+        expect(result.typeName).toBe('closure');
       });
     });
 

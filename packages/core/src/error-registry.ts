@@ -1141,6 +1141,26 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: 'RILL-R043',
+    category: 'runtime',
+    description: 'Non-producing closure body or script',
+    messageTemplate: '{context} produced no value',
+    cause:
+      'A closure body or script contains no statements that produce a value.',
+    resolution:
+      'Ensure the closure body or script ends with an expression that produces a value.',
+    examples: [
+      {
+        description: 'Empty closure body',
+        code: '|x: number| { }  # No value produced',
+      },
+      {
+        description: 'Script with only comments',
+        code: '# just a comment  # No value produced',
+      },
+    ],
+  },
 
   // Check Errors (RILL-C0xx)
   {

@@ -93,12 +93,23 @@ describe('Rill Runtime: Pipe Targets', () => {
       ).rejects.toThrow();
     });
 
-    it('pipes to .^type for type name', async () => {
-      expect(await run('"hello" => $v\n$v.^type.^name')).toBe('string');
-      expect(await run('42 => $v\n$v.^type.^name')).toBe('number');
-      expect(await run('true => $v\n$v.^type.^name')).toBe('bool');
-      expect(await run('list[1, 2] => $v\n$v.^type.^name')).toBe('list');
-      expect(await run('dict[a: 1] => $v\n$v.^type.^name')).toBe('dict');
+    it('pipes to .^type for type value', async () => {
+      // .^type returns a RillTypeValue; typeName accessible via host API
+      expect(((await run('"hello" => $v\n$v.^type')) as any).typeName).toBe(
+        'string'
+      );
+      expect(((await run('42 => $v\n$v.^type')) as any).typeName).toBe(
+        'number'
+      );
+      expect(((await run('true => $v\n$v.^type')) as any).typeName).toBe(
+        'bool'
+      );
+      expect(((await run('list[1, 2] => $v\n$v.^type')) as any).typeName).toBe(
+        'list'
+      );
+      expect(((await run('dict[a: 1] => $v\n$v.^type')) as any).typeName).toBe(
+        'dict'
+      );
     });
 
     it('pipes through multiple bare functions', async () => {

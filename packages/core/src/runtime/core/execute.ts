@@ -184,10 +184,10 @@ export function createStepper(
       if (total === 0) {
         if (context.pipeValue === null) {
           throw new RuntimeError(
-            'RILL-R005',
-            'Undefined variable: $',
+            'RILL-R043',
+            'Script produced no value',
             undefined,
-            { variable: '$' }
+            { context: 'Script' }
           );
         }
         return { result: context.pipeValue };

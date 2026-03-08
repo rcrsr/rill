@@ -1034,6 +1034,25 @@ All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ER
 
 ## Error Behavior
 
+### Non-Producing Body (RILL-R043)
+
+A closure body must produce a value. Invoking a closure with an empty body (or a body containing only comments) raises RILL-R043 at invocation time:
+
+```text
+|x: number| { } => $fn
+$fn(5)
+# Error: RILL-R043: Closure body produced no value
+```
+
+A script with no statements (only comments) also raises RILL-R043 at execution time:
+
+```text
+# only a comment — no expression produces a value
+# Error: RILL-R043: Script body produced no value
+```
+
+RILL-R043 replaces the former behavior where an empty script raised RILL-R005 ("Undefined variable") because `$` was never bound.
+
 ### Undefined Variables
 
 Undefined variables throw an error at call time (rill has no null):

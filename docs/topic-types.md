@@ -353,7 +353,7 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
-`ordered` converts to a plain object via `toNative()` — the result's `native` field holds `{ key: value, ... }`.
+`ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
 
 ---
 
@@ -837,16 +837,65 @@ $l.^type.name
 # Result: "list"
 ```
 
-Type values also have `.name` when accessed through a variable:
+### Dot-Notation Properties on Type Values
+
+Type values expose two properties via dot notation:
+
+| Property | Return Type | Description |
+|----------|-------------|-------------|
+| `.name` | `string` | Coarse type name (`"number"`, `"list"`, `"dict"`, etc.) |
+| `.signature` | `string` | Full structural type string |
+
+```rill
+number => $t
+$t.name
+# Result: "number"
+```
 
 ```rill
 dict => $t
 $t.name
 # Result: "dict"
+```
 
-number => $t
-$t.name
+`.signature` returns the full structural representation via `formatStructuralType`:
+
+```rill
+list(number) => $t
+$t.signature
+# Result: "list(number)"
+```
+
+```rill
+|y: string|($y):string => $fn
+$fn.^type.signature
+# Result: "|y: string| :string"
+```
+
+Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
+
+```rill
+42.^type.name
 # Result: "number"
+```
+
+```rill
+42.^type.signature
+# Result: "number"
+```
+
+Unknown dot properties on type values raise RILL-R009:
+
+```text
+number.unknownProp
+# Error: RILL-R009: Unknown property 'unknownProp' on type value
+```
+
+`.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"). Use `.name` (dot notation) instead:
+
+```text
+number.^name
+# Error: RILL-R008: Annotation access not supported on type values
 ```
 
 ### Type Value Equality

@@ -114,13 +114,13 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('List spread produces tuple (AC-45)', () => {
     it('produces a tuple when spreading a homogeneous list', async () => {
-      const result = await run('tuple[1, 2, 3] => $t\n$t.^type.^name');
-      expect(result).toBe('tuple');
+      const result = (await run('tuple[1, 2, 3] => $t\n$t.^type')) as any;
+      expect(result.typeName).toBe('tuple');
     });
 
     it('produces an empty tuple when spreading an empty list', async () => {
-      const result = await run('tuple[] => $t\n$t.^type.^name');
-      expect(result).toBe('tuple');
+      const result = (await run('tuple[] => $t\n$t.^type')) as any;
+      expect(result.typeName).toBe('tuple');
     });
   });
 

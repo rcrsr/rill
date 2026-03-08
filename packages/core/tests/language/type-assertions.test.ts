@@ -177,8 +177,10 @@ describe('Rill Runtime: Type Assertions', () => {
       expect(await run('identity("test") -> :string')).toBe('test');
     });
 
-    it('asserts .^type.^name returns string', async () => {
-      expect(await run('42 => $v\n$v.^type.^name -> :string')).toBe('number');
+    it('asserts .^type returns type value (typeName via host API)', async () => {
+      // .^type.^name no longer works; typeName accessible via host typeName property
+      const result = (await run('42 => $v\n$v.^type')) as any;
+      expect(result.typeName).toBe('number');
     });
   });
 

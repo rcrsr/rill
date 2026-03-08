@@ -60,7 +60,7 @@ declare module './parser.js' {
     parseDict(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
     parseClosure(): ClosureNode;
-    parseBody(): BodyNode;
+    parseBody(allowEmptyBlock?: boolean): BodyNode;
     parseClosureParam(): ClosureParamNode;
     parseCollectionLiteral(
       collectionType: 'list' | 'dict' | 'tuple' | 'ordered'
@@ -592,7 +592,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   if (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
     skipNewlines(this.state);
-    const body = this.parseBody();
+    const body = this.parseBody(true);
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
     return {
       type: 'Closure',
@@ -648,7 +648,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     const typeRef = parseTypeRef(this.state);
     expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
     skipNewlines(this.state);
-    const body = this.parseBody();
+    const body = this.parseBody(true);
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
     const param: ClosureParamNode = {
       type: 'ClosureParam',
@@ -682,7 +682,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
   skipNewlines(this.state);
 
-  const body = this.parseBody();
+  const body = this.parseBody(true);
   const returnTypeTarget = parseClosureReturnTypeTarget(this);
 
   return {
@@ -697,9 +697,12 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   };
 };
 
-Parser.prototype.parseBody = function (this: Parser): BodyNode {
+Parser.prototype.parseBody = function (
+  this: Parser,
+  allowEmptyBlock?: boolean
+): BodyNode {
   if (check(this.state, TOKEN_TYPES.LBRACE)) {
-    return this.parseBlock();
+    return this.parseBlock(allowEmptyBlock);
   }
 
   if (check(this.state, TOKEN_TYPES.LPAREN)) {

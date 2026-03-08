@@ -192,7 +192,7 @@ $list.^type == list(number)
 # Result: true
 ```
 
-`.^type.name` returns the coarse type name string:
+`.^type.name` returns the coarse type name string. `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
 
 ```rill
 [1, 2, 3] => $list
@@ -404,7 +404,7 @@ Access annotation values using `.^key` syntax. Annotations attach to closures. T
 | Value | Key | Result |
 |-------|-----|--------|
 | Any value | `type` | Structural type value via `.^type` |
-| Type value | `name` | Type name string |
+| Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
 | Closure | any other key | Closure annotation value |
 | Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
@@ -522,7 +522,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
 ```
 
-The `name` key is intercepted on type values (`.^type.name` returns the type name string) but is not reserved — user annotations may use `name` on closures without restriction.
+The `name` key is not reserved — user annotations may use `name` on closures without restriction. On type values, `.name` is a dot-notation property (not annotation access). Accessing `.^name` on a type value raises RILL-R008. Use `.^type.name` to get the type name: `.^type` returns the type value, then `.name` accesses the dot-notation property.
 
 ### Parameter Annotations
 

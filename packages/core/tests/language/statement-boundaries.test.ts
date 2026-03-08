@@ -180,17 +180,21 @@ $parts -> each { "{$}!" }`;
   });
 
   describe('Edge Cases', () => {
-    it('empty script errors (implicit $ undefined)', async () => {
-      await expect(run('')).rejects.toThrow('Undefined variable: $');
+    it('empty script errors (non-producing script → RILL-R043)', async () => {
+      await expect(run('')).rejects.toHaveProperty('errorId', 'RILL-R043');
     });
 
-    it('whitespace-only script errors (implicit $ undefined)', async () => {
-      await expect(run('   \n\n   ')).rejects.toThrow('Undefined variable: $');
+    it('whitespace-only script errors (non-producing script → RILL-R043)', async () => {
+      await expect(run('   \n\n   ')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R043'
+      );
     });
 
-    it('comment-only script errors (implicit $ undefined)', async () => {
-      await expect(run('# just a comment')).rejects.toThrow(
-        'Undefined variable: $'
+    it('comment-only script errors (non-producing script → RILL-R043)', async () => {
+      await expect(run('# just a comment')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R043'
       );
     });
 

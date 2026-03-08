@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- **`NativeResult` field renames** — Three fields renamed on the object returned by `toNative()`:
+  - `kind` → `rillTypeName`
+  - `typeSig` → `rillTypeSignature`
+  - `native` → `value`
+
+  TypeScript consumers see compile errors at affected field accesses. JavaScript consumers receive `undefined` at runtime without compile errors. **Migration:** rename all field accesses at `toNative()` call sites.
+
+- **`NativeResult.value` always populated** — `value` (formerly `native`) is no longer `NativeValue | null`. Non-native types that previously produced `null` now produce descriptor objects:
+  - Closure: `{ signature: string }`
+  - Vector: `{ model: string, dimensions: number }`
+  - Type value: `{ name: string, signature: string }`
+  - Iterator: `{ done: boolean }`
+
+  **Migration:** remove null guards on `toNative()` results. Code that branches on `result.native == null` (or the renamed `result.value == null`) must be updated.
+
+- **`.^name` on type values raises RILL-R008** — Annotation access (`.^name`) on type values is no longer supported. Previously `.^type.^name` returned the type name string. It now raises RILL-R008 ("Annotation access not supported on type values"). **Migration:** replace `.^type.^name` with `.^type.name` (dot notation).
+
 ### Added
 
 - **Anonymous typed closure parameters** — Use `|type|{ body }` syntax for type-safe pipe stages without named parameters. Type is validated on piped input with full reflection parity
+- **Parameterized type annotations** — Type assertions accept parameterized forms (`list(string)`, `dict(name: string, age: number)`, `tuple(number, string)`) in closure parameters, return assertions, type checks, and conversion operators
+- **`iterator` added to `RillTypeName`** — `"iterator"` is now the 12th member of the `RillTypeName` union type exported from `@rcrsr/rill`
+- **Type value dot-notation properties** — Type values support `.name` (returns the type name string) and `.signature` (returns the full type signature string) via dot notation
+- **RILL-R043** — New runtime error raised when a closure body or top-level script produces no value (non-producing body)
 
 ### Changed
 

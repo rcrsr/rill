@@ -315,14 +315,17 @@ describe('Rill Runtime: Annotations', () => {
         expect(await run(script)).toEqual([0, 100]);
       });
 
-      it('throws error when annotation is missing (AC-3, EC-4)', async () => {
+      it('throws RILL-R008 when annotation is missing on ScriptCallable (AC-3, EC-4)', async () => {
         const script = `
           |x|($x) => $fn
           $fn.^missing
         `;
-        await expect(run(script)).rejects.toThrow(
-          /Annotation 'missing' not found/
-        );
+        try {
+          await run(script);
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect(err).toHaveProperty('errorId', 'RILL-R008');
+        }
       });
 
       it('supports coalescing with default value (AC-4)', async () => {

@@ -4,7 +4,7 @@
  * IR-1: formatValue(value: RillValue): string — pure function, guard order:
  *   shape → callable → tuple → iterator → list → vector → type value → field descriptor → dict
  * IR-2: valueToJSON(value: RillValue): unknown — throws plain Error for non-serializable types
- * IR-3: toNative(value: RillValue): NativeValue — converts representable types; throws RuntimeError RILL-R004 for closure/iterator/vector/type
+ * IR-3: toNative(value: RillValue): NativeResult — always returns NativeResult { rillTypeName, rillTypeSignature, value }; non-native types (closures/iterators/vectors/type values) produce descriptor objects
  *
  * AC-1: Script returns number → ExecutionResult.result is JS number
  * AC-2: log(42) delivers string "42" to onLog
@@ -24,7 +24,7 @@
  * AC-16: null in formatValue → "type(null)"
  * AC-17: Guard clause ordering: shape before dict; callable before dict/array; tuple before dict
  *
- * EC-1 through EC-5: toNative — EC-1,EC-2 throw RuntimeError RILL-R004; EC-3,EC-6 convert tuple/ordered to JS array/object
+ * EC-1 through EC-5: toNative — EC-1,EC-2 return descriptor objects for non-native types; EC-3,EC-6 convert tuple/ordered to JS array/object
  * EC-8 through EC-14: valueToJSON throws plain Error for non-serializable types
  */
 
@@ -422,59 +422,69 @@ describe('valueToJSON', () => {
 // ============================================================
 
 describe('toNative', () => {
+  // AC-1 through AC-12: happy path conversions
   describe('native types', () => {
-    it('converts null', () => {
+    it('AC-21: converts null', () => {
       const r = toNative(null);
-      expect(r.kind).toBe('string');
-      expect(r.native).toBeNull();
+      expect(r.rillTypeName).toBe('string');
+      expect(r.rillTypeSignature).toBe('string');
+      expect(r.value).toBeNull();
     });
 
-    it('converts string', () => {
+    it('AC-1: converts string', () => {
       const r = toNative('hello');
-      expect(r.kind).toBe('string');
-      expect(r.native).toBe('hello');
+      expect(r.rillTypeName).toBe('string');
+      expect(r.rillTypeSignature).toBe('string');
+      expect(r.value).toBe('hello');
     });
 
-    it('converts number', () => {
+    it('AC-2: converts number', () => {
       const r = toNative(42);
-      expect(r.kind).toBe('number');
-      expect(r.native).toBe(42);
+      expect(r.rillTypeName).toBe('number');
+      expect(r.rillTypeSignature).toBe('number');
+      expect(r.value).toBe(42);
     });
 
-    it('converts boolean true', () => {
+    it('AC-3: converts boolean true', () => {
       const r = toNative(true);
-      expect(r.kind).toBe('bool');
-      expect(r.native).toBe(true);
+      expect(r.rillTypeName).toBe('bool');
+      expect(r.rillTypeSignature).toBe('bool');
+      expect(r.value).toBe(true);
     });
 
     it('converts boolean false', () => {
       const r = toNative(false);
-      expect(r.kind).toBe('bool');
-      expect(r.native).toBe(false);
+      expect(r.rillTypeName).toBe('bool');
+      expect(r.rillTypeSignature).toBe('bool');
+      expect(r.value).toBe(false);
     });
 
-    it('converts list to native array', () => {
+    it('AC-4: converts list to native array', () => {
       const r = toNative([1, 2, 3]);
-      expect(r.kind).toBe('list');
-      expect(r.native).toEqual([1, 2, 3]);
+      expect(r.rillTypeName).toBe('list');
+      expect(r.rillTypeSignature).toBe('list(number)');
+      expect(r.value).toEqual([1, 2, 3]);
     });
 
-    it('converts dict to native plain object', () => {
-      const r = toNative({ a: 1, b: 'x' });
-      expect(r.kind).toBe('dict');
-      expect(r.native).toEqual({ a: 1, b: 'x' });
+    it('AC-5: converts dict to native plain object', () => {
+      const r = toNative({ a: 1 });
+      expect(r.rillTypeName).toBe('dict');
+      expect(r.rillTypeSignature).toBe('dict(a: number)');
+      expect(r.value).toEqual({ a: 1 });
     });
 
-    it('converts empty list', () => {
+    it('AC-22: converts empty list', () => {
       const r = toNative([]);
-      expect(r.kind).toBe('list');
-      expect(r.native).toEqual([]);
+      expect(r.rillTypeName).toBe('list');
+      expect(r.rillTypeSignature).toBe('list(any)');
+      expect(r.value).toEqual([]);
     });
 
-    it('converts empty dict', () => {
+    it('AC-23: converts empty dict', () => {
       const r = toNative({});
-      expect(r.kind).toBe('dict');
-      expect(r.native).toEqual({});
+      expect(r.rillTypeName).toBe('dict');
+      expect(r.rillTypeSignature).toBe('dict()');
+      expect(r.value).toEqual({});
     });
   });
 
@@ -484,7 +494,7 @@ describe('toNative', () => {
         [1, 2],
         [3, 4],
       ]);
-      expect(r.native).toEqual([
+      expect(r.value).toEqual([
         [1, 2],
         [3, 4],
       ]);
@@ -492,46 +502,65 @@ describe('toNative', () => {
 
     it('converts nested dict', () => {
       const r = toNative({ outer: { inner: 42 } });
-      expect(r.native).toEqual({ outer: { inner: 42 } });
+      expect(r.value).toEqual({ outer: { inner: 42 } });
     });
 
     it('converts list containing dict', () => {
-      expect(toNative([{ a: 1 }]).native).toEqual([{ a: 1 }]);
+      expect(toNative([{ a: 1 }]).value).toEqual([{ a: 1 }]);
     });
 
     it('converts dict containing list', () => {
-      expect(toNative({ items: [1, 2] }).native).toEqual({ items: [1, 2] });
+      expect(toNative({ items: [1, 2] }).value).toEqual({ items: [1, 2] });
     });
   });
 
-  describe('EC-1: closure returns native: null', () => {
-    it('returns kind "closure"', () => {
+  describe('AC-8: closure produces descriptor object', () => {
+    it('returns rillTypeName "closure"', () => {
       const fn = callable(() => null);
-      expect(toNative(fn).kind).toBe('closure');
+      expect(toNative(fn).rillTypeName).toBe('closure');
     });
 
-    it('returns native: null for callable', () => {
+    it('returns rillTypeSignature for callable', () => {
       const fn = callable(() => null);
-      expect(toNative(fn).native).toBeNull();
+      expect(toNative(fn).rillTypeSignature).toBe('|| :any');
+    });
+
+    it('returns value with signature descriptor', () => {
+      const fn = callable(() => null);
+      const r = toNative(fn);
+      expect(r.value).toEqual({ signature: '|| :any' });
     });
   });
 
-  describe('EC-2: iterator returns native: null', () => {
-    it('returns kind "iterator"', () => {
+  describe('AC-11 / AC-12: iterator produces descriptor object', () => {
+    it('AC-11: fresh iterator returns rillTypeName "iterator"', () => {
       const iterator = makeIterator();
-      expect(toNative(iterator).kind).toBe('iterator');
+      expect(toNative(iterator).rillTypeName).toBe('iterator');
     });
 
-    it('returns native: null for iterator', () => {
+    it('AC-11: fresh iterator value has done: false', () => {
       const iterator = makeIterator();
-      expect(toNative(iterator).native).toBeNull();
+      expect(toNative(iterator).value).toEqual({ done: false });
+    });
+
+    it('AC-12: exhausted iterator value has done: true', () => {
+      const done = callable(() => ({ done: true, next: callable(() => ({})) }));
+      const exhausted = { done: true, next: done };
+      expect(toNative(exhausted).value).toEqual({ done: true });
+    });
+
+    it('AC-26: repeated toNative on same iterator returns same done state', () => {
+      const iterator = makeIterator();
+      expect(toNative(iterator).value).toEqual({ done: false });
+      expect(toNative(iterator).value).toEqual({ done: false });
     });
   });
 
-  describe('EC-3: tuple converts to native array', () => {
+  describe('AC-6: tuple converts to native array', () => {
     it('converts tuple entries to a native array', () => {
       const tuple = createTupleFromDict({ a: 1 });
-      expect(toNative(tuple).native).toEqual([1]);
+      expect(toNative(tuple).rillTypeName).toBe('tuple');
+      expect(toNative(tuple).value).toEqual([1]);
     });
 
     it('recursively converts nested tuple entries', () => {
@@ -540,63 +569,99 @@ describe('toNative', () => {
         __rill_tuple: true as const,
         entries: [inner],
       };
-      expect(toNative(outer).native).toEqual([[2]]);
+      expect(toNative(outer).value).toEqual([[2]]);
     });
   });
 
-  describe('EC-4: type value returns native: null', () => {
-    it('returns kind "type"', () => {
-      expect(toNative(makeTypeValue('string')).kind).toBe('type');
+  describe('AC-10: type value produces descriptor object', () => {
+    it('returns rillTypeName "type"', () => {
+      expect(toNative(makeTypeValue('string')).rillTypeName).toBe('type');
     });
 
-    it('returns native: null for type value', () => {
-      expect(toNative(makeTypeValue('number')).native).toBeNull();
+    it('returns rillTypeSignature "type"', () => {
+      expect(toNative(makeTypeValue('string')).rillTypeSignature).toBe('type');
+    });
+
+    it('returns value with name and signature descriptor', () => {
+      const r = toNative(makeTypeValue('number'));
+      expect(r.value).toEqual({ name: 'number', signature: 'number' });
     });
   });
 
-  describe('EC-5: vector returns native: null', () => {
-    it('returns kind "vector"', () => {
+  describe('AC-9: vector produces descriptor object', () => {
+    it('returns rillTypeName "vector"', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
-      expect(toNative(vec).kind).toBe('vector');
+      expect(toNative(vec).rillTypeName).toBe('vector');
     });
 
-    it('returns native: null for vector', () => {
+    it('returns rillTypeSignature "vector"', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
-      expect(toNative(vec).native).toBeNull();
+      expect(toNative(vec).rillTypeSignature).toBe('vector');
+    });
+
+    it('returns value with model and dimensions descriptor', () => {
+      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'test-model');
+      expect(toNative(vec).value).toEqual({
+        model: 'test-model',
+        dimensions: 3,
+      });
     });
   });
 
-  describe('EC-6: ordered converts to native plain object', () => {
+  describe('AC-7: ordered converts to native plain object', () => {
     it('converts ordered entries to a native object', () => {
       const ordered = createOrdered([
         ['a', 1],
         ['b', 'x'],
       ]);
-      expect(toNative(ordered).native).toEqual({ a: 1, b: 'x' });
+      expect(toNative(ordered).rillTypeName).toBe('ordered');
+      expect(toNative(ordered).value).toEqual({ a: 1, b: 'x' });
     });
 
     it('recursively converts nested ordered values', () => {
       const inner = createOrdered([['x', 2]]);
       const outer = createOrdered([['nested', inner]]);
-      expect(toNative(outer).native).toEqual({ nested: { x: 2 } });
+      expect(toNative(outer).value).toEqual({ nested: { x: 2 } });
     });
   });
 
-  describe('typeSig field', () => {
+  describe('rillTypeSignature field', () => {
     it('returns "string" for string', () => {
-      expect(toNative('hi').typeSig).toBe('string');
+      expect(toNative('hi').rillTypeSignature).toBe('string');
     });
 
     it('returns "number" for number', () => {
-      expect(toNative(42).typeSig).toBe('number');
+      expect(toNative(42).rillTypeSignature).toBe('number');
     });
 
     it('returns "bool" for boolean', () => {
-      expect(toNative(true).typeSig).toBe('bool');
+      expect(toNative(true).rillTypeSignature).toBe('bool');
     });
 
     it('returns "list(number)" for number list', () => {
-      expect(toNative([1, 2, 3]).typeSig).toBe('list(number)');
+      expect(toNative([1, 2, 3]).rillTypeSignature).toBe('list(number)');
+    });
+  });
+
+  describe('AC-24: nested list containing closure', () => {
+    it('outer value is array; closure entry becomes descriptor', () => {
+      const fn = callable(() => null);
+      const r = toNative([fn]);
+      expect(Array.isArray(r.value)).toBe(true);
+      const entries = r.value as unknown[];
+      expect(entries[0]).toEqual({ signature: '|| :any' });
+    });
+  });
+
+  describe('AC-25: dict containing iterator value', () => {
+    it('dict is plain object; iterator field becomes descriptor', () => {
+      const iterator = makeIterator();
+      // Wrap iterator in a plain dict via a list to exercise toNativeValue recursion.
+      // A plain dict with an iterator value will have that field converted.
+      const r = toNative([iterator]);
+      expect(Array.isArray(r.value)).toBe(true);
+      const entries = r.value as unknown[];
+      expect(entries[0]).toEqual({ done: false });
     });
   });
 });

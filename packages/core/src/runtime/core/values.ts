@@ -175,6 +175,7 @@ export function inferType(value: RillValue): RillTypeName {
   if (isVector(value)) return 'vector';
   if (Array.isArray(value)) return 'list';
   if (isTypeValue(value)) return 'type';
+  if (isRillIterator(value)) return 'iterator';
   if (
     typeof value === 'object' &&
     '__type' in value &&
@@ -618,12 +619,12 @@ export type NativePlainObject = { [key: string]: NativeValue };
 
 /** Structured result from toNative conversion */
 export interface NativeResult {
-  /** Rill type kind — matches RillTypeName, or 'iterator' for lazy sequences */
-  kind: string;
+  /** Rill type name — matches RillTypeName, or 'iterator' for lazy sequences */
+  rillTypeName: string;
   /** Human-readable type signature, e.g. "string", "list(number)", "|x: number| :string" */
-  typeSig: string;
-  /** Native JS representation, or null if the value is not natively representable */
-  native: NativeValue | null;
+  rillTypeSignature: string;
+  /** Native JS representation. Non-native types produce descriptor objects. */
+  value: NativeValue;
 }
 
 /**
@@ -675,17 +676,17 @@ export function valueToJSON(value: RillValue): unknown {
 
 /**
  * Convert a RillValue to a NativeResult for host consumption.
- * Non-representable types (closures, vectors, type values, iterators) return native: null.
+ * Non-representable types (closures, vectors, type values, iterators) produce descriptor objects.
  * Tuples convert to native arrays. Ordered values convert to plain objects.
  */
 export function toNative(value: RillValue): NativeResult {
-  const kind = isRillIterator(value) ? 'iterator' : inferType(value);
-  const typeSig = formatStructuralType(inferStructuralType(value));
-  const native = toNativeValue(value);
-  return { kind, typeSig, native };
+  const rillTypeName = isRillIterator(value) ? 'iterator' : inferType(value);
+  const rillTypeSignature = formatStructuralType(inferStructuralType(value));
+  const nativeValue = toNativeValue(value);
+  return { rillTypeName, rillTypeSignature, value: nativeValue };
 }
 
-function toNativeValue(value: RillValue): NativeValue | null {
+function toNativeValue(value: RillValue): NativeValue {
   if (value === null) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return value;
@@ -696,7 +697,7 @@ function toNativeValue(value: RillValue): NativeValue | null {
   }
 
   if (isCallable(value)) {
-    return null;
+    return { signature: formatStructuralType(inferStructuralType(value)) };
   }
 
   if (isTuple(value)) {
@@ -706,28 +707,31 @@ function toNativeValue(value: RillValue): NativeValue | null {
   if (isOrdered(value)) {
     const result: { [key: string]: NativeValue } = {};
     for (const [k, v] of value.entries) {
-      result[k] = toNativeValue(v) as NativeValue;
+      result[k] = toNativeValue(v);
     }
     return result;
   }
 
   if (isVector(value)) {
-    return null;
+    return { model: value.model, dimensions: value.data.length };
   }
 
   if (isTypeValue(value)) {
-    return null;
+    return {
+      name: value.typeName,
+      signature: formatStructuralType(value.structure),
+    };
   }
 
   if (isRillIterator(value)) {
-    return null;
+    return { done: value.done };
   }
 
   // Plain dict
   const dict = value as Record<string, RillValue>;
   const result: { [key: string]: NativeValue } = {};
   for (const [k, v] of Object.entries(dict)) {
-    result[k] = toNativeValue(v) as NativeValue;
+    result[k] = toNativeValue(v);
   }
   return result;
 }

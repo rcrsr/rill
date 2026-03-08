@@ -359,13 +359,13 @@ Examples:
         });
 
         const nativeResult = toNative(result.result);
-        const { code, message } = determineExitCode(nativeResult.native);
+        const { code, message } = determineExitCode(nativeResult.value);
 
         // Output message if present, otherwise output the result value
         if (message !== undefined) {
           console.log(message);
         } else {
-          console.log(String(nativeResult.native));
+          console.log(String(nativeResult.value));
         }
 
         // Exit with computed code

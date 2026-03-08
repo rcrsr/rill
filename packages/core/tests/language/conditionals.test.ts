@@ -170,9 +170,10 @@ describe('Rill Runtime: Conditionals', () => {
       );
     });
 
-    it('rejects empty function body', async () => {
-      await expect(run('|| { } => $fn')).rejects.toThrow(
-        'Empty blocks are not allowed'
+    it('rejects empty closure body on invocation (RILL-R043)', async () => {
+      await expect(run('|| { } => $fn\n"x" -> $fn')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R043'
       );
     });
   });

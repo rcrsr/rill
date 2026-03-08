@@ -10,7 +10,8 @@ export type RillTypeName =
   | 'ordered'
   | 'vector'
   | 'any'
-  | 'type';
+  | 'type'
+  | 'iterator';
 
 /**
  * A reference to a type — either a static type name literal or a dynamic
