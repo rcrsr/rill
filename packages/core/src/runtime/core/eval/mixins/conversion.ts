@@ -98,7 +98,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return this.applyConversion(input, typeRef.typeName, node);
       }
 
-      // Union type ref: :>(A | B) — full support added in task 1.3
+      // Union type ref: :>(A | B) — intentionally unsupported in this release
       if (typeRef.kind === 'union') {
         throw new RuntimeError(
           'RILL-R004',

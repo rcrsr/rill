@@ -1055,9 +1055,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The :> operator does not support conversion between the given source and target types. Accepted sources for :>number are string and bool; accepted sources for :>string are number and bool.',
+      'The :> operator does not support conversion between the given source and target types. :>string accepts any source type. :>number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (:>boolean, :>list, :>dict, :>tuple, :>ordered) have their own accepted sources.',
     resolution:
-      'Check the type conversion compatibility matrix. String and bool are accepted by :>number. Number and bool are accepted by :>string. Types not in the matrix (e.g. list, dict, closure) cannot be converted.',
+      'Check the target type. Use :>string to convert any value to its string representation. For :>number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
       {
         description: 'String to list conversion',

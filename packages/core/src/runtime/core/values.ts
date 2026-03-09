@@ -274,6 +274,14 @@ export function structuralTypeEquals(
     return true;
   }
 
+  if (a.type === 'union' && b.type === 'union') {
+    if (a.members.length !== b.members.length) return false;
+    for (let i = 0; i < a.members.length; i++) {
+      if (!structuralTypeEquals(a.members[i]!, b.members[i]!)) return false;
+    }
+    return true;
+  }
+
   if (a.type === 'closure' && b.type === 'closure') {
     if (a.params === undefined && b.params === undefined) {
       // Both absent: compare ret
