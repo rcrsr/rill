@@ -119,6 +119,27 @@ export interface ErrorEvent {
   index?: number;
 }
 
+/**
+ * Result returned by a SchemeResolver.
+ * `kind: "value"` — runtime binds `value` directly without evaluation.
+ * `kind: "source"` — runtime parses and executes `text` in an isolated child scope.
+ */
+export type ResolverResult =
+  | { kind: 'value'; value: RillValue }
+  | { kind: 'source'; text: string };
+
+/**
+ * Resolves a scheme-qualified resource to a value or source text.
+ * `resource` is the dot-joined path after the scheme separator (e.g. `"greetings"`, `"qdrant.search"`).
+ * `config` is the value from `RuntimeOptions.configurations.resolvers[scheme]`.
+ * Async resolvers are supported; synchronous resolvers may return ResolverResult directly.
+ * Resolvers must not call back into the rill runtime.
+ */
+export type SchemeResolver = (
+  resource: string,
+  config?: unknown
+) => ResolverResult | Promise<ResolverResult>;
+
 /** Runtime context with variables, functions, and callbacks */
 export interface RuntimeContext {
   /** Parent scope for lexical variable lookup (undefined = root scope) */
@@ -174,6 +195,20 @@ export interface RuntimeContext {
   readonly callStack: import('../../types.js').CallFrame[];
   /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
   readonly metadata?: Record<string, string> | undefined;
+  /** Scheme-to-resolver map, populated from RuntimeOptions.resolvers (empty Map when absent) */
+  readonly resolvers: ReadonlyMap<string, SchemeResolver>;
+  /** Per-scheme config data, populated from RuntimeOptions.configurations.resolvers (empty Map when absent) */
+  readonly resolverConfigs: ReadonlyMap<string, unknown>;
+  /** In-flight resolution keys for cycle detection; shared across child scopes */
+  readonly resolvingSchemes: Set<string>;
+  /**
+   * Parser function for executing resolver source results.
+   * Must be provided when `kind: 'source'` resolver results are expected.
+   * Omit if only `kind: 'value'` resolvers are used.
+   */
+  readonly parseSource?:
+    | ((text: string) => import('../../types.js').ScriptNode)
+    | undefined;
 }
 
 /** Options for creating a runtime context */
@@ -198,6 +233,17 @@ export interface RuntimeOptions {
   maxCallStackDepth?: number;
   /** Arbitrary string metadata passed through to the runtime context */
   metadata?: Record<string, string>;
+  /** Scheme-to-resolver map; keys are scheme names (e.g. `"env"`, `"qdrant"`) */
+  resolvers?: Record<string, SchemeResolver>;
+  /** Per-scheme configuration data passed as the second argument to each resolver */
+  configurations?: { resolvers?: Record<string, unknown> };
+  /** Type checker mode; default `'permissive'` */
+  checkerMode?: 'strict' | 'permissive';
+  /**
+   * Parser function for executing resolver source results.
+   * Required when resolvers may return `kind: 'source'` results.
+   */
+  parseSource?: (text: string) => import('../../types.js').ScriptNode;
 }
 
 /** Result of script execution */

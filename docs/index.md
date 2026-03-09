@@ -37,6 +37,7 @@
 |-------|-------------|
 | [Host Integration](integration-host.md) | Embedding rill in applications |
 | [Host API Reference](ref-host-api.md) | Complete TypeScript API exports |
+| [Resolver Registration](integration-resolvers.md) | `use<scheme:resource>` imports and built-in resolvers |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | rill-exec, rill-eval, rill-check commands |

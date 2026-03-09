@@ -374,6 +374,13 @@ export function visitNode(
       visitNode(node.returnType, context, visitor);
       break;
 
+    case 'UseExpr':
+      // Visit computed expression if present; typeRef is not an ASTNode
+      if (node.identifier.kind === 'computed') {
+        visitNode(node.identifier.expression, context, visitor);
+      }
+      break;
+
     default: {
       // Exhaustive check: if we reach here, a node type is missing
       const _exhaustive: never = node;

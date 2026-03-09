@@ -170,7 +170,7 @@ The `vector` type matches host-provided typed arrays. The `any` type name accept
 
 Both types are valid in closure parameter positions, capture type assertions, and type assertions:
 
-```rill
+```text
 # Closure parameter with vector type annotation
 |x: vector| { $x } => $fn
 app::embed("hello") => $v
@@ -185,7 +185,7 @@ $fn("hello")
 # Result: "hello"
 ```
 
-```rill
+```text
 # Type assertion: :vector and :any
 app::embed("hello") => $v
 $v -> :vector
@@ -193,10 +193,9 @@ $v -> :vector
 
 $v -> :any
 # Result: vector(mock-embed, 3d)
-true
 ```
 
-```rill
+```text
 # Capture type assertion with vector type
 app::embed("hello") => $x:vector
 $x -> .model
@@ -398,7 +397,7 @@ $fn.^type == closure
 # Result: true
 ```
 
-```rill
+```text
 app::embed("hello world") => $vec
 $vec.^type == vector
 # Result: true

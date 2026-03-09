@@ -38,6 +38,10 @@ import {
   IMPLICIT_DOLLAR_CLOSURE,
   THROWAWAY_CAPTURE,
 } from './formatting.js';
+import {
+  USE_DYNAMIC_IDENTIFIER,
+  USE_UNTYPED_HOST_REF,
+} from './use-expressions.js';
 
 // ============================================================
 // RE-EXPORT INDIVIDUAL RULES
@@ -77,6 +81,10 @@ export {
   IMPLICIT_DOLLAR_CLOSURE,
   THROWAWAY_CAPTURE,
 } from './formatting.js';
+export {
+  USE_DYNAMIC_IDENTIFIER,
+  USE_UNTYPED_HOST_REF,
+} from './use-expressions.js';
 
 // ============================================================
 // RULE REGISTRY
@@ -137,4 +145,8 @@ export const VALIDATION_RULES: ValidationRule[] = [
   IMPLICIT_DOLLAR_FUNCTION,
   IMPLICIT_DOLLAR_CLOSURE,
   THROWAWAY_CAPTURE,
+
+  // UseExpr validation
+  USE_DYNAMIC_IDENTIFIER,
+  USE_UNTYPED_HOST_REF,
 ];

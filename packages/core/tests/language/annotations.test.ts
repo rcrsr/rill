@@ -1179,54 +1179,37 @@ describe('Rill Runtime: Annotations', () => {
   describe('ApplicationCallable and paramsToStructuralType edge cases', () => {
     describe('AC-23: $fn.^input on host function with defined params returns a closure structural type', () => {
       it('structural type params array matches registered param names (AC-23)', async () => {
-        const { context } = await runWithContext(`app::fn => $fn\ntrue`, {
-          functions: {
-            'app::fn': {
-              params: [
-                {
-                  name: 'name',
-                  type: { type: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-                {
-                  name: 'age',
-                  type: { type: 'number' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: () => null,
+        // Inject the callable directly as a variable to avoid bare-name invocation.
+        const hostFn: ApplicationCallable = {
+          __type: 'callable',
+          kind: 'application',
+          params: [
+            {
+              name: 'name',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
             },
-          },
-        });
-        const fn = context.variables.get('fn');
+            {
+              name: 'age',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: () => null,
+          isProperty: false,
+        };
         expect(
-          isScriptCallable(fn) ||
-            (fn !== null && typeof fn === 'object' && '__type' in fn)
+          isScriptCallable(hostFn) ||
+            (hostFn !== null &&
+              typeof hostFn === 'object' &&
+              '__type' in hostFn)
         ).toBe(true);
         // $fn.^input returns { type: 'closure', params: RillOrdered, ret: { type: 'any' } }
         // params is { __rill_ordered: true, entries: [['name', ...], ['age', ...]] }
-        const inputResult = await run(`app::fn => $fn\n$fn.^input`, {
-          functions: {
-            'app::fn': {
-              params: [
-                {
-                  name: 'name',
-                  type: { type: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-                {
-                  name: 'age',
-                  type: { type: 'number' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: () => null,
-            },
-          },
+        const inputResult = await run(`$fn.^input`, {
+          variables: { fn: hostFn },
         });
         const shape = inputResult as {
           type: string;
@@ -1263,35 +1246,25 @@ describe('Rill Runtime: Annotations', () => {
         // $fn.^input returns { type: 'closure', params: RillOrdered, ret: { type: 'any' } }
         // params is { __rill_ordered: true, entries: [['data', { type: 'string' }]] }
         // Access the structural type twice and verify both reads return the same closure structural type
-        const result1 = await run(`app::process => $fn\n$fn.^input`, {
-          functions: {
-            'app::process': {
-              params: [
-                {
-                  name: 'data',
-                  type: { type: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args[0],
+        const processCallable: ApplicationCallable = {
+          __type: 'callable',
+          kind: 'application',
+          params: [
+            {
+              name: 'data',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
             },
-          },
+          ],
+          fn: (args) => args[0],
+          isProperty: false,
+        };
+        const result1 = await run(`$fn.^input`, {
+          variables: { fn: processCallable },
         });
-        const result2 = await run(`app::process => $fn\n$fn.^input`, {
-          functions: {
-            'app::process': {
-              params: [
-                {
-                  name: 'data',
-                  type: { type: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args[0],
-            },
-          },
+        const result2 = await run(`$fn.^input`, {
+          variables: { fn: processCallable },
         });
         expect(result1).toEqual(result2);
         const shape = result1 as {
@@ -1311,13 +1284,15 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('AC-35: paramsToStructuralType() with empty params array returns closure with empty params', () => {
       it('zero-param host function ^input returns closure structural type with empty params (AC-35)', async () => {
-        const result = await run(`app::noop => $fn\n$fn.^input`, {
-          functions: {
-            'app::noop': {
-              params: [],
-              fn: () => null,
-            },
-          },
+        const noopCallable: ApplicationCallable = {
+          __type: 'callable',
+          kind: 'application',
+          params: [],
+          fn: () => null,
+          isProperty: false,
+        };
+        const result = await run(`$fn.^input`, {
+          variables: { fn: noopCallable },
         });
         const shape = result as {
           type: string;

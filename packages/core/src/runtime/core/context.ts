@@ -13,6 +13,7 @@ import type {
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
+  SchemeResolver,
 } from './types.js';
 import { bindDictCallables } from './types.js';
 import { inferType, type RillValue } from './values.js';
@@ -221,6 +222,15 @@ export function createRuntimeContext(
     }
   }
 
+  const resolvers = new Map<string, SchemeResolver>(
+    options.resolvers ? Object.entries(options.resolvers) : []
+  );
+  const resolverConfigs = new Map<string, unknown>(
+    options.configurations?.resolvers
+      ? Object.entries(options.configurations.resolvers)
+      : []
+  );
+
   return {
     parent: undefined,
     variables,
@@ -240,6 +250,10 @@ export function createRuntimeContext(
     callStack: [],
     metadata: options.metadata,
     immediateAnnotation: undefined,
+    resolvers,
+    resolverConfigs,
+    resolvingSchemes: new Set(),
+    parseSource: options.parseSource,
   };
 }
 
@@ -271,6 +285,10 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     callStack: parent.callStack,
     metadata: parent.metadata,
     immediateAnnotation: undefined,
+    resolvers: parent.resolvers,
+    resolverConfigs: parent.resolverConfigs,
+    resolvingSchemes: parent.resolvingSchemes,
+    parseSource: parent.parseSource,
   };
 }
 

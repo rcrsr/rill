@@ -364,7 +364,7 @@ $final -> ?(.contains("PASS")) {
 
 Reviews code against multiple criteria.
 
-```rill
+```text
 ---
 args: file: string
 ---
@@ -436,7 +436,7 @@ Deploy {$service} to staging.
 
 Retries an operation until success or max attempts. Use do-while since you always want at least one attempt:
 
-```rill
+```text
 ---
 args: operation: string
 ---
@@ -460,7 +460,7 @@ The do-while form eliminates the separate first-attempt code since the body alwa
 
 Captures mid-chain for debugging or later reference while data continues flowing.
 
-```rill
+```text
 ---
 args: file: string
 ---
@@ -537,7 +537,7 @@ $upper_all(list["hello", "world"])
 
 Extracts specific information from responses.
 
-```rill
+```text
 ---
 args: logfile: string
 ---

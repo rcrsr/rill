@@ -366,6 +366,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateCollectionLiteral(primary);
 
+        case 'UseExpr':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateUseExpr(primary);
+
         default:
           throw new RuntimeError(
             'RILL-R004',
@@ -688,6 +692,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'Convert':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateConvert(target, input);
+
+        case 'UseExpr':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateUseExpr(target);
 
         default:
           throw new RuntimeError(

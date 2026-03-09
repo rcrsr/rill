@@ -34,6 +34,7 @@ import type {
   TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
+  UseExprNode,
   VariableNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
@@ -108,6 +109,7 @@ declare module './parser.js' {
     ): PostfixExprNode;
     parseClosureSigLiteral(): ClosureSigLiteralNode;
     parseConvert(): ConvertNode;
+    parseUseExpr(): UseExprNode;
   }
 }
 
@@ -369,6 +371,18 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       const token = advance(this.state);
       terminator = { type: 'Return', span: token.span };
       break;
+    }
+
+    // Guard against removed -> export syntax
+    if (
+      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+      current(this.state).value === 'export'
+    ) {
+      throw new ParseError(
+        'RILL-P012',
+        'Syntax removed: -> export syntax removed; use last-expression result instead',
+        current(this.state).span.start
+      );
     }
 
     // -> always pipes/invokes, never captures
@@ -710,7 +724,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   // e.g. `list [` or `ordered [` — the lexer only emits compound tokens (LIST_LBRACKET etc.)
   // when there is NO whitespace. If whitespace separates them, we get IDENTIFIER + LBRACKET/LT.
   const COMPOUND_KEYWORDS_WITH_BRACKET = ['list', 'dict', 'tuple', 'ordered'];
-  const COMPOUND_KEYWORDS_WITH_ANGLE = ['destruct', 'slice'];
+  const COMPOUND_KEYWORDS_WITH_ANGLE = ['destruct', 'slice', 'use'];
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     const identValue = current(this.state).value;
     const nextTokType = peek(this.state, 1).type;
@@ -868,6 +882,11 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseTupleOrDict();
   }
 
+  // Use expression: use<identifier>
+  if (check(this.state, TOKEN_TYPES.USE_LANGLE)) {
+    return this.parseUseExpr();
+  }
+
   // Common constructs
   const common = this.parseCommonConstruct();
   if (common) return common;
@@ -926,6 +945,11 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   }
   if (check(this.state, TOKEN_TYPES.SLICE_LANGLE)) {
     return this.parseSlice();
+  }
+
+  // Use expression: use<identifier>
+  if (check(this.state, TOKEN_TYPES.USE_LANGLE)) {
+    return this.parseUseExpr();
   }
 
   // Collection operators

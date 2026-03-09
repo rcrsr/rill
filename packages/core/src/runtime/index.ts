@@ -29,9 +29,11 @@ export type {
   HostCallEvent,
   FunctionReturnEvent,
   ObservabilityCallbacks,
+  ResolverResult,
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
+  SchemeResolver,
   StepEndEvent,
   StepResult,
   StepStartEvent,
@@ -134,6 +136,12 @@ export {
   emitExtensionEvent,
   hoistExtension,
 } from './ext/extensions.js';
+
+// ============================================================
+// BUILT-IN RESOLVERS
+// ============================================================
+
+export { extResolver, moduleResolver } from './core/resolvers.js';
 
 // ============================================================
 // CONTEXT FACTORY

@@ -207,9 +207,9 @@ describe('Rill Runtime: Extension System', () => {
           },
         };
 
-        const prefixed = prefixFunctions('app', extension);
+        const prefixed = prefixFunctions('myapp', extension);
 
-        const result = await run('app::greet("World")', {
+        const result = await run('myapp::greet("World")', {
           functions: prefixed,
         });
 
@@ -962,14 +962,14 @@ describe('Rill Runtime: Extension System', () => {
           },
         };
 
-        const hoisted = hoistExtension('app', extension);
+        const hoisted = hoistExtension('myapp', extension);
 
         // Verify structure
         expect(hoisted.functions).toBeDefined();
         expect(hoisted.dispose).toBeDefined();
 
         // Verify functions are prefixed
-        expect(hoisted.functions['app::greet']).toBeDefined();
+        expect(hoisted.functions['myapp::greet']).toBeDefined();
         expect(
           hoisted.functions['greet' as keyof typeof hoisted.functions]
         ).toBeUndefined();
@@ -979,7 +979,7 @@ describe('Rill Runtime: Extension System', () => {
 
         // Verify can be used with createRuntimeContext
         createRuntimeContext({ functions: hoisted.functions });
-        const result = await run('app::greet("World")', {
+        const result = await run('myapp::greet("World")', {
           functions: hoisted.functions,
         });
         expect(result).toBe('Hello, World!');

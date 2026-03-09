@@ -88,6 +88,10 @@ export { execute, createRuntimeContext, createStepper, generateManifest };
 export type { RuntimeContext, RuntimeOptions, ExecutionResult };
 export type { ExecutionStepper, StepResult };
 
+// Resolvers
+export { moduleResolver, extResolver };
+export type { SchemeResolver, ResolverResult };
+
 // Callable types
 export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable };
 export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
@@ -589,17 +593,169 @@ const manifest = generateManifest(ctx);
 // Returns a rill file suitable for static analysis or LLM context
 ```
 
-The output format is a rill dict literal followed by `-> export`:
+The output format is a rill dict literal. The dict is the last expression and becomes the script's result value:
 
 ```text
 [
   "greet": |name: string|:string,
   "fetch": |url: string|:dict,
 ]
--> export
 ```
 
-An empty function map returns `[:]` followed by `-> export`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+
+---
+
+## SchemeResolver
+
+`SchemeResolver` is the function type for custom `use<scheme:...>` resource resolvers.
+
+```typescript
+type SchemeResolver = (
+  resource: string,
+  config?: unknown
+) => ResolverResult | Promise<ResolverResult>;
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `resource` | `string` | The resource path after the scheme prefix (e.g., `"myModule"` from `use<host:myModule>`) |
+| `config` | `unknown \| undefined` | Per-scheme configuration data from `RuntimeOptions.configurations` |
+
+**Returns:** `ResolverResult` or a promise that resolves to one. See [ResolverResult](#resolverresult) for variant shapes.
+
+```typescript
+import type { SchemeResolver } from '@rcrsr/rill';
+
+const myResolver: SchemeResolver = async (resource, config) => {
+  const source = await loadSource(resource);
+  return { kind: 'source', text: source };
+};
+```
+
+---
+
+## ResolverResult
+
+`ResolverResult` is the discriminated union returned by a `SchemeResolver`.
+
+```typescript
+type ResolverResult =
+  | { kind: 'value'; value: RillValue }
+  | { kind: 'source'; text: string };
+```
+
+| Variant | Fields | Description |
+|---------|--------|-------------|
+| `{ kind: 'value' }` | `value: RillValue` | Supplies a pre-built rill value (e.g., an extension dict) |
+| `{ kind: 'source' }` | `text: string` | Supplies rill source text to be parsed and executed |
+
+```typescript
+import type { ResolverResult, RillValue } from '@rcrsr/rill';
+
+// Return a pre-built value
+const valueResult: ResolverResult = {
+  kind: 'value',
+  value: { search: mySearchFn } as RillValue,
+};
+
+// Return source text for rill to parse
+const sourceResult: ResolverResult = {
+  kind: 'source',
+  text: `|x: string| x -> .upper`,
+};
+```
+
+---
+
+## moduleResolver
+
+`moduleResolver` is a built-in `SchemeResolver` that maps module identifiers to file paths and returns their source text.
+
+```typescript
+import { moduleResolver } from '@rcrsr/rill';
+```
+
+**Config shape:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `basePath` | `string` | No | Base directory for resolving relative file paths. Defaults to `process.cwd()` |
+| `[moduleId]` | `string` | Yes (at least one) | Maps a module identifier to a file path |
+
+**Error codes:**
+
+| Code | Trigger |
+|------|---------|
+| `RILL-R050` | Module identifier not found in config |
+| `RILL-R051` | File read failure (I/O error or missing file) |
+| `RILL-R059` | Config is missing or malformed |
+
+```typescript
+import { moduleResolver, createRuntimeContext } from '@rcrsr/rill';
+
+const ctx = createRuntimeContext({
+  resolvers: { host: moduleResolver },
+  configurations: {
+    resolvers: {
+      host: {
+        basePath: '/app/modules',
+        utils: 'utils.rill',
+        helpers: 'lib/helpers.rill',
+      },
+    },
+  },
+});
+
+// Scripts can now use: use<host:utils>
+```
+
+`moduleResolver` returns `{ kind: 'source', text: string }` after reading the target file. Paths are resolved relative to `basePath` when provided, otherwise relative to `process.cwd()`.
+
+---
+
+## extResolver
+
+`extResolver` is a built-in `SchemeResolver` that maps extension identifiers to pre-built rill values.
+
+```typescript
+import { extResolver } from '@rcrsr/rill';
+```
+
+**Config shape:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `[extensionId]` | `RillValue` | Yes (at least one) | Maps an extension identifier to its full rill value dict |
+
+**Member access:** A resource of `"qdrant.search"` returns only the `search` member from the `qdrant` extension dict. A resource of `"qdrant"` returns the full dict.
+
+**Error codes:**
+
+| Code | Trigger |
+|------|---------|
+| `RILL-R052` | Extension identifier not found in config |
+| `RILL-R053` | Member path not found within the extension dict |
+
+```typescript
+import { extResolver, createRuntimeContext } from '@rcrsr/rill';
+import { qdrantExtension } from './my-qdrant-ext';
+
+const ctx = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: {
+      ext: {
+        qdrant: qdrantExtension,
+      },
+    },
+  },
+});
+
+// Scripts can now use: use<ext:qdrant> or use<ext:qdrant.search>
+```
+
+`extResolver` returns `{ kind: 'value', value: RillValue }`.
 
 ---
 

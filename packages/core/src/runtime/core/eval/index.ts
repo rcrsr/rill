@@ -104,6 +104,9 @@ export function assertType(
     annotationStack: [],
     callStack: [],
     immediateAnnotation: undefined,
+    resolvers: new Map(),
+    resolverConfigs: new Map(),
+    resolvingSchemes: new Set(),
   };
 
   const evaluator = getEvaluator(minimalContext);

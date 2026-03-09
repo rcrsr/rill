@@ -114,6 +114,7 @@ import { ExpressionsMixin } from './mixins/expressions.js';
 import { TypesMixin } from './mixins/types.js';
 import { AnnotationsMixin } from './mixins/annotations.js';
 import { ConversionMixin } from './mixins/conversion.js';
+import { UseMixin } from './mixins/use.js';
 import type { RuntimeContext } from '../types.js';
 
 /**
@@ -128,11 +129,13 @@ export const Evaluator = AnnotationsMixin(
     ExpressionsMixin(
       ClosuresMixin(
         ConversionMixin(
-          ControlFlowMixin(
-            ExtractionMixin(
-              ListDispatchMixin(
-                CollectionsMixin(
-                  VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+          UseMixin(
+            ControlFlowMixin(
+              ExtractionMixin(
+                ListDispatchMixin(
+                  CollectionsMixin(
+                    VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+                  )
                 )
               )
             )

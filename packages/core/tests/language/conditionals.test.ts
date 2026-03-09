@@ -217,7 +217,14 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handle: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `handled:${args[0]}`,
             },
           },
@@ -232,7 +239,14 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             process: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -243,11 +257,18 @@ describe('Rill Runtime: Conditionals', () => {
 
     it('passes $ implicitly to namespaced function in then branch', async () => {
       const result = await run(
-        '"ERROR" -> .contains("ERROR") ? app::error ! "ok"',
+        '"ERROR" -> .contains("ERROR") ? flagError ! "ok"',
         {
           functions: {
-            'app::error': {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            flagError: {
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `error:${args[0]}`,
             },
           },
@@ -258,11 +279,18 @@ describe('Rill Runtime: Conditionals', () => {
 
     it('passes $ implicitly to namespaced function in else branch', async () => {
       const result = await run(
-        '"OK" -> .contains("ERROR") ? "error" ! app::process',
+        '"OK" -> .contains("ERROR") ? "error" ! processMsg',
         {
           functions: {
-            'app::process': {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            processMsg: {
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -273,15 +301,29 @@ describe('Rill Runtime: Conditionals', () => {
 
     it('passes $ to both branches when both are bare functions', async () => {
       const result = await run(
-        '"ERROR data" -> .contains("ERROR") ? app::error ! app::process',
+        '"ERROR data" -> .contains("ERROR") ? flagError ! processMsg',
         {
           functions: {
-            'app::error': {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            flagError: {
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `error:${args[0]}`,
             },
-            'app::process': {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            processMsg: {
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -296,15 +338,36 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handleError: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `error:${args[0]}`,
             },
             handleWarn: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `warn:${args[0]}`,
             },
             handleInfo: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `info:${args[0]}`,
             },
           },

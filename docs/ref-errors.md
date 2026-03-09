@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R054 - RILL-R055)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -817,6 +817,42 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 # Script with only a comment (no pipe value)
 # This script produces nothing
 # Error: RILL-R043: Non-producing body
+```
+
+---
+
+### rill-r054
+
+**Description:** No resolver registered for scheme
+
+**Cause:** A `use<scheme:path>` expression references a scheme that has no registered resolver in the host runtime.
+
+**Resolution:** Register a resolver for the scheme via the host API before executing scripts that use it. See [Host Integration](integration-host.md) for resolver registration details.
+
+**Example:**
+
+```text
+# No resolver registered for "db" scheme
+use<db:users>
+# Error: RILL-R054: No resolver registered for scheme 'db'
+```
+
+---
+
+### rill-r055
+
+**Description:** Circular resolution detected
+
+**Cause:** A module resolution chain forms a cycle. Module A resolves to module B, which directly or indirectly resolves back to module A.
+
+**Resolution:** Break the cycle by restructuring module dependencies. Extract shared logic into a third module that neither circular participant imports. See [Modules](integration-modules.md) for module design patterns.
+
+**Example:**
+
+```text
+# module-a imports module-b, module-b imports module-a
+use<app:module-a>
+# Error: RILL-R055: Circular resolution detected: app:module-a is already being resolved
 ```
 
 ---

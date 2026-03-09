@@ -7,7 +7,6 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as yaml from 'yaml';
 import { parse } from '@rcrsr/rill';
 import { execute, createRuntimeContext } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
@@ -57,43 +56,14 @@ export async function loadModule(
     const source = await fs.readFile(absolutePath, 'utf-8');
     const ast = parse(source);
 
-    // Extract frontmatter (yaml.parse returns null for empty content)
-    const frontmatter: Record<string, unknown> = ast.frontmatter
-      ? ((yaml.parse(ast.frontmatter.content) as Record<
-          string,
-          unknown
-        > | null) ?? {})
-      : {};
-
-    // Resolve dependencies first
-    const imports: Record<string, RillValue> = {};
-    if (frontmatter['use'] && Array.isArray(frontmatter['use'])) {
-      for (const entry of frontmatter['use']) {
-        if (typeof entry === 'object' && entry !== null) {
-          const [name, depPath] = Object.entries(entry)[0] as [string, string];
-          imports[name] = await loadModule(depPath, absolutePath, cache, chain);
-        }
-      }
-    }
-
-    // Execute module with dependencies
-    const ctx = createRuntimeContext({ variables: imports });
+    // Execute module
+    const ctx = createRuntimeContext({});
     await execute(ast, ctx);
 
-    // Extract exports from context variables
-    const exports: Record<string, RillValue> = {};
-    const exportList: unknown = frontmatter['export'];
-    if (Array.isArray(exportList)) {
-      for (const name of exportList) {
-        if (typeof name === 'string' && ctx.variables.has(name)) {
-          exports[name] = ctx.variables.get(name)!;
-        }
-      }
-    }
-
-    // Cache and return
-    cache.set(absolutePath, exports);
-    return exports;
+    // Cache and return (module result is the final expression value)
+    const result = ctx.pipeValue !== null ? { '': ctx.pipeValue } : {};
+    cache.set(absolutePath, result);
+    return result;
   } finally {
     // Remove from chain after processing
     chain.delete(absolutePath);

@@ -13,6 +13,8 @@ import {
   getHelpUrl,
   VERSION,
   type ScriptNode,
+  type SchemeResolver,
+  type RuntimeOptions,
 } from '@rcrsr/rill';
 import { EXECUTION_TIMEOUT_MS } from './constants.js';
 
@@ -60,9 +62,58 @@ export interface ExecutionState {
   logs: string[];
 }
 
+/**
+ * Resolver configuration for Fiddle execution.
+ *
+ * Permits "ext" and "host" schemes. Must NOT include "module" —
+ * Fiddle is a single-file environment with no module resolver.
+ */
+export interface FiddleResolverConfig {
+  /** Scheme-to-resolver map (e.g. "ext", "host") */
+  resolvers: Record<string, SchemeResolver>;
+  /** Per-scheme configuration data passed to each resolver */
+  configurations: { resolvers: Record<string, unknown> };
+}
+
 // ============================================================
 // EXECUTION
 // ============================================================
+
+/**
+ * Build RuntimeOptions for Fiddle execution.
+ *
+ * Always includes callbacks.onLog and timeout from EXECUTION_TIMEOUT_MS.
+ * Merges resolvers and configurations from resolverConfig when provided.
+ * When resolverConfig is undefined, returns options identical to pre-use<> behavior.
+ * Sets checkerMode: 'permissive'.
+ *
+ * @param logs - Mutable array that onLog appends to
+ * @param resolverConfig - Optional resolver wiring; omit for pre-use<> behavior
+ */
+export function buildFiddleRuntimeOptions(
+  logs: string[],
+  resolverConfig?: FiddleResolverConfig
+): RuntimeOptions {
+  const base: RuntimeOptions = {
+    callbacks: {
+      onLog: (value: string) => {
+        logs.push(value);
+      },
+    },
+    timeout: EXECUTION_TIMEOUT_MS,
+    checkerMode: 'permissive',
+  };
+
+  if (resolverConfig === undefined) {
+    return base;
+  }
+
+  return {
+    ...base,
+    resolvers: resolverConfig.resolvers,
+    configurations: resolverConfig.configurations,
+  };
+}
 
 /**
  * Execute Rill source code and return structured result.
@@ -70,9 +121,13 @@ export interface ExecutionState {
  * Pipeline: parse() → createRuntimeContext() → execute()
  *
  * @param source - Rill source code to execute
+ * @param resolverConfig - Optional resolver wiring for use<> expressions
  * @returns ExecutionState with result or error
  */
-export async function executeRill(source: string): Promise<ExecutionState> {
+export async function executeRill(
+  source: string,
+  resolverConfig?: FiddleResolverConfig
+): Promise<ExecutionState> {
   // EC-5: Empty source returns idle status
   if (!source.trim()) {
     return {
@@ -91,15 +146,10 @@ export async function executeRill(source: string): Promise<ExecutionState> {
     // Parse source via @rcrsr/rill
     const ast: ScriptNode = parse(source);
 
-    // Create runtime context with log capture and timeout
-    const ctx = createRuntimeContext({
-      callbacks: {
-        onLog: (value: string) => {
-          logs.push(value);
-        },
-      },
-      timeout: EXECUTION_TIMEOUT_MS,
-    });
+    // Create runtime context with log capture, timeout, and optional resolvers
+    const ctx = createRuntimeContext(
+      buildFiddleRuntimeOptions(logs, resolverConfig)
+    );
 
     // Execute AST
     const executionResult = await execute(ast, ctx);

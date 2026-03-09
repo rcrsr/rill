@@ -46,6 +46,7 @@ const COMPOUND_KEYWORD_MAP: Record<
   ordered: { bracket: '[', tokenType: TOKEN_TYPES.ORDERED_LBRACKET },
   destruct: { bracket: '<', tokenType: TOKEN_TYPES.DESTRUCT_LANGLE },
   slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
+  use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },
 };
 
 /** Returns true when the identifier is one of the six collection keywords. */

@@ -158,6 +158,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
   // Collect namespaced name: ident or ident::ident::...
   // Accept keywords as identifiers (e.g., error(...) for custom functions)
+  const firstToken = current(this.state);
   let name = advance(this.state).value;
   while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
     advance(this.state); // consume ::
@@ -175,6 +176,15 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
     name += '::' + token.value;
     advance(this.state); // consume the identifier or keyword
+  }
+
+  // AC-13: app:: syntax was removed; use use<host:...> instead
+  if (name === 'app' || name.startsWith('app::')) {
+    throw new ParseError(
+      'RILL-P012',
+      'Syntax removed: app:: direct-call syntax removed; use use<host:...>',
+      firstToken.span.start
+    );
   }
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');

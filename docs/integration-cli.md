@@ -30,16 +30,11 @@ Use `-` to read a script from standard input:
 echo 'log("hello")' | rill-exec -
 ```
 
-### Frontmatter Modules
+### Module Loading
 
-Scripts with `use:` frontmatter load modules before execution:
+The `module` scheme (`use<module:...>`) is not yet wired in the CLI. Scripts that use `use<module:name>` will fail at runtime with error RILL-R054 (unregistered scheme). Module loading is planned for a future release.
 
-```text
-use:
-  - utils: ./lib/utils.rill
-
-$utils.helper("input")
-```
+See [Modules](integration-modules.md) for the full module system documentation.
 
 ### Exit Codes
 

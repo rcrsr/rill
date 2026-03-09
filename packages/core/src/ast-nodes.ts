@@ -250,7 +250,8 @@ export type PrimaryNode =
   | TypeCheckNode
   | TypeNameExprNode
   | TypeConstructorNode
-  | ClosureSigLiteralNode;
+  | ClosureSigLiteralNode
+  | UseExprNode;
 
 export type PipeTargetNode =
   | HostCallNode
@@ -281,7 +282,8 @@ export type PipeTargetNode =
   | AnnotationAccessNode
   | ConvertNode
   | DestructNode
-  | ListLiteralNode;
+  | ListLiteralNode
+  | UseExprNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -1004,6 +1006,34 @@ export interface ConvertNode extends BaseNode {
   readonly typeRef: TypeRef | TypeConstructorNode;
 }
 
+/**
+ * Discriminated union for the identifier in a use expression.
+ * - 'static': scheme:seg1.seg2 — parsed at parse time into scheme and segments
+ * - 'variable': $varName — resolved to string at runtime
+ * - 'computed': (pipeChain) — expression resolved to string at runtime
+ *
+ * static.segments contains at minimum 1 element.
+ */
+export type UseIdentifier =
+  | { kind: 'static'; scheme: string; segments: string[] }
+  | { kind: 'variable'; name: string }
+  | { kind: 'computed'; expression: ExpressionNode };
+
+/**
+ * Use expression: use<identifier> or use<identifier>:TypeRef
+ * Resolves a module or resource identifier at runtime.
+ *
+ * Examples:
+ *   use<scheme:path.to.module>
+ *   use<$moduleVar>
+ *   use<(computedExpr)>:TypeName
+ */
+export interface UseExprNode extends BaseNode {
+  readonly type: 'UseExpr';
+  readonly identifier: UseIdentifier;
+  readonly typeRef: TypeRef | null;
+}
+
 export type SimplePrimaryNode =
   | LiteralNode
   | VariableNode
@@ -1079,4 +1109,5 @@ export type ASTNode =
   | TupleLiteralNode
   | OrderedLiteralNode
   | DestructNode
-  | ConvertNode;
+  | ConvertNode
+  | UseExprNode;

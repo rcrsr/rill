@@ -65,4 +65,5 @@ export type NodeType =
   | 'TupleLiteral'
   | 'OrderedLiteral'
   | 'Destruct'
-  | 'Convert';
+  | 'Convert'
+  | 'UseExpr';

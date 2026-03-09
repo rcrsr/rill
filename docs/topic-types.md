@@ -387,7 +387,7 @@ Vectors represent dense numeric embeddings from language models or other ML syst
 
 **Display format:** `vector(model, Nd)` where `model` is the source model name and `N` is the dimension count.
 
-```rill
+```text
 app::embed("hello world") => $vec
 $vec -> .model
 # Result: "mock-embed"
@@ -400,7 +400,7 @@ $vec -> .model
 | `.dimensions` | number | Number of dimensions in the vector |
 | `.model` | string | Source model name |
 
-```rill
+```text
 app::embed("hello world") => $vec
 $vec -> .dimensions
 # Result: 3
@@ -419,7 +419,7 @@ $vec -> .model
 | `.norm()` | number | L2 magnitude |
 | `.normalize()` | vector | Unit vector (preserves model) |
 
-```rill
+```text
 app::embed("hello") => $a
 app::embed("hi") => $b
 $a -> .similarity($b)
@@ -442,7 +442,7 @@ $a -> .normalize -> .norm
 
 Vectors support equality comparison (`==`, `!=`). Two vectors are equal when both model and all float elements match:
 
-```rill
+```text
 app::embed("test") => $v1
 app::embed("test") => $v2
 $v1 == $v2
@@ -451,7 +451,7 @@ $v1 == $v2
 
 Vectors from different models are never equal, even with identical data:
 
-```rill
+```text
 # Different models
 app::embed("test", "model-a") => $v1
 app::embed("test", "model-b") => $v2

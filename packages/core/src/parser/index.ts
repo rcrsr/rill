@@ -18,6 +18,7 @@ import './parser-functions.js';
 import './parser-collect.js';
 import './parser-extract.js';
 import './parser-shape.js';
+import './parser-use.js';
 
 // ============================================================
 // MAIN ENTRY POINT

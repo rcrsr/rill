@@ -270,11 +270,11 @@ export function generateManifest(ctx: RuntimeContext): string {
   }
 
   if (entries.length === 0) {
-    return '[:]\n-> export';
+    return '[:]';
   }
 
   const dictBody = entries.join(',\n');
-  return `[\n${dictBody}\n]\n-> export`;
+  return `[\n${dictBody}\n]`;
 }
 
 /**

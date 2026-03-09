@@ -11,8 +11,8 @@
  * - AC-32: generateManifest() returns string, does not write to disk
  * - AC-33: Returned string parses as valid rill file
  * - AC-34: Manifest entries are closure type declarations (no body)
- * - AC-35: Generated manifest ends with -> export
- * - AC-36: -> export executes as no-op without error
+ * - AC-35: Generated manifest does not end with -> export
+ * - AC-36: Manifest is a valid rill file without -> export
  *
  * FR-HTR-13:
  * - AC-38: Manifest with annotated descriptions contains names, types, descriptions
@@ -24,7 +24,7 @@
  *
  * Boundary conditions:
  * - AC-59: Zero-param function has empty param list in manifest
- * - AC-60: Empty function map produces [:]  -> export (EC-6)
+ * - AC-60: Empty function map produces [:] (EC-6)
  * - AC-61: type: { type: 'any' } serializes as 'any' in manifest
  * - AC-62: dict param with no fields serializes as 'dict'
  *
@@ -75,8 +75,8 @@ describe('Rill Runtime: Manifest Generation', () => {
     });
   });
 
-  describe('AC-35 / AC-36: Manifest ends with -> export and executes as no-op', () => {
-    it('manifest string ends with -> export', () => {
+  describe('AC-35 / AC-36: Manifest does not end with -> export', () => {
+    it('manifest string does not end with -> export', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -93,18 +93,18 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest.trimEnd()).toMatch(/-> export$/);
+      expect(manifest.trimEnd()).not.toMatch(/-> export$/);
     });
 
-    it('empty manifest also ends with -> export', () => {
+    it('empty manifest does not end with -> export', () => {
       const ctx = createRuntimeContext({});
       // Clear all functions so manifest generates empty dict
       ctx.functions.clear();
       const manifest = generateManifest(ctx);
-      expect(manifest.trimEnd()).toMatch(/-> export$/);
+      expect(manifest.trimEnd()).not.toMatch(/-> export$/);
     });
 
-    it('manifest file ends with -> export (AC-36)', () => {
+    it('manifest file is valid rill without -> export (AC-36)', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -121,26 +121,23 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest.trimEnd()).toMatch(/-> export$/);
+      expect(manifest.trimEnd()).not.toMatch(/-> export$/);
     });
   });
 
-  describe('AC-60 / EC-6: Empty function map generates [:] -> export', () => {
-    it('returns [:]\\n-> export for empty function map', () => {
+  describe('AC-60 / EC-6: Empty function map generates [:]', () => {
+    it('returns [:] for empty function map', () => {
       const ctx = createRuntimeContext({});
       ctx.functions.clear();
       const manifest = generateManifest(ctx);
-      expect(manifest).toBe('[:]\n-> export');
+      expect(manifest).toBe('[:]');
     });
 
     it('empty manifest is a valid rill file', async () => {
       const ctx = createRuntimeContext({});
       ctx.functions.clear();
       const manifest = generateManifest(ctx);
-      // Manifest ends with -> export; provide export as no-op so execution succeeds
-      await expect(
-        run(manifest, { functions: { export: { params: [], fn: () => null } } })
-      ).resolves.not.toThrow();
+      await expect(run(manifest)).resolves.not.toThrow();
     });
   });
 
@@ -375,7 +372,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).toContain('||');
     });
 
-    it('zero-param manifest contains the function name and ends with -> export', () => {
+    it('zero-param manifest contains the function name', () => {
       const ctx = createRuntimeContext({
         functions: {
           ping: {
@@ -386,7 +383,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('"ping"');
-      expect(manifest.trimEnd()).toMatch(/-> export$/);
+      expect(manifest.trimEnd()).not.toMatch(/-> export$/);
     });
   });
 
