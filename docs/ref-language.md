@@ -308,8 +308,6 @@ Terminal closures receive `$` bound to the final path key.
 
 | Method | Input | Output | Description |
 |--------|-------|--------|-------------|
-| `.str` | Any | String | Convert to string |
-| `.num` | Any | Number | Convert to number |
 | `.len` | Any | Number | Length |
 | `.trim` | String | String | Remove whitespace |
 | `.head` | String/List | Any | First element |

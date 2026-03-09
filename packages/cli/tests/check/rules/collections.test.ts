@@ -263,14 +263,12 @@ describe('METHOD_SHORTHAND', () => {
     expect(messages[0]).toContain('{ $.upper() }');
   });
 
-  it('suggests shorthand for each with block wrapping method', () => {
+  it('does not flag type conversion operator in each block', () => {
     const source = `
-      list[1, 2, 3] -> each { $.str() }
+      list[1, 2, 3] -> each { $ -> :>string }
     `;
-    expect(hasViolations(source, rule)).toBe(true);
-
-    const messages = getDiagnostics(source, rule);
-    expect(messages[0]).toContain("Prefer method shorthand '.str'");
+    // :>string is a type conversion operator, not a method call; rule does not fire
+    expect(hasViolations(source, rule)).toBe(false);
   });
 
   it('suggests shorthand for filter with block wrapping method', () => {

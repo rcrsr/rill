@@ -441,18 +441,18 @@ describe('Rill Language: Type Value Expressions', () => {
   // ============================================================
 
   describe('Type value formatting', () => {
-    it('type value formats as structural type string via .str', async () => {
-      const result = await run('"hello".^type.str');
+    it('type value formats as structural type string via .signature', async () => {
+      const result = await run('"hello".^type.signature');
       expect(result).toBe('string');
     });
 
     it('type value formats as structural type string for number', async () => {
-      const result = await run('42.^type.str');
+      const result = await run('42.^type.signature');
       expect(result).toBe('number');
     });
 
     it('type value formats as structural type string for bool', async () => {
-      const result = await run('true.^type.str');
+      const result = await run('true.^type.signature');
       expect(result).toBe('bool');
     });
 

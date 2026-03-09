@@ -469,15 +469,23 @@ Both forms work as pipe targets:
     ordered[a: 1] -> :>dict              # dict[a: 1]
     dict[x: 1, y: 2] -> :>ordered(x: number, y: number)  # structural
 
-Compatibility matrix (unlisted pairs error with RILL-R036):
+Compatibility matrix (error = halts with RILL-R036, no-op = same-type identity):
 
-    number  -> :>string                   # always valid
-    string  -> :>number                   # valid if parseable, else RILL-R038
-    list   <-> :>tuple                    # bidirectional
-    dict    -> :>ordered(sig)             # requires structural signature
-    ordered -> :>dict                     # always valid
+    Source   | :>list  | :>dict  | :>tuple | :>ordered(sig) | :>number | :>string | :>bool
+    ---------|---------|---------|---------|----------------|----------|----------|-------
+    list     | no-op   | error   | valid   | error          | error    | valid¹   | error
+    dict     | error   | no-op   | error   | valid          | error    | valid¹   | error
+    tuple    | valid   | error   | no-op   | error          | error    | valid¹   | error
+    ordered  | error   | valid   | error   | no-op          | error    | valid¹   | error
+    string   | error   | error   | error   | error          | valid²   | no-op    | valid³
+    number   | error   | error   | error   | error          | no-op    | valid¹   | valid⁵
+    bool     | error   | error   | error   | error          | valid⁴   | valid¹   | no-op
 
-Same-type conversions are no-ops. No bool conversions exist.
+    ¹ Uses formatValue semantics for formatted output
+    ² Parseable strings only; halts with RILL-R038 on failure
+    ³ Accepts only "true" and "false"; halts with RILL-R036 otherwise
+    ⁴ true maps to 1, false maps to 0
+    ⁵ 0 maps to false, 1 maps to true; all other values halt with RILL-R036
 
 ## Comparison Methods
 
@@ -541,8 +549,6 @@ Slice (`slice<start:stop:step>`):
 | `.trim` | remove whitespace |
 | `.upper` | uppercase |
 | `.lower` | lowercase |
-| `.str` | convert to string |
-| `.num` | parse to number |
 | `.head` | first character |
 | `.tail` | last character |
 | `.at(i)` | character at index |

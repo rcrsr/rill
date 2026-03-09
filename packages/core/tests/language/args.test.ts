@@ -446,9 +446,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
   });
 
-  describe('.str method on ordered spread', () => {
+  describe(':>string on ordered spread', () => {
     it('includes named keys in string', async () => {
-      const result = await run('ordered[x: 1, y: 2] -> .str');
+      const result = await run('ordered[x: 1, y: 2] -> :>string');
       expect(result).toContain('x');
       expect(result).toContain('y');
     });

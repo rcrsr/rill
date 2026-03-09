@@ -471,7 +471,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     it('works in pipe chains', async () => {
-      expect(await run('list[1, 2, 3] -> .has(2) -> .str')).toBe('true');
+      expect(await run('list[1, 2, 3] -> .has(2) -> :>string')).toBe('true');
     });
 
     it('works with captured variables', async () => {

@@ -137,7 +137,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects wrong type in middle of chain', async () => {
-      const script = `42 => $s:string -> .str`;
+      const script = `42 => $s:string -> :>string`;
       await expect(run(script)).rejects.toThrow();
     });
   });

@@ -916,7 +916,7 @@ $value :? string ? ($value -> .upper) ! $value
 
 # Validate before conversion
 "42" => $input
-$input -> .is_match("^[0-9]+$") ? (.num) ! 0
+$input -> .is_match("^-?[0-9]+(\\.[0-9]+)?$") ? ($input -> :>number) ! 0
 ```
 
 ### Default Values
@@ -952,7 +952,7 @@ $items :? list ? ($items -> .len) ! 0
 
 # Convert with validation
 "42" => $value
-$value -> .str -> .is_match("^[0-9]+$") ? (.num:number) ! 0
+$value -> .is_match("^-?[0-9]+(\\.[0-9]+)?$") ? ($value -> :>number) ! 0
 ```
 
 ---

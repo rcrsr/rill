@@ -272,22 +272,6 @@ function createComparisonMethod(
 }
 
 export const BUILTIN_METHODS: Record<string, RillMethod> = {
-  // === Conversion methods ===
-
-  /** Convert value to string */
-  str: (receiver) => formatValue(receiver),
-
-  /** Convert value to number */
-  num: (receiver) => {
-    if (typeof receiver === 'number') return receiver;
-    if (typeof receiver === 'string') {
-      const n = parseFloat(receiver);
-      if (!isNaN(n)) return n;
-    }
-    if (typeof receiver === 'boolean') return receiver ? 1 : 0;
-    return 0;
-  },
-
   /** Get length of string or array */
   len: (receiver) => {
     if (typeof receiver === 'string') return receiver.length;

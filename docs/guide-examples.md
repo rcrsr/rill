@@ -598,7 +598,7 @@ $m -> .empty -> ? {
   error "Could not parse item count"
 }
 
-$m.groups[0] -> .num => $count
+$m.groups[0] -> :>number => $count
 
 # Calculate batches: ceil(count / 10)
 (($count + 9) / 10) => $batches

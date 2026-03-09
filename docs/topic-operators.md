@@ -681,10 +681,10 @@ Structural checks are also supported. These match element and field types:
 42 -> ^type                      # number
 ```
 
-The type value formats as a structural string via `.str` or string interpolation:
+The type value formats as a structural string via `:>string` or string interpolation:
 
 ```text
-[1, 2, 3] -> ^type -> .str       # "list(number)"
+[1, 2, 3] -> ^type -> :>string   # "list(number)"
 "hello {[1,2,3] -> ^type}"       # "hello list(number)"
 ```
 
@@ -696,6 +696,26 @@ To get the type name only, chain `.name` on the type value:
 ```
 
 See [Types](topic-types.md) for detailed type system documentation.
+
+### Conversion Operator :>type
+
+The `:>type` operator converts a value to the target type. Same-type conversions are no-ops. Incompatible conversions halt with `RILL-R036`.
+
+| Source | `:>list` | `:>dict` | `:>tuple` | `:>ordered(sig)` | `:>number` | `:>string` | `:>bool` |
+|---------|--------|--------|---------|----------------|----------|----------|--------|
+| `list`    | no-op  | error  | valid   | error          | error    | valid¹   | error  |
+| `dict`    | error  | no-op  | error   | valid          | error    | valid¹   | error  |
+| `tuple`   | valid  | error  | no-op   | error          | error    | valid¹   | error  |
+| `ordered` | error  | valid  | error   | no-op          | error    | valid¹   | error  |
+| `string`  | error  | error  | error   | error          | valid²   | no-op    | valid³ |
+| `number`  | error  | error  | error   | error          | no-op    | valid¹   | valid⁵ |
+| `bool`    | error  | error  | error   | error          | valid⁴   | valid¹   | no-op  |
+
+¹ Uses `formatValue` semantics for formatted output.
+² Parseable strings only; halts with `RILL-R038` on failure.
+³ Accepts only `"true"` and `"false"`; halts with `RILL-R036` otherwise.
+⁴ `true` maps to `1`, `false` maps to `0`.
+⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
 ---
 

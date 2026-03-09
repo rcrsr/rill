@@ -18,12 +18,6 @@ const double = {
   },
 };
 
-const add = (args: RillValue[]): number => {
-  const a = args[0];
-  const b = args[1];
-  return (typeof a === 'number' ? a : 0) + (typeof b === 'number' ? b : 0);
-};
-
 describe('Rill Runtime: Collection Operators', () => {
   describe('each - Sequential Iteration', () => {
     it('iterates with inline closure', async () => {
@@ -311,13 +305,13 @@ describe('Rill Runtime: Collection Operators', () => {
     });
 
     describe('all collection operators', () => {
-      it('each .method', async () => {
-        const result = await run('list[1, 2, 3] -> each .str');
+      it('each :>string', async () => {
+        const result = await run('list[1, 2, 3] -> each { $ -> :>string }');
         expect(result).toEqual(['1', '2', '3']);
       });
 
-      it('map .method', async () => {
-        const result = await run('list[1, 2, 3] -> map .str');
+      it('map :>string', async () => {
+        const result = await run('list[1, 2, 3] -> map { $ -> :>string }');
         expect(result).toEqual(['1', '2', '3']);
       });
 

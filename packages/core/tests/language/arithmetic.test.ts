@@ -124,7 +124,7 @@ describe('Rill Runtime: Arithmetic', () => {
     });
 
     it('uses result in method call', async () => {
-      expect(await run('(5 + 5) -> .str')).toBe('10');
+      expect(await run('(5 + 5) -> :>string')).toBe('10');
     });
   });
 

@@ -31,8 +31,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('list');
     });
 
-    it('[].^type.str returns "list(any)"', async () => {
-      const result = await run('list[].^type.str');
+    it('[].^type.signature returns "list(any)"', async () => {
+      const result = await run('list[].^type.signature');
       expect(result).toBe('list(any)');
     });
   });
@@ -52,8 +52,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('dict');
     });
 
-    it('[:].^type.str returns "dict()"', async () => {
-      const result = await run('dict[].^type.str');
+    it('[:].^type.signature returns "dict()"', async () => {
+      const result = await run('dict[].^type.signature');
       expect(result).toBe('dict()');
     });
   });
@@ -79,8 +79,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('ordered');
     });
 
-    it('ordered[].^type.str returns "ordered()"', async () => {
-      const result = await run('ordered[].^type.str');
+    it('ordered[].^type.signature returns "ordered()"', async () => {
+      const result = await run('ordered[].^type.signature');
       expect(result).toBe('ordered()');
     });
     // Note: ordered() with empty fields still formats as ordered() since fields array is present (empty)
@@ -96,8 +96,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[1].^type.str returns "list(number)"', async () => {
-      const result = await run('list[1].^type.str');
+    it('[1].^type.signature returns "list(number)"', async () => {
+      const result = await run('list[1].^type.signature');
       expect(result).toBe('list(number)');
     });
 
@@ -124,8 +124,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[a: [x: 1]].^type.str returns "dict(a: dict(x: number))"', async () => {
-      const result = await run('dict[a: dict[x: 1]].^type.str');
+    it('[a: [x: 1]].^type.signature returns "dict(a: dict(x: number))"', async () => {
+      const result = await run('dict[a: dict[x: 1]].^type.signature');
       expect(result).toBe('dict(a: dict(x: number))');
     });
   });
@@ -142,8 +142,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('[[1, 2], [3, 4]].^type.str returns "list(list(number))"', async () => {
-      const result = await run('list[list[1, 2], list[3, 4]].^type.str');
+    it('[[1, 2], [3, 4]].^type.signature returns "list(list(number))"', async () => {
+      const result = await run('list[list[1, 2], list[3, 4]].^type.signature');
       expect(result).toBe('list(list(number))');
     });
   });
@@ -192,8 +192,8 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
 
   describe('Dict field sort order in structural type', () => {
-    it('[b: 2, a: 1].^type.str returns "dict(a: number, b: number)" (sorted)', async () => {
-      const result = await run('dict[b: 2, a: 1].^type.str');
+    it('[b: 2, a: 1].^type.signature returns "dict(a: number, b: number)" (sorted)', async () => {
+      const result = await run('dict[b: 2, a: 1].^type.signature');
       expect(result).toBe('dict(a: number, b: number)');
     });
 

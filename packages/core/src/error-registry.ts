@@ -492,8 +492,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Ensure value has valid format for target type. For string-to-number: check numeric format. For parse operations: validate input structure.',
     examples: [
       {
-        description: 'Invalid number string',
-        code: '"abc" -> .num()  # Not a valid number',
+        description: 'Type mismatch in function argument',
+        code: 'range("ten", 20)  # range expects number, got string',
       },
       {
         description: 'Cannot serialize closure',
@@ -1055,9 +1055,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The :> operator does not support conversion between the given source and target types.',
+      'The :> operator does not support conversion between the given source and target types. Accepted sources for :>number are string and bool; accepted sources for :>string are number and bool.',
     resolution:
-      'Check the type conversion compatibility matrix. Not all combinations are valid (e.g. string :>list is not allowed).',
+      'Check the type conversion compatibility matrix. String and bool are accepted by :>number. Number and bool are accepted by :>string. Types not in the matrix (e.g. list, dict, closure) cannot be converted.',
     examples: [
       {
         description: 'String to list conversion',

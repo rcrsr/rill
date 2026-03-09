@@ -116,7 +116,7 @@ Error if type doesn't match, returns value unchanged:
 # Postfix form (binds tighter than method calls)
 42:number                     # passes, returns 42
 (1 + 2):number                # passes, returns 3
-42:number.str                 # "42" - assertion then method
+42:number -> :>string         # "42" - assertion then conversion
 
 # Pipe target form
 "hello" -> :string            # passes, returns "hello"

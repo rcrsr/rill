@@ -123,7 +123,7 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('assertion fails and stops chain', async () => {
-      await expect(run('42 -> :string -> .str')).rejects.toThrow();
+      await expect(run('42 -> :string -> :>string')).rejects.toThrow();
     });
 
     it('multiple type assertions in chain', async () => {

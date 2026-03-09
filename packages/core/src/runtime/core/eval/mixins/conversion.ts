@@ -8,15 +8,15 @@
  * - evaluateConvert(value, node) -> Promise<RillValue>
  *
  * Compatibility matrix:
- * | Source  | :>list | :>dict | :>tuple | :>ordered(sig) | :>number | :>string | :>bool |
- * |---------|--------|--------|---------|----------------|----------|----------|--------|
- * | list    | no-op  | error  | valid   | error          | error    | error    | error  |
- * | dict    | error  | no-op  | error   | valid          | error    | error    | error  |
- * | tuple   | valid  | error  | no-op   | error          | error    | error    | error  |
- * | ordered | error  | valid  | error   | no-op          | error    | error    | error  |
- * | string  | error  | error  | error   | error          | valid    | no-op    | error  |
- * | number  | error  | error  | error   | error          | no-op    | valid    | error  |
- * | bool    | error  | error  | error   | error          | error    | error    | no-op  |
+ * | Source  | :>list | :>dict | :>tuple | :>ordered(sig) | :>number        | :>string | :>bool              |
+ * |---------|--------|--------|---------|----------------|-----------------|----------|---------------------|
+ * | list    | no-op  | error  | valid   | error          | error           | valid    | error               |
+ * | dict    | error  | no-op  | error   | valid          | error           | valid    | error               |
+ * | tuple   | valid  | error  | no-op   | error          | error           | valid    | error               |
+ * | ordered | error  | valid  | error   | no-op          | error           | valid    | error               |
+ * | string  | error  | error  | error   | error          | valid           | no-op    | valid("true"|"false")|
+ * | number  | error  | error  | error   | error          | no-op           | valid    | valid(0 or 1)       |
+ * | bool    | error  | error  | error   | error          | error           | valid    | no-op               |
  *
  * Error Contracts:
  * - EC-10 (RILL-R036): Incompatible source/target type
@@ -41,6 +41,7 @@ import {
   isTypeValue,
   createOrdered,
   createTuple,
+  formatValue,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -171,9 +172,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return this.convertToString(input, sourceType, node);
 
         case 'bool':
-          // Only bool -> :>bool is no-op (handled above); all others are errors
-          this.throwIncompatible(sourceType, targetType, node);
-          break;
+          return this.convertToBoolean(input, sourceType, node);
 
         default:
           this.throwIncompatible(sourceType, targetType, node);
@@ -237,7 +236,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       return input;
     }
 
-    /** Convert to number type. Valid source: string (parseable). */
+    /** Convert to number type. Valid source: string (parseable) or bool. */
     private convertToNumber(
       input: RillValue,
       sourceType: RillTypeName,
@@ -256,21 +255,41 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         return parsed;
       }
+      if (sourceType === 'bool') {
+        return (input as boolean) ? 1 : 0;
+      }
       this.throwIncompatible(sourceType, 'number', node);
       return input;
     }
 
-    /** Convert to string type. Valid source: number. */
-    private convertToString(
+    /** Convert to bool type. Valid source: number (0 or 1) or string ("true" or "false"). */
+    private convertToBoolean(
       input: RillValue,
       sourceType: RillTypeName,
       node: ConvertNode
     ): RillValue {
       if (sourceType === 'number') {
-        return String(input as number);
+        const n = input as number;
+        if (n === 0) return false;
+        if (n === 1) return true;
+        this.throwIncompatible(sourceType, 'bool', node);
       }
-      this.throwIncompatible(sourceType, 'string', node);
-      return input;
+      if (sourceType === 'string') {
+        const s = input as string;
+        if (s === 'true') return true;
+        if (s === 'false') return false;
+        this.throwIncompatible(sourceType, 'bool', node);
+      }
+      this.throwIncompatible(sourceType, 'bool', node);
+    }
+
+    /** Convert to string type. Valid source: any type via formatValue semantics. */
+    private convertToString(
+      input: RillValue,
+      _sourceType: RillTypeName,
+      _node: ConvertNode
+    ): RillValue {
+      return formatValue(input);
     }
 
     /**
