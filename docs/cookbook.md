@@ -600,6 +600,69 @@ $schema.entries -> fold([valid: true, errors: []]) {
 # Result: [valid: false, errors: ["age above maximum"]]
 ```
 
+## Extension Binding
+
+### Extension Binding with use&lt;ext:...&gt;
+
+The `use<ext:name>` construct binds a host-registered extension to a variable. The host registers an `extResolver` and provides extension values via `RuntimeOptions.resolvers`.
+
+```typescript
+import { createRuntimeContext, extResolver } from "@rcrsr/rill";
+import { qdrantExtValue } from "./extensions/qdrant";
+
+const ctx = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: { ext: { qdrant: qdrantExtValue } }
+  }
+});
+```
+
+```text
+use<ext:qdrant> => $qdrant
+$qdrant.search("my-collection", $embedding, 10)
+```
+
+The script binds the full `qdrant` extension dict to `$qdrant` and calls its `search` member. Use `use<ext:name.member>` to bind a single callable directly.
+
+```text
+use<ext:qdrant.search> => $search
+$search("my-collection", $embedding, 10)
+```
+
+---
+
+### Provider Swap via Extension Config
+
+The `use<ext:...>` pattern decouples rill scripts from specific provider implementations. The same script runs unchanged when the host swaps the extension config.
+
+```typescript
+// Provider A
+const ctxA = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: { ext: { vectordb: pineconeExtValue } }
+  }
+});
+
+// Provider B — same script, different extension
+const ctxB = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: { ext: { vectordb: qdrantExtValue } }
+  }
+});
+```
+
+```text
+use<ext:vectordb> => $vectordb
+$vectordb.search("my-collection", $embedding, 10)
+```
+
+The rill script references `vectordb` by name; the host binds it to any compatible extension at runtime. Switch providers by changing the config, not the script.
+
+---
+
 ## See Also
 
 - [Reference](ref-language.md) — Complete language specification

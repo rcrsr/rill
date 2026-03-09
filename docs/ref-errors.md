@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -817,6 +817,226 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 # Script with only a comment (no pipe value)
 # This script produces nothing
 # Error: RILL-R043: Non-producing body
+```
+
+---
+
+### rill-r050
+
+**Description:** Module not found in resolver config
+
+**Cause:** The module ID is absent from the moduleResolver config map.
+
+**Resolution:** Add an entry for the module ID to the moduleResolver config object.
+
+**Example:**
+
+```text
+# moduleResolver config lacks a "greetings" key
+use<module:greetings>
+# Error: RILL-R050: Module 'greetings' not found in resolver config
+```
+
+---
+
+### rill-r051
+
+**Description:** Module file read failure
+
+**Cause:** The file path mapped to the module ID could not be read.
+
+**Resolution:** Verify the file path exists and the process has read permission.
+
+**Example:**
+
+```text
+# The file path mapped to "greetings" does not exist
+use<module:greetings>
+# Error: RILL-R051: Module 'greetings' file read failure
+```
+
+---
+
+### rill-r052
+
+**Description:** Extension not found in resolver config
+
+**Cause:** The extension name is absent from the extResolver config map.
+
+**Resolution:** Add an entry for the extension name to the extResolver config object.
+
+**Example:**
+
+```text
+# extResolver config lacks a "qdrant" key
+use<ext:qdrant>
+# Error: RILL-R052: Extension 'qdrant' not found in resolver config
+```
+
+---
+
+### rill-r053
+
+**Description:** Member path not found in extension
+
+**Cause:** A `use<ext:name.path>` expression references a dot-path member that does not exist in the extension value. The `{path}` in the error message reports the full attempted path including the failing segment, not just the successfully traversed portion.
+
+**Resolution:** Verify the member path matches the structure of the extension dict. Check the dict returned by the host for the extension name. See [Host Integration](integration-host.md) for extension registration details.
+
+**Example:**
+
+```text
+# qdrant extension is registered, but "missing" key does not exist
+use<ext:qdrant.missing>
+# Error: RILL-R053: Member 'qdrant.missing' not found in extension 'qdrant'
+```
+
+---
+
+### rill-r054
+
+**Description:** No resolver registered for scheme
+
+**Cause:** A `use<scheme:path>` expression references a scheme that has no registered resolver in the host runtime.
+
+**Resolution:** Register a resolver for the scheme via the host API before executing scripts that use it. See [Host Integration](integration-host.md) for resolver registration details.
+
+**Example:**
+
+```text
+# No resolver registered for "db" scheme
+use<db:users>
+# Error: RILL-R054: No resolver registered for scheme 'db'
+```
+
+---
+
+### rill-r055
+
+**Description:** Circular resolution detected
+
+**Cause:** A module resolution chain forms a cycle. Module A resolves to module B, which directly or indirectly resolves back to module A.
+
+**Resolution:** Break the cycle by restructuring module dependencies. Extract shared logic into a third module that neither circular participant imports. See [Modules](integration-modules.md) for module design patterns.
+
+**Example:**
+
+```text
+# module-a imports module-b, module-b imports module-a
+use<app:module-a>
+# Error: RILL-R055: Circular resolution detected: app:module-a is already being resolved
+```
+
+---
+
+### rill-r056
+
+**Description:** Resolver callback threw an error
+
+**Cause:** The registered resolver function for the given scheme threw an exception.
+
+**Resolution:** Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.
+
+**Example:**
+
+```text
+# The api resolver throws "connection refused"
+use<api:users>
+# Error: RILL-R056: Resolver 'api' threw an error: connection refused
+```
+
+---
+
+### rill-r057
+
+**Description:** use<> identifier must resolve to string
+
+**Cause:** Variable or computed form of use<> evaluated to a non-string value.
+
+**Resolution:** Ensure the variable or expression inside use<> evaluates to a string of the form "scheme:resource".
+
+**Example:**
+
+```text
+# $id must be a string, not a number
+42 => $id
+use<$id>
+# Error: RILL-R057: use<> identifier must resolve to string
+```
+
+---
+
+### rill-r058
+
+**Description:** use<> identifier must contain ':' scheme separator
+
+**Cause:** The dynamic use<> string did not contain a colon separating scheme from resource.
+
+**Resolution:** Ensure the string has the format "scheme:resource". Example: "module:greetings".
+
+**Example:**
+
+```text
+# Missing : separator
+"nocolon" => $id
+use<$id>
+# Error: RILL-R058: use<> identifier must contain ':' scheme separator
+```
+
+---
+
+### rill-r059
+
+**Description:** moduleResolver config is not a plain object
+
+**Cause:** The config passed to moduleResolver is not a plain object.
+
+**Resolution:** Pass a plain object as the moduleResolver config.
+
+**Example:**
+
+```text
+# moduleResolver config was null or an array
+use<module:greetings>
+# Error: RILL-R059: moduleResolver config is not a plain object
+```
+
+---
+
+### rill-r060
+
+**Description:** Removed frontmatter key used
+
+**Cause:** Script uses a frontmatter key that was removed (`use:` or `export:` frontmatter).
+
+**Resolution:** Use `use<module:...>` expressions instead of `use:` frontmatter. Use last-expression result instead of `export:` frontmatter.
+
+**Example:**
+
+```text
+---
+use:
+  - myMod: ./mod.rill
+---
+# Error: RILL-R060: use: frontmatter is removed; use use<module:...> expression instead
+```
+
+---
+
+### rill-r061
+
+**Description:** parseSource not configured in RuntimeContext
+
+**Cause:** A resolver returned `{ kind: "source" }` but RuntimeOptions.parseSource was not provided.
+
+**Resolution:** Pass parseSource in RuntimeOptions when constructing the runtime context.
+
+**Example:**
+
+```text
+# Resolver returns { kind: "source", text: "..." } but host did not pass parseSource
+use<app:module-a>
+# Error: RILL-R061: parseSource not configured in RuntimeContext
 ```
 
 ---

@@ -200,7 +200,7 @@ initial -> (condition) @ ^(limit: N) { body }
 0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
 ```
 
-```rill
+```text
 @ ^(limit: 5) {
   app::prompt("Perform operation")
 } ? (.contains("RETRY"))
@@ -256,7 +256,7 @@ initial -> @ { body } ? (condition)
 
 Do-while is ideal for retry patterns:
 
-```rill
+```text
 @ ^(limit: 5) {
   app::prompt("Perform operation")
 } ? (.contains("RETRY"))
@@ -457,7 +457,7 @@ true
 
 Multi-step validation:
 
-```rill
+```text
 $input
   -> assert $:?string "Input must be string"
   -> .trim
@@ -694,13 +694,12 @@ $cond ? do_something() ! pass
 
 Exit early on invalid conditions (assumes host provides `error()`):
 
-```rill
+```text
 |data| {
   $data -> .empty ? app::error("Empty input")
   $data -> :?list ? $ ! app::error("Expected list")
   $data -> each { $ * 2 }
 } => $process
-true
 ```
 
 ### Retry with Limit

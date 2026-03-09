@@ -37,6 +37,27 @@ export async function execute(
   script: ScriptNode,
   context: RuntimeContext
 ): Promise<ExecutionResult> {
+  // Guard against removed frontmatter keys
+  if (script.frontmatter) {
+    const content = script.frontmatter.content;
+    if (/(?:^|\n)\s*use\s*:/.test(content)) {
+      throw new RuntimeError(
+        'RILL-R060',
+        'Frontmatter key removed: use: frontmatter removed; use use<module:...> instead',
+        undefined,
+        { context: 'Script' }
+      );
+    }
+    if (/(?:^|\n)\s*export\s*:/.test(content)) {
+      throw new RuntimeError(
+        'RILL-R060',
+        'Frontmatter key removed: export: frontmatter removed; use last-expression result instead',
+        undefined,
+        { context: 'Script' }
+      );
+    }
+  }
+
   const stepper = createStepper(script, context);
   while (!stepper.done) {
     await stepper.step();

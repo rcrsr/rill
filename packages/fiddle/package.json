@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --config ../../eslint.config.js src/",
     "check": "pnpm run build && pnpm run test && pnpm run lint",
-    "test": "vitest run --passWithNoTests"
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run --passWithNoTests"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",

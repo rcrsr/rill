@@ -54,8 +54,8 @@ function clampSplitRatio(ratio: number): number {
 function isLocalStorageAvailable(): boolean {
   try {
     const test = '__rill_fiddle_test__';
-    localStorage.setItem(test, test);
-    localStorage.removeItem(test);
+    window.localStorage.setItem(test, test);
+    window.localStorage.removeItem(test);
     return true;
   } catch {
     return false;
@@ -78,7 +78,7 @@ export function loadEditorState(): EditorState {
   }
 
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(STORAGE_KEY);
 
     if (stored === null) {
       return getDefaultState();
@@ -119,7 +119,7 @@ export function persistEditorState(state: EditorState): void {
 
   try {
     const serialized = JSON.stringify(state);
-    localStorage.setItem(STORAGE_KEY, serialized);
+    window.localStorage.setItem(STORAGE_KEY, serialized);
   } catch {
     return;
   }

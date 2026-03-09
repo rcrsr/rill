@@ -413,6 +413,70 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: 'RILL-P012',
+    category: 'parse',
+    description: 'Removed syntax used',
+    messageTemplate: 'Syntax removed: {details}',
+    cause: 'Code uses a syntax form that was removed in a previous version.',
+    resolution: 'Migrate to the replacement syntax shown in the error message.',
+    examples: [
+      {
+        description: 'app:: direct-call syntax removed',
+        code: 'app::fn()  # Error: use use<host:fn> instead',
+      },
+      {
+        description: '-> export pipe syntax removed',
+        code: '"value" -> export  # Error: use last-expression result instead',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P020',
+    category: 'parse',
+    description: "Missing ':' in use<> static form",
+    messageTemplate: "Expected ':' after scheme in use<>",
+    cause:
+      "The static form of use<> requires a ':' separating the scheme from the resource path (e.g., use<scheme:path>).",
+    resolution:
+      "Add ':' after the scheme identifier. Example: use<module:path.to.resource>",
+    examples: [
+      {
+        description: 'Missing colon in use<>',
+        code: 'use<module>  # Error: expected scheme:resource',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P021',
+    category: 'parse',
+    description: 'Empty resource after colon in use<>',
+    messageTemplate: "Expected resource identifier after ':' in use<>",
+    cause:
+      "The static form of use<> requires at least one resource segment after ':'.",
+    resolution:
+      "Provide a resource path after ':'. Example: use<module:resource>",
+    examples: [
+      {
+        description: 'Empty resource in use<>',
+        code: 'use<module:>  # Error: missing resource after colon',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-P022',
+    category: 'parse',
+    description: "Missing '>' to close use<>",
+    messageTemplate: "Expected '>' to close use<>",
+    cause: "The use<> expression was not closed with a matching '>'.",
+    resolution: "Add '>' to close the use<> expression.",
+    examples: [
+      {
+        description: 'Unclosed use<>',
+        code: 'use<module:resource  # Error: missing >',
+      },
+    ],
+  },
 
   // Runtime Errors (RILL-R0xx)
   {
@@ -1174,6 +1238,204 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Script with only comments',
         code: '# just a comment  # No value produced',
+      },
+    ],
+  },
+
+  // Resolver errors (RILL-R050–RILL-R059)
+  {
+    errorId: 'RILL-R050',
+    category: 'runtime',
+    description: 'Module not found in resolver config',
+    messageTemplate: "Module '{resource}' not found in resolver config",
+    cause: 'The module ID is absent from the moduleResolver config map.',
+    resolution:
+      'Add an entry for the module ID to the moduleResolver config object.',
+    examples: [
+      {
+        description: 'Missing module entry',
+        code: '# moduleResolver config lacks key for the requested module',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R051',
+    category: 'runtime',
+    description: 'Module file read failure',
+    messageTemplate: "Failed to read module '{resource}': {reason}",
+    cause: 'The file path mapped to the module ID could not be read.',
+    resolution:
+      'Verify the file path exists and the process has read permission.',
+    examples: [
+      {
+        description: 'File does not exist',
+        code: '# Path in moduleResolver config points to a missing file',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R052',
+    category: 'runtime',
+    description: 'Extension not found in resolver config',
+    messageTemplate: "Extension '{name}' not found in resolver config",
+    cause: 'The extension name is absent from the extResolver config map.',
+    resolution:
+      'Add an entry for the extension name to the extResolver config object.',
+    examples: [
+      {
+        description: 'Missing extension entry',
+        code: '# extResolver config lacks key for the requested extension',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R053',
+    category: 'runtime',
+    description: 'Member path not found in extension',
+    messageTemplate: "Member '{path}' not found in extension '{name}'",
+    cause: 'The dot-path member does not exist in the extension value.',
+    resolution:
+      'Verify the member path matches the structure of the extension dict.',
+    examples: [
+      {
+        description: 'Nonexistent member',
+        code: '# ext::qdrant.missing — "missing" key not in qdrant extension',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R054',
+    category: 'runtime',
+    description: 'No resolver registered for scheme',
+    messageTemplate: "No resolver registered for scheme '{scheme}'",
+    cause:
+      'A use<> expression referenced a scheme with no registered resolver.',
+    resolution:
+      'Register a resolver for the scheme via RuntimeOptions.resolvers. Example: resolvers: { myScheme: myResolver }.',
+    examples: [
+      {
+        description: 'Unregistered scheme',
+        code: 'use<db:users>  # no resolver registered for "db"',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R055',
+    category: 'runtime',
+    description: 'Circular resolution detected',
+    messageTemplate:
+      'Circular resolution detected: {key} is already being resolved',
+    cause:
+      'A use<> resolver returned source that re-entered the same scheme:resource key.',
+    resolution:
+      'Remove the circular dependency from module sources. Ensure module A does not directly or indirectly use<module:A>.',
+    examples: [
+      {
+        description: 'Self-referencing module',
+        code: '# module:a source contains use<module:a>',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R056',
+    category: 'runtime',
+    description: 'Resolver callback threw an error',
+    messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
+    cause:
+      'The registered resolver function for the given scheme threw an exception.',
+    resolution:
+      'Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.',
+    examples: [
+      {
+        description: 'Network error in resolver',
+        code: '# resolver throws "connection refused"',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R057',
+    category: 'runtime',
+    description: 'use<> identifier must resolve to string',
+    messageTemplate: 'use<> identifier must resolve to string, got {type}',
+    cause:
+      'Variable or computed form of use<> evaluated to a non-string value.',
+    resolution:
+      'Ensure the variable or expression inside use<> evaluates to a string of the form "scheme:resource".',
+    examples: [
+      {
+        description: 'Variable holds a number',
+        code: '42 => $id\nuse<$id>  # $id must be a string',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R058',
+    category: 'runtime',
+    description: "use<> identifier must contain ':' scheme separator",
+    messageTemplate: "use<> identifier must contain ':' scheme separator",
+    cause:
+      'The dynamic use<> string did not contain a colon separating scheme from resource.',
+    resolution:
+      'Ensure the string has the format "scheme:resource". Example: "module:greetings".',
+    examples: [
+      {
+        description: 'Missing colon',
+        code: '"nocolon" => $id\nuse<$id>  # missing : separator',
+      },
+    ],
+  },
+  {
+    errorId: 'RILL-R059',
+    category: 'runtime',
+    description: 'moduleResolver config is not a plain object',
+    messageTemplate: 'moduleResolver config must be a plain object',
+    cause: 'The config passed to moduleResolver is not a plain object.',
+    resolution:
+      'Pass a plain object as the moduleResolver config (e.g., { basePath: "/app", myModule: "./mod.rill" }).',
+    examples: [
+      {
+        description: 'Non-object config',
+        code: '# moduleResolver config was null or an array',
+      },
+    ],
+  },
+
+  // Legacy syntax removal errors (RILL-R060)
+  {
+    errorId: 'RILL-R060',
+    category: 'runtime',
+    description: 'Removed frontmatter key used',
+    messageTemplate: 'Frontmatter key removed: {details}',
+    cause:
+      'Script uses a frontmatter key that was removed in a previous version.',
+    resolution: 'Migrate to the replacement shown in the error message.',
+    examples: [
+      {
+        description: 'use: frontmatter key removed',
+        code: '---\nuse:\n  - myMod: ./mod.rill\n---\n# Error: use use<module:...> expression instead',
+      },
+      {
+        description: 'export: frontmatter key removed',
+        code: '---\nexport:\n  - $result\n---\n# Error: use last-expression result instead',
+      },
+    ],
+  },
+
+  // parseSource not configured (RILL-R061)
+  {
+    errorId: 'RILL-R061',
+    category: 'runtime',
+    description: 'parseSource not configured in RuntimeContext',
+    messageTemplate:
+      "Resolver error for '{scheme}:{resource}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers",
+    cause:
+      'A resolver returned { kind: "source" } but RuntimeOptions.parseSource was not provided.',
+    resolution:
+      'Pass parseSource in RuntimeOptions when constructing the runtime context. parseSource is required for resolvers that return source text.',
+    examples: [
+      {
+        description: 'Missing parseSource option',
+        code: '# resolver returns { kind: "source", text: "..." } but host did not pass parseSource',
       },
     ],
   },

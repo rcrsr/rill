@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml"><img src="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml"><img src="https://github.com/rcrsr/rill/actions/workflows/pr-check.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://www.npmjs.com/package/@rcrsr/rill"><img src="https://img.shields.io/npm/v/@rcrsr/rill" alt="npm"></a>
   <a href="https://www.npmjs.com/package/@rcrsr/rill"><img src="https://img.shields.io/node/v/@rcrsr/rill" alt="Node"></a>
   <a href="https://github.com/rcrsr/rill/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@rcrsr/rill" alt="License"></a>

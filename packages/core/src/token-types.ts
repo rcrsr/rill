@@ -79,6 +79,7 @@ export const TOKEN_TYPES = {
   ORDERED_LBRACKET: 'ORDERED_LBRACKET', // ordered[
   DESTRUCT_LANGLE: 'DESTRUCT_LANGLE', // destruct<
   SLICE_LANGLE: 'SLICE_LANGLE', // slice<
+  USE_LANGLE: 'USE_LANGLE', // use<
 
   // Type conversion operator
   CONVERT: 'CONVERT', // :>

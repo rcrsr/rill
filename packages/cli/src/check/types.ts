@@ -72,6 +72,12 @@ export interface CheckConfig {
   readonly rules: Record<string, RuleState>;
   /** Severity overrides by rule code */
   readonly severity: Record<string, Severity>;
+  /**
+   * Type checker mode controlling UseExpr validation strictness.
+   * - 'strict': variable/computed use<> and untyped host references are errors
+   * - 'permissive': same conditions produce warnings (default)
+   */
+  readonly checkerMode?: 'strict' | 'permissive';
 }
 
 // ============================================================

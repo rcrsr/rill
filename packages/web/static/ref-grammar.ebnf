@@ -197,6 +197,19 @@ primary       = literal
    throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
 pass          = "pass" ;
 
+use-expr      = "use" "<" use-id ">" [ ":" type-ref ] ;
+              (* Semantic: resolves a module by scheme and path.
+                 Static form (identifier ":" identifier { "." identifier }) is checker-resolvable.
+                 Variable form ("$" identifier) and computed form ("(" pipe-chain ")") are runtime-only.
+                 Strict mode rejects variable and computed forms. *)
+
+use-id        = identifier ":" identifier { "." identifier }
+              | "$" identifier
+              | "(" pipe-chain ")" ;
+              (* identifier ":" identifier { "." identifier } — static form: scheme:path.to.module
+                 "$" identifier — variable form: scheme and/or path from a variable
+                 "(" pipe-chain ")" — computed form: expression produces the module identifier *)
+
 (* implicit-primary: used in contexts where implicit $ is available (body, pipe targets).
    Includes method-call because .method() expands to $ -> .method().
    primary excludes method-call since statements cannot start with a bare method call. *)

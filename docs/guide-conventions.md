@@ -681,6 +681,60 @@ prompt("Get age")  => $age
 prompt("Get role") => $role
 ```
 
+## Checker Modes
+
+rill supports two checker modes that control how the type checker treats dynamic `use` forms, untyped host references, and direct extension calls.
+
+### Strict Mode
+
+Strict mode is recommended for LLM-generated code. The checker rejects constructs that cannot be statically verified:
+
+```text
+# Rejected in strict mode: variable use-id form
+use<$module_name>
+
+# Rejected in strict mode: computed use-id form
+use<($get_module())>
+
+# Rejected in strict mode: untyped host reference
+app::fetch($url)    # host function without declared return type
+
+# Rejected in strict mode: direct extension call
+ext::fn()           # extension function called without module binding
+```
+
+These forms are rejected because they cannot be resolved at check time. LLM-generated scripts benefit from this restriction because it surfaces ambiguities before execution.
+
+### Permissive Mode
+
+Permissive mode is the default for human-authored code. The checker emits warnings rather than errors for the constructs that strict mode rejects:
+
+```text
+# Allowed in permissive mode (warning issued): variable use-id
+use<$module_name>
+
+# Allowed in permissive mode (warning issued): untyped host reference
+app::fetch($url)
+```
+
+Use permissive mode when iterating on scripts interactively, where runtime behavior is the primary feedback mechanism.
+
+### Mode Selection
+
+Set the checker mode via `RuntimeOptions.checkerMode`:
+
+```typescript
+import { createRuntimeContext } from "@rcrsr/rill";
+
+// Strict mode for LLM-generated scripts
+const ctx = createRuntimeContext({ checkerMode: "strict" });
+
+// Permissive mode (default) for human-authored scripts
+const ctx = createRuntimeContext({ checkerMode: "permissive" });
+```
+
+The default value is `'permissive'`. Omitting `checkerMode` or passing `undefined` is equivalent to `'permissive'` — both allow warnings without errors. Pass `'strict'` when running scripts from untrusted or machine-generated sources.
+
 *This document will be extended as conventions emerge from real-world usage.*
 
 ## See Also

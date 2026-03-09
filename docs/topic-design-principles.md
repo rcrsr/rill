@@ -35,7 +35,9 @@ No `=` operator exists. Data moves via `->`, values captured via `=>`.
 # Data flows through transformations
 "  hello world  " -> .trim -> .upper -> .split(" ")
 # Result: ["HELLO", "WORLD"]
+```
 
+```text
 # Capture only when a value appears more than once
 app::prompt("analyze") => $result
 $result -> log

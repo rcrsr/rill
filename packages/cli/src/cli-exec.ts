@@ -8,17 +8,14 @@
 
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
-import * as path from 'path';
-import * as yaml from 'yaml';
 import { parse, execute, createRuntimeContext, toNative } from '@rcrsr/rill';
-import type { RillValue, ExecutionResult } from '@rcrsr/rill';
+import type { ExecutionResult } from '@rcrsr/rill';
 import {
   formatError,
   determineExitCode,
   VERSION,
   detectHelpVersionFlag,
 } from './cli-shared.js';
-import { loadModule } from './cli-module-loader.js';
 import { explainError } from './cli-explain.js';
 
 /**
@@ -195,18 +192,12 @@ export async function executeScript(
 ): Promise<ExecutionResult & { source: string }> {
   // Use pre-read source if provided, otherwise read from file or stdin
   let source: string;
-  let scriptPath: string;
 
   if (options?.source !== undefined) {
     source = options.source;
-    scriptPath =
-      file === '-'
-        ? path.resolve(process.cwd(), '<stdin>')
-        : path.resolve(file);
   } else if (file === '-' || options?.stdin) {
     // Read from stdin (must use sync API for stdin)
     source = fsSync.readFileSync(0, 'utf-8');
-    scriptPath = path.resolve(process.cwd(), '<stdin>');
   } else {
     // Check if file exists
     try {
@@ -217,35 +208,13 @@ export async function executeScript(
 
     // Read from file
     source = await fs.readFile(file, 'utf-8');
-    scriptPath = path.resolve(file);
   }
 
   // Parse the script
   const ast = parse(source);
 
-  // Extract frontmatter for use: declarations
-  const frontmatter: Record<string, unknown> = ast.frontmatter
-    ? ((yaml.parse(ast.frontmatter.content) as Record<
-        string,
-        unknown
-      > | null) ?? {})
-    : {};
-
-  // Load modules if use: declarations exist
-  const variables: Record<string, RillValue> = {};
-  if (frontmatter['use'] && Array.isArray(frontmatter['use'])) {
-    const cache = new Map<string, Record<string, RillValue>>();
-    for (const entry of frontmatter['use']) {
-      if (typeof entry === 'object' && entry !== null) {
-        const [name, modulePath] = Object.entries(entry)[0] as [string, string];
-        variables[name] = await loadModule(modulePath, scriptPath, cache);
-      }
-    }
-  }
-
-  // Create runtime context with modules
+  // Create runtime context
   const ctx = createRuntimeContext({
-    variables,
     callbacks: {
       onLog: (msg) => console.log(msg),
     },

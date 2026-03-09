@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Scripting designed for machine-generated code",
   "license": "MIT",
   "author": "Andre Bremer",
@@ -63,7 +63,7 @@
     "url": "https://github.com/rcrsr/rill/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "publishConfig": {
     "access": "public"

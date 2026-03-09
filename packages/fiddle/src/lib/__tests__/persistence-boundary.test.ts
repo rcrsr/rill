@@ -23,7 +23,7 @@ describe('persistence boundary conditions', () => {
 
   beforeEach(() => {
     // Clear localStorage before each test
-    localStorage.clear();
+    window.localStorage.clear();
     // Mock window.innerWidth to 1200px for consistent test expectations
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
@@ -47,7 +47,7 @@ describe('persistence boundary conditions', () => {
   describe('AC-20: Panel at minimum size', () => {
     it('stops divider at minimum ratio enforcing 200px minimum', () => {
       // Given: splitRatio below minimum (~16.67% for 1200px viewport)
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 5, // Far below minimum
@@ -65,7 +65,7 @@ describe('persistence boundary conditions', () => {
 
     it('stops divider at maximum ratio enforcing 200px minimum on right', () => {
       // Given: splitRatio above maximum (~83.33% for 1200px viewport)
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 95, // Far above maximum
@@ -85,7 +85,7 @@ describe('persistence boundary conditions', () => {
       const extremeValues = [-100, 0, 1, 99, 100, 999];
 
       for (const ratio of extremeValues) {
-        localStorage.setItem(
+        window.localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
             splitRatio: ratio,
@@ -105,7 +105,7 @@ describe('persistence boundary conditions', () => {
       const validRatios = [20, 30, 40, 50, 60, 70, 80];
 
       for (const ratio of validRatios) {
-        localStorage.setItem(
+        window.localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
             splitRatio: ratio,
@@ -174,7 +174,7 @@ describe('persistence boundary conditions', () => {
   describe('AC-22: Corrupt localStorage', () => {
     it('recovers with default state when JSON is malformed', () => {
       // Given: Corrupt JSON data in localStorage
-      localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
+      window.localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -186,7 +186,7 @@ describe('persistence boundary conditions', () => {
 
     it('recovers when stored value is not an object', () => {
       // Given: Valid JSON but wrong type (string instead of object)
-      localStorage.setItem('rill-fiddle-editor-state', '"string value"');
+      window.localStorage.setItem('rill-fiddle-editor-state', '"string value"');
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -197,7 +197,7 @@ describe('persistence boundary conditions', () => {
 
     it('recovers when stored value is null', () => {
       // Given: Valid JSON but null value
-      localStorage.setItem('rill-fiddle-editor-state', 'null');
+      window.localStorage.setItem('rill-fiddle-editor-state', 'null');
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -208,7 +208,10 @@ describe('persistence boundary conditions', () => {
 
     it('recovers when stored value is an array', () => {
       // Given: Valid JSON but array instead of object
-      localStorage.setItem('rill-fiddle-editor-state', '["array", "value"]');
+      window.localStorage.setItem(
+        'rill-fiddle-editor-state',
+        '["array", "value"]'
+      );
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -219,7 +222,7 @@ describe('persistence boundary conditions', () => {
 
     it('recovers when object has invalid field types', () => {
       // Given: Object with wrong types for fields
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 'not a number', // Should be number
@@ -237,7 +240,7 @@ describe('persistence boundary conditions', () => {
 
     it('overwrites corrupt data on next successful persist', () => {
       // Given: Corrupt data in localStorage
-      localStorage.setItem('rill-fiddle-editor-state', '{corrupt}');
+      window.localStorage.setItem('rill-fiddle-editor-state', '{corrupt}');
 
       // When: Load (returns defaults) then persist new state
       const loaded = loadEditorState();
@@ -258,7 +261,7 @@ describe('persistence boundary conditions', () => {
   describe('AC-24: First visit (no localStorage)', () => {
     it('loads Hello World example on first visit', () => {
       // Given: Clean localStorage (first visit scenario)
-      localStorage.clear();
+      window.localStorage.clear();
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -269,7 +272,7 @@ describe('persistence boundary conditions', () => {
 
     it('uses 50% split ratio on first visit', () => {
       // Given: Clean localStorage (first visit scenario)
-      localStorage.clear();
+      window.localStorage.clear();
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -280,7 +283,7 @@ describe('persistence boundary conditions', () => {
 
     it('contains executable Rill code on first visit', () => {
       // Given: Clean localStorage (first visit scenario)
-      localStorage.clear();
+      window.localStorage.clear();
 
       // When: Loading editor state
       const state = loadEditorState();
@@ -292,7 +295,7 @@ describe('persistence boundary conditions', () => {
 
     it('transitions from first visit to persisted state', () => {
       // Given: First visit scenario
-      localStorage.clear();
+      window.localStorage.clear();
 
       // When: Load defaults, modify, persist, reload
       const initial = loadEditorState();
@@ -314,7 +317,7 @@ describe('persistence boundary conditions', () => {
   describe('Combined boundary scenarios', () => {
     it('handles corrupt data with out-of-range splitRatio', () => {
       // Given: Corrupt object with invalid splitRatio
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 999, // Way out of range
@@ -332,7 +335,7 @@ describe('persistence boundary conditions', () => {
 
     it('handles valid splitRatio with missing other fields', () => {
       // Given: Partial object (only splitRatio)
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 60,
@@ -349,7 +352,7 @@ describe('persistence boundary conditions', () => {
 
     it('handles empty object in localStorage', () => {
       // Given: Empty object
-      localStorage.setItem('rill-fiddle-editor-state', '{}');
+      window.localStorage.setItem('rill-fiddle-editor-state', '{}');
 
       // When: Loading editor state
       const state = loadEditorState();

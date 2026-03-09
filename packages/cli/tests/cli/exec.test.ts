@@ -391,122 +391,25 @@ describe('rill-exec', () => {
     });
   });
 
-  describe('deep module nesting', () => {
-    it('loads 10-level module import chain correctly', async () => {
-      const moduleDir = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'rill-modules-')
+  describe('removed frontmatter syntax', () => {
+    it('rejects scripts with use: frontmatter (removed syntax)', async () => {
+      const script = await writeScript(
+        'use-frontmatter.rill',
+        ['---', 'use: [{mod: ./other.rill}]', '---', '', '1'].join('\n')
       );
 
-      try {
-        // Create 10 module files: module-1.rill through module-10.rill
-        // Each module imports the next in the chain
-        for (let i = 1; i <= 10; i++) {
-          const modulePath = path.join(moduleDir, `module-${i}.rill`);
-          let content: string;
-
-          if (i === 10) {
-            // Last module exports a simple value
-            content = [
-              '---',
-              'export: [value]',
-              '---',
-              '',
-              `"level-${i}" => $value`,
-            ].join('\n');
-          } else {
-            // Intermediate modules import the next module and export its value
-            // Use inline array format to avoid frontmatter trim() bug
-            const nextModule = `module-${i + 1}.rill`;
-            content = [
-              '---',
-              `use: [{next: ./${nextModule}}]`,
-              'export: [value]',
-              '---',
-              '',
-              `$next.value => $value`,
-            ].join('\n');
-          }
-
-          await fs.writeFile(modulePath, content);
-        }
-
-        // Create entry script that imports module-1 and accesses the chain
-        const module1Path = path.join(moduleDir, 'module-1.rill');
-        const entryScript = await writeScript(
-          'deep-import.rill',
-          [
-            '---',
-            `use: [{chain: ${module1Path}}]`,
-            '---',
-            '',
-            '$chain.value',
-          ].join('\n')
-        );
-
-        // Execute the entry script
-        const result = await executeScript(entryScript, []);
-
-        // Verify the final exported value is accessible through the chain
-        expect(result.result).toBe('level-10');
-      } finally {
-        await fs.rm(moduleDir, { recursive: true, force: true });
-      }
+      await expect(executeScript(script, [])).rejects.toThrow(/use:|removed/i);
     });
 
-    it('does not trigger false positive circular dependency errors in deep chains', async () => {
-      const moduleDir = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'rill-modules-')
+    it('rejects scripts with export: frontmatter (removed syntax)', async () => {
+      const script = await writeScript(
+        'export-frontmatter.rill',
+        ['---', 'export: [value]', '---', '', '1 => $value'].join('\n')
       );
 
-      try {
-        // Create linear chain without any circular dependencies
-        for (let i = 1; i <= 10; i++) {
-          const modulePath = path.join(moduleDir, `linear-${i}.rill`);
-          let content: string;
-
-          if (i === 10) {
-            content = [
-              '---',
-              'export: [result]',
-              '---',
-              '',
-              `${i} => $result`,
-            ].join('\n');
-          } else {
-            // Use inline array format to avoid frontmatter trim() bug
-            const nextModule = `linear-${i + 1}.rill`;
-            content = [
-              '---',
-              `use: [{next: ./${nextModule}}]`,
-              'export: [result]',
-              '---',
-              '',
-              `$next.result => $result`,
-            ].join('\n');
-          }
-
-          await fs.writeFile(modulePath, content);
-        }
-
-        // Create entry script
-        const linear1Path = path.join(moduleDir, 'linear-1.rill');
-        const entryScript = await writeScript(
-          'linear-chain.rill',
-          [
-            '---',
-            `use: [{start: ${linear1Path}}]`,
-            '---',
-            '',
-            '$start.result',
-          ].join('\n')
-        );
-
-        // Should execute without circular dependency errors
-        const result = await executeScript(entryScript, []);
-        expect(result.result).toBe(10);
-      } finally {
-        await fs.rm(moduleDir, { recursive: true, force: true });
-      }
+      await expect(executeScript(script, [])).rejects.toThrow(
+        /export:|removed/i
+      );
     });
   });
 });
