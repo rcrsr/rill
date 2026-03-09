@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Union type syntax** — Union types (`string|number`) work in variable captures, destructuring patterns, existence checks, closure parameters, and type assertions. Parameterized types (`list(T)`, `dict(k: T)`) now work in the same positions
+
+### Changed
+
+- **Conversion operator expansion** — `:>` operator now covers all type routes (string, number, boolean, list, dict, tuple, ordered). Removed `.str` and `.num` methods. `:>number` throws on non-numeric strings
+
 ## [0.10.0] - 2026-03-07
 
 ### Breaking Changes

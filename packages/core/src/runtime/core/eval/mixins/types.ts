@@ -212,6 +212,26 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         });
       }
 
+      // Union type ref: (A | B) — resolve each member recursively and
+      // return a RillTypeValue with structure: { type: 'union', members: [...] }.
+      // typeName is set to a display string for error messages; the structure
+      // field carries the authoritative type shape for validation (DR-1).
+      if (typeRef.kind === 'union') {
+        const members: RillStructuralType[] = typeRef.members.map((member) => {
+          const resolved = this.resolveTypeRef(member, getVariable);
+          return resolved.structure;
+        });
+        const structure: RillStructuralType = { type: 'union', members };
+        const displayName = members
+          .map(formatStructuralType)
+          .join('|') as RillTypeName;
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: displayName,
+          structure,
+        });
+      }
+
       const result = getVariable(typeRef.varName);
       if (result === undefined) {
         throw new RuntimeError(
@@ -245,7 +265,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const hasSubFields =
           'element' in expected ||
           'fields' in expected ||
-          'elements' in expected;
+          'elements' in expected ||
+          'members' in expected;
         if (hasSubFields) {
           if (!structuralTypeMatches(value, expected)) {
             const expectedStr = formatStructuralType(expected);
@@ -318,7 +339,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const hasSubFields =
         'element' in resolved.structure ||
         'fields' in resolved.structure ||
-        'elements' in resolved.structure;
+        'elements' in resolved.structure ||
+        'members' in resolved.structure;
       if (hasSubFields) {
         return structuralTypeMatches(value, resolved.structure);
       }

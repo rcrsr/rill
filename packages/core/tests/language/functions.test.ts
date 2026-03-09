@@ -30,63 +30,63 @@ describe('Rill Runtime: Built-in Functions', () => {
 describe('Rill Runtime: Built-in Methods', () => {
   describe('.str', () => {
     it('converts number to string', async () => {
-      expect(await run('42 -> .str')).toBe('42');
+      expect(await run('42 -> :>string')).toBe('42');
     });
 
     it('converts negative number to string', async () => {
-      expect(await run('-5 -> .str')).toBe('-5');
+      expect(await run('-5 -> :>string')).toBe('-5');
     });
 
     it('converts decimal to string', async () => {
-      expect(await run('3.14 -> .str')).toBe('3.14');
+      expect(await run('3.14 -> :>string')).toBe('3.14');
     });
 
     it('converts true to string', async () => {
-      expect(await run('true -> .str')).toBe('true');
+      expect(await run('true -> :>string')).toBe('true');
     });
 
     it('converts false to string', async () => {
-      expect(await run('false -> .str')).toBe('false');
+      expect(await run('false -> :>string')).toBe('false');
     });
 
     it('errors for undefined variable (no null in rill)', async () => {
-      await expect(run('$undefined -> .str')).rejects.toThrow(
+      await expect(run('$undefined -> :>string')).rejects.toThrow(
         'Undefined variable'
       );
     });
 
     it('returns string unchanged', async () => {
-      expect(await run('"hello" -> .str')).toBe('hello');
+      expect(await run('"hello" -> :>string')).toBe('hello');
     });
   });
 
   describe('.num', () => {
     it('converts string to number', async () => {
-      expect(await run('"42" -> .num')).toBe(42);
+      expect(await run('"42" -> :>number')).toBe(42);
     });
 
     it('converts negative string to number', async () => {
-      expect(await run('"-5" -> .num')).toBe(-5);
+      expect(await run('"-5" -> :>number')).toBe(-5);
     });
 
     it('converts decimal string to number', async () => {
-      expect(await run('"3.14" -> .num')).toBe(3.14);
+      expect(await run('"3.14" -> :>number')).toBe(3.14);
     });
 
     it('converts true to 1', async () => {
-      expect(await run('true -> .num')).toBe(1);
+      expect(await run('true -> :>number')).toBe(1);
     });
 
     it('converts false to 0', async () => {
-      expect(await run('false -> .num')).toBe(0);
+      expect(await run('false -> :>number')).toBe(0);
     });
 
-    it('returns 0 for invalid string', async () => {
-      expect(await run('"abc" -> .num')).toBe(0);
+    it('throws for invalid string', async () => {
+      await expect(run('"abc" -> :>number')).rejects.toThrow();
     });
 
     it('returns number unchanged', async () => {
-      expect(await run('42 -> .num')).toBe(42);
+      expect(await run('42 -> :>number')).toBe(42);
     });
   });
 

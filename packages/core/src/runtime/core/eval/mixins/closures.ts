@@ -285,6 +285,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           'element' in ts ||
           'fields' in ts ||
           'elements' in ts ||
+          'members' in ts ||
           'params' in ts ||
           'ret' in ts;
         if (hasSubFields) {

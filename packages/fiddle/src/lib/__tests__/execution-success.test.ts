@@ -11,7 +11,7 @@ describe('executeRill', () => {
       const result = await executeRill('1 + 2');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'number',
         rillTypeSignature: 'number',
         value: 3,
@@ -25,7 +25,7 @@ describe('executeRill', () => {
       const result = await executeRill('"hello world"');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'string',
         rillTypeSignature: 'string',
         value: 'hello world',
@@ -38,7 +38,7 @@ describe('executeRill', () => {
       const result = await executeRill('42 => $x\n$x * 2');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'number',
         rillTypeSignature: 'number',
         value: 84,
@@ -51,7 +51,7 @@ describe('executeRill', () => {
       const result = await executeRill('"test" -> log\n"final"');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'string',
         rillTypeSignature: 'string',
         value: 'final',
@@ -66,7 +66,7 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'string',
         rillTypeSignature: 'string',
         value: 'third',
@@ -107,7 +107,7 @@ describe('executeRill', () => {
       const result = await executeRill('true ? "yes" ! "no"');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'string',
         rillTypeSignature: 'string',
         value: 'yes',
@@ -127,7 +127,7 @@ describe('executeRill', () => {
       );
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'number',
         rillTypeSignature: 'number',
         value: 42,
@@ -138,7 +138,7 @@ describe('executeRill', () => {
       const result = await executeRill('[1, 2, 3]');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'list',
         rillTypeSignature: 'list(number)',
         value: [1, 2, 3],
@@ -156,7 +156,7 @@ describe('executeRill', () => {
       const result = await executeRill('[1, 2, 3] -> map { $ * 2 }');
 
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result)).toEqual({
+      expect(JSON.parse(result.result!)).toEqual({
         rillTypeName: 'list',
         rillTypeSignature: 'list(number)',
         value: [2, 4, 6],

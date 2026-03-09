@@ -202,14 +202,14 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(logs[0]).toContain('string');
     });
 
-    it('bare syntax with assignment: $t.str equals the sig literal representation', async () => {
-      const result = await run('|x: string| :string => $t\n$t.str');
+    it('bare syntax with assignment: $t.signature equals the sig literal representation', async () => {
+      const result = await run('|x: string| :string => $t\n$t.signature');
       expect(result).toContain('x');
       expect(result).toContain('string');
     });
 
-    it('multi-pipe after bare sig: |x: string| :string -> .str -> .len returns string length', async () => {
-      const result = await run('|x: string| :string -> .str -> .len');
+    it('multi-pipe after bare sig: |x: string| :string -> :>string -> .len returns string length', async () => {
+      const result = await run('|x: string| :string -> :>string -> .len');
       expect(typeof result).toBe('number');
       expect(result as number).toBeGreaterThan(0);
     });
@@ -311,15 +311,17 @@ describe('Rill Language: Structural Type Identity', () => {
     // Display format
     // ----------------------------------------------------------
 
-    it('display format: .str of |x: string| :number contains x, string, and number', async () => {
-      const result = await run('|x: string| :number => $t\n$t.str');
+    it('display format: .signature of |x: string| :number contains x, string, and number', async () => {
+      const result = await run('|x: string| :number => $t\n$t.signature');
       expect(result).toContain('x');
       expect(result).toContain('string');
       expect(result).toContain('number');
     });
 
-    it('display format: .str of |x: string, y: number| :bool is exactly the sig', async () => {
-      const result = await run('|x: string, y: number| :bool => $t\n$t.str');
+    it('display format: .signature of |x: string, y: number| :bool is exactly the sig', async () => {
+      const result = await run(
+        '|x: string, y: number| :bool => $t\n$t.signature'
+      );
       expect(result).toBe('|x: string, y: number| :bool');
     });
 
@@ -521,18 +523,18 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Display format for parameterized type values (AC-10)', () => {
-    it('AC-10: list(string) type value .str returns "list(string)"', async () => {
-      const result = await run('list(string) => $t\n$t.str');
+    it('AC-10: list(string) type value .signature returns "list(string)"', async () => {
+      const result = await run('list(string) => $t\n$t.signature');
       expect(result).toBe('list(string)');
     });
 
-    it('AC-10: list(number) type value .str returns "list(number)"', async () => {
-      const result = await run('list(number) => $t\n$t.str');
+    it('AC-10: list(number) type value .signature returns "list(number)"', async () => {
+      const result = await run('list(number) => $t\n$t.signature');
       expect(result).toBe('list(number)');
     });
 
-    it('AC-10: dict(name: string) type value .str returns "dict(name: string)"', async () => {
-      const result = await run('dict(name: string) => $t\n$t.str');
+    it('AC-10: dict(name: string) type value .signature returns "dict(name: string)"', async () => {
+      const result = await run('dict(name: string) => $t\n$t.signature');
       expect(result).toBe('dict(name: string)');
     });
 

@@ -503,12 +503,8 @@ function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
     // both untyped — ok
   } else if (a.typeRef === null || b.typeRef === null) {
     return false;
-  } else if (a.typeRef.kind !== b.typeRef.kind) {
+  } else if (!typeRefEquals(a.typeRef, b.typeRef)) {
     return false;
-  } else if (a.typeRef.kind === 'static' && b.typeRef.kind === 'static') {
-    if (a.typeRef.typeName !== b.typeRef.typeName) return false;
-  } else if (a.typeRef.kind === 'dynamic' && b.typeRef.kind === 'dynamic') {
-    if (a.typeRef.varName !== b.typeRef.varName) return false;
   }
   return nullableEquals(a.defaultValue, b.defaultValue);
 }
@@ -528,7 +524,14 @@ function destructElemEquals(
   if (a.kind !== b.kind) return false;
   if (a.name !== b.name) return false;
   if (a.key !== b.key) return false;
-  if (a.typeName !== b.typeName) return false;
+  // Compare typeRef: delegate to typeRefEquals for all kinds (static, dynamic, union)
+  if (a.typeRef === null && b.typeRef === null) {
+    // both untyped — ok
+  } else if (a.typeRef === null || b.typeRef === null) {
+    return false;
+  } else if (!typeRefEquals(a.typeRef, b.typeRef)) {
+    return false;
+  }
   return nullableEquals(a.nested, b.nested);
 }
 
@@ -639,5 +642,9 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
     return a.varName === b.varName;
   if (a.kind === 'static' && b.kind === 'static')
     return typeRefStaticEquals(a, b);
+  if (a.kind === 'union' && b.kind === 'union') {
+    if (a.members.length !== b.members.length) return false;
+    return a.members.every((member, i) => typeRefEquals(member, b.members[i]!));
+  }
   return false;
 }

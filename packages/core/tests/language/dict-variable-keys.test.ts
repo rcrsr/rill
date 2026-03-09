@@ -213,7 +213,7 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('creates dict with computed key from arithmetic converted to string', async () => {
         const code = `
           2 => $base
-          dict[_static: 0, (($base + 3) -> .str): "computed"]
+          dict[_static: 0, (($base + 3) -> :>string): "computed"]
         `;
         const result = await run(code);
         expect(result).toHaveProperty('5', 'computed');

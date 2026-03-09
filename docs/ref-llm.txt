@@ -295,6 +295,17 @@ Two ways to create closures:
     |x = 0|($x + 1) => $inc_or_one     # default value
     |x: number|($x + 1) => $typed      # type annotation
 
+**Anonymous typed closures:** `|type|{ body }` — reserved type keyword as param, `$` is type-checked piped input
+
+    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
+    5 -> |number|{ $ * 2 }                  # 10
+    |number|{ $ * 2 }:number => $double     # stored with return type assertion
+    5 -> $double                             # 10
+    "hi" -> $double                          # RILL-R001: expected number, got string
+
+All 11 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, any, type
+Parameterized: |list(number)|{ $ -> each { $ * 2 } }
+
 **Return type assertions** (enforced at runtime — RILL-R004 on mismatch):
 
     |x: number| { "{$x}" }:string => $fn    # asserts string return type
@@ -303,7 +314,9 @@ Two ways to create closures:
     |x: number| { $x * 2 }:string => $fn    # mismatch halts with RILL-R004
     $fn(5)                                   # RILL-R004: expected string, got number
 
-Valid return type targets: string, number, bool, list, dict, any, vector, shape(...), $shapeVar.
+Valid return type targets: any type name (string, number, bool, closure, list, dict, tuple,
+ordered, vector, any, type), or a parameterized type constructor (list(string),
+dict(a: number, b: string)).
 Declared return type accessible via $fn.^output annotation.
 
 **Description shorthand** (bare string in `^(...)` expands to `description: <string>`):
@@ -381,14 +394,100 @@ Note: lists require same-type elements. For mixed paths (strings and numbers), u
     dict[users: list[dict[name: "Alice"]]] => $d
     $d.users[0].name                                                       # "Alice"
 
-## Type Operations
+## Types and Type Expressions
 
-`:type` — assert type (error if wrong): `42:number` passes; `"x":number` errors.
-`:?type` — check type (boolean): `42:?number` is true; `"x":?number` is false.
+**Type names:**
 
-Types: `string`, `number`, `boolean`, `list`, `dict`, `tuple`, `closure`.
+    string   number   bool     list     dict     ordered
+    tuple    closure  vector   any      type
 
-Comparison methods:
+**Type names are first-class values** — assign to variables, use in dynamic expressions:
+
+    number => $t                          # store a type value
+    42 -> :$t                             # dynamic assertion (same as :number)
+    42 -> :?$t                            # dynamic check: true
+    42 -> :>$t                            # dynamic conversion (same as :>number)
+    $val.^type == $t                      # compare against stored type
+
+**Parameterized type constructors** (structural types):
+
+    list(string)                          # list of strings
+    dict(name: string, age: number)       # dict with named fields
+    tuple(number, string)                 # positional tuple
+    ordered(x: number, y: number)        # named ordered args
+    |x: number, y: string| :any          # closure signature type
+
+Closure signatures include parameter names — `|x: number|` and `|y: number|` are different types.
+
+**Type assertion** `:type` — errors if value does not match:
+
+    42:number                             # passes
+    "x":number                           # RILL-R002: expected number, got string
+    $val:list(string)                     # assert parameterized type
+
+**Enforcing dict shapes** with `dict(field: type, ...)`:
+
+    $data -> :dict(name: string, age: number)   # assert exact fields and types
+    $data:?dict(name: string, age: number)      # check without error
+    $data:dict(name: string) -> .name           # assert then access
+
+Use in closure params to validate input structure:
+
+    |d: dict(name: string, age: number)| {
+      "{$d.name} is {$d.age}"
+    } => $format_person
+
+**Type check** `:?type` — returns boolean, never errors:
+
+    42:?number                            # true
+    "x":?number                           # false
+    $val:?list(string)                    # structural check
+
+Both forms work as pipe targets:
+
+    $val -> :number                       # assert in pipe
+    $val -> :?number                      # check in pipe
+
+**`^type` operator** — returns a type value for inspection:
+
+    42.^type                              # type value for number
+    42.^type.name                         # "number"
+    list[1, 2].^type.name                 # "list"
+    list[1, 2].^type.signature            # "list(number)"
+
+**Type value equality:**
+
+    $val.^type == list(number)            # true if $val is list(number)
+    $val.^type == $other.^type            # compare structural types
+
+**Type conversion** `:>type` — explicit conversion between compatible types:
+
+    42 -> :>string                        # "42"
+    "3.14" -> :>number                    # 3.14
+    list[1, 2] -> :>tuple                 # tuple[1, 2]
+    tuple[1, 2] -> :>list                 # list[1, 2]
+    ordered[a: 1] -> :>dict              # dict[a: 1]
+    dict[x: 1, y: 2] -> :>ordered(x: number, y: number)  # structural
+
+Compatibility matrix (error = halts with RILL-R036, no-op = same-type identity):
+
+    Source   | :>list  | :>dict  | :>tuple | :>ordered(sig) | :>number | :>string | :>bool
+    ---------|---------|---------|---------|----------------|----------|----------|-------
+    list     | no-op   | error   | valid   | error          | error    | valid¹   | error
+    dict     | error   | no-op   | error   | valid          | error    | valid¹   | error
+    tuple    | valid   | error   | no-op   | error          | error    | valid¹   | error
+    ordered  | error   | valid   | error   | no-op          | error    | valid¹   | error
+    string   | error   | error   | error   | error          | valid²   | no-op    | valid³
+    number   | error   | error   | error   | error          | no-op    | valid¹   | valid⁵
+    bool     | error   | error   | error   | error          | valid⁴   | valid¹   | no-op
+
+    ¹ Uses formatValue semantics for formatted output
+    ² Parseable strings only; halts with RILL-R038 on failure
+    ³ Accepts only "true" and "false"; halts with RILL-R036 otherwise
+    ⁴ true maps to 1, false maps to 0
+    ⁵ 0 maps to false, 1 maps to true; all other values halt with RILL-R036
+
+## Comparison Methods
 
     .eq(val) ==   .ne(val) !=   .lt(val) <   .gt(val) >   .le(val) <=   .ge(val) >=
     Example: $age -> .ge(18) ? "adult" ! "minor"
@@ -436,6 +535,10 @@ Slice (`slice<start:stop:step>`):
     tuple[1, 2, 3] -> $fn(...)             # positional spread: $fn(1, 2, 3)
     ordered[a: 10, b: 2] -> $fn(...)       # named spread: keys must match parameter order
     tuple[...$list, 3] -> $fn(...)         # spread in tuple then spread into call
+    tuple[1, 2, 3] => $args
+    $args -> $fn(...)                      # spread stored tuple
+    ordered[a: 1, b: 2] => $named
+    $named -> $fn(...)                     # spread stored ordered
 
 ## String Methods
 
@@ -446,8 +549,6 @@ Slice (`slice<start:stop:step>`):
 | `.trim` | remove whitespace |
 | `.upper` | uppercase |
 | `.lower` | lowercase |
-| `.str` | convert to string |
-| `.num` | parse to number |
 | `.head` | first character |
 | `.tail` | last character |
 | `.at(i)` | character at index |

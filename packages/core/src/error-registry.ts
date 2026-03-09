@@ -397,6 +397,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: 'RILL-P011',
+    category: 'parse',
+    description: 'Expected type name after pipe',
+    messageTemplate: "Expected type name after '|'",
+    cause:
+      "A '|' in a type annotation position was not followed by a valid type name or '$' variable reference.",
+    resolution:
+      "Provide a valid type name or '$variable' after '|'. Example: 'string|number' or '$T|string'.",
+    examples: [
+      {
+        description: 'Trailing pipe with no type',
+        code: '$x: string|  # Error: missing type after |',
+      },
+    ],
+  },
 
   // Runtime Errors (RILL-R0xx)
   {
@@ -476,8 +492,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       'Ensure value has valid format for target type. For string-to-number: check numeric format. For parse operations: validate input structure.',
     examples: [
       {
-        description: 'Invalid number string',
-        code: '"abc" -> .num()  # Not a valid number',
+        description: 'Type mismatch in function argument',
+        code: 'range("ten", 20)  # range expects number, got string',
       },
       {
         description: 'Cannot serialize closure',
@@ -1039,9 +1055,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The :> operator does not support conversion between the given source and target types.',
+      'The :> operator does not support conversion between the given source and target types. :>string accepts any source type. :>number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (:>boolean, :>list, :>dict, :>tuple, :>ordered) have their own accepted sources.',
     resolution:
-      'Check the type conversion compatibility matrix. Not all combinations are valid (e.g. string :>list is not allowed).',
+      'Check the target type. Use :>string to convert any value to its string representation. For :>number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
       {
         description: 'String to list conversion',

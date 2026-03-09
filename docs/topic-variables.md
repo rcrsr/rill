@@ -130,6 +130,19 @@ Declare type explicitly with `:type`:
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
 
+Union types are valid in capture annotations. The runtime accepts any value that satisfies at least one union member:
+
+```rill
+"hello" => $x:string|number
+$x
+# Result: "hello"
+```
+
+```text
+# Error: Type mismatch: cannot assign bool to $x:string|number
+true => $x:string|number
+```
+
 ### Inline Capture with Type
 
 ```rill

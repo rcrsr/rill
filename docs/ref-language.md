@@ -38,10 +38,10 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |
 | Conversion | `:>type` (convert type) |
-| Type | `:type` (assert), `:?type` (check) |
+| Type | `:type` (assert), `:?type` (check), `:T1\|T2` (union assert/check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
-| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type` |
+| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&T1\|T2` (union), `.?field&list(T)` (parameterized) |
 
 See [Operators](topic-operators.md) for detailed documentation.
 
@@ -91,6 +91,8 @@ See [Collections](topic-collections.md) for detailed documentation.
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
 
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime.
+
+**Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. See [Type System](topic-type-system.md) for union type documentation.
 
 > **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical — they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
@@ -213,7 +215,7 @@ list[1, 2, 3] -> :list(number)
 # Result: list[1, 2, 3]
 ```
 
-See [Types](topic-types.md) for detailed structural type documentation.
+See [Type System](topic-type-system.md) for detailed structural type documentation.
 
 ### Dispatch
 
@@ -306,8 +308,6 @@ Terminal closures receive `$` bound to the final path key.
 
 | Method | Input | Output | Description |
 |--------|-------|--------|-------------|
-| `.str` | Any | String | Convert to string |
-| `.num` | Any | Number | Convert to number |
 | `.len` | Any | Number | Length |
 | `.trim` | String | String | Remove whitespace |
 | `.head` | String/List | Any | First element |
@@ -391,7 +391,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> slice<1:4>                    # "ell"
 ```
 
-See [Operators](topic-operators.md) for detailed extraction operator documentation.
+Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:string|number>`. The runtime validates each extracted element against the declared type. See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 

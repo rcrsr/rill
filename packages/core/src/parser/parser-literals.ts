@@ -645,7 +645,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
 
   if (isAnonymousTyped) {
     const paramStart = current(this.state).span.start;
-    const typeRef = parseTypeRef(this.state);
+    const typeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
     expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
     skipNewlines(this.state);
     const body = this.parseBody(true);
@@ -757,7 +757,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     skipNewlines(this.state);
-    typeRef = parseTypeRef(this.state);
+    typeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
   }
 
   skipNewlines(this.state);

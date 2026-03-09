@@ -37,7 +37,8 @@ export function createRuntimeContext(
   const variables = new Map<string, RillValue>();
   const variableTypes = new Map<
     string,
-    import('../../types.js').RillTypeName
+    | import('../../types.js').RillTypeName
+    | import('./values.js').RillStructuralType
   >();
   const functions = new Map<
     string,
@@ -186,7 +187,11 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
   return {
     parent,
     variables: new Map<string, RillValue>(),
-    variableTypes: new Map<string, import('../../types.js').RillTypeName>(),
+    variableTypes: new Map<
+      string,
+      | import('../../types.js').RillTypeName
+      | import('./values.js').RillStructuralType
+    >(),
     functions: parent.functions,
     methods: parent.methods,
     callbacks: parent.callbacks,

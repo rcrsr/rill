@@ -1,6 +1,6 @@
-# rill Type System
+# rill Types
 
-*Value types, type assertions, and type checking*
+*Primitives, collections, and value types*
 
 ## Overview
 
@@ -27,8 +27,6 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
 The type keywords (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`) are reserved in the `|...|` closure position for anonymous typed parsing. See [Closures](topic-closures.md) for full documentation of anonymous typed closures.
-
----
 
 ## Strings
 
@@ -74,8 +72,6 @@ Triple-quote strings support interpolation like regular strings.
 
 See [Strings](topic-strings.md) for string methods.
 
----
-
 ## Numbers
 
 Used for arithmetic, exit codes, and loop limits:
@@ -99,8 +95,6 @@ Used for arithmetic, exit codes, and loop limits:
 # Error: Arithmetic requires number, got string
 "5" + 1
 ```
-
----
 
 ## Booleans
 
@@ -139,8 +133,6 @@ Use explicit boolean checks when needed:
 "" -> .empty -> (!$) ? "has content" ! "empty"         # Negate boolean result
 [1,2,3] -> .empty -> (!$) ? "has items" ! "none"   # Check non-empty
 ```
-
----
 
 ## Lists
 
@@ -205,8 +197,6 @@ $list[0] ?? "default"  # "a"
 ```
 
 See [Collections](topic-collections.md) for iteration operators.
-
----
 
 ## Dicts
 
@@ -331,8 +321,6 @@ Closures in dicts have `$` late-bound to the containing dict. See [Closures](top
 $obj.str    # "toolkit: 3 items" (auto-invoked)
 ```
 
----
-
 ## Ordered
 
 `ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
@@ -354,8 +342,6 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
 `ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
-
----
 
 ## Tuples
 
@@ -394,8 +380,6 @@ Use tuples with explicit spread `...` to pass positional args in `map`:
 |x, y|($x * $y) => $mul
 [tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
 ```
-
----
 
 ## Vectors
 
@@ -482,7 +466,7 @@ $v1 == $v2
 - **No string coercion**: Cannot be used in string interpolation or concatenation
 - **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on vectors
 
-```rill
+```text
 # Error: cannot coerce vector to string
 "Result: {$vec}"
 
@@ -490,484 +474,14 @@ $v1 == $v2
 $vec -> each { $ * 2 }
 ```
 
----
-
-## Structural Type Values
-
-`^type` returns a structural type value — a first-class value describing the full structure of a collection, not just a coarse type name.
-
-### `^type` Returns Structural Types
-
-```rill
-[1, 2, 3] => $list
-$list.^type == list(number)
-# Result: true
-```
-
-```rill
-[a: 1, b: "hello"] => $d
-$d.^type.name
-# Result: "dict"
-```
-
-```rill
-42 => $n
-$n.^type == number
-# Result: true
-```
-
-### Type Constructors
-
-Type constructors produce structural type values. They are primary expressions — valid anywhere an expression is valid.
-
-```rill
-list(number) => $lt
-$lt.^type.name
-# Result: "type"
-```
-
-| Constructor | Example | Produced Type |
-|-------------|---------|---------------|
-| `list(T)` | `list(number)` | List-of-number type |
-| `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
-| `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
-| `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
-| `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
-
-### Comparing Structural Types
-
-```rill
-[1, 2, 3] => $list
-$list.^type == list(number)
-# Result: true
-```
-
-```rill
-[a: 1, b: "hello"] => $d
-$d.^type == dict(a: number, b: string)
-# Result: true
-```
-
-### `.^type.name` for Coarse Type Name
-
-`.^type.name` returns the coarse type name as a string:
-
-```rill
-[1, 2, 3] => $list
-$list.^type.name
-# Result: "list"
-```
-
-```rill
-[a: 1] => $d
-$d.^type.name
-# Result: "dict"
-```
-
-### Metatype Fixed Point
-
-The `^type` of a type value is always `type`. `type.^type` is `type`:
-
-```rill
-list(number) => $lt
-$lt.^type == type
-# Result: true
-```
-
-```rill
-type => $t
-$t.^type == type
-# Result: true
-```
-
-### `formatStructuralType` Output Format
-
-The string representation of structural types follows this format:
-
-| Value | `^type` string |
-|-------|---------------|
-| Any value | `"any"` |
-| Primitive | `"string"`, `"number"`, `"bool"` |
-| List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
-| Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
-| Tuple | `"tuple(number, string, bool)"` (positional) |
-| Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
-| Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
-
----
-
-## Type Assertions
-
-Use type assertions to validate values at runtime.
-
-### Assert Type (`:type`)
-
-Error if type doesn't match, returns value unchanged:
-
-```rill
-# Postfix form (binds tighter than method calls)
-42:number                     # passes, returns 42
-(1 + 2):number                # passes, returns 3
-42:number.str                 # "42" - assertion then method
-
-# Pipe target form
-"hello" -> :string            # passes, returns "hello"
-"hello" -> :number            # ERROR: expected number, got string
-$val -> :dict -> .keys        # assert dict, then get keys
-```
-
-```rill
-# Parameterized type assertions
-[1, 2, 3] -> :list(number)                          # passes, returns list[1, 2, 3]
-[a: 1, b: "hello"] -> :dict(a: number, b: string)  # passes
-```
-
-```text
-["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
-```
-
-### Check Type (`:?type`)
-
-Returns boolean, no error:
-
-```rill
-# Postfix form
-42:?number                    # true
-"hello":?number               # false
-
-# Pipe target form
-"hello" -> :?string           # true
-```
-
-```rill
-[1, 2, 3]:?list(number)               # true
-["a", "b"]:?list(number)              # false
-```
-
-Type checks work in conditionals:
-
-```text
-$val -> :?list ? process() ! skip()   # branch on type
-```
-
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
-
-Parameterized forms accept a type argument list: `list(string)`, `dict(a: number, b: string)`, `tuple(number, string)`. The runtime deep-validates element types on match.
-
-The `vector` type matches host-provided typed arrays. The `any` type name accepts any value type — useful for generic closures. The `ordered` type matches containers produced by `*dict` spread.
-
-Both types are valid in closure parameter positions, capture type assertions, and type assertions:
-
-```rill
-# Closure parameter with vector type annotation
-|x: vector| { $x } => $fn
-app::embed("hello") => $v
-$fn($v) -> .model
-# Result: "mock-embed"
-```
-
-```rill
-# Closure parameter with any type annotation
-|x: any| { $x } => $fn
-$fn("hello")
-# Result: "hello"
-```
-
-```rill
-# Type assertion: :vector and :any
-app::embed("hello") => $v
-$v -> :vector
-# Result: vector(mock-embed, 3d)
-
-$v -> :any
-# Result: vector(mock-embed, 3d)
-true
-```
-
-```rill
-# Capture type assertion with vector type
-app::embed("hello") => $x:vector
-$x -> .model
-# Result: "mock-embed"
-```
-
-```rill
-# Capture type assertion with parameterized type
-[1, 2] => $x:list(number)
-$x[0]
-# Result: 1
-```
-
-### In Pipe Chains
-
-```rill
-# Assert typed list and continue processing
-[1, 2, 3] -> :list(number) -> each { $ * 2 }
-
-# Multiple assertions in chain
-"test" -> :string -> .len -> :number   # 4
-```
-
-### Use Cases
-
-```rill
-# Validate function input
-|data| {
-  $data -> :list              # assert input is list
-  $data -> each { $ * 2 }
-} => $process_items
-
-# Type-safe branching
-|val| {
-  $val -> :?number ? ($val * 2) ! ($val -> .len)
-} => $process
-$process(5)        # 10
-$process("hello")  # 5
-```
-
----
-
-## Type-Locked Variables
-
-Variables lock type on first assignment. The type is inferred from the value or declared explicitly:
-
-```rill
-"hello" => $name              # implicit: locked as string
-"world" => $name              # OK: same type
-5 => $name                    # ERROR: cannot assign number to string
-
-"hello" => $name:string       # explicit: declare and lock as string
-42 => $count:number           # explicit: declare and lock as number
-```
-
-### Inline Capture with Type
-
-```rill
-"hello" => $x:string -> .len  # type annotation in mid-chain
-```
-
-Type annotations validate on assignment and prevent accidental type changes:
-
-```rill
-|x|$x => $fn                  # locked as closure
-"text" => $fn                 # ERROR: cannot assign string to closure
-```
-
----
-
-## Type Values
-
-rill has a runtime type named `type`. A type value represents a rill type — including full structural information for collection types.
-
-### `.^type` Operator
-
-`.^type` returns the structural type value for any rill value:
-
-```rill
-42 => $n
-$n.^type == number
-# Result: true
-
-"hello" => $s
-$s.^type == string
-# Result: true
-
-[1, 2] => $l
-$l.^type == list(number)
-# Result: true
-
-[a: 1] => $d
-$d.^type == dict(a: number)
-# Result: true
-```
-
-```rill
-ordered[a: 1, b: 2] => $o
-$o.^type.name
-# Result: "ordered"
-
-||{ $ } => $fn
-$fn.^type == closure
-# Result: true
-```
-
-```rill
-app::embed("hello world") => $vec
-$vec.^type == vector
-# Result: true
-```
-
-### Type Name Expressions
-
-All type names are valid expressions that produce type values:
-
-```rill
-string => $st
-$st.^type == type
-# Result: true
-
-number => $nt
-$nt.^type == type
-# Result: true
-
-type => $tt
-$tt.^type == type
-# Result: true
-```
-
-### `.^type.name` Property
-
-Access the coarse type name via `.^type.name` on any value:
-
-```rill
-42 => $n
-$n.^type.name
-# Result: "number"
-```
-
-```rill
-"hello" => $s
-$s.^type.name
-# Result: "string"
-```
-
-```rill
-[1, 2] => $l
-$l.^type.name
-# Result: "list"
-```
-
-### Dot-Notation Properties on Type Values
-
-Type values expose two properties via dot notation:
-
-| Property | Return Type | Description |
-|----------|-------------|-------------|
-| `.name` | `string` | Coarse type name (`"number"`, `"list"`, `"dict"`, etc.) |
-| `.signature` | `string` | Full structural type string |
-
-```rill
-number => $t
-$t.name
-# Result: "number"
-```
-
-```rill
-dict => $t
-$t.name
-# Result: "dict"
-```
-
-`.signature` returns the full structural representation via `formatStructuralType`:
-
-```rill
-list(number) => $t
-$t.signature
-# Result: "list(number)"
-```
-
-```rill
-|y: string|($y):string => $fn
-$fn.^type.signature
-# Result: "|y: string| :string"
-```
-
-Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
-
-```rill
-42.^type.name
-# Result: "number"
-```
-
-```rill
-42.^type.signature
-# Result: "number"
-```
-
-Unknown dot properties on type values raise RILL-R009:
-
-```text
-number.unknownProp
-# Error: RILL-R009: Unknown property 'unknownProp' on type value
-```
-
-`.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"). Use `.name` (dot notation) instead:
-
-```text
-number.^name
-# Error: RILL-R008: Annotation access not supported on type values
-```
-
-### Type Value Equality
-
-Type values compare with `==` and `!=`. Structural types compare structurally:
-
-```rill
-42 => $n
-$n.^type == number
-# Result: true
-```
-
-```rill
-42 => $n
-$n.^type == string
-# Result: false
-```
-
-```rill
-"hello" => $a
-"world" => $b
-$a.^type == $b.^type
-# Result: true
-```
-
-```rill
-[1, 2] => $l
-$l.^type == list(number)
-# Result: true
-```
-
-```rill
-["a", "b"] => $strs
-$strs.^type == list(number)
-# Result: false
-```
-
-The type of a type value is `type`:
-
-```rill
-42 => $n
-$n.^type => $tv
-$tv.^type == type
-# Result: true
-
-type => $t
-$t.^type == type
-# Result: true
-```
-
-### Global Type Utilities
-
-| Function | Description |
-|----------|-------------|
-| `json` | Convert to JSON string |
-
-```rill
-[a: 1, b: 2] -> json
-# Result: '{"a":1,"b":2}'
-```
-
-**`json` closure handling:**
-- Direct closure → error: `|x|{ $x } -> json` throws "Cannot serialize closure to JSON"
-- Closures in dicts → skipped: `[a: 1, fn: ||{ 0 }] -> json` returns `'{"a":1}'`
-- Closures in lists → skipped: `[1, ||{ 0 }, 2] -> json` returns `'[1,2]'`
-
----
-
 ## See Also
 
-- [Variables](topic-variables.md) — Declaration, scope, `$` binding
-- [Closures](topic-closures.md) — Closure semantics and patterns
-- [Collections](topic-collections.md) — List iteration operators
-- [Strings](topic-strings.md) — String methods reference
-- [Reference](ref-language.md) — Quick reference tables
+| Document | Description |
+|----------|-------------|
+| [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
+| [Variables](topic-variables.md) | Declaration, scope, `$` binding |
+| [Closures](topic-closures.md) | Closure semantics and patterns |
+| [Collections](topic-collections.md) | List iteration operators |
+| [Strings](topic-strings.md) | String methods reference |
+| [Reference](ref-language.md) | Quick reference tables |
+

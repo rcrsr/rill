@@ -572,11 +572,11 @@ $list.join (", ")
 # methods: $.foo() -> .foo
 # good
 "hello" -> .upper -> .len
-[1, 2, 3] -> map .str
+[1, 2, 3] -> map { $ -> :>string }
 
 # avoid
 "hello" -> $.upper() -> $.len
-[1, 2, 3] -> map $.str
+# (no shorthand form for :>type operators — closure form is canonical)
 
 # global functions: foo($) -> foo
 # good

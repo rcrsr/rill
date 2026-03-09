@@ -7,7 +7,7 @@
 
 import type { RillTypeName } from '../../types.js';
 import type { CallableFn, HostFunctionDefinition } from './callable.js';
-import type { RillValue } from './values.js';
+import type { RillStructuralType, RillValue } from './values.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
 
@@ -122,7 +122,7 @@ export interface RuntimeContext {
   /** Named variables ($varname) - local to this scope */
   readonly variables: Map<string, RillValue>;
   /** Variable types - locked after first assignment (local to this scope) */
-  readonly variableTypes: Map<string, RillTypeName>;
+  readonly variableTypes: Map<string, RillTypeName | RillStructuralType>;
   /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
   readonly functions: Map<
     string,

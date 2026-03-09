@@ -76,7 +76,8 @@ export type RillStructuralType =
       ret?: RillStructuralType;
     }
   | { type: 'tuple'; elements?: RillStructuralType[] }
-  | { type: 'ordered'; fields?: [string, RillStructuralType][] };
+  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+  | { type: 'union'; members: RillStructuralType[] };
 
 /**
  * Type value - represents a first-class type name at runtime.
@@ -269,6 +270,14 @@ export function structuralTypeEquals(
       const bField = b.fields[i]!;
       if (aField[0] !== bField[0]) return false;
       if (!structuralTypeEquals(aField[1], bField[1])) return false;
+    }
+    return true;
+  }
+
+  if (a.type === 'union' && b.type === 'union') {
+    if (a.members.length !== b.members.length) return false;
+    for (let i = 0; i < a.members.length; i++) {
+      if (!structuralTypeEquals(a.members[i]!, b.members[i]!)) return false;
     }
     return true;
   }
@@ -466,6 +475,10 @@ export function structuralTypeMatches(
     return structuralTypeEquals(retType, type.ret);
   }
 
+  if (type.type === 'union') {
+    return type.members.some((member) => structuralTypeMatches(value, member));
+  }
+
   return false;
 }
 
@@ -516,6 +529,10 @@ export function formatStructuralType(type: RillStructuralType): string {
       .join(', ');
     const ret = type.ret !== undefined ? formatStructuralType(type.ret) : 'any';
     return `|${params}| :${ret}`;
+  }
+
+  if (type.type === 'union') {
+    return type.members.map(formatStructuralType).join('|');
   }
 
   return 'any';

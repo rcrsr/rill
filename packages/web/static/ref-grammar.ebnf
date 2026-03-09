@@ -425,7 +425,7 @@ host-name = identifier , { "::" , identifier } ;
                  rill is a vanilla language. The host provides all domain functions.
 
                  Core global functions (built-in):
-                 - log($value)   -- logs value using .str, returns value unchanged (passthrough)
+                 - log($value)   -- logs value using formatValue, returns value unchanged (passthrough)
                  - json($value)  -- converts any value to JSON string
                  - identity($value) -- returns value unchanged
                  - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
@@ -442,7 +442,6 @@ arguments     = expression , { "," , expression } ;
 
 (* Methods: ".method" or ".method()" with implied $ receiver.
    0-arg methods may omit parens: .empty ≡ .empty() ≡ $.empty()
-   In pipe: "x -> .str" passes x as receiver to str method.
    In conditional: ".empty ? then ! else" tests $.empty for truthiness.
    Pipe semantics: "$ -> fn" ≡ "fn($)" — piped value becomes first arg.
    Global functions (log, json) are not methods — use as: "x -> log" *)
@@ -458,19 +457,18 @@ method-name   = "contains" | "match" | "is_match"     (* pattern: 1 arg *)
               | "pad_start" | "pad_end"               (* padding: 1-2 args *)
               | "empty" | "lines"                     (* utility: 0 args *)
               | "eq" | "ne" | "lt" | "gt" | "le" | "ge" (* comparison: 1 arg *)
-              | "str" | "num" | "len" | "trim"        (* conversion: 0 args *)
+              | "len" | "trim"                        (* utility: 0 args *)
               | "head" | "tail"                       (* element access: 0 args *)
               | "first"                                (* iterator: 0 args, returns iterator *)
               | "at"                                  (* element access: 1 arg *)
               | "split" | "join"                      (* string ops: 0-1 args *)
               | "keys" | "values" | "entries" ;       (* dict: 0 args *)
-              (* Note: .str is built-in on ALL types including tuple.
-                 Use global log() and json() functions instead of methods. *)
+              (* Use global log() and json() functions instead of methods. *)
 
 (* Arity constraints (semantic check, not grammar-enforced):
    The grammar allows [ arguments ] for flexibility, but these methods
    have fixed arity that parsers/interpreters must validate:
-   0 args: empty, lines, str, num, len, trim, head, tail, first, keys, values, entries, lower, upper
+   0 args: empty, lines, len, trim, head, tail, first, keys, values, entries, lower, upper
    0-1 args: split, join (separator defaults to newline/comma)
    1 arg:  contains, match, is_match, starts_with, ends_with, index_of, repeat, eq, ne, lt, gt, le, ge, at
    1-2 args: pad_start, pad_end (fill defaults to space)

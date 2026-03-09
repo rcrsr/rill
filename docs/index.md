@@ -15,11 +15,13 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Types](topic-types.md) | Primitives, tuples, dicts, type assertions |
+| [Types](topic-types.md) | Primitives, tuples, dicts, collections |
+| [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
 | [Variables](topic-variables.md) | Declaration, scope rules, `$` binding |
 | [Control Flow](topic-control-flow.md) | Conditionals, loops, break/return |
 | [Operators](topic-operators.md) | Arithmetic, comparison, spread, extraction |
 | [Closures](topic-closures.md) | Late binding, dict-bound closures |
+| [Closure Annotations](topic-closure-annotations.md) | Parameter metadata, annotations, and reflection |
 
 ## Data & Collections
 

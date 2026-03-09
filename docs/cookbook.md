@@ -454,7 +454,7 @@ Simple template with variable substitution (using angle brackets as delimiters):
 [name: "Alice", orderId: "12345", date: "2024-03-15"] => $templateVars
 
 $templateVars -> .entries -> fold($template) {
-  $@.replace_all("<{$[0]}>", $[1] -> .str)
+  $@.replace_all("<{$[0]}>", $[1] -> :>string)
 }
 # Result: "Hello Alice, your order 12345 ships on 2024-03-15."
 ```
@@ -522,7 +522,7 @@ Cache expensive computations:
 ```text
 # Build cache alongside computation
 |n, cache|{
-  $cache.?($n -> .str) ? $cache.($n -> .str) ! {
+  $cache.?($n -> :>string) ? $cache.($n -> :>string) ! {
     # Compute fibonacci
     ($n <= 1) ? $n ! {
       $n - 1 -> |prev|{ |prev, cache|{ ... }($prev, $cache) } => $a  # Simplified

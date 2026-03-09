@@ -335,6 +335,41 @@ Extract elements from lists or dicts into variables. Returns the original value 
 [name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
 ```
 
+### Type-Annotated Destructure
+
+Capture variables in `destruct<>` accept type annotations using `:type` syntax. The runtime validates the extracted element against the declared type before assignment.
+
+**Parameterized type on a destructure capture:**
+
+```rill
+[["a", "b"]] -> destruct<$a:list(string)>
+$a[0]
+# Result: "a"
+```
+
+**Dict structural type on a destructure capture:**
+
+```rill
+[[name: "alice"]] -> destruct<$a:dict(name: string)>
+$a.name
+# Result: "alice"
+```
+
+**Union type on a destructure capture:**
+
+```rill
+["hello"] -> destruct<$a:string|number>
+$a
+# Result: "hello"
+```
+
+**Type mismatch error:**
+
+```text
+# Error: Type mismatch: cannot assign list(number) to $a:list(string)
+[[1, 2]] -> destruct<$a:list(string)>
+```
+
 ### Slice `slice<>`
 
 Extract a portion using Python-style `start:stop:step`. Works on lists and strings.
@@ -558,6 +593,34 @@ $user.?age&number                # true
 $user.?age&string                # false
 ```
 
+The `&type` position accepts parameterized types and union types.
+
+**Parameterized type:**
+
+```rill
+[items: [1, 2, 3]] => $data
+$data.?items&list(number)
+# Result: true
+```
+
+**Dict structural type:**
+
+```rill
+[cfg: [key: "x"]] => $data
+$data.?cfg&dict(key: string)
+# Result: true
+```
+
+**Union type:**
+
+```rill
+[score: 42] => $data
+$data.?score&string|number
+# Result: true
+```
+
+The `&` operator binds to the entire union expression. `$data.?score&string|number` parses as `$data.?score & (string|number)`, not `($data.?score&string) | number`.
+
 ---
 
 ## Type Operators
@@ -618,10 +681,10 @@ Structural checks are also supported. These match element and field types:
 42 -> ^type                      # number
 ```
 
-The type value formats as a structural string via `.str` or string interpolation:
+The type value formats as a structural string via `:>string` or string interpolation:
 
 ```text
-[1, 2, 3] -> ^type -> .str       # "list(number)"
+[1, 2, 3] -> ^type -> :>string   # "list(number)"
 "hello {[1,2,3] -> ^type}"       # "hello list(number)"
 ```
 
@@ -633,6 +696,26 @@ To get the type name only, chain `.name` on the type value:
 ```
 
 See [Types](topic-types.md) for detailed type system documentation.
+
+### Conversion Operator :>type
+
+The `:>type` operator converts a value to the target type. Same-type conversions are no-ops. Incompatible conversions halt with `RILL-R036`.
+
+| Source | `:>list` | `:>dict` | `:>tuple` | `:>ordered(sig)` | `:>number` | `:>string` | `:>bool` |
+|---------|--------|--------|---------|----------------|----------|----------|--------|
+| `list`    | no-op  | error  | valid   | error          | error    | valid¹   | error  |
+| `dict`    | error  | no-op  | error   | valid          | error    | valid¹   | error  |
+| `tuple`   | valid  | error  | no-op   | error          | error    | valid¹   | error  |
+| `ordered` | error  | valid  | error   | no-op          | error    | valid¹   | error  |
+| `string`  | error  | error  | error   | error          | valid²   | no-op    | valid³ |
+| `number`  | error  | error  | error   | error          | no-op    | valid¹   | valid⁵ |
+| `bool`    | error  | error  | error   | error          | valid⁴   | valid¹   | no-op  |
+
+¹ Uses `formatValue` semantics for formatted output.
+² Parseable strings only; halts with `RILL-R038` on failure.
+³ Accepts only `"true"` and `"false"`; halts with `RILL-R036` otherwise.
+⁴ `true` maps to `1`, `false` maps to `0`.
+⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
 ---
 
