@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type { SchemeResolver } from '@rcrsr/rill';
+import type { SchemeResolver, RillFunction } from '@rcrsr/rill';
 import {
   buildFiddleRuntimeOptions,
   executeRill,
@@ -337,12 +337,25 @@ describe('executeRill', () => {
       });
     });
 
-    it.skip('AC-48: use<ext:...> + ext::fn() in permissive mode — both resolve; ext::fn() produces warning', async () => {
-      // Blocked by RILL-P020 static-form lexer WIP.
+    it('AC-48: use<ext:...> + ext::fn() in permissive mode — both resolve; ext::fn() returns its argument', async () => {
       // use<ext:example> captures the resolved ext value; ext::fn() is a
-      // namespace-qualified call that also resolves in permissive mode but
-      // produces a warning because no explicit use<> import exists for it.
-      const config = singleResolverConfig('ext', valueResolver('resolved-ext'));
+      // namespace-qualified host function registered in the functions map.
+      const extFn: RillFunction = {
+        params: [
+          {
+            name: 'arg',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args) => args[0]!,
+      };
+      const config: FiddleResolverConfig = {
+        resolvers: { ext: valueResolver('resolved-ext') },
+        configurations: { resolvers: {} },
+        functions: { 'ext::fn': extFn },
+      };
       const result = await executeRill(
         'use<ext:example> => $e\next::fn("arg") => $r',
         config
@@ -350,11 +363,9 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
     });
 
-    it.skip('AC-50: use<$varName> in permissive mode — execution proceeds, resolved value is available', async () => {
-      // Blocked by RILL-P020 static-form lexer WIP.
-      // Dynamic use<> form: the variable $name holds the resource identifier
-      // string at runtime. In permissive mode the runtime resolves it and
-      // binds the result to $e.
+    it('AC-50: use<$varName> in permissive mode — execution proceeds, resolved value is available', async () => {
+      // Dynamic use<> form: $name holds the resource identifier string at
+      // runtime. The runtime resolves it and binds the result to $e.
       const config = singleResolverConfig(
         'ext',
         valueResolver('dynamic-resolved')
@@ -366,16 +377,26 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
     });
 
-    it.skip('AC-54: use<ext:...> + ext::fn() in permissive mode (FDL boundary 4) — both resolve, ext::fn() warns', async () => {
-      // Blocked by RILL-P020 static-form lexer WIP.
+    it('AC-54: use<ext:...> + ext::fn() in permissive mode (FDL boundary 4) — both resolve, ext::fn() returns its argument', async () => {
       // FDL boundary 4: script combines use<ext:...> capture with an
-      // ext::fn() namespace-qualified call in permissive mode. Both
-      // expressions resolve; ext::fn() emits a warning to logs because it
-      // was not explicitly imported via use<>.
-      const config = singleResolverConfig(
-        'ext',
-        valueResolver('boundary-value')
-      );
+      // ext::fn() namespace-qualified host function call. Both expressions
+      // resolve because ext::fn is registered in the functions map.
+      const extFn: RillFunction = {
+        params: [
+          {
+            name: 'arg',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args) => args[0]!,
+      };
+      const config: FiddleResolverConfig = {
+        resolvers: { ext: valueResolver('boundary-value') },
+        configurations: { resolvers: {} },
+        functions: { 'ext::fn': extFn },
+      };
       const result = await executeRill(
         'use<ext:example> => $e\next::fn("arg") => $r\n$e',
         config

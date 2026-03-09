@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`use<>` construct for module loading** — Load extensions and modules via `use<scheme:resource>` expressions with pluggable resolvers. Built-in resolvers include module, extension, and custom schemes
 - **Union type syntax** — Union types (`string|number`) work in variable captures, destructuring patterns, existence checks, closure parameters, and type assertions. Parameterized types (`list(T)`, `dict(k: T)`) now work in the same positions
 
 ### Changed

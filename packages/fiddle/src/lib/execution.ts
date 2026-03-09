@@ -15,6 +15,8 @@ import {
   type ScriptNode,
   type SchemeResolver,
   type RuntimeOptions,
+  type RillFunction,
+  type RillFunctionSignature,
 } from '@rcrsr/rill';
 import { EXECUTION_TIMEOUT_MS } from './constants.js';
 
@@ -73,6 +75,8 @@ export interface FiddleResolverConfig {
   resolvers: Record<string, SchemeResolver>;
   /** Per-scheme configuration data passed to each resolver */
   configurations: { resolvers: Record<string, unknown> };
+  /** Host functions exposed to scripts (e.g. "ext::fn") */
+  functions?: Record<string, RillFunction | RillFunctionSignature> | undefined;
 }
 
 // ============================================================
@@ -112,6 +116,9 @@ export function buildFiddleRuntimeOptions(
     ...base,
     resolvers: resolverConfig.resolvers,
     configurations: resolverConfig.configurations,
+    ...(resolverConfig.functions !== undefined && {
+      functions: resolverConfig.functions,
+    }),
   };
 }
 

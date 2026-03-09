@@ -491,7 +491,7 @@ Semantically, `=> $var ->` is `=> $var.set($) ->` — the capture acts like `log
 
 Uses type annotations to prevent accidental type changes during script execution.
 
-```rill
+```text
 args: file: string
 
 # Define a typed helper closure

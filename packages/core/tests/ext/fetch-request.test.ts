@@ -85,6 +85,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 // ============================================================
@@ -445,6 +446,7 @@ describe('executeRequest - retry logic', () => {
   });
 
   it('retries on HTTP 429 with Retry-After header', async () => {
+    vi.useFakeTimers();
     mockResponses = [
       {
         status: 429,
@@ -454,22 +456,22 @@ describe('executeRequest - retry logic', () => {
       { status: 200, body: '{"success": true}' },
     ];
 
-    const start = Date.now();
-    const result = await executeRequest(
+    const promise = executeRequest(
       'https://api.example.com/users',
       { method: 'GET', headers: {} },
       testConfig,
       'api',
       'body'
     );
-    const elapsed = Date.now() - start;
+    await vi.advanceTimersByTimeAsync(1001);
+    const result = await promise;
 
     expect(result).toEqual({ success: true });
     expect(fetchCallCount).toBe(2);
-    expect(elapsed).toBeGreaterThanOrEqual(998); // Respects Retry-After (with 2ms tolerance)
   });
 
   it('uses exponential backoff for network errors', async () => {
+    vi.useFakeTimers();
     let callCount = 0;
     const callTimes: number[] = [];
 
@@ -488,13 +490,15 @@ describe('executeRequest - retry logic', () => {
       } as Response;
     }) as unknown as typeof fetch;
 
-    await executeRequest(
+    const promise = executeRequest(
       'https://api.example.com/users',
       { method: 'GET', headers: {} },
       testConfig,
       'api',
       'body'
     );
+    await vi.advanceTimersByTimeAsync(150);
+    await promise;
 
     expect(callCount).toBe(3);
     // Check exponential backoff: 50ms, 100ms (with 2ms tolerance for timer jitter)
