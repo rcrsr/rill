@@ -24,7 +24,7 @@ describe('persistence', () => {
 
   beforeEach(() => {
     // Clear localStorage before each test
-    localStorage.clear();
+    window.localStorage.clear();
     // Mock window.innerWidth to 1200px for consistent test expectations
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
@@ -69,7 +69,7 @@ describe('persistence', () => {
 
     // EC-8: Corrupt JSON returns default EditorState
     it('returns defaults when JSON is corrupt', () => {
-      localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
+      window.localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
 
       const state = loadEditorState();
 
@@ -79,7 +79,7 @@ describe('persistence', () => {
 
     // EC-8: Corrupt JSON returns defaults (non-object JSON)
     it('returns defaults when stored value is not an object', () => {
-      localStorage.setItem('rill-fiddle-editor-state', '"string value"');
+      window.localStorage.setItem('rill-fiddle-editor-state', '"string value"');
 
       const state = loadEditorState();
 
@@ -88,7 +88,7 @@ describe('persistence', () => {
 
     // EC-8: Corrupt JSON returns defaults (null value)
     it('returns defaults when stored value is null', () => {
-      localStorage.setItem('rill-fiddle-editor-state', 'null');
+      window.localStorage.setItem('rill-fiddle-editor-state', 'null');
 
       const state = loadEditorState();
 
@@ -97,7 +97,7 @@ describe('persistence', () => {
 
     // EC-9: splitRatio out of range clamps to valid bounds (too low)
     it('clamps splitRatio to minimum when value is too low', () => {
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 5, // Below minimum (~16.67%)
@@ -113,7 +113,7 @@ describe('persistence', () => {
 
     // EC-9: splitRatio out of range clamps to valid bounds (too high)
     it('clamps splitRatio to maximum when value is too high', () => {
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 95, // Above maximum (~83.33%)
@@ -132,7 +132,7 @@ describe('persistence', () => {
       const validRatios = [20, 30, 50, 70, 80];
 
       for (const ratio of validRatios) {
-        localStorage.setItem(
+        window.localStorage.setItem(
           'rill-fiddle-editor-state',
           JSON.stringify({
             splitRatio: ratio,
@@ -147,7 +147,7 @@ describe('persistence', () => {
 
     // IR-5: Missing fields use defaults
     it('uses defaults for missing fields', () => {
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           // splitRatio and lastSource missing
@@ -162,7 +162,7 @@ describe('persistence', () => {
 
     // IR-5: Wrong type for splitRatio uses default
     it('uses default splitRatio when type is wrong', () => {
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 'not a number',
@@ -177,7 +177,7 @@ describe('persistence', () => {
 
     // IR-5: Wrong type for lastSource uses default
     it('uses default lastSource when type is wrong', () => {
-      localStorage.setItem(
+      window.localStorage.setItem(
         'rill-fiddle-editor-state',
         JSON.stringify({
           splitRatio: 50,
@@ -217,7 +217,7 @@ describe('persistence', () => {
 
       persistEditorState(testState);
 
-      const stored = localStorage.getItem('rill-fiddle-editor-state');
+      const stored = window.localStorage.getItem('rill-fiddle-editor-state');
       expect(stored).not.toBeNull();
 
       const parsed = JSON.parse(stored!);
@@ -239,7 +239,7 @@ describe('persistence', () => {
       persistEditorState(state2);
 
       // Only one key should exist
-      expect(localStorage.length).toBe(1);
+      expect(window.localStorage.length).toBe(1);
 
       const loaded = loadEditorState();
       expect(loaded).toEqual(state2);
@@ -270,7 +270,7 @@ describe('persistence', () => {
       ];
 
       for (const state of testStates) {
-        localStorage.clear();
+        window.localStorage.clear();
         persistEditorState(state);
         const loaded = loadEditorState();
         expect(loaded).toEqual(state);
@@ -302,7 +302,7 @@ describe('persistence', () => {
     // EC-8: Overwrites corrupt data on next persist
     it('recovers from corrupt data by overwriting on next persist', () => {
       // Corrupt the stored data
-      localStorage.setItem('rill-fiddle-editor-state', '{invalid}');
+      window.localStorage.setItem('rill-fiddle-editor-state', '{invalid}');
 
       // Load returns defaults
       const loaded = loadEditorState();
