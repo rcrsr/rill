@@ -6,8 +6,12 @@
  */
 
 import type { RillTypeName } from '../../types.js';
-import type { CallableFn, HostFunctionDefinition } from './callable.js';
-import type { RillStructuralType, RillValue } from './values.js';
+import type {
+  CallableFn,
+  RillFunction,
+  RillFunctionSignature,
+} from './callable.js';
+import type { RillType, RillValue } from './values.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
 
@@ -122,7 +126,7 @@ export interface RuntimeContext {
   /** Named variables ($varname) - local to this scope */
   readonly variables: Map<string, RillValue>;
   /** Variable types - locked after first assignment (local to this scope) */
-  readonly variableTypes: Map<string, RillTypeName | RillStructuralType>;
+  readonly variableTypes: Map<string, RillTypeName | RillType>;
   /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
   readonly functions: Map<
     string,
@@ -130,6 +134,13 @@ export interface RuntimeContext {
   >;
   /** Built-in and user-defined methods */
   readonly methods: Map<string, RillMethod>;
+  /** Receiver type constraints for methods (empty array = unconstrained) */
+  readonly methodReceiverTypes: Map<string, readonly string[]>;
+  /** Parsed parameter declarations for built-in methods (AC-15 arg validation) */
+  readonly methodParams: Map<
+    string,
+    readonly import('./callable.js').RillParam[]
+  >;
   /** I/O callbacks */
   readonly callbacks: RuntimeCallbacks;
   /** Observability callbacks */
@@ -169,8 +180,8 @@ export interface RuntimeContext {
 export interface RuntimeOptions {
   /** Initial variables */
   variables?: Record<string, RillValue>;
-  /** Host functions: typed definitions with parameter declarations */
-  functions?: Record<string, HostFunctionDefinition>;
+  /** Host functions: structured definitions or signature strings */
+  functions?: Record<string, RillFunction | RillFunctionSignature>;
   /** I/O callbacks */
   callbacks?: Partial<RuntimeCallbacks>;
   /** Observability callbacks for monitoring execution */

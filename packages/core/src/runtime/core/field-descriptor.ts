@@ -2,7 +2,7 @@
  * Field Descriptor Builder
  *
  * Constructs a frozen RillFieldDescriptor for a named field within a
- * RillStructuralType dict. Used during structural type field access to carry
+ * RillType dict. Used during structural type field access to carry
  * field name and field type.
  *
  * @internal
@@ -10,16 +10,16 @@
 
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import type { RillStructuralType } from './values.js';
+import type { RillType } from './values.js';
 
 /**
  * Field descriptor — carries field name and structural type when accessing a
- * dict-kind RillStructuralType field.
+ * dict-kind RillType field.
  */
 export interface RillFieldDescriptor {
   readonly __rill_field_descriptor: true;
   readonly fieldName: string;
-  readonly fieldType: RillStructuralType;
+  readonly fieldType: RillType;
 }
 
 /**
@@ -28,7 +28,7 @@ export interface RillFieldDescriptor {
  * EC-1: Throws RILL-R003 when fieldName is absent from structuralType.fields.
  */
 export function buildFieldDescriptor(
-  structuralType: RillStructuralType & { type: 'dict' },
+  structuralType: RillType & { type: 'dict' },
   fieldName: string,
   location: SourceLocation
 ): RillFieldDescriptor {

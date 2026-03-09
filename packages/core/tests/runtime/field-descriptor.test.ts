@@ -7,19 +7,19 @@
 
 import { describe, expect, it } from 'vitest';
 import { buildFieldDescriptor, RuntimeError } from '@rcrsr/rill';
-import type { RillStructuralType, SourceLocation } from '@rcrsr/rill';
+import type { RillType, SourceLocation } from '@rcrsr/rill';
 
 // Minimal SourceLocation for error reporting
 const LOC: SourceLocation = { line: 1, column: 1, offset: 0 };
 
-// Minimal RillStructuralType entries for test structural types
-const STRING_TYPE: RillStructuralType = { type: 'string' };
+// Minimal RillType entries for test structural types
+const STRING_TYPE: RillType = { type: 'string' };
 
-const NUMBER_TYPE: RillStructuralType = { type: 'number' };
+const NUMBER_TYPE: RillType = { type: 'number' };
 
 function makeStructuralDictType(
-  fields: Record<string, RillStructuralType>
-): RillStructuralType & { type: 'dict' } {
+  fields: Record<string, RillType>
+): RillType & { type: 'dict' } {
   return Object.freeze({
     type: 'dict' as const,
     fields: Object.freeze(fields),

@@ -26,7 +26,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       const result = await run(`greet::user`, {
         functions: {
           'greet::user': {
-            params: [{ name: 'name', type: 'string' }],
+            params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
             fn: (args) => `Hello, ${args[0]}!`,
             description: 'Greets a user by name',
           },
@@ -40,7 +40,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       const result = await run(`greet::user`, {
         functions: {
           'greet::user': {
-            params: [{ name: 'name', type: 'string' }],
+            params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
             fn: () => 'invoked',
             description: 'Greets a user',
           },
@@ -54,7 +54,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       const result = await run(`"World" -> greet::hello`, {
         functions: {
           'greet::hello': {
-            params: [{ name: 'name', type: 'string' }],
+            params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -69,7 +69,7 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       const result = await run(`greet::hello("world")`, {
         functions: {
           'greet::hello': {
-            params: [{ name: 'name', type: 'string' }],
+            params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
             fn: (args) => `Hello ${args[0]}`,
           },
         },

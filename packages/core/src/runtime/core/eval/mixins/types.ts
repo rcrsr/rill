@@ -32,11 +32,7 @@ import type {
   TypeRefArg,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type {
-  RillValue,
-  RillTypeValue,
-  RillStructuralType,
-} from '../../values.js';
+import type { RillValue, RillTypeValue, RillType } from '../../values.js';
 import {
   inferType,
   checkType,
@@ -76,7 +72,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Resolve a TypeRef to a RillTypeValue [IR-2].
      *
      * Static refs with no args return a frozen RillTypeValue directly.
-     * Static refs with args build a parameterized RillStructuralType.
+     * Static refs with args build a parameterized RillType.
      * Dynamic refs call getVariable, then dispatch on the result:
      * - RillTypeValue → return as-is
      * - Otherwise → throw RILL-R004
@@ -101,7 +97,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return Object.freeze({
             __rill_type: true as const,
             typeName,
-            structure: { type: typeName } as RillStructuralType,
+            structure: { type: typeName } as RillType,
           });
         }
 
@@ -122,8 +118,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
-        // Helper: recursively resolve one TypeRefArg to RillStructuralType
-        const resolveArg = (arg: TypeRefArg): RillStructuralType => {
+        // Helper: recursively resolve one TypeRefArg to RillType
+        const resolveArg = (arg: TypeRefArg): RillType => {
           const resolved = this.resolveTypeRef(arg.ref, getVariable);
           return resolved.structure;
         };
@@ -136,7 +132,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               'list() requires exactly 1 type argument'
             );
           }
-          const structure: RillStructuralType = {
+          const structure: RillType = {
             type: 'list',
             element: resolveArg(args[0]!),
           };
@@ -157,11 +153,11 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
-          const fields: Record<string, RillStructuralType> = {};
+          const fields: Record<string, RillType> = {};
           for (const arg of args) {
             fields[arg.name!] = resolveArg(arg);
           }
-          const structure: RillStructuralType = { type: 'dict', fields };
+          const structure: RillType = { type: 'dict', fields };
           return Object.freeze({
             __rill_type: true as const,
             typeName,
@@ -179,8 +175,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
-          const elements: RillStructuralType[] = args.map(resolveArg);
-          const structure: RillStructuralType = { type: 'tuple', elements };
+          const elements: RillType[] = args.map(resolveArg);
+          const structure: RillType = { type: 'tuple', elements };
           return Object.freeze({
             __rill_type: true as const,
             typeName,
@@ -198,10 +194,11 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const orderedFields: [string, RillStructuralType][] = args.map(
-          (arg) => [arg.name!, resolveArg(arg)]
-        );
-        const structure: RillStructuralType = {
+        const orderedFields: [string, RillType][] = args.map((arg) => [
+          arg.name!,
+          resolveArg(arg),
+        ]);
+        const structure: RillType = {
           type: 'ordered',
           fields: orderedFields,
         };
@@ -217,11 +214,11 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // typeName is set to a display string for error messages; the structure
       // field carries the authoritative type shape for validation (DR-1).
       if (typeRef.kind === 'union') {
-        const members: RillStructuralType[] = typeRef.members.map((member) => {
+        const members: RillType[] = typeRef.members.map((member) => {
           const resolved = this.resolveTypeRef(member, getVariable);
           return resolved.structure;
         });
-        const structure: RillStructuralType = { type: 'union', members };
+        const structure: RillType = { type: 'union', members };
         const displayName = members
           .map(formatStructuralType)
           .join('|') as RillTypeName;
@@ -250,17 +247,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Assert that a value is of the expected type.
      * Returns the value unchanged if assertion passes, throws on mismatch.
-     * Accepts a bare RillTypeName or a full RillStructuralType.
-     * When expected is a RillStructuralType with sub-fields (element, fields, elements),
+     * Accepts a bare RillTypeName or a full RillType.
+     * When expected is a RillType with sub-fields (element, fields, elements),
      * dispatches to structuralTypeMatches for deep validation.
      * Exported for use by type assertion evaluation.
      */
     assertType(
       value: RillValue,
-      expected: RillTypeName | RillStructuralType,
+      expected: RillTypeName | RillType,
       location?: SourceLocation
     ): RillValue {
-      // Structural path: expected is a RillStructuralType object
+      // Structural path: expected is a RillType object
       if (typeof expected !== 'string') {
         const hasSubFields =
           'element' in expected ||
@@ -404,7 +401,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Helper: evaluate one arg expression and assert it is a RillTypeValue
       const resolveArgAsType = async (
         argValue: RillValue
-      ): Promise<RillStructuralType> => {
+      ): Promise<RillType> => {
         if (!isTypeValue(argValue)) {
           throw new RuntimeError(
             'RILL-R004',
@@ -414,7 +411,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         return argValue.structure.type === 'any' &&
           argValue.typeName !== ('any' as RillTypeName)
-          ? ({ type: argValue.typeName } as RillStructuralType)
+          ? ({ type: argValue.typeName } as RillType)
           : argValue.structure;
       };
 
@@ -433,7 +430,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           arg.value
         );
         const elementType = await resolveArgAsType(argVal);
-        const structure: RillStructuralType = {
+        const structure: RillType = {
           type: 'list',
           element: elementType,
         };
@@ -455,7 +452,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const fields: Record<string, RillStructuralType> = {};
+        const fields: Record<string, RillType> = {};
         for (const arg of node.args) {
           if (arg.kind === 'named') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -465,7 +462,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             fields[arg.name] = await resolveArgAsType(argVal);
           }
         }
-        const structure: RillStructuralType = { type: 'dict', fields };
+        const structure: RillType = { type: 'dict', fields };
         return Object.freeze({
           __rill_type: true as const,
           typeName: 'dict' as RillTypeName,
@@ -484,7 +481,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const elements: RillStructuralType[] = [];
+        const elements: RillType[] = [];
         for (const arg of node.args) {
           if (arg.kind === 'positional') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -494,7 +491,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             elements.push(await resolveArgAsType(argVal));
           }
         }
-        const structure: RillStructuralType = { type: 'tuple', elements };
+        const structure: RillType = { type: 'tuple', elements };
         return Object.freeze({
           __rill_type: true as const,
           typeName: 'tuple' as RillTypeName,
@@ -513,7 +510,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
       }
-      const orderedFields: [string, RillStructuralType][] = [];
+      const orderedFields: [string, RillType][] = [];
       for (const arg of node.args) {
         if (arg.kind === 'named') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -523,7 +520,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           orderedFields.push([arg.name, await resolveArgAsType(argVal)]);
         }
       }
-      const structure: RillStructuralType = {
+      const structure: RillType = {
         type: 'ordered',
         fields: orderedFields,
       };
@@ -538,7 +535,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate a closure signature literal into a RillTypeValue [IR-8].
      *
      * Creates a closure type value from |param: T, ...|: R syntax.
-     * Each parameter produces a [name, RillStructuralType] entry.
+     * Each parameter produces a [name, RillType] entry.
      *
      * Error contracts:
      * - EC-8: missing return type -> RILL-R004 (enforced at parse time; node always has returnType)
@@ -549,10 +546,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillTypeValue> {
       const location = node.span.start;
 
-      // Helper: evaluate a type expression and extract RillStructuralType
-      const resolveTypeExpr = async (
-        argVal: RillValue
-      ): Promise<RillStructuralType> => {
+      // Helper: evaluate a type expression and extract RillType
+      const resolveTypeExpr = async (argVal: RillValue): Promise<RillType> => {
         if (!isTypeValue(argVal)) {
           throw new RuntimeError(
             'RILL-R004',
@@ -562,12 +557,12 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
         return argVal.structure.type === 'any' &&
           argVal.typeName !== ('any' as RillTypeName)
-          ? ({ type: argVal.typeName } as RillStructuralType)
+          ? ({ type: argVal.typeName } as RillType)
           : argVal.structure;
       };
 
       // Evaluate parameter types
-      const params: [string, RillStructuralType][] = [];
+      const params: [string, RillType][] = [];
       for (const param of node.params) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const paramVal: RillValue = await (this as any).evaluateExpression(
@@ -591,13 +586,13 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           location
         );
       }
-      const ret: RillStructuralType =
+      const ret: RillType =
         retVal.structure.type === 'any' &&
         retVal.typeName !== ('any' as RillTypeName)
-          ? ({ type: retVal.typeName } as RillStructuralType)
+          ? ({ type: retVal.typeName } as RillType)
           : retVal.structure;
 
-      const structure: RillStructuralType = { type: 'closure', params, ret };
+      const structure: RillType = { type: 'closure', params, ret };
       return Object.freeze({
         __rill_type: true as const,
         typeName: 'closure' as RillTypeName,

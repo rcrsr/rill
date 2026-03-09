@@ -44,11 +44,12 @@ export type {
 export type {
   ApplicationCallable,
   CallableFn,
-  CallableParam,
-  HostFunctionDefinition,
-  HostFunctionParam,
   RillCallable,
-  RillFunctionReturnType,
+  RillCallableSignature,
+  RillFunction,
+  RillFunctionSignature,
+  RillMethodSignature,
+  RillParam,
   RuntimeCallable,
   ScriptCallable,
 } from './core/callable.js';
@@ -60,7 +61,6 @@ export {
   isDict,
   isRuntimeCallable,
   isScriptCallable,
-  validateHostFunctionArgs,
 } from './core/callable.js';
 
 // ============================================================
@@ -75,6 +75,7 @@ export type {
   RillIterator,
   RillStructuralType,
   RillTuple,
+  RillType,
   RillTypeValue,
   RillValue,
   RillVector,
@@ -169,6 +170,7 @@ export type {
 } from './core/introspection.js';
 
 export {
+  generateManifest,
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,

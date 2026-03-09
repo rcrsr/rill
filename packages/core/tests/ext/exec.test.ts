@@ -33,7 +33,7 @@ describe('exec extension factory', () => {
         params: expect.any(Array),
         fn: expect.any(Function),
         description: expect.any(String),
-        returnType: 'dict',
+        returnType: { type: 'dict' },
       });
     });
 
@@ -435,7 +435,7 @@ describe('exec extension factory', () => {
     });
   });
 
-  describe('HostFunctionDefinition structure', () => {
+  describe('RillFunction structure', () => {
     it('includes params with default values', () => {
       const config: ExecConfig = {
         commands: {
@@ -448,15 +448,15 @@ describe('exec extension factory', () => {
       expect(ext.echo.params).toEqual([
         {
           name: 'args',
-          type: 'list',
-          description: 'Command arguments',
+          type: { type: 'list' },
           defaultValue: [],
+          annotations: { description: 'Command arguments' },
         },
         {
           name: 'stdin',
-          type: 'string',
-          description: 'Standard input data',
+          type: { type: 'string' },
           defaultValue: '',
+          annotations: { description: 'Standard input data' },
         },
       ]);
     });
@@ -494,7 +494,7 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      expect(ext.echo.returnType).toBe('dict');
+      expect(ext.echo.returnType).toEqual({ type: 'dict' });
     });
   });
 

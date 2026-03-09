@@ -11,7 +11,7 @@ import { run } from '../helpers/runtime.js';
 
 // Helper functions
 const double = {
-  params: [{ name: 'x', type: 'number' }],
+  params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
   fn: (args: RillValue[]): number => {
     const x = args[0];
     return typeof x === 'number' ? x * 2 : 0;

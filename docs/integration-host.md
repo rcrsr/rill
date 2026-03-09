@@ -16,7 +16,7 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: async (args) => {
         return await callYourLLM(args[0]);
       },
@@ -35,7 +35,7 @@ The `createRuntimeContext()` function accepts these options:
 | Option | Type | Description |
 |--------|------|-------------|
 | `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
-| `functions` | `Record<string, HostFunctionDefinition>` | Custom functions callable as `name()` |
+| `functions` | `Record<string, RillFunction \| RillFunctionSignature>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
 | `timeout` | `number` | Timeout in ms for async functions |
@@ -55,7 +55,7 @@ Host functions must follow these rules to ensure correct script behavior:
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    params: [{ name: 'list', type: 'list' }],
+    params: [{ name: 'list', type: { type: 'list' } }],
     fn: (args) => {
       const list = args[0] as unknown[];
       list.push('new');  // DON'T DO THIS
@@ -67,7 +67,7 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    params: [{ name: 'list', type: 'list' }],
+    params: [{ name: 'list', type: { type: 'list' } }],
     fn: (args) => {
       const list = args[0] as unknown[];
       return [...list, 'new'];  // Create new array
@@ -85,7 +85,7 @@ import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    params: [{ name: 'input', type: 'string' }],
+    params: [{ name: 'input', type: { type: 'string' } }],
     fn: (args) => {
       const frozen = deepFreeze(args[0]);
       return transform(frozen);  // Any mutation throws
@@ -337,15 +337,15 @@ const ctx = createRuntimeContext({
     // Sync function
     add: {
       params: [
-        { name: 'a', type: 'number' },
-        { name: 'b', type: 'number' },
+        { name: 'a', type: { type: 'number' } },
+        { name: 'b', type: { type: 'number' } },
       ],
       fn: (args) => args[0] + args[1],
     },
 
     // Async function
     fetch: {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: async (args, ctx, location) => {
         const response = await fetch(args[0]);
         return await response.text();
@@ -354,7 +354,7 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      params: [{ name: 'name', type: 'string' }],
+      params: [{ name: 'name', type: { type: 'string' } }],
       fn: (args, ctx) => {
         return ctx.variables.get(args[0]) ?? null;
       },
@@ -362,7 +362,7 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      params: [{ name: 'value', type: 'string' }],
+      params: [{ name: 'value', type: { type: 'string' } }],
       fn: (args, ctx, location) => {
         if (!args[0]) {
           throw new Error(`Validation failed at line ${location?.line}`);
@@ -384,36 +384,36 @@ const ctx = createRuntimeContext({
     // Namespaced functions use :: separator
     'math::add': {
       params: [
-        { name: 'a', type: 'number' },
-        { name: 'b', type: 'number' },
+        { name: 'a', type: { type: 'number' } },
+        { name: 'b', type: { type: 'number' } },
       ],
       fn: (args) => args[0] + args[1],
     },
     'math::multiply': {
       params: [
-        { name: 'a', type: 'number' },
-        { name: 'b', type: 'number' },
+        { name: 'a', type: { type: 'number' } },
+        { name: 'b', type: { type: 'number' } },
       ],
       fn: (args) => args[0] * args[1],
     },
     'str::upper': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: (args) => args[0].toUpperCase(),
     },
     'str::lower': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: (args) => args[0].toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
-      params: [{ name: 'path', type: 'string' }],
+      params: [{ name: 'path', type: { type: 'string' } }],
       fn: async (args) => fs.readFile(args[0], 'utf-8'),
     },
     'io::file::write': {
       params: [
-        { name: 'path', type: 'string' },
-        { name: 'content', type: 'string' },
+        { name: 'path', type: { type: 'string' } },
+        { name: 'content', type: { type: 'string' } },
       ],
       fn: async (args) => fs.writeFile(args[0], args[1]),
     },
@@ -451,7 +451,7 @@ $result.data.active  # true
 
 ### CallableFn Signature
 
-The `fn` property in `HostFunctionDefinition` uses the `CallableFn` type:
+The `fn` property in `RillFunction` uses the `CallableFn` type:
 
 ```typescript
 type CallableFn = (
@@ -485,7 +485,7 @@ Read metadata in a host function:
 ```typescript
 functions: {
   trace: {
-    params: [{ name: 'msg', type: 'string' }],
+    params: [{ name: 'msg', type: { type: 'string' } }],
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
       console.log(`[${correlationId}] ${args[0]}`);
@@ -499,7 +499,7 @@ functions: {
 
 ## Host Function Type Declarations
 
-All host functions must declare parameter types and optional defaults using the `HostFunctionDefinition` interface. The runtime validates arguments before calling your function, eliminating manual type checking.
+All host functions must declare parameter types and optional defaults using the `RillFunction` interface. The runtime validates arguments before calling your function, eliminating manual type checking.
 
 ### Parameter Type Declarations
 
@@ -510,8 +510,8 @@ const ctx = createRuntimeContext({
   functions: {
     repeat: {
       params: [
-        { name: 'str', type: 'string' },
-        { name: 'count', type: 'number', defaultValue: 1 },
+        { name: 'str', type: { type: 'string' } },
+        { name: 'count', type: { type: 'number' }, defaultValue: 1 },
       ],
       fn: (args) => {
         // args[0] guaranteed to be string
@@ -532,13 +532,21 @@ repeat("hi")              # "hi" (uses default count)
 
 ### Supported Types
 
-| Type | rill Value | Validation |
-|------|------------|------------|
-| `'string'` | String | `typeof value === 'string'` |
-| `'number'` | Number | `typeof value === 'number'` |
-| `'bool'` | Boolean | `typeof value === 'boolean'` |
-| `'list'` | List | `Array.isArray(value)` |
-| `'dict'` | Dict | `isDict(value)` |
+The `type` field on `RillParam` is a `RillType` object — a structural type descriptor. Set it to `undefined` to accept any type without validation.
+
+Common leaf types:
+
+| `RillType` value | Accepts |
+|------------------|---------|
+| `{ type: 'string' }` | String parameter |
+| `{ type: 'number' }` | Number parameter |
+| `{ type: 'bool' }` | Boolean parameter |
+| `{ type: 'list' }` | Any list |
+| `{ type: 'list', element: { type: 'string' } }` | List of strings |
+| `{ type: 'dict' }` | Any dict |
+| `{ type: 'any' }` or `undefined` | Any type (no validation) |
+
+See [Type System](topic-type-system.md) for the full `RillType` discriminated union, including `closure`, `tuple`, `ordered`, and `union` variants.
 
 ### Default Values
 
@@ -548,8 +556,8 @@ Parameters with default values are optional. The default applies when the argume
 functions: {
   greet: {
     params: [
-      { name: 'name', type: 'string' },
-      { name: 'greeting', type: 'string', defaultValue: 'Hello' },
+      { name: 'name', type: { type: 'string' } },
+      { name: 'greeting', type: { type: 'string' }, defaultValue: 'Hello' },
     ],
     fn: (args) => `${args[1]}, ${args[0]}!`,
   },
@@ -578,21 +586,21 @@ Error details include:
 - Expected type
 - Actual type received
 
-### HostFunctionDefinition Interface
+### RillFunction Interface
 
 ```typescript
-interface HostFunctionDefinition {
-  params: HostFunctionParam[];
-  fn: CallableFn;
-  description?: string;                              // Human-readable function description
-  returnType?: 'string' | 'number' | 'bool' | 'list' | 'dict' | 'any';  // Default: 'any'
+interface RillFunction {
+  readonly params: readonly RillParam[];
+  readonly fn: CallableFn;
+  readonly description?: string;       // Human-readable function description
+  readonly returnType?: RillType;      // undefined = any return type
 }
 
-interface HostFunctionParam {
-  name: string;
-  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
-  defaultValue?: RillValue;
-  description?: string;                              // Human-readable parameter description
+interface RillParam {
+  readonly name: string;
+  readonly type: RillType | undefined;             // undefined = any type
+  readonly defaultValue: RillValue | undefined;    // undefined = required
+  readonly annotations: Record<string, RillValue>; // {} when no annotations
 }
 ```
 
@@ -606,10 +614,10 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: 'string', description: 'Person to greet' },
+        { name: 'name', type: { type: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
-      returnType: 'string',
+      returnType: { type: 'string' },
       fn: (args) => `Hello, ${args[0]}!`,
     },
   },
@@ -619,6 +627,71 @@ const ctx = createRuntimeContext({
 Missing descriptions throw clear errors:
 - Function: `Function 'name' requires description (requireDescriptions enabled)`
 - Parameter: `Parameter 'x' of function 'name' requires description (requireDescriptions enabled)`
+
+## Signature String Registration
+
+Functions can be registered using a rill closure signature string instead of explicit `RillParam[]`. The runtime parses the signature at registration time and derives the parameter list from it.
+
+```typescript
+const ctx = createRuntimeContext({
+  functions: {
+    greet: {
+      signature: '|name: string| :string',
+      fn: (args) => `Hello, ${args[0]}!`,
+    },
+  },
+});
+```
+
+The runtime discriminates `RillFunctionSignature` from `RillFunction` by the presence of the `signature` field.
+
+Signature strings support the full rill closure annotation syntax, including parameter annotations and defaults:
+
+```typescript
+functions: {
+  repeat: {
+    signature: '|^("Times to repeat") count: number = 3, text: string| :string',
+    fn: (args) => String(args[1]).repeat(args[0]),
+  },
+}
+```
+
+The `signature` value must be a valid rill closure type annotation string. Invalid signatures throw at registration time.
+
+```typescript
+interface RillFunctionSignature {
+  readonly signature: string;  // annotated rill closure type signature
+  readonly fn: CallableFn;
+}
+```
+
+## Manifest Generation
+
+`generateManifest(ctx)` returns a valid rill file string: a dict literal of closure type signatures for all registered functions, followed by `-> export`.
+
+```typescript
+import { generateManifest } from '@rcrsr/rill';
+
+const manifest = generateManifest(ctx);
+// Write to host.rill for static analysis or LLM context
+```
+
+Example output for a context with `greet` and `repeat` functions:
+
+```text
+[
+  greet: |name: string| :string,
+  repeat: |count: number = 3, text: string| :string,
+] -> export
+```
+
+An empty function map produces:
+
+```text
+[:] -> export
+```
+
+The manifest file format is valid rill. Host tools can pass it to static analysis tools, include it in LLM system prompts for code generation context, or serve it to IDE tooling for autocomplete.
 
 ## Application Callables
 
@@ -910,7 +983,7 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: 'string', description: 'Person to greet' },
+        { name: 'name', type: { type: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args[0]}!`,
@@ -1016,12 +1089,12 @@ import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      params: [{ name: 'x', type: 'string', description: 'Input value' }],
+      params: [{ name: 'x', type: { type: 'string' }, annotations: { description: 'Input value' } }],
       description: 'A documented function',
       fn: (args) => args[0],
     },
     undocumented: {
-      params: [{ name: 'x', type: 'string' }],
+      params: [{ name: 'x', type: { type: 'string' } }],
       fn: (args) => args[0],
     },
   },
@@ -1115,7 +1188,7 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with AutoExceptionError

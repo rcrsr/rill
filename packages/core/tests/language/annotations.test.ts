@@ -10,7 +10,6 @@ import {
   isScriptCallable,
   callable,
   type ApplicationCallable,
-  type CallableParam,
 } from '@rcrsr/rill';
 import { run, runWithContext } from '../helpers/runtime.js';
 
@@ -1184,8 +1183,18 @@ describe('Rill Runtime: Annotations', () => {
           functions: {
             'app::fn': {
               params: [
-                { name: 'name', type: 'string' },
-                { name: 'age', type: 'number' },
+                {
+                  name: 'name',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'age',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: () => null,
             },
@@ -1202,8 +1211,18 @@ describe('Rill Runtime: Annotations', () => {
           functions: {
             'app::fn': {
               params: [
-                { name: 'name', type: 'string' },
-                { name: 'age', type: 'number' },
+                {
+                  name: 'name',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'age',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: () => null,
             },
@@ -1247,7 +1266,14 @@ describe('Rill Runtime: Annotations', () => {
         const result1 = await run(`app::process => $fn\n$fn.^input`, {
           functions: {
             'app::process': {
-              params: [{ name: 'data', type: 'string' }],
+              params: [
+                {
+                  name: 'data',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
             },
           },
@@ -1255,7 +1281,14 @@ describe('Rill Runtime: Annotations', () => {
         const result2 = await run(`app::process => $fn\n$fn.^input`, {
           functions: {
             'app::process': {
-              params: [{ name: 'data', type: 'string' }],
+              params: [
+                {
+                  name: 'data',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
             },
           },
@@ -1298,20 +1331,21 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
-    describe('EC-5: paramsToStructuralType has no error conditions — invalid typeName maps blindly', () => {
-      it('host callable with any typeName maps to primitive structural type without throwing (EC-5)', async () => {
-        // paramsToStructuralType has no validation — it blindly maps typeName to { type: typeName }
-        // Build an ApplicationCallable with a custom typeName via CallableParam.
-        const customParam: CallableParam = {
-          name: 'x',
-          typeName: 'string',
-          defaultValue: null,
-          annotations: {},
-        };
+    describe('EC-5: paramsToStructuralType maps RillParam.type directly to structural type', () => {
+      it('host callable with typed RillParam maps to correct structural type without throwing (EC-5)', async () => {
+        // paramsToStructuralType reads param.type (RillType) directly.
+        // Build an ApplicationCallable with a RillParam using type: { type: 'string' }.
         const fn: ApplicationCallable = {
           __type: 'callable',
           kind: 'application',
-          params: [customParam],
+          params: [
+            {
+              name: 'x',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: () => null,
           isProperty: false,
         };

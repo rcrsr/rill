@@ -44,11 +44,11 @@ describe('hoistExtension: Success Cases', () => {
     it('separates functions from dispose for createRuntimeContext', async () => {
       const extension: ExtensionResult = {
         greet: {
-          params: [{ name: 'name', type: 'string' }],
+          params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `Hello, ${args[0]}!`,
         },
         farewell: {
-          params: [{ name: 'name', type: 'string' }],
+          params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `Goodbye, ${args[0]}!`,
         },
         dispose: () => {
@@ -82,7 +82,7 @@ describe('hoistExtension: Success Cases', () => {
     it('hoisted functions integrate with createRuntimeContext', () => {
       const extension: ExtensionResult = {
         double: {
-          params: [{ name: 'x', type: 'number' }],
+          params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => (args[0] as number) * 2,
         },
       };
@@ -100,8 +100,8 @@ describe('hoistExtension: Success Cases', () => {
       const extension: ExtensionResult = {
         add: {
           params: [
-            { name: 'a', type: 'number' },
-            { name: 'b', type: 'number' },
+            { name: 'a', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
+            { name: 'b', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
           ],
           fn: (args) => (args[0] as number) + (args[1] as number),
         },
@@ -119,7 +119,7 @@ describe('hoistExtension: Success Cases', () => {
     it('functions work correctly without dispose', async () => {
       const extension: ExtensionResult = {
         triple: {
-          params: [{ name: 'x', type: 'number' }],
+          params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => (args[0] as number) * 3,
         },
       };
@@ -135,14 +135,14 @@ describe('hoistExtension: Success Cases', () => {
     it('hoists multiple extensions with different namespaces', async () => {
       const extension1: ExtensionResult = {
         read: {
-          params: [{ name: 'path', type: 'string' }],
+          params: [{ name: 'path', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `reading ${args[0]}`,
         },
       };
 
       const extension2: ExtensionResult = {
         query: {
-          params: [{ name: 'sql', type: 'string' }],
+          params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `querying ${args[0]}`,
         },
       };
@@ -177,14 +177,14 @@ describe('hoistExtension: Success Cases', () => {
     it('combines multiple hoisted extensions in single runtime context', async () => {
       const ext1: ExtensionResult = {
         upper: {
-          params: [{ name: 's', type: 'string' }],
+          params: [{ name: 's', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => (args[0] as string).toUpperCase(),
         },
       };
 
       const ext2: ExtensionResult = {
         lower: {
-          params: [{ name: 's', type: 'string' }],
+          params: [{ name: 's', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => (args[0] as string).toLowerCase(),
         },
       };

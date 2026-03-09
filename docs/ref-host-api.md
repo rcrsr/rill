@@ -41,7 +41,7 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args[0]);
@@ -85,7 +85,7 @@ try {
 export { parse, ParseError, tokenize, LexerError };
 
 // Execution
-export { execute, createRuntimeContext, createStepper };
+export { execute, createRuntimeContext, createStepper, generateManifest };
 export type { RuntimeContext, RuntimeOptions, ExecutionResult };
 export type { ExecutionStepper, StepResult };
 
@@ -94,8 +94,9 @@ export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicatio
 export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
 
 // Host function types
-export type { HostFunctionDefinition, HostFunctionParam, RillFunctionReturnType };
-export { validateHostFunctionArgs };
+export type { RillParam, RillFunction, RillFunctionSignature, RillMethodSignature, RillCallableSignature };
+export type { RillType };
+export type { RillStructuralType };  // deprecated alias for RillType
 
 // Value types
 export type { RillValue, RillArgs };
@@ -270,17 +271,17 @@ Contract type for key-value extension implementations. Backend authors use this 
 
 ```typescript
 type KvExtensionContract = {
-  readonly get: HostFunctionDefinition;
-  readonly get_or: HostFunctionDefinition;
-  readonly set: HostFunctionDefinition;
-  readonly merge: HostFunctionDefinition;
-  readonly delete: HostFunctionDefinition;
-  readonly keys: HostFunctionDefinition;
-  readonly has: HostFunctionDefinition;
-  readonly clear: HostFunctionDefinition;
-  readonly getAll: HostFunctionDefinition;
-  readonly schema: HostFunctionDefinition;
-  readonly mounts: HostFunctionDefinition;
+  readonly get: RillFunction;
+  readonly get_or: RillFunction;
+  readonly set: RillFunction;
+  readonly merge: RillFunction;
+  readonly delete: RillFunction;
+  readonly keys: RillFunction;
+  readonly has: RillFunction;
+  readonly clear: RillFunction;
+  readonly getAll: RillFunction;
+  readonly schema: RillFunction;
+  readonly mounts: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -317,18 +318,18 @@ Contract type for filesystem extension implementations. Backend authors use this
 
 ```typescript
 type FsExtensionContract = {
-  readonly read: HostFunctionDefinition;
-  readonly write: HostFunctionDefinition;
-  readonly append: HostFunctionDefinition;
-  readonly list: HostFunctionDefinition;
-  readonly find: HostFunctionDefinition;
-  readonly exists: HostFunctionDefinition;
-  readonly remove: HostFunctionDefinition;
-  readonly stat: HostFunctionDefinition;
-  readonly mkdir: HostFunctionDefinition;
-  readonly copy: HostFunctionDefinition;
-  readonly move: HostFunctionDefinition;
-  readonly mounts: HostFunctionDefinition;
+  readonly read: RillFunction;
+  readonly write: RillFunction;
+  readonly append: RillFunction;
+  readonly list: RillFunction;
+  readonly find: RillFunction;
+  readonly exists: RillFunction;
+  readonly remove: RillFunction;
+  readonly stat: RillFunction;
+  readonly mkdir: RillFunction;
+  readonly copy: RillFunction;
+  readonly move: RillFunction;
+  readonly mounts: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -398,12 +399,12 @@ Contract type for LLM extension implementations. Backend authors use this type t
 
 ```typescript
 type LlmExtensionContract = {
-  readonly message: HostFunctionDefinition;
-  readonly messages: HostFunctionDefinition;
-  readonly embed: HostFunctionDefinition;
-  readonly embed_batch: HostFunctionDefinition;
-  readonly tool_loop: HostFunctionDefinition;
-  readonly generate: HostFunctionDefinition;
+  readonly message: RillFunction;
+  readonly messages: RillFunction;
+  readonly embed: RillFunction;
+  readonly embed_batch: RillFunction;
+  readonly tool_loop: RillFunction;
+  readonly generate: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -435,17 +436,17 @@ Contract type for vector database extension implementations. Backend authors use
 
 ```typescript
 type VectorExtensionContract = {
-  readonly upsert: HostFunctionDefinition;
-  readonly upsert_batch: HostFunctionDefinition;
-  readonly search: HostFunctionDefinition;
-  readonly get: HostFunctionDefinition;
-  readonly delete: HostFunctionDefinition;
-  readonly delete_batch: HostFunctionDefinition;
-  readonly count: HostFunctionDefinition;
-  readonly create_collection: HostFunctionDefinition;
-  readonly delete_collection: HostFunctionDefinition;
-  readonly list_collections: HostFunctionDefinition;
-  readonly describe: HostFunctionDefinition;
+  readonly upsert: RillFunction;
+  readonly upsert_batch: RillFunction;
+  readonly search: RillFunction;
+  readonly get: RillFunction;
+  readonly delete: RillFunction;
+  readonly delete_batch: RillFunction;
+  readonly count: RillFunction;
+  readonly create_collection: RillFunction;
+  readonly delete_collection: RillFunction;
+  readonly list_collections: RillFunction;
+  readonly describe: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -476,23 +477,156 @@ import { createMyVectorBackend } from './my-vector-backend';
 const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ });
 ```
 
-## RillStructuralType
+## RillParam
 
-`RillStructuralType` is a discriminated union that describes the structural shape of any rill value. The runtime uses it for type checking, type inference, and formatting.
+`RillParam` is the unified parameter descriptor for host functions and script closures.
 
 ```typescript
-type RillStructuralType =
+interface RillParam {
+  readonly name: string;
+  readonly type: RillType | undefined;
+  readonly defaultValue: RillValue | undefined;
+  readonly annotations: Record<string, RillValue>;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Parameter name |
+| `type` | `RillType \| undefined` | Structural type descriptor. `undefined` = any type (no validation) |
+| `defaultValue` | `RillValue \| undefined` | Default value when argument missing. `undefined` = required parameter |
+| `annotations` | `Record<string, RillValue>` | Key-value metadata. Empty object when no annotations. `annotations.description` is the parameter description |
+
+---
+
+## RillFunction
+
+`RillFunction` is the structured registration form for host functions.
+
+```typescript
+interface RillFunction {
+  readonly params: readonly RillParam[];
+  readonly fn: CallableFn;
+  readonly description?: string;
+  readonly returnType?: RillType;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `params` | `readonly RillParam[]` | Parameter descriptors. Runtime validates arguments before calling `fn` |
+| `fn` | `CallableFn` | The function implementation |
+| `description` | `string \| undefined` | Human-readable function description |
+| `returnType` | `RillType \| undefined` | Declared return type. Runtime does NOT validate return values at call time |
+
+---
+
+## RillCallableSignature
+
+Base interface for all callable signatures. Extends to `RillFunctionSignature` and `RillMethodSignature`.
+
+```typescript
+interface RillCallableSignature {
+  readonly signature: string;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `signature` | `string` | Raw rill closure type annotation string. The runtime parses this into parameter descriptors at registration |
+
+---
+
+## RillFunctionSignature
+
+Alternative registration form using a rill closure signature string. The runtime parses the signature into `RillParam[]` at registration.
+
+```typescript
+interface RillFunctionSignature extends RillCallableSignature {
+  readonly signature: string;   // rill closure type annotation string
+  readonly fn: CallableFn;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `signature` | `string` | Inherited from `RillCallableSignature`. Raw rill closure type annotation string parsed at registration |
+| `fn` | `CallableFn` | The function implementation called when rill code invokes this function |
+
+Discriminated from `RillFunction` by presence of the `signature` field.
+
+---
+
+## RillMethodSignature
+
+Registration form for built-in methods with receiver type constraints. The runtime only invokes the method when the pipe value matches one of the declared receiver types.
+
+```typescript
+interface RillMethodSignature extends RillCallableSignature {
+  readonly signature: string;
+  readonly method: RillMethod;
+  readonly receiverTypes: string[];
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `signature` | `string` | Inherited from `RillCallableSignature`. Raw rill closure type annotation string parsed at registration |
+| `method` | `RillMethod` | The method implementation called when rill code invokes this method on a matching receiver |
+| `receiverTypes` | `string[]` | Valid `RillTypeName` strings (e.g., `["string", "list"]`). The runtime only dispatches to this method when the receiver type matches |
+
+---
+
+## generateManifest
+
+`generateManifest(ctx: RuntimeContext): string`
+
+Generates a valid rill manifest file listing all registered host functions as closure type signatures.
+
+```typescript
+import { generateManifest } from '@rcrsr/rill';
+
+const manifest = generateManifest(ctx);
+// Returns a rill file suitable for static analysis or LLM context
+```
+
+The output format is a rill dict literal followed by `-> export`:
+
+```text
+[
+  greet: |name: string| :string,
+  fetch: |url: string| :dict,
+] -> export
+```
+
+An empty function map returns `[:]` followed by `-> export`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+
+---
+
+## RillStructuralType
+
+**Note:** `RillType` is the canonical name. `RillStructuralType` is a deprecated alias that will be removed in a future major version.
+
+`RillType` is a discriminated union that describes the structural shape of any rill value. The runtime uses it for type checking, type inference, and formatting.
+
+```typescript
+// Canonical type
+type RillType =
   | { type: 'number' }
   | { type: 'string' }
   | { type: 'bool' }
   | { type: 'vector' }
   | { type: 'type' }
   | { type: 'any' }
-  | { type: 'dict';    fields?: Record<string, RillStructuralType> }
-  | { type: 'list';    element?: RillStructuralType }
-  | { type: 'closure'; params?: [string, RillStructuralType][]; ret?: RillStructuralType }
-  | { type: 'tuple';   elements?: RillStructuralType[] }
-  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+  | { type: 'dict';    fields?: Record<string, RillType> }
+  | { type: 'list';    element?: RillType }
+  | { type: 'closure'; params?: [string, RillType][]; ret?: RillType }
+  | { type: 'tuple';   elements?: RillType[] }
+  | { type: 'ordered'; fields?: [string, RillType][] }
+  | { type: 'union';   members: RillType[] };
+
+// Deprecated alias — same type
+type RillStructuralType = RillType;
 ```
 
 The `type` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `vector`, `type`, `any`) carry no sub-fields. Compound variants carry optional sub-fields — absent sub-fields match any value of that compound type.
@@ -501,12 +635,13 @@ The `type` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 
 | Variant | Field | Type | Required | Semantics |
 |---------|-------|------|----------|-----------|
-| `dict` | `fields` | `Record<string, RillStructuralType>` | No | Absent = any dict |
-| `list` | `element` | `RillStructuralType` | No | Absent = any list |
-| `closure` | `params` | `[string, RillStructuralType][]` | No | Absent = any closure |
-| `closure` | `ret` | `RillStructuralType` | No | Absent = any return type |
-| `tuple` | `elements` | `RillStructuralType[]` | No | Absent = any tuple |
-| `ordered` | `fields` | `[string, RillStructuralType][]` | No | Absent = any ordered |
+| `dict` | `fields` | `Record<string, RillType>` | No | Absent = any dict |
+| `list` | `element` | `RillType` | No | Absent = any list |
+| `closure` | `params` | `[string, RillType][]` | No | Absent = any closure |
+| `closure` | `ret` | `RillType` | No | Absent = any return type |
+| `tuple` | `elements` | `RillType[]` | No | Absent = any tuple |
+| `ordered` | `fields` | `[string, RillType][]` | No | Absent = any ordered |
+| `union` | `members` | `RillType[]` | Yes | Non-empty array of member types |
 
 ### Breaking Change: `kind` Removed
 
@@ -528,7 +663,8 @@ Prior versions used a `kind` field as the discriminator. That shape is removed. 
 
 ```typescript
 // Structural type system
-export type { RillStructuralType, RillFieldDescriptor };
+export type { RillType, RillFieldDescriptor };
+export type { RillStructuralType };  // deprecated alias for RillType
 export {
   inferStructuralType,
   inferElementType,
@@ -543,7 +679,7 @@ export {
 ### `inferStructuralType`
 
 ```typescript
-inferStructuralType(value: RillValue): RillStructuralType
+inferStructuralType(value: RillValue): RillType
 ```
 
 Returns the structural type descriptor for any rill value. Primitive values return leaf variants. Compound values return their respective variants with sub-fields populated from the value's actual structure. Callable values return `{ type: 'closure' }` with `params` and `ret` populated.
@@ -553,7 +689,7 @@ Pure function. Result is a frozen object.
 ### `inferElementType`
 
 ```typescript
-inferElementType(elements: RillValue[]): RillStructuralType
+inferElementType(elements: RillValue[]): RillType
 ```
 
 Infers the element type for a homogeneous list. All elements must share the same structural type (verified via `structuralTypeEquals`).
@@ -567,7 +703,7 @@ Infers the element type for a homogeneous list. All elements must share the same
 ### `structuralTypeEquals`
 
 ```typescript
-structuralTypeEquals(a: RillStructuralType, b: RillStructuralType): boolean
+structuralTypeEquals(a: RillType, b: RillType): boolean
 ```
 
 Compares two structural types for deep structural equality. Switches on the `type` discriminator. Leaf variants compare by `type` alone. Compound variants compare sub-fields recursively.
@@ -577,7 +713,7 @@ Pure function. Variants with different `type` values always return `false`. Abse
 ### `structuralTypeMatches`
 
 ```typescript
-structuralTypeMatches(value: RillValue, type: RillStructuralType): boolean
+structuralTypeMatches(value: RillValue, type: RillType): boolean
 ```
 
 Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator.
@@ -593,7 +729,7 @@ Pure function.
 ### `formatStructuralType`
 
 ```typescript
-formatStructuralType(type: RillStructuralType): string
+formatStructuralType(type: RillType): string
 ```
 
 Formats a structural type descriptor as a human-readable string.
@@ -618,7 +754,7 @@ Absent sub-fields on compound variants format as the bare type name.
 
 ```typescript
 buildFieldDescriptor(
-  structuralType: RillStructuralType & { type: 'dict' },
+  structuralType: RillType & { type: 'dict' },
   fieldName: string,
   location: SourceLocation
 ): RillFieldDescriptor
@@ -631,24 +767,15 @@ Builds a frozen `RillFieldDescriptor` for a named field within a structural dict
 ### `paramsToStructuralType`
 
 ```typescript
-paramsToStructuralType(params: CallableParam[]): RillStructuralType
+paramsToStructuralType(params: RillParam[]): RillType
 ```
 
-Builds a `RillStructuralType` closure variant from a closure's parameter list. Return type is always `{ type: 'any' }`. Result is a frozen object.
+Builds a `RillType` closure variant from a parameter list. Return type is always `{ type: 'any' }`. Result is a frozen object.
 
 | Param shape | Maps to |
 |-------------|---------|
-| Parameterized typed param (`typeStructure` present) | The full `RillStructuralType` from `param.typeStructure` |
-| Bare typed param (`typeName` non-null, no `typeStructure`) | `{ type: param.typeName }` |
-| Untyped param (`typeName: null`) | `{ type: 'any' }` |
-
-When the script closure uses parameterized annotations (`|x: list(string)|`), the `typeStructure` field carries the full structural type. The resulting `.^input` structure on the host side reflects the full parameterized shape:
-
-```typescript
-// Script: |x: list(string), y: number| { $x }
-// entries[0][1].structure -> { type: 'list', element: { type: 'string' } }
-// entries[1][1].structure -> { type: 'number' }
-```
+| `param.type` defined | The `RillType` from `param.type` |
+| `param.type` undefined | `{ type: 'any' }` |
 
 ---
 

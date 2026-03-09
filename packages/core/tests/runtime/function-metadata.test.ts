@@ -36,10 +36,17 @@ describe('Rill Runtime: Function Metadata', () => {
         const ctx = createRuntimeContext({
           functions: {
             greet: {
-              params: [{ name: 'name', type: 'string' }],
+              params: [
+                {
+                  name: 'name',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `Hello, ${args[0]}!`,
               description: 'Greets a user by name',
-              returnType: 'string',
+              returnType: { type: 'string' },
             },
           },
         });
@@ -56,12 +63,22 @@ describe('Rill Runtime: Function Metadata', () => {
           functions: {
             add: {
               params: [
-                { name: 'a', type: 'number' },
-                { name: 'b', type: 'number' },
+                {
+                  name: 'a',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'b',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
               description: 'Adds two numbers',
-              returnType: 'number',
+              returnType: { type: 'number' },
             },
           },
         });
@@ -76,10 +93,17 @@ describe('Rill Runtime: Function Metadata', () => {
         const ctx = createRuntimeContext({
           functions: {
             isValid: {
-              params: [{ name: 'value', type: 'string' }],
+              params: [
+                {
+                  name: 'value',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => (args[0] as string).length > 0,
               description: 'Checks if string is non-empty',
-              returnType: 'bool',
+              returnType: { type: 'bool' },
             },
           },
         });
@@ -96,7 +120,14 @@ describe('Rill Runtime: Function Metadata', () => {
         const ctx = createRuntimeContext({
           functions: {
             noReturnType: {
-              params: [{ name: 'x', type: 'string' }],
+              params: [
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'Function without return type',
             },
@@ -146,8 +177,8 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'x',
-                  typeName: 'string' as const,
-                  defaultValue: null,
+                  type: { type: 'string' } as const,
+                  defaultValue: undefined,
                   annotations: {},
                 },
               ],
@@ -175,32 +206,32 @@ describe('Rill Runtime: Function Metadata', () => {
             getString: {
               params: [],
               fn: () => 'text',
-              returnType: 'string',
+              returnType: { type: 'string' },
             },
             getNumber: {
               params: [],
               fn: () => 42,
-              returnType: 'number',
+              returnType: { type: 'number' },
             },
             getBool: {
               params: [],
               fn: () => true,
-              returnType: 'bool',
+              returnType: { type: 'bool' },
             },
             getList: {
               params: [],
               fn: () => [1, 2, 3],
-              returnType: 'list',
+              returnType: { type: 'list' },
             },
             getDict: {
               params: [],
               fn: () => ({ key: 'value' }),
-              returnType: 'dict',
+              returnType: { type: 'dict' },
             },
             getAny: {
               params: [],
               fn: () => 'anything',
-              returnType: 'any',
+              returnType: { type: 'any' },
             },
           },
         });
@@ -236,7 +267,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               undocumented: {
-                params: [{ name: 'x', type: 'string' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
                 fn: (args) => args[0],
               },
             },
@@ -250,7 +288,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               undocumented: {
-                params: [{ name: 'x', type: 'string' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
                 fn: (args) => args[0],
               },
             },
@@ -263,7 +308,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               partialDocs: {
-                params: [{ name: 'x', type: 'string' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
                 fn: (args) => args[0],
                 description: 'Function with description',
               },
@@ -280,7 +332,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               noDesc: {
-                params: [{ name: 'x', type: 'string', description: 'A param' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'A param' },
+                  },
+                ],
                 fn: (args) => args[0],
               },
             },
@@ -296,7 +355,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               noDesc: {
-                params: [{ name: 'x', type: 'string', description: 'A param' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'A param' },
+                  },
+                ],
                 fn: (args) => args[0],
                 description: undefined,
               },
@@ -313,7 +379,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               emptyDesc: {
-                params: [{ name: 'x', type: 'string', description: 'A param' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'A param' },
+                  },
+                ],
                 fn: (args) => args[0],
                 description: '',
               },
@@ -330,7 +403,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               whitespaceDesc: {
-                params: [{ name: 'x', type: 'string', description: 'A param' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'A param' },
+                  },
+                ],
                 fn: (args) => args[0],
                 description: '   ',
               },
@@ -349,7 +429,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               noParamDesc: {
-                params: [{ name: 'x', type: 'string' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
                 fn: (args) => args[0],
                 description: 'Function with description',
               },
@@ -366,7 +453,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               noParamDesc: {
-                params: [{ name: 'x', type: 'string', description: undefined }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
                 fn: (args) => args[0],
                 description: 'Function with description',
               },
@@ -383,7 +477,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               emptyParamDesc: {
-                params: [{ name: 'x', type: 'string', description: '' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: '' },
+                  },
+                ],
                 fn: (args) => args[0],
                 description: 'Function with description',
               },
@@ -400,7 +501,14 @@ describe('Rill Runtime: Function Metadata', () => {
           createRuntimeContext({
             functions: {
               whitespaceParamDesc: {
-                params: [{ name: 'x', type: 'string', description: '  \n  ' }],
+                params: [
+                  {
+                    name: 'x',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: '  \n  ' },
+                  },
+                ],
                 fn: (args) => args[0],
                 description: 'Function with description',
               },
@@ -418,8 +526,18 @@ describe('Rill Runtime: Function Metadata', () => {
             functions: {
               multiParam: {
                 params: [
-                  { name: 'first', type: 'string', description: 'First param' },
-                  { name: 'second', type: 'number' },
+                  {
+                    name: 'first',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'First param' },
+                  },
+                  {
+                    name: 'second',
+                    type: { type: 'number' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
                 ],
                 fn: (args) => args[0],
                 description: 'Function with description',
@@ -442,8 +560,9 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: 'string',
-                    description: 'The input string',
+                    type: { type: 'string' },
+                    defaultValue: undefined,
+                    annotations: { description: 'The input string' },
                   },
                 ],
                 fn: (args) => args[0],
@@ -475,19 +594,7 @@ describe('Rill Runtime: Function Metadata', () => {
   describe('getDocumentationCoverage Tests', () => {
     describe('AC-5: Fully documented context returns 100% completeness', () => {
       it('returns 100% for fully documented single function', () => {
-        const ctx = createRuntimeContext({
-          functions: {
-            documented: {
-              params: [
-                { name: 'x', type: 'string', description: 'Input value' },
-              ],
-              fn: (args) => args[0],
-              description: 'A documented function',
-            },
-          },
-        });
-
-        // Clear built-ins to isolate test
+        const ctx = createRuntimeContext({});
         ctx.functions.clear();
         ctx.functions.set('documented', {
           __type: 'callable',
@@ -495,10 +602,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: 'Input value',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: 'Input value' },
             },
           ],
           fn: (args) => args[0],
@@ -514,26 +620,7 @@ describe('Rill Runtime: Function Metadata', () => {
       });
 
       it('returns 100% for multiple fully documented functions', () => {
-        const ctx = createRuntimeContext({
-          functions: {
-            first: {
-              params: [
-                { name: 'a', type: 'string', description: 'First param' },
-              ],
-              fn: (args) => args[0],
-              description: 'First function',
-            },
-            second: {
-              params: [
-                { name: 'b', type: 'number', description: 'Second param' },
-              ],
-              fn: (args) => args[0],
-              description: 'Second function',
-            },
-          },
-        });
-
-        // Clear built-ins
+        const ctx = createRuntimeContext({});
         ctx.functions.clear();
         ctx.functions.set('first', {
           __type: 'callable',
@@ -541,10 +628,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'a',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: 'First param',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: 'First param' },
             },
           ],
           fn: (args) => args[0],
@@ -557,10 +643,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'b',
-              typeName: 'number',
-              defaultValue: null,
-              annotations: {},
-              description: 'Second param',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: { description: 'Second param' },
             },
           ],
           fn: (args) => args[0],
@@ -618,10 +703,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: '  \n  ',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: '  \n  ' },
             },
           ],
           fn: (args) => args[0],
@@ -687,10 +771,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: 'Documented param',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: 'Documented param' },
             },
           ],
           fn: (args) => args[0],
@@ -722,10 +805,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: 'Param',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: 'Param' },
             },
           ],
           fn: (args) => args[0],
@@ -799,10 +881,9 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: '',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: '' },
             },
           ],
           fn: (args) => args[0],
@@ -826,17 +907,15 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'a',
-              typeName: 'string',
-              defaultValue: null,
-              annotations: {},
-              description: 'First param documented',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: { description: 'First param documented' },
             },
             {
               name: 'b',
-              typeName: 'number',
-              defaultValue: null,
-              annotations: {},
-              description: '',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: { description: '' },
             },
           ],
           fn: (args) => args[0],

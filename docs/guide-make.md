@@ -370,7 +370,7 @@ export function createHost() {
 Only add custom host functions when no extension covers the requirement. Add them to the generated `host.ts`:
 
 ```typescript
-const appFunctions: Record<string, HostFunctionDefinition> = {
+const appFunctions: Record<string, RillFunction> = {
   greet: {
     fn: async (args) => `Hello, ${args[0]}!`,
     params: [{ name: 'name', type: 'string' }],

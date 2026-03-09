@@ -34,7 +34,6 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
-  RillTypeName,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -44,7 +43,7 @@ import type {
   PassNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillStructuralType, RillValue } from '../../values.js';
+import type { RillType, RillValue } from '../../values.js';
 import {
   formatValue,
   inferElementType,
@@ -56,7 +55,7 @@ import {
   isCallable,
   paramsToStructuralType,
   type ScriptCallable,
-  type CallableParam,
+  type RillParam,
 } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -903,9 +902,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         (this as any).evaluateExpression.bind(this)
       );
 
-      const params: CallableParam[] = [];
+      const rillParams: RillParam[] = [];
       for (const param of node.params) {
-        let defaultValue: RillValue | null = null;
+        let defaultValue: RillValue | undefined = undefined;
         if (param.defaultValue) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           defaultValue = await (this as any).evaluatePrimary(
@@ -916,8 +915,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Resolve typeRef at closure-creation time (AC-12).
         // Dynamic refs ($var) are resolved against the current context now,
         // so the closure captures the concrete type, not the variable reference.
-        let resolvedTypeName: RillTypeName | null = null;
-        let resolvedTypeStructure: RillStructuralType | undefined = undefined;
+        let resolvedType: RillType | undefined = undefined;
         if (param.typeRef !== null) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const resolved = (this as any).resolveTypeRef(
@@ -930,23 +928,33 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               `Closure parameter '${param.name}' type must be a type value, not a shape`
             );
           }
-          resolvedTypeName = resolved.typeName;
-          resolvedTypeStructure = resolved.structure;
+          resolvedType = resolved.structure;
         }
 
-        params.push({
+        // Infer type from default value when no explicit typeRef is present (AC-12).
+        // Primitive defaults (string, number, bool) constrain the parameter type.
+        // Complex defaults (list, dict, closure) leave the parameter any-typed.
+        if (resolvedType === undefined && defaultValue !== undefined) {
+          const defaultKind = typeof defaultValue;
+          if (defaultKind === 'string') {
+            resolvedType = { type: 'string' };
+          } else if (defaultKind === 'number') {
+            resolvedType = { type: 'number' };
+          } else if (defaultKind === 'boolean') {
+            resolvedType = { type: 'bool' };
+          }
+        }
+
+        rillParams.push({
           name: param.name,
-          typeName: resolvedTypeName,
-          ...(resolvedTypeStructure !== undefined && {
-            typeStructure: resolvedTypeStructure,
-          }),
+          type: resolvedType,
           defaultValue,
           annotations: paramAnnotations[param.name] ?? {},
         });
       }
 
-      const isProperty = params.length === 0;
-      const inputShape = paramsToStructuralType(params);
+      const isProperty = rillParams.length === 0;
+      const inputShape = paramsToStructuralType(rillParams);
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
       // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
@@ -963,7 +971,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       return {
         __type: 'callable',
         kind: 'script',
-        params,
+        params: rillParams,
         body: node.body,
         definingScope,
         isProperty,
@@ -986,15 +994,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const definingScope = this.ctx;
 
       // Block-closures have exactly one parameter: $
-      const params: CallableParam[] = [
+      // type is undefined (any-typed) so paramsToStructuralType produces { type: 'any' },
+      // matching the structural type of an explicit `|any|{}` closure.
+      const rillParams: readonly RillParam[] = [
         {
           name: '$',
-          // 'any' (not null) so paramsToStructuralType produces { type: 'any' },
-          // matching the structural type of an explicit `|any|{}` closure. The { type: 'any' }
-          // branch only fires for non-$ params with typeName: null (untyped explicit parameters).
-          typeName: 'any',
-          defaultValue: null,
-          annotations: {}, // Block closures have no parameter annotations
+          type: undefined,
+          defaultValue: undefined,
+          annotations: {},
         },
       ];
 
@@ -1002,12 +1009,12 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx.immediateAnnotation = undefined;
 
       const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-      const inputShape = paramsToStructuralType(params);
+      const inputShape = paramsToStructuralType(rillParams);
 
       return {
         __type: 'callable',
         kind: 'script',
-        params,
+        params: rillParams,
         body: node,
         definingScope,
         isProperty: false,

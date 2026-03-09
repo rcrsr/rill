@@ -165,26 +165,26 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
       }
     };
 
-    // Add to functions object with HostFunctionDefinition structure
+    // Add to functions object with RillFunction structure
     functions[commandName] = {
       params: [
         {
           name: 'args',
-          type: 'list',
-          description: 'Command arguments',
+          type: { type: 'list' },
           defaultValue: [],
+          annotations: { description: 'Command arguments' },
         },
         {
           name: 'stdin',
-          type: 'string',
-          description: 'Standard input data',
+          type: { type: 'string' },
           defaultValue: '',
+          annotations: { description: 'Standard input data' },
         },
       ],
       fn: commandFn,
       description:
         commandConfig.description ?? `Execute ${commandName} command`,
-      returnType: 'dict',
+      returnType: { type: 'dict' },
     };
   }
 
@@ -209,7 +209,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
     params: [],
     fn: commands,
     description: 'List all configured commands',
-    returnType: 'list',
+    returnType: { type: 'list' },
   };
 
   // ============================================================

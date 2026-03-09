@@ -7,7 +7,13 @@
 
 import type { RuntimeContext } from './types.js';
 import type { RillValue } from './values.js';
-import { isApplicationCallable, isScriptCallable } from './callable.js';
+import { formatStructuralType, formatValue } from './values.js';
+import {
+  isApplicationCallable,
+  isRuntimeCallable,
+  isScriptCallable,
+} from './callable.js';
+import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 
 /**
@@ -74,8 +80,11 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         if (callable.params) {
           const params: ParamMetadata[] = callable.params.map((p) => ({
             name: p.name,
-            type: p.typeName ?? 'any',
-            description: p.description ?? '',
+            type: p.type !== undefined ? formatStructuralType(p.type) : 'any',
+            description:
+              typeof p.annotations['description'] === 'string'
+                ? p.annotations['description']
+                : '',
             defaultValue: p.defaultValue ?? undefined,
           }));
 
@@ -83,7 +92,10 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             name,
             description: callable.description ?? '',
             params,
-            returnType: callable.returnType ?? 'any',
+            returnType:
+              callable.returnType !== undefined
+                ? formatStructuralType(callable.returnType)
+                : 'any',
           });
         } else {
           // ApplicationCallable without params (untyped)
@@ -122,11 +134,14 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           }
         }
 
-        // Convert params to ParamMetadata
+        // Convert params to ParamMetadata using RillParam.type (IC-5)
         const params: ParamMetadata[] = value.params.map((p) => ({
           name: p.name,
-          type: p.typeName ?? 'any',
-          description: p.description ?? '',
+          type: p.type !== undefined ? formatStructuralType(p.type) : 'any',
+          description:
+            typeof p.annotations['description'] === 'string'
+              ? p.annotations['description']
+              : '',
           defaultValue: p.defaultValue ?? undefined,
         }));
 
@@ -145,6 +160,122 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 
   // Combine in specified order: host, built-ins, script closures
   return [...hostFunctions, ...builtinFunctions, ...result];
+}
+
+/**
+ * Serialize a single RillParam into rill closure parameter syntax.
+ *
+ * Format: `^(description: "...") name: type = default`
+ * - Annotation prefix included only when annotations.description is present.
+ * - Type defaults to `any` when param.type is undefined.
+ * - Default value appended as `= value` when param.defaultValue is defined.
+ */
+function serializeParam(p: RillParam): string {
+  const parts: string[] = [];
+
+  // Parameter-level description annotation
+  const desc = p.annotations['description'];
+  if (typeof desc === 'string' && desc.length > 0) {
+    parts.push(`^(description: "${desc}") `);
+  }
+
+  // Name and type
+  const typeName = p.type !== undefined ? formatStructuralType(p.type) : 'any';
+  parts.push(`${p.name}: ${typeName}`);
+
+  // Default value
+  if (p.defaultValue !== undefined) {
+    parts.push(` = ${formatValue(p.defaultValue)}`);
+  }
+
+  return parts.join('');
+}
+
+/**
+ * Serialize a typed ApplicationCallable entry into a rill closure type signature string.
+ *
+ * Format: `^(description: "...") |param: type| {}:returnType`
+ * - Closure-level description annotation prefix included only when description is present.
+ * - Return type suffix included only when returnType is not `any`.
+ * - Empty param list renders as `||`.
+ */
+function serializeClosureSignature(
+  params: readonly RillParam[],
+  returnType: string,
+  description: string | undefined
+): string {
+  const parts: string[] = [];
+
+  // Closure-level description annotation
+  if (typeof description === 'string' && description.length > 0) {
+    parts.push(`^(description: "${description}") `);
+  }
+
+  // Parameter list
+  const paramStr = params.map(serializeParam).join(', ');
+  parts.push(`|${paramStr}|`);
+
+  // Body placeholder and optional return type
+  if (returnType !== 'any') {
+    parts.push(` {}:${returnType}`);
+  } else {
+    parts.push(' {}');
+  }
+
+  return parts.join('');
+}
+
+/**
+ * Generate a rill manifest file from the registered host functions in ctx.
+ *
+ * Returns a string containing a valid rill file: a dict literal of
+ * string-keyed closure type signatures followed by `-> export`.
+ *
+ * Only `ApplicationCallable` entries with `params !== undefined` are included.
+ * `RuntimeCallable` entries (built-ins) are excluded.
+ * `ApplicationCallable` entries with `params: undefined` are skipped silently.
+ *
+ * Empty function map produces `[:]` followed by `-> export`.
+ *
+ * @param ctx Runtime context
+ * @returns Rill manifest file content as a string
+ */
+export function generateManifest(ctx: RuntimeContext): string {
+  const entries: string[] = [];
+
+  for (const [name, fn] of ctx.functions.entries()) {
+    const callable = fn as RillValue;
+
+    // Exclude RuntimeCallable entries (built-in functions)
+    if (isRuntimeCallable(callable)) {
+      continue;
+    }
+
+    // Include only ApplicationCallable entries with params defined (EC-7)
+    if (!isApplicationCallable(callable) || callable.params === undefined) {
+      continue;
+    }
+
+    const signature =
+      callable.originalSignature !== undefined
+        ? callable.originalSignature
+        : serializeClosureSignature(
+            callable.params,
+            callable.returnType !== undefined
+              ? formatStructuralType(callable.returnType)
+              : 'any',
+            callable.description
+          );
+
+    entries.push(`  "${name}": ${signature}`);
+  }
+
+  if (entries.length === 0) {
+    return '[:]\n-> export';
+  }
+
+  const dictBody = entries.join(',\n');
+  return `[\n${dictBody}\n]\n-> export`;
 }
 
 /**

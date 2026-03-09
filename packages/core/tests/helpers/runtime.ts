@@ -9,7 +9,7 @@ import {
   type ExecutionResult,
   type ObservabilityCallbacks,
   parse,
-  type HostFunctionDefinition,
+  type RillFunction,
   type RillValue,
   type RuntimeContext,
   type RuntimeOptions,
@@ -18,7 +18,7 @@ import {
 
 /** Options for test execution */
 export interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
-  functions?: Record<string, HostFunctionDefinition>;
+  functions?: Record<string, RillFunction>;
 }
 
 /** Shared setup for all execution modes */
@@ -74,7 +74,7 @@ export async function runStepped(
 export function mockAsyncFn(
   delay: number,
   returnValue: RillValue
-): HostFunctionDefinition {
+): RillFunction {
   return {
     params: [],
     fn: async () => {
@@ -85,9 +85,7 @@ export function mockAsyncFn(
 }
 
 /** Create a mock sync function that tracks calls */
-export function mockFn(
-  returnValue: RillValue = null
-): HostFunctionDefinition & {
+export function mockFn(returnValue: RillValue = null): RillFunction & {
   calls: RillValue[][];
   callCount: number;
 } {
@@ -99,7 +97,7 @@ export function mockFn(
   const hostDef = {
     params: [],
     fn,
-  } as HostFunctionDefinition & { calls: RillValue[][]; callCount: number };
+  } as RillFunction & { calls: RillValue[][]; callCount: number };
   hostDef.calls = calls;
   Object.defineProperty(hostDef, 'callCount', {
     get: () => calls.length,

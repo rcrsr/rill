@@ -33,7 +33,7 @@ const ctx = createRuntimeContext({ functions });
 Every extension exports a factory function returning `ExtensionResult`:
 
 ```typescript
-import type { ExtensionResult, HostFunctionDefinition } from '@rcrsr/rill';
+import type { ExtensionResult, RillFunction } from '@rcrsr/rill';
 
 function createMyExtension(config: MyConfig): ExtensionResult {
   // Validate config eagerly (throw on invalid)
@@ -55,14 +55,14 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 ### ExtensionResult Type
 
 ```typescript
-type ExtensionResult = Record<string, HostFunctionDefinition> & {
+type ExtensionResult = Record<string, RillFunction> & {
   dispose?: () => void | Promise<void>;
   suspend?: () => unknown;
   restore?: (state: unknown) => void;
 };
 ```
 
-Each key (except `dispose`, `suspend`, and `restore`) maps a function name to a `HostFunctionDefinition`. The runtime registers these as callable host functions.
+Each key (except `dispose`, `suspend`, and `restore`) maps a function name to a `RillFunction`. The runtime registers these as callable host functions.
 
 ### ExtensionFactory Type
 

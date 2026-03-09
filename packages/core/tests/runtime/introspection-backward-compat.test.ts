@@ -3,8 +3,8 @@
  * Verifies existing host function registrations work without description fields
  *
  * Specification Mapping (conduct/specifications/runtime-introspection.md):
- * - IR-3: HostFunctionParam.description?: string (optional, defaults to empty string)
- * - IR-4: HostFunctionDefinition.description?: string (optional, defaults to empty string)
+ * - IR-3: RillParam.description?: string (optional, defaults to empty string)
+ * - IR-4: RillFunction.description?: string (optional, defaults to empty string)
  *
  * This test verifies backward compatibility: code written before IR-3/IR-4
  * continues to work without modification.
@@ -14,18 +14,25 @@ import { describe, expect, it } from 'vitest';
 import {
   createRuntimeContext,
   getFunctions,
-  type HostFunctionDefinition,
+  type RillFunction,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Introspection Backward Compatibility', () => {
-  describe('IR-3: HostFunctionParam.description backward compatibility', () => {
+  describe('IR-3: RillParam.description backward compatibility', () => {
     it('registers function without param description field', async () => {
       // Pattern used before IR-3 (no description field)
       const result = await run('greet("Alice")', {
         functions: {
           greet: {
-            params: [{ name: 'name', type: 'string' }],
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello, ${args[0]}!`,
           },
         },
@@ -39,8 +46,18 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         functions: {
           add: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
           },
@@ -60,11 +77,17 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         functions: {
           format: {
             params: [
-              { name: 'template', type: 'string' }, // No description
+              {
+                name: 'template',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              }, // No description
               {
                 name: 'value',
-                type: 'string',
-                description: 'Value to insert',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'Value to insert' },
               }, // With description
             ],
             fn: (args) => String(args[0]).replace('{}', String(args[1])),
@@ -80,13 +103,20 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
     });
   });
 
-  describe('IR-4: HostFunctionDefinition.description backward compatibility', () => {
+  describe('IR-4: RillFunction.description backward compatibility', () => {
     it('registers function without description field', async () => {
       // Pattern used before IR-4 (no description field)
       const result = await run('double(5)', {
         functions: {
           double: {
-            params: [{ name: 'x', type: 'number' }],
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => (args[0] as number) * 2,
           },
         },
@@ -99,7 +129,14 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
       const ctx = createRuntimeContext({
         functions: {
           legacy: {
-            params: [{ name: 'input', type: 'string' }],
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
           },
         },
@@ -117,8 +154,18 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         functions: {
           'math::add': {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
           },
@@ -139,9 +186,24 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         functions: {
           process: {
             params: [
-              { name: 'input', type: 'string' },
-              { name: 'count', type: 'number' },
-              { name: 'flag', type: 'bool' },
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'count',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'flag',
+                type: { type: 'bool' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => {
               const input = String(args[0]);
@@ -163,9 +225,24 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         functions: {
           oldStyle: {
             params: [
-              { name: 'a', type: 'string' },
-              { name: 'b', type: 'number' },
-              { name: 'c', type: 'bool' },
+              {
+                name: 'a',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'c',
+                type: { type: 'bool' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => `${args[0]} ${args[1]} ${args[2]}`,
           },
@@ -183,10 +260,20 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
 
     it('TypeScript allows omitting description fields', () => {
       // This test verifies TypeScript compilation succeeds
-      const funcDef: HostFunctionDefinition = {
+      const funcDef: RillFunction = {
         params: [
-          { name: 'x', type: 'string' },
-          { name: 'y', type: 'number' },
+          {
+            name: 'x',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+          {
+            name: 'y',
+            type: { type: 'number' },
+            defaultValue: undefined,
+            annotations: {},
+          },
         ],
         fn: (args) => args[0],
         // No description field - should compile without error
@@ -200,13 +287,25 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
       const result = await run('old("x") -> new("y")', {
         functions: {
           old: {
-            params: [{ name: 'input', type: 'string' }],
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
             // Old style: no description
           },
           new: {
             params: [
-              { name: 'input', type: 'string', description: 'Input value' },
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'Input value' },
+              },
             ],
             fn: (args) => args[0],
             description: 'New style function with docs',
@@ -219,12 +318,24 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
       const ctx = createRuntimeContext({
         functions: {
           old: {
-            params: [{ name: 'input', type: 'string' }],
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
           },
           new: {
             params: [
-              { name: 'input', type: 'string', description: 'Input value' },
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'Input value' },
+              },
             ],
             fn: (args) => args[0],
             description: 'New style function with docs',

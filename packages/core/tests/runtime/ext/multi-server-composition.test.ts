@@ -26,7 +26,7 @@ describe('Multi-Server Composition', () => {
       // Mock GitHub MCP server extension
       const githubExtension: ExtensionResult = {
         list_pull_requests: {
-          params: [{ name: 'options', type: 'dict' }],
+          params: [{ name: 'options', type: { type: 'dict' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             const opts = args[0] as Record<string, unknown>;
             const state = opts['state'] as string;
@@ -48,7 +48,7 @@ describe('Multi-Server Composition', () => {
           },
         },
         get_pull_request: {
-          params: [{ name: 'number', type: 'number' }],
+          params: [{ name: 'number', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => ({
             number: args[0],
             title: `PR #${args[0]}`,
@@ -60,7 +60,7 @@ describe('Multi-Server Composition', () => {
       // Mock Slack MCP server extension
       const slackExtension: ExtensionResult = {
         post_message: {
-          params: [{ name: 'options', type: 'dict' }],
+          params: [{ name: 'options', type: { type: 'dict' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             const opts = args[0] as Record<string, unknown>;
             const channel = opts['channel'] as string;
@@ -82,7 +82,7 @@ describe('Multi-Server Composition', () => {
       // Mock PostgreSQL MCP server extension
       const postgresExtension: ExtensionResult = {
         query: {
-          params: [{ name: 'sql', type: 'string' }],
+          params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             const sql = args[0] as string;
             // Mock query result based on SQL pattern
@@ -96,7 +96,7 @@ describe('Multi-Server Composition', () => {
           },
         },
         execute: {
-          params: [{ name: 'sql', type: 'string' }],
+          params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => ({
             rowsAffected: 1,
             command: args[0],
@@ -148,13 +148,13 @@ describe('Multi-Server Composition', () => {
       // Create two mock servers with SAME function names
       const server1: ExtensionResult = {
         get: {
-          params: [{ name: 'key', type: 'string' }],
+          params: [{ name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `server1:${args[0]}`,
         },
         set: {
           params: [
-            { name: 'key', type: 'string' },
-            { name: 'value', type: 'string' },
+            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            { name: 'value', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
           ],
           fn: (args) => `server1:set:${args[0]}=${args[1]}`,
         },
@@ -162,13 +162,13 @@ describe('Multi-Server Composition', () => {
 
       const server2: ExtensionResult = {
         get: {
-          params: [{ name: 'key', type: 'string' }],
+          params: [{ name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => `server2:${args[0]}`,
         },
         set: {
           params: [
-            { name: 'key', type: 'string' },
-            { name: 'value', type: 'string' },
+            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            { name: 'value', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
           ],
           fn: (args) => `server2:set:${args[0]}=${args[1]}`,
         },
@@ -218,7 +218,7 @@ describe('Multi-Server Composition', () => {
             },
           },
           query: {
-            params: [{ name: 'sql', type: 'string' }],
+            params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
             fn: (args) => {
               queryCount += 1;
               return {
@@ -308,7 +308,7 @@ describe('Multi-Server Composition', () => {
       // Mock API server
       const apiExtension: ExtensionResult = {
         fetch: {
-          params: [{ name: 'url', type: 'string' }],
+          params: [{ name: 'url', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             const url = args[0] as string;
             if (url.includes('/users')) {
@@ -323,8 +323,8 @@ describe('Multi-Server Composition', () => {
       const dbExtension: ExtensionResult = {
         insert: {
           params: [
-            { name: 'table', type: 'string' },
-            { name: 'data', type: 'dict' },
+            { name: 'table', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            { name: 'data', type: { type: 'dict' }, defaultValue: undefined, annotations: {} },
           ],
           fn: (args) => ({
             inserted: true,
@@ -338,8 +338,8 @@ describe('Multi-Server Composition', () => {
       const cacheExtension: ExtensionResult = {
         set: {
           params: [
-            { name: 'key', type: 'string' },
-            { name: 'value', type: 'any' },
+            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            { name: 'value', type: { type: 'any' }, defaultValue: undefined, annotations: {} },
           ],
           fn: (args) => ({
             cached: true,

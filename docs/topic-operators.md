@@ -772,9 +772,9 @@ $fmt(1, ...$rest)
 Without `...`, a tuple passes as a single argument:
 
 ```rill
-|t| { $t.len } => $size
-tuple[1, 2, 3] -> $size()
-# Result: 3
+|t| { $t } => $passthrough
+tuple[1, 2, 3] -> $passthrough()
+# Result: tuple[1, 2, 3]
 ```
 
 ---

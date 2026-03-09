@@ -5,7 +5,7 @@
  * Specification Mapping (conduct/initiatives/rill-extensions/specifications/extensions.md):
  *
  * Success Criteria:
- * - AC-S1: Factory returns valid HostFunctionDefinition mappings
+ * - AC-S1: Factory returns valid RillFunction mappings
  * - AC-S2: prefixFunctions adds namespace prefix to all function keys
  * - AC-S3: Multiple extension instances maintain separate state (closure isolation)
  * - AC-S4: Script calls `namespace::functionName()` successfully
@@ -38,21 +38,41 @@ import type { ExtensionEvent } from '../../src/runtime/core/types.js';
 
 describe('Rill Runtime: Extension System', () => {
   describe('Success Cases', () => {
-    describe('AC-S1: Factory returns valid HostFunctionDefinition mappings', () => {
-      it('returns object with HostFunctionDefinition values', () => {
+    describe('AC-S1: Factory returns valid RillFunction mappings', () => {
+      it('returns object with RillFunction values', () => {
         // Create a simple extension factory
         const createMathExtension = (): ExtensionResult => ({
           add: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
           },
           multiply: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) * (args[1] as number),
           },
@@ -60,7 +80,7 @@ describe('Rill Runtime: Extension System', () => {
 
         const extension = createMathExtension();
 
-        // Verify all values are HostFunctionDefinition objects
+        // Verify all values are RillFunction objects
         expect(extension.add).toBeDefined();
         expect(extension.add.params).toBeInstanceOf(Array);
         expect(typeof extension.add.fn).toBe('function');
@@ -75,13 +95,30 @@ describe('Rill Runtime: Extension System', () => {
       it('prefixes all function keys with namespace::', () => {
         const extension: ExtensionResult = {
           read: {
-            params: [{ name: 'path', type: 'string' }],
+            params: [
+              {
+                name: 'path',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `content of ${args[0]}`,
           },
           write: {
             params: [
-              { name: 'path', type: 'string' },
-              { name: 'content', type: 'string' },
+              {
+                name: 'path',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'content',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: () => 'written',
           },
@@ -158,7 +195,14 @@ describe('Rill Runtime: Extension System', () => {
       it('executes namespaced function calls from scripts', async () => {
         const extension: ExtensionResult = {
           greet: {
-            params: [{ name: 'name', type: 'string' }],
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello, ${args[0]}!`,
           },
         };
@@ -176,13 +220,30 @@ describe('Rill Runtime: Extension System', () => {
         const extension: ExtensionResult = {
           add: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
           },
           double: {
-            params: [{ name: 'x', type: 'number' }],
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => (args[0] as number) * 2,
           },
         };
@@ -270,7 +331,14 @@ describe('Rill Runtime: Extension System', () => {
 
         const createLoggerExtension = (subsystem: string): ExtensionResult => ({
           log: {
-            params: [{ name: 'event', type: 'string' }],
+            params: [
+              {
+                name: 'event',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => {
               const logEvent: LogEvent = {
                 event: args[0] as string,
@@ -314,7 +382,14 @@ describe('Rill Runtime: Extension System', () => {
 
           return {
             get: {
-              params: [{ name: 'path', type: 'string' }],
+              params: [
+                {
+                  name: 'path',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `GET ${baseUrl}${args[0]} (timeout: ${timeout}ms)`,
             },
           };
@@ -435,7 +510,14 @@ describe('Rill Runtime: Extension System', () => {
       it('accepts snake_case namespaces', async () => {
         const extension: ExtensionResult = {
           greet: {
-            params: [{ name: 'name', type: 'string' }],
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello, ${args[0]}!`,
           },
         };
@@ -556,7 +638,14 @@ describe('Rill Runtime: Extension System', () => {
         // but prefixFunctions must accept hyphenated namespaces
         const extension: ExtensionResult = {
           fetch: {
-            params: [{ name: 'endpoint', type: 'string' }],
+            params: [
+              {
+                name: 'endpoint',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `fetching from ${args[0]}`,
           },
         };
@@ -692,7 +781,14 @@ describe('Rill Runtime: Extension System', () => {
 
         const extension: ExtensionResult = {
           incrementAndWait: {
-            params: [{ name: 'delayMs', type: 'number' }],
+            params: [
+              {
+                name: 'delayMs',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: async (args) => {
               const id = ++callCount;
               callOrder.push(id);
@@ -851,7 +947,14 @@ describe('Rill Runtime: Extension System', () => {
       it('separates functions from dispose for createRuntimeContext', async () => {
         const extension: ExtensionResult = {
           greet: {
-            params: [{ name: 'name', type: 'string' }],
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello, ${args[0]}!`,
           },
           dispose: () => {
@@ -886,8 +989,18 @@ describe('Rill Runtime: Extension System', () => {
         const extension: ExtensionResult = {
           add: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
           },
@@ -1031,7 +1144,14 @@ describe('Rill Runtime: Extension System', () => {
       it('hoisted functions work with createRuntimeContext', async () => {
         const extension: ExtensionResult = {
           double: {
-            params: [{ name: 'x', type: 'number' }],
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => (args[0] as number) * 2,
           },
         };

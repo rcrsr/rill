@@ -201,7 +201,7 @@ describe('CoreMixin Error Contracts', () => {
         run('fn(a(), b())', {
           functions: {
             fn: {
-              params: [{ name: 'x', type: 'number' }],
+              params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => args[0],
             },
             a: {
@@ -284,8 +284,8 @@ describe('CoreMixin Error Contracts', () => {
         functions: {
           add: {
             params: [
-              { name: 'a', type: 'number' },
-              { name: 'b', type: 'number' },
+              { name: 'a', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
+              { name: 'b', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
             ],
             fn: (args) =>
               (typeof args[0] === 'number' ? args[0] : 0) +

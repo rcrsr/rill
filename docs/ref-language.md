@@ -338,17 +338,15 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 
 ### Global Functions
 
-| Function | Description |
-|----------|-------------|
-| `type` | Returns type name of value |
-| `log` | Print to console, pass through |
-| `json` | Convert to JSON string |
-| `identity` | Returns input unchanged |
-| `range(start, end, step?)` | Generate number sequence |
-| `repeat(value, count)` | Repeat value n times |
-| `enumerate(collection)` | Add index to elements |
-| `chain($fn)` | Apply single closure sequentially |
-| `chain([$f, $g])` | Apply list of closures sequentially |
+| Function | Params | Return | Description |
+|----------|--------|--------|-------------|
+| `identity` | `value: any` | `any` | Returns input unchanged |
+| `log` | `message: any` | `any` | Print to console, pass through |
+| `json` | `value: any` | `string` | Convert to JSON string |
+| `enumerate` | `items: list\|dict\|string` | `list` | Add index to elements |
+| `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
+| `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
+| `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 

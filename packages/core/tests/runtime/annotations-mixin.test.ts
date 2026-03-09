@@ -157,7 +157,7 @@ describe('AnnotationsMixin', () => {
         run('^(limit: 10) list[1, 2, 3] -> each { fail("boom") }', {
           functions: {
             fail: {
-              params: [{ name: 'msg', type: 'string' }],
+              params: [{ name: 'msg', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => {
                 throw new RuntimeError('RILL-R004', String(args[0]), {
                   line: 1,

@@ -52,7 +52,14 @@ describe('Rill Runtime: Configuration', () => {
 
     it('does not apply timeout to sync functions', async () => {
       const syncFn = {
-        params: [{ name: 'input', type: 'string' }],
+        params: [
+          {
+            name: 'input',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: (): string => 'sync result',
       };
       const result = await run('"x" -> syncFn', {
@@ -65,7 +72,14 @@ describe('Rill Runtime: Configuration', () => {
     it('timeout applies to each function call independently', async () => {
       let callCount = 0;
       const fn = {
-        params: [{ name: 'input', type: 'string' }],
+        params: [
+          {
+            name: 'input',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: async (): Promise<string> => {
           callCount++;
           await new Promise((r) => setTimeout(r, 30));
@@ -211,8 +225,9 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: 'string' as const,
-            description: 'Test input',
+            type: { type: 'string' } as const,
+            defaultValue: undefined,
+            annotations: { description: 'Test input' },
           },
         ],
         fn: (): string => 'result',
@@ -229,7 +244,14 @@ describe('Rill Runtime: Configuration', () => {
 
     it('accepts requireDescriptions: false', () => {
       const testFn = {
-        params: [{ name: 'input', type: 'string' as const }],
+        params: [
+          {
+            name: 'input',
+            type: { type: 'string' } as const,
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: (): string => 'result',
       };
 
@@ -243,7 +265,14 @@ describe('Rill Runtime: Configuration', () => {
 
     it('accepts requireDescriptions: undefined (default)', () => {
       const testFn = {
-        params: [{ name: 'input', type: 'string' as const }],
+        params: [
+          {
+            name: 'input',
+            type: { type: 'string' } as const,
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: (): string => 'result',
       };
 
@@ -260,8 +289,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: 'Test input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Test input' },
             },
           ],
           fn: (): string => 'result',
@@ -282,8 +312,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: 'Test input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Test input' },
             },
           ],
           fn: (): string => 'result',
@@ -305,8 +336,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: 'Test input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Test input' },
             },
           ],
           fn: (): string => 'result',
@@ -328,8 +360,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: 'Test input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Test input' },
             },
           ],
           fn: (): string => 'result',
@@ -348,7 +381,14 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented function when requireDescriptions is false', () => {
         const testFn = {
-          params: [{ name: 'input', type: 'string' as const }],
+          params: [
+            {
+              name: 'input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (): string => 'result',
         };
 
@@ -362,7 +402,14 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented function when requireDescriptions is undefined', () => {
         const testFn = {
-          params: [{ name: 'input', type: 'string' as const }],
+          params: [
+            {
+              name: 'input',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (): string => 'result',
         };
 
@@ -380,7 +427,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: 'string' as const,
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
             },
           ],
           fn: (): string => 'result',
@@ -402,8 +451,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'myParam',
-              type: 'string' as const,
-              description: undefined,
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
             },
           ],
           fn: (): string => 'result',
@@ -425,8 +475,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'blankParam',
-              type: 'string' as const,
-              description: '  \t  ',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: '  \t  ' },
             },
           ],
           fn: (): string => 'result',
@@ -448,8 +499,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'emptyParam',
-              type: 'string' as const,
-              description: '',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: '' },
             },
           ],
           fn: (): string => 'result',
@@ -471,17 +523,21 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'documented',
-              type: 'string' as const,
-              description: 'First param',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'First param' },
             },
             {
               name: 'undocumented',
-              type: 'number' as const,
+              type: { type: 'number' } as const,
+              defaultValue: undefined,
+              annotations: {},
             },
             {
               name: 'alsoDocumented',
-              type: 'bool' as const,
-              description: 'Third param',
+              type: { type: 'bool' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Third param' },
             },
           ],
           fn: (): string => 'result',
@@ -503,7 +559,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: 'string' as const,
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
             },
           ],
           fn: (): string => 'result',
@@ -523,7 +581,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: 'string' as const,
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: {},
             },
           ],
           fn: (): string => 'result',
@@ -544,8 +604,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: 'Valid param description',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Valid param description' },
             },
           ],
           fn: (): string => 'result',
@@ -567,8 +628,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: '\n\n',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: '\n\n' },
             },
           ],
           fn: (): string => 'result',
@@ -590,8 +652,9 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: 'string' as const,
-              description: '  Valid description  ',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: '  Valid description  ' },
             },
           ],
           fn: (): string => 'result',
@@ -613,13 +676,15 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'param1',
-              type: 'string' as const,
-              description: 'First parameter',
+              type: { type: 'string' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'First parameter' },
             },
             {
               name: 'param2',
-              type: 'number' as const,
-              description: 'Second parameter',
+              type: { type: 'number' } as const,
+              defaultValue: undefined,
+              annotations: { description: 'Second parameter' },
             },
           ],
           fn: (): string => 'result',

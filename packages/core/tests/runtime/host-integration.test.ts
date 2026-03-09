@@ -11,7 +11,7 @@ import {
   isCallable,
   isScriptCallable,
   parse,
-  type HostFunctionDefinition,
+  type RillFunction,
   type RillValue,
   type SourceLocation,
 } from '@rcrsr/rill';
@@ -25,7 +25,14 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('shout("hello")', {
         functions: {
           shout: {
-            params: [{ name: 'text', type: 'string' }],
+            params: [
+              {
+                name: 'text',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => String(args[0]).toUpperCase(),
           },
         },
@@ -38,8 +45,18 @@ describe('Rill Runtime: Host Integration', () => {
         functions: {
           repeat: {
             params: [
-              { name: 'str', type: 'string' },
-              { name: 'count', type: 'number' },
+              {
+                name: 'str',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'count',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => {
               const str = String(args[0]);
@@ -57,7 +74,14 @@ describe('Rill Runtime: Host Integration', () => {
         variables: { prefix: 'PREFIX:' },
         functions: {
           withPrefix: {
-            params: [{ name: 'text', type: 'string' }],
+            params: [
+              {
+                name: 'text',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args, ctx) => {
               const prefix = ctx.variables.get('prefix') ?? '';
               return `${prefix}${args[0]}`;
@@ -72,7 +96,14 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('fetchData("url")', {
         functions: {
           fetchData: {
-            params: [{ name: 'url', type: 'string' }],
+            params: [
+              {
+                name: 'url',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: async (args) => {
               await new Promise((r) => setTimeout(r, 10));
               return `fetched:${args[0]}`;
@@ -87,7 +118,14 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('my_type("hello")', {
         functions: {
           my_type: {
-            params: [{ name: 'value', type: 'string' }],
+            params: [
+              {
+                name: 'value',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: () => 'custom-type',
           },
         },
@@ -102,7 +140,14 @@ describe('Rill Runtime: Host Integration', () => {
       await run('locate("test")', {
         functions: {
           locate: {
-            params: [{ name: 'text', type: 'string' }],
+            params: [
+              {
+                name: 'text',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, _ctx, location) => {
               capturedLocation = location;
               return 'done';
@@ -119,7 +164,14 @@ describe('Rill Runtime: Host Integration', () => {
       await run('track(1)\ntrack(2)\ntrack(3)', {
         functions: {
           track: {
-            params: [{ name: 'value', type: 'number' }],
+            params: [
+              {
+                name: 'value',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, _ctx, location) => {
               if (location) locations.push(location);
               return null;
@@ -161,8 +213,15 @@ describe('Rill Runtime: Host Integration', () => {
     it('throws AbortError when aborted during function call', async () => {
       const controller = new AbortController();
 
-      const slowFn: HostFunctionDefinition = {
-        params: [{ name: 'input', type: 'string' }],
+      const slowFn: RillFunction = {
+        params: [
+          {
+            name: 'input',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: async (): Promise<RillValue> => {
           await new Promise((r) => setTimeout(r, 50));
           return 'done';
@@ -185,8 +244,15 @@ describe('Rill Runtime: Host Integration', () => {
       const controller = new AbortController();
       let iterations = 0;
 
-      const countFn: HostFunctionDefinition = {
-        params: [{ name: 'item', type: 'number' }],
+      const countFn: RillFunction = {
+        params: [
+          {
+            name: 'item',
+            type: { type: 'number' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: (): RillValue => {
           iterations++;
           if (iterations >= 3) {
@@ -211,8 +277,15 @@ describe('Rill Runtime: Host Integration', () => {
       const controller = new AbortController();
       let iterations = 0;
 
-      const tickFn: HostFunctionDefinition = {
-        params: [{ name: 'item', type: 'number' }],
+      const tickFn: RillFunction = {
+        params: [
+          {
+            name: 'item',
+            type: { type: 'number' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
         fn: (): RillValue => {
           iterations++;
           if (iterations >= 3) {

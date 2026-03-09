@@ -17,25 +17,22 @@
  *
  * [ASSUMPTION] validateDefaultValueType _functionName Parameter
  * - Parameter accepted but unused (prefixed with _ to satisfy eslint)
- * - Kept for API consistency with validateHostFunctionArgs signature
- *
- * [ASSUMPTION] validateHostFunctionArgs Args Array Mutation
- * - args array mutated in-place when substituting default values
- * - Per spec algorithm: "Apply default values for missing arguments before validation"
- * - Mutation occurs before host function receives args, maintaining immutability contract
+ * - Kept for API consistency with validateCallableArgs signature
  */
 
-import type {
-  BodyNode,
-  RillFunctionReturnType,
-  RillTypeName,
-  SourceLocation,
-} from '../../types.js';
-export type { RillFunctionReturnType } from '../../types.js';
+import type { BodyNode, SourceLocation } from '../../types.js';
+import type { RillMethod } from './types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
-import type { RillStructuralType, RillTypeValue, RillValue } from './values.js';
-import { formatValue, inferType, isTuple } from './values.js';
+import type { RillType, RillTypeValue, RillValue } from './values.js';
+import {
+  formatValue,
+  formatStructuralType,
+  inferType,
+  isTuple,
+  structuralTypeEquals,
+  structuralTypeMatches,
+} from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -57,67 +54,56 @@ export type CallableFn = (
 ) => RillValue | Promise<RillValue>;
 
 /**
- * Parameter definition for script closures.
+ * Unified parameter definition for all callable types (script closures and host functions).
  *
- * Annotations are captured at closure creation time and stored as evaluated values.
- * Empty object ({}) when no annotations present.
+ * - type: undefined means the parameter accepts any type (any-typed).
+ * - defaultValue: undefined means the parameter is required.
+ * - annotations: evaluated key-value pairs; empty object ({}) when no annotations present.
+ * - Description lives at annotations.description — no separate description field.
  */
-export interface CallableParam {
+export interface RillParam {
   readonly name: string;
-  readonly typeName: RillTypeName | null;
-  /** Full resolved structural type. Absent means bare type (uses typeName only). Present supersedes typeName for structural validation and reflection. */
-  readonly typeStructure?: RillStructuralType;
-  readonly defaultValue: RillValue | null;
-  /** Evaluated parameter-level annotations (e.g., ^(cache: true)) */
+  readonly type: RillType | undefined;
+  readonly defaultValue: RillValue | undefined;
   readonly annotations: Record<string, RillValue>;
-  /** Human-readable parameter description (optional, from host functions) */
-  readonly description?: string;
 }
 
 /**
- * Parameter metadata for host-provided functions.
+ * Unified host function definition using RillParam for parameter declarations.
  *
- * Parameters without defaultValue are required.
- * Parameters with defaultValue are optional.
+ * Replaces HostFunctionDefinition. Runtime does NOT validate return values
+ * against returnType at call time.
  */
-export interface HostFunctionParam {
-  /** Parameter name (for error messages and documentation) */
-  readonly name: string;
-
-  /** Expected type: 6 primitive types plus 'any' */
-  readonly type:
-    | 'string'
-    | 'number'
-    | 'bool'
-    | 'list'
-    | 'dict'
-    | 'vector'
-    | 'any';
-
-  /** Default value if argument omitted. Makes parameter optional. */
-  readonly defaultValue?: RillValue;
-
-  /** Human-readable parameter description (optional) */
-  readonly description?: string;
-}
-
-/**
- * Host function with required parameter type declarations.
- *
- * Runtime validates arguments before invocation.
- */
-export interface HostFunctionDefinition {
-  /** Parameter declarations (required) */
-  readonly params: readonly HostFunctionParam[];
-
-  /** Function implementation (receives validated args) */
+export interface RillFunction {
+  readonly params: readonly RillParam[];
   readonly fn: CallableFn;
-
-  /** Human-readable function description (optional) */
   readonly description?: string;
+  readonly returnType?: RillType;
+}
 
-  /** Declared return type (default: 'any') */
-  readonly returnType?: RillFunctionReturnType;
+/**
+ * Base interface for all callable signatures.
+ * signature is an annotated rill closure type signature string.
+ */
+export interface RillCallableSignature {
+  readonly signature: string;
+}
+
+/**
+ * Signature for a host-provided function.
+ * Discriminated from RillFunction by presence of signature field.
+ */
+export interface RillFunctionSignature extends RillCallableSignature {
+  readonly fn: CallableFn;
+}
+
+/**
+ * Signature for a built-in method with receiver type constraints.
+ * receiverTypes contains valid RillTypeName strings (e.g., ["string", "list"]).
+ */
+export interface RillMethodSignature extends RillCallableSignature {
+  readonly method: RillMethod;
+  readonly receiverTypes: readonly string[];
 }
 
 /** Common fields for all callable types */
@@ -141,7 +127,7 @@ interface CallableBase {
  */
 export interface ScriptCallable extends CallableBase {
   readonly kind: 'script';
-  readonly params: CallableParam[];
+  readonly params: readonly RillParam[];
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
   readonly definingScope: RuntimeContextLike;
@@ -150,7 +136,7 @@ export interface ScriptCallable extends CallableBase {
   /** Evaluated parameter annotations keyed by parameter name */
   readonly paramAnnotations: Record<string, Record<string, RillValue>>;
   /** Cached input structural type built from params at creation time — used by `$fn.^input` */
-  readonly inputShape: RillStructuralType;
+  readonly inputShape: RillType;
   /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
   readonly returnShape?: RillTypeValue | undefined;
 }
@@ -164,12 +150,14 @@ export interface RuntimeCallable extends CallableBase {
 /** Application callable - host application-provided functions */
 export interface ApplicationCallable extends CallableBase {
   readonly kind: 'application';
-  readonly params: CallableParam[] | undefined;
+  readonly params: RillParam[] | undefined;
   readonly fn: CallableFn;
   /** Human-readable function description (optional, from host functions) */
   readonly description?: string;
   /** Return type declaration (optional, from host functions) */
-  readonly returnType?: RillFunctionReturnType;
+  readonly returnType?: RillType | undefined;
+  /** Original signature string as provided by host (only set for RillFunctionSignature registrations) */
+  readonly originalSignature?: string | undefined;
 }
 
 /** Union of all callable types */
@@ -290,7 +278,15 @@ export function callableEquals(
     const bp = b.params[i];
     if (ap === undefined || bp === undefined) return false;
     if (ap.name !== bp.name) return false;
-    if (ap.typeName !== bp.typeName) return false;
+    // Compare type via structuralTypeEquals; absent type (any-typed) matches absent type
+    if (ap.type === undefined && bp.type !== undefined) return false;
+    if (ap.type !== undefined && bp.type === undefined) return false;
+    if (
+      ap.type !== undefined &&
+      bp.type !== undefined &&
+      !structuralTypeEquals(ap.type, bp.type)
+    )
+      return false;
     if (!valueEquals(ap.defaultValue ?? null, bp.defaultValue ?? null)) {
       return false;
     }
@@ -331,28 +327,21 @@ export function callableEquals(
 }
 
 /**
- * Build a RillStructuralType closure variant from a closure's parameter list.
+ * Build a RillType closure variant from a closure's parameter list.
  *
  * Called at closure creation time to build the structural type for `$fn.^input`.
- * - Typed params map to { type: typeName }
- * - Untyped params (typeName: null) map to { type: 'any' }
+ * - Typed params use param.type directly when present
+ * - Untyped params (type: undefined) map to { type: 'any' }
  * - Return type is always { type: 'any' }
  *
  * No validation: parser already validates type names.
  *
- * @param params - Closure parameter definitions
- * @returns Frozen RillStructuralType with closure variant
+ * @param params - Closure parameter definitions (RillParam[])
+ * @returns Frozen RillType with closure variant
  */
-export function paramsToStructuralType(
-  params: CallableParam[]
-): RillStructuralType {
-  const closureParams: [string, RillStructuralType][] = params.map((param) => {
-    const paramType: RillStructuralType =
-      param.typeStructure !== undefined
-        ? param.typeStructure
-        : param.typeName !== null
-          ? ({ type: param.typeName } as RillStructuralType)
-          : { type: 'any' };
+export function paramsToStructuralType(params: readonly RillParam[]): RillType {
+  const closureParams: [string, RillType][] = params.map((param) => {
+    const paramType: RillType = param.type ?? { type: 'any' };
     return [param.name, paramType];
   });
 
@@ -374,18 +363,17 @@ export function paramsToStructuralType(
  * @throws Error if defaultValue type doesn't match param.type
  */
 export function validateDefaultValueType(
-  param: HostFunctionParam,
+  param: RillParam,
   _functionName: string
 ): void {
   if (param.defaultValue === undefined) return;
 
-  // Skip validation for 'any' type (accepts all values)
-  if (param.type === 'any') return;
+  // Skip validation when type is undefined (any-typed, all defaults valid)
+  if (param.type === undefined) return;
 
-  const actualType = inferType(param.defaultValue);
-  const expectedType = param.type;
-
-  if (actualType !== expectedType) {
+  if (!structuralTypeMatches(param.defaultValue, param.type)) {
+    const actualType = inferType(param.defaultValue);
+    const expectedType = formatStructuralType(param.type);
     throw new Error(
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
     );
@@ -393,91 +381,12 @@ export function validateDefaultValueType(
 }
 
 /**
- * Validate host function arguments against parameter declarations.
+ * Validate arguments against RillParam[] using structural type matching.
  *
- * Called before function invocation to enforce type contracts.
- * Throws RuntimeError on validation failure.
- *
- * @param args - Evaluated arguments from call site
- * @param params - Parameter declarations from function definition
- * @param functionName - Function name for error messages
- * @param location - Source location for error reporting
- * @throws RuntimeError with RILL-R001 on validation failure
- */
-export function validateHostFunctionArgs(
-  args: RillValue[],
-  params: readonly HostFunctionParam[],
-  functionName: string,
-  location?: SourceLocation
-): void {
-  // Check for excess arguments
-  if (args.length > params.length) {
-    throw new RuntimeError(
-      'RILL-R001',
-      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
-      location,
-      {
-        functionName,
-        expectedCount: params.length,
-        actualCount: args.length,
-      }
-    );
-  }
-
-  // Validate each parameter
-  for (let i = 0; i < params.length; i++) {
-    const param = params[i];
-    if (param === undefined) continue;
-
-    let arg = args[i];
-
-    // Handle missing argument
-    if (arg === undefined) {
-      if (param.defaultValue !== undefined) {
-        // Substitute default value (already validated at registration)
-        arg = param.defaultValue;
-        args[i] = arg;
-      } else {
-        // Missing required argument
-        throw new RuntimeError(
-          'RILL-R001',
-          `Missing required argument '${param.name}' for function '${functionName}'`,
-          location,
-          {
-            functionName,
-            paramName: param.name,
-          }
-        );
-      }
-    }
-
-    // Validate argument type (skip for 'any' type)
-    if (param.type !== 'any') {
-      const actualType = inferType(arg);
-      const expectedType = param.type;
-
-      if (actualType !== expectedType) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
-          location,
-          {
-            functionName,
-            paramName: param.name,
-            expectedType,
-            actualType,
-          }
-        );
-      }
-    }
-  }
-}
-
-/**
- * Validate arguments against CallableParam[] for ApplicationCallable.
- *
- * Similar to validateHostFunctionArgs but works with CallableParam[] (used in ApplicationCallable).
- * Validates argument count, applies defaults, and checks types for primitive parameters.
+ * Single validation path for all callable kinds (host, built-in, script).
+ * Uses structuralTypeMatches for type checking when param.type is defined.
+ * Skips type check when param.type is undefined (any-typed).
+ * Applies defaultValue in-place on the args array before validation.
  *
  * @param args - Arguments array (mutated in-place when defaults applied)
  * @param params - Parameter definitions
@@ -487,7 +396,7 @@ export function validateHostFunctionArgs(
  */
 export function validateCallableArgs(
   args: RillValue[],
-  params: readonly CallableParam[],
+  params: readonly RillParam[],
   functionName: string,
   location?: SourceLocation
 ): void {
@@ -512,10 +421,9 @@ export function validateCallableArgs(
 
     let arg = args[i];
 
-    // Handle missing argument
+    // Apply defaultValue in-place for missing arguments
     if (arg === undefined) {
-      if (param.defaultValue !== null) {
-        // Substitute default value
+      if (param.defaultValue !== undefined) {
         arg = param.defaultValue;
         args[i] = arg;
       } else {
@@ -532,12 +440,11 @@ export function validateCallableArgs(
       }
     }
 
-    // Validate argument type (only for typed parameters, skip 'any')
-    if (param.typeName !== null && param.typeName !== 'any') {
-      const actualType = inferType(arg);
-      const expectedType = param.typeName;
-
-      if (actualType !== expectedType) {
+    // Type check via structuralTypeMatches when param.type is defined
+    if (param.type !== undefined) {
+      if (!structuralTypeMatches(arg, param.type)) {
+        const expectedType = formatStructuralType(param.type);
+        const actualType = inferType(arg);
         throw new RuntimeError(
           'RILL-R001',
           `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,

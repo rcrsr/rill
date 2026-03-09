@@ -9,6 +9,7 @@
  * - AC-12: Syntax error display
  * - AC-13: Parse error display
  * - AC-14: Runtime error display
+ * - AC-65: errorId not in ERROR_REGISTRY renders basic error without enrichment fields
  * - Verbose error rendering (cause, resolution, help URL)
  */
 
@@ -658,6 +659,7 @@ describe('Output', () => {
       expect(linkElement?.textContent).toContain('Docs');
     });
 
+    // AC-65: errorId not in ERROR_REGISTRY renders basic error without enrichment fields
     it('renders basic error without verbose fields', () => {
       const basicError: FiddleError = {
         message: 'Unexpected token',
