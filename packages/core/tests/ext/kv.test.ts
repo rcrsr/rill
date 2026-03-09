@@ -62,7 +62,7 @@ describe('kv extension factory', () => {
         params: expect.any(Array),
         fn: expect.any(Function),
         description: expect.any(String),
-        returnType: 'any',
+        returnType: { type: 'any' },
       });
     });
 

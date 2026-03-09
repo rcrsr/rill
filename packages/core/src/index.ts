@@ -11,7 +11,6 @@ export {
   BreakSignal,
   callable,
   type CallableFn,
-  type CallableParam,
   type CallFrame,
   type CaptureEvent,
   type ConfigFieldDescriptor,
@@ -34,10 +33,9 @@ export {
   hoistExtension,
   type HoistedExtension,
   type HostCallEvent,
-  type HostFunctionDefinition,
-  type HostFunctionParam,
   type FunctionReturnEvent,
   getCallStack,
+  generateManifest,
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,
@@ -72,10 +70,14 @@ export {
   RESERVED_DICT_METHODS,
   ReturnSignal,
   type RillCallable,
-  type RillStructuralType,
-  type RillFunctionReturnType,
+  type RillCallableSignature,
+  type RillFunction,
+  type RillFunctionSignature,
+  type RillMethodSignature,
+  type RillParam,
   type RillIterator,
   type RillTuple,
+  type RillType,
   type RillTypeValue,
   type RillValue,
   type RillVector,
@@ -91,11 +93,13 @@ export {
   structuralTypeEquals,
   structuralTypeMatches,
   toNative,
-  validateHostFunctionArgs,
   VERSION,
   VERSION_INFO,
   type VersionInfo,
 } from './runtime/index.js';
+
+/** @deprecated Use RillType instead. Will be removed in the next major version. */
+export type { RillStructuralType } from './runtime/index.js';
 
 // ============================================================
 // ERROR TAXONOMY

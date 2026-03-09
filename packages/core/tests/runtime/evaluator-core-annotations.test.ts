@@ -182,7 +182,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         run('"test" -> check -> check', {
           functions: {
             check: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: async (args) => {
                 callCount++;
                 if (callCount >= 1) {

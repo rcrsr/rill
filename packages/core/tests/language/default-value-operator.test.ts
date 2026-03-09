@@ -128,7 +128,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
-              params: [{ name: 'path', type: 'string' }],
+              params: [{ name: 'path', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: () => ({ title: 'Test' }), // no status
             },
           },
@@ -150,7 +150,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
-              params: [{ name: 'path', type: 'string' }],
+              params: [{ name: 'path', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: () => ({ status: 'draft', title: 'Test' }),
             },
           },

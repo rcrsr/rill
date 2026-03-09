@@ -28,8 +28,3 @@ export interface TypeRefArg {
   name?: string;
   ref: TypeRef;
 }
-
-/**
- * Return type declaration for host-provided and script functions.
- */
-export type RillFunctionReturnType = RillTypeName;

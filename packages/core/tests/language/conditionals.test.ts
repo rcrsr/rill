@@ -217,7 +217,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handle: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `handled:${args[0]}`,
             },
           },
@@ -232,7 +232,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             process: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -247,7 +247,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             'app::error': {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `error:${args[0]}`,
             },
           },
@@ -262,7 +262,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             'app::process': {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -277,11 +277,11 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             'app::error': {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `error:${args[0]}`,
             },
             'app::process': {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `processed:${args[0]}`,
             },
           },
@@ -296,15 +296,15 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handleError: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `error:${args[0]}`,
             },
             handleWarn: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `warn:${args[0]}`,
             },
             handleInfo: {
-              params: [{ name: 'input', type: 'string' }],
+              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
               fn: (args) => `info:${args[0]}`,
             },
           },

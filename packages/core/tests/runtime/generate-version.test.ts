@@ -64,8 +64,9 @@ describe('Version Generation', () => {
       const testScriptPath = path.join(scriptsDir, 'generate-version.ts');
       await fs.writeFile(testScriptPath, scriptContent, 'utf-8');
 
+      const tsxPath = path.join(__dirname, '../../../../node_modules/.bin/tsx');
       return new Promise((resolve) => {
-        const proc = spawn('npx', ['tsx', testScriptPath], {
+        const proc = spawn(tsxPath, [testScriptPath], {
           cwd: testDir,
           env: { ...process.env },
         });

@@ -44,11 +44,12 @@ export type {
 export type {
   ApplicationCallable,
   CallableFn,
-  CallableParam,
-  HostFunctionDefinition,
-  HostFunctionParam,
   RillCallable,
-  RillFunctionReturnType,
+  RillCallableSignature,
+  RillFunction,
+  RillFunctionSignature,
+  RillMethodSignature,
+  RillParam,
   RuntimeCallable,
   ScriptCallable,
 } from './core/callable.js';
@@ -60,7 +61,6 @@ export {
   isDict,
   isRuntimeCallable,
   isScriptCallable,
-  validateHostFunctionArgs,
 } from './core/callable.js';
 
 // ============================================================
@@ -73,12 +73,15 @@ export type {
   NativeResult,
   NativeValue,
   RillIterator,
-  RillStructuralType,
   RillTuple,
+  RillType,
   RillTypeValue,
   RillValue,
   RillVector,
 } from './core/values.js';
+
+/** @deprecated Use RillType instead. Will be removed in the next major version. */
+export type { RillStructuralType } from './core/values.js';
 
 export {
   createTuple,
@@ -169,6 +172,7 @@ export type {
 } from './core/introspection.js';
 
 export {
+  generateManifest,
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,

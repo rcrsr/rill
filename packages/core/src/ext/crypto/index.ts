@@ -146,49 +146,60 @@ export function createCryptoExtension(
   return {
     hash: {
       params: [
-        { name: 'input', type: 'string', description: 'Content to hash' },
+        {
+          name: 'input',
+          type: { type: 'string' },
+          defaultValue: undefined,
+          annotations: { description: 'Content to hash' },
+        },
         {
           name: 'algorithm',
-          type: 'string',
-          description: 'Hash algorithm',
+          type: { type: 'string' },
           defaultValue: defaultAlgorithm,
+          annotations: { description: 'Hash algorithm' },
         },
       ],
       fn: hash,
       description: 'Hash content, returns hex output',
-      returnType: 'string',
+      returnType: { type: 'string' },
     },
     hmac: {
       params: [
         {
           name: 'input',
-          type: 'string',
-          description: 'Content to authenticate',
+          type: { type: 'string' },
+          defaultValue: undefined,
+          annotations: { description: 'Content to authenticate' },
         },
         {
           name: 'algorithm',
-          type: 'string',
-          description: 'Hash algorithm',
+          type: { type: 'string' },
           defaultValue: defaultAlgorithm,
+          annotations: { description: 'Hash algorithm' },
         },
       ],
       fn: hmac,
       description: 'Generate HMAC signature, returns hex output',
-      returnType: 'string',
+      returnType: { type: 'string' },
     },
     uuid: {
       params: [],
       fn: uuid,
       description: 'Generate random UUID v4',
-      returnType: 'string',
+      returnType: { type: 'string' },
     },
     random: {
       params: [
-        { name: 'bytes', type: 'number', description: 'Number of bytes' },
+        {
+          name: 'bytes',
+          type: { type: 'number' },
+          defaultValue: undefined,
+          annotations: { description: 'Number of bytes' },
+        },
       ],
       fn: random,
       description: 'Generate random bytes as hex string',
-      returnType: 'string',
+      returnType: { type: 'string' },
     },
   };
 }

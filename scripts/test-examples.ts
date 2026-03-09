@@ -17,6 +17,7 @@ import {
   execute,
   parse,
   RillError,
+  type RillFunction,
   type RillValue,
 } from '@rcrsr/rill';
 
@@ -46,9 +47,7 @@ function trackUnknownFunction(name: string, location: string): void {
 }
 
 // Generate mock functions for a vector DB namespace (chroma, pinecone, qdrant)
-function vectorDbMocks(
-  ns: string
-): Record<string, import('@rcrsr/rill').HostFunctionDefinition> {
+function vectorDbMocks(ns: string): Record<string, RillFunction> {
   const point = {
     id: 'doc-1',
     score: 0.95,
@@ -61,9 +60,9 @@ function vectorDbMocks(
   return {
     [`${ns}::upsert`]: {
       params: [
-        { name: 'id', type: 'string' },
-        { name: 'vector', type: 'list' },
-        { name: 'metadata', type: 'dict', defaultValue: {} },
+        { name: 'id', type: { type: 'string' } },
+        { name: 'vector', type: { type: 'list' } },
+        { name: 'metadata', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         success: true,
@@ -73,7 +72,7 @@ function vectorDbMocks(
       }),
     },
     [`${ns}::upsert_batch`]: {
-      params: [{ name: 'items', type: 'list' }],
+      params: [{ name: 'items', type: { type: 'list' } }],
       fn: () => ({ succeeded: 2, upsertedCount: 2, status: 'ok' }),
     },
     [`${ns}::search`]: {
@@ -81,15 +80,15 @@ function vectorDbMocks(
       fn: () => [point],
     },
     [`${ns}::get`]: {
-      params: [{ name: 'id', type: 'string' }],
+      params: [{ name: 'id', type: { type: 'string' } }],
       fn: () => point,
     },
     [`${ns}::delete`]: {
-      params: [{ name: 'id', type: 'string' }],
+      params: [{ name: 'id', type: { type: 'string' } }],
       fn: () => ({ deleted: true, status: 'ok' }),
     },
     [`${ns}::delete_batch`]: {
-      params: [{ name: 'ids', type: 'list' }],
+      params: [{ name: 'ids', type: { type: 'list' } }],
       fn: () => ({ succeeded: 3, status: 'ok' }),
     },
     [`${ns}::count`]: {
@@ -98,13 +97,13 @@ function vectorDbMocks(
     },
     [`${ns}::create_collection`]: {
       params: [
-        { name: 'name', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'name', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({ created: true, name: 'test', status: 'ok' }),
     },
     [`${ns}::delete_collection`]: {
-      params: [{ name: 'name', type: 'string' }],
+      params: [{ name: 'name', type: { type: 'string' } }],
       fn: () => ({ deleted: true, status: 'ok' }),
     },
     [`${ns}::list_collections`]: {
@@ -129,37 +128,34 @@ function vectorDbMocks(
 // Mock host functions - all prefixed with app:: to clearly mark as host-provided
 // Built-in functions (enumerate, identity, json, log, parse_*, range, repeat, type)
 // and methods (.len, .trim, .upper, .lower, .join, etc.) are NOT mocked here
-function createMockFunctions(): Record<
-  string,
-  import('@rcrsr/rill').HostFunctionDefinition
-> {
+function createMockFunctions(): Record<string, RillFunction> {
   return {
     // Primary app:: namespace (preferred convention for docs)
     'app::prompt': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => 'mock LLM response',
     },
     'app::fetch': {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '{"status": "ok"}',
     },
     'app::read': {
-      params: [{ name: 'path', type: 'string' }],
+      params: [{ name: 'path', type: { type: 'string' } }],
       fn: () => 'file contents',
     },
     'app::write': {
       params: [
-        { name: 'path', type: 'string' },
-        { name: 'content', type: 'string' },
+        { name: 'path', type: { type: 'string' } },
+        { name: 'content', type: { type: 'string' } },
       ],
       fn: () => true,
     },
     'app::exec': {
-      params: [{ name: 'cmd', type: 'string' }],
+      params: [{ name: 'cmd', type: { type: 'string' } }],
       fn: () => ['output', 0],
     },
     'app::error': {
-      params: [{ name: 'msg', type: 'string' }],
+      params: [{ name: 'msg', type: { type: 'string' } }],
       fn: (msg) => {
         throw new Error(String(msg));
       },
@@ -167,8 +163,8 @@ function createMockFunctions(): Record<
     // Mock embedding function for vector examples
     'app::embed': {
       params: [
-        { name: 'text', type: 'string' },
-        { name: 'model', type: 'string', defaultValue: 'mock-embed' },
+        { name: 'text', type: { type: 'string' } },
+        { name: 'model', type: { type: 'string' }, defaultValue: 'mock-embed' },
       ],
       fn: (_text, model) => ({
         __rill_vector: true,
@@ -176,52 +172,52 @@ function createMockFunctions(): Record<
         model: String(model),
       }),
     },
-    'app::sleep': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    'app::sleep': { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
     'app::process': {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',
     },
     'app::validate': {
-      params: [{ name: 'value', type: 'string' }],
+      params: [{ name: 'value', type: { type: 'string' } }],
       fn: (v) => v,
     },
     'app::command': {
-      params: [{ name: 'cmd', type: 'string' }],
+      params: [{ name: 'cmd', type: { type: 'string' } }],
       fn: () => 'output',
     },
     'app::attempt': {
-      params: [{ name: 'action', type: 'string' }],
+      params: [{ name: 'action', type: { type: 'string' } }],
       fn: () => 'success',
     },
-    'app::pause': { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    'app::pause': { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
     'app::call': {
       params: [
-        { name: 'fn_name', type: 'string' },
-        { name: 'args', type: 'dict' },
+        { name: 'fn_name', type: { type: 'string' } },
+        { name: 'args', type: { type: 'dict' } },
       ],
       fn: () => 'called',
     },
 
     // IO namespace
     'io::read': {
-      params: [{ name: 'path', type: 'string' }],
+      params: [{ name: 'path', type: { type: 'string' } }],
       fn: () => 'file contents',
     },
     'io::write': {
       params: [
-        { name: 'path', type: 'string' },
-        { name: 'content', type: 'string' },
+        { name: 'path', type: { type: 'string' } },
+        { name: 'content', type: { type: 'string' } },
       ],
       fn: () => true,
     },
     'io::file::read': {
-      params: [{ name: 'path', type: 'string' }],
+      params: [{ name: 'path', type: { type: 'string' } }],
       fn: () => 'file contents',
     },
     'io::file::write': {
       params: [
-        { name: 'path', type: 'string' },
-        { name: 'content', type: 'string' },
+        { name: 'path', type: { type: 'string' } },
+        { name: 'content', type: { type: 'string' } },
       ],
       fn: () => true,
     },
@@ -229,55 +225,55 @@ function createMockFunctions(): Record<
     // Math namespace
     'math::add': {
       params: [
-        { name: 'a', type: 'number' },
-        { name: 'b', type: 'number' },
+        { name: 'a', type: { type: 'number' } },
+        { name: 'b', type: { type: 'number' } },
       ],
       fn: (a, b) => (a as number) + (b as number),
     },
     'math::multiply': {
       params: [
-        { name: 'a', type: 'number' },
-        { name: 'b', type: 'number' },
+        { name: 'a', type: { type: 'number' } },
+        { name: 'b', type: { type: 'number' } },
       ],
       fn: (a, b) => (a as number) * (b as number),
     },
 
     // HTTP namespace
     'http::get': {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '{"data": "mock"}',
     },
     'http::post': {
       params: [
-        { name: 'url', type: 'string' },
-        { name: 'data', type: 'string' },
+        { name: 'url', type: { type: 'string' } },
+        { name: 'data', type: { type: 'string' } },
       ],
       fn: () => '{"status": "ok"}',
     },
 
     // String namespace (for host-provided string utils, not built-in methods)
     'str::upper': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: (s) => String(s).toUpperCase(),
     },
     'str::lower': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: (s) => String(s).toLowerCase(),
     },
 
     // FS namespace (supports both 2-param and 3-param mount-based signatures)
     'fs::read': {
       params: [
-        { name: 'mount_or_path', type: 'string' },
-        { name: 'path', type: 'string', defaultValue: '' },
+        { name: 'mount_or_path', type: { type: 'string' } },
+        { name: 'path', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => 'file contents',
     },
     'fs::write': {
       params: [
-        { name: 'mount_or_path', type: 'string' },
-        { name: 'path_or_content', type: 'string' },
-        { name: 'content', type: 'string', defaultValue: '' },
+        { name: 'mount_or_path', type: { type: 'string' } },
+        { name: 'path_or_content', type: { type: 'string' } },
+        { name: 'content', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => true,
     },
@@ -287,16 +283,16 @@ function createMockFunctions(): Record<
     // 3-param: kv::set(mount, key, value) - for host integration with mounts
     'kv::set': {
       params: [
-        { name: 'key_or_mount', type: 'string' },
+        { name: 'key_or_mount', type: { type: 'string' } },
         { name: 'value_or_key' },
-        { name: 'value', type: 'string', defaultValue: '' },
+        { name: 'value', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => true,
     },
     'kv::get': {
       params: [
-        { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: '' },
+        { name: 'key_or_mount', type: { type: 'string' } },
+        { name: 'key', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: (args) => {
         // args is an array: [key] or [mount, key]; default fills '' for missing 2nd param
@@ -312,15 +308,15 @@ function createMockFunctions(): Record<
     },
     'kv::delete': {
       params: [
-        { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: '' },
+        { name: 'key_or_mount', type: { type: 'string' } },
+        { name: 'key', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => true,
     },
     'kv::has': {
       params: [
-        { name: 'key_or_mount', type: 'string' },
-        { name: 'key', type: 'string', defaultValue: '' },
+        { name: 'key_or_mount', type: { type: 'string' } },
+        { name: 'key', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => true,
     },
@@ -348,19 +344,19 @@ function createMockFunctions(): Record<
     },
     'crypto::hash': {
       params: [
-        { name: 'input', type: 'string' },
-        { name: 'algo', type: 'string', defaultValue: 'sha256' },
+        { name: 'input', type: { type: 'string' } },
+        { name: 'algo', type: { type: 'string' }, defaultValue: 'sha256' },
       ],
       fn: () =>
         'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
     },
     'crypto::hmac': {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () =>
         'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
     },
     'crypto::random': {
-      params: [{ name: 'bytes', type: 'number', defaultValue: 32 }],
+      params: [{ name: 'bytes', type: { type: 'number' }, defaultValue: 32 }],
       fn: () =>
         'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
     },
@@ -376,7 +372,7 @@ function createMockFunctions(): Record<
     'newsapi::top_headlines': {
       params: [
         { name: 'country' },
-        { name: 'pageSize', type: 'number', defaultValue: 10 },
+        { name: 'pageSize', type: { type: 'number' }, defaultValue: 10 },
       ],
       fn: () => [{ title: 'Breaking News', source: { name: 'Reuters' } }],
     },
@@ -409,32 +405,32 @@ function createMockFunctions(): Record<
     },
     'sh::jq': {
       params: [
-        { name: 'filter', type: 'string' },
-        { name: 'input', type: 'string', defaultValue: '' },
+        { name: 'filter', type: { type: 'string' } },
+        { name: 'input', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: () => ({ stdout: '{}', stderr: '', exitCode: 0 }),
     },
 
     // Extension examples (ai::, claude_code::)
     'ai::greet': {
-      params: [{ name: 'name', type: 'string' }],
+      params: [{ name: 'name', type: { type: 'string' } }],
       fn: (name) => `Hello, ${name}!`,
     },
     'claude_code::prompt': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => 'mock Claude Code response',
     },
     'claude_code::skill': {
       params: [
-        { name: 'name', type: 'string' },
-        { name: 'args', type: 'dict' },
+        { name: 'name', type: { type: 'string' } },
+        { name: 'args', type: { type: 'dict' } },
       ],
       fn: () => 'skill executed',
     },
     'claude_code::command': {
       params: [
-        { name: 'name', type: 'string' },
-        { name: 'args', type: 'dict' },
+        { name: 'name', type: { type: 'string' } },
+        { name: 'args', type: { type: 'dict' } },
       ],
       fn: () => 'command executed',
     },
@@ -442,8 +438,8 @@ function createMockFunctions(): Record<
     // anthropic:: namespace
     'anthropic::message': {
       params: [
-        { name: 'text', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'text', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -456,8 +452,8 @@ function createMockFunctions(): Record<
     },
     'anthropic::messages': {
       params: [
-        { name: 'messages', type: 'list' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'messages', type: { type: 'list' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -469,7 +465,7 @@ function createMockFunctions(): Record<
       }),
     },
     'anthropic::embed': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => ({
         __rill_vector: true,
         data: new Float32Array([0.1, 0.2, 0.3]),
@@ -477,7 +473,7 @@ function createMockFunctions(): Record<
       }),
     },
     'anthropic::embed_batch': {
-      params: [{ name: 'texts', type: 'list' }],
+      params: [{ name: 'texts', type: { type: 'list' } }],
       fn: () => [
         {
           __rill_vector: true,
@@ -488,8 +484,8 @@ function createMockFunctions(): Record<
     },
     'anthropic::tool_loop': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -503,8 +499,8 @@ function createMockFunctions(): Record<
     },
     'anthropic::generate': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         data: { name: 'rill', confidence: 0.95, tags: ['scripting', 'pipes'] },
@@ -526,7 +522,7 @@ function createMockFunctions(): Record<
       ],
     },
     'fs::read_file': {
-      params: [{ name: 'options', type: 'dict' }],
+      params: [{ name: 'options', type: { type: 'dict' } }],
       fn: () => ({ content: 'mock file content' }),
     },
     'fs::list_resources': {
@@ -538,25 +534,25 @@ function createMockFunctions(): Record<
       fn: () => [{ name: 'summarize', arguments: ['text'] }],
     },
     'gh::list_pull_requests': {
-      params: [{ name: 'options', type: 'dict', defaultValue: {} }],
+      params: [{ name: 'options', type: { type: 'dict' }, defaultValue: {} }],
       fn: () => [
         { number: 42, title: 'Fix bug', state: 'open' },
         { number: 43, title: 'Add feature', state: 'open' },
       ],
     },
     'pg::query': {
-      params: [{ name: 'options', type: 'dict' }],
+      params: [{ name: 'options', type: { type: 'dict' } }],
       fn: () => ({ status: 'deployed' }),
     },
     'db::read_query': {
-      params: [{ name: 'options', type: 'dict' }],
+      params: [{ name: 'options', type: { type: 'dict' } }],
       fn: () => [
         { name: 'Acme Corp', revenue: 1000000 },
         { name: 'Tech Inc', revenue: 800000 },
       ],
     },
     'ai::message': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => ({
         content: 'mock AI analysis',
         model: 'mock-model',
@@ -566,8 +562,8 @@ function createMockFunctions(): Record<
     // openai:: namespace
     'openai::message': {
       params: [
-        { name: 'text', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'text', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -580,8 +576,8 @@ function createMockFunctions(): Record<
     },
     'openai::messages': {
       params: [
-        { name: 'messages', type: 'list' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'messages', type: { type: 'list' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -593,7 +589,7 @@ function createMockFunctions(): Record<
       }),
     },
     'openai::embed': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => ({
         __rill_vector: true,
         data: new Float32Array([0.1, 0.2, 0.3]),
@@ -601,7 +597,7 @@ function createMockFunctions(): Record<
       }),
     },
     'openai::embed_batch': {
-      params: [{ name: 'texts', type: 'list' }],
+      params: [{ name: 'texts', type: { type: 'list' } }],
       fn: () => [
         {
           __rill_vector: true,
@@ -612,8 +608,8 @@ function createMockFunctions(): Record<
     },
     'openai::tool_loop': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -627,8 +623,8 @@ function createMockFunctions(): Record<
     },
     'openai::generate': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         data: { name: 'Alice', age: 30, active: true },
@@ -643,8 +639,8 @@ function createMockFunctions(): Record<
     // gemini:: namespace
     'gemini::message': {
       params: [
-        { name: 'text', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'text', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -657,8 +653,8 @@ function createMockFunctions(): Record<
     },
     'gemini::messages': {
       params: [
-        { name: 'messages', type: 'list' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'messages', type: { type: 'list' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -670,7 +666,7 @@ function createMockFunctions(): Record<
       }),
     },
     'gemini::embed': {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => ({
         __rill_vector: true,
         data: new Float32Array([0.1, 0.2, 0.3]),
@@ -678,7 +674,7 @@ function createMockFunctions(): Record<
       }),
     },
     'gemini::embed_batch': {
-      params: [{ name: 'texts', type: 'list' }],
+      params: [{ name: 'texts', type: { type: 'list' } }],
       fn: () => [
         {
           __rill_vector: true,
@@ -689,8 +685,8 @@ function createMockFunctions(): Record<
     },
     'gemini::tool_loop': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         content: 'mock response',
@@ -704,8 +700,8 @@ function createMockFunctions(): Record<
     },
     'gemini::generate': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict', defaultValue: {} },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' }, defaultValue: {} },
       ],
       fn: () => ({
         data: { name: 'rill', confidence: 0.95, tags: ['scripting', 'pipes'] },
@@ -720,8 +716,8 @@ function createMockFunctions(): Record<
     // llm:: namespace (provider-agnostic)
     'llm::generate': {
       params: [
-        { name: 'prompt', type: 'string' },
-        { name: 'options', type: 'dict' },
+        { name: 'prompt', type: { type: 'string' } },
+        { name: 'options', type: { type: 'dict' } },
       ],
       fn: () => ({
         data: { name: 'Alice', age: 30, active: true },
@@ -740,70 +736,70 @@ function createMockFunctions(): Record<
 
     // Legacy unnamespaced - these should be migrated to app:: in docs
     prompt: {
-      params: [{ name: 'text', type: 'string' }],
+      params: [{ name: 'text', type: { type: 'string' } }],
       fn: () => 'mock LLM response',
     },
     fetch: {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '{"status": "ok"}',
     },
     fetch_page: {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '<html>page</html>',
     },
     exec: {
-      params: [{ name: 'cmd', type: 'string' }],
+      params: [{ name: 'cmd', type: { type: 'string' } }],
       fn: () => ['output', 0],
     },
     error: {
-      params: [{ name: 'msg', type: 'string' }],
+      params: [{ name: 'msg', type: { type: 'string' } }],
       fn: (msg) => {
         throw new Error(String(msg));
       },
     },
     process: {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',
     },
     proceed: {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'proceeded',
     },
     handle: {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'handled',
     },
-    validate: { params: [{ name: 'value', type: 'string' }], fn: (v) => v },
+    validate: { params: [{ name: 'value', type: { type: 'string' } }], fn: (v) => v },
     check_status: { params: [], fn: () => 'ok' },
     get_page: {
-      params: [{ name: 'url', type: 'string' }],
+      params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '<html></html>',
     },
     retry: {
-      params: [{ name: 'action', type: 'string' }],
+      params: [{ name: 'action', type: { type: 'string' } }],
       fn: () => 'retried',
     },
     process_config: {
-      params: [{ name: 'config', type: 'string' }],
+      params: [{ name: 'config', type: { type: 'string' } }],
       fn: (v) => v,
     },
     process_content: {
-      params: [{ name: 'content', type: 'string' }],
+      params: [{ name: 'content', type: { type: 'string' } }],
       fn: (v) => v,
     },
     save_content: {
-      params: [{ name: 'content', type: 'string' }],
+      params: [{ name: 'content', type: { type: 'string' } }],
       fn: () => true,
     },
-    command: { params: [{ name: 'cmd', type: 'string' }], fn: () => 'output' },
-    skip: { params: [{ name: 'reason', type: 'string' }], fn: () => null },
+    command: { params: [{ name: 'cmd', type: { type: 'string' } }], fn: () => 'output' },
+    skip: { params: [{ name: 'reason', type: { type: 'string' } }], fn: () => null },
     attempt: {
-      params: [{ name: 'action', type: 'string' }],
+      params: [{ name: 'action', type: { type: 'string' } }],
       fn: () => 'success',
     },
-    pause: { params: [{ name: 'ms', type: 'number' }], fn: () => null },
+    pause: { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
     slow_process: {
-      params: [{ name: 'input', type: 'string' }],
+      params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',
     },
   };

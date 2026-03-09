@@ -3,7 +3,7 @@
  * Tests for various pipe target types: invoke, bare functions, variable calls
  */
 
-import type { HostFunctionDefinition, RillValue } from '@rcrsr/rill';
+import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
@@ -40,8 +40,8 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('invokes closure returned from function', async () => {
       // Function that returns a closure
-      const greet: HostFunctionDefinition = {
-        params: [{ name: 'name', type: 'string' }],
+      const greet: RillFunction = {
+        params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: (args: RillValue[]): RillValue => {
           const name = args[0] as string;
           return `Hello, ${name}!`;
@@ -123,8 +123,8 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('uses custom function with bare name', async () => {
-      const double: HostFunctionDefinition = {
-        params: [{ name: 'x', type: 'number' }],
+      const double: RillFunction = {
+        params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
         fn: (args: RillValue[]): number => {
           const x = args[0];
           return typeof x === 'number' ? x * 2 : 0;

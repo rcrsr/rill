@@ -29,7 +29,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             greet: {
-              params: [{ name: 'name', type: 'string' }],
+              params: [
+                {
+                  name: 'name',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `Hello, ${args[0]}!`,
               description: 'Greets a user by name',
             },
@@ -51,16 +58,36 @@ describe('Rill Runtime: Introspection API', () => {
           functions: {
             add: {
               params: [
-                { name: 'a', type: 'number' },
-                { name: 'b', type: 'number' },
+                {
+                  name: 'a',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'b',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
               description: 'Adds two numbers',
             },
             concat: {
               params: [
-                { name: 'x', type: 'string' },
-                { name: 'y', type: 'string' },
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'y',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: (args) => `${args[0]}${args[1]}`,
               description: 'Concatenates two strings',
@@ -83,13 +110,17 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'template',
-                  type: 'string',
-                  description: 'The template string with placeholders',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {
+                    description: 'The template string with placeholders',
+                  },
                 },
                 {
                   name: 'value',
-                  type: 'string',
-                  description: 'The value to insert',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: { description: 'The value to insert' },
                 },
               ],
               fn: (args) => String(args[0]).replace('{}', String(args[1])),
@@ -141,7 +172,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             hostFunc: {
-              params: [{ name: 'x', type: 'string' }],
+              params: [
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'A host function',
             },
@@ -165,8 +203,18 @@ describe('Rill Runtime: Introspection API', () => {
           functions: {
             'math::add': {
               params: [
-                { name: 'a', type: 'number' },
-                { name: 'b', type: 'number' },
+                {
+                  name: 'a',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'b',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
               description: 'Adds two numbers',
@@ -186,12 +234,26 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             'str::upper': {
-              params: [{ name: 'text', type: 'string' }],
+              params: [
+                {
+                  name: 'text',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => String(args[0]).toUpperCase(),
               description: 'Converts to uppercase',
             },
             'str::lower': {
-              params: [{ name: 'text', type: 'string' }],
+              params: [
+                {
+                  name: 'text',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => String(args[0]).toLowerCase(),
               description: 'Converts to lowercase',
             },
@@ -210,7 +272,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             'io::file::read': {
-              params: [{ name: 'path', type: 'string' }],
+              params: [
+                {
+                  name: 'path',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => `reading ${args[0]}`,
               description: 'Reads a file',
             },
@@ -269,7 +338,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             noDescription: {
-              params: [{ name: 'x', type: 'string' }],
+              params: [
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
             },
           },
@@ -286,7 +362,12 @@ describe('Rill Runtime: Introspection API', () => {
           functions: {
             test: {
               params: [
-                { name: 'x', type: 'string' }, // No description
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                }, // No description
               ],
               fn: (args) => args[0],
               description: 'A test function',
@@ -304,12 +385,26 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             withDesc: {
-              params: [{ name: 'a', type: 'string' }],
+              params: [
+                {
+                  name: 'a',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'Has description',
             },
             withoutDesc: {
-              params: [{ name: 'b', type: 'number' }],
+              params: [
+                {
+                  name: 'b',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
             },
           },
@@ -332,12 +427,15 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'documented',
-                  type: 'string',
-                  description: 'This param has docs',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: { description: 'This param has docs' },
                 },
                 {
                   name: 'undocumented',
-                  type: 'number',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
                 },
               ],
               fn: (args) => `${args[0]} ${args[1]}`,
@@ -450,7 +548,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             valid: {
-              params: [{ name: 'x', type: 'string' }],
+              params: [
+                {
+                  name: 'x',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'Valid function',
             },
@@ -510,12 +615,26 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           functions: {
             first: {
-              params: [{ name: 'a', type: 'number' }],
+              params: [
+                {
+                  name: 'a',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'First',
             },
             last: {
-              params: [{ name: 'b', type: 'string' }],
+              params: [
+                {
+                  name: 'b',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
               description: 'Last',
             },
@@ -600,11 +719,17 @@ describe('Rill Runtime: Introspection API', () => {
           functions: {
             test: {
               params: [
-                { name: 'required', type: 'string' },
+                {
+                  name: 'required',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
                 {
                   name: 'optional',
-                  type: 'number',
+                  type: { type: 'number' },
                   defaultValue: undefined,
+                  annotations: {},
                 },
               ],
               fn: (args) => args[0],
@@ -626,11 +751,17 @@ describe('Rill Runtime: Introspection API', () => {
           functions: {
             test: {
               params: [
-                { name: 'noDefault', type: 'string' },
+                {
+                  name: 'noDefault',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
                 {
                   name: 'explicitUndefined',
-                  type: 'string',
+                  type: { type: 'string' },
                   defaultValue: undefined,
+                  annotations: {},
                 },
               ],
               fn: (args) => args[0],

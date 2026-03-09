@@ -553,6 +553,57 @@ $t.^type == type
 # Result: true
 ```
 
+## Built-in Method Signatures
+
+The following table lists all built-in methods with their typed signatures. Methods marked "any (runtime checked)" accept any receiver but throw at runtime if the receiver type is wrong.
+
+| Method | Receiver Types | Params | Return |
+|--------|---------------|--------|--------|
+| `.len` | string, list, dict | (none) | `number` |
+| `.trim` | string | (none) | `string` |
+| `.head` | string, list | (none) | `any` |
+| `.tail` | string, list | (none) | `any` |
+| `.first` | any (runtime checked) | (none) | `iterator` |
+| `.at` | any (runtime checked) | `index: number` | `any` |
+| `.split` | string | `separator: string = "\n"` | `list` |
+| `.join` | list | `separator: string = ","` | `string` |
+| `.lines` | string | (none) | `list` |
+| `.empty` | string, list, dict, bool, number | (none) | `bool` |
+| `.starts_with` | string | `prefix: string` | `bool` |
+| `.ends_with` | string | `suffix: string` | `bool` |
+| `.lower` | string | (none) | `string` |
+| `.upper` | string | (none) | `string` |
+| `.replace` | string | `pattern: string, replacement: string` | `string` |
+| `.replace_all` | string | `pattern: string, replacement: string` | `string` |
+| `.contains` | string | `search: string` | `bool` |
+| `.match` | string | `pattern: string` | `dict` |
+| `.is_match` | string | `pattern: string` | `bool` |
+| `.index_of` | string | `search: string` | `number` |
+| `.repeat` | string | `count: number` | `string` |
+| `.pad_start` | string | `length: number, fill: string = " "` | `string` |
+| `.pad_end` | string | `length: number, fill: string = " "` | `string` |
+| `.eq` | any | `other: any` | `bool` |
+| `.ne` | any | `other: any` | `bool` |
+| `.lt` | number, string | `other: any` | `bool` |
+| `.gt` | number, string | `other: any` | `bool` |
+| `.le` | number, string | `other: any` | `bool` |
+| `.ge` | number, string | `other: any` | `bool` |
+| `.keys` | dict (runtime checked) | (none) | `list` |
+| `.values` | dict (runtime checked) | (none) | `list` |
+| `.entries` | dict (runtime checked) | (none) | `list` |
+| `.has` | list (runtime checked) | `value: any` | `bool` |
+| `.has_any` | list (runtime checked) | `candidates: list` | `bool` |
+| `.has_all` | list (runtime checked) | `candidates: list` | `bool` |
+| `.dimensions` | vector (runtime checked) | (none) | `number` |
+| `.model` | vector (runtime checked) | (none) | `string` |
+| `.similarity` | vector (runtime checked) | `other: any` | `number` |
+| `.dot` | vector (runtime checked) | `other: any` | `number` |
+| `.distance` | vector (runtime checked) | `other: any` | `number` |
+| `.norm` | vector (runtime checked) | (none) | `number` |
+| `.normalize` | vector (runtime checked) | (none) | `any` |
+
+---
+
 ## Global Utilities
 
 | Function | Description |

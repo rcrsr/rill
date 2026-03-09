@@ -549,8 +549,12 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
         const lastParam = varValue.params[varValue.params.length - 1];
-        if (lastParam && lastParam.defaultValue !== null) {
-          accumulator = lastParam.defaultValue;
+        if (
+          lastParam &&
+          lastParam.defaultValue !== null &&
+          lastParam.defaultValue !== undefined
+        ) {
+          accumulator = lastParam.defaultValue; // TODO(task-1.4): remove null check after migration
         } else {
           throw new RuntimeError(
             'RILL-R002',

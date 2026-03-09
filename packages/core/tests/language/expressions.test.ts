@@ -91,7 +91,7 @@ describe('Rill Runtime: Expressions', () => {
 
     it('calls custom function', async () => {
       const double = {
-        params: [{ name: 'n', type: 'number' }],
+        params: [{ name: 'n', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
         fn: (args: unknown[]): number => {
           const n = args[0] as number;
           return n * 2;
@@ -102,7 +102,7 @@ describe('Rill Runtime: Expressions', () => {
 
     it('calls async custom function', async () => {
       const asyncFn = {
-        params: [{ name: 'input', type: 'string' }],
+        params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args: unknown[]): Promise<string> => {
           await new Promise((r) => setTimeout(r, 10));
           return `async:${args[0]}`;

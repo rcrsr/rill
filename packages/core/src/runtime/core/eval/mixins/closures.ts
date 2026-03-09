@@ -20,6 +20,9 @@
  * - evaluateMethod(node, receiver) -> Promise<RillValue>
  * - evaluateInvoke(node, receiver) -> Promise<RillValue>
  *
+ * Helper methods (protected):
+ * - validateParamType(param, value, location) -> void
+ *
  * Error Handling:
  * - Undefined functions throw RuntimeError(RUNTIME_UNDEFINED_FUNCTION) [EC-18]
  * - Undefined methods throw RuntimeError(RUNTIME_UNDEFINED_METHOD) [EC-19]
@@ -27,11 +30,6 @@
  * - Async operations timeout per TimeoutError [EC-21]
  *
  * ## Implementation Notes
- *
- * [DEVIATION] Function naming: Spec references validateHostFunctionArgs but implementation
- * uses validateCallableArgs because ApplicationCallable stores CallableParam[] (not
- * HostFunctionParam[]). The two interfaces have different type field names ('type' vs
- * 'typeName'). Separate validation functions maintain proper abstraction boundaries.
  *
  * [ASSUMPTION] Excess argument validation occurs before default application to fail fast
  * on arity mismatches, improving error messages. This matches the algorithm order in the
@@ -63,7 +61,7 @@ import type {
   ScriptCallable,
   RuntimeCallable,
   ApplicationCallable,
-  CallableParam,
+  RillParam,
 } from '../../callable.js';
 import {
   isCallable,
@@ -124,7 +122,6 @@ interface BoundArgs {
  * - invokeScriptCallable(callable, args, location) -> Promise<RillValue> (helper)
  * - createCallableContext(callable) -> RuntimeContext (helper)
  * - validateParamType(param, value, location) -> void (helper)
- * - inferTypeFromDefault(defaultValue) -> RillTypeName | null (helper)
  * - bindArgsToParams(argNodes, callable, callLocation) -> Promise<BoundArgs> (helper)
  */
 function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
@@ -212,10 +209,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Validate arguments for typed ApplicationCallable (task 1.5)
       // Only validate if callable has params metadata (not undefined)
-      // ApplicationCallable from HostFunctionDefinition: params is CallableParam[] (may be empty for zero-arg functions)
       // ApplicationCallable from callable(): params is undefined (untyped, skip validation)
       if (isApplicationCallable(callable) && callable.params !== undefined) {
-        // Validate with effective args (validates count, applies defaults, checks types)
         validateCallableArgs(
           effectiveArgs,
           callable.params,
@@ -259,66 +254,26 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Infer type from default value for parameter type checking.
-     */
-    protected inferTypeFromDefault(
-      defaultValue: RillValue | null
-    ): 'string' | 'number' | 'bool' | null {
-      if (defaultValue === null) return null;
-      const t = inferType(defaultValue);
-      return t === 'string' || t === 'number' || t === 'bool' ? t : null;
-    }
-
-    /**
-     * Validate parameter type against actual value.
+     * Validate parameter type against actual value using structural matching.
      * Throws RuntimeError on type mismatch.
+     * When param.type is undefined, returns without validation (any-typed).
      */
     protected validateParamType(
-      param: CallableParam,
+      param: RillParam,
       value: RillValue,
       callLocation?: SourceLocation
     ): void {
-      // IR-4: Structural dispatch — use typeStructure when sub-fields present
-      if (param.typeStructure !== undefined) {
-        const ts = param.typeStructure;
-        const hasSubFields =
-          'element' in ts ||
-          'fields' in ts ||
-          'elements' in ts ||
-          'members' in ts ||
-          'params' in ts ||
-          'ret' in ts;
-        if (hasSubFields) {
-          if (!structuralTypeMatches(value, ts)) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Parameter type mismatch: ${param.name} expects ${formatStructuralType(ts)}, got ${formatStructuralType(inferStructuralType(value))}`,
-              callLocation,
-              {
-                paramName: param.name,
-                expectedType: formatStructuralType(ts),
-                actualType: formatStructuralType(inferStructuralType(value)),
-              }
-            );
-          }
-          return;
-        }
-      }
+      if (param.type === undefined) return;
 
-      // Backward-compatible leaf type check
-      const expectedType =
-        param.typeName ?? this.inferTypeFromDefault(param.defaultValue);
-      if (expectedType === 'any') return;
-      if (expectedType !== null) {
-        const valueType = inferType(value);
-        if (valueType !== expectedType) {
-          throw new RuntimeError(
-            'RILL-R001',
-            `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${valueType}`,
-            callLocation,
-            { paramName: param.name, expectedType, actualType: valueType }
-          );
-        }
+      if (!structuralTypeMatches(value, param.type)) {
+        const expectedType = formatStructuralType(param.type);
+        const actualType = inferType(value);
+        throw new RuntimeError(
+          'RILL-R001',
+          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
+          callLocation,
+          { paramName: param.name, expectedType, actualType }
+        );
       }
     }
 
@@ -348,7 +303,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         if (i < args.length) {
           value = args[i]!;
-        } else if (param.defaultValue !== null) {
+        } else if (param.defaultValue !== undefined) {
           value = param.defaultValue;
         } else {
           throw new RuntimeError(
@@ -424,8 +379,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-10/EC-11: spread-aware path for host calls
       const hasSpread = node.args.some((a) => a.type === 'SpreadArg');
       if (hasSpread) {
-        if (typeof fn === 'function') {
-          // EC-10: raw built-in (RuntimeCallable) — spread not supported
+        const isUntypedBuiltin =
+          typeof fn === 'function' ||
+          (isApplicationCallable(fn) && fn.params === undefined);
+        if (isUntypedBuiltin) {
+          // EC-10: built-in with no param metadata — spread not supported
           throw new RuntimeError(
             'RILL-R001',
             `Spread not supported for built-in function '${node.name}'`,
@@ -881,6 +839,31 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
+      // AC-14: enforce receiverTypes constraint before invoking method
+      const allowedReceivers = this.ctx.methodReceiverTypes.get(node.name);
+      if (allowedReceivers !== undefined && allowedReceivers.length > 0) {
+        const receiverType = inferType(receiver);
+        if (!allowedReceivers.includes(receiverType)) {
+          throw new RuntimeError(
+            'RILL-R003',
+            `Method '${node.name}' not supported on ${receiverType}; supported: ${allowedReceivers.join(', ')}`,
+            this.getNodeLocation(node),
+            { methodName: node.name, receiverType }
+          );
+        }
+      }
+
+      // AC-15: validate method arg types against parsed signature params
+      const mParams = this.ctx.methodParams.get(node.name);
+      if (mParams !== undefined) {
+        validateCallableArgs(
+          args,
+          mParams,
+          node.name,
+          this.getNodeLocation(node)
+        );
+      }
+
       const result = method(
         receiver,
         args,
@@ -987,6 +970,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // IR-5: untyped host function — no shape available
             return false;
           }
+          // ApplicationCallable.params is RillParam[]; pass directly to paramsToStructuralType
           const shape = paramsToStructuralType(value.params);
           if (shape.type === 'closure') {
             return {
@@ -1074,8 +1058,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      const params =
-        callable.params as import('../../callable.js').CallableParam[];
+      const params = callable.params as readonly {
+        name: string;
+        defaultValue: RillValue | null | undefined;
+      }[];
       const bound = new Map<string, RillValue>();
 
       // Positional index: next unbound parameter position
@@ -1212,7 +1198,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-8: check for missing required parameters
       for (const param of params) {
         if (!bound.has(param.name)) {
-          if (param.defaultValue !== null) {
+          if (param.defaultValue !== null && param.defaultValue !== undefined) {
             bound.set(param.name, param.defaultValue);
           } else {
             throw new RuntimeError(
@@ -1259,8 +1245,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const paramEntry: Record<string, RillValue> = {};
 
         // Add type field if param has type annotation
-        if (param.typeName !== null) {
-          paramEntry['type'] = param.typeName;
+        if (param.type !== undefined) {
+          paramEntry['type'] = formatStructuralType(param.type);
         }
 
         // Add __annotations field if param has parameter-level annotations

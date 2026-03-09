@@ -83,7 +83,7 @@ describe('explicit spread call syntax', () => {
     await run('tuple[3, 4] -> captureArg()', {
       functions: {
         captureArg: {
-          params: [{ name: 'x', type: 'any' }],
+          params: [{ name: 'x', type: { type: 'any' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             received = args[0];
             return null;
@@ -99,7 +99,7 @@ describe('explicit spread call syntax', () => {
     await run('ordered[a: 1] -> captureArg()', {
       functions: {
         captureArg: {
-          params: [{ name: 'x', type: 'any' }],
+          params: [{ name: 'x', type: { type: 'any' }, defaultValue: undefined, annotations: {} }],
           fn: (args) => {
             received = args[0];
             return null;

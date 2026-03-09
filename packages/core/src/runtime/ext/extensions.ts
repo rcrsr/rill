@@ -1,4 +1,4 @@
-import type { HostFunctionDefinition } from '../core/callable.js';
+import type { RillFunction } from '../core/callable.js';
 import type { ExtensionEvent, RuntimeCallbacks } from '../core/types.js';
 
 /**
@@ -13,7 +13,7 @@ interface RuntimeContextLike {
  * Result object returned by extension factories.
  * Contains host function definitions with optional cleanup and session lifecycle hooks.
  */
-export type ExtensionResult = Record<string, HostFunctionDefinition> & {
+export type ExtensionResult = Record<string, RillFunction> & {
   dispose?: () => void | Promise<void>;
   suspend?: () => unknown;
   restore?: (state: unknown) => void;
@@ -24,7 +24,7 @@ export type ExtensionResult = Record<string, HostFunctionDefinition> & {
  * Separates functions from dispose for safe createRuntimeContext usage.
  */
 export interface HoistedExtension {
-  functions: Record<string, HostFunctionDefinition>;
+  functions: Record<string, RillFunction>;
   dispose?: () => void | Promise<void>;
 }
 
@@ -69,17 +69,17 @@ export type ExtensionConfigSchema = Record<string, ConfigFieldDescriptor>;
  * - mounts(): List all configured mounts
  */
 export type KvExtensionContract = {
-  readonly get: HostFunctionDefinition;
-  readonly get_or: HostFunctionDefinition;
-  readonly set: HostFunctionDefinition;
-  readonly merge: HostFunctionDefinition;
-  readonly delete: HostFunctionDefinition;
-  readonly keys: HostFunctionDefinition;
-  readonly has: HostFunctionDefinition;
-  readonly clear: HostFunctionDefinition;
-  readonly getAll: HostFunctionDefinition;
-  readonly schema: HostFunctionDefinition;
-  readonly mounts: HostFunctionDefinition;
+  readonly get: RillFunction;
+  readonly get_or: RillFunction;
+  readonly set: RillFunction;
+  readonly merge: RillFunction;
+  readonly delete: RillFunction;
+  readonly keys: RillFunction;
+  readonly has: RillFunction;
+  readonly clear: RillFunction;
+  readonly getAll: RillFunction;
+  readonly schema: RillFunction;
+  readonly mounts: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 
@@ -102,18 +102,18 @@ export type KvExtensionContract = {
  * - mounts(): List all configured mounts
  */
 export type FsExtensionContract = {
-  readonly read: HostFunctionDefinition;
-  readonly write: HostFunctionDefinition;
-  readonly append: HostFunctionDefinition;
-  readonly list: HostFunctionDefinition;
-  readonly find: HostFunctionDefinition;
-  readonly exists: HostFunctionDefinition;
-  readonly remove: HostFunctionDefinition;
-  readonly stat: HostFunctionDefinition;
-  readonly mkdir: HostFunctionDefinition;
-  readonly copy: HostFunctionDefinition;
-  readonly move: HostFunctionDefinition;
-  readonly mounts: HostFunctionDefinition;
+  readonly read: RillFunction;
+  readonly write: RillFunction;
+  readonly append: RillFunction;
+  readonly list: RillFunction;
+  readonly find: RillFunction;
+  readonly exists: RillFunction;
+  readonly remove: RillFunction;
+  readonly stat: RillFunction;
+  readonly mkdir: RillFunction;
+  readonly copy: RillFunction;
+  readonly move: RillFunction;
+  readonly mounts: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 
@@ -130,12 +130,12 @@ export type FsExtensionContract = {
  * - generate(prompt, options): Structured output extraction
  */
 export type LlmExtensionContract = {
-  readonly message: HostFunctionDefinition;
-  readonly messages: HostFunctionDefinition;
-  readonly embed: HostFunctionDefinition;
-  readonly embed_batch: HostFunctionDefinition;
-  readonly tool_loop: HostFunctionDefinition;
-  readonly generate: HostFunctionDefinition;
+  readonly message: RillFunction;
+  readonly messages: RillFunction;
+  readonly embed: RillFunction;
+  readonly embed_batch: RillFunction;
+  readonly tool_loop: RillFunction;
+  readonly generate: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 
@@ -157,17 +157,17 @@ export type LlmExtensionContract = {
  * - describe(): Get collection metadata
  */
 export type VectorExtensionContract = {
-  readonly upsert: HostFunctionDefinition;
-  readonly upsert_batch: HostFunctionDefinition;
-  readonly search: HostFunctionDefinition;
-  readonly get: HostFunctionDefinition;
-  readonly delete: HostFunctionDefinition;
-  readonly delete_batch: HostFunctionDefinition;
-  readonly count: HostFunctionDefinition;
-  readonly create_collection: HostFunctionDefinition;
-  readonly delete_collection: HostFunctionDefinition;
-  readonly list_collections: HostFunctionDefinition;
-  readonly describe: HostFunctionDefinition;
+  readonly upsert: RillFunction;
+  readonly upsert_batch: RillFunction;
+  readonly search: RillFunction;
+  readonly get: RillFunction;
+  readonly delete: RillFunction;
+  readonly delete_batch: RillFunction;
+  readonly count: RillFunction;
+  readonly create_collection: RillFunction;
+  readonly delete_collection: RillFunction;
+  readonly list_collections: RillFunction;
+  readonly describe: RillFunction;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 
@@ -207,13 +207,13 @@ export function prefixFunctions(
   }
 
   // Create new object with prefixed keys
-  const result: Record<string, HostFunctionDefinition> = {};
+  const result: Record<string, RillFunction> = {};
 
   for (const [name, definition] of Object.entries(functions)) {
     // Skip the dispose method during prefixing
     if (name === 'dispose') continue;
 
-    result[`${namespace}::${name}`] = definition as HostFunctionDefinition;
+    result[`${namespace}::${name}`] = definition as RillFunction;
   }
 
   // Preserve dispose method if present
@@ -270,7 +270,7 @@ export function hoistExtension(
 
   // Return separated structure
   const result: HoistedExtension = {
-    functions: functions as Record<string, HostFunctionDefinition>,
+    functions: functions as Record<string, RillFunction>,
   };
 
   // Only add dispose if it exists (exactOptionalPropertyTypes)

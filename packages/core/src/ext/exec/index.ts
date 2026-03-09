@@ -9,6 +9,7 @@ import type {
   ExtensionResult,
   ExtensionConfigSchema,
 } from '../../runtime/ext/extensions.js';
+import type { RillFunction } from '../../runtime/core/callable.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import {
   type CommandConfig,
@@ -116,7 +117,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
   // GENERATE COMMAND FUNCTIONS
   // ============================================================
 
-  const functions: Record<string, unknown> = {};
+  const functions: Record<string, RillFunction> = {};
 
   for (const [commandName, commandConfig] of Object.entries(config.commands)) {
     // Create function for this command
@@ -165,26 +166,26 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
       }
     };
 
-    // Add to functions object with HostFunctionDefinition structure
+    // Add to functions object with RillFunction structure
     functions[commandName] = {
       params: [
         {
           name: 'args',
-          type: 'list',
-          description: 'Command arguments',
+          type: { type: 'list' },
           defaultValue: [],
+          annotations: { description: 'Command arguments' },
         },
         {
           name: 'stdin',
-          type: 'string',
-          description: 'Standard input data',
+          type: { type: 'string' },
           defaultValue: '',
+          annotations: { description: 'Standard input data' },
         },
       ],
       fn: commandFn,
       description:
         commandConfig.description ?? `Execute ${commandName} command`,
-      returnType: 'dict',
+      returnType: { type: 'dict' },
     };
   }
 
@@ -209,7 +210,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
     params: [],
     fn: commands,
     description: 'List all configured commands',
-    returnType: 'list',
+    returnType: { type: 'list' },
   };
 
   // ============================================================
@@ -230,8 +231,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
   // EXTENSION RESULT
   // ============================================================
 
-  return {
-    ...functions,
-    dispose,
-  } as ExtensionResult;
+  const result: ExtensionResult = functions;
+  result.dispose = dispose;
+  return result;
 }

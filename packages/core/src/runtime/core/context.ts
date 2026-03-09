@@ -6,6 +6,7 @@
  */
 
 import { RuntimeError } from '../../types.js';
+import { parseSignatureRegistration } from '../../signature-parser.js';
 import { BUILTIN_FUNCTIONS, BUILTIN_METHODS } from '../ext/builtins.js';
 import type {
   RillMethod,
@@ -18,8 +19,64 @@ import { inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
-  type CallableParam,
+  type RillParam,
 } from './callable.js';
+
+// Built-in functions that are genuinely variadic and must skip arg validation.
+// log: tests call log("msg", extraValue) — extra args are silently ignored.
+// chain: pipe form sends 1 arg when signature declares 2 (pipeValue is the first).
+const UNTYPED_BUILTINS = new Set(['log', 'chain']);
+
+// Built-in methods that do their own internal arg validation with specific error
+// messages expected by protected language tests. Storing methodParams for these
+// would cause the generic validateCallableArgs message to fire first.
+const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
+
+// Module-level caches: parse signatures once at load time, not per context creation.
+
+type BuiltinFnEntry = {
+  appCallable: import('./callable.js').ApplicationCallable;
+};
+const BUILTIN_FN_CACHE = new Map<string, BuiltinFnEntry>();
+const BUILTIN_METHOD_PARAMS_CACHE = new Map<string, readonly RillParam[]>();
+const BUILTIN_METHOD_RECEIVER_TYPES_CACHE = new Map<
+  string,
+  readonly string[]
+>();
+
+function initBuiltinCaches(): void {
+  for (const [name, entry] of Object.entries(BUILTIN_FUNCTIONS)) {
+    if (UNTYPED_BUILTINS.has(name)) {
+      BUILTIN_FN_CACHE.set(name, { appCallable: callable(entry.fn, false) });
+      continue;
+    }
+    const parsed = parseSignatureRegistration(entry.signature, name);
+    const appCallable = callable(entry.fn, false);
+    const typedCallable: import('./callable.js').ApplicationCallable = {
+      ...appCallable,
+      params: parsed.params as RillParam[],
+      ...(parsed.returnType !== undefined
+        ? { returnType: parsed.returnType }
+        : {}),
+    };
+    BUILTIN_FN_CACHE.set(name, { appCallable: typedCallable });
+  }
+
+  for (const [name, impl] of Object.entries(BUILTIN_METHODS)) {
+    if (impl.receiverTypes.length > 0) {
+      BUILTIN_METHOD_RECEIVER_TYPES_CACHE.set(name, impl.receiverTypes);
+    }
+    if (!UNVALIDATED_METHOD_PARAMS.has(name)) {
+      const parsed = parseSignatureRegistration(impl.signature, name);
+      if (parsed.params.length > 0) {
+        BUILTIN_METHOD_PARAMS_CACHE.set(name, parsed.params);
+      }
+    }
+  }
+}
+
+// Initialise once at module load.
+initBuiltinCaches();
 
 const defaultCallbacks: RuntimeCallbacks = {
   onLog: (message) => {
@@ -37,8 +94,7 @@ export function createRuntimeContext(
   const variables = new Map<string, RillValue>();
   const variableTypes = new Map<
     string,
-    | import('../../types.js').RillTypeName
-    | import('./values.js').RillStructuralType
+    import('../../types.js').RillTypeName | import('./values.js').RillType
   >();
   const functions = new Map<
     string,
@@ -46,6 +102,8 @@ export function createRuntimeContext(
     | import('./callable.js').ApplicationCallable
   >();
   const methods = new Map<string, RillMethod>();
+  const methodReceiverTypes = new Map<string, readonly string[]>();
+  const methodParams = new Map<string, readonly RillParam[]>();
 
   // Set initial variables (and infer their types)
   if (options.variables) {
@@ -57,25 +115,44 @@ export function createRuntimeContext(
     }
   }
 
-  // Set built-in functions
-  for (const [name, fn] of Object.entries(BUILTIN_FUNCTIONS)) {
-    functions.set(name, fn);
+  // Set built-in functions from module-level cache (parsed once at load time).
+  for (const [name, cached] of BUILTIN_FN_CACHE) {
+    functions.set(name, cached.appCallable);
   }
 
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      // All functions must be HostFunctionDefinition with params
-      const { params, fn, description, returnType } = definition;
+      let params: readonly RillParam[];
+      let fn: import('./callable.js').CallableFn;
+      let description: string | undefined;
+      let returnType: import('./values.js').RillType | undefined;
+      let originalSignature: string | undefined;
+
+      if ('signature' in definition) {
+        // Signature form: parse the signature string at registration time (IR-5)
+        const parsed = parseSignatureRegistration(definition.signature, name);
+        params = parsed.params;
+        fn = definition.fn;
+        description = parsed.description;
+        returnType = parsed.returnType;
+        originalSignature = definition.signature;
+      } else {
+        // Structured form: RillFunction with explicit RillParam[]
+        params = definition.params as RillParam[];
+        fn = definition.fn;
+        description = definition.description;
+        returnType = definition.returnType;
+      }
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {
         validateDefaultValueType(param, name);
       }
 
-      // Validate descriptions when requireDescriptions enabled (IR-3)
+      // Validate descriptions when requireDescriptions enabled (IR-6)
       if (options.requireDescriptions === true) {
-        // Check function description (EC-2)
+        // Check function description (EC-10)
         if (
           description === undefined ||
           typeof description !== 'string' ||
@@ -86,12 +163,13 @@ export function createRuntimeContext(
           );
         }
 
-        // Check parameter descriptions (EC-3)
+        // Check parameter descriptions (EC-11)
         for (const param of params) {
+          const paramDesc = param.annotations['description'];
           if (
-            param.description === undefined ||
-            typeof param.description !== 'string' ||
-            param.description.trim().length === 0
+            paramDesc === undefined ||
+            typeof paramDesc !== 'string' ||
+            paramDesc.trim().length === 0
           ) {
             throw new Error(
               `Parameter '${param.name}' of function '${name}' requires description (requireDescriptions enabled)`
@@ -100,45 +178,30 @@ export function createRuntimeContext(
         }
       }
 
-      // Convert HostFunctionParam[] to CallableParam[]
-      const callableParams: CallableParam[] = params.map((p) => {
-        const param: CallableParam = {
-          name: p.name,
-          typeName: p.type ?? null,
-          defaultValue: p.defaultValue ?? null,
-          annotations: {}, // Host functions have no parameter annotations
-        };
-        if (p.description !== undefined) {
-          (param as { description?: string }).description = p.description;
-        }
-        return param;
-      });
-
       // Create ApplicationCallable with params field populated
       const appCallable = callable(fn, false);
       const typedCallable: import('./callable.js').ApplicationCallable = {
         ...appCallable,
-        params: callableParams,
+        params: params as RillParam[],
+        ...(description !== undefined ? { description } : {}),
+        ...(returnType !== undefined ? { returnType } : {}),
+        ...(originalSignature !== undefined ? { originalSignature } : {}),
       };
-      if (description !== undefined) {
-        (typedCallable as { description?: string }).description = description;
-      }
-      if (returnType !== undefined) {
-        (
-          typedCallable as {
-            returnType?: import('./callable.js').RillFunctionReturnType;
-          }
-        ).returnType = returnType;
-      }
 
       // Store ApplicationCallable for runtime validation
       functions.set(name, typedCallable);
     }
   }
 
-  // Set built-in methods
+  // Set built-in methods from module-level caches (parsed once at load time).
   for (const [name, impl] of Object.entries(BUILTIN_METHODS)) {
-    methods.set(name, impl);
+    methods.set(name, impl.method);
+  }
+  for (const [name, types] of BUILTIN_METHOD_RECEIVER_TYPES_CACHE) {
+    methodReceiverTypes.set(name, types);
+  }
+  for (const [name, params] of BUILTIN_METHOD_PARAMS_CACHE) {
+    methodParams.set(name, params);
   }
 
   // Compile autoException patterns into RegExp objects
@@ -164,6 +227,8 @@ export function createRuntimeContext(
     variableTypes,
     functions,
     methods,
+    methodReceiverTypes,
+    methodParams,
     callbacks: { ...defaultCallbacks, ...options.callbacks },
     observability: options.observability ?? {},
     pipeValue: null,
@@ -189,11 +254,12 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     variables: new Map<string, RillValue>(),
     variableTypes: new Map<
       string,
-      | import('../../types.js').RillTypeName
-      | import('./values.js').RillStructuralType
+      import('../../types.js').RillTypeName | import('./values.js').RillType
     >(),
     functions: parent.functions,
     methods: parent.methods,
+    methodReceiverTypes: parent.methodReceiverTypes,
+    methodParams: parent.methodParams,
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,

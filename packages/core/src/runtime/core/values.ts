@@ -61,23 +61,28 @@ export interface RillVector {
  * Structural type descriptor - describes the shape of a value in the type system.
  * Used by RillTypeValue to carry type structure information at runtime.
  */
-export type RillStructuralType =
+export type RillType =
   | { type: 'number' }
   | { type: 'string' }
   | { type: 'bool' }
   | { type: 'vector' }
   | { type: 'type' }
   | { type: 'any' }
-  | { type: 'dict'; fields?: Record<string, RillStructuralType> }
-  | { type: 'list'; element?: RillStructuralType }
+  | { type: 'dict'; fields?: Record<string, RillType> }
+  | { type: 'list'; element?: RillType }
   | {
       type: 'closure';
-      params?: [string, RillStructuralType][];
-      ret?: RillStructuralType;
+      params?: [string, RillType][];
+      ret?: RillType;
     }
-  | { type: 'tuple'; elements?: RillStructuralType[] }
-  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
-  | { type: 'union'; members: RillStructuralType[] };
+  | { type: 'tuple'; elements?: RillType[] }
+  | { type: 'ordered'; fields?: [string, RillType][] }
+  | { type: 'union'; members: RillType[] };
+
+/**
+ * @deprecated Use RillType instead. Will be removed in the next major version.
+ */
+export type RillStructuralType = RillType;
 
 /**
  * Type value - represents a first-class type name at runtime.
@@ -86,7 +91,7 @@ export type RillStructuralType =
 export interface RillTypeValue {
   readonly __rill_type: true;
   readonly typeName: RillTypeName;
-  readonly structure: RillStructuralType;
+  readonly structure: RillType;
 }
 
 /** Any value that can flow through Rill */
@@ -193,7 +198,7 @@ export function inferType(value: RillValue): RillTypeName {
  * Empty arrays return { type: 'any' }.
  * Mixed types throw RILL-R002.
  */
-export function inferElementType(elements: RillValue[]): RillStructuralType {
+export function inferElementType(elements: RillValue[]): RillType {
   if (elements.length === 0) return { type: 'any' };
   const firstElem = elements[0]!;
   const firstType = inferStructuralType(firstElem);
@@ -211,10 +216,7 @@ export function inferElementType(elements: RillValue[]): RillStructuralType {
 }
 
 /** Compare two structural types for equality. */
-export function structuralTypeEquals(
-  a: RillStructuralType,
-  b: RillStructuralType
-): boolean {
+export function structuralTypeEquals(a: RillType, b: RillType): boolean {
   if (a.type !== b.type) return false;
 
   // Leaf variants compare by type alone
@@ -305,7 +307,7 @@ export function structuralTypeEquals(
 }
 
 /** Infer the structural type descriptor for any Rill value. */
-export function inferStructuralType(value: RillValue): RillStructuralType {
+export function inferStructuralType(value: RillValue): RillType {
   if (value === null || typeof value === 'string') {
     return { type: 'string' };
   }
@@ -338,13 +340,11 @@ export function inferStructuralType(value: RillValue): RillStructuralType {
   }
   if (isCallable(value)) {
     if (isScriptCallable(value)) {
-      const params: [string, RillStructuralType][] = value.params.map((p) => [
+      const params: [string, RillType][] = value.params.map((p) => [
         p.name,
-        p.typeName !== null
-          ? ({ type: p.typeName } as RillStructuralType)
-          : { type: 'any' },
+        p.type ?? { type: 'any' }, // TODO(task-3.3): p.type is already RillType | undefined
       ]);
-      let ret: RillStructuralType = { type: 'any' };
+      let ret: RillType = { type: 'any' };
       if (isTypeValue(value.returnShape as RillValue)) {
         ret = (value.returnShape as RillTypeValue).structure;
       }
@@ -355,7 +355,7 @@ export function inferStructuralType(value: RillValue): RillStructuralType {
   }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;
-    const fields: Record<string, RillStructuralType> = {};
+    const fields: Record<string, RillType> = {};
     for (const [k, v] of Object.entries(dict)) {
       fields[k] = inferStructuralType(v);
     }
@@ -373,7 +373,7 @@ export function inferStructuralType(value: RillValue): RillStructuralType {
  */
 export function structuralTypeMatches(
   value: RillValue,
-  type: RillStructuralType
+  type: RillType
 ): boolean {
   if (typeof value === 'undefined') {
     throw new RuntimeError('RILL-R004', 'Cannot type-check non-value');
@@ -459,15 +459,10 @@ export function structuralTypeMatches(
       const [expectedName, expectedType] = type.params[i]!;
       const param = value.params[i]!;
       if (param.name !== expectedName) return false;
-      const paramType: RillStructuralType =
-        param.typeStructure !== undefined
-          ? param.typeStructure
-          : param.typeName !== null
-            ? ({ type: param.typeName } as RillStructuralType)
-            : { type: 'any' };
+      const paramType: RillType = param.type ?? { type: 'any' }; // TODO(task-3.3): param.type is already RillType | undefined
       if (!structuralTypeEquals(paramType, expectedType)) return false;
     }
-    let retType: RillStructuralType = { type: 'any' };
+    let retType: RillType = { type: 'any' };
     if (isTypeValue(value.returnShape as RillValue)) {
       retType = (value.returnShape as RillTypeValue).structure;
     }
@@ -483,7 +478,7 @@ export function structuralTypeMatches(
 }
 
 /** Format a structural type descriptor as a human-readable string. */
-export function formatStructuralType(type: RillStructuralType): string {
+export function formatStructuralType(type: RillType): string {
   if (
     type.type === 'any' ||
     type.type === 'number' ||

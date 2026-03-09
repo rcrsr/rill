@@ -12,10 +12,7 @@ import type {
   ExtensionConfigSchema,
 } from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
-import {
-  isDict,
-  type HostFunctionDefinition,
-} from '../../runtime/core/callable.js';
+import { isDict, type RillFunction } from '../../runtime/core/callable.js';
 import {
   type FetchExtensionConfig,
   type InternalEndpointConfig,
@@ -256,7 +253,7 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
   // ENDPOINT FUNCTIONS
   // ============================================================
 
-  const functions: Record<string, HostFunctionDefinition> = {};
+  const functions: Record<string, RillFunction> = {};
 
   for (const [endpointName, endpointConfig] of Object.entries(
     config.endpoints
@@ -296,35 +293,29 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
       }
     };
 
-    // Build parameter definitions for HostFunctionDefinition
-    const hostParams = params.map((param) => {
-      // Map EndpointParam type to HostFunctionParam type
-      const type: 'string' | 'number' | 'bool' | 'dict' =
-        param.type === 'bool' ? 'bool' : param.type;
+    // Build parameter definitions for RillFunction
+    const rillParams = params.map((param) => {
+      // Map EndpointParam type string to RillType object
+      const rillType =
+        param.type !== 'dict'
+          ? { type: param.type as 'string' | 'number' | 'bool' }
+          : { type: 'dict' as const };
 
-      const hostParam: {
-        name: string;
-        type: 'string' | 'number' | 'bool' | 'dict';
-        defaultValue?: string | number | boolean;
-      } = {
+      return {
         name: param.name,
-        type,
+        type: rillType,
+        defaultValue: param.defaultValue as RillValue | undefined,
+        annotations: {} as Record<string, RillValue>,
       };
-
-      if (param.defaultValue !== undefined) {
-        hostParam.defaultValue = param.defaultValue;
-      }
-
-      return hostParam;
     });
 
     const returnType =
       (endpointConfig.responseShape ?? defaultResponseShape) === 'full'
-        ? ('dict' as const)
-        : ('any' as const);
+        ? { type: 'dict' as const }
+        : { type: 'any' as const };
 
-    const hostFunctionDef: HostFunctionDefinition = {
-      params: hostParams,
+    const hostFunctionDef: RillFunction = {
+      params: rillParams,
       fn: endpointFn,
       ...(endpointConfig.description !== undefined
         ? { description: endpointConfig.description }
@@ -362,7 +353,7 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
     params: [],
     fn: endpoints,
     description: 'List configured endpoints',
-    returnType: 'list',
+    returnType: { type: 'list' },
   };
 
   // ============================================================

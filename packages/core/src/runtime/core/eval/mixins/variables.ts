@@ -40,7 +40,7 @@ import type {
   MethodCallNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillStructuralType, RillValue } from '../../values.js';
+import type { RillType, RillValue } from '../../values.js';
 import {
   formatStructuralType,
   inferType,
@@ -82,13 +82,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected setVariable(
       name: string,
       value: RillValue,
-      explicitType?: RillTypeName | RillStructuralType,
+      explicitType?: RillTypeName | RillType,
       location?: SourceLocation
     ): void {
       const valueType = inferType(value);
 
       // Check explicit type annotation matches value.
-      // When explicitType is an object (RillStructuralType), use structural matching.
+      // When explicitType is an object (RillType), use structural matching.
       // When explicitType is a string (RillTypeName), use inferType comparison.
       // 'any' type bypasses type checking: accepts any value by definition.
       if (explicitType !== undefined) {
@@ -173,7 +173,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!this.ctx.variableTypes.has(name)) {
         // Store structural type (object) directly so re-assignment checks
         // validate the full shape. Fall back to valueType when no annotation.
-        const lockType: RillTypeName | RillStructuralType =
+        const lockType: RillTypeName | RillType =
           explicitType !== undefined ? explicitType : valueType;
         this.ctx.variableTypes.set(name, lockType);
       }

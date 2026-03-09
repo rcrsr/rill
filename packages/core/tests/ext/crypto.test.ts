@@ -27,7 +27,7 @@ describe('crypto extension factory', () => {
         params: expect.any(Array),
         fn: expect.any(Function),
         description: expect.any(String),
-        returnType: 'string',
+        returnType: { type: 'string' },
       });
     });
 
