@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R054 - RILL-R055)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R053 - RILL-R055)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -817,6 +817,24 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 # Script with only a comment (no pipe value)
 # This script produces nothing
 # Error: RILL-R043: Non-producing body
+```
+
+---
+
+### rill-r053
+
+**Description:** Member path not found in extension
+
+**Cause:** A `ext::name.path` expression references a dot-path member that does not exist in the extension value. The `{path}` in the error message reports the full attempted path including the failing segment, not just the successfully traversed portion.
+
+**Resolution:** Verify the member path matches the structure of the extension dict. Check the dict returned by the host for the extension name. See [Host Integration](integration-host.md) for extension registration details.
+
+**Example:**
+
+```text
+# qdrant extension is registered, but "missing" key does not exist
+ext::qdrant.missing
+# Error: RILL-R053: Member 'qdrant.missing' not found in extension 'qdrant'
 ```
 
 ---

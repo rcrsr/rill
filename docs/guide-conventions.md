@@ -733,7 +733,7 @@ const ctx = createRuntimeContext({ checkerMode: "strict" });
 const ctx = createRuntimeContext({ checkerMode: "permissive" });
 ```
 
-The default value is `'permissive'`. Pass `'strict'` when running scripts from untrusted or machine-generated sources.
+The default value is `'permissive'`. Omitting `checkerMode` or passing `undefined` is equivalent to `'permissive'` — both allow warnings without errors. Pass `'strict'` when running scripts from untrusted or machine-generated sources.
 
 *This document will be extended as conventions emerge from real-world usage.*
 
