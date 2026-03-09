@@ -41,7 +41,7 @@
   "author": "Andre Bremer",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
