@@ -431,7 +431,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
         {
           name: 'fallback',
-          type: undefined,
+          type: { type: 'any' },
           defaultValue: undefined,
           annotations: { description: 'Fallback value if key missing' },
         },
@@ -456,7 +456,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
         {
           name: 'value',
-          type: undefined,
+          type: { type: 'any' },
           defaultValue: undefined,
           annotations: { description: 'Value to store' },
         },

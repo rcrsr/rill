@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Host function type system modernized** — New `RillFunction`, `RillParam`, and `RillType` APIs replace legacy `HostFunctionDefinition`, `HostFunctionParam`, and `CallableParam` across all host API, extensions, and CLI tooling
+- **Function manifest export** — `generateManifest()` exports complete function metadata for host applications, extensions, and CLI help systems
 - **Conversion operator expansion** — `:>` operator now covers all type routes (string, number, boolean, list, dict, tuple, ordered). Removed `.str` and `.num` methods. `:>number` throws on non-numeric strings
 
 ## [0.10.0] - 2026-03-07

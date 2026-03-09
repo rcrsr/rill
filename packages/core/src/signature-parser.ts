@@ -23,8 +23,8 @@ import {
   expect,
   skipNewlines,
   isAtEnd,
-} from './parser/state.js';
-import { parseTypeRef } from './parser/parser-types.js';
+  parseTypeRef,
+} from './parser/index.js';
 import type { TypeRef } from './types.js';
 import type { RillParam } from './runtime/core/callable.js';
 import type { RillType, RillValue } from './runtime/core/values.js';

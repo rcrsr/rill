@@ -75,7 +75,6 @@ export {
   type RillFunctionSignature,
   type RillMethodSignature,
   type RillParam,
-  type RillStructuralType,
   type RillIterator,
   type RillTuple,
   type RillType,
@@ -98,6 +97,9 @@ export {
   VERSION_INFO,
   type VersionInfo,
 } from './runtime/index.js';
+
+/** @deprecated Use RillType instead. Will be removed in the next major version. */
+export type { RillStructuralType } from './runtime/index.js';
 
 // ============================================================
 // ERROR TAXONOMY

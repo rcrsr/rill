@@ -863,7 +863,7 @@ const ctx = createRuntimeContext({
     onStepEnd: (event) => {
       console.log(`Completed in ${event.durationMs}ms`);
     },
-    onFunctionCall: (event) => {
+    onHostCall: (event) => {
       console.log(`Calling ${event.name}(${event.args.join(', ')})`);
     },
     onFunctionReturn: (event) => {
@@ -885,7 +885,7 @@ const ctx = createRuntimeContext({
 interface StepStartEvent {
   index: number;      // Statement index (0-based)
   total: number;      // Total statements
-  pipeResult: RillValue;
+  pipeValue: RillValue;
 }
 
 interface StepEndEvent {
@@ -895,7 +895,7 @@ interface StepEndEvent {
   durationMs: number;
 }
 
-interface FunctionCallEvent {
+interface HostCallEvent {
   name: string;
   args: RillValue[];
 }
@@ -939,7 +939,6 @@ while (!stepper.done) {
 
 const final = stepper.getResult();
 console.log('Final value:', final.result);
-console.log('Variables:', final.variables);
 ```
 
 ### ExecutionStepper Interface
@@ -964,7 +963,6 @@ interface StepResult {
 
 interface ExecutionResult {
   result: RillValue;
-  variables: Record<string, RillValue>;
 }
 ```
 

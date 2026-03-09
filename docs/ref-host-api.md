@@ -66,7 +66,6 @@ try {
   const ast = parse(script);
   const result = await execute(ast, ctx);
   console.log('Result:', result.result);
-  console.log('Variables:', result.variables);
 } catch (err) {
   if (err instanceof AbortError) {
     console.log('Cancelled');
@@ -99,7 +98,7 @@ export type { RillType };
 export type { RillStructuralType };  // deprecated alias for RillType
 
 // Value types
-export type { RillValue, RillArgs };
+export type { RillValue };
 
 // Value conversion
 export { toNative };
@@ -124,7 +123,7 @@ export { RILL_ERROR_CODES };
 export type { RillErrorCode };
 
 // Utilities
-export { isArgs, isDict, isReservedMethod, RESERVED_DICT_METHODS };
+export { isDict, isReservedMethod, RESERVED_DICT_METHODS };
 export type { SourceLocation, SourceSpan };
 
 // Control flow (for advanced use)

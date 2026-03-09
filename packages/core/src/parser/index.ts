@@ -117,7 +117,19 @@ export function parseWithRecovery(source: string): ParseResult {
 // ============================================================
 
 // State (for advanced usage)
-export { createParserState, type ParserState } from './state.js';
+export {
+  createParserState,
+  type ParserState,
+  advance,
+  check,
+  current,
+  expect,
+  skipNewlines,
+  isAtEnd,
+} from './state.js';
+
+// Type parsing (for advanced usage)
+export { parseTypeRef } from './parser-types.js';
 
 // Parser class (for advanced usage)
 export { Parser } from './parser.js';

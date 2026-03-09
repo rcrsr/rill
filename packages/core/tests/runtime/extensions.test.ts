@@ -25,16 +25,16 @@ import type {
   ExtensionFactory,
   ExtensionResult,
   HoistedExtension,
-} from '../../src/runtime/ext/extensions.js';
+  ExtensionEvent,
+} from '@rcrsr/rill';
 import {
   prefixFunctions,
   emitExtensionEvent,
   hoistExtension,
-} from '../../src/runtime/ext/extensions.js';
-import { RuntimeError } from '@rcrsr/rill';
+  createRuntimeContext,
+  RuntimeError,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { createRuntimeContext } from '../../src/runtime/core/context.js';
-import type { ExtensionEvent } from '../../src/runtime/core/types.js';
 
 describe('Rill Runtime: Extension System', () => {
   describe('Success Cases', () => {
