@@ -174,6 +174,28 @@ describe('USE_UNTYPED_HOST_REF (AC-15)', () => {
     });
   });
 
+  describe('non-host schemes — no diagnostic', () => {
+    it('does not flag use<module:x> without :type', () => {
+      const source = 'use<module:utils>';
+      const diagnostics = getDiagnostics(
+        source,
+        createConfig('strict', { USE_DYNAMIC_IDENTIFIER: 'off' })
+      );
+      const rule = diagnostics.find((d) => d.code === 'USE_UNTYPED_HOST_REF');
+      expect(rule).toBeUndefined();
+    });
+
+    it('does not flag use<ext:y> without :type', () => {
+      const source = 'use<ext:someLib>';
+      const diagnostics = getDiagnostics(
+        source,
+        createConfig('strict', { USE_DYNAMIC_IDENTIFIER: 'off' })
+      );
+      const rule = diagnostics.find((d) => d.code === 'USE_UNTYPED_HOST_REF');
+      expect(rule).toBeUndefined();
+    });
+  });
+
   describe('dynamic forms — no diagnostic from this rule', () => {
     it('does not fire USE_UNTYPED_HOST_REF for variable form', () => {
       const source = '"host:fn" => $id\nuse<$id>';

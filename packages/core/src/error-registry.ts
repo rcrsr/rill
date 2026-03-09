@@ -1421,6 +1421,25 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
 
+  // parseSource not configured (RILL-R061)
+  {
+    errorId: 'RILL-R061',
+    category: 'runtime',
+    description: 'parseSource not configured in RuntimeContext',
+    messageTemplate:
+      "Resolver error for '{scheme}:{resource}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers",
+    cause:
+      'A resolver returned { kind: "source" } but RuntimeOptions.parseSource was not provided.',
+    resolution:
+      'Pass parseSource in RuntimeOptions when constructing the runtime context. parseSource is required for resolvers that return source text.',
+    examples: [
+      {
+        description: 'Missing parseSource option',
+        code: '# resolver returns { kind: "source", text: "..." } but host did not pass parseSource',
+      },
+    ],
+  },
+
   // Check Errors (RILL-C0xx)
   {
     errorId: 'RILL-C001',

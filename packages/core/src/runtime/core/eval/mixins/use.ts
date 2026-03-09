@@ -17,6 +17,7 @@
  * - RILL-R056: Resolver callback throws
  * - RILL-R057: Variable/computed form produces non-string
  * - RILL-R058: Resolved string missing ':' separator
+ * - RILL-R061: parseSource not configured when resolver returns source
  *
  * @internal
  */
@@ -150,7 +151,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const parseSource = this.ctx.parseSource;
         if (!parseSource) {
           throw RuntimeError.fromNode(
-            'RILL-R056',
+            'RILL-R061',
             `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`,
             node
           );

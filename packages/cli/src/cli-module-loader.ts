@@ -58,10 +58,10 @@ export async function loadModule(
 
     // Execute module
     const ctx = createRuntimeContext({});
-    await execute(ast, ctx);
+    const execResult = await execute(ast, ctx);
 
     // Cache and return (module result is the final expression value)
-    const result = ctx.pipeValue !== null ? { '': ctx.pipeValue } : {};
+    const result = { '': execResult.result };
     cache.set(absolutePath, result);
     return result;
   } finally {

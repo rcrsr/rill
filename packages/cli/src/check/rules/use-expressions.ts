@@ -95,6 +95,11 @@ export const USE_UNTYPED_HOST_REF: ValidationRule = {
       return [];
     }
 
+    // Only applies to 'host' scheme
+    if (identifier.scheme !== 'host') {
+      return [];
+    }
+
     // No diagnostic if a :type annotation is present
     if (useNode.typeRef !== null) {
       return [];
