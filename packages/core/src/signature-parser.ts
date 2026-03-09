@@ -190,10 +190,9 @@ export interface ParsedSignature {
  *
  * Signature format (optional closure-level annotation before param list):
  * ```
- * ^(description: "...") |^(description: "...") x: string = "default", y: number| {}:string
+ * ^(description: "...") |^(description: "...") x: string = "default", y: number|:string
  * ```
- * The `{}` body is required syntactically to indicate "this is a closure type".
- * The return type follows `:type` after `{}`.
+ * The return type follows `:type` directly after the closing `|`.
  *
  * Throws Error with message `Invalid signature for function '{name}': {parse error}`
  * on any parse failure (EC-8, EC-9).
@@ -304,22 +303,7 @@ function parseSignatureBody(
 
   skipNewlines(state);
 
-  // Step 3: Body placeholder {} (required)
-  if (!check(state, TOKEN_TYPES.LBRACE)) {
-    throw new Error(
-      `Invalid signature for function '${functionName}': expected '{' after parameter list`
-    );
-  }
-  advance(state); // consume {
-
-  if (!check(state, TOKEN_TYPES.RBRACE)) {
-    throw new Error(
-      `Invalid signature for function '${functionName}': expected '}' to close body placeholder`
-    );
-  }
-  advance(state); // consume }
-
-  // Step 4: Optional return type :type
+  // Step 3: Optional return type :type
   let returnType: RillType | undefined = undefined;
 
   if (check(state, TOKEN_TYPES.COLON)) {

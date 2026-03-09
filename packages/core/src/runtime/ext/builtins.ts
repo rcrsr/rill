@@ -90,13 +90,13 @@ function makeDictIterator(
 export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
   /** Identity function - returns its argument */
   identity: {
-    signature: '|value: any| {}:any',
+    signature: '|value: any|:any',
     fn: (args) => args[0] ?? null,
   },
 
   /** Log a value and return it unchanged (passthrough) */
   log: {
-    signature: '|message: any| {}',
+    signature: '|message: any|',
     fn: (args, ctx) => {
       const value = args[0] ?? null;
       const message = formatValue(value);
@@ -107,7 +107,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
 
   /** Convert any value to JSON string (throws RuntimeError RILL-R004 on closures, tuples, vectors) */
   json: {
-    signature: '|value: any| {}:string',
+    signature: '|value: any|:string',
     fn: (args, _ctx, location) => {
       const value = args[0] ?? null;
       try {
@@ -129,7 +129,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * Dict: enumerate([a: 1]) -> [[index: 0, key: "a", value: 1]]
    */
   enumerate: {
-    signature: '|items: list | dict | string| {}:list',
+    signature: '|items: list | dict | string|:list',
     fn: (args) => {
       const input: RillValue = args[0] ?? null;
       if (Array.isArray(input)) {
@@ -152,7 +152,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * range(start, end, step=1) - generates [start, start+step, ...] up to (but not including) end
    */
   range: {
-    signature: '|start: number, stop: number, step: number = 1| {}:iterator',
+    signature: '|start: number, stop: number, step: number = 1|:iterator',
     fn: (args, _ctx, location) => {
       const start = typeof args[0] === 'number' ? args[0] : 0;
       const end = typeof args[1] === 'number' ? args[1] : 0;
@@ -191,7 +191,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * repeat(value, count) - generates value repeated count times
    */
   repeat: {
-    signature: '|value: any, count: number| {}:iterator',
+    signature: '|value: any, count: number|:iterator',
     fn: (args, _ctx, location) => {
       const value = args[0] ?? '';
       const count = typeof args[1] === 'number' ? Math.floor(args[1]) : 0;
@@ -230,7 +230,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * Non-closure/non-list second arg throws RILL-R040 (EC-14).
    */
   chain: {
-    signature: '|value: any, transform: any| {}:any',
+    signature: '|value: any, transform: any|:any',
     fn: async (args, ctx, location) => {
       // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
       // Detect this by checking if there is exactly one arg and a pipe value is set.
@@ -303,7 +303,7 @@ function createComparisonMethod(
 export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
   /** Get length of string or array */
   len: {
-    signature: '|| {}:number',
+    signature: '||:number',
     receiverTypes: ['string', 'list', 'dict'],
     method: (receiver) => {
       if (typeof receiver === 'string') return receiver.length;
@@ -317,7 +317,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Trim whitespace from string */
   trim: {
-    signature: '|| {}:string',
+    signature: '||:string',
     receiverTypes: ['string'],
     method: (receiver) => formatValue(receiver).trim(),
   },
@@ -326,7 +326,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get first element of array or first char of string */
   head: {
-    signature: '|| {}:any',
+    signature: '||:any',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (Array.isArray(receiver)) {
@@ -359,7 +359,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get last element of array or last char of string */
   tail: {
-    signature: '|| {}:any',
+    signature: '||:any',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (Array.isArray(receiver)) {
@@ -392,7 +392,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get iterator at first position for any collection */
   first: {
-    signature: '|| {}:iterator',
+    signature: '||:iterator',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       // For iterators, return as-is (identity)
@@ -421,7 +421,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get element at index */
   at: {
-    signature: '|index: number| {}:any',
+    signature: '|index: number|:any',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       const idx = typeof args[0] === 'number' ? args[0] : 0;
@@ -457,7 +457,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Split string by separator (default: newline) */
   split: {
-    signature: '|separator: string = "\\n"| {}:list',
+    signature: '|separator: string = "\\n"|:list',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -468,7 +468,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Join array elements with separator (default: comma) */
   join: {
-    signature: '|separator: string = ","| {}:string',
+    signature: '|separator: string = ","|:string',
     receiverTypes: ['list'],
     method: (receiver, args) => {
       const sep = typeof args[0] === 'string' ? args[0] : ',';
@@ -479,7 +479,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Split string into lines (same as .split but newline only) */
   lines: {
-    signature: '|| {}:list',
+    signature: '||:list',
     receiverTypes: ['string'],
     method: (receiver) => {
       const str = formatValue(receiver);
@@ -491,7 +491,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if value is empty */
   empty: {
-    signature: '|| {}:bool',
+    signature: '||:bool',
     receiverTypes: ['string', 'list', 'dict', 'bool', 'number'],
     method: (receiver) => isEmpty(receiver),
   },
@@ -500,7 +500,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if string starts with prefix */
   starts_with: {
-    signature: '|prefix: string| {}:bool',
+    signature: '|prefix: string|:bool',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -511,7 +511,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if string ends with suffix */
   ends_with: {
-    signature: '|suffix: string| {}:bool',
+    signature: '|suffix: string|:bool',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -522,21 +522,21 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Convert string to lowercase */
   lower: {
-    signature: '|| {}:string',
+    signature: '||:string',
     receiverTypes: ['string'],
     method: (receiver) => formatValue(receiver).toLowerCase(),
   },
 
   /** Convert string to uppercase */
   upper: {
-    signature: '|| {}:string',
+    signature: '||:string',
     receiverTypes: ['string'],
     method: (receiver) => formatValue(receiver).toUpperCase(),
   },
 
   /** Replace first regex match */
   replace: {
-    signature: '|pattern: string, replacement: string| {}:string',
+    signature: '|pattern: string, replacement: string|:string',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -552,7 +552,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Replace all regex matches */
   replace_all: {
-    signature: '|pattern: string, replacement: string| {}:string',
+    signature: '|pattern: string, replacement: string|:string',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -568,7 +568,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if string contains substring */
   contains: {
-    signature: '|search: string| {}:bool',
+    signature: '|search: string|:bool',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -582,7 +582,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
    * Returns: [matched: string, index: number, groups: []]
    */
   match: {
-    signature: '|pattern: string| {}:dict',
+    signature: '|pattern: string|:dict',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -603,7 +603,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** True if regex matches anywhere in string */
   is_match: {
-    signature: '|pattern: string| {}:bool',
+    signature: '|pattern: string|:bool',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -618,7 +618,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Position of first substring occurrence (-1 if not found) */
   index_of: {
-    signature: '|search: string| {}:number',
+    signature: '|search: string|:number',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -629,7 +629,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Repeat string n times */
   repeat: {
-    signature: '|count: number| {}:string',
+    signature: '|count: number|:string',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -641,7 +641,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Pad start to length with fill string */
   pad_start: {
-    signature: '|length: number, fill: string = " "| {}:string',
+    signature: '|length: number, fill: string = " "|:string',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -653,7 +653,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Pad end to length with fill string */
   pad_end: {
-    signature: '|length: number, fill: string = " "| {}:string',
+    signature: '|length: number, fill: string = " "|:string',
     receiverTypes: ['string'],
     method: (receiver, args) => {
       const str = formatValue(receiver);
@@ -667,42 +667,42 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Equality check (deep structural comparison) */
   eq: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: [],
     method: (receiver, args) => deepEquals(receiver, args[0] ?? null),
   },
 
   /** Inequality check (deep structural comparison) */
   ne: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: [],
     method: (receiver, args) => !deepEquals(receiver, args[0] ?? null),
   },
 
   /** Less than */
   lt: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: ['number', 'string'],
     method: createComparisonMethod((a, b) => a < b),
   },
 
   /** Greater than */
   gt: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: ['number', 'string'],
     method: createComparisonMethod((a, b) => a > b),
   },
 
   /** Less than or equal */
   le: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: ['number', 'string'],
     method: createComparisonMethod((a, b) => a <= b),
   },
 
   /** Greater than or equal */
   ge: {
-    signature: '|other: any| {}:bool',
+    signature: '|other: any|:bool',
     receiverTypes: ['number', 'string'],
     method: createComparisonMethod((a, b) => a >= b),
   },
@@ -711,7 +711,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get all keys of a dict as a tuple of strings */
   keys: {
-    signature: '|| {}:list',
+    signature: '||:list',
     receiverTypes: [],
     method: (receiver) => {
       if (isDict(receiver)) {
@@ -723,7 +723,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get all values of a dict as a tuple */
   values: {
-    signature: '|| {}:list',
+    signature: '||:list',
     receiverTypes: [],
     method: (receiver) => {
       if (isDict(receiver)) {
@@ -735,7 +735,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get all entries of a dict as a tuple of [key, value] pairs */
   entries: {
-    signature: '|| {}:list',
+    signature: '||:list',
     receiverTypes: [],
     method: (receiver) => {
       if (isDict(receiver)) {
@@ -749,7 +749,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if list contains value (deep equality) */
   has: {
-    signature: '|value: any| {}:bool',
+    signature: '|value: any|:bool',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!Array.isArray(receiver)) {
@@ -778,7 +778,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if list contains any value from candidates (deep equality) */
   has_any: {
-    signature: '|candidates: list| {}:bool',
+    signature: '|candidates: list|:bool',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!Array.isArray(receiver)) {
@@ -817,7 +817,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Check if list contains all values from candidates (deep equality) */
   has_all: {
-    signature: '|candidates: list| {}:bool',
+    signature: '|candidates: list|:bool',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!Array.isArray(receiver)) {
@@ -863,7 +863,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get number of dimensions in vector */
   dimensions: {
-    signature: '|| {}:number',
+    signature: '||:number',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -879,7 +879,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Get model name of vector */
   model: {
-    signature: '|| {}:string',
+    signature: '||:string',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -895,7 +895,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Calculate cosine similarity between two vectors (range [-1, 1]) */
   similarity: {
-    signature: '|other: any| {}:number',
+    signature: '|other: any|:number',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -942,7 +942,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Calculate dot product between two vectors */
   dot: {
-    signature: '|other: any| {}:number',
+    signature: '|other: any|:number',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -978,7 +978,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Calculate Euclidean distance between two vectors (>= 0) */
   distance: {
-    signature: '|other: any| {}:number',
+    signature: '|other: any|:number',
     receiverTypes: [],
     method: (receiver, args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -1015,7 +1015,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Calculate L2 norm (magnitude) of vector */
   norm: {
-    signature: '|| {}:number',
+    signature: '||:number',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (!isVector(receiver)) {
@@ -1037,7 +1037,7 @@ export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
 
   /** Create unit vector (preserves model) */
   normalize: {
-    signature: '|| {}:any',
+    signature: '||:any',
     receiverTypes: [],
     method: (receiver, _args, _ctx, location) => {
       if (!isVector(receiver)) {

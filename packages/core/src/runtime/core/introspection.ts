@@ -15,6 +15,7 @@ import {
 } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
+import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
 
 /**
  * Metadata describing a function's signature and documentation.
@@ -194,7 +195,7 @@ function serializeParam(p: RillParam): string {
 /**
  * Serialize a typed ApplicationCallable entry into a rill closure type signature string.
  *
- * Format: `^(description: "...") |param: type| {}:returnType`
+ * Format: `^(description: "...") |param: type|:returnType`
  * - Closure-level description annotation prefix included only when description is present.
  * - Return type suffix included only when returnType is not `any`.
  * - Empty param list renders as `||`.
@@ -215,11 +216,9 @@ function serializeClosureSignature(
   const paramStr = params.map(serializeParam).join(', ');
   parts.push(`|${paramStr}|`);
 
-  // Body placeholder and optional return type
+  // Optional return type
   if (returnType !== 'any') {
-    parts.push(` {}:${returnType}`);
-  } else {
-    parts.push(' {}');
+    parts.push(`:${returnType}`);
   }
 
   return parts.join('');
@@ -232,7 +231,7 @@ function serializeClosureSignature(
  * string-keyed closure type signatures followed by `-> export`.
  *
  * Only `ApplicationCallable` entries with `params !== undefined` are included.
- * `RuntimeCallable` entries (built-ins) are excluded.
+ * `RuntimeCallable` entries are excluded. Built-in functions (by name in `BUILTIN_FUNCTIONS`) are excluded.
  * `ApplicationCallable` entries with `params: undefined` are skipped silently.
  *
  * Empty function map produces `[:]` followed by `-> export`.
@@ -246,8 +245,8 @@ export function generateManifest(ctx: RuntimeContext): string {
   for (const [name, fn] of ctx.functions.entries()) {
     const callable = fn as RillValue;
 
-    // Exclude RuntimeCallable entries (built-in functions)
-    if (isRuntimeCallable(callable)) {
+    // Exclude RuntimeCallable entries and built-in functions by name
+    if (isRuntimeCallable(callable) || name in BUILTIN_FUNCTIONS) {
       continue;
     }
 

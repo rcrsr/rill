@@ -7,7 +7,7 @@
  * - AC-17: Structured RillParam[] registers and validates on every call
  * - AC-18: Mixed structured and signature entries in same map process without error
  * - AC-19: Structured registration with requireDescriptions validates all param descriptions
- * - AC-20: '|message: string| {}:string' parses to string param and string return type
+ * - AC-20: '|message: string|:string' parses to string param and string return type
  * - AC-21: Closure-level ^(description: "...") extracted as function description
  * - AC-22: Parameter-level ^(description: "...") populates param's description annotation
  * - AC-23: '= value' default syntax parsed and applied
@@ -15,7 +15,7 @@
  * - AC-25: requireDescriptions rejects signature without closure-level description annotation
  *
  * Error contracts:
- * - AC-53: '|broken: | {}:string' → Error with parse error details at registration (EC-8)
+ * - AC-53: '|broken: |:string' → Error with parse error details at registration (EC-8)
  * - AC-55: requireDescriptions without description → Error (EC-10)
  *
  * BLOCKED:
@@ -95,7 +95,7 @@ describe('Rill Runtime: Signature Registration', () => {
               description: 'Structured form',
             },
             sig: {
-              signature: '|y: string| {}:string',
+              signature: '|y: string|:string',
               fn: (args) => args[0],
             },
           },
@@ -118,7 +118,7 @@ describe('Rill Runtime: Signature Registration', () => {
             fn: (args) => (args[0] as number) * 2,
           },
           sig: {
-            signature: '|y: string| {}:string',
+            signature: '|y: string|:string',
             fn: (args) => `${args[0]}!`,
           },
         },
@@ -139,7 +139,7 @@ describe('Rill Runtime: Signature Registration', () => {
             fn: (args) => (args[0] as number) * 2,
           },
           sig: {
-            signature: '|y: string| {}:string',
+            signature: '|y: string|:string',
             fn: (args) => `${args[0]}!`,
           },
         },
@@ -199,7 +199,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const ctx = createRuntimeContext({
         functions: {
           echo: {
-            signature: '|message: string| {}:string',
+            signature: '|message: string|:string',
             fn: (args) => args[0],
           },
         },
@@ -219,7 +219,7 @@ describe('Rill Runtime: Signature Registration', () => {
         run('echo(42)', {
           functions: {
             echo: {
-              signature: '|message: string| {}:string',
+              signature: '|message: string|:string',
               fn: (args) => args[0],
             },
           },
@@ -231,7 +231,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const result = await run('echo("hello")', {
         functions: {
           echo: {
-            signature: '|message: string| {}:string',
+            signature: '|message: string|:string',
             fn: (args) => args[0],
           },
         },
@@ -246,7 +246,7 @@ describe('Rill Runtime: Signature Registration', () => {
         functions: {
           greet: {
             signature:
-              '^(description: "Greets the user") |name: string| {}:string',
+              '^(description: "Greets the user") |name: string|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -261,7 +261,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature: '^("Greets the user") |name: string| {}:string',
+            signature: '^("Greets the user") |name: string|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -279,7 +279,7 @@ describe('Rill Runtime: Signature Registration', () => {
         functions: {
           greet: {
             signature:
-              '|^(description: "The name to greet") name: string| {}:string',
+              '|^(description: "The name to greet") name: string|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -295,7 +295,7 @@ describe('Rill Runtime: Signature Registration', () => {
         functions: {
           greet: {
             signature:
-              '^(description: "A greeter") |^(description: "The name") name: string| {}:string',
+              '^(description: "A greeter") |^(description: "The name") name: string|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -313,7 +313,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const result = await run('greet()', {
         functions: {
           greet: {
-            signature: '|name: string = "world"| {}:string',
+            signature: '|name: string = "world"|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -325,7 +325,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const result = await run('scale()', {
         functions: {
           scale: {
-            signature: '|factor: number = 2| {}:number',
+            signature: '|factor: number = 2|:number',
             fn: (args) => (args[0] as number) * 10,
           },
         },
@@ -337,7 +337,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const result = await run('greet("alice")', {
         functions: {
           greet: {
-            signature: '|name: string = "world"| {}:string',
+            signature: '|name: string = "world"|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -349,7 +349,7 @@ describe('Rill Runtime: Signature Registration', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature: '|name: string = "world"| {}:string',
+            signature: '|name: string = "world"|:string',
             fn: (args) => `Hello ${args[0]}`,
           },
         },
@@ -367,7 +367,7 @@ describe('Rill Runtime: Signature Registration', () => {
         createRuntimeContext({
           functions: {
             broken: {
-              signature: '|broken: | {}:string',
+              signature: '|broken: |:string',
               fn: (args) => args[0],
             },
           },
@@ -380,7 +380,7 @@ describe('Rill Runtime: Signature Registration', () => {
         createRuntimeContext({
           functions: {
             badFn: {
-              signature: '|broken: | {}:string',
+              signature: '|broken: |:string',
               fn: (args) => args[0],
             },
           },
@@ -419,7 +419,7 @@ describe('Rill Runtime: Signature Registration', () => {
         createRuntimeContext({
           functions: {
             echo: {
-              signature: '|message: string| {}:string',
+              signature: '|message: string|:string',
               fn: (args) => args[0],
             },
           },
@@ -434,7 +434,7 @@ describe('Rill Runtime: Signature Registration', () => {
           functions: {
             echo: {
               signature:
-                '^(description: "Echoes a message") |^(description: "The message") message: string| {}:string',
+                '^(description: "Echoes a message") |^(description: "The message") message: string|:string',
               fn: (args) => args[0],
             },
           },
@@ -450,7 +450,7 @@ describe('Rill Runtime: Signature Registration', () => {
         functions: {
           format: {
             signature:
-              '^(description: "Format a template") |^(description: "Template string") template: string, ^(description: "Value to insert") value: string = "default"| {}:string',
+              '^(description: "Format a template") |^(description: "Template string") template: string, ^(description: "Value to insert") value: string = "default"|:string',
             fn: (args) => String(args[0]).replace('{}', String(args[1])),
           },
         },

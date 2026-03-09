@@ -593,9 +593,10 @@ The output format is a rill dict literal followed by `-> export`:
 
 ```text
 [
-  greet: |name: string| :string,
-  fetch: |url: string| :dict,
-] -> export
+  "greet": |name: string|:string,
+  "fetch": |url: string|:dict,
+]
+-> export
 ```
 
 An empty function map returns `[:]` followed by `-> export`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.

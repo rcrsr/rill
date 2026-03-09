@@ -120,7 +120,7 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
     });
 
     it('identity() passes through string without returnType validation error', async () => {
-      // identity signature is |value: any| {}:any — return is not validated
+      // identity signature is |value: any|:any — return is not validated
       const result = await run('identity("hello")');
       expect(result).toBe('hello');
     });

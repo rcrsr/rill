@@ -680,15 +680,17 @@ Example output for a context with `greet` and `repeat` functions:
 
 ```text
 [
-  greet: |name: string| :string,
-  repeat: |count: number = 3, text: string| :string,
-] -> export
+  "greet": |name: string|:string,
+  "repeat": |count: number = 3, text: string|:string,
+]
+-> export
 ```
 
 An empty function map produces:
 
 ```text
-[:] -> export
+[:]
+-> export
 ```
 
 The manifest file format is valid rill. Host tools can pass it to static analysis tools, include it in LLM system prompts for code generation context, or serve it to IDE tooling for autocomplete.
