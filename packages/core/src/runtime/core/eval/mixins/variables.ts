@@ -137,34 +137,44 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Check if variable already has a locked type in current scope
       const lockedType = this.ctx.variableTypes.get(name);
-      if (
-        lockedType !== undefined &&
-        lockedType !== 'any' &&
-        lockedType !== valueType
-      ) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
-          location,
-          {
-            variableName: name,
-            expectedType: lockedType,
-            actualType: valueType,
+      if (lockedType !== undefined && lockedType !== 'any') {
+        if (typeof lockedType === 'object') {
+          // Structural locked type — validate full shape
+          if (!structuralTypeMatches(value, lockedType)) {
+            const expectedLabel = formatStructuralType(lockedType);
+            throw new RuntimeError(
+              'RILL-R001',
+              `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${expectedLabel})`,
+              location,
+              {
+                variableName: name,
+                expectedType: expectedLabel,
+                actualType: valueType,
+              }
+            );
           }
-        );
+        } else if (lockedType !== valueType) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
+            location,
+            {
+              variableName: name,
+              expectedType: lockedType,
+              actualType: valueType,
+            }
+          );
+        }
       }
 
       // Set the variable and lock its type in current scope
       this.ctx.variables.set(name, value);
       if (!this.ctx.variableTypes.has(name)) {
-        // Lock type using RillTypeName for subsequent re-assignment checks.
-        // When explicitType is a string (RillTypeName), use it directly.
-        // When explicitType is a RillStructuralType object, the structural
-        // check was already done above — lock by the inferred value type name.
-        const lockType =
-          typeof explicitType === 'string' ? explicitType : valueType;
+        // Store structural type (object) directly so re-assignment checks
+        // validate the full shape. Fall back to valueType when no annotation.
+        const lockType: RillTypeName | RillStructuralType =
+          explicitType !== undefined ? explicitType : valueType;
         this.ctx.variableTypes.set(name, lockType);
       }
     }

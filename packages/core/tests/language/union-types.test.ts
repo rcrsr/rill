@@ -191,6 +191,43 @@ describe('Union Types', () => {
   });
 
   // ============================================================
+  // Re-assignment with Union-Locked Variables
+  // ============================================================
+
+  describe('re-assignment with union-locked variables', () => {
+    it('AC-reass-1: re-assigning string to $x:string|number succeeds', async () => {
+      const result = await run(
+        '"hello" => $x:string|number\n"world" => $x\n$x'
+      );
+      expect(result).toBe('world');
+    });
+
+    it('AC-reass-2: re-assigning number to $x:string|number succeeds', async () => {
+      const result = await run('"hello" => $x:string|number\n42 => $x\n$x');
+      expect(result).toBe(42);
+    });
+
+    it('AC-reass-3: re-assigning bool to $x:string|number throws RILL-R001', async () => {
+      await expect(
+        run('"hello" => $x:string|number\ntrue => $x')
+      ).rejects.toHaveProperty('errorId', 'RILL-R001');
+    });
+
+    it('AC-reass-4: re-assigning list(string) to $x:list(string) succeeds', async () => {
+      const result = await run(
+        'list["a","b"] => $x:list(string)\nlist["c","d"] => $x\n$x'
+      );
+      expect(result).toEqual(['c', 'd']);
+    });
+
+    it('AC-reass-5: re-assigning list(number) to $x:list(string) throws RILL-R001', async () => {
+      await expect(
+        run('list["a","b"] => $x:list(string)\nlist[1,2] => $x')
+      ).rejects.toHaveProperty('errorId', 'RILL-R001');
+    });
+  });
+
+  // ============================================================
   // Union in Destructure
   // ============================================================
 
