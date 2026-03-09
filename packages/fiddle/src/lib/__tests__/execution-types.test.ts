@@ -155,14 +155,12 @@ describe('executeRill', () => {
 
   describe('union type — boundary cases', () => {
     it('AC-FDL-12: | in string|number closure param is not treated as closure delimiter', async () => {
-      // The parser must not confuse the | in "string|number" with the closure | delimiter.
-      // Parse-level test: result must not be a lexer or parse error.
+      // Runtime success test: the closure union param must parse and evaluate correctly.
+      // validateParamType includes 'members' in hasSubFields, enabling union params at runtime.
       const result = await executeRill('42 -> |x:string|number| { $x }');
 
-      // The expression parses correctly — any error must be a runtime error,
-      // not a lexer or parse error, proving | is handled correctly at parse time.
-      expect(result.error?.category).not.toBe('lexer');
-      expect(result.error?.category).not.toBe('parse');
+      expect(result.status).toBe('success');
+      expect(result.error).toBe(null);
     });
 
     it('AC-FDL-13: three-member union string|number|bool accepted in assertion', async () => {
