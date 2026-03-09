@@ -1,6 +1,6 @@
 {
   "name": "rill-lang",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Scripting designed for machine-generated code",
   "private": true,
   "packageManager": "pnpm@10.29.2",
@@ -41,7 +41,7 @@
   "author": "Andre Bremer",
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
