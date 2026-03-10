@@ -1,6 +1,6 @@
 # rill Core Examples
 
-*Examples demonstrating core language features for agent scripting*
+*Working code for each language feature, from extraction operators to agent workflows*
 
 > **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `range`, `json`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 
@@ -794,5 +794,6 @@ $loop_result.content
 ## See Also
 
 - [Guide](guide-getting-started.md) — Getting started tutorial
-- [Cookbook](cookbook.md) — Advanced workflow patterns
+- [Cookbook](cookbook.md) — Reusable design patterns (state machines, dispatch, accumulators)
+- [Troubleshooting](guide-troubleshooting.md) — Common mistakes and fixes
 - [Reference](ref-language.md) — Language specification

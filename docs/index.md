@@ -6,15 +6,17 @@
 
 | Document | Description |
 |----------|-------------|
+| [Introduction](guide-intro.md) | What rill is, who it's for, and why it works this way |
 | [Guide](guide-getting-started.md) | Beginner-friendly introduction to rill |
+| [Examples](guide-examples.md) | Language features demonstrated with working code |
+| [Troubleshooting](guide-troubleshooting.md) | Common mistakes and how to fix them |
 | [Reference](ref-language.md) | Core language specification |
-| [Examples](guide-examples.md) | Workflow patterns and use cases |
-| [Cookbook](cookbook.md) | Advanced agent scripting patterns |
 
 ## Language Topics
 
 | Topic | Description |
 |-------|-------------|
+| [Architecture](topic-architecture.md) | How source text becomes a result |
 | [Types](topic-types.md) | Primitives, tuples, dicts, collections |
 | [Type System](topic-type-system.md) | Structural types, type assertions, unions, type-locked variables |
 | [Variables](topic-variables.md) | Declaration, scope rules, `$` binding |
@@ -29,16 +31,25 @@
 |-------|-------------|
 | [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` operators |
 | [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
-| [Strings](topic-strings.md) | String methods for text manipulation |
+
+## Reference
+
+| Document | Description |
+|----------|-------------|
+| [Language Specification](ref-language.md) | Complete syntax and semantics |
+| [String Methods](topic-strings.md) | String methods for text manipulation |
+| [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
+| [Host API](ref-host-api.md) | Complete TypeScript API exports |
+| [Grammar](ref-grammar.ebnf) | Formal EBNF grammar |
 
 ## Integration
 
 | Topic | Description |
 |-------|-------------|
 | [Host Integration](integration-host.md) | Embedding rill in applications |
-| [Host API Reference](ref-host-api.md) | Complete TypeScript API exports |
 | [Resolver Registration](integration-resolvers.md) | `use<scheme:resource>` imports and built-in resolvers |
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
+| [Backend Selection](integration-backends.md) | Choosing and swapping storage backends |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
 | [CLI Tools](integration-cli.md) | rill-exec, rill-eval, rill-check commands |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects |
@@ -49,29 +60,29 @@
 |-------|-------------|
 | [Bundled Extensions](bundled-extensions.md) | Pre-built extensions shipped with rill |
 
-## Grammar
-
-The formal EBNF grammar is in [grammar.ebnf](ref-grammar.ebnf).
-
 ## Style
 
 | Topic | Description |
 |-------|-------------|
 | [Conventions](guide-conventions.md) | Naming, idioms, best practices |
 | [Design Principles](topic-design-principles.md) | What "rillistic" means and mainstream habits to unlearn |
+| [Cookbook](cookbook.md) | Reusable design patterns for agent scripting |
 
 ## Learning Path
 
-1. **New to rill?** Start with the [Guide](guide-getting-started.md) for core concepts
-2. **Building workflows?** See [Examples](guide-examples.md) for patterns
-3. **Advanced patterns?** Check the [Cookbook](cookbook.md) for agent scripting patterns
-4. **Need specifics?** Check the [Reference](ref-language.md) for syntax details
-5. **Embedding rill?** Read [Host Integration](integration-host.md)
-6. **Packaging functions?** See [Extensions](integration-extensions.md)
-7. **Using shipped extensions?** See [Extensions](bundled-extensions.md)
-8. **Agent framework?** See [rill-agent](https://github.com/rcrsr/rill-agent)
-9. **Vendor extensions?** See [rill-ext](https://github.com/rcrsr/rill-ext)
+1. **What is rill?** Read the [Introduction](guide-intro.md)
+2. **Ready to code?** Start with the [Guide](guide-getting-started.md)
+3. **See it in action:** Browse [Examples](guide-examples.md) for working code
+4. **Something not working?** Check [Troubleshooting](guide-troubleshooting.md)
+5. **Learn the language:** Read [Types](topic-types.md), [Control Flow](topic-control-flow.md), [Closures](topic-closures.md)
+6. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Type System](topic-type-system.md)
+7. **Design patterns:** Study the [Cookbook](cookbook.md)
+8. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
+9. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)
+10. **Extend rill:** See [Extensions](integration-extensions.md) and [Bundled Extensions](bundled-extensions.md)
+11. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
+12. **Vendor extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
 
-## Design Principles
+## Changelog
 
-For full design philosophy, see [Design Principles](topic-design-principles.md).
+See [CHANGELOG.md](../CHANGELOG.md) for release history and breaking changes.
