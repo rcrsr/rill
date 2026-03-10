@@ -1,8 +1,8 @@
 # rill Cookbook
 
-*Advanced patterns for agent scripting*
+*Reusable design patterns: state machines, dispatch, accumulators, validation*
 
-This cookbook demonstrates idiomatic rill patterns for common programming tasks. Each recipe shows a complete, working example.
+This cookbook demonstrates reusable rill patterns for structured programming tasks. While [Examples](guide-examples.md) shows individual language features, recipes here combine multiple features into complete solutions. Each recipe is a self-contained, working example.
 
 ## State Machines
 
@@ -665,6 +665,7 @@ The rill script references `vectordb` by name; the host binds it to any compatib
 
 ## See Also
 
+- [Examples](guide-examples.md) — Language feature demonstrations
 - [Reference](ref-language.md) — Complete language specification
 - [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` details
 - [Closures](topic-closures.md) — Function patterns and binding

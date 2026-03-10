@@ -23,9 +23,11 @@ declare -A SECTION_MAP=(
 
 # File mapping: source-prefix → target-dir/target-name weight
 declare -A FILE_MAP=(
+  ["guide-intro"]="guide/intro 0"
   ["guide-getting-started"]="guide/getting-started 1"
   ["guide-examples"]="guide/examples 2"
   ["guide-conventions"]="guide/conventions 3"
+  ["guide-troubleshooting"]="guide/troubleshooting 5"
   ["cookbook"]="guide/cookbook 4"
   # guide-make promoted to /make (standalone page outside docs tree)
   ["topic-types"]="language/types 1"
@@ -36,6 +38,7 @@ declare -A FILE_MAP=(
   ["topic-closures"]="language/closures 5"
   ["topic-closure-annotations"]="language/closure-annotations 8"
   ["topic-design-principles"]="language/design-principles 6"
+  ["topic-architecture"]="language/architecture 9"
   ["topic-collections"]="data/collections 1"
   ["topic-iterators"]="data/iterators 2"
   ["topic-strings"]="data/strings 3"
@@ -52,10 +55,12 @@ declare -A FILE_MAP=(
 
 # Link rewrite map: source filename → Hugo path
 declare -A LINK_MAP=(
+  ["guide-intro.md"]="/docs/guide/intro/"
   ["guide-getting-started.md"]="/docs/guide/getting-started/"
   ["guide-examples.md"]="/docs/guide/examples/"
   ["guide-conventions.md"]="/docs/guide/conventions/"
   ["cookbook.md"]="/docs/guide/cookbook/"
+  ["guide-troubleshooting.md"]="/docs/guide/troubleshooting/"
   ["guide-make.md"]="/make/"
   ["topic-types.md"]="/docs/language/types/"
   ["topic-type-system.md"]="/docs/language/type-system/"
@@ -65,6 +70,7 @@ declare -A LINK_MAP=(
   ["topic-closures.md"]="/docs/language/closures/"
   ["topic-closure-annotations.md"]="/docs/language/closure-annotations/"
   ["topic-design-principles.md"]="/docs/language/design-principles/"
+  ["topic-architecture.md"]="/docs/language/architecture/"
   ["topic-collections.md"]="/docs/data/collections/"
   ["topic-iterators.md"]="/docs/data/iterators/"
   ["topic-strings.md"]="/docs/data/strings/"
