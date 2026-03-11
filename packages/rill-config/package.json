@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-config",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Shared config library for rill resolution, validation, loading, and bindings generation",
   "license": "MIT",
   "author": "Andre Bremer",
