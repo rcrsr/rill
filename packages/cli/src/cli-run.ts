@@ -4,8 +4,8 @@
  * Loads extensions from rill-config.json, generates bindings, and executes scripts.
  */
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { config as dotenvConfig } from 'dotenv';
 import {
@@ -41,7 +41,7 @@ Options:
   --format <mode>           Output format: human, json, compact (default: human)
   --verbose                 Show full error details (default: false)
   --max-stack-depth <n>     Error stack frame limit (default: 10)
-  --emit-bindings           Write bindings source to config-defined file and exit
+  --create-bindings           Write bindings source to config-defined file and exit
   --explain <code>          Print error code documentation
   --help                    Print this help message and exit
   --version                 Print version and exit`.trimEnd();
@@ -55,7 +55,7 @@ const BASE_OPTIONS = {
   format: { type: 'string' as const },
   verbose: { type: 'boolean' as const },
   'max-stack-depth': { type: 'string' as const },
-  'emit-bindings': { type: 'boolean' as const },
+  'create-bindings': { type: 'boolean' as const },
   help: { type: 'boolean' as const },
   version: { type: 'boolean' as const },
   explain: { type: 'string' as const },
@@ -85,7 +85,7 @@ export function parseCliArgs(
     process.exit(0);
   }
 
-  if (positionals.length === 0 && values['emit-bindings'] === undefined) {
+  if (positionals.length === 0 && values['create-bindings'] === undefined) {
     process.stderr.write('Error: no script path provided\n\n' + USAGE + '\n');
     process.exit(1);
   }
@@ -110,7 +110,7 @@ export function parseCliArgs(
     verbose: values['verbose'] === true,
     maxStackDepth,
     explain: values['explain'] as string | undefined,
-    emitBindings: values['emit-bindings'] === true,
+    createBindings: values['create-bindings'] === true,
   };
 }
 
@@ -194,6 +194,23 @@ export async function main(): Promise<void> {
       process.exit(1);
     }
     throw err;
+  }
+
+  // Create bindings and exit early if --create-bindings was set
+  if (opts.createBindings === true) {
+    const extBindingsPath = resolve(
+      process.cwd(),
+      project.config.extensions?.bindings ?? 'bindings/ext.rill'
+    );
+    const ctxBindingsPath = resolve(
+      process.cwd(),
+      project.config.context?.bindings ?? 'bindings/context.rill'
+    );
+    mkdirSync(dirname(extBindingsPath), { recursive: true });
+    writeFileSync(extBindingsPath, project.extensionBindings + '\n');
+    mkdirSync(dirname(ctxBindingsPath), { recursive: true });
+    writeFileSync(ctxBindingsPath, project.contextBindings + '\n');
+    process.exit(0);
   }
 
   // Handler mode: main field contains "file.rill:handlerName"

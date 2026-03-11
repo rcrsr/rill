@@ -17,5 +17,5 @@ export interface RunCliOptions {
   readonly verbose: boolean;
   readonly maxStackDepth: number;
   readonly explain?: string | undefined;
-  readonly emitBindings?: boolean | undefined;
+  readonly createBindings?: boolean | undefined;
 }

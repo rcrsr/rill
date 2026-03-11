@@ -137,7 +137,7 @@ A key in `extensions.config` with no matching entry in `extensions.mounts` is an
 
 ### `extensions.bindings`
 
-Output path for the generated bindings file. Defaults to `"ext.rill"`.
+Output path for the generated bindings file. Defaults to `"bindings/ext.rill"`.
 
 ```text
 {
@@ -190,7 +190,7 @@ Static values for each key declared in `context.schema`.
 
 ### `context.bindings`
 
-Output path for the generated context bindings file. Defaults to `"context.rill"`.
+Output path for the generated context bindings file. Defaults to `"bindings/context.rill"`.
 
 ```text
 {

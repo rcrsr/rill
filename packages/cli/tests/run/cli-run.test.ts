@@ -253,26 +253,26 @@ describe('parseCliArgs', () => {
     });
   });
 
-  describe('--emit-bindings flag', () => {
-    it('sets emitBindings to true when --emit-bindings is provided', () => {
+  describe('--create-bindings flag', () => {
+    it('sets createBindings to true when --create-bindings is provided', () => {
       expect(
-        parseCliArgs(['script.rill', '--emit-bindings']).emitBindings
+        parseCliArgs(['script.rill', '--create-bindings']).createBindings
       ).toBe(true);
     });
 
-    it('does not exit with error when --emit-bindings is set without a positional', () => {
+    it('does not exit with error when --create-bindings is set without a positional', () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code) => {
         throw new Error('process.exit called');
       });
 
-      const opts = parseCliArgs(['--emit-bindings']);
-      expect(opts.emitBindings).toBe(true);
+      const opts = parseCliArgs(['--create-bindings']);
+      expect(opts.createBindings).toBe(true);
       expect(opts.scriptPath).toBeUndefined();
       expect(exitSpy).not.toHaveBeenCalled();
     });
 
-    it('emitBindings is false when --emit-bindings flag is absent', () => {
-      expect(parseCliArgs(['script.rill']).emitBindings).toBe(false);
+    it('createBindings is false when --create-bindings flag is absent', () => {
+      expect(parseCliArgs(['script.rill']).createBindings).toBe(false);
     });
   });
 });
