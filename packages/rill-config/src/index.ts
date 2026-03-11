@@ -83,7 +83,6 @@ export {
   MountValidationError,
   ExtensionLoadError,
   ExtensionVersionError,
-  NamespaceMismatchError,
   NamespaceCollisionError,
   ContextValidationError,
   BundleRestrictionError,

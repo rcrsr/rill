@@ -3,7 +3,7 @@
  * Covers: BC-4, BC-5, EC-6, EC-13, BC-2 (AC-26, AC-27, AC-19, AC-11, AC-24)
  */
 
-import type { ExtensionManifest, ResolvedMount } from '@rcrsr/rill-config';
+import type { ResolvedMount } from '@rcrsr/rill-config';
 import {
   detectNamespaceCollisions,
   MountValidationError,
@@ -11,25 +11,6 @@ import {
   resolveMounts,
 } from '@rcrsr/rill-config';
 import { describe, expect, it } from 'vitest';
-
-// ============================================================
-// TEST HELPERS
-// ============================================================
-
-function makeManifest(namespace: string): ExtensionManifest {
-  return {
-    namespace,
-    factory: () => ({}),
-  };
-}
-
-function makeManifestMap(
-  entries: Array<[mountPath: string, namespace: string]>
-): ReadonlyMap<string, ExtensionManifest> {
-  return new Map(
-    entries.map(([mountPath, ns]) => [mountPath, makeManifest(ns)])
-  );
-}
 
 // ============================================================
 // resolveMounts
@@ -160,78 +141,59 @@ describe('resolveMounts', () => {
 
 describe('detectNamespaceCollisions', () => {
   describe('no collision cases', () => {
-    it('does not throw when all manifests use unique namespaces from different packages', () => {
+    it('does not throw when mounts use different paths from different packages', () => {
       const mounts = resolveMounts({
         'ns.storage': '@scope/storage',
         'ns.logging': '@scope/logging',
       });
-      const manifests = makeManifestMap([
-        ['ns.storage', 'ns.storage'],
-        ['ns.logging', 'ns.logging'],
-      ]);
-      expect(() => detectNamespaceCollisions(manifests, mounts)).not.toThrow();
+      expect(() => detectNamespaceCollisions(mounts)).not.toThrow();
     });
 
     it('allows same package to have prefix overlap across its own mount paths', () => {
-      // Same-package prefix overlap is allowed per spec
       const mounts = resolveMounts({
         'ns.storage': '@scope/pkg@^1.0.0',
         'ns.storage.cache': '@scope/pkg@^1.0.0',
       });
-      const manifests = makeManifestMap([
-        ['ns.storage', 'ns.storage'],
-        ['ns.storage.cache', 'ns.storage.cache'],
-      ]);
-      expect(() => detectNamespaceCollisions(manifests, mounts)).not.toThrow();
+      expect(() => detectNamespaceCollisions(mounts)).not.toThrow();
     });
 
-    it('does not throw for a single manifest', () => {
+    it('does not throw for a single mount', () => {
       const mounts = resolveMounts({ storage: '@scope/pkg' });
-      const manifests = makeManifestMap([['storage', 'storage']]);
-      expect(() => detectNamespaceCollisions(manifests, mounts)).not.toThrow();
+      expect(() => detectNamespaceCollisions(mounts)).not.toThrow();
     });
 
-    it('does not throw for an empty manifest map', () => {
+    it('does not throw for an empty mount list', () => {
       const mounts: ResolvedMount[] = [];
-      const manifests: ReadonlyMap<string, ExtensionManifest> = new Map();
-      expect(() => detectNamespaceCollisions(manifests, mounts)).not.toThrow();
+      expect(() => detectNamespaceCollisions(mounts)).not.toThrow();
     });
   });
 
   describe('collision cases', () => {
-    it('throws NamespaceCollisionError when two different packages declare the same namespace', () => {
-      // AC-11: cross-package same-namespace collision
-      const mounts = resolveMounts({
-        'storage.a': '@scope/pkg-a',
-        'storage.b': '@scope/pkg-b',
-      });
-      const manifests = makeManifestMap([
-        ['storage.a', 'shared.namespace'],
-        ['storage.b', 'shared.namespace'],
-      ]);
-      expect(() => detectNamespaceCollisions(manifests, mounts)).toThrowError(
-        NamespaceCollisionError
-      );
-      expect(() => detectNamespaceCollisions(manifests, mounts)).toThrowError(
-        'Namespace shared.namespace declared by @scope/pkg-a and @scope/pkg-b'
-      );
-    });
-
     it('throws NamespaceCollisionError when mount paths from different packages have prefix overlap', () => {
       // AC-11: cross-package prefix overlap
       const mounts = resolveMounts({
         ns: '@scope/pkg-a',
         'ns.sub': '@scope/pkg-b',
       });
-      const manifests = makeManifestMap([
-        ['ns', 'ns'],
-        ['ns.sub', 'ns.sub'],
-      ]);
-      expect(() => detectNamespaceCollisions(manifests, mounts)).toThrowError(
+      expect(() => detectNamespaceCollisions(mounts)).toThrowError(
         NamespaceCollisionError
       );
-      expect(() => detectNamespaceCollisions(manifests, mounts)).toThrowError(
+      expect(() => detectNamespaceCollisions(mounts)).toThrowError(
         'ns (@scope/pkg-a) is prefix of ns.sub (@scope/pkg-b)'
+      );
+    });
+
+    it('throws NamespaceCollisionError when two different packages mount at the same path', () => {
+      // Exact mount path collision from different packages
+      const mounts: ResolvedMount[] = [
+        { mountPath: 'storage', packageSpecifier: '@scope/pkg-a' },
+        { mountPath: 'storage', packageSpecifier: '@scope/pkg-b' },
+      ];
+      expect(() => detectNamespaceCollisions(mounts)).toThrowError(
+        NamespaceCollisionError
+      );
+      expect(() => detectNamespaceCollisions(mounts)).toThrowError(
+        'storage mounted by @scope/pkg-a and @scope/pkg-b'
       );
     });
   });
@@ -244,14 +206,9 @@ describe('detectNamespaceCollisions', () => {
         mountsRecord[`ext${i}`] = `@scope/pkg-${i}`;
       }
       const mounts = resolveMounts(mountsRecord);
-      const entries: Array<[string, string]> = mounts.map((m) => [
-        m.mountPath,
-        m.mountPath,
-      ]);
-      const manifests = makeManifestMap(entries);
 
       const start = performance.now();
-      detectNamespaceCollisions(manifests, mounts);
+      detectNamespaceCollisions(mounts);
       const elapsed = performance.now() - start;
 
       expect(elapsed).toBeLessThan(50);

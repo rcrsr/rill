@@ -12,7 +12,6 @@ import {
   ConfigValidationError,
   ExtensionLoadError,
   ExtensionVersionError,
-  NamespaceMismatchError,
 } from './errors.js';
 import { detectNamespaceCollisions } from './mounts.js';
 import type {
@@ -158,18 +157,6 @@ export async function loadExtensions(
 
     const manifest = mod['extensionManifest'] as ExtensionManifest;
 
-    // Check mount path starts with manifest namespace
-    const ns = manifest.namespace;
-    if (ns !== undefined) {
-      const validPrefix =
-        mount.mountPath === ns || mount.mountPath.startsWith(ns + '.');
-      if (!validPrefix) {
-        throw new NamespaceMismatchError(
-          `Mount ${mount.mountPath} must start with namespace ${ns} from ${pkg}`
-        );
-      }
-    }
-
     // Version check
     if (mount.versionConstraint !== undefined) {
       const installedVersion = manifest.version;
@@ -186,7 +173,7 @@ export async function loadExtensions(
   }
 
   // ---- Step 3: Cross-package collision check ----
-  detectNamespaceCollisions(manifests, mounts);
+  detectNamespaceCollisions(mounts);
 
   // ---- Step 4: Orphaned config key check ----
   const mountFirstSegments = new Set<string>();

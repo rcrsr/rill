@@ -120,8 +120,7 @@ All errors extend `ConfigError`:
 | `MountValidationError` | Invalid mount path or specifier |
 | `ExtensionLoadError` | Extension failed to load |
 | `ExtensionVersionError` | Extension version incompatible |
-| `NamespaceMismatchError` | Extension namespace does not match mount |
-| `NamespaceCollisionError` | Two mounts conflict |
+| `NamespaceCollisionError` | Two mounts from different packages conflict |
 | `ContextValidationError` | Context value fails schema check |
 | `BundleRestrictionError` | Prohibited field present during bundle |
 | `HandlerArgError` | Invalid handler arguments |

@@ -8,7 +8,7 @@ set -e
 ROOT_VERSION=$(node -p "require('./package.json').version")
 ERRORS=0
 
-for pkg in packages/core packages/cli; do
+for pkg in packages/core packages/rill-config packages/cli; do
   pkg="${pkg%/}"  # strip trailing slash
   [ -f "$pkg/package.json" ] || continue
 
