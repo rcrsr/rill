@@ -202,14 +202,16 @@ export async function main(): Promise<void> {
       process.cwd(),
       project.config.extensions?.bindings ?? 'bindings/ext.rill'
     );
-    const ctxBindingsPath = resolve(
-      process.cwd(),
-      project.config.context?.bindings ?? 'bindings/context.rill'
-    );
     mkdirSync(dirname(extBindingsPath), { recursive: true });
     writeFileSync(extBindingsPath, project.extensionBindings + '\n');
-    mkdirSync(dirname(ctxBindingsPath), { recursive: true });
-    writeFileSync(ctxBindingsPath, project.contextBindings + '\n');
+    if (project.config.context !== undefined) {
+      const ctxBindingsPath = resolve(
+        process.cwd(),
+        project.config.context.bindings ?? 'bindings/context.rill'
+      );
+      mkdirSync(dirname(ctxBindingsPath), { recursive: true });
+      writeFileSync(ctxBindingsPath, project.contextBindings + '\n');
+    }
     process.exit(0);
   }
 

@@ -6,7 +6,6 @@
 import type { ExtensionManifest } from '@rcrsr/rill';
 
 export const extensionManifest: ExtensionManifest = {
-  namespace: 'mock',
   version: '1.0.0',
   factory: (_cfg: Record<string, unknown>) => ({
     greet: {

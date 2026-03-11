@@ -74,14 +74,13 @@ Factory functions accept typed configuration and return an isolated extension in
 
 ## Extension Manifest
 
-An extension manifest is the top-level export that `rill-run` and config-driven hosts consume. It packages the factory, namespace, optional config schema, and version into a single object.
+An extension manifest is the top-level export that `rill-run` and config-driven hosts consume. It packages the factory, optional config schema, and version into a single object.
 
 ```typescript
 import type { ExtensionManifest } from '@rcrsr/rill';
 import { createGreetExtension } from './factory.js';
 
 export const extensionManifest: ExtensionManifest = {
-  namespace: 'greet',
   factory: createGreetExtension,
   configSchema: {
     prefix: { type: 'string', required: true },
@@ -95,8 +94,7 @@ export const extensionManifest: ExtensionManifest = {
 
 ```typescript
 interface ExtensionManifest {
-  namespace: string;                          // mount path prefix this extension owns
-  factory: ExtensionFactory<unknown>;         // creates the extension instance
+  factory: ExtensionFactory<any>;             // creates the extension instance
   configSchema?: ExtensionConfigSchema;       // optional field declarations
   version?: string;                           // optional semver version string
 }
@@ -106,8 +104,7 @@ interface ExtensionManifest {
 
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
-| `namespace` | `string` | Yes | Alphanumeric, underscores, hyphens — `^[a-zA-Z0-9_-]+$` |
-| `factory` | `ExtensionFactory<unknown>` | Yes | Called with config object; must return `ExtensionResult` |
+| `factory` | `ExtensionFactory<any>` | Yes | Called with config object; must return `ExtensionResult` |
 | `configSchema` | `ExtensionConfigSchema` | No | Maps field names to `ConfigFieldDescriptor` entries |
 | `version` | `string` | No | Semver string (e.g., `"1.2.0"`); informational only |
 
@@ -124,14 +121,13 @@ interface ExtensionManifest {
 To publish a conforming manifest:
 
 1. Export a named `extensionManifest` from the package's main entry point.
-2. Set `namespace` to the prefix scripts use (e.g., `"greet"` means scripts call `greet::func()`).
-3. If the factory accepts config, declare all fields in `configSchema` with their types and `required` flags.
-4. The factory receives only the config object — it must not call rill runtime APIs during construction.
-5. Validation errors must throw synchronously from the factory, not during function execution.
+2. If the factory accepts config, declare all fields in `configSchema` with their types and `required` flags.
+3. The factory receives only the config object — it must not call rill runtime APIs during construction.
+4. Validation errors must throw synchronously from the factory, not during function execution.
 
 ### Relationship to ExtensionResult and ExtensionFactory
 
-`ExtensionManifest` wraps the existing `ExtensionFactory` type. The `factory` field is the same function you write for manual integration. The manifest adds `namespace`, `configSchema`, and `version` so that `rill-run` can mount the extension without host-side wiring code.
+`ExtensionManifest` wraps the existing `ExtensionFactory` type. The `factory` field is the same function you write for manual integration. The manifest adds `configSchema` and `version` so that `rill-run` can mount the extension without host-side wiring code. The mount path in `rill-config.json` determines the namespace prefix scripts use to call extension functions.
 
 See [rill-run Config](ref-config.md) for how `extensions.mounts` entries reference manifest packages.
 

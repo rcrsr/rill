@@ -1,5 +1,5 @@
 import { MountValidationError, NamespaceCollisionError } from './errors.js';
-import type { ExtensionManifest, ResolvedMount } from './types.js';
+import type { ResolvedMount } from './types.js';
 
 // ============================================================
 // MOUNT PATH VALIDATION
@@ -103,64 +103,33 @@ export function resolveMounts(mounts: Record<string, string>): ResolvedMount[] {
 // DETECT NAMESPACE COLLISIONS
 // ============================================================
 
-export function detectNamespaceCollisions(
-  manifests: ReadonlyMap<string, ExtensionManifest>,
-  mounts: ResolvedMount[]
-): void {
-  // Build a map from mountPath -> packageSpecifier for O(1) lookup
-  const mountPackage = new Map<string, string>();
-  for (const mount of mounts) {
-    mountPackage.set(mount.mountPath, mount.packageSpecifier);
-  }
+export function detectNamespaceCollisions(mounts: ResolvedMount[]): void {
+  // Check each pair of mounts from different packages for prefix overlap.
+  for (let i = 0; i < mounts.length; i++) {
+    const mountA = mounts[i]!;
 
-  // Build a reverse map from namespace value -> first mountPath that declares it,
-  // keyed by owning packageSpecifier. This detects when two different packages
-  // declare the same manifest.namespace value.
-  const namespaceOwner = new Map<string, { mountPath: string; pkg: string }>();
-
-  for (const [mountPath, manifest] of manifests) {
-    const pkg = mountPackage.get(mountPath) ?? mountPath;
-    const ns = manifest.namespace;
-
-    if (ns !== undefined) {
-      const existing = namespaceOwner.get(ns);
-      if (existing !== undefined && existing.pkg !== pkg) {
-        throw new NamespaceCollisionError(
-          `Namespace ${ns} declared by ${existing.pkg} and ${pkg}`
-        );
-      }
-      if (existing === undefined) {
-        namespaceOwner.set(ns, { mountPath, pkg });
-      }
-    }
-  }
-
-  // Check each pair of manifests from different packages for prefix overlap.
-  // NOTE: This uses mount paths directly as namespace prefixes. This is valid
-  // because per spec (task 1.6), each mount path must start with the manifest's
-  // declared namespace, so mount-path prefix overlap implies namespace overlap.
-  const mountPaths = Array.from(manifests.keys());
-
-  for (let i = 0; i < mountPaths.length; i++) {
-    const pathA = mountPaths[i]!;
-    const pkgA = mountPackage.get(pathA) ?? pathA;
-
-    for (let j = i + 1; j < mountPaths.length; j++) {
-      const pathB = mountPaths[j]!;
-      const pkgB = mountPackage.get(pathB) ?? pathB;
+    for (let j = i + 1; j < mounts.length; j++) {
+      const mountB = mounts[j]!;
 
       // Same-package: allowed
-      if (pkgA === pkgB) continue;
+      if (mountA.packageSpecifier === mountB.packageSpecifier) continue;
 
-      // Prefix overlap: a is prefix of b or b is prefix of a
-      if (pathB.startsWith(pathA + '.')) {
+      // Exact match: two different packages at the same mount path
+      if (mountA.mountPath === mountB.mountPath) {
         throw new NamespaceCollisionError(
-          `${pathA} (${pkgA}) is prefix of ${pathB} (${pkgB})`
+          `${mountA.mountPath} mounted by ${mountA.packageSpecifier} and ${mountB.packageSpecifier}`
         );
       }
-      if (pathA.startsWith(pathB + '.')) {
+
+      // Prefix overlap: a is prefix of b or b is prefix of a
+      if (mountB.mountPath.startsWith(mountA.mountPath + '.')) {
         throw new NamespaceCollisionError(
-          `${pathB} (${pkgB}) is prefix of ${pathA} (${pkgA})`
+          `${mountA.mountPath} (${mountA.packageSpecifier}) is prefix of ${mountB.mountPath} (${mountB.packageSpecifier})`
+        );
+      }
+      if (mountA.mountPath.startsWith(mountB.mountPath + '.')) {
+        throw new NamespaceCollisionError(
+          `${mountB.mountPath} (${mountB.packageSpecifier}) is prefix of ${mountA.mountPath} (${mountA.packageSpecifier})`
         );
       }
     }

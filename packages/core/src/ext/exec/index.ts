@@ -8,7 +8,6 @@
 import type {
   ExtensionResult,
   ExtensionConfigSchema,
-  ExtensionFactory,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillFunction } from '../../runtime/core/callable.js';
@@ -243,7 +242,6 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
 // ============================================================
 
 export const extensionManifest: ExtensionManifest = {
-  namespace: 'exec',
-  factory: createExecExtension as ExtensionFactory<unknown>,
+  factory: createExecExtension,
   configSchema,
 };

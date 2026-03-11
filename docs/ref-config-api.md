@@ -190,22 +190,18 @@ Validates and resolves raw mount definitions from the config into structured `Re
 ### `detectNamespaceCollisions`
 
 ```typescript
-detectNamespaceCollisions(
-  manifests: ReadonlyMap<string, ExtensionManifest>,
-  mounts: ResolvedMount[]
-): void
+detectNamespaceCollisions(mounts: ResolvedMount[]): void
 ```
 
-Checks for cross-package namespace and prefix collisions across all loaded extension manifests.
+Checks for cross-package mount path collisions (exact match or prefix overlap).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `manifests` | `ReadonlyMap<string, ExtensionManifest>` | Yes | Map of mount path to loaded manifest |
 | `mounts` | `ResolvedMount[]` | Yes | Resolved mount definitions |
 
 **Returns:** `void` on success.
 
-**Throws:** `NamespaceMismatchError` (EC-8) when a mount path does not start with the manifest namespace. Throws `NamespaceCollisionError` (EC-9/EC-13) on cross-package namespace or prefix collision.
+**Throws:** `NamespaceCollisionError` (EC-9/EC-13) when mount paths from different packages conflict or have prefix overlap.
 
 ---
 
@@ -503,8 +499,7 @@ class ConfigError extends Error {
 | `RuntimeVersionError` | EC-5 | Installed version fails the semver constraint, or constraint is invalid | `message` |
 | `MountValidationError` | EC-6 | Mount path contains an invalid segment or version constraints conflict | `message` |
 | `ExtensionLoadError` | EC-7 | Package not found, extension has no manifest, or factory function fails | `message` |
-| `NamespaceMismatchError` | EC-8 | Mount path does not start with the extension manifest's declared namespace | `message` |
-| `NamespaceCollisionError` | EC-9/EC-13 | Two extensions share a namespace or one namespace is a prefix of another | `message` |
+| `NamespaceCollisionError` | EC-9/EC-13 | Two mounts from different packages conflict or have prefix overlap | `message` |
 | `ExtensionVersionError` | EC-10 | Extension version does not satisfy the constraint in the mount specifier | `message` |
 | `ContextValidationError` | EC-12 | A required context value is missing, or a value has the wrong type | `message` |
 | `BundleRestrictionError` | EC-14 | Config contains fields prohibited in bundle mode | `message` |

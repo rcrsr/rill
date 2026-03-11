@@ -53,11 +53,11 @@ export type ExtensionConfigSchema = Record<string, ConfigFieldDescriptor>;
 
 /**
  * Manifest describing a self-contained extension.
- * Carries the factory, optional config schema, namespace, and version metadata.
+ * Carries the factory, optional config schema, and version metadata.
  */
 export interface ExtensionManifest {
-  readonly namespace: string;
-  readonly factory: ExtensionFactory<unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly factory: ExtensionFactory<any>;
   readonly configSchema?: ExtensionConfigSchema | undefined;
   readonly version?: string | undefined;
 }

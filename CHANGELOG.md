@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.13.0] - 2026-03-11
+
+### Changed
+
+- **Remove `namespace` from `ExtensionManifest`** — Mount path in `rill-config.json` determines the namespace prefix. Extensions no longer declare a namespace constraint.
+- **Widen `ExtensionManifest.factory` to `ExtensionFactory<any>`** — Typed factories no longer require casting through `unknown`.
+- **Simplify `detectNamespaceCollisions`** — Accepts only `ResolvedMount[]`. Checks mount path conflicts (exact match and prefix overlap) without manifest introspection.
+- **Remove `NamespaceMismatchError`** — No longer thrown. Mount path validation against manifest namespace is removed.
+
+### Fixed
+
+- **Include `rill-config` in CI publish workflow** — `packages/rill-config` was built and tested but not published to npm.
+- **Move `@rcrsr/rill` to `peerDependencies` in `rill-config`** — All imports are type-only. Prevents duplicate copies in consumers.
+- **Add `rill-config` to version sync and check scripts** — `sync-versions.sh`, `check-versions.sh`, and `release.yml` now cover all 3 publishable packages.
+- **Skip empty context bindings file** — `--create-bindings` no longer writes an empty dict file when no `context` block exists in `rill-config.json`.
+
+### Added
+
+- **`rill-config` README** — Package README with API reference, error classes, and documentation links.
 
 ## [0.12.0] - 2026-03-11
 

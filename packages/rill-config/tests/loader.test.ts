@@ -1,7 +1,7 @@
 /**
  * Tests for loadExtensions
- * Covers: HP-7, HP-8, EC-7, EC-8, EC-9, EC-10, EC-11, BC-1
- * (AC-7, AC-8, AC-16, AC-18, AC-20, AC-21, AC-23)
+ * Covers: HP-7, HP-8, EC-7, EC-10, EC-11, BC-1
+ * (AC-7, AC-8, AC-16, AC-20, AC-21, AC-23)
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -9,7 +9,6 @@ import {
   loadExtensions,
   ExtensionLoadError,
   ExtensionVersionError,
-  NamespaceMismatchError,
   NamespaceCollisionError,
   ConfigValidationError,
 } from '@rcrsr/rill-config';
@@ -115,7 +114,6 @@ describe('loadExtensions', () => {
         '/fake/ext/factory-throws',
         () => ({
           extensionManifest: {
-            namespace: 'pkg',
             factory: () => {
               throw new Error('api_key is required');
             },
@@ -131,60 +129,15 @@ describe('loadExtensions', () => {
   });
 
   // ============================================================
-  // EC-8: Mount/namespace mismatch
-  // ============================================================
-
-  describe('EC-8: mount/namespace mismatch throws NamespaceMismatchError', () => {
-    it('throws NamespaceMismatchError when mount path does not start with namespace', async () => {
-      // AC-18: mount path 'other.path' does not start with namespace 'pkg'
-      vi.mock(
-        '/fake/ext/ns-mismatch',
-        () => ({
-          extensionManifest: {
-            namespace: 'pkg',
-            factory: () => ({}),
-          },
-        }),
-        { virtual: true }
-      );
-      const mounts = [makeMount('other.path', '/fake/ext/ns-mismatch')];
-      await expect(loadExtensions(mounts, {})).rejects.toThrow(
-        NamespaceMismatchError
-      );
-    });
-
-    it('includes mount path and namespace in the error message', async () => {
-      vi.mock(
-        '/fake/ext/ns-mismatch-msg',
-        () => ({
-          extensionManifest: {
-            namespace: 'pkg',
-            factory: () => ({}),
-          },
-        }),
-        { virtual: true }
-      );
-      const mounts = [makeMount('wrong', '/fake/ext/ns-mismatch-msg')];
-      const err = await loadExtensions(mounts, {}).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(NamespaceMismatchError);
-      const msg = (err as NamespaceMismatchError).message;
-      expect(msg).toContain('wrong');
-      expect(msg).toContain('pkg');
-    });
-  });
-
-  // ============================================================
   // EC-9: Cross-package collision
   // ============================================================
 
-  describe('EC-9: cross-package namespace collision throws NamespaceCollisionError', () => {
-    it('throws NamespaceCollisionError when two different packages claim the same namespace', async () => {
-      // AC-11: pkg-a and pkg-b both declare namespace 'shared'
+  describe('EC-9: cross-package mount collision throws NamespaceCollisionError', () => {
+    it('throws NamespaceCollisionError when mount paths from different packages overlap', async () => {
       vi.mock(
         '/fake/ext/coll-pkg-a',
         () => ({
           extensionManifest: {
-            namespace: 'shared',
             factory: () => ({}),
           },
         }),
@@ -194,15 +147,14 @@ describe('loadExtensions', () => {
         '/fake/ext/coll-pkg-b',
         () => ({
           extensionManifest: {
-            namespace: 'shared',
             factory: () => ({}),
           },
         }),
         { virtual: true }
       );
       const mounts = [
-        makeMount('shared.a', '/fake/ext/coll-pkg-a'),
-        makeMount('shared.b', '/fake/ext/coll-pkg-b'),
+        makeMount('shared', '/fake/ext/coll-pkg-a'),
+        makeMount('shared.sub', '/fake/ext/coll-pkg-b'),
       ];
       await expect(loadExtensions(mounts, {})).rejects.toThrow(
         NamespaceCollisionError
@@ -221,7 +173,6 @@ describe('loadExtensions', () => {
         '/fake/ext/version-mismatch',
         () => ({
           extensionManifest: {
-            namespace: 'vext',
             version: '1.0.0',
             factory: () => ({}),
           },
@@ -241,7 +192,6 @@ describe('loadExtensions', () => {
         '/fake/ext/version-ok',
         () => ({
           extensionManifest: {
-            namespace: 'vok',
             version: '1.5.0',
             factory: () => ({}),
           },
@@ -264,7 +214,6 @@ describe('loadExtensions', () => {
         '/fake/ext/orphan-base',
         () => ({
           extensionManifest: {
-            namespace: 'real',
             factory: () => ({}),
           },
         }),
@@ -282,7 +231,6 @@ describe('loadExtensions', () => {
         '/fake/ext/orphan-msg',
         () => ({
           extensionManifest: {
-            namespace: 'base',
             factory: () => ({}),
           },
         }),
@@ -305,7 +253,6 @@ describe('loadExtensions', () => {
         '/fake/ext/valid-factory',
         () => ({
           extensionManifest: {
-            namespace: 'tools',
             factory: (_cfg: Record<string, unknown>) => ({
               run: { fn: async () => 'ok', params: [] },
             }),
@@ -321,13 +268,10 @@ describe('loadExtensions', () => {
     });
 
     it('collects dispose function from factory result', async () => {
-      // vi.mock is hoisted — cannot close over local variables.
-      // Assert the dispose array has the collected function.
       vi.mock(
         '/fake/ext/with-dispose',
         () => ({
           extensionManifest: {
-            namespace: 'disp',
             factory: () => ({
               dispose: () => undefined,
             }),
@@ -352,7 +296,6 @@ describe('loadExtensions', () => {
         '/fake/ext/dual-mount',
         () => ({
           extensionManifest: {
-            namespace: 'dual',
             factory: (_cfg: Record<string, unknown>) => ({
               fn1: { fn: async () => 'v', params: [] },
             }),
