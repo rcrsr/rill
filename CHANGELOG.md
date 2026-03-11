@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`@rcrsr/rill-config` package** — Standalone package for loading and validating `rill.config.ts` files. Manages extension bindings, provides the `context:` resolver, and enables Fiddle context value support
+- **`rill-run` CLI** — Config-driven script runner that loads `rill.config.ts`, mounts extensions, resolves environment variables, and executes rill scripts
+
+### Changed
+
+- **Extension manifest export convention** — Bundled extensions and loader now use camelCase `extensionManifest` export instead of PascalCase `ExtensionManifest`, aligning const exports with TypeScript naming conventions
+- **Binding helpers consolidated** — `buildExtensionBindings` in `@rcrsr/rill-config` now accepts optional `basePath` parameter; duplicated helpers removed from CLI runner (~60 lines)
+
 ### Fixed
 
 - **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` annotates resolved callables with parameter signatures
+- **Module resolution error sourceId** — Errors thrown from `use<>` module resolution now include `sourceId` for accurate error location reporting
 
 ## [0.11.0] - 2026-03-10
 

@@ -9,7 +9,7 @@ import type {
   ExtensionResult,
   ExtensionConfigSchema,
   ExtensionFactory,
-  ExtensionManifest as ExtensionManifestType,
+  ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import { RuntimeError } from '../../error-classes.js';
@@ -598,7 +598,7 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
 // MANIFEST
 // ============================================================
 
-export const ExtensionManifest: ExtensionManifestType = {
+export const extensionManifest: ExtensionManifest = {
   namespace: 'kv',
   factory: createKvExtension as ExtensionFactory<unknown>,
   configSchema,

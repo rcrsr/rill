@@ -1281,10 +1281,10 @@ Config errors occur during `rill-config` load-time processing and handler parame
 **Cause:** Three conditions raise RILL-CFG009:
 
 1. **Package not found** — The npm package name in the mount could not be resolved or installed.
-2. **Missing manifest** — The package does not export an `ExtensionManifest` as its default export.
+2. **Missing manifest** — The package does not export an `extensionManifest` named export.
 3. **Factory threw** — The extension's factory function threw during initialization.
 
-**Resolution:** Verify the package name is correct and installed. Ensure the package exports a valid `ExtensionManifest`. Check factory logs for initialization errors.
+**Resolution:** Verify the package name is correct and installed. Ensure the package exports a valid `extensionManifest`. Check factory logs for initialization errors.
 
 **Example:**
 
@@ -1300,7 +1300,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 **Description:** Namespace mismatch error
 
-**Cause:** The mount path prefix does not match the namespace declared in the extension's `ExtensionManifest`. The extension expects to be mounted at a specific prefix, but the config uses a different one.
+**Cause:** The mount path prefix does not match the namespace declared in the extension's `extensionManifest`. The extension expects to be mounted at a specific prefix, but the config uses a different one.
 
 **Resolution:** Change the mount key in `extensions.mounts` to match the namespace declared by the extension, or update the extension to accept the desired mount prefix.
 

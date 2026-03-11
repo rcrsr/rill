@@ -1,11 +1,11 @@
 /**
- * Fixture: minimal valid ExtensionManifest for loader tests.
- * Exported as the named export `ExtensionManifest` matching the loader's
- * convention of looking for `mod['ExtensionManifest']`.
+ * Fixture: minimal valid extensionManifest for loader tests.
+ * Exported as the named export `extensionManifest` matching the loader's
+ * convention of looking for `mod['extensionManifest']`.
  */
-import type { ExtensionManifest as ExtManifest } from '@rcrsr/rill';
+import type { ExtensionManifest } from '@rcrsr/rill';
 
-export const ExtensionManifest: ExtManifest = {
+export const extensionManifest: ExtensionManifest = {
   namespace: 'mock',
   version: '1.0.0',
   factory: (_cfg: Record<string, unknown>) => ({

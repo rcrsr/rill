@@ -45,7 +45,11 @@ export { loadExtensions } from './loader.js';
 // ============================================================
 // BINDINGS
 // ============================================================
-export { buildExtensionBindings, buildContextBindings } from './bindings.js';
+export {
+  buildExtensionBindings,
+  buildContextBindings,
+  isLeafFunction,
+} from './bindings.js';
 
 // ============================================================
 // RESOLVERS

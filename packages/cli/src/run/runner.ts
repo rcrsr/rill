@@ -14,12 +14,11 @@ import {
   isTuple,
   type RillValue,
   type RillTuple,
-  type RillFunction,
-  type RillParam,
   type RuntimeOptions,
   type SchemeResolver,
 } from '@rcrsr/rill';
 import { ParseError, RillError, getCallStack } from '@rcrsr/rill';
+import { buildExtensionBindings, isLeafFunction } from '@rcrsr/rill-config';
 import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import type { RunCliOptions } from './types.js';
 
@@ -72,74 +71,6 @@ function convertTreeToRillValues(
 }
 
 // ============================================================
-// BINDINGS HELPERS
-// ============================================================
-
-function isLeafFunction(
-  node: NestedExtConfig | RillFunction
-): node is RillFunction {
-  return (
-    typeof node === 'object' &&
-    node !== null &&
-    'fn' in node &&
-    typeof (node as RillFunction).fn === 'function' &&
-    'params' in node &&
-    Array.isArray((node as RillFunction).params)
-  );
-}
-
-function mapParamType(param: RillParam): string {
-  if (param.type === undefined) {
-    return 'any';
-  }
-  return param.type.type;
-}
-
-function serializeParam(param: RillParam): string {
-  const parts: string[] = [];
-  const desc = param.annotations['description'];
-  if (typeof desc === 'string' && desc.length > 0) {
-    parts.push(`^(description: "${desc}") `);
-  }
-  parts.push(`${param.name}: ${mapParamType(param)}`);
-  return parts.join('');
-}
-
-function buildNestedDict(
-  node: NestedExtConfig,
-  path: string,
-  indent: string
-): string {
-  const entries: string[] = [];
-  const childIndent = indent + '  ';
-  for (const [key, child] of Object.entries(node)) {
-    const childPath = path.length > 0 ? `${path}.${key}` : key;
-    if (isLeafFunction(child)) {
-      const paramStr = child.params.map(serializeParam).join(', ');
-      entries.push(`${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|`);
-    } else {
-      const nested = buildNestedDict(
-        child as NestedExtConfig,
-        childPath,
-        childIndent
-      );
-      entries.push(`${childIndent}${key}: ${nested}`);
-    }
-  }
-  if (entries.length === 0) {
-    return '[:]';
-  }
-  return `[\n${entries.join(',\n')}\n${indent}]`;
-}
-
-function buildBindingsSource(
-  tree: NestedExtConfig,
-  basePath: string = ''
-): string {
-  return buildNestedDict(tree, basePath, '');
-}
-
-// ============================================================
 // MODULE RESOLVER
 // ============================================================
 
@@ -183,7 +114,7 @@ export function buildModuleResolver(
         node = child as NestedExtConfig;
       }
       if (fullyResolved && node !== extTree) {
-        const subtreeSource = buildBindingsSource(
+        const subtreeSource = buildExtensionBindings(
           node as NestedExtConfig,
           suffix
         );

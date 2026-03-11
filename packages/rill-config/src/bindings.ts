@@ -31,7 +31,7 @@ function serializeParam(param: RillParam): string {
   return parts.join('');
 }
 
-function isLeafFunction(
+export function isLeafFunction(
   node: NestedExtConfig | RillFunction
 ): node is RillFunction {
   return (
@@ -80,8 +80,11 @@ function buildNestedDict(
  * Returns a rill dict literal suitable for use as module:ext source.
  * Pure function. No errors.
  */
-export function buildExtensionBindings(extTree: NestedExtConfig): string {
-  return buildNestedDict(extTree, '', '');
+export function buildExtensionBindings(
+  extTree: NestedExtConfig,
+  basePath?: string
+): string {
+  return buildNestedDict(extTree, basePath ?? '', '');
 }
 
 // ============================================================

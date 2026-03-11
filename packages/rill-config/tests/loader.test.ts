@@ -85,8 +85,8 @@ describe('loadExtensions', () => {
     });
   });
 
-  describe('EC-7: no ExtensionManifest export throws ExtensionLoadError', () => {
-    it('throws ExtensionLoadError when module exports no ExtensionManifest', async () => {
+  describe('EC-7: no extensionManifest export throws ExtensionLoadError', () => {
+    it('throws ExtensionLoadError when module exports no extensionManifest', async () => {
       // AC-21: package found but no manifest export
       vi.mock('/fake/ext/no-manifest', () => ({ someOtherExport: 42 }), {
         virtual: true,
@@ -114,7 +114,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/factory-throws',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'pkg',
             factory: () => {
               throw new Error('api_key is required');
@@ -140,7 +140,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/ns-mismatch',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'pkg',
             factory: () => ({}),
           },
@@ -157,7 +157,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/ns-mismatch-msg',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'pkg',
             factory: () => ({}),
           },
@@ -183,7 +183,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/coll-pkg-a',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'shared',
             factory: () => ({}),
           },
@@ -193,7 +193,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/coll-pkg-b',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'shared',
             factory: () => ({}),
           },
@@ -220,7 +220,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/version-mismatch',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'vext',
             version: '1.0.0',
             factory: () => ({}),
@@ -240,7 +240,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/version-ok',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'vok',
             version: '1.5.0',
             factory: () => ({}),
@@ -263,7 +263,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/orphan-base',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'real',
             factory: () => ({}),
           },
@@ -281,7 +281,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/orphan-msg',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'base',
             factory: () => ({}),
           },
@@ -304,7 +304,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/valid-factory',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'tools',
             factory: (_cfg: Record<string, unknown>) => ({
               run: { fn: async () => 'ok', params: [] },
@@ -326,7 +326,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/with-dispose',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'disp',
             factory: () => ({
               dispose: () => undefined,
@@ -351,7 +351,7 @@ describe('loadExtensions', () => {
       vi.mock(
         '/fake/ext/dual-mount',
         () => ({
-          ExtensionManifest: {
+          extensionManifest: {
             namespace: 'dual',
             factory: (_cfg: Record<string, unknown>) => ({
               fn1: { fn: async () => 'v', params: [] },

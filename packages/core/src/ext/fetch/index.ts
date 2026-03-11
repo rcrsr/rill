@@ -11,7 +11,7 @@ import type {
   ExtensionResult,
   ExtensionConfigSchema,
   ExtensionFactory,
-  ExtensionManifest as ExtensionManifestType,
+  ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import { isDict, type RillFunction } from '../../runtime/core/callable.js';
@@ -386,7 +386,7 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
 // MANIFEST
 // ============================================================
 
-export const ExtensionManifest: ExtensionManifestType = {
+export const extensionManifest: ExtensionManifest = {
   namespace: 'fetch',
   factory: createFetchExtension as ExtensionFactory<unknown>,
   configSchema,

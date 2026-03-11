@@ -147,16 +147,16 @@ export async function loadExtensions(
       throw new ExtensionLoadError(`Factory for ${pkg} threw: ${reason}`);
     }
 
-    // Check for ExtensionManifest export
+    // Check for extensionManifest export
     if (
-      !('ExtensionManifest' in mod) ||
-      mod['ExtensionManifest'] === null ||
-      typeof mod['ExtensionManifest'] !== 'object'
+      !('extensionManifest' in mod) ||
+      mod['extensionManifest'] === null ||
+      typeof mod['extensionManifest'] !== 'object'
     ) {
-      throw new ExtensionLoadError(`${pkg} does not export ExtensionManifest`);
+      throw new ExtensionLoadError(`${pkg} does not export extensionManifest`);
     }
 
-    const manifest = mod['ExtensionManifest'] as ExtensionManifest;
+    const manifest = mod['extensionManifest'] as ExtensionManifest;
 
     // Check mount path starts with manifest namespace
     const ns = manifest.namespace;
@@ -215,7 +215,7 @@ export async function loadExtensions(
     const factory = manifest.factory;
     if (typeof factory !== 'function') {
       throw new ExtensionLoadError(
-        `${pkg} ExtensionManifest has no factory function`
+        `${pkg} extensionManifest has no factory function`
       );
     }
 

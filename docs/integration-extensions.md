@@ -80,7 +80,7 @@ An extension manifest is the top-level export that `rill-run` and config-driven 
 import type { ExtensionManifest } from '@rcrsr/rill';
 import { createGreetExtension } from './factory.js';
 
-const manifest: ExtensionManifest = {
+export const extensionManifest: ExtensionManifest = {
   namespace: 'greet',
   factory: createGreetExtension,
   configSchema: {
@@ -89,8 +89,6 @@ const manifest: ExtensionManifest = {
   },
   version: '1.0.0',
 };
-
-export default manifest;
 ```
 
 ### ExtensionManifest Interface
@@ -125,7 +123,7 @@ interface ExtensionManifest {
 
 To publish a conforming manifest:
 
-1. Export a default `ExtensionManifest` from the package's main entry point.
+1. Export a named `extensionManifest` from the package's main entry point.
 2. Set `namespace` to the prefix scripts use (e.g., `"greet"` means scripts call `greet::func()`).
 3. If the factory accepts config, declare all fields in `configSchema` with their types and `required` flags.
 4. The factory receives only the config object — it must not call rill runtime APIs during construction.
