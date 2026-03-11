@@ -129,6 +129,11 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
         });
         if (check(this.state, TOKEN_TYPES.COMMA)) {
           advance(this.state); // consume ,
+        } else if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+          throw new ParseError(
+            'Expected , or | after parameter type in closure annotation',
+            current(this.state).span
+          );
         }
       }
       advance(this.state); // consume closing |

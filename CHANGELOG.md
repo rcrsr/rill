@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` annotates resolved callables with parameter signatures
+- **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` parses and records parameter signatures on the AST node (no runtime behavior change)
 - **Module resolution error sourceId** — Errors thrown from `use<>` module resolution now include `sourceId` for accurate error location reporting
 
 ## [0.11.0] - 2026-03-10

@@ -101,6 +101,12 @@ describe('Rill Language: use<> Expressions', () => {
         expect(result).toBe(42);
       });
 
+      it('AC-1: missing comma between closure annotation params throws ParseError', () => {
+        expect(() => parse('use<host:fn>:|x: string y: number|')).toThrow(
+          'Expected , or | after parameter type in closure annotation'
+        );
+      });
+
       it('AC-1: use<host:fn>:string type annotation still works (no regression)', () => {
         // Existing :TypeName form must still parse correctly
         expect(() => parse('use<host:fn>:string')).not.toThrow();
