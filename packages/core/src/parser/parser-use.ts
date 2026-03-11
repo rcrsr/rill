@@ -6,7 +6,7 @@
 import { Parser } from './parser.js';
 import type { UseExprNode, UseIdentifier, TypeRef } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan } from './state.js';
+import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import { parseTypeRef } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
@@ -100,15 +100,49 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
   );
 
   let typeRef: TypeRef | null = null;
+  let closureAnnotation: Array<{ name: string; typeRef: TypeRef }> | null =
+    null;
+
   if (check(this.state, TOKEN_TYPES.COLON)) {
-    advance(this.state);
-    typeRef = parseTypeRef(this.state);
+    if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
+      // Closure annotation: :|param: type, ...|
+      advance(this.state); // consume :
+      advance(this.state); // consume opening |
+      closureAnnotation = [];
+      while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+        const nameToken = expect(
+          this.state,
+          TOKEN_TYPES.IDENTIFIER,
+          'Expected parameter name in closure annotation'
+        );
+        expect(
+          this.state,
+          TOKEN_TYPES.COLON,
+          'Expected : after parameter name in closure annotation'
+        );
+        const paramTypeRef = parseTypeRef(this.state, {
+          allowTrailingPipe: true,
+        });
+        closureAnnotation.push({
+          name: nameToken.value,
+          typeRef: paramTypeRef,
+        });
+        if (check(this.state, TOKEN_TYPES.COMMA)) {
+          advance(this.state); // consume ,
+        }
+      }
+      advance(this.state); // consume closing |
+    } else {
+      advance(this.state); // consume :
+      typeRef = parseTypeRef(this.state);
+    }
   }
 
   return {
     type: 'UseExpr',
     identifier,
     typeRef,
+    closureAnnotation,
     span: makeSpan(start, current(this.state).span.end),
   };
 };

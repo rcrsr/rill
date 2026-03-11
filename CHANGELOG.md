@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` annotates resolved callables with parameter signatures
+
+## [0.11.0] - 2026-03-10
+
 ### Added
 
 - **`use<>` construct for module loading** — Load extensions and modules via `use<scheme:resource>` expressions with pluggable resolvers. Built-in resolvers include module, extension, and custom schemes
