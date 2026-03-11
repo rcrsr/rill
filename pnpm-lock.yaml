@@ -119,13 +119,13 @@ importers:
 
   packages/rill-config:
     dependencies:
-      '@rcrsr/rill':
-        specifier: workspace:^
-        version: link:../core
       semver:
         specifier: ^7.7.0
         version: 7.7.4
     devDependencies:
+      '@rcrsr/rill':
+        specifier: workspace:^
+        version: link:../core
       '@types/semver':
         specifier: ^7.5.0
         version: 7.7.1
