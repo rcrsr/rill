@@ -27,10 +27,13 @@
     "check": "pnpm run build && pnpm run test && pnpm run lint"
   },
   "dependencies": {
-    "@rcrsr/rill": "workspace:^",
     "semver": "^7.7.0"
   },
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
   "devDependencies": {
+    "@rcrsr/rill": "workspace:^",
     "@types/semver": "^7.5.0"
   },
   "repository": {

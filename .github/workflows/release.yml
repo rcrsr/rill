@@ -45,7 +45,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in packages/core packages/cli; do
+          for dir in packages/core packages/rill-config packages/cli; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
