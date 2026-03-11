@@ -121,6 +121,7 @@ export type {
   ConfigFieldDescriptor,
   ExtensionConfigSchema,
   ExtensionFactory,
+  ExtensionManifest,
   ExtensionResult,
   FsExtensionContract,
   HoistedExtension,
@@ -141,7 +142,11 @@ export {
 // BUILT-IN RESOLVERS
 // ============================================================
 
-export { extResolver, moduleResolver } from './core/resolvers.js';
+export {
+  contextResolver,
+  extResolver,
+  moduleResolver,
+} from './core/resolvers.js';
 
 // ============================================================
 // CONTEXT FACTORY

@@ -1,6 +1,6 @@
 # rill CLI Tools
 
-*Three command-line tools for running and validating scripts*
+*Four command-line tools for running, evaluating, checking, and config-driven execution*
 
 ## rill-exec
 
@@ -176,8 +176,76 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for closures |
 | `THROWAWAY_CAPTURE` | formatting | info | Captured variable never used |
 
+## rill-run
+
+Config-driven execution. Loads extensions and settings from `rill-config.json`, then runs a script or named handler.
+
+```text
+rill-run [--config <path>] [args...]
+rill-run --help
+rill-run --version
+```
+
+### Config Discovery
+
+`rill-run` locates config automatically or via an explicit flag:
+
+| Method | Behavior |
+|--------|----------|
+| No `--config` flag | Walks upward from the current directory looking for `rill-config.json` |
+| `--config <path>` | Uses the specified file; stops directory walk |
+
+See [Config Reference](ref-config.md) for the full `rill-config.json` format.
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--config <path>` | Explicit path to `rill-config.json` |
+| `--help` | Show help or, when main is a handler, print parameter list with types and descriptions |
+| `--version` | Show version |
+
+### Module Mode
+
+When the `main` field of `rill-config.json` points to a script file (e.g., `"main": "script.rill"`), `rill-run` executes that script. Positional arguments forward to the script as the pipe value `$`.
+
+```bash
+rill-run alice bob
+# Inside script: $ == ["alice", "bob"]
+```
+
+### Handler Mode
+
+When `main` names a specific handler (e.g., `"main": "script.rill:processOrder"`), `rill-run` switches to handler mode. Handler parameters come from `--param_name value` flags, not positional args.
+
+```bash
+rill-run --order_id "ORD-42" --region "us-east"
+```
+
+The handler must be annotated with parameter metadata for `rill-run` to match flags to arguments. Run `rill-run --help` to print the parameter list:
+
+```text
+Handler: processOrder (script.rill)
+
+Parameters:
+  --order_id  string   Order identifier (required)
+  --region    string   Deployment region (required)
+```
+
+See [Closure Annotations](topic-closure-annotations.md) for how to annotate handler parameters.
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Script or handler completed successfully |
+| 1 | Script error or config error |
+
 ## See Also
 
-- [Host Integration](integration-host.md) — Embedding API
-- [Modules](integration-modules.md) — Module convention
-- [Conventions](guide-conventions.md) — Coding style and best practices
+| Document | Description |
+|----------|-------------|
+| [Config Reference](ref-config.md) | rill-config.json format and extension mounts |
+| [Host Integration](integration-host.md) | Embedding API |
+| [Modules](integration-modules.md) | Module convention |
+| [Conventions](guide-conventions.md) | Coding style and best practices |

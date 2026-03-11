@@ -19,7 +19,9 @@ import {
   SplitPane,
   type ExecutionState,
 } from './components/index.js';
+import { contextResolver } from '@rcrsr/rill';
 import { executeRill } from './lib/execution.js';
+import { DEMO_CONTEXT_VALUES } from './lib/context.js';
 import {
   loadEditorState,
   persistEditorState,
@@ -104,8 +106,17 @@ export function App(): JSX.Element {
       // Start new execution
       setErrorLine(null);
 
+      // Build resolver config with context scheme wired to demo values
+      const resolverConfig = {
+        resolvers: {
+          context: (resource: string) =>
+            contextResolver(resource, DEMO_CONTEXT_VALUES),
+        },
+        configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
+      };
+
       // Execute async (outside setState)
-      executeRill(source).then((result) => {
+      executeRill(source, resolverConfig).then((result) => {
         setExecutionState(result);
         if (result.status === 'error' && result.error !== null) {
           setErrorLine(result.error.line);

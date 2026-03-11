@@ -11,6 +11,8 @@ import { RuntimeError } from '../../error-classes.js';
 import type {
   ExtensionResult,
   ExtensionConfigSchema,
+  ExtensionFactory,
+  ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 import {
@@ -811,3 +813,13 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
     },
   };
 }
+
+// ============================================================
+// MANIFEST
+// ============================================================
+
+export const extensionManifest: ExtensionManifest = {
+  namespace: 'fs',
+  factory: createFsExtension as ExtensionFactory<unknown>,
+  configSchema,
+};

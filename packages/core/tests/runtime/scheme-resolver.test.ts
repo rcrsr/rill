@@ -100,6 +100,30 @@ describe('Rill Runtime: moduleResolver', () => {
       expect(result).toBe('final');
     });
   });
+
+  describe('Parse error wrapping', () => {
+    it('wraps parseSource errors with sourceId', async () => {
+      try {
+        await run('use<module:bad>', {
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: '??? invalid syntax',
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RuntimeError);
+        const rErr = err as RuntimeError;
+        expect(rErr.errorId).toBe('RILL-R056');
+        expect(rErr.sourceId).toBe('module:bad');
+        expect(rErr.context?.sourceId).toBe('module:bad');
+        expect(rErr.cause).toBeInstanceOf(Error);
+      }
+    });
+  });
 });
 
 // ============================================================

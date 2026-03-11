@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`@rcrsr/rill-config` package** — Standalone package for loading and validating `rill.config.ts` files. Manages extension bindings, provides the `context:` resolver, and enables Fiddle context value support
+- **`rill-run` CLI** — Config-driven script runner that loads `rill.config.ts`, mounts extensions, resolves environment variables, and executes rill scripts
+
+### Changed
+
+- **Extension manifest export convention** — Bundled extensions and loader now use camelCase `extensionManifest` export instead of PascalCase `ExtensionManifest`, aligning const exports with TypeScript naming conventions
+- **Binding helpers consolidated** — `buildExtensionBindings` in `@rcrsr/rill-config` now accepts optional `basePath` parameter; duplicated helpers removed from CLI runner (~60 lines)
+
+### Fixed
+
+- **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` parses and records parameter signatures on the AST node (no runtime behavior change)
+- **Module resolution error sourceId** — Errors thrown from `use<>` module resolution now include `sourceId` for accurate error location reporting
+
+## [0.11.0] - 2026-03-10
+
+### Added
+
 - **`use<>` construct for module loading** — Load extensions and modules via `use<scheme:resource>` expressions with pluggable resolvers. Built-in resolvers include module, extension, and custom schemes
 - **Union type syntax** — Union types (`string|number`) work in variable captures, destructuring patterns, existence checks, closure parameters, and type assertions. Parameterized types (`list(T)`, `dict(k: T)`) now work in the same positions
 

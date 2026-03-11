@@ -67,7 +67,7 @@ export interface ExecutionState {
 /**
  * Resolver configuration for Fiddle execution.
  *
- * Permits "ext" and "host" schemes. Must NOT include "module" —
+ * Permits "ext", "host", and "context" schemes. Must NOT include "module" —
  * Fiddle is a single-file environment with no module resolver.
  */
 export interface FiddleResolverConfig {

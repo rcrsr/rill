@@ -1440,6 +1440,41 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
 
+  // Context key not found (RILL-R062)
+  {
+    errorId: 'RILL-R062',
+    category: 'runtime',
+    description: 'Context key not found',
+    messageTemplate: "Context key '{key}' not found",
+    cause: 'The requested dot-path key does not exist in the context config.',
+    resolution:
+      'Ensure the key is present in the context configuration passed to contextResolver.',
+    examples: [
+      {
+        description: 'Missing top-level key',
+        code: '# use<context:timeout> but "timeout" is not in context config',
+      },
+    ],
+  },
+
+  // Context path segment not a dict (RILL-R063)
+  {
+    errorId: 'RILL-R063',
+    category: 'runtime',
+    description: 'Context path segment is not a dict',
+    messageTemplate: "Context path '{path}': '{segment}' is not a dict",
+    cause:
+      'A dot-path segment resolves to a non-dict value, so traversal cannot continue.',
+    resolution:
+      'Ensure each intermediate segment in the dot-path is a nested dict in the context config.',
+    examples: [
+      {
+        description: 'Non-dict intermediate segment',
+        code: '# use<context:limits.max_tokens> but "limits" is a string, not a dict',
+      },
+    ],
+  },
+
   // Check Errors (RILL-C0xx)
   {
     errorId: 'RILL-C001',

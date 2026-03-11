@@ -52,6 +52,17 @@ export interface ConfigFieldDescriptor {
 export type ExtensionConfigSchema = Record<string, ConfigFieldDescriptor>;
 
 /**
+ * Manifest describing a self-contained extension.
+ * Carries the factory, optional config schema, namespace, and version metadata.
+ */
+export interface ExtensionManifest {
+  readonly namespace: string;
+  readonly factory: ExtensionFactory<unknown>;
+  readonly configSchema?: ExtensionConfigSchema | undefined;
+  readonly version?: string | undefined;
+}
+
+/**
  * Contract type for kv extension implementations.
  * Enforces exact function structure for compile-time verification.
  *

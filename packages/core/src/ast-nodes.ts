@@ -1027,11 +1027,16 @@ export type UseIdentifier =
  *   use<scheme:path.to.module>
  *   use<$moduleVar>
  *   use<(computedExpr)>:TypeName
+ *   use<scheme:fn>:|param: string|
  */
 export interface UseExprNode extends BaseNode {
   readonly type: 'UseExpr';
   readonly identifier: UseIdentifier;
   readonly typeRef: TypeRef | null;
+  readonly closureAnnotation: ReadonlyArray<{
+    readonly name: string;
+    readonly typeRef: TypeRef;
+  }> | null;
 }
 
 export type SimplePrimaryNode =

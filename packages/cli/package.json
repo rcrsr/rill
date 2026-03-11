@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-cli",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "CLI tools for the rill scripting language",
   "license": "MIT",
   "author": "Andre Bremer",
@@ -15,7 +15,8 @@
   "bin": {
     "rill-exec": "./dist/cli-exec.js",
     "rill-eval": "./dist/cli-eval.js",
-    "rill-check": "./dist/cli-check.js"
+    "rill-check": "./dist/cli-check.js",
+    "rill-run": "./dist/cli-run.js"
   },
   "scripts": {
     "build": "tsc --build",
@@ -26,6 +27,8 @@
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:^",
+    "@rcrsr/rill-config": "workspace:^",
+    "dotenv": "^16.0.0",
     "yaml": "^2.8.2"
   },
   "files": [

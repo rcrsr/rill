@@ -8,6 +8,8 @@
 import type {
   ExtensionResult,
   ExtensionConfigSchema,
+  ExtensionFactory,
+  ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillFunction } from '../../runtime/core/callable.js';
 import type { RillValue } from '../../runtime/core/values.js';
@@ -235,3 +237,13 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
   result.dispose = dispose;
   return result;
 }
+
+// ============================================================
+// MANIFEST
+// ============================================================
+
+export const extensionManifest: ExtensionManifest = {
+  namespace: 'exec',
+  factory: createExecExtension as ExtensionFactory<unknown>,
+  configSchema,
+};

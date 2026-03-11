@@ -74,26 +74,42 @@ describe('Rill Language: use<> Expressions', () => {
     });
 
     describe('Static form — closure type annotation', () => {
-      it('AC-1: use<host:fn>:|x: string| :string parses and resolves', async () => {
-        const closureValue = {
-          __type: 'callable' as const,
-          params: [
-            {
-              name: 'x',
-              type: { type: 'string' as const },
-              defaultValue: null,
-              annotations: {},
-            },
-          ],
-          body: null as unknown as import('@rcrsr/rill').RillValue,
-          closure: {},
-          boundDict: undefined,
-        };
-        const result = await run('use<host:fn>', {
-          resolvers: { host: valueResolver(closureValue) },
+      it('AC-1: use<host:fn>:|x: string| parses without error', async () => {
+        // The annotation has no runtime effect — just verify parse succeeds
+        const result = await run('use<host:fn>:|x: string|', {
+          resolvers: { host: valueResolver('hello') },
         });
-        // The annotation does not change the result; just confirm parsing succeeds
-        expect(result).toEqual(closureValue);
+        expect(result).toBe('hello');
+      });
+
+      it('AC-1: use<host:fn>:|x: string| parse-only succeeds via parse()', () => {
+        // parse() throws ParseError on failure — verify no RILL-P001
+        expect(() => parse('use<host:fn>:|x: string|')).not.toThrow();
+      });
+
+      it('AC-1: multi-param annotation use<ext:llm.openai.message>:|text: string, options: dict| parses', () => {
+        // Reproduces the user-reported failing case
+        expect(() =>
+          parse('use<ext:llm.openai.message>:|text: string, options: dict|')
+        ).not.toThrow();
+      });
+
+      it('AC-1: annotation does not affect resolved value', async () => {
+        const result = await run('use<host:fn>:|x: string, y: number|', {
+          resolvers: { host: valueResolver(42) },
+        });
+        expect(result).toBe(42);
+      });
+
+      it('AC-1: missing comma between closure annotation params throws ParseError', () => {
+        expect(() => parse('use<host:fn>:|x: string y: number|')).toThrow(
+          'Expected , or | after parameter type in closure annotation'
+        );
+      });
+
+      it('AC-1: use<host:fn>:string type annotation still works (no regression)', () => {
+        // Existing :TypeName form must still parse correctly
+        expect(() => parse('use<host:fn>:string')).not.toThrow();
       });
     });
 

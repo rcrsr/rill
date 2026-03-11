@@ -51,6 +51,8 @@ declare -A FILE_MAP=(
   ["ref-language"]="reference/language 1"
   ["ref-host-api"]="reference/host-api 2"
   ["ref-errors"]="reference/errors 3"
+  ["ref-config"]="reference/config 4"
+  ["ref-config-api"]="reference/config-api 5"
 )
 
 # Link rewrite map: source filename → Hugo path
@@ -84,6 +86,8 @@ declare -A LINK_MAP=(
   ["ref-language.md"]="/docs/reference/language/"
   ["ref-host-api.md"]="/docs/reference/host-api/"
   ["ref-errors.md"]="/docs/reference/errors/"
+  ["ref-config.md"]="/docs/reference/config/"
+  ["ref-config-api.md"]="/docs/reference/config-api/"
   ["ref-grammar.ebnf"]="/ref-grammar.ebnf"
   ["index.md"]="/docs/"
 )
