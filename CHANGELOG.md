@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-03-11
+
+### Changed
+
+- **`ExtensionResult` is now an interface** — Replaces type intersection with interface and index signature for TS 5.x compatibility. Explicit properties (`dispose`, `suspend`, `restore`) can differ from the index signature type.
+- **`ExtensionFactory` allows async return** — Return type widened to `ExtensionResult | Promise<ExtensionResult>` for async extension initialization (MCP transport connect).
+
+### Fixed
+
+- **`prefixFunctions` preserves `suspend` and `restore` hooks** — Lifecycle hooks are skipped during namespace prefixing and preserved on the result, matching existing `dispose` handling.
+
 ## [0.13.0] - 2026-03-11
 
 ### Changed
