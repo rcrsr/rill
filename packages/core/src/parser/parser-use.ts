@@ -131,8 +131,9 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
           advance(this.state); // consume ,
         } else if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
           throw new ParseError(
+            'RILL-P001',
             'Expected , or | after parameter type in closure annotation',
-            current(this.state).span
+            current(this.state).span.start
           );
         }
       }
