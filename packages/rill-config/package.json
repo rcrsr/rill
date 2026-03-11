@@ -5,6 +5,13 @@
   "license": "MIT",
   "author": "Andre Bremer",
   "type": "module",
+  "keywords": [
+    "rill",
+    "config",
+    "scripting",
+    "extensions",
+    "project-loader"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -40,6 +47,10 @@
     "type": "git",
     "url": "git+https://github.com/rcrsr/rill.git",
     "directory": "packages/rill-config"
+  },
+  "homepage": "https://rill.run/docs/reference/config/",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
   },
   "publishConfig": {
     "access": "public"
