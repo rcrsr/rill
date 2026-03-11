@@ -319,6 +319,168 @@ describe('Rill Runtime: Extension System', () => {
       });
     });
 
+    describe('suspend lifecycle hook preserved through prefixFunctions', () => {
+      it('preserves suspend method in prefixed result', () => {
+        let suspended = false;
+
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+          suspend: () => {
+            suspended = true;
+            return { suspended: true };
+          },
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify suspend exists and is the same function
+        expect(prefixed.suspend).toBeDefined();
+        expect(prefixed.suspend).toBe(extension.suspend);
+
+        // Call suspend and verify it works
+        prefixed.suspend!();
+        expect(suspended).toBe(true);
+      });
+
+      it('does not create a prefixed key for suspend', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+          suspend: () => ({ state: 42 }),
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify no prefixed key was created for suspend
+        expect(prefixed['ext::suspend']).toBeUndefined();
+      });
+
+      it('works correctly when extension has no suspend method', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify suspend is undefined when not provided
+        expect(prefixed.suspend).toBeUndefined();
+      });
+    });
+
+    describe('restore lifecycle hook preserved through prefixFunctions', () => {
+      it('preserves restore method in prefixed result', () => {
+        let restoredState: unknown = null;
+
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+          restore: (state: unknown) => {
+            restoredState = state;
+          },
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify restore exists and is the same function
+        expect(prefixed.restore).toBeDefined();
+        expect(prefixed.restore).toBe(extension.restore);
+
+        // Call restore and verify it works
+        const savedState = { counter: 7 };
+        prefixed.restore!(savedState);
+        expect(restoredState).toEqual(savedState);
+      });
+
+      it('does not create a prefixed key for restore', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+          restore: (_state: unknown) => {},
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify no prefixed key was created for restore
+        expect(prefixed['ext::restore']).toBeUndefined();
+      });
+
+      it('works correctly when extension has no restore method', () => {
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // Verify restore is undefined when not provided
+        expect(prefixed.restore).toBeUndefined();
+      });
+    });
+
+    describe('all three lifecycle hooks preserved together through prefixFunctions', () => {
+      it('preserves dispose, suspend, and restore when all three are present', () => {
+        let disposed = false;
+        let suspendState: unknown = null;
+        let restoredState: unknown = null;
+
+        const extension: ExtensionResult = {
+          doSomething: {
+            params: [],
+            fn: () => 'done',
+          },
+          dispose: () => {
+            disposed = true;
+          },
+          suspend: () => {
+            suspendState = { captured: true };
+            return suspendState;
+          },
+          restore: (state: unknown) => {
+            restoredState = state;
+          },
+        };
+
+        const prefixed = prefixFunctions('ext', extension);
+
+        // All three hooks are preserved
+        expect(prefixed.dispose).toBeDefined();
+        expect(prefixed.suspend).toBeDefined();
+        expect(prefixed.restore).toBeDefined();
+
+        // None are prefixed as namespace keys
+        expect(prefixed['ext::dispose']).toBeUndefined();
+        expect(prefixed['ext::suspend']).toBeUndefined();
+        expect(prefixed['ext::restore']).toBeUndefined();
+
+        // All three hooks function correctly
+        prefixed.dispose!();
+        expect(disposed).toBe(true);
+
+        const state = prefixed.suspend!();
+        expect(state).toEqual({ captured: true });
+
+        prefixed.restore!(state);
+        expect(restoredState).toEqual({ captured: true });
+
+        // Regular function is still prefixed
+        expect(prefixed['ext::doSomething']).toBeDefined();
+      });
+    });
+
     describe('AC-S6: onLogEvent receives structured events with timestamp', () => {
       it('extension functions can emit structured events with timestamps', async () => {
         interface LogEvent {

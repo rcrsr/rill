@@ -13,11 +13,12 @@ interface RuntimeContextLike {
  * Result object returned by extension factories.
  * Contains host function definitions with optional cleanup and session lifecycle hooks.
  */
-export type ExtensionResult = Record<string, RillFunction> & {
+export interface ExtensionResult {
+  [name: string]: RillFunction | ((...args: never[]) => unknown) | undefined;
   dispose?: () => void | Promise<void>;
   suspend?: () => unknown;
   restore?: (state: unknown) => void;
-};
+}
 
 /**
  * Result object returned by hoistExtension.
@@ -32,7 +33,9 @@ export interface HoistedExtension {
  * Factory function contract for creating extensions.
  * Accepts typed configuration and returns isolated instance.
  */
-export type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionResult;
+export type ExtensionFactory<TConfig> = (
+  config: TConfig
+) => ExtensionResult | Promise<ExtensionResult>;
 
 /**
  * Descriptor for a single configuration field in an extension schema.
@@ -221,19 +224,26 @@ export function prefixFunctions(
   const result: Record<string, RillFunction> = {};
 
   for (const [name, definition] of Object.entries(functions)) {
-    // Skip the dispose method during prefixing
-    if (name === 'dispose') continue;
+    // Skip lifecycle hooks during prefixing
+    if (name === 'dispose' || name === 'suspend' || name === 'restore')
+      continue;
 
     result[`${namespace}::${name}`] = definition as RillFunction;
   }
 
-  // Preserve dispose method if present
-  const resultWithDispose: ExtensionResult = result;
+  // Preserve lifecycle hooks if present
+  const resultWithHooks: ExtensionResult = result;
   if (functions.dispose !== undefined) {
-    resultWithDispose.dispose = functions.dispose;
+    resultWithHooks.dispose = functions.dispose;
+  }
+  if (functions.suspend !== undefined) {
+    resultWithHooks.suspend = functions.suspend;
+  }
+  if (functions.restore !== undefined) {
+    resultWithHooks.restore = functions.restore;
   }
 
-  return resultWithDispose;
+  return resultWithHooks;
 }
 
 /**
