@@ -47,6 +47,9 @@ importers:
       '@rcrsr/rill':
         specifier: workspace:^
         version: link:../core
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
       yaml:
         specifier: ^2.8.2
         version: 2.8.2
@@ -947,6 +950,10 @@ packages:
 
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
+
+  dotenv@16.6.1:
+    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
 
   electron-to-chromium@1.5.302:
     resolution: {integrity: sha512-sM6HAN2LyK82IyPBpznDRqlTQAtuSaO+ShzFiWTvoMJLHyZ+Y39r8VMfHzwbU8MVBzQ4Wdn85+wlZl2TLGIlwg==}
@@ -2263,6 +2270,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   dom-accessibility-api@0.5.16: {}
+
+  dotenv@16.6.1: {}
 
   electron-to-chromium@1.5.302: {}
 

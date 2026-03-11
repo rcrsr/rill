@@ -15,7 +15,8 @@
   "bin": {
     "rill-exec": "./dist/cli-exec.js",
     "rill-eval": "./dist/cli-eval.js",
-    "rill-check": "./dist/cli-check.js"
+    "rill-check": "./dist/cli-check.js",
+    "rill-run": "./dist/cli-run.js"
   },
   "scripts": {
     "build": "tsc --build",
@@ -26,6 +27,7 @@
   },
   "dependencies": {
     "@rcrsr/rill": "workspace:^",
+    "dotenv": "^16.0.0",
     "yaml": "^2.8.2"
   },
   "files": [
