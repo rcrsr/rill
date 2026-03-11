@@ -157,7 +157,21 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
-        const scriptNode = parseSource(result.text);
+        let scriptNode;
+        try {
+          scriptNode = parseSource(result.text);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const wrapped = RuntimeError.fromNode(
+            'RILL-R056',
+            `Resolver error for '${key}': ${message}`,
+            node,
+            { sourceId: key }
+          );
+          (wrapped as { sourceId: string }).sourceId = key;
+          wrapped.cause = err;
+          throw wrapped;
+        }
         const childCtx = createChildContext(this.ctx);
         const execResult = await execute(scriptNode, childCtx);
         return execResult.result;

@@ -36,6 +36,8 @@ export interface RillErrorData {
   readonly location?: SourceLocation | undefined;
   readonly span?: SourceSpan | undefined;
   readonly context?: Record<string, unknown> | undefined;
+  /** Identifies the source that produced this error (e.g. "module:greetings") */
+  readonly sourceId?: string | undefined;
 }
 
 // ============================================================
@@ -111,6 +113,7 @@ export class RillError extends Error {
   readonly location?: SourceLocation | undefined;
   readonly span?: SourceSpan | undefined;
   readonly context?: Record<string, unknown> | undefined;
+  readonly sourceId?: string | undefined;
 
   constructor(data: RillErrorData) {
     // EC-3: Missing errorId
@@ -136,6 +139,7 @@ export class RillError extends Error {
     this.location = location;
     this.span = span;
     this.context = data.context;
+    this.sourceId = data.sourceId;
   }
 
   /** Get structured error data for custom formatting */
@@ -147,6 +151,7 @@ export class RillError extends Error {
       location: this.location,
       span: this.span,
       context: this.context,
+      sourceId: this.sourceId,
     };
   }
 
