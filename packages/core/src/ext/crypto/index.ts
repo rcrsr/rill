@@ -10,6 +10,8 @@ import { RuntimeError } from '../../error-classes.js';
 import type {
   ExtensionResult,
   ExtensionConfigSchema,
+  ExtensionFactory,
+  ExtensionManifest as ExtensionManifestType,
 } from '../../runtime/ext/extensions.js';
 import type { RillValue } from '../../runtime/core/values.js';
 
@@ -203,3 +205,13 @@ export function createCryptoExtension(
     },
   };
 }
+
+// ============================================================
+// MANIFEST
+// ============================================================
+
+export const ExtensionManifest: ExtensionManifestType = {
+  namespace: 'crypto',
+  factory: createCryptoExtension as ExtensionFactory<unknown>,
+  configSchema,
+};

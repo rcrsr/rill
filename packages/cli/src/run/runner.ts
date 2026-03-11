@@ -14,13 +14,14 @@ import {
   isTuple,
   type RillValue,
   type RillTuple,
+  type RillFunction,
+  type RillParam,
   type RuntimeOptions,
   type SchemeResolver,
 } from '@rcrsr/rill';
 import { ParseError, RillError, getCallStack } from '@rcrsr/rill';
-import type { RunCliOptions, ConfigFile } from './types.js';
-import type { NestedExtConfig } from './loader.js';
-import { buildBindingsSource, isLeafFunction } from './bindings.js';
+import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
+import type { RunCliOptions } from './types.js';
 
 // ============================================================
 // TYPES
@@ -68,6 +69,74 @@ function convertTreeToRillValues(
   }
 
   return result;
+}
+
+// ============================================================
+// BINDINGS HELPERS
+// ============================================================
+
+function isLeafFunction(
+  node: NestedExtConfig | RillFunction
+): node is RillFunction {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    'fn' in node &&
+    typeof (node as RillFunction).fn === 'function' &&
+    'params' in node &&
+    Array.isArray((node as RillFunction).params)
+  );
+}
+
+function mapParamType(param: RillParam): string {
+  if (param.type === undefined) {
+    return 'any';
+  }
+  return param.type.type;
+}
+
+function serializeParam(param: RillParam): string {
+  const parts: string[] = [];
+  const desc = param.annotations['description'];
+  if (typeof desc === 'string' && desc.length > 0) {
+    parts.push(`^(description: "${desc}") `);
+  }
+  parts.push(`${param.name}: ${mapParamType(param)}`);
+  return parts.join('');
+}
+
+function buildNestedDict(
+  node: NestedExtConfig,
+  path: string,
+  indent: string
+): string {
+  const entries: string[] = [];
+  const childIndent = indent + '  ';
+  for (const [key, child] of Object.entries(node)) {
+    const childPath = path.length > 0 ? `${path}.${key}` : key;
+    if (isLeafFunction(child)) {
+      const paramStr = child.params.map(serializeParam).join(', ');
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|`);
+    } else {
+      const nested = buildNestedDict(
+        child as NestedExtConfig,
+        childPath,
+        childIndent
+      );
+      entries.push(`${childIndent}${key}: ${nested}`);
+    }
+  }
+  if (entries.length === 0) {
+    return '[:]';
+  }
+  return `[\n${entries.join(',\n')}\n${indent}]`;
+}
+
+function buildBindingsSource(
+  tree: NestedExtConfig,
+  basePath: string = ''
+): string {
+  return buildNestedDict(tree, basePath, '');
 }
 
 // ============================================================
@@ -270,7 +339,7 @@ function formatRillError(
  */
 export async function runScript(
   opts: RunCliOptions,
-  config: ConfigFile,
+  config: RillConfigFile,
   extTree: NestedExtConfig,
   bindingsSrc: string,
   disposes: Array<() => void | Promise<void>>

@@ -1,14 +1,13 @@
 /**
- * Bindings generator for rill-run.
- * Walks a nested ext config tree and emits a rill source string
- * declaring all host functions with typed parameter annotations.
+ * Bindings generators for rill-config.
+ * Produces rill source strings for extension and context module bindings.
  */
 
 import type { RillFunction, RillParam } from '@rcrsr/rill';
-import type { NestedExtConfig } from './loader.js';
+import type { ContextFieldSchema, NestedExtConfig } from './types.js';
 
 // ============================================================
-// TYPE MAPPING
+// EXTENSION BINDINGS
 // ============================================================
 
 function mapParamType(param: RillParam): string {
@@ -17,10 +16,6 @@ function mapParamType(param: RillParam): string {
   }
   return param.type.type;
 }
-
-// ============================================================
-// PARAM SERIALIZATION
-// ============================================================
 
 function serializeParam(param: RillParam): string {
   const parts: string[] = [];
@@ -36,14 +31,7 @@ function serializeParam(param: RillParam): string {
   return parts.join('');
 }
 
-// ============================================================
-// LEAF DETECTION
-// ============================================================
-
-/**
- * Type guard: a node is a leaf RillFunction when it has { fn, params } shape.
- */
-export function isLeafFunction(
+function isLeafFunction(
   node: NestedExtConfig | RillFunction
 ): node is RillFunction {
   return (
@@ -55,10 +43,6 @@ export function isLeafFunction(
     Array.isArray((node as RillFunction).params)
   );
 }
-
-// ============================================================
-// NESTED DICT BUILDER
-// ============================================================
 
 function buildNestedDict(
   node: NestedExtConfig,
@@ -91,20 +75,52 @@ function buildNestedDict(
   return `[\n${entries.join(',\n')}\n${indent}]`;
 }
 
+/**
+ * Generate rill source for extension bindings.
+ * Returns a rill dict literal suitable for use as module:ext source.
+ * Pure function. No errors.
+ */
+export function buildExtensionBindings(extTree: NestedExtConfig): string {
+  return buildNestedDict(extTree, '', '');
+}
+
 // ============================================================
-// BINDINGS BUILDER
+// CONTEXT BINDINGS
 // ============================================================
 
 /**
- * Build a rill source string from a nested ext config tree.
- * Returns a rill dict literal suitable for use as module:ext source.
- *
- * @param tree     - Nested dict of extension functions
- * @param basePath - Optional dot-separated prefix for all paths (default '')
+ * Generate rill source for context bindings.
+ * Returns a rill dict literal that declares each context key with its type.
+ * Scripts import this via use<module:context>.
+ * Pure function. No errors.
  */
-export function buildBindingsSource(
-  tree: NestedExtConfig,
-  basePath: string = ''
+export function buildContextBindings(
+  schema: Record<string, ContextFieldSchema>,
+  values: Record<string, unknown>
 ): string {
-  return buildNestedDict(tree, basePath, '');
+  const entries: string[] = [];
+
+  for (const [key, fieldSchema] of Object.entries(schema)) {
+    const value = values[key];
+    const rillType = fieldSchema.type === 'bool' ? 'bool' : fieldSchema.type;
+
+    let rillLiteral: string;
+    if (rillType === 'string') {
+      const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      rillLiteral = `"${escaped}"`;
+    } else if (rillType === 'number') {
+      rillLiteral = String(value);
+    } else {
+      // bool
+      rillLiteral = value ? 'true' : 'false';
+    }
+
+    entries.push(`  ${key}: ${rillLiteral}`);
+  }
+
+  if (entries.length === 0) {
+    return '[:]';
+  }
+
+  return `[\n${entries.join(',\n')}\n]`;
 }

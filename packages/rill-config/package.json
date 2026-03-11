@@ -1,0 +1,44 @@
+{
+  "name": "@rcrsr/rill-config",
+  "version": "0.11.0",
+  "description": "Shared config library for rill resolution, validation, loading, and bindings generation",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src/",
+    "check": "pnpm run build && pnpm run test && pnpm run lint"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "workspace:^",
+    "semver": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/rill-config"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

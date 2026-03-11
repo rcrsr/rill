@@ -10,6 +10,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 - **P**: Parse errors (syntax violations)
 - **R**: Runtime errors (execution failures)
 - **C**: Check errors (CLI tool validation)
+- **CFG**: Config errors (rill-config load-time failures and handler param errors)
 
 **Navigation:**
 
@@ -17,6 +18,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
+- [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
 ---
 
@@ -1118,6 +1120,343 @@ rill-check protected.rill  # File exists but no read permission
 ```
 
 ---
+
+## Config Errors
+
+Config errors occur during `rill-config` load-time processing and handler parameter validation. They are thrown by the `@rcrsr/rill-config` package before the rill runtime starts.
+
+### rill-cfg001
+
+**Description:** Config file not found
+
+**Cause:** `rill-config` walked the directory tree to the filesystem root without finding a `rill.config.json`, or an explicit config path was provided but the file does not exist.
+
+**Resolution:** Create a `rill.config.json` in the project root, or verify the explicit path passed to the config loader.
+
+**Example:**
+
+```text
+# No rill.config.json found walking from /home/user/project to /
+# Error: RILL-CFG001: Config file not found
+```
+
+---
+
+### rill-cfg002
+
+**Description:** Config parse error
+
+**Cause:** The `rill.config.json` file contains invalid JSON (syntax error, trailing comma, or unquoted key).
+
+**Resolution:** Fix the JSON syntax. Use a JSON validator or `JSON.parse()` in a Node REPL to locate the error. Ensure all keys are quoted and no trailing commas exist.
+
+**Example:**
+
+```text
+# rill.config.json with trailing comma
+{ "runtime": "^0.9.0", }
+# Error: RILL-CFG002: Config parse error: Unexpected token } at position 22
+```
+
+---
+
+### rill-cfg003
+
+**Description:** Config environment variable not set
+
+**Cause:** The config file contains a `${VAR_NAME}` placeholder but the referenced environment variable is not set in the current process environment.
+
+**Resolution:** Set the missing environment variable before running the CLI, or replace the placeholder with a literal value.
+
+**Example:**
+
+```text
+# rill.config.json references ${API_KEY} but API_KEY is not set
+{ "context": { "apiKey": "${API_KEY}" } }
+# Error: RILL-CFG003: Config environment variable not set: API_KEY
+```
+
+---
+
+### rill-cfg004
+
+**Description:** Config validation error — wrong field type
+
+**Cause:** A top-level config field has the wrong type. For example, `runtime` must be a string, `extensions` must be an object, and `context` must be an object.
+
+**Resolution:** Fix the field value to match the expected type. See the config schema in the `@rcrsr/rill-config` package documentation.
+
+**Example:**
+
+```text
+# "runtime" must be a string, not a number
+{ "runtime": 9 }
+# Error: RILL-CFG004: Config validation error: 'runtime' must be string, got number
+```
+
+---
+
+### rill-cfg005
+
+**Description:** Config validation error — orphaned config key
+
+**Cause:** An `extensions.config` entry references a package that has no corresponding mount in `extensions.mounts`.
+
+**Resolution:** Add the missing package to `extensions.mounts`, or remove the orphaned key from `extensions.config`.
+
+**Example:**
+
+```text
+# "my-pkg" appears in config but not in mounts
+{ "extensions": { "mounts": {}, "config": { "my-pkg": {} } } }
+# Error: RILL-CFG005: Config validation error: 'extensions.config' key 'my-pkg' has no matching mount
+```
+
+---
+
+### rill-cfg006
+
+**Description:** Config validation error — empty path or handler name
+
+**Cause:** The `main` field has an empty file path, or the handler name after the colon separator is empty (e.g., `"main": ":handler"` or `"main": "script.rill:"`).
+
+**Resolution:** Provide both a non-empty path and a non-empty handler name in the `main` field using the format `"path/to/script.rill:handlerName"`.
+
+**Example:**
+
+```text
+# Handler name is empty after colon
+{ "main": "script.rill:" }
+# Error: RILL-CFG006: Config validation error: 'main' handler name is empty
+```
+
+---
+
+### rill-cfg007
+
+**Description:** Runtime version constraint not satisfied
+
+**Cause:** The installed `@rcrsr/rill` version does not satisfy the semver constraint declared in the config `runtime` field.
+
+**Resolution:** Update `@rcrsr/rill` to a version that satisfies the constraint, or relax the constraint in `rill.config.json`.
+
+**Example:**
+
+```text
+# Installed rill is 0.8.2, config requires "^0.9.0"
+{ "runtime": "^0.9.0" }
+# Error: RILL-CFG007: Runtime version error: installed 0.8.2 does not satisfy ^0.9.0
+```
+
+---
+
+### rill-cfg008
+
+**Description:** Mount validation error
+
+**Cause:** Two conditions raise RILL-CFG008:
+
+1. **Invalid path segment** — A mount path contains characters outside `[a-z0-9-_]`, starts with a digit, or is empty.
+2. **Conflicting version constraints** — Two mounts reference the same package with incompatible semver constraints.
+
+**Resolution:** Fix path segment characters to use only lowercase alphanumeric, hyphens, and underscores. Resolve conflicting version constraints so mounts agree on a compatible range.
+
+**Example:**
+
+```text
+# Mount path contains uppercase
+{ "extensions": { "mounts": { "My-Pkg": "pkg@^1.0" } } }
+# Error: RILL-CFG008: Mount validation error: path 'My-Pkg' contains invalid characters
+
+# Two mounts specify incompatible versions for same package
+# Error: RILL-CFG008: Mount validation error: conflicting version constraints for 'pkg'
+```
+
+---
+
+### rill-cfg009
+
+**Description:** Extension load error
+
+**Cause:** Three conditions raise RILL-CFG009:
+
+1. **Package not found** — The npm package name in the mount could not be resolved or installed.
+2. **Missing manifest** — The package does not export an `ExtensionManifest` as its default export.
+3. **Factory threw** — The extension's factory function threw during initialization.
+
+**Resolution:** Verify the package name is correct and installed. Ensure the package exports a valid `ExtensionManifest`. Check factory logs for initialization errors.
+
+**Example:**
+
+```text
+# Package "@rcrsr/rill-ext-qdrant" not found
+{ "extensions": { "mounts": { "db": "@rcrsr/rill-ext-qdrant@^1.0" } } }
+# Error: RILL-CFG009: Extension load error: '@rcrsr/rill-ext-qdrant' not found
+```
+
+---
+
+### rill-cfg010
+
+**Description:** Namespace mismatch error
+
+**Cause:** The mount path prefix does not match the namespace declared in the extension's `ExtensionManifest`. The extension expects to be mounted at a specific prefix, but the config uses a different one.
+
+**Resolution:** Change the mount key in `extensions.mounts` to match the namespace declared by the extension, or update the extension to accept the desired mount prefix.
+
+**Example:**
+
+```text
+# Extension declares namespace "vector", but mounted at "db"
+{ "extensions": { "mounts": { "db": "ext-vector@^1.0" } } }
+# Error: RILL-CFG010: Namespace mismatch: extension 'ext-vector' expects 'vector', mounted at 'db'
+```
+
+---
+
+### rill-cfg011
+
+**Description:** Namespace collision error
+
+**Cause:** Two different extensions claim the same namespace or overlapping mount path prefixes, causing an ambiguous function resolution conflict.
+
+**Resolution:** Change one mount path to use a unique prefix. No two extensions may share a namespace prefix in the same config.
+
+**Example:**
+
+```text
+# Two extensions both declare namespace "data"
+{ "extensions": { "mounts": { "data-a": "ext-a@^1.0", "data-b": "ext-b@^1.0" } } }
+# Error: RILL-CFG011: Namespace collision: 'ext-a' and 'ext-b' both claim namespace 'data'
+```
+
+---
+
+### rill-cfg012
+
+**Description:** Extension version constraint not satisfied
+
+**Cause:** The extension package's declared version does not satisfy the semver constraint in the mount entry.
+
+**Resolution:** Update the extension package to a compatible version, or relax the version constraint in `extensions.mounts`.
+
+**Example:**
+
+```text
+# Installed ext-qdrant is 0.3.1, mount requires "^1.0.0"
+{ "extensions": { "mounts": { "db": "ext-qdrant@^1.0.0" } } }
+# Error: RILL-CFG012: Extension version error: 'ext-qdrant' 0.3.1 does not satisfy ^1.0.0
+```
+
+---
+
+### rill-cfg013
+
+**Description:** Context validation error — missing value
+
+**Cause:** A key declared in the context schema has no corresponding value in the provided context object. The schema defines a required key that was not supplied.
+
+**Resolution:** Add the missing key to the context object passed at startup, or remove the key from the schema if it is optional.
+
+**Example:**
+
+```text
+# Schema requires "userId" but context object does not include it
+# Error: RILL-CFG013: Context validation error: missing context value for key 'userId'
+```
+
+---
+
+### rill-cfg014
+
+**Description:** Context validation error — type mismatch
+
+**Cause:** A context value's runtime type does not match the type declared in the context schema. For example, the schema declares `userId: number` but the provided value is a string.
+
+**Resolution:** Fix the context value to match the declared type, or update the schema to reflect the actual type.
+
+**Example:**
+
+```text
+# Schema: { "userId": "number" }, actual value: "abc"
+# Error: RILL-CFG014: Context validation error: 'userId' expects number, got string
+```
+
+---
+
+### rill-cfg015
+
+**Description:** Bundle restriction error
+
+**Cause:** The config contains `extensions.config` or `context` fields, which are not permitted in bundle mode. Bundle mode is read-only and cannot load extension-specific config or runtime context values.
+
+**Resolution:** Remove `extensions.config` and `context` from the config file when operating in bundle mode, or switch to non-bundle mode.
+
+**Example:**
+
+```text
+# Bundle mode config with forbidden fields
+{ "context": { "apiKey": "secret" }, "extensions": { "config": {} } }
+# Error: RILL-CFG015: Bundle restriction: 'context' and 'extensions.config' are not allowed in bundle mode
+```
+
+---
+
+### rill-cfg016
+
+**Description:** Handler arg error — missing required param
+
+**Cause:** A required handler parameter was not provided when invoking a rill handler via the CLI or host API. The handler declares the parameter as required (no default value) but no value was passed.
+
+**Resolution:** Provide the missing parameter. Check the handler's parameter list with `rill-check --params` to see all required parameters.
+
+**Example:**
+
+```text
+# Handler requires "--user-id" but it was not passed
+rill-run script.rill:processUser
+# Error: RILL-CFG016: Handler arg error: missing required param '--user-id'
+```
+
+---
+
+### rill-cfg017
+
+**Description:** Handler arg error — type coercion failure
+
+**Cause:** A CLI flag value cannot be coerced to the type declared by the handler parameter. For example, passing `--count=abc` for a `number` parameter.
+
+**Resolution:** Pass a value that matches the declared type. Numbers must be valid numeric strings. Booleans accept `true` or `false`.
+
+**Example:**
+
+```text
+# Handler declares "--count: number" but "abc" cannot be parsed as number
+rill-run script.rill:processItems --count=abc
+# Error: RILL-CFG017: Handler arg error: '--count' value 'abc' cannot be coerced to number
+```
+
+---
+
+### rill-cfg018
+
+**Description:** Handler arg error — unknown flag
+
+**Cause:** A CLI flag was passed that does not match any declared parameter in the handler. The handler does not accept the given flag name.
+
+**Resolution:** Remove the unknown flag, or check the handler's parameter list. Use `rill-check --params` to list all accepted flags for the handler.
+
+**Example:**
+
+```text
+# Handler does not declare "--verbose"
+rill-run script.rill:processItems --verbose
+# Error: RILL-CFG018: Handler arg error: unknown flag '--verbose'
+```
+
+---
+
+> **File size note (AC-65):** This file is over 1000 lines after adding the Config Errors section (RILL-CFG001 through RILL-CFG018). Consider splitting config error entries into a dedicated `ref-errors-config.md` file if the section grows further.
 
 ## Error Handling Patterns
 

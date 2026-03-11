@@ -4,8 +4,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { runScript, buildModuleResolver } from '../../src/run/runner.js';
-import type { RunCliOptions, ConfigFile } from '../../src/run/types.js';
-import type { NestedExtConfig } from '../../src/run/loader.js';
+import type { RunCliOptions } from '../../src/run/types.js';
+import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -36,14 +36,14 @@ function makeOpts(overrides: Partial<RunCliOptions> = {}): RunCliOptions {
   };
 }
 
-function makeConfig(overrides: Partial<ConfigFile> = {}): ConfigFile {
-  return { extensions: {}, modules: {}, ...overrides };
+function makeConfig(overrides: Partial<RillConfigFile> = {}): RillConfigFile {
+  return { modules: {}, ...overrides };
 }
 
 async function runTempScript(
   source: string,
   optsOverrides: Partial<RunCliOptions> = {},
-  config: ConfigFile = makeConfig(),
+  config: RillConfigFile = makeConfig(),
   extTree: NestedExtConfig = {},
   bindingsSrc: string = '[:]',
   disposes: Array<() => void | Promise<void>> = []

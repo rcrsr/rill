@@ -72,6 +72,71 @@ type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionResult;
 
 Factory functions accept typed configuration and return an isolated extension instance.
 
+## Extension Manifest
+
+An extension manifest is the top-level export that `rill-run` and config-driven hosts consume. It packages the factory, namespace, optional config schema, and version into a single object.
+
+```typescript
+import type { ExtensionManifest } from '@rcrsr/rill';
+import { createGreetExtension } from './factory.js';
+
+const manifest: ExtensionManifest = {
+  namespace: 'greet',
+  factory: createGreetExtension,
+  configSchema: {
+    prefix: { type: 'string', required: true },
+    loud: { type: 'boolean', required: false },
+  },
+  version: '1.0.0',
+};
+
+export default manifest;
+```
+
+### ExtensionManifest Interface
+
+```typescript
+interface ExtensionManifest {
+  namespace: string;                          // mount path prefix this extension owns
+  factory: ExtensionFactory<unknown>;         // creates the extension instance
+  configSchema?: ExtensionConfigSchema;       // optional field declarations
+  version?: string;                           // optional semver version string
+}
+```
+
+### Fields
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `namespace` | `string` | Yes | Alphanumeric, underscores, hyphens — `^[a-zA-Z0-9_-]+$` |
+| `factory` | `ExtensionFactory<unknown>` | Yes | Called with config object; must return `ExtensionResult` |
+| `configSchema` | `ExtensionConfigSchema` | No | Maps field names to `ConfigFieldDescriptor` entries |
+| `version` | `string` | No | Semver string (e.g., `"1.2.0"`); informational only |
+
+`ExtensionConfigSchema` is `Record<string, ConfigFieldDescriptor>`. Each `ConfigFieldDescriptor` has:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `'string' \| 'number' \| 'boolean'` | Yes | Expected type for the config value |
+| `required` | `boolean` | No | Whether the field must appear in config |
+| `secret` | `boolean` | No | Advisory flag — tooling may mask or omit the value |
+
+### Manifest Contract
+
+To publish a conforming manifest:
+
+1. Export a default `ExtensionManifest` from the package's main entry point.
+2. Set `namespace` to the prefix scripts use (e.g., `"greet"` means scripts call `greet::func()`).
+3. If the factory accepts config, declare all fields in `configSchema` with their types and `required` flags.
+4. The factory receives only the config object — it must not call rill runtime APIs during construction.
+5. Validation errors must throw synchronously from the factory, not during function execution.
+
+### Relationship to ExtensionResult and ExtensionFactory
+
+`ExtensionManifest` wraps the existing `ExtensionFactory` type. The `factory` field is the same function you write for manual integration. The manifest adds `namespace`, `configSchema`, and `version` so that `rill-run` can mount the extension without host-side wiring code.
+
+See [rill-run Config](ref-config.md) for how `extensions.mounts` entries reference manifest packages.
+
 ## Namespace Prefixing
 
 Use `prefixFunctions()` to add a namespace prefix to all functions in an extension:
@@ -448,7 +513,7 @@ fn: async (args, ctx) => {
 
 ```typescript
 // Extension types
-export type { ExtensionResult, ExtensionFactory, ExtensionEvent, HoistedExtension };
+export type { ExtensionResult, ExtensionFactory, ExtensionEvent, HoistedExtension, ExtensionManifest, ExtensionConfigSchema };
 
 // Extension utilities
 export { prefixFunctions, hoistExtension, emitExtensionEvent };
@@ -456,7 +521,9 @@ export { prefixFunctions, hoistExtension, emitExtensionEvent };
 
 ## See Also
 
-- [Bundled Extensions](bundled-extensions.md) — Pre-built extensions shipped with rill
-- [Host Integration](integration-host.md) — Embedding API
-- [Modules](integration-modules.md) — Module convention
-- [Reference](ref-language.md) — Language specification
+| Document | Description |
+|----------|-------------|
+| [Bundled Extensions](bundled-extensions.md) | Pre-built extensions shipped with rill |
+| [Host Integration](integration-host.md) | Embedding API |
+| [Modules](integration-modules.md) | Module convention |
+| [Reference](ref-language.md) | Language specification |

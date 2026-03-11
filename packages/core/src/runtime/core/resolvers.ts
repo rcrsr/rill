@@ -94,6 +94,70 @@ export const moduleResolver: SchemeResolver = async (
  * - RILL-R052 when the extension name is absent from config
  * - RILL-R053 when a member path segment is not found in the extension value
  */
+// ============================================================
+// CONTEXT RESOLVER
+// ============================================================
+
+/**
+ * Resolves a dot-path key to a value from a host-provided context config.
+ *
+ * Config shape: `Record<string, unknown>` (flat or nested).
+ *
+ * Resource formats:
+ * - `"timeout"` — returns the top-level `timeout` value from config.
+ * - `"limits.max_tokens"` — traverses into `limits`, returns `max_tokens`.
+ *
+ * Dot-path: split by `.`, walk nested dicts at each segment.
+ *
+ * Error codes:
+ * - RILL-R062 when the top-level key is absent from config
+ * - RILL-R063 when an intermediate segment is not a dict
+ */
+export const contextResolver: SchemeResolver = (
+  resource: string,
+  config?: unknown
+): ResolverResult => {
+  const cfg = (config ?? {}) as Record<string, unknown>;
+
+  const segments = resource.split('.');
+  const key = segments[0] ?? resource;
+
+  if (!(key in cfg)) {
+    throw new RuntimeError(
+      'RILL-R062',
+      `Context key '${resource}' not found`,
+      undefined,
+      { key: resource }
+    );
+  }
+
+  let value: unknown = cfg[key];
+
+  for (let i = 1; i < segments.length; i++) {
+    const segment = segments[i] as string;
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      const path = segments.slice(0, i).join('.');
+      throw new RuntimeError(
+        'RILL-R063',
+        `Context path '${resource}': '${path}' is not a dict`,
+        undefined,
+        { path, segment }
+      );
+    }
+    value = (value as Record<string, unknown>)[segment];
+    if (value === undefined) {
+      throw new RuntimeError(
+        'RILL-R062',
+        `Context key '${resource}' not found`,
+        undefined,
+        { key: resource }
+      );
+    }
+  }
+
+  return { kind: 'value', value: value as RillValue };
+};
+
 export const extResolver: SchemeResolver = (
   resource: string,
   config?: unknown

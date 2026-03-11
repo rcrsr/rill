@@ -1,9 +1,78 @@
 /**
- * rill-run CLI argument parsing tests
+ * rill-run CLI tests
+ * Tests parseCliArgs flag parsing and the loadProject-based main() flow.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { parseCliArgs } from '../../src/cli-run.js';
+
+// ============================================================
+// MOCK SETUP
+// ============================================================
+
+const mocks = vi.hoisted(() => ({
+  resolveConfigPath: vi.fn(),
+  loadProject: vi.fn(),
+  runScript: vi.fn(),
+  parseMainField: vi.fn(),
+  introspectHandler: vi.fn(),
+  marshalCliArgs: vi.fn(),
+  invokeCallable: vi.fn(),
+  isScriptCallable: vi.fn(),
+}));
+
+vi.mock('@rcrsr/rill-config', async (importActual) => {
+  const actual = await importActual<typeof import('@rcrsr/rill-config')>();
+  return {
+    ...actual,
+    resolveConfigPath: mocks.resolveConfigPath,
+    loadProject: mocks.loadProject,
+    parseMainField: mocks.parseMainField,
+    introspectHandler: mocks.introspectHandler,
+    marshalCliArgs: mocks.marshalCliArgs,
+  };
+});
+
+vi.mock('../../src/run/runner.js', () => ({
+  runScript: mocks.runScript,
+}));
+
+vi.mock('@rcrsr/rill', async (importActual) => {
+  const actual = await importActual<typeof import('@rcrsr/rill')>();
+  return {
+    ...actual,
+    invokeCallable: mocks.invokeCallable,
+    isScriptCallable: mocks.isScriptCallable,
+  };
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function makeProjectResult(
+  overrides: Partial<{
+    main: string;
+    modules: Record<string, string>;
+  }> = {}
+) {
+  return {
+    config: {
+      ...(overrides.main !== undefined ? { main: overrides.main } : {}),
+      modules: overrides.modules ?? {},
+    },
+    extTree: {},
+    disposes: [],
+    resolverConfig: { resolvers: {}, configurations: { resolvers: {} } },
+    hostOptions: {},
+    extensionBindings: '[:]',
+    contextBindings: '',
+  };
+}
+
+// ============================================================
+// parseCliArgs tests
+// ============================================================
 
 describe('parseCliArgs', () => {
   afterEach(() => {
@@ -204,6 +273,199 @@ describe('parseCliArgs', () => {
 
     it('emitBindings is false when --emit-bindings flag is absent', () => {
       expect(parseCliArgs(['script.rill']).emitBindings).toBe(false);
+    });
+  });
+});
+
+// ============================================================
+// handler mode unit tests (parseMainField integration)
+// ============================================================
+
+describe('handler mode detection', () => {
+  it('parseMainField splits file and handler name on colon', async () => {
+    const { parseMainField } = await import('@rcrsr/rill-config');
+    // Call the real implementation (mock delegates to actual for this)
+    mocks.parseMainField.mockImplementation((main: string) => {
+      const idx = main.indexOf(':');
+      if (idx === -1) return { filePath: main };
+      return { filePath: main.slice(0, idx), handlerName: main.slice(idx + 1) };
+    });
+    const result = parseMainField('script.rill:myHandler');
+    expect(result.filePath).toBe('script.rill');
+    expect(result.handlerName).toBe('myHandler');
+  });
+
+  it('parseMainField returns only filePath when no colon present', async () => {
+    const { parseMainField } = await import('@rcrsr/rill-config');
+    mocks.parseMainField.mockImplementation((main: string) => {
+      const idx = main.indexOf(':');
+      if (idx === -1) return { filePath: main };
+      return { filePath: main.slice(0, idx), handlerName: main.slice(idx + 1) };
+    });
+    const result = parseMainField('script.rill');
+    expect(result.filePath).toBe('script.rill');
+    expect(result.handlerName).toBeUndefined();
+  });
+});
+
+// ============================================================
+// loadProject-based main() flow tests
+// ============================================================
+
+describe('main() loadProject flow', () => {
+  let origArgv: string[];
+  let stdoutChunks: string[];
+  let stderrChunks: string[];
+  let exitCode: number | undefined;
+  let origStdout: typeof process.stdout.write;
+  let origStderr: typeof process.stderr.write;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    origArgv = process.argv;
+    stdoutChunks = [];
+    stderrChunks = [];
+    exitCode = undefined;
+
+    origStdout = process.stdout.write.bind(process.stdout);
+    origStderr = process.stderr.write.bind(process.stderr);
+    (process.stdout.write as unknown) = (chunk: string) => {
+      stdoutChunks.push(chunk);
+      return true;
+    };
+    (process.stderr.write as unknown) = (chunk: string) => {
+      stderrChunks.push(chunk);
+      return true;
+    };
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
+      exitCode = code as number;
+      throw new Error(`process.exit(${code})`);
+    });
+
+    mocks.resolveConfigPath.mockReturnValue('/project/rill-config.json');
+    mocks.runScript.mockResolvedValue({ exitCode: 0 });
+  });
+
+  afterEach(() => {
+    process.argv = origArgv;
+    (process.stdout.write as unknown) = origStdout;
+    (process.stderr.write as unknown) = origStderr;
+    vi.restoreAllMocks();
+  });
+
+  async function runMain(argv: string[]): Promise<void> {
+    process.argv = ['node', 'rill-run', ...argv];
+    const { main } = await import('../../src/cli-run.js');
+    try {
+      await main();
+    } catch {
+      // process.exit() throws in test environment
+    }
+  }
+
+  describe('module mode (no colon in main)', () => {
+    it('calls loadProject with resolved config path and rillVersion', async () => {
+      mocks.loadProject.mockResolvedValue(makeProjectResult());
+
+      await runMain(['script.rill']);
+
+      expect(mocks.loadProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          configPath: '/project/rill-config.json',
+          rillVersion: expect.any(String) as string,
+        })
+      );
+    });
+
+    it('calls runScript with config and extTree from ProjectResult', async () => {
+      const project = makeProjectResult();
+      mocks.loadProject.mockResolvedValue(project);
+
+      await runMain(['script.rill']);
+
+      expect(mocks.runScript).toHaveBeenCalledWith(
+        expect.anything(),
+        project.config,
+        project.extTree,
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it('writes output to stdout when runScript returns output', async () => {
+      mocks.loadProject.mockResolvedValue(makeProjectResult());
+      mocks.runScript.mockResolvedValue({ exitCode: 0, output: 'hello world' });
+
+      await runMain(['script.rill']);
+
+      expect(stdoutChunks.join('')).toContain('hello world');
+    });
+
+    it('writes errorOutput to stderr when runScript returns errorOutput', async () => {
+      mocks.loadProject.mockResolvedValue(makeProjectResult());
+      mocks.runScript.mockResolvedValue({
+        exitCode: 1,
+        errorOutput: 'RILL-R004: some error',
+      });
+
+      await runMain(['script.rill']);
+
+      expect(stderrChunks.join('')).toContain('RILL-R004: some error');
+      expect(exitCode).toBe(1);
+    });
+  });
+
+  describe('ConfigError handling', () => {
+    it('writes message to stderr and exits 1 when resolveConfigPath throws ConfigError', async () => {
+      const { ConfigError } = await import('@rcrsr/rill-config');
+      mocks.resolveConfigPath.mockImplementation(() => {
+        throw new ConfigError(
+          'Config file not found: /missing/rill-config.json'
+        );
+      });
+
+      await runMain(['script.rill']);
+
+      expect(stderrChunks.join('')).toContain(
+        'Config file not found: /missing/rill-config.json'
+      );
+      expect(exitCode).toBe(1);
+    });
+
+    it('writes message to stderr and exits 1 when loadProject throws ConfigError', async () => {
+      const { ConfigError } = await import('@rcrsr/rill-config');
+      mocks.loadProject.mockRejectedValue(
+        new ConfigError('Extension load failed')
+      );
+
+      await runMain(['script.rill']);
+
+      expect(stderrChunks.join('')).toContain('Extension load failed');
+      expect(exitCode).toBe(1);
+    });
+  });
+
+  describe('--config flag', () => {
+    it('passes configFlag to resolveConfigPath when explicit --config is provided', async () => {
+      mocks.loadProject.mockResolvedValue(makeProjectResult());
+
+      await runMain(['script.rill', '--config', './custom-config.json']);
+
+      expect(mocks.resolveConfigPath).toHaveBeenCalledWith(
+        expect.objectContaining({ configFlag: './custom-config.json' })
+      );
+    });
+
+    it('does not pass configFlag when using default config path', async () => {
+      mocks.loadProject.mockResolvedValue(makeProjectResult());
+
+      await runMain(['script.rill']);
+
+      const callArg = mocks.resolveConfigPath.mock.calls[0]?.[0] as {
+        configFlag?: string;
+        cwd: string;
+      };
+      expect(callArg?.configFlag).toBeUndefined();
     });
   });
 });

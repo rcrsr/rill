@@ -40,6 +40,8 @@
 | [String Methods](topic-strings.md) | String methods for text manipulation |
 | [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
 | [Host API](ref-host-api.md) | Complete TypeScript API exports |
+| [Config Reference](ref-config.md) | rill.config.ts options and field definitions |
+| [Config API Reference](ref-config-api.md) | TypeScript API for config loading and extension registration |
 | [Grammar](ref-grammar.ebnf) | Formal EBNF grammar |
 
 ## Integration
@@ -79,9 +81,10 @@
 7. **Design patterns:** Study the [Cookbook](cookbook.md)
 8. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
 9. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)
-10. **Extend rill:** See [Extensions](integration-extensions.md) and [Bundled Extensions](bundled-extensions.md)
-11. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
-12. **Vendor extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
+10. **Configure a project:** See [Config Reference](ref-config.md) and [Config API Reference](ref-config-api.md)
+11. **Extend rill:** See [Extensions](integration-extensions.md) and [Bundled Extensions](bundled-extensions.md)
+12. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
+13. **Vendor extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
 
 ## Changelog
 
