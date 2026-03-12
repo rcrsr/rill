@@ -78,13 +78,8 @@ import { getVariable } from '../../context.js';
  *
  * @internal
  */
-async function captureClosureAnnotations(
-  ctx: RuntimeContext,
-  closureNode: ClosureNode,
-  evaluateExpression: (expr: ExpressionNode) => Promise<RillValue>
-): Promise<{
+async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   annotations: Record<string, RillValue>;
-  paramAnnotations: Record<string, Record<string, RillValue>>;
 }> {
   // Capture closure-level annotations from immediateAnnotation field [IR-7].
   // When a closure is created within a directly-annotated statement like:
@@ -94,20 +89,7 @@ async function captureClosureAnnotations(
   const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
   ctx.immediateAnnotation = undefined;
 
-  // Capture parameter-level annotations
-  const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-
-  for (const param of closureNode.params) {
-    if (param.annotations && param.annotations.length > 0) {
-      const paramAnnots = await evaluateAnnotations(
-        param.annotations,
-        evaluateExpression
-      );
-      paramAnnotations[param.name] = paramAnnots;
-    }
-  }
-
-  return { annotations, paramAnnotations };
+  return { annotations };
 }
 
 /**
@@ -895,12 +877,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const definingScope = this.ctx;
 
       // Capture annotations at closure creation time
-      const { annotations, paramAnnotations } = await captureClosureAnnotations(
-        this.ctx,
-        node,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).evaluateExpression.bind(this)
-      );
+      const { annotations } = await captureClosureAnnotations(this.ctx);
 
       const rillParams: RillParam[] = [];
       for (const param of node.params) {
@@ -945,11 +922,21 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
 
+        // Evaluate per-param annotations inline
+        let paramAnnots: Record<string, RillValue> = {};
+        if (param.annotations && param.annotations.length > 0) {
+          paramAnnots = await evaluateAnnotations(
+            param.annotations,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).evaluateExpression.bind(this)
+          );
+        }
+
         rillParams.push({
           name: param.name,
           type: resolvedType,
           defaultValue,
-          annotations: paramAnnotations[param.name] ?? {},
+          annotations: paramAnnots,
         });
       }
 
@@ -975,7 +962,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty,
         annotations,
-        paramAnnotations,
         returnType,
       };
     }
@@ -1014,7 +1000,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty: false,
         annotations,
-        paramAnnotations: {},
         returnType: anyTypeValue,
       };
     }

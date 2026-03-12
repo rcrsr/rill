@@ -190,7 +190,6 @@ describe('Rill Runtime: Function Metadata', () => {
               body: { type: 'Body' as const, statements: [] },
               definingScope: {} as any,
               annotations: {},
-              paramAnnotations: {},
               isProperty: false,
             },
           },

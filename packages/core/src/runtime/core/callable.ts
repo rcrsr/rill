@@ -108,11 +108,6 @@ export interface ScriptCallable extends CallableBase {
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
   readonly definingScope: RuntimeContextLike;
-  /**
-   * Per-parameter annotation dictionaries keyed by parameter name.
-   * Empty object ({}) when no parameter annotations are present.
-   */
-  readonly paramAnnotations: Record<string, Record<string, RillValue>>;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */

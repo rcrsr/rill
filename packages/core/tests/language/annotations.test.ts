@@ -980,7 +980,9 @@ describe('Rill Runtime: Annotations', () => {
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
           expect(fn.annotations).toEqual({});
-          expect(fn.paramAnnotations).toEqual({});
+          expect(
+            fn.params.every((p) => Object.keys(p.annotations).length === 0)
+          ).toBe(true);
         }
       });
 
@@ -993,7 +995,9 @@ describe('Rill Runtime: Annotations', () => {
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
           expect(fn.annotations).toEqual({});
-          expect(fn.paramAnnotations['x']!['min']).toBe(0);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['min']
+          ).toBe(0);
         }
       });
     });
@@ -1007,8 +1011,12 @@ describe('Rill Runtime: Annotations', () => {
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
-          expect(fn.paramAnnotations['x']).toBeDefined();
-          expect(fn.paramAnnotations['x']!['min']).toBe(0);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations
+          ).toBeDefined();
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['min']
+          ).toBe(0);
         }
       });
 
@@ -1020,8 +1028,12 @@ describe('Rill Runtime: Annotations', () => {
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
-          expect(fn.paramAnnotations['x']!['min']).toBe(0);
-          expect(fn.paramAnnotations['x']!['max']).toBe(100);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['min']
+          ).toBe(0);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['max']
+          ).toBe(100);
         }
       });
 
@@ -1033,8 +1045,12 @@ describe('Rill Runtime: Annotations', () => {
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
-          expect(fn.paramAnnotations['x']!['min']).toBe(0);
-          expect(fn.paramAnnotations['y']!['required']).toBe(true);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['min']
+          ).toBe(0);
+          expect(
+            fn.params.find((p) => p.name === 'y')!.annotations['required']
+          ).toBe(true);
         }
       });
 
@@ -1046,7 +1062,9 @@ describe('Rill Runtime: Annotations', () => {
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
-          expect(fn.paramAnnotations['x']!['max']).toBe(10);
+          expect(
+            fn.params.find((p) => p.name === 'x')!.annotations['max']
+          ).toBe(10);
         }
       });
 
@@ -1060,7 +1078,7 @@ describe('Rill Runtime: Annotations', () => {
         await expect(run(script)).rejects.toThrow(/undefined variable/i);
       });
 
-      it('has empty paramAnnotations for params without annotations', async () => {
+      it('has empty annotations object for params without annotations', async () => {
         const { context } = await runWithContext(
           '|x: number, y: string|{ $x } => $fn\ntrue'
         );
@@ -1068,7 +1086,9 @@ describe('Rill Runtime: Annotations', () => {
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
-          expect(fn.paramAnnotations).toEqual({});
+          expect(
+            fn.params.every((p) => Object.keys(p.annotations).length === 0)
+          ).toBe(true);
         }
       });
     });
