@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.2] - 2026-03-11
+
+### Changed
+
+- **Dict keys take priority over built-in methods** — Method resolution checks dict properties before built-in methods. A dict with key `model` returns the dict value instead of invoking the vector built-in.
+
+### Fixed
+
+- **`pretest` regenerates `version-data.ts`** — Running `pnpm test` without a prior build no longer fails version tests due to stale generated version data.
+
 ## [0.13.1] - 2026-03-11
 
 ### Changed
