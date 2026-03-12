@@ -816,12 +816,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
 
+      // Fall back to property access on dict (no-arg only), before built-in lookup
+      if (isDict(receiver) && args.length === 0 && node.name in receiver) {
+        return receiver[node.name] as RillValue;
+      }
+
       const method = this.ctx.methods.get(node.name);
       if (!method) {
-        // Fall back to property access on dict (no-arg only)
-        if (isDict(receiver) && args.length === 0 && node.name in receiver) {
-          return receiver[node.name] as RillValue;
-        }
         // EC-5: Unknown dot property on type value raises RILL-R009
         if (isTypeValue(receiver)) {
           throw new RuntimeError(
