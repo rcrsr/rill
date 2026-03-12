@@ -7,6 +7,7 @@
 
 import type { RillTypeName } from '../../types.js';
 import { RuntimeError } from '../../types.js';
+import { VALID_TYPE_NAMES } from '../../constants.js';
 import {
   callableEquals,
   isCallable,
@@ -882,9 +883,12 @@ export const anyTypeValue: RillTypeValue = Object.freeze({
  * Falls back to 'any' for compound types that lack a direct RillTypeName mapping.
  */
 export function rillTypeToTypeValue(type: RillType): RillTypeValue {
+  const validNames: readonly string[] = VALID_TYPE_NAMES;
   return Object.freeze({
     __rill_type: true as const,
-    typeName: type.type as RillTypeName,
+    typeName: (validNames.includes(type.type)
+      ? type.type
+      : 'any') as RillTypeName,
     structure: type,
   });
 }

@@ -12,6 +12,7 @@ import {
   moduleResolver,
   toNative,
   isTuple,
+  anyTypeValue,
   type RillValue,
   type RillTuple,
   type RuntimeOptions,
@@ -59,6 +60,8 @@ function convertTreeToRillValues(
         isProperty: false,
         fn: rillFn.fn,
         params: rillFn.params,
+        annotations: {},
+        returnType: anyTypeValue,
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(

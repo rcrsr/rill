@@ -64,7 +64,7 @@ export const UNVALIDATED_METHOD_RECEIVERS = new Set([
  * typeName can appear more than once — duplicate method names across entries
  * for the same type trigger an Error (EC-6).
  *
- * Exported for test-only access. Not re-exported from the barrel index.ts.
+ * Re-exported from the public barrel index for host integration use.
  */
 export function buildTypeMethodDicts(
   pairs: Array<[string, Record<string, RillFunction>]>
