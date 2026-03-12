@@ -7,16 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **Unified callable representations** — Callable signatures now use a single `CallableBase` interface for all callable kinds instead of separate hierarchies. Reflection operators work consistently across closures, application callables, and runtime functions
-
 ## [0.14.0] - 2026-03-12
 
 ### Breaking Changes
 
 - **`RillFunction` interface change** — `description?: string` replaced by `annotations?: Record<string, RillValue>`. `returnType` changed from optional `RillType` to required `RillTypeValue`. Extension authors must update all `RillFunction` implementations. See migration guide in `docs/integration-extensions.md`.
 - **Removed types** — `RillCallableSignature`, `RillFunctionSignature`, and `RillMethodSignature` removed from public exports. Use `RillFunction` and the unified callable reflection API instead.
+
+### Changed
+
+- **Unified callable representations** — Callable signatures now use a single `CallableBase` interface for all callable kinds instead of separate hierarchies. Reflection operators work consistently across closures, application callables, and runtime functions
 
 ### Added
 
