@@ -15,7 +15,7 @@ import {
   toNative,
   type ExecutionResult,
 } from '@rcrsr/rill';
-import { determineExitCode, VERSION } from './cli-shared.js';
+import { determineExitCode, VERSION, CLI_VERSION } from './cli-shared.js';
 
 /**
  * Parse command-line arguments into structured command
@@ -93,7 +93,7 @@ Examples:
  * Display version information
  */
 function showVersion(): void {
-  console.log(`rill-eval ${VERSION}`);
+  console.log(`rill-eval ${CLI_VERSION} (rill ${VERSION})`);
 }
 
 /**

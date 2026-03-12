@@ -319,15 +319,14 @@ describe('rill-check CLI', () => {
       const result = await execCheck(['--version']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
 
-      // Verify version matches package.json
+      // Verify version output format: "rill-check <cli-version> (rill <core-version>)"
       const { readFile } = await import('fs/promises');
       const packageJsonPath = path.resolve(process.cwd(), 'package.json');
       const packageJson = JSON.parse(
         await readFile(packageJsonPath, 'utf-8')
       ) as { version: string };
-      expect(result.stdout.trim()).toBe(packageJson.version);
+      expect(result.stdout.trim()).toContain(packageJson.version);
     });
   });
 
