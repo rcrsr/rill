@@ -61,8 +61,13 @@ describe('kv extension factory', () => {
       expect(ext.get).toMatchObject({
         params: expect.any(Array),
         fn: expect.any(Function),
-        description: expect.any(String),
-        returnType: { type: 'any' },
+        annotations: expect.objectContaining({
+          description: expect.any(String),
+        }),
+        returnType: expect.objectContaining({
+          __rill_type: true,
+          structure: { type: 'any' },
+        }),
       });
     });
 

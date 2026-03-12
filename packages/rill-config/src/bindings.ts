@@ -57,8 +57,7 @@ function buildNestedDict(
 
     if (isLeafFunction(child)) {
       const paramStr = child.params.map(serializeParam).join(', ');
-      const returnSuffix =
-        child.returnType !== undefined ? ` :${child.returnType.type}` : '';
+      const returnSuffix = ` :${child.returnType.typeName}`;
       entries.push(
         `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
       );

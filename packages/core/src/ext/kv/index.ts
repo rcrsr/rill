@@ -10,10 +10,13 @@ import type {
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import type { RillValue } from '../../runtime/core/values.js';
 import { RuntimeError } from '../../error-classes.js';
 import { isDict } from '../../runtime/core/callable.js';
 import { createStore, type SchemaEntry } from './store.js';
+import {
+  rillTypeToTypeValue,
+  type RillValue,
+} from '../../runtime/core/values.js';
 
 // ============================================================
 // TYPES
@@ -413,8 +416,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: get,
-      description: 'Get value or schema default',
-      returnType: { type: 'any' },
+      annotations: { description: 'Get value or schema default' },
+      returnType: rillTypeToTypeValue({ type: 'any' }),
     },
     get_or: {
       params: [
@@ -438,8 +441,10 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: get_or,
-      description: 'Get value or return fallback if key missing',
-      returnType: { type: 'any' },
+      annotations: {
+        description: 'Get value or return fallback if key missing',
+      },
+      returnType: rillTypeToTypeValue({ type: 'any' }),
     },
     set: {
       params: [
@@ -463,8 +468,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: set,
-      description: 'Set value with validation',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Set value with validation' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     merge: {
       params: [
@@ -488,8 +493,10 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: merge,
-      description: 'Merge partial dict into existing dict value',
-      returnType: { type: 'bool' },
+      annotations: {
+        description: 'Merge partial dict into existing dict value',
+      },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     delete: {
       params: [
@@ -507,8 +514,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: deleteKey,
-      description: 'Delete key',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Delete key' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     keys: {
       params: [
@@ -520,8 +527,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: keys,
-      description: 'Get all keys in mount',
-      returnType: { type: 'list' },
+      annotations: { description: 'Get all keys in mount' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
     has: {
       params: [
@@ -539,8 +546,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: has,
-      description: 'Check key existence',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Check key existence' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     clear: {
       params: [
@@ -552,8 +559,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: clear,
-      description: 'Clear all keys in mount',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Clear all keys in mount' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     getAll: {
       params: [
@@ -565,8 +572,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: getAll,
-      description: 'Get all entries as dict',
-      returnType: { type: 'dict' },
+      annotations: { description: 'Get all entries as dict' },
+      returnType: rillTypeToTypeValue({ type: 'dict' }),
     },
     schema: {
       params: [
@@ -578,14 +585,14 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
         },
       ],
       fn: schema,
-      description: 'Get schema information',
-      returnType: { type: 'list' },
+      annotations: { description: 'Get schema information' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
     mounts: {
       params: [],
       fn: mountsList,
-      description: 'Get list of mount metadata',
-      returnType: { type: 'list' },
+      annotations: { description: 'Get list of mount metadata' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
   };
 

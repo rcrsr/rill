@@ -49,9 +49,9 @@ function convertTreeToRillValues(
       typeof (value as { fn: unknown }).fn === 'function' &&
       'params' in value
     ) {
-      const rillFn = value as {
+      const rillFn = value as unknown as {
         fn: (...args: unknown[]) => unknown;
-        params: unknown[];
+        params: readonly unknown[];
       };
       result[key] = {
         __type: 'callable' as const,

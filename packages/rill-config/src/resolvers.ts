@@ -32,8 +32,8 @@ function convertTreeToRillValues(
       const rillFn = value as {
         fn: (...args: unknown[]) => unknown;
         params: unknown;
-        returnType?: unknown;
-        description?: string;
+        returnType: unknown;
+        annotations?: Record<string, RillValue>;
       };
       result[key] = {
         __type: 'callable' as const,
@@ -42,7 +42,7 @@ function convertTreeToRillValues(
         fn: rillFn.fn,
         params: rillFn.params,
         returnType: rillFn.returnType,
-        description: rillFn.description,
+        annotations: rillFn.annotations ?? {},
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(

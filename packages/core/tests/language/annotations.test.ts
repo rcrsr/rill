@@ -1152,15 +1152,13 @@ describe('Rill Runtime: Annotations', () => {
       await expect(run(script)).rejects.toThrow(/Annotation 'first' not found/);
     });
 
-    it('unannotated block-closure .^key errors (EC-2)', async () => {
-      // Block-closure with no annotation: accessing .^key throws
+    it('unannotated block-closure .^description returns empty record (EC-3)', async () => {
+      // Block-closure with no annotation: ^description returns {} rather than throwing
       const script = `
         { $ * 2 } => $fn
         $fn.^description
       `;
-      await expect(run(script)).rejects.toThrow(
-        /Annotation 'description' not found/
-      );
+      expect(await run(script)).toEqual({});
     });
 
     it('nested closure annotation not found (EC-6)', async () => {

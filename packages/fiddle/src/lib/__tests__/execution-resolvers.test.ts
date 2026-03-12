@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { anyTypeValue } from '@rcrsr/rill';
 import type { SchemeResolver, RillFunction } from '@rcrsr/rill';
 import {
   buildFiddleRuntimeOptions,
@@ -350,6 +351,7 @@ describe('executeRill', () => {
           },
         ],
         fn: (args) => args[0]!,
+        returnType: anyTypeValue,
       };
       const config: FiddleResolverConfig = {
         resolvers: { ext: valueResolver('resolved-ext') },
@@ -391,6 +393,7 @@ describe('executeRill', () => {
           },
         ],
         fn: (args) => args[0]!,
+        returnType: anyTypeValue,
       };
       const config: FiddleResolverConfig = {
         resolvers: { ext: valueResolver('boundary-value') },

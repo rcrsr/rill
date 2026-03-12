@@ -90,9 +90,6 @@ export function assertType(
     variables: new Map(),
     variableTypes: new Map(),
     functions: new Map(),
-    methods: new Map(),
-    methodReceiverTypes: new Map(),
-    methodParams: new Map(),
     callbacks: { onLog: () => {} },
     pipeValue: null,
     parent: undefined,
@@ -107,6 +104,7 @@ export function assertType(
     resolvers: new Map(),
     resolverConfigs: new Map(),
     resolvingSchemes: new Set(),
+    typeMethodDicts: new Map(),
   };
 
   const evaluator = getEvaluator(minimalContext);

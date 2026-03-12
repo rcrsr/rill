@@ -395,7 +395,7 @@ Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruc
 
 ## Annotation Reflection
 
-Access annotation values using `.^key` syntax. Annotations attach to closures. The key `type` is special-cased and works on any value — it returns the structural type.
+Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value — it returns the structural type.
 
 ### `.^key` Dispatch Table
 
@@ -403,7 +403,7 @@ Access annotation values using `.^key` syntax. Annotations attach to closures. T
 |-------|-----|--------|
 | Any value | `type` | Structural type value via `.^type` |
 | Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
-| Closure | any other key | Closure annotation value |
+| Any callable | any other key | Callable annotation value |
 | Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
 
 ```rill
@@ -508,8 +508,8 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 | Key | Status | Reason |
 |-----|--------|--------|
 | `type` | Reserved | Intercepted at evaluation time for any value |
-| `input` | Reserved | Reserved for future Closure Shapes feature |
-| `output` | Reserved | Reserved for future Closure Shapes feature |
+| `input` | Active | Intercepted on any callable; returns parameter shape as `RillOrdered` |
+| `output` | Active | Intercepted on any callable; returns declared return type as `RillTypeValue` |
 | `description` | User-defined | Not reserved; common metadata key |
 | `enum` | User-defined | Not reserved; common metadata key |
 | `default` | User-defined | Not reserved; common metadata key |

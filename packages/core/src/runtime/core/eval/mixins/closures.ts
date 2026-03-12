@@ -71,7 +71,13 @@ import {
   validateCallableArgs,
   paramsToStructuralType,
 } from '../../callable.js';
-import { getVariable, pushCallFrame, popCallFrame } from '../../context.js';
+import {
+  getVariable,
+  pushCallFrame,
+  popCallFrame,
+  UNVALIDATED_METHOD_PARAMS,
+  UNVALIDATED_METHOD_RECEIVERS,
+} from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
 import type { RillValue, RillTypeValue } from '../../values.js';
 import {
@@ -83,6 +89,7 @@ import {
   inferStructuralType,
   structuralTypeMatches,
   formatStructuralType,
+  anyTypeValue,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -208,8 +215,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
 
       // Validate arguments for typed ApplicationCallable (task 1.5)
-      // Only validate if callable has params metadata (not undefined)
-      // ApplicationCallable from callable(): params is undefined (untyped, skip validation)
+      // Skip when params is undefined (untyped callable() factory).
+      // Explicitly registered zero-param callables have params: [] and still validate.
       if (isApplicationCallable(callable) && callable.params !== undefined) {
         validateCallableArgs(
           effectiveArgs,
@@ -343,13 +350,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const result = await (this as any).evaluateBodyExpression(
           callable.body
         );
-        // IR-4: Assert return value against declared returnShape (AC-14, AC-15, AC-16)
-        if (callable.returnShape !== undefined) {
+        // IR-4: Assert return value against declared returnType (AC-14, AC-15, AC-16)
+        if (callable.returnType.typeName !== 'any') {
           // EC-4: Type assertion — value must match the declared scalar type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any).assertType(
             result,
-            callable.returnShape.structure,
+            callable.returnType.structure,
             callLocation
           );
         }
@@ -381,7 +388,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (hasSpread) {
         const isUntypedBuiltin =
           typeof fn === 'function' ||
-          (isApplicationCallable(fn) && fn.params === undefined);
+          (isApplicationCallable(fn) && (fn.params?.length ?? 0) === 0);
         if (isUntypedBuiltin) {
           // EC-10: built-in with no param metadata — spread not supported
           throw new RuntimeError(
@@ -426,17 +433,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const args = await this.evaluateArgs(node.args);
 
-      // Add pipe value to empty args list UNLESS function has typed params with length 0
-      // (typed functions with params: [] explicitly declare zero parameters)
+      // Add pipe value to empty args list.
+      // Empty params means "untyped" (callable() factory), not zero-param typed.
+      // No typed zero-param host functions currently exist, so always pass pipe value.
       if (args.length === 0 && this.ctx.pipeValue !== null) {
-        const fnHasTypedZeroParams =
-          typeof fn === 'object' &&
-          'params' in fn &&
-          fn.params !== undefined &&
-          fn.params.length === 0;
-        if (!fnHasTypedZeroParams) {
-          args.push(this.ctx.pipeValue);
-        }
+        args.push(this.ctx.pipeValue);
       }
 
       // Observability: onHostCall before execution
@@ -455,6 +456,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               kind: 'runtime' as const,
               fn,
               isProperty: false,
+              params: [],
+              annotations: {},
+              returnType: anyTypeValue,
             };
             return this.invokeCallable(
               callable,
@@ -518,7 +522,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           __type: 'callable' as const,
           kind: 'application' as const,
           fn,
-          params: undefined,
+          params: [],
+          annotations: {},
+          returnType: anyTypeValue,
           isProperty: false,
         };
       } else {
@@ -531,11 +537,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Pipe/branch context: pipe value present → invoke with it as implicit argument
-      const fnHasTypedZeroParams =
-        appCallable.params !== undefined && appCallable.params.length === 0;
-      const args: RillValue[] = fnHasTypedZeroParams
-        ? []
-        : [this.ctx.pipeValue];
+      // Empty params means "untyped" (callable() factory), not zero-param typed.
+      // No zero-param host functions currently exist, so always pass the pipe value.
+      const args: RillValue[] = [this.ctx.pipeValue];
       return this.invokeCallable(
         appCallable,
         args,
@@ -804,6 +808,40 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const args = await this.evaluateArgs(node.args);
 
+      // §9.3: Resolve method via typeMethodDicts (type method takes priority over dict key)
+      // AC-27: Type method has priority over dict value key.
+      const typeName = inferType(receiver);
+      const typeDict = this.ctx.typeMethodDicts.get(typeName);
+      const typeMethod = typeDict?.[node.name];
+
+      if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
+        // AC-24 (EC-7): validate method args via typeMethod.params when set.
+        // Methods in UNVALIDATED_METHOD_PARAMS handle their own arg validation
+        // with specific error messages; skip generic validation for them.
+        if (
+          !UNVALIDATED_METHOD_PARAMS.has(node.name) &&
+          typeMethod.params !== undefined &&
+          typeMethod.params.length > 0
+        ) {
+          validateCallableArgs(
+            args,
+            typeMethod.params,
+            node.name,
+            this.getNodeLocation(node)
+          );
+        }
+        // buildMethodEntry wraps fn(args) where args[0] = receiver and args[1..] = method args
+        // Invoke fn directly to preserve the receiver-as-first-arg contract without
+        // triggering invokeCallable's arity validation (params counts method args only)
+        const result = typeMethod.fn(
+          [receiver, ...args],
+          this.ctx,
+          this.getNodeLocation(node)
+        );
+        return result instanceof Promise ? await result : result;
+      }
+
+      // Dict-bound closure lookup: only reached when method not in type dict
       if (isDict(receiver)) {
         const dictValue = receiver[node.name];
         if (dictValue !== undefined && isCallable(dictValue)) {
@@ -816,7 +854,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
 
-      // Fall back to property access on dict (no-arg only), before built-in lookup
+      // Property access on dict (no-arg only): only reached when method not in type dict
       if (
         isDict(receiver) &&
         args.length === 0 &&
@@ -825,57 +863,61 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return receiver[node.name] as RillValue;
       }
 
-      const method = this.ctx.methods.get(node.name);
-      if (!method) {
-        // EC-5: Unknown dot property on type value raises RILL-R009
-        if (isTypeValue(receiver)) {
-          throw new RuntimeError(
-            'RILL-R009',
-            `Property '${node.name}' not found on type value (available: name, signature)`,
-            this.getNodeLocation(node),
-            { property: node.name, type: 'type value' }
-          );
-        }
+      // EC-5: Unknown dot property on type value raises RILL-R009
+      if (isTypeValue(receiver)) {
         throw new RuntimeError(
-          'RILL-R007',
-          `Unknown method: ${node.name}`,
+          'RILL-R009',
+          `Property '${node.name}' not found on type value (available: name, signature)`,
           this.getNodeLocation(node),
-          { methodName: node.name }
+          { property: node.name, type: 'type value' }
         );
       }
 
-      // AC-14: enforce receiverTypes constraint before invoking method
-      const allowedReceivers = this.ctx.methodReceiverTypes.get(node.name);
-      if (allowedReceivers !== undefined && allowedReceivers.length > 0) {
-        const receiverType = inferType(receiver);
-        if (!allowedReceivers.includes(receiverType)) {
+      // RILL-R003: method exists on other types but not this receiver's type.
+      // Methods in UNVALIDATED_METHOD_RECEIVERS handle their own receiver validation
+      // with specific error messages; skip generic RILL-R003 for them and let the
+      // method body run its own check (they exist in at least one type dict).
+      if (!UNVALIDATED_METHOD_RECEIVERS.has(node.name)) {
+        const supportedTypes: string[] = [];
+        for (const [dictType, dict] of this.ctx.typeMethodDicts) {
+          if (dict[node.name] !== undefined) {
+            supportedTypes.push(dictType);
+          }
+        }
+        if (supportedTypes.length > 0) {
           throw new RuntimeError(
             'RILL-R003',
-            `Method '${node.name}' not supported on ${receiverType}; supported: ${allowedReceivers.join(', ')}`,
+            `Method '${node.name}' not supported on ${typeName}; supported: ${supportedTypes.join(', ')}`,
             this.getNodeLocation(node),
-            { methodName: node.name, receiverType }
+            { methodName: node.name, receiverType: typeName }
           );
+        }
+      } else {
+        // UNVALIDATED_METHOD_RECEIVERS: dispatch to the method in ANY type dict so the
+        // method body can run its own custom receiver validation and error message.
+        for (const [, dict] of this.ctx.typeMethodDicts) {
+          const fallbackMethod = dict[node.name];
+          if (
+            fallbackMethod !== undefined &&
+            isApplicationCallable(fallbackMethod)
+          ) {
+            const result = fallbackMethod.fn(
+              [receiver, ...args],
+              this.ctx,
+              this.getNodeLocation(node)
+            );
+            return result instanceof Promise ? await result : result;
+          }
         }
       }
 
-      // AC-15: validate method arg types against parsed signature params
-      const mParams = this.ctx.methodParams.get(node.name);
-      if (mParams !== undefined) {
-        validateCallableArgs(
-          args,
-          mParams,
-          node.name,
-          this.getNodeLocation(node)
-        );
-      }
-
-      const result = method(
-        receiver,
-        args,
-        this.ctx,
-        this.getNodeLocation(node)
+      // EC-1: Method not found on any type dict → RILL-R007
+      throw new RuntimeError(
+        'RILL-R007',
+        `Unknown method: ${node.name} on type ${typeName}`,
+        this.getNodeLocation(node),
+        { methodName: node.name, typeName }
       );
-      return result instanceof Promise ? await result : result;
     }
 
     /**
@@ -921,11 +963,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Evaluate annotation reflection access: .^key
-     * Resolves annotation metadata from ScriptCallable values.
+     * Resolves annotation metadata from callable values.
      *
-     * Only ScriptCallable values support annotation reflection.
-     * Throws RUNTIME_TYPE_ERROR for non-closure targets.
-     * Throws RUNTIME_UNDEFINED_ANNOTATION for missing annotations.
+     * All 3 callable kinds (script, application, runtime) support annotation reflection.
+     * Throws RILL-R003 for non-callable, non-type-value targets.
+     * Throws RILL-R008 for unknown annotation keys or type value receivers.
      */
     protected async evaluateAnnotationAccess(
       value: RillValue,
@@ -942,8 +984,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return typeValue;
       }
 
-      // IR-5: .^name on type values raises RILL-R008 (type values are not annotation containers)
-      if (isTypeValue(value) && key === 'name') {
+      // EC-5: type values are not annotation containers — any ^key raises RILL-R008
+      if (isTypeValue(value)) {
         throw new RuntimeError(
           'RILL-R008',
           `Annotation access not supported on type values`,
@@ -952,62 +994,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // IR-2/IR-5: .^input returns the input shape for callable values
-      // Params are converted from internal tuples to RillOrdered so the
-      // value survives rill's homogeneous-list constraint.
-      if (key === 'input') {
-        if (isScriptCallable(value)) {
-          const shape = value.inputShape;
-          if (shape.type === 'closure') {
-            return {
-              type: shape.type,
-              params: createOrdered(shape.params as [string, RillValue][]),
-              ret:
-                value.returnShape !== undefined
-                  ? (value.returnShape as RillTypeValue).structure
-                  : shape.ret,
-            } as unknown as RillValue;
-          }
-          return shape as unknown as RillValue;
-        }
-        if (isApplicationCallable(value)) {
-          if (value.params === undefined) {
-            // IR-5: untyped host function — no shape available
-            return false;
-          }
-          // ApplicationCallable.params is RillParam[]; pass directly to paramsToStructuralType
-          const shape = paramsToStructuralType(value.params);
-          if (shape.type === 'closure') {
-            return {
-              type: shape.type,
-              params: createOrdered(shape.params as [string, RillValue][]),
-              ret: shape.ret,
-            } as unknown as RillValue;
-          }
-          return shape as unknown as RillValue;
-        }
-        // Non-callable: fall through to existing RILL-R003 guard below
-      }
-
-      // IR-3: .^output returns the declared output contract for callable values
-      if (key === 'output') {
-        if (isScriptCallable(value)) {
-          if (value.returnShape !== undefined) {
-            return value.returnShape;
-          }
-          // No :type-target declared — return type value `any` (AC-17, AC-18, AC-19)
-          const anyTypeValue: RillTypeValue = Object.freeze({
-            __rill_type: true as const,
-            typeName: 'any',
-            structure: { type: 'any' as const },
-          });
-          return anyTypeValue;
-        }
-        // Non-callable: fall through to existing RILL-R003 guard below
-      }
-
-      // Only ScriptCallable supports annotation reflection
-      if (!isScriptCallable(value)) {
+      // Non-callable values do not support annotation reflection
+      if (!isCallable(value)) {
         throw new RuntimeError(
           'RILL-R003',
           `annotation not found: ^${key}`,
@@ -1016,10 +1004,41 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Access annotation from ScriptCallable
+      // IR-3: ^description reads from callable.annotations["description"], returns {} if absent
+      if (key === 'description') {
+        return value.annotations['description'] ?? {};
+      }
+
+      // IR-3: ^input computes from callable.params via paramsToStructuralType() for all kinds
+      // Params are converted from internal tuples to RillOrdered so the
+      // value survives rill's homogeneous-list constraint.
+      if (key === 'input') {
+        // Untyped host callables have params set to undefined at runtime (see callable() factory)
+        if (value.params === undefined) {
+          return false;
+        }
+        const shape = paramsToStructuralType(value.params);
+        if (shape.type === 'closure') {
+          return {
+            type: shape.type,
+            params: createOrdered(shape.params as [string, RillValue][]),
+            // Use callable.returnType.structure so :type-target return annotation is reflected
+            // Fall back to { type: 'any' } for callables without returnType (legacy construction)
+            ret: value.returnType?.structure ?? { type: 'any' as const },
+          } as unknown as RillValue;
+        }
+        return shape as unknown as RillValue;
+      }
+
+      // IR-3: ^output reads callable.returnType directly for all kinds
+      if (key === 'output') {
+        return value.returnType;
+      }
+
+      // Access annotation from callable.annotations for all callable kinds
       const annotationValue = value.annotations[key];
 
-      // Throw if annotation not found (caller handles ?? coalescing)
+      // EC-4: unknown annotation key throws RILL-R008
       if (annotationValue === undefined) {
         throw new RuntimeError(
           'RILL-R008',
@@ -1219,22 +1238,23 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate .params property access on closures.
-     * Builds dict from closure parameter metadata.
+     * Evaluate .params property access on callables.
+     * Builds dict from callable parameter metadata.
      *
      * Returns dict keyed by parameter name, where each entry is a dict with:
      * - type: string (if param has type annotation)
      * - __annotations: dict (if param has parameter-level annotations)
      *
-     * Empty params closure returns empty dict [].
-     * Throws RUNTIME_TYPE_ERROR for non-closure targets.
+     * Empty params callable returns empty dict [].
+     * Works on all 3 callable kinds via CallableBase.params.
+     * Throws RILL-R003 for non-callable targets.
      */
     protected async evaluateParamsProperty(
       callable: RillValue,
       location: SourceLocation
     ): Promise<Record<string, RillValue>> {
-      // Only ScriptCallable supports .params reflection
-      if (!isScriptCallable(callable)) {
+      // All callable kinds support .params reflection via CallableBase.params
+      if (!isCallable(callable)) {
         throw new RuntimeError(
           'RILL-R003',
           `Cannot access .params on ${inferType(callable)}`,
@@ -1243,10 +1263,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Build params dict from ScriptCallable.params and paramAnnotations
+      // Build params dict from CallableBase.params — works for all 3 callable kinds
       const paramsDict: Record<string, RillValue> = {};
 
-      for (const param of callable.params) {
+      for (const param of callable.params ?? []) {
         const paramEntry: Record<string, RillValue> = {};
 
         // Add type field if param has type annotation
@@ -1255,12 +1275,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         // Add __annotations field if param has parameter-level annotations
-        const paramAnnotations = callable.paramAnnotations[param.name];
-        if (
-          paramAnnotations !== undefined &&
-          Object.keys(paramAnnotations).length > 0
-        ) {
-          paramEntry['__annotations'] = paramAnnotations;
+        if (Object.keys(param.annotations).length > 0) {
+          paramEntry['__annotations'] = param.annotations;
         }
 
         paramsDict[param.name] = paramEntry;

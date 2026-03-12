@@ -51,7 +51,6 @@ import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import { BUILTIN_METHODS } from '../../../ext/builtins.js';
 
 /**
  * VariablesMixin implementation.
@@ -361,7 +360,10 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 );
               }
             }
-          } else if (field in BUILTIN_METHODS) {
+          } else if (
+            this.ctx.typeMethodDicts.get(inferType(value))?.[field] !==
+            undefined
+          ) {
             // Field is a built-in method - invoke it
             // Create a synthetic MethodCallNode with no args and call evaluateMethod
             const methodNode: MethodCallNode = {

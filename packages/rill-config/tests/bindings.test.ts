@@ -7,6 +7,7 @@ import {
   buildExtensionBindings,
 } from '@rcrsr/rill-config';
 import type { ContextFieldSchema, NestedExtConfig } from '@rcrsr/rill-config';
+import { rillTypeToTypeValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -32,6 +33,7 @@ describe('buildExtensionBindings', () => {
               annotations: {},
             },
           ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
         },
       },
     };
@@ -47,6 +49,7 @@ describe('buildExtensionBindings', () => {
           fn1: {
             fn: async () => null,
             params: [],
+            returnType: rillTypeToTypeValue({ type: 'any' }),
           },
         },
       },
@@ -70,6 +73,7 @@ describe('buildExtensionBindings', () => {
               annotations: { description: 'The name to greet' },
             },
           ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
         },
       },
     };
@@ -91,7 +95,7 @@ describe('buildExtensionBindings', () => {
               annotations: {},
             },
           ],
-          returnType: { type: 'string' },
+          returnType: rillTypeToTypeValue({ type: 'string' }),
         },
       },
     };

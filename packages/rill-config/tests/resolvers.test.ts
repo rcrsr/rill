@@ -113,7 +113,7 @@ describe('buildResolvers', () => {
               },
             ],
             returnType: { type: 'string' },
-            description: 'Greets by name',
+            annotations: { description: 'Greets by name' },
           },
         },
       };
@@ -128,7 +128,7 @@ describe('buildResolvers', () => {
       expect(isApplicationCallable(greetCallable)).toBe(true);
       const ac = greetCallable as unknown as ApplicationCallable;
       expect(ac.returnType).toEqual({ type: 'string' });
-      expect(ac.description).toBe('Greets by name');
+      expect(ac.annotations['description']).toBe('Greets by name');
     });
   });
 });

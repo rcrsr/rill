@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-03-12
+
+### Breaking Changes
+
+- **`RillFunction` interface change** — `description?: string` replaced by `annotations?: Record<string, RillValue>`. `returnType` changed from optional `RillType` to required `RillTypeValue`. Extension authors must update all `RillFunction` implementations. See migration guide in `docs/integration-extensions.md`.
+- **Removed types** — `RillCallableSignature`, `RillFunctionSignature`, and `RillMethodSignature` removed from public exports. Use `RillFunction` and the unified callable reflection API instead.
+
+### Added
+
+- **Unified callable reflection** — `.^description`, `.^input`, and `.^output` now work on all callable kinds: script closures, application callables, and runtime functions. Reflection is consistent regardless of how a callable was created.
+- **Type method dicts** — Built-in methods now stored in per-type `typeMethodDicts` on `RuntimeContext`. Host applications can inspect or override type-specific methods at runtime.
+
+### Migration
+
+Extension authors upgrading from `0.13.x` to `0.14.x` must update `RillFunction` registrations:
+
+1. Replace `description?: string` with `annotations?: Record<string, RillValue>`
+2. Add a required `returnType: RillTypeValue` field to each function definition
+3. Remove any imports of `RillCallableSignature`, `RillFunctionSignature`, or `RillMethodSignature`
+
+See `docs/integration-extensions.md` for a step-by-step migration guide with code examples.
+
 ## [0.13.3] - 2026-03-11
 
 ### Changed

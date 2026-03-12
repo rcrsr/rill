@@ -33,7 +33,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, generateManifest } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRuntimeContext,
+  generateManifest,
+  rillTypeToTypeValue,
+} from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 
@@ -52,6 +57,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -65,6 +71,7 @@ describe('Rill Runtime: Manifest Generation', () => {
           fn: {
             params: [],
             fn: () => null,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -89,6 +96,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -117,6 +125,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -155,6 +164,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
           beta: {
             params: [
@@ -166,10 +176,12 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
           gamma: {
             params: [],
             fn: () => null,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -195,7 +207,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => `Hello ${args[0]}`,
-            returnType: { type: 'string' },
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -217,6 +229,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -238,7 +251,8 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => `Hello ${args[0]}`,
-            description: 'Greets a user',
+            annotations: { description: 'Greets a user' },
+            returnType: anyTypeValue,
           },
         },
       });
@@ -248,28 +262,45 @@ describe('Rill Runtime: Manifest Generation', () => {
     });
   });
 
-  describe('AC-30: Signature-string entry passes through original string byte-identically', () => {
-    it('signature-registered function appears in manifest with original signature string unchanged', () => {
-      const originalSig = '|message: string|:string';
+  describe('AC-30: Structured entry serializes to closure signature format', () => {
+    it('structured function appears in manifest with params and return type', () => {
       const ctx = createRuntimeContext({
         functions: {
           echo: {
-            signature: originalSig,
+            params: [
+              {
+                name: 'message',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain(`"echo": ${originalSig}`);
+      expect(manifest).toContain('"echo"');
+      expect(manifest).toContain('message: string');
+      expect(manifest).toContain(':string');
     });
 
-    it('signature with description appears in manifest (AC-38)', () => {
+    it('structured function with description appears in manifest (AC-38)', () => {
       const ctx = createRuntimeContext({
         functions: {
           echo: {
-            signature:
-              '^(description: "Echoes the message") |message: string|:string',
+            params: [
+              {
+                name: 'message',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
+            annotations: { description: 'Echoes the message' },
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -278,8 +309,8 @@ describe('Rill Runtime: Manifest Generation', () => {
     });
   });
 
-  describe('AC-31: Mixed registrations produce correct entries for both forms', () => {
-    it('manifest contains entries for both structured and signature functions', () => {
+  describe('AC-31: Multiple structured registrations produce correct entries', () => {
+    it('manifest contains entries for both structured functions', () => {
       const ctx = createRuntimeContext({
         functions: {
           structured: {
@@ -292,17 +323,26 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
-            description: 'A structured function',
+            annotations: { description: 'A structured function' },
+            returnType: anyTypeValue,
           },
-          sigFn: {
-            signature: '|y: string|:string',
+          typed: {
+            params: [
+              {
+                name: 'y',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('"structured"');
-      expect(manifest).toContain('"sigFn"');
+      expect(manifest).toContain('"typed"');
       expect(manifest).toContain('x: number');
       expect(manifest).toContain('y: string');
     });
@@ -328,6 +368,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
+            returnType: anyTypeValue,
           },
         },
       });
@@ -349,6 +390,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -365,6 +407,7 @@ describe('Rill Runtime: Manifest Generation', () => {
           ping: {
             params: [],
             fn: () => 'pong',
+            returnType: anyTypeValue,
           },
         },
       });
@@ -378,6 +421,7 @@ describe('Rill Runtime: Manifest Generation', () => {
           ping: {
             params: [],
             fn: () => 'pong',
+            returnType: anyTypeValue,
           },
         },
       });
@@ -401,6 +445,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -421,6 +466,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -443,6 +489,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -465,6 +512,7 @@ describe('Rill Runtime: Manifest Generation', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });

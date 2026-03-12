@@ -157,7 +157,14 @@ describe('AnnotationsMixin', () => {
         run('^(limit: 10) list[1, 2, 3] -> each { fail("boom") }', {
           functions: {
             fail: {
-              params: [{ name: 'msg', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'msg',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => {
                 throw new RuntimeError('RILL-R004', String(args[0]), {
                   line: 1,
@@ -183,7 +190,14 @@ describe('AnnotationsMixin', () => {
         run('^(limit: 100) "test" -> fail()', {
           functions: {
             fail: {
-              params: [],
+              params: [
+                {
+                  name: 'val',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: () => {
                 throw new RuntimeError('RILL-R004', 'Function failed', {
                   line: 1,

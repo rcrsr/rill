@@ -9,7 +9,7 @@ import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { RuntimeError } from '@rcrsr/rill';
+import { RuntimeError, rillTypeToTypeValue } from '@rcrsr/rill';
 
 let _executeErrorOverride: Error | null = null;
 
@@ -169,7 +169,15 @@ describe('runScript', () => {
   describe('ext drilling', () => {
     function makeExtTree(): NestedExtConfig {
       return {
-        llm: { openai: { message: { fn: async () => true, params: [] } } },
+        llm: {
+          openai: {
+            message: {
+              fn: async () => true,
+              params: [],
+              returnType: rillTypeToTypeValue({ type: 'any' }),
+            },
+          },
+        },
       };
     }
 

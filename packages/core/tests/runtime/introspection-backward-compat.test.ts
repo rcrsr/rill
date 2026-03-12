@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   getFunctions,
   type RillFunction,
@@ -34,6 +35,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => `Hello, ${args[0]}!`,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -60,6 +62,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
+            returnType: anyTypeValue,
           },
         },
       });
@@ -91,6 +94,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               }, // With description
             ],
             fn: (args) => String(args[0]).replace('{}', String(args[1])),
+            returnType: anyTypeValue,
           },
         },
       });
@@ -118,6 +122,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => (args[0] as number) * 2,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -138,6 +143,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
         },
       });
@@ -168,6 +174,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => (args[0] as number) + (args[1] as number),
+            returnType: anyTypeValue,
           },
         },
       });
@@ -211,6 +218,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               const flag = args[2] as boolean;
               return flag ? input.repeat(count) : input;
             },
+            returnType: anyTypeValue,
           },
         },
       });
@@ -245,6 +253,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => `${args[0]} ${args[1]} ${args[2]}`,
+            returnType: anyTypeValue,
           },
         },
       });
@@ -260,6 +269,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
 
     it('TypeScript allows omitting description fields', () => {
       // This test verifies TypeScript compilation succeeds
+      // Description now lives in annotations.description, not as a top-level field
       const funcDef: RillFunction = {
         params: [
           {
@@ -276,11 +286,12 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
           },
         ],
         fn: (args) => args[0],
-        // No description field - should compile without error
+        returnType: anyTypeValue,
+        // No annotations field - should compile without error
       };
 
-      expect(funcDef.description).toBeUndefined();
-      expect(funcDef.params[0]?.description).toBeUndefined();
+      // annotations is optional on RillFunction; if absent, description is absent
+      expect(funcDef.annotations).toBeUndefined();
     });
 
     it('handles mix of old and new style function definitions', async () => {
@@ -296,7 +307,8 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => args[0],
-            // Old style: no description
+            returnType: anyTypeValue,
+            // No annotations - old style
           },
           new: {
             params: [
@@ -308,7 +320,8 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => args[0],
-            description: 'New style function with docs',
+            annotations: { description: 'New style function with docs' },
+            returnType: anyTypeValue,
           },
         },
       });
@@ -327,6 +340,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
           new: {
             params: [
@@ -338,7 +352,8 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => args[0],
-            description: 'New style function with docs',
+            annotations: { description: 'New style function with docs' },
+            returnType: anyTypeValue,
           },
         },
       });

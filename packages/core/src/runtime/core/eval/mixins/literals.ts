@@ -45,6 +45,7 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillType, RillValue } from '../../values.js';
 import {
+  anyTypeValue,
   formatValue,
   inferElementType,
   isReservedMethod,
@@ -53,7 +54,6 @@ import {
 } from '../../values.js';
 import {
   isCallable,
-  paramsToStructuralType,
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
@@ -954,15 +954,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const isProperty = rillParams.length === 0;
-      const inputShape = paramsToStructuralType(rillParams);
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
       // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
-      // Absent → returnShape remains undefined (omission implies :any, AC-17, AC-18, AC-19).
-      let returnShape: ScriptCallable['returnShape'] = undefined;
+      // Absent → returnType defaults to anyTypeValue (omission implies :any, AC-17, AC-18, AC-19).
+      let returnType = anyTypeValue;
       if (node.returnTypeTarget !== undefined) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        returnShape = (this as any).resolveTypeRef(
+        returnType = (this as any).resolveTypeRef(
           node.returnTypeTarget,
           (name: string) => getVariable(this.ctx, name)
         );
@@ -977,8 +976,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isProperty,
         annotations,
         paramAnnotations,
-        inputShape,
-        returnShape,
+        returnType,
       };
     }
 
@@ -1008,9 +1006,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const annotations = this.ctx.immediateAnnotation ?? {};
       this.ctx.immediateAnnotation = undefined;
 
-      const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-      const inputShape = paramsToStructuralType(rillParams);
-
       return {
         __type: 'callable',
         kind: 'script',
@@ -1019,9 +1014,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty: false,
         annotations,
-        paramAnnotations,
-        inputShape,
-        returnShape: undefined,
+        paramAnnotations: {},
+        returnType: anyTypeValue,
       };
     }
 

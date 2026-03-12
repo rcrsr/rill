@@ -13,7 +13,10 @@ import type {
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import type { RillValue } from '../../runtime/core/values.js';
+import {
+  rillTypeToTypeValue,
+  type RillValue,
+} from '../../runtime/core/values.js';
 import {
   type MountConfig,
   resolvePath,
@@ -587,8 +590,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: read,
-      description: 'Read file contents',
-      returnType: { type: 'string' },
+      annotations: { description: 'Read file contents' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     write: {
       params: [
@@ -612,8 +615,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: write,
-      description: 'Write file, replacing if exists',
-      returnType: { type: 'string' },
+      annotations: { description: 'Write file, replacing if exists' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     append: {
       params: [
@@ -637,8 +640,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: append,
-      description: 'Append content to file',
-      returnType: { type: 'string' },
+      annotations: { description: 'Append content to file' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     list: {
       params: [
@@ -656,8 +659,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: list,
-      description: 'List directory contents',
-      returnType: { type: 'list' },
+      annotations: { description: 'List directory contents' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
     find: {
       params: [
@@ -675,8 +678,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: find,
-      description: 'Recursive file search',
-      returnType: { type: 'list' },
+      annotations: { description: 'Recursive file search' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
     exists: {
       params: [
@@ -694,8 +697,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: exists,
-      description: 'Check file existence',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Check file existence' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     remove: {
       params: [
@@ -713,8 +716,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: remove,
-      description: 'Delete file',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Delete file' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     stat: {
       params: [
@@ -732,8 +735,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: stat,
-      description: 'Get file metadata',
-      returnType: { type: 'dict' },
+      annotations: { description: 'Get file metadata' },
+      returnType: rillTypeToTypeValue({ type: 'dict' }),
     },
     mkdir: {
       params: [
@@ -751,8 +754,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: mkdir,
-      description: 'Create directory',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Create directory' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     copy: {
       params: [
@@ -776,8 +779,8 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: copy,
-      description: 'Copy file within mount',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Copy file within mount' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     move: {
       params: [
@@ -801,14 +804,14 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
         },
       ],
       fn: move,
-      description: 'Move file within mount',
-      returnType: { type: 'bool' },
+      annotations: { description: 'Move file within mount' },
+      returnType: rillTypeToTypeValue({ type: 'bool' }),
     },
     mounts: {
       params: [],
       fn: mountsList,
-      description: 'List configured mounts',
-      returnType: { type: 'list' },
+      annotations: { description: 'List configured mounts' },
+      returnType: rillTypeToTypeValue({ type: 'list' }),
     },
   };
 }

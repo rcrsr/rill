@@ -10,6 +10,7 @@ import {
   execute,
   createRuntimeContext,
   callable,
+  rillTypeToTypeValue,
   AbortError,
   type RillValue,
 } from '@rcrsr/rill';
@@ -46,6 +47,8 @@ const ctx = createRuntimeContext({
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args[0]);
       },
+      annotations: { description: 'Send a prompt to the LLM and return the response' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
   },
 
@@ -97,8 +100,9 @@ export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicatio
 export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
 
 // Host function types
-export type { RillParam, RillFunction, RillFunctionSignature, RillMethodSignature, RillCallableSignature };
+export type { RillParam, RillFunction };
 export type { RillType };
+export type { RillTypeValue };
 export type { RillStructuralType };  // deprecated alias for RillType
 
 // Value types
@@ -504,14 +508,14 @@ interface RillParam {
 
 ## RillFunction
 
-`RillFunction` is the structured registration form for host functions.
+`RillFunction` is the single registration path for all host functions.
 
 ```typescript
 interface RillFunction {
   readonly params: readonly RillParam[];
   readonly fn: CallableFn;
-  readonly description?: string;
-  readonly returnType?: RillType;
+  readonly annotations?: Record<string, RillValue>;
+  readonly returnType: RillTypeValue;
 }
 ```
 
@@ -519,64 +523,8 @@ interface RillFunction {
 |-------|------|-------------|
 | `params` | `readonly RillParam[]` | Parameter descriptors. Runtime validates arguments before calling `fn` |
 | `fn` | `CallableFn` | The function implementation |
-| `description` | `string \| undefined` | Human-readable function description |
-| `returnType` | `RillType \| undefined` | Declared return type. Runtime does NOT validate return values at call time |
-
----
-
-## RillCallableSignature
-
-Base interface for all callable signatures. Extends to `RillFunctionSignature` and `RillMethodSignature`.
-
-```typescript
-interface RillCallableSignature {
-  readonly signature: string;
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `signature` | `string` | Raw rill closure type annotation string. The runtime parses this into parameter descriptors at registration |
-
----
-
-## RillFunctionSignature
-
-Alternative registration form using a rill closure signature string. The runtime parses the signature into `RillParam[]` at registration.
-
-```typescript
-interface RillFunctionSignature extends RillCallableSignature {
-  readonly signature: string;   // rill closure type annotation string
-  readonly fn: CallableFn;
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `signature` | `string` | Inherited from `RillCallableSignature`. Raw rill closure type annotation string parsed at registration |
-| `fn` | `CallableFn` | The function implementation called when rill code invokes this function |
-
-Discriminated from `RillFunction` by presence of the `signature` field.
-
----
-
-## RillMethodSignature
-
-Registration form for built-in methods with receiver type constraints. The runtime only invokes the method when the pipe value matches one of the declared receiver types.
-
-```typescript
-interface RillMethodSignature extends RillCallableSignature {
-  readonly signature: string;
-  readonly method: RillMethod;
-  readonly receiverTypes: string[];
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `signature` | `string` | Inherited from `RillCallableSignature`. Raw rill closure type annotation string parsed at registration |
-| `method` | `RillMethod` | The method implementation called when rill code invokes this method on a matching receiver |
-| `receiverTypes` | `string[]` | Valid `RillTypeName` strings (e.g., `["string", "list"]`). The runtime only dispatches to this method when the receiver type matches |
+| `annotations` | `Record<string, RillValue> \| undefined` | Key-value metadata. `annotations.description` replaces the old `description` field. Optional; defaults to `{}` |
+| `returnType` | `RillTypeValue` | Declared return type. Required. Use `anyTypeValue` as the equivalent of "no constraint". Runtime does NOT validate return values at call time |
 
 ---
 

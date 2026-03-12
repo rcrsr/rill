@@ -28,7 +28,6 @@ function makeCallable(options: {
     defaultValue?: unknown;
     annotations?: Record<string, unknown>;
   }>;
-  paramAnnotations?: Record<string, Record<string, unknown>>;
 }): ScriptCallable {
   const params = (options.params ?? []).map((p) => ({
     name: p.name,
@@ -52,10 +51,6 @@ function makeCallable(options: {
       pipeValue: null,
     } as ScriptCallable['definingScope'],
     annotations: (options.annotations ?? {}) as Record<string, unknown>,
-    paramAnnotations: (options.paramAnnotations ?? {}) as Record<
-      string,
-      Record<string, unknown>
-    >,
     inputShape: { type: 'closure', params: [], ret: { type: 'any' } },
   } as unknown as ScriptCallable;
 }
@@ -140,19 +135,23 @@ describe('introspectHandler', () => {
       expect(result.params[0]?.type).toBe('any');
     });
 
-    it('reads param description from paramAnnotations', () => {
+    it('reads param description from param.annotations', () => {
       const closure = makeCallable({
-        params: [{ name: 'query', type: { type: 'string' } }],
-        paramAnnotations: { query: { description: 'The search query' } },
+        params: [
+          {
+            name: 'query',
+            type: { type: 'string' },
+            annotations: { description: 'The search query' },
+          },
+        ],
       });
       const result = introspectHandler(closure);
       expect(result.params[0]?.description).toBe('The search query');
     });
 
-    it('omits param description when paramAnnotations has no description', () => {
+    it('omits param description when param.annotations has no description', () => {
       const closure = makeCallable({
-        params: [{ name: 'count', type: { type: 'number' } }],
-        paramAnnotations: { count: {} },
+        params: [{ name: 'count', type: { type: 'number' }, annotations: {} }],
       });
       const result = introspectHandler(closure);
       expect(result.params[0]?.description).toBeUndefined();

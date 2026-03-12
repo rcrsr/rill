@@ -386,6 +386,8 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Cause:** Method called on value of wrong type. String methods require strings, list methods require lists, etc.
 
+**Exclusion:** `RILL-R003` is not triggered by `.^description`, `.^input`, or `.^output` on any callable kind. Annotation reflection operators work on all callable kinds (script, application, runtime) without raising this error.
+
 **Resolution:** Call method on correct type, or convert value before calling. Check method documentation for receiver type.
 
 **Example:**

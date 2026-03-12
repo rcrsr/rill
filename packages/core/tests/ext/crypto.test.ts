@@ -26,8 +26,13 @@ describe('crypto extension factory', () => {
       expect(ext.hash).toMatchObject({
         params: expect.any(Array),
         fn: expect.any(Function),
-        description: expect.any(String),
-        returnType: { type: 'string' },
+        annotations: expect.objectContaining({
+          description: expect.any(String),
+        }),
+        returnType: expect.objectContaining({
+          __rill_type: true,
+          structure: { type: 'string' },
+        }),
       });
     });
 

@@ -7,25 +7,34 @@
  * @internal - Not part of public API
  */
 
-import type {
-  RillFunctionSignature,
-  RillMethodSignature,
-} from '../core/callable.js';
+import type { RillFunction } from '../core/callable.js';
 import { callable, isCallable, isDict } from '../core/callable.js';
-import type { RillMethod, RuntimeContext } from '../core/types.js';
-import { RuntimeError } from '../../types.js';
+import type { RuntimeContext } from '../core/types.js';
+import { type SourceLocation, RuntimeError } from '../../types.js';
+import { parseSignatureRegistration } from '../../signature-parser.js';
 import {
+  anyTypeValue,
   deepEquals,
   formatValue,
   inferType,
   isEmpty,
   isRillIterator,
   isVector,
+  rillTypeToTypeValue,
   valueToJSON,
   type RillValue,
   type RillVector,
 } from '../core/values.js';
 import { invokeCallable } from '../core/eval/index.js';
+
+/** Internal type alias for built-in method implementations. */
+type RillMethod = (
+  receiver: RillValue,
+  args: RillValue[],
+  ctx: RuntimeContext,
+  location?: SourceLocation
+) => RillValue | Promise<RillValue>;
+
 // ============================================================
 // ITERATOR HELPERS
 // ============================================================
@@ -87,16 +96,32 @@ function makeDictIterator(
  * Check if a value is a rill iterator (dict with value, done, next fields).
  */
 
-export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
+export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   /** Identity function - returns its argument */
   identity: {
-    signature: '|value: any|:any',
+    params: [
+      {
+        name: 'value',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
     fn: (args) => args[0] ?? null,
   },
 
   /** Log a value and return it unchanged (passthrough) */
   log: {
-    signature: '|message: any|',
+    params: [
+      {
+        name: 'message',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
     fn: (args, ctx) => {
       const value = args[0] ?? null;
       const message = formatValue(value);
@@ -107,7 +132,15 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
 
   /** Convert any value to JSON string (throws RuntimeError RILL-R004 on closures, tuples, vectors) */
   json: {
-    signature: '|value: any|:string',
+    params: [
+      {
+        name: 'value',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: rillTypeToTypeValue({ type: 'string' }),
     fn: (args, _ctx, location) => {
       const value = args[0] ?? null;
       try {
@@ -129,7 +162,18 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * Dict: enumerate([a: 1]) -> [[index: 0, key: "a", value: 1]]
    */
   enumerate: {
-    signature: '|items: list | dict | string|:list',
+    params: [
+      {
+        name: 'items',
+        type: {
+          type: 'union',
+          members: [{ type: 'list' }, { type: 'dict' }, { type: 'string' }],
+        },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: rillTypeToTypeValue({ type: 'list' }),
     fn: (args) => {
       const input: RillValue = args[0] ?? null;
       if (Array.isArray(input)) {
@@ -152,7 +196,27 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * range(start, end, step=1) - generates [start, start+step, ...] up to (but not including) end
    */
   range: {
-    signature: '|start: number, stop: number, step: number = 1|:iterator',
+    params: [
+      {
+        name: 'start',
+        type: { type: 'number' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'stop',
+        type: { type: 'number' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'step',
+        type: { type: 'number' },
+        defaultValue: 1,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
     fn: (args, _ctx, location) => {
       const start = typeof args[0] === 'number' ? args[0] : 0;
       const end = typeof args[1] === 'number' ? args[1] : 0;
@@ -191,7 +255,21 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * repeat(value, count) - generates value repeated count times
    */
   repeat: {
-    signature: '|value: any, count: number|:iterator',
+    params: [
+      {
+        name: 'value',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'count',
+        type: { type: 'number' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
     fn: (args, _ctx, location) => {
       const value = args[0] ?? '';
       const count = typeof args[1] === 'number' ? Math.floor(args[1]) : 0;
@@ -230,7 +308,21 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunctionSignature> = {
    * Non-closure/non-list second arg throws RILL-R040 (EC-14).
    */
   chain: {
-    signature: '|value: any, transform: any|:any',
+    params: [
+      {
+        name: 'value',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'transform',
+        type: { type: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
       // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
       // Detect this by checking if there is exactly one arg and a pipe value is set.
@@ -296,782 +388,696 @@ function createComparisonMethod(
   };
 }
 
-// receiverTypes convention:
-//   - Declare explicit types (e.g. ['string', 'list']) when dispatch enforcement is sufficient.
-//   - Use [] when the method body performs its own type checking (e.g. works across
-//     multiple types with distinct branches, or produces a custom error message).
-export const BUILTIN_METHODS: Record<string, RillMethodSignature> = {
-  /** Get length of string or array */
-  len: {
-    signature: '||:number',
-    receiverTypes: ['string', 'list', 'dict'],
-    method: (receiver) => {
-      if (typeof receiver === 'string') return receiver.length;
-      if (Array.isArray(receiver)) return receiver.length;
-      if (receiver && typeof receiver === 'object') {
-        return Object.keys(receiver).length;
-      }
-      return 0;
-    },
-  },
+/**
+ * Build a RillFunction entry from a method body and its signature string.
+ * Wraps `method(receiver, args, ctx, location)` as `fn(args, ctx, location)`
+ * where `args[0]` is the receiver. Parses the signature to extract params and
+ * returnType so that task 1.4 can use them directly without re-parsing.
+ */
+function buildMethodEntry(
+  name: string,
+  signature: string,
+  method: RillMethod
+): RillFunction {
+  const parsed = parseSignatureRegistration(signature, name);
+  return {
+    params: parsed.params,
+    fn: (args, ctx, location) =>
+      method(args[0] ?? null, args.slice(1), ctx as RuntimeContext, location),
+    annotations:
+      parsed.description !== undefined
+        ? { description: parsed.description }
+        : {},
+    returnType:
+      parsed.returnType !== undefined
+        ? rillTypeToTypeValue(parsed.returnType)
+        : anyTypeValue,
+  };
+}
 
-  /** Trim whitespace from string */
-  trim: {
-    signature: '||:string',
-    receiverTypes: ['string'],
-    method: (receiver) => formatValue(receiver).trim(),
-  },
-
-  // === Element access methods ===
-
-  /** Get first element of array or first char of string */
-  head: {
-    signature: '||:any',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (Array.isArray(receiver)) {
-        if (receiver.length === 0) {
-          throw new RuntimeError(
-            'RILL-R002',
-            'Cannot get head of empty list',
-            location
-          );
-        }
-        return receiver[0]!;
-      }
-      if (typeof receiver === 'string') {
-        if (receiver.length === 0) {
-          throw new RuntimeError(
-            'RILL-R002',
-            'Cannot get head of empty string',
-            location
-          );
-        }
-        return receiver[0]!;
-      }
-      throw new RuntimeError(
-        'RILL-R003',
-        `head requires list or string, got ${inferType(receiver)}`,
-        location
-      );
-    },
-  },
-
-  /** Get last element of array or last char of string */
-  tail: {
-    signature: '||:any',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (Array.isArray(receiver)) {
-        if (receiver.length === 0) {
-          throw new RuntimeError(
-            'RILL-R002',
-            'Cannot get tail of empty list',
-            location
-          );
-        }
-        return receiver[receiver.length - 1]!;
-      }
-      if (typeof receiver === 'string') {
-        if (receiver.length === 0) {
-          throw new RuntimeError(
-            'RILL-R002',
-            'Cannot get tail of empty string',
-            location
-          );
-        }
-        return receiver[receiver.length - 1]!;
-      }
-      throw new RuntimeError(
-        'RILL-R003',
-        `tail requires list or string, got ${inferType(receiver)}`,
-        location
-      );
-    },
-  },
-
-  /** Get iterator at first position for any collection */
-  first: {
-    signature: '||:iterator',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      // For iterators, return as-is (identity)
-      if (isRillIterator(receiver)) {
-        return receiver;
-      }
-      // For lists
-      if (Array.isArray(receiver)) {
-        return makeListIterator(receiver, 0);
-      }
-      // For strings
-      if (typeof receiver === 'string') {
-        return makeStringIterator(receiver, 0);
-      }
-      // For dicts
-      if (isDict(receiver)) {
-        return makeDictIterator(receiver as Record<string, RillValue>, 0);
-      }
-      throw new RuntimeError(
-        'RILL-R003',
-        `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
-        location
-      );
-    },
-  },
-
-  /** Get element at index */
-  at: {
-    signature: '|index: number|:any',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      const idx = typeof args[0] === 'number' ? args[0] : 0;
-      if (Array.isArray(receiver)) {
-        if (idx < 0 || idx >= receiver.length) {
-          throw new RuntimeError(
-            'RILL-R002',
-            `List index out of bounds: ${idx}`,
-            location
-          );
-        }
-        return receiver[idx]!;
-      }
-      if (typeof receiver === 'string') {
-        if (idx < 0 || idx >= receiver.length) {
-          throw new RuntimeError(
-            'RILL-R002',
-            `String index out of bounds: ${idx}`,
-            location
-          );
-        }
-        return receiver[idx]!;
-      }
-      throw new RuntimeError(
-        'RILL-R003',
-        `Cannot call .at() on ${typeof receiver}`,
-        location
-      );
-    },
-  },
-
-  // === String operations ===
-
-  /** Split string by separator (default: newline) */
-  split: {
-    signature: '|separator: string = "\\n"|:list',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const sep = typeof args[0] === 'string' ? args[0] : '\n';
-      return str.split(sep);
-    },
-  },
-
-  /** Join array elements with separator (default: comma) */
-  join: {
-    signature: '|separator: string = ","|:string',
-    receiverTypes: ['list'],
-    method: (receiver, args) => {
-      const sep = typeof args[0] === 'string' ? args[0] : ',';
-      if (!Array.isArray(receiver)) return formatValue(receiver);
-      return receiver.map(formatValue).join(sep);
-    },
-  },
-
-  /** Split string into lines (same as .split but newline only) */
-  lines: {
-    signature: '||:list',
-    receiverTypes: ['string'],
-    method: (receiver) => {
-      const str = formatValue(receiver);
-      return str.split('\n');
-    },
-  },
-
-  // === Utility methods ===
-
-  /** Check if value is empty */
-  empty: {
-    signature: '||:bool',
-    receiverTypes: ['string', 'list', 'dict', 'bool', 'number'],
-    method: (receiver) => isEmpty(receiver),
-  },
-
-  // === String methods ===
-
-  /** Check if string starts with prefix */
-  starts_with: {
-    signature: '|prefix: string|:bool',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const prefix = formatValue(args[0] ?? '');
-      return str.startsWith(prefix);
-    },
-  },
-
-  /** Check if string ends with suffix */
-  ends_with: {
-    signature: '|suffix: string|:bool',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const suffix = formatValue(args[0] ?? '');
-      return str.endsWith(suffix);
-    },
-  },
-
-  /** Convert string to lowercase */
-  lower: {
-    signature: '||:string',
-    receiverTypes: ['string'],
-    method: (receiver) => formatValue(receiver).toLowerCase(),
-  },
-
-  /** Convert string to uppercase */
-  upper: {
-    signature: '||:string',
-    receiverTypes: ['string'],
-    method: (receiver) => formatValue(receiver).toUpperCase(),
-  },
-
-  /** Replace first regex match */
-  replace: {
-    signature: '|pattern: string, replacement: string|:string',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const pattern = formatValue(args[0] ?? '');
-      const replacement = formatValue(args[1] ?? '');
-      try {
-        return str.replace(new RegExp(pattern), replacement);
-      } catch {
-        return str;
-      }
-    },
-  },
-
-  /** Replace all regex matches */
-  replace_all: {
-    signature: '|pattern: string, replacement: string|:string',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const pattern = formatValue(args[0] ?? '');
-      const replacement = formatValue(args[1] ?? '');
-      try {
-        return str.replace(new RegExp(pattern, 'g'), replacement);
-      } catch {
-        return str;
-      }
-    },
-  },
-
-  /** Check if string contains substring */
-  contains: {
-    signature: '|search: string|:bool',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const search = formatValue(args[0] ?? '');
-      return str.includes(search);
-    },
-  },
-
-  /**
-   * First regex match info, or empty dict if no match.
-   * Returns: [matched: string, index: number, groups: []]
-   */
-  match: {
-    signature: '|pattern: string|:dict',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const pattern = formatValue(args[0] ?? '');
-      try {
-        const m = new RegExp(pattern).exec(str);
-        if (!m) return {};
-        return {
-          matched: m[0],
-          index: m.index,
-          groups: m.slice(1),
-        };
-      } catch {
-        return {};
-      }
-    },
-  },
-
-  /** True if regex matches anywhere in string */
-  is_match: {
-    signature: '|pattern: string|:bool',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const pattern = formatValue(args[0] ?? '');
-      try {
-        return new RegExp(pattern).test(str);
-      } catch {
-        return false;
-      }
-    },
-  },
-
-  /** Position of first substring occurrence (-1 if not found) */
-  index_of: {
-    signature: '|search: string|:number',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const search = formatValue(args[0] ?? '');
-      return str.indexOf(search);
-    },
-  },
-
-  /** Repeat string n times */
-  repeat: {
-    signature: '|count: number|:string',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const n =
-        typeof args[0] === 'number' ? Math.max(0, Math.floor(args[0])) : 0;
-      return str.repeat(n);
-    },
-  },
-
-  /** Pad start to length with fill string */
-  pad_start: {
-    signature: '|length: number, fill: string = " "|:string',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const length = typeof args[0] === 'number' ? args[0] : str.length;
-      const fill = typeof args[1] === 'string' ? args[1] : ' ';
-      return str.padStart(length, fill);
-    },
-  },
-
-  /** Pad end to length with fill string */
-  pad_end: {
-    signature: '|length: number, fill: string = " "|:string',
-    receiverTypes: ['string'],
-    method: (receiver, args) => {
-      const str = formatValue(receiver);
-      const length = typeof args[0] === 'number' ? args[0] : str.length;
-      const fill = typeof args[1] === 'string' ? args[1] : ' ';
-      return str.padEnd(length, fill);
-    },
-  },
-
-  // === Comparison methods ===
-
-  /** Equality check (deep structural comparison) */
-  eq: {
-    signature: '|other: any|:bool',
-    receiverTypes: [],
-    method: (receiver, args) => deepEquals(receiver, args[0] ?? null),
-  },
-
-  /** Inequality check (deep structural comparison) */
-  ne: {
-    signature: '|other: any|:bool',
-    receiverTypes: [],
-    method: (receiver, args) => !deepEquals(receiver, args[0] ?? null),
-  },
-
-  /** Less than */
-  lt: {
-    signature: '|other: any|:bool',
-    receiverTypes: ['number', 'string'],
-    method: createComparisonMethod((a, b) => a < b),
-  },
-
-  /** Greater than */
-  gt: {
-    signature: '|other: any|:bool',
-    receiverTypes: ['number', 'string'],
-    method: createComparisonMethod((a, b) => a > b),
-  },
-
-  /** Less than or equal */
-  le: {
-    signature: '|other: any|:bool',
-    receiverTypes: ['number', 'string'],
-    method: createComparisonMethod((a, b) => a <= b),
-  },
-
-  /** Greater than or equal */
-  ge: {
-    signature: '|other: any|:bool',
-    receiverTypes: ['number', 'string'],
-    method: createComparisonMethod((a, b) => a >= b),
-  },
-
-  // === Dict methods (reserved) ===
-
-  /** Get all keys of a dict as a tuple of strings */
-  keys: {
-    signature: '||:list',
-    receiverTypes: [],
-    method: (receiver) => {
-      if (isDict(receiver)) {
-        return Object.keys(receiver);
-      }
-      return [];
-    },
-  },
-
-  /** Get all values of a dict as a tuple */
-  values: {
-    signature: '||:list',
-    receiverTypes: [],
-    method: (receiver) => {
-      if (isDict(receiver)) {
-        return Object.values(receiver);
-      }
-      return [];
-    },
-  },
-
-  /** Get all entries of a dict as a tuple of [key, value] pairs */
-  entries: {
-    signature: '||:list',
-    receiverTypes: [],
-    method: (receiver) => {
-      if (isDict(receiver)) {
-        return Object.entries(receiver).map(([k, v]) => [k, v]);
-      }
-      return [];
-    },
-  },
-
-  // === List membership methods ===
-
-  /** Check if list contains value (deep equality) */
-  has: {
-    signature: '|value: any|:bool',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!Array.isArray(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `has() requires list receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      if (args.length !== 1) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `has() expects 1 argument, got ${args.length}`,
-          location
-        );
-      }
-      const searchValue = args[0] ?? null;
-      for (const item of receiver) {
-        if (deepEquals(item, searchValue)) {
-          return true;
-        }
-      }
-      return false;
-    },
-  },
-
-  /** Check if list contains any value from candidates (deep equality) */
-  has_any: {
-    signature: '|candidates: list|:bool',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!Array.isArray(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `has_any() requires list receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      if (args.length !== 1) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `has_any() expects 1 argument, got ${args.length}`,
-          location
-        );
-      }
-      const candidates = args[0] ?? null;
-      if (!Array.isArray(candidates)) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `has_any() expects list argument, got ${inferType(candidates)}`,
-          location
-        );
-      }
-      // Short-circuit on first match
-      for (const candidate of candidates) {
-        for (const item of receiver) {
-          if (deepEquals(item, candidate)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    },
-  },
-
-  /** Check if list contains all values from candidates (deep equality) */
-  has_all: {
-    signature: '|candidates: list|:bool',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!Array.isArray(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `has_all() requires list receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      if (args.length !== 1) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `has_all() expects 1 argument, got ${args.length}`,
-          location
-        );
-      }
-      const candidates = args[0] ?? null;
-      if (!Array.isArray(candidates)) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `has_all() expects list argument, got ${inferType(candidates)}`,
-          location
-        );
-      }
-      // Short-circuit on first mismatch
-      for (const candidate of candidates) {
-        let found = false;
-        for (const item of receiver) {
-          if (deepEquals(item, candidate)) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          return false;
-        }
-      }
-      return true;
-    },
-  },
-
-  // === Vector methods ===
-
-  /** Get number of dimensions in vector */
-  dimensions: {
-    signature: '||:number',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `dimensions requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      return receiver.data.length;
-    },
-  },
-
-  /** Get model name of vector */
-  model: {
-    signature: '||:string',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `model requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      return receiver.model;
-    },
-  },
-
-  /** Calculate cosine similarity between two vectors (range [-1, 1]) */
-  similarity: {
-    signature: '|other: any|:number',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `similarity requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      const other = args[0] ?? null;
-      if (!isVector(other)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `expected vector, got ${inferType(other)}`,
-          location
-        );
-      }
-      if (receiver.data.length !== other.data.length) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-          location
-        );
-      }
-
-      // Cosine similarity: dot(a, b) / (norm(a) * norm(b))
-      let dotProduct = 0;
-      let normA = 0;
-      let normB = 0;
-
-      for (let i = 0; i < receiver.data.length; i++) {
-        const a = receiver.data[i]!;
-        const b = other.data[i]!;
-        dotProduct += a * b;
-        normA += a * a;
-        normB += b * b;
-      }
-
-      const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-      if (magnitude === 0) return 0;
-      return dotProduct / magnitude;
-    },
-  },
-
-  /** Calculate dot product between two vectors */
-  dot: {
-    signature: '|other: any|:number',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `dot requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      const other = args[0] ?? null;
-      if (!isVector(other)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `expected vector, got ${inferType(other)}`,
-          location
-        );
-      }
-      if (receiver.data.length !== other.data.length) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-          location
-        );
-      }
-
-      let result = 0;
-      for (let i = 0; i < receiver.data.length; i++) {
-        result += receiver.data[i]! * other.data[i]!;
-      }
-      return result;
-    },
-  },
-
-  /** Calculate Euclidean distance between two vectors (>= 0) */
-  distance: {
-    signature: '|other: any|:number',
-    receiverTypes: [],
-    method: (receiver, args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `distance requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-      const other = args[0] ?? null;
-      if (!isVector(other)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `expected vector, got ${inferType(other)}`,
-          location
-        );
-      }
-      if (receiver.data.length !== other.data.length) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-          location
-        );
-      }
-
-      let sumSquares = 0;
-      for (let i = 0; i < receiver.data.length; i++) {
-        const diff = receiver.data[i]! - other.data[i]!;
-        sumSquares += diff * diff;
-      }
-      return Math.sqrt(sumSquares);
-    },
-  },
-
-  /** Calculate L2 norm (magnitude) of vector */
-  norm: {
-    signature: '||:number',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `norm requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-
-      let sumSquares = 0;
-      for (let i = 0; i < receiver.data.length; i++) {
-        const val = receiver.data[i]!;
-        sumSquares += val * val;
-      }
-      return Math.sqrt(sumSquares);
-    },
-  },
-
-  /** Create unit vector (preserves model) */
-  normalize: {
-    signature: '||:any',
-    receiverTypes: [],
-    method: (receiver, _args, _ctx, location) => {
-      if (!isVector(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
-          `normalize requires vector receiver, got ${inferType(receiver)}`,
-          location
-        );
-      }
-
-      // Calculate norm
-      let sumSquares = 0;
-      for (let i = 0; i < receiver.data.length; i++) {
-        const val = receiver.data[i]!;
-        sumSquares += val * val;
-      }
-      const magnitude = Math.sqrt(sumSquares);
-
-      // If zero vector, return as-is
-      if (magnitude === 0) {
-        return receiver;
-      }
-
-      // Create normalized vector
-      const normalized = new Float32Array(receiver.data.length);
-      for (let i = 0; i < receiver.data.length; i++) {
-        normalized[i] = receiver.data[i]! / magnitude;
-      }
-
-      return {
-        __rill_vector: true,
-        data: normalized,
-        model: receiver.model,
-      } satisfies RillVector;
-    },
-  },
+export const BUILTIN_METHODS: {
+  string: Record<string, RillFunction>;
+  list: Record<string, RillFunction>;
+  dict: Record<string, RillFunction>;
+  number: Record<string, RillFunction>;
+  bool: Record<string, RillFunction>;
+  vector: Record<string, RillFunction>;
+} = {
+  string: null as unknown as Record<string, RillFunction>,
+  list: null as unknown as Record<string, RillFunction>,
+  dict: null as unknown as Record<string, RillFunction>,
+  number: null as unknown as Record<string, RillFunction>,
+  bool: null as unknown as Record<string, RillFunction>,
+  vector: null as unknown as Record<string, RillFunction>,
 };
+// ============================================================
+// METHOD BODIES
+// Defined as named RillMethod constants so they can be shared
+// across type groups (e.g. len appears in string, list, dict).
+// ============================================================
+
+/** Get length of string, list, or dict */
+const mLen: RillMethod = (receiver) => {
+  if (typeof receiver === 'string') return receiver.length;
+  if (Array.isArray(receiver)) return receiver.length;
+  if (receiver && typeof receiver === 'object') {
+    return Object.keys(receiver).length;
+  }
+  return 0;
+};
+
+/** Trim whitespace from string */
+const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
+
+/** Get first element of list or first char of string */
+const mHead: RillMethod = (receiver, _args, _ctx, location) => {
+  if (Array.isArray(receiver)) {
+    if (receiver.length === 0) {
+      throw new RuntimeError(
+        'RILL-R002',
+        'Cannot get head of empty list',
+        location
+      );
+    }
+    return receiver[0]!;
+  }
+  if (typeof receiver === 'string') {
+    if (receiver.length === 0) {
+      throw new RuntimeError(
+        'RILL-R002',
+        'Cannot get head of empty string',
+        location
+      );
+    }
+    return receiver[0]!;
+  }
+  throw new RuntimeError(
+    'RILL-R003',
+    `head requires list or string, got ${inferType(receiver)}`,
+    location
+  );
+};
+
+/** Get last element of list or last char of string */
+const mTail: RillMethod = (receiver, _args, _ctx, location) => {
+  if (Array.isArray(receiver)) {
+    if (receiver.length === 0) {
+      throw new RuntimeError(
+        'RILL-R002',
+        'Cannot get tail of empty list',
+        location
+      );
+    }
+    return receiver[receiver.length - 1]!;
+  }
+  if (typeof receiver === 'string') {
+    if (receiver.length === 0) {
+      throw new RuntimeError(
+        'RILL-R002',
+        'Cannot get tail of empty string',
+        location
+      );
+    }
+    return receiver[receiver.length - 1]!;
+  }
+  throw new RuntimeError(
+    'RILL-R003',
+    `tail requires list or string, got ${inferType(receiver)}`,
+    location
+  );
+};
+
+/** Get iterator at first position for any collection */
+const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
+  if (isRillIterator(receiver)) return receiver;
+  if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
+  if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
+  if (isDict(receiver))
+    return makeDictIterator(receiver as Record<string, RillValue>, 0);
+  throw new RuntimeError(
+    'RILL-R003',
+    `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
+    location
+  );
+};
+
+/** Get element at index */
+const mAt: RillMethod = (receiver, args, _ctx, location) => {
+  const idx = typeof args[0] === 'number' ? args[0] : 0;
+  if (Array.isArray(receiver)) {
+    if (idx < 0 || idx >= receiver.length) {
+      throw new RuntimeError(
+        'RILL-R002',
+        `List index out of bounds: ${idx}`,
+        location
+      );
+    }
+    return receiver[idx]!;
+  }
+  if (typeof receiver === 'string') {
+    if (idx < 0 || idx >= receiver.length) {
+      throw new RuntimeError(
+        'RILL-R002',
+        `String index out of bounds: ${idx}`,
+        location
+      );
+    }
+    return receiver[idx]!;
+  }
+  throw new RuntimeError(
+    'RILL-R003',
+    `Cannot call .at() on ${typeof receiver}`,
+    location
+  );
+};
+
+/** Split string by separator */
+const mSplit: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const sep = typeof args[0] === 'string' ? args[0] : '\n';
+  return str.split(sep);
+};
+
+/** Join list elements with separator */
+const mJoin: RillMethod = (receiver, args) => {
+  const sep = typeof args[0] === 'string' ? args[0] : ',';
+  if (!Array.isArray(receiver)) return formatValue(receiver);
+  return receiver.map(formatValue).join(sep);
+};
+
+/** Split string into lines */
+const mLines: RillMethod = (receiver) => formatValue(receiver).split('\n');
+
+/** Check if value is empty */
+const mEmpty: RillMethod = (receiver) => isEmpty(receiver);
+
+/** Check if string starts with prefix */
+const mStartsWith: RillMethod = (receiver, args) =>
+  formatValue(receiver).startsWith(formatValue(args[0] ?? ''));
+
+/** Check if string ends with suffix */
+const mEndsWith: RillMethod = (receiver, args) =>
+  formatValue(receiver).endsWith(formatValue(args[0] ?? ''));
+
+/** Convert string to lowercase */
+const mLower: RillMethod = (receiver) => formatValue(receiver).toLowerCase();
+
+/** Convert string to uppercase */
+const mUpper: RillMethod = (receiver) => formatValue(receiver).toUpperCase();
+
+/** Replace first regex match */
+const mReplace: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const pattern = formatValue(args[0] ?? '');
+  const replacement = formatValue(args[1] ?? '');
+  try {
+    return str.replace(new RegExp(pattern), replacement);
+  } catch {
+    return str;
+  }
+};
+
+/** Replace all regex matches */
+const mReplaceAll: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const pattern = formatValue(args[0] ?? '');
+  const replacement = formatValue(args[1] ?? '');
+  try {
+    return str.replace(new RegExp(pattern, 'g'), replacement);
+  } catch {
+    return str;
+  }
+};
+
+/** Check if string contains substring */
+const mContains: RillMethod = (receiver, args) =>
+  formatValue(receiver).includes(formatValue(args[0] ?? ''));
+
+/** First regex match info, or empty dict if no match */
+const mMatch: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const pattern = formatValue(args[0] ?? '');
+  try {
+    const m = new RegExp(pattern).exec(str);
+    if (!m) return {};
+    return { matched: m[0], index: m.index, groups: m.slice(1) };
+  } catch {
+    return {};
+  }
+};
+
+/** True if regex matches anywhere in string */
+const mIsMatch: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const pattern = formatValue(args[0] ?? '');
+  try {
+    return new RegExp(pattern).test(str);
+  } catch {
+    return false;
+  }
+};
+
+/** Position of first substring occurrence (-1 if not found) */
+const mIndexOf: RillMethod = (receiver, args) =>
+  formatValue(receiver).indexOf(formatValue(args[0] ?? ''));
+
+/** Repeat string n times */
+const mRepeat: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const n = typeof args[0] === 'number' ? Math.max(0, Math.floor(args[0])) : 0;
+  return str.repeat(n);
+};
+
+/** Pad start to length with fill string */
+const mPadStart: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const length = typeof args[0] === 'number' ? args[0] : str.length;
+  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+  return str.padStart(length, fill);
+};
+
+/** Pad end to length with fill string */
+const mPadEnd: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const length = typeof args[0] === 'number' ? args[0] : str.length;
+  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+  return str.padEnd(length, fill);
+};
+
+/** Equality check (deep structural comparison) */
+const mEq: RillMethod = (receiver, args) =>
+  deepEquals(receiver, args[0] ?? null);
+
+/** Inequality check (deep structural comparison) */
+const mNe: RillMethod = (receiver, args) =>
+  !deepEquals(receiver, args[0] ?? null);
+
+const mLt = createComparisonMethod((a, b) => a < b);
+const mGt = createComparisonMethod((a, b) => a > b);
+const mLe = createComparisonMethod((a, b) => a <= b);
+const mGe = createComparisonMethod((a, b) => a >= b);
+
+/** Get all keys of a dict as a list */
+const mKeys: RillMethod = (receiver) =>
+  isDict(receiver) ? Object.keys(receiver) : [];
+
+/** Get all values of a dict as a list */
+const mValues: RillMethod = (receiver) =>
+  isDict(receiver) ? Object.values(receiver) : [];
+
+/** Get all entries of a dict as a list of [key, value] pairs */
+const mEntries: RillMethod = (receiver) =>
+  isDict(receiver) ? Object.entries(receiver).map(([k, v]) => [k, v]) : [];
+
+/** Check if list contains value (deep equality) */
+const mHas: RillMethod = (receiver, args, _ctx, location) => {
+  if (!Array.isArray(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `has() requires list receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  if (args.length !== 1) {
+    throw new RuntimeError(
+      'RILL-R001',
+      `has() expects 1 argument, got ${args.length}`,
+      location
+    );
+  }
+  const searchValue = args[0] ?? null;
+  for (const item of receiver) {
+    if (deepEquals(item, searchValue)) return true;
+  }
+  return false;
+};
+
+/** Check if list contains any value from candidates (deep equality) */
+const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
+  if (!Array.isArray(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `has_any() requires list receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  if (args.length !== 1) {
+    throw new RuntimeError(
+      'RILL-R001',
+      `has_any() expects 1 argument, got ${args.length}`,
+      location
+    );
+  }
+  const candidates = args[0] ?? null;
+  if (!Array.isArray(candidates)) {
+    throw new RuntimeError(
+      'RILL-R001',
+      `has_any() expects list argument, got ${inferType(candidates)}`,
+      location
+    );
+  }
+  for (const candidate of candidates) {
+    for (const item of receiver) {
+      if (deepEquals(item, candidate)) return true;
+    }
+  }
+  return false;
+};
+
+/** Check if list contains all values from candidates (deep equality) */
+const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
+  if (!Array.isArray(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `has_all() requires list receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  if (args.length !== 1) {
+    throw new RuntimeError(
+      'RILL-R001',
+      `has_all() expects 1 argument, got ${args.length}`,
+      location
+    );
+  }
+  const candidates = args[0] ?? null;
+  if (!Array.isArray(candidates)) {
+    throw new RuntimeError(
+      'RILL-R001',
+      `has_all() expects list argument, got ${inferType(candidates)}`,
+      location
+    );
+  }
+  for (const candidate of candidates) {
+    let found = false;
+    for (const item of receiver) {
+      if (deepEquals(item, candidate)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+};
+
+/** Get number of dimensions in vector */
+const mDimensions: RillMethod = (receiver, _args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `dimensions requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return receiver.data.length;
+};
+
+/** Get model name of vector */
+const mModel: RillMethod = (receiver, _args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `model requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return receiver.model;
+};
+
+/** Calculate cosine similarity between two vectors (range [-1, 1]) */
+const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `similarity requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  const other = args[0] ?? null;
+  if (!isVector(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `expected vector, got ${inferType(other)}`,
+      location
+    );
+  }
+  if (receiver.data.length !== other.data.length) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+      location
+    );
+  }
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < receiver.data.length; i++) {
+    const a = receiver.data[i]!;
+    const b = other.data[i]!;
+    dotProduct += a * b;
+    normA += a * a;
+    normB += b * b;
+  }
+  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+  if (magnitude === 0) return 0;
+  return dotProduct / magnitude;
+};
+
+/** Calculate dot product between two vectors */
+const mDot: RillMethod = (receiver, args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `dot requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  const other = args[0] ?? null;
+  if (!isVector(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `expected vector, got ${inferType(other)}`,
+      location
+    );
+  }
+  if (receiver.data.length !== other.data.length) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+      location
+    );
+  }
+  let result = 0;
+  for (let i = 0; i < receiver.data.length; i++) {
+    result += receiver.data[i]! * other.data[i]!;
+  }
+  return result;
+};
+
+/** Calculate Euclidean distance between two vectors (>= 0) */
+const mDistance: RillMethod = (receiver, args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `distance requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  const other = args[0] ?? null;
+  if (!isVector(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `expected vector, got ${inferType(other)}`,
+      location
+    );
+  }
+  if (receiver.data.length !== other.data.length) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
+      location
+    );
+  }
+  let sumSquares = 0;
+  for (let i = 0; i < receiver.data.length; i++) {
+    const diff = receiver.data[i]! - other.data[i]!;
+    sumSquares += diff * diff;
+  }
+  return Math.sqrt(sumSquares);
+};
+
+/** Calculate L2 norm (magnitude) of vector */
+const mNorm: RillMethod = (receiver, _args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `norm requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  let sumSquares = 0;
+  for (let i = 0; i < receiver.data.length; i++) {
+    const val = receiver.data[i]!;
+    sumSquares += val * val;
+  }
+  return Math.sqrt(sumSquares);
+};
+
+/** Create unit vector (preserves model) */
+const mNormalize: RillMethod = (receiver, _args, _ctx, location) => {
+  if (!isVector(receiver)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      `normalize requires vector receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  let sumSquares = 0;
+  for (let i = 0; i < receiver.data.length; i++) {
+    const val = receiver.data[i]!;
+    sumSquares += val * val;
+  }
+  const magnitude = Math.sqrt(sumSquares);
+  if (magnitude === 0) return receiver;
+  const normalized = new Float32Array(receiver.data.length);
+  for (let i = 0; i < receiver.data.length; i++) {
+    normalized[i] = receiver.data[i]! / magnitude;
+  }
+  return {
+    __rill_vector: true,
+    data: normalized,
+    model: receiver.model,
+  } satisfies RillVector;
+};
+
+// ============================================================
+// PER-TYPE METHOD RECORDS
+// Populate BUILTIN_METHODS sub-records using buildMethodEntry.
+// Methods shared across types reference the same RillMethod body.
+// Cross-type methods (len, empty, eq, ne, head, tail, first, at,
+// lt, gt, le, ge) appear in every type group they support.
+// Vector methods live in the `vector` group (6th group beyond
+// the 5 basic types) because no basic type covers vectors.
+// ============================================================
+
+// Shared signatures for cross-type methods
+const SIG_LEN = '||:number';
+const SIG_EMPTY = '||:bool';
+const SIG_HEAD = '||:any';
+const SIG_TAIL = '||:any';
+const SIG_FIRST = '||:iterator';
+const SIG_AT = '|index: number|:any';
+const SIG_EQ = '|other: any|:bool';
+const SIG_NE = '|other: any|:bool';
+const SIG_CMP = '|other: any|:bool';
+
+BUILTIN_METHODS.string = Object.freeze({
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  trim: buildMethodEntry('trim', '||:string', mTrim),
+  head: buildMethodEntry('head', SIG_HEAD, mHead),
+  tail: buildMethodEntry('tail', SIG_TAIL, mTail),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst),
+  at: buildMethodEntry('at', SIG_AT, mAt),
+  split: buildMethodEntry('split', '|separator: string = "\\n"|:list', mSplit),
+  lines: buildMethodEntry('lines', '||:list', mLines),
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  starts_with: buildMethodEntry(
+    'starts_with',
+    '|prefix: string|:bool',
+    mStartsWith
+  ),
+  ends_with: buildMethodEntry('ends_with', '|suffix: string|:bool', mEndsWith),
+  lower: buildMethodEntry('lower', '||:string', mLower),
+  upper: buildMethodEntry('upper', '||:string', mUpper),
+  replace: buildMethodEntry(
+    'replace',
+    '|pattern: string, replacement: string|:string',
+    mReplace
+  ),
+  replace_all: buildMethodEntry(
+    'replace_all',
+    '|pattern: string, replacement: string|:string',
+    mReplaceAll
+  ),
+  contains: buildMethodEntry('contains', '|search: string|:bool', mContains),
+  match: buildMethodEntry('match', '|pattern: string|:dict', mMatch),
+  is_match: buildMethodEntry('is_match', '|pattern: string|:bool', mIsMatch),
+  index_of: buildMethodEntry('index_of', '|search: string|:number', mIndexOf),
+  repeat: buildMethodEntry('repeat', '|count: number|:string', mRepeat),
+  pad_start: buildMethodEntry(
+    'pad_start',
+    '|length: number, fill: string = " "|:string',
+    mPadStart
+  ),
+  pad_end: buildMethodEntry(
+    'pad_end',
+    '|length: number, fill: string = " "|:string',
+    mPadEnd
+  ),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq),
+  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  lt: buildMethodEntry('lt', SIG_CMP, mLt),
+  gt: buildMethodEntry('gt', SIG_CMP, mGt),
+  le: buildMethodEntry('le', SIG_CMP, mLe),
+  ge: buildMethodEntry('ge', SIG_CMP, mGe),
+});
+
+BUILTIN_METHODS.list = Object.freeze({
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  head: buildMethodEntry('head', SIG_HEAD, mHead),
+  tail: buildMethodEntry('tail', SIG_TAIL, mTail),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst),
+  at: buildMethodEntry('at', SIG_AT, mAt),
+  join: buildMethodEntry('join', '|separator: string = ","|:string', mJoin),
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq),
+  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  has: buildMethodEntry('has', '|value: any|:bool', mHas),
+  has_any: buildMethodEntry('has_any', '|candidates: list|:bool', mHasAny),
+  has_all: buildMethodEntry('has_all', '|candidates: list|:bool', mHasAll),
+});
+
+BUILTIN_METHODS.dict = Object.freeze({
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst),
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq),
+  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  keys: buildMethodEntry('keys', '||:list', mKeys),
+  values: buildMethodEntry('values', '||:list', mValues),
+  entries: buildMethodEntry('entries', '||:list', mEntries),
+});
+
+BUILTIN_METHODS.number = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq),
+  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  lt: buildMethodEntry('lt', SIG_CMP, mLt),
+  gt: buildMethodEntry('gt', SIG_CMP, mGt),
+  le: buildMethodEntry('le', SIG_CMP, mLe),
+  ge: buildMethodEntry('ge', SIG_CMP, mGe),
+});
+
+BUILTIN_METHODS.bool = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq),
+  ne: buildMethodEntry('ne', SIG_NE, mNe),
+});
+
+// [ASSUMPTION] vector is a 6th group beyond the 5 specified basic types.
+// The 7 vector methods do not belong to string/list/dict/number/bool.
+// Adding this group ensures all 42 methods are accessible (AC-36).
+BUILTIN_METHODS.vector = Object.freeze({
+  dimensions: buildMethodEntry('dimensions', '||:number', mDimensions),
+  model: buildMethodEntry('model', '||:string', mModel),
+  similarity: buildMethodEntry(
+    'similarity',
+    '|other: any|:number',
+    mSimilarity
+  ),
+  dot: buildMethodEntry('dot', '|other: any|:number', mDot),
+  distance: buildMethodEntry('distance', '|other: any|:number', mDistance),
+  norm: buildMethodEntry('norm', '||:number', mNorm),
+  normalize: buildMethodEntry('normalize', '||:any', mNormalize),
+});

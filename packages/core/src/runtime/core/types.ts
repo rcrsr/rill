@@ -6,26 +6,10 @@
  */
 
 import type { RillTypeName } from '../../types.js';
-import type {
-  CallableFn,
-  RillFunction,
-  RillFunctionSignature,
-} from './callable.js';
+import type { CallableFn, RillFunction } from './callable.js';
 import type { RillType, RillValue } from './values.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
-
-/**
- * Method signature for built-in methods.
- * Methods are called on a receiver value: $val.method(args)
- * @internal
- */
-export type RillMethod = (
-  receiver: RillValue,
-  args: RillValue[],
-  ctx: RuntimeContext,
-  location?: import('../../types.js').SourceLocation
-) => RillValue | Promise<RillValue>;
 
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
@@ -153,15 +137,6 @@ export interface RuntimeContext {
     string,
     CallableFn | import('./callable.js').ApplicationCallable
   >;
-  /** Built-in and user-defined methods */
-  readonly methods: Map<string, RillMethod>;
-  /** Receiver type constraints for methods (empty array = unconstrained) */
-  readonly methodReceiverTypes: Map<string, readonly string[]>;
-  /** Parsed parameter declarations for built-in methods (AC-15 arg validation) */
-  readonly methodParams: Map<
-    string,
-    readonly import('./callable.js').RillParam[]
-  >;
   /** I/O callbacks */
   readonly callbacks: RuntimeCallbacks;
   /** Observability callbacks */
@@ -195,6 +170,15 @@ export interface RuntimeContext {
   readonly callStack: import('../../types.js').CallFrame[];
   /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
   readonly metadata?: Record<string, string> | undefined;
+  /**
+   * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
+   * Keys: "string", "list", "dict", "number", "bool", "vector".
+   * Populated at context creation from BUILTIN_METHODS; propagated to child contexts.
+   */
+  readonly typeMethodDicts: ReadonlyMap<
+    string,
+    Readonly<Record<string, RillValue>>
+  >;
   /** Scheme-to-resolver map, populated from RuntimeOptions.resolvers (empty Map when absent) */
   readonly resolvers: ReadonlyMap<string, SchemeResolver>;
   /** Per-scheme config data, populated from RuntimeOptions.configurations.resolvers (empty Map when absent) */
@@ -215,8 +199,8 @@ export interface RuntimeContext {
 export interface RuntimeOptions {
   /** Initial variables */
   variables?: Record<string, RillValue>;
-  /** Host functions: structured definitions or signature strings */
-  functions?: Record<string, RillFunction | RillFunctionSignature>;
+  /** Host functions: structured definitions */
+  functions?: Record<string, RillFunction>;
   /** I/O callbacks */
   callbacks?: Partial<RuntimeCallbacks>;
   /** Observability callbacks for monitoring execution */

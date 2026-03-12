@@ -235,11 +235,11 @@ The structural type formats as a human-readable string via `formatStructuralType
 
 Dict fields are sorted alphabetically in the formatted output.
 
-### Closure Introspection: .^input and .^output
+### Callable Introspection: .^input and .^output
 
-Script closures expose their parameter and return type shapes via `.^input` and `.^output`.
+All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
 
-**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. Only `ScriptCallable` closures populate this — other callable kinds return an empty ordered value.
+**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables.
 
 ```typescript
 // Script closure returned from execute():

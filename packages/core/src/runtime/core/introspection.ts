@@ -91,18 +91,17 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 
           hostFunctions.push({
             name,
-            description: callable.description ?? '',
+            description:
+              (callable.annotations?.['description'] as string) ?? '',
             params,
-            returnType:
-              callable.returnType !== undefined
-                ? formatStructuralType(callable.returnType)
-                : 'any',
+            returnType: formatStructuralType(callable.returnType.structure),
           });
         } else {
           // ApplicationCallable without params (untyped)
           builtinFunctions.push({
             name,
-            description: callable.description ?? '',
+            description:
+              (callable.annotations?.['description'] as string) ?? '',
             params: [],
             returnType: 'any',
           });
@@ -255,16 +254,11 @@ export function generateManifest(ctx: RuntimeContext): string {
       continue;
     }
 
-    const signature =
-      callable.originalSignature !== undefined
-        ? callable.originalSignature
-        : serializeClosureSignature(
-            callable.params,
-            callable.returnType !== undefined
-              ? formatStructuralType(callable.returnType)
-              : 'any',
-            callable.description
-          );
+    const signature = serializeClosureSignature(
+      callable.params,
+      formatStructuralType(callable.returnType.structure),
+      (callable.annotations?.['description'] as string) ?? undefined
+    );
 
     entries.push(`  "${name}": ${signature}`);
   }
