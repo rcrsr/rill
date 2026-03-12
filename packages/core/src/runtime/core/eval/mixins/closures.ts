@@ -817,7 +817,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Fall back to property access on dict (no-arg only), before built-in lookup
-      if (isDict(receiver) && args.length === 0 && node.name in receiver) {
+      if (
+        isDict(receiver) &&
+        args.length === 0 &&
+        Object.hasOwn(receiver, node.name)
+      ) {
         return receiver[node.name] as RillValue;
       }
 
