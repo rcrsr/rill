@@ -57,7 +57,11 @@ function buildNestedDict(
 
     if (isLeafFunction(child)) {
       const paramStr = child.params.map(serializeParam).join(', ');
-      entries.push(`${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|`);
+      const returnSuffix =
+        child.returnType !== undefined ? ` :${child.returnType.type}` : '';
+      entries.push(
+        `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
+      );
     } else {
       const nested = buildNestedDict(
         child as NestedExtConfig,

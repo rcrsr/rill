@@ -77,6 +77,27 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('description: ');
     expect(result).toContain('The name to greet');
   });
+
+  it('appends return type suffix after closing | when returnType is set', () => {
+    const tree: NestedExtConfig = {
+      tools: {
+        summarize: {
+          fn: async () => 'summary',
+          params: [
+            {
+              name: 'text',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: { type: 'string' },
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('| :string');
+  });
 });
 
 // ============================================================

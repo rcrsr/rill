@@ -29,13 +29,20 @@ function convertTreeToRillValues(
       typeof (value as { fn: unknown }).fn === 'function' &&
       'params' in value
     ) {
-      const rillFn = value as { fn: (...args: unknown[]) => unknown };
+      const rillFn = value as {
+        fn: (...args: unknown[]) => unknown;
+        params: unknown;
+        returnType?: unknown;
+        description?: string;
+      };
       result[key] = {
         __type: 'callable' as const,
         kind: 'application' as const,
         isProperty: false,
         fn: rillFn.fn,
-        params: (value as { params: unknown }).params,
+        params: rillFn.params,
+        returnType: rillFn.returnType,
+        description: rillFn.description,
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(

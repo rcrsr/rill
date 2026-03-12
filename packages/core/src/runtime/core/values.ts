@@ -9,6 +9,7 @@ import type { RillTypeName } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import {
   callableEquals,
+  isApplicationCallable,
   isCallable,
   isDict,
   isScriptCallable,
@@ -350,7 +351,15 @@ export function inferStructuralType(value: RillValue): RillType {
       }
       return { type: 'closure', params, ret };
     }
-    // Non-script callables have no annotations
+    if (isApplicationCallable(value)) {
+      const params: [string, RillType][] = (value.params ?? []).map((p) => [
+        p.name,
+        p.type ?? { type: 'any' },
+      ]);
+      const ret: RillType = value.returnType ?? { type: 'any' };
+      return { type: 'closure', params, ret };
+    }
+    // Non-script callables (RuntimeCallable) have no annotations
     return { type: 'closure', params: [], ret: { type: 'any' } };
   }
   if (typeof value === 'object') {

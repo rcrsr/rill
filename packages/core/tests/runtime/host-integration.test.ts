@@ -7,10 +7,12 @@ import {
   AbortError,
   callable,
   createRuntimeContext,
+  inferStructuralType,
   isApplicationCallable,
   isCallable,
   isScriptCallable,
   parse,
+  type ApplicationCallable,
   type RillFunction,
   type RillValue,
   type SourceLocation,
@@ -477,6 +479,56 @@ describe('Rill Runtime: Host Integration', () => {
       expect(isCallable([1, 2, 3])).toBe(false);
       expect(isCallable({ key: 'value' })).toBe(false);
       expect(isCallable(null)).toBe(false);
+    });
+  });
+
+  describe('inferStructuralType on ApplicationCallable', () => {
+    it('reads params and returnType from ApplicationCallable', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: [{ name: 'text', type: { type: 'string' }, annotations: {} }],
+        returnType: { type: 'dict' },
+        description: 'test function',
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.params).toEqual([['text', { type: 'string' }]]);
+        expect(result.ret).toEqual({ type: 'dict' });
+      }
+    });
+
+    it('falls back to empty params when ApplicationCallable.params is undefined', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: undefined,
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.params).toEqual([]);
+      }
+    });
+
+    it('falls back to ret any when ApplicationCallable.returnType is undefined', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: [],
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.ret).toEqual({ type: 'any' });
+      }
     });
   });
 });
