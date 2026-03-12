@@ -15,7 +15,7 @@ import {
   applyFixes,
 } from './check/index.js';
 import { parseWithRecovery } from '@rcrsr/rill';
-import { VERSION, detectHelpVersionFlag } from './cli-shared.js';
+import { VERSION, CLI_VERSION, detectHelpVersionFlag } from './cli-shared.js';
 
 /**
  * Parsed command-line arguments for rill-check
@@ -273,7 +273,7 @@ Options:
 
     // Handle version mode
     if (args.mode === 'version') {
-      console.log(VERSION);
+      console.log(`rill-check ${CLI_VERSION} (rill ${VERSION})`);
       process.exit(0);
     }
 

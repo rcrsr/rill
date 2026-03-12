@@ -3,7 +3,13 @@
  * Common formatting functions for CLI tools
  */
 
+import { createRequire } from 'node:module';
 import { VERSION } from '@rcrsr/rill';
+
+const _require = createRequire(import.meta.url);
+const { version: CLI_VERSION } = _require('../package.json') as {
+  version: string;
+};
 import type { NativeValue } from '@rcrsr/rill';
 import { ParseError, RuntimeError } from '@rcrsr/rill';
 import { LexerError } from '@rcrsr/rill';
@@ -168,4 +174,4 @@ export function detectHelpVersionFlag(
  * This replaces the previous async readVersion() function with a synchronous constant.
  * The version is now generated at build time by packages/core/scripts/generate-version.ts.
  */
-export { VERSION };
+export { VERSION, CLI_VERSION };

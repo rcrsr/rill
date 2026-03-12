@@ -69,6 +69,22 @@ Do **not** use `npx`, `pnpm exec`, or call `node packages/cli/dist/cli-*.js` dir
 
 Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
+## Versioning
+
+Packages evolve independently within a shared minor version. The minor version (`0.13.x`) guarantees cross-package compatibility.
+
+| Scope | Rule |
+|-------|------|
+| Root `package.json` | Increments patch on every release |
+| Each package | Increments patch only when that package changes |
+| Minor version | Shared across all packages; bump = breaking change |
+
+Example: root `0.13.3`, `@rcrsr/rill` stays `0.13.2`, `@rcrsr/rill-cli` bumps to `0.13.3`.
+
+- `pnpm sync-versions` — Syncs major.minor from root to all packages, preserves each package's patch
+- `pnpm check-versions` — Verifies all packages share the same major.minor as root
+- CHANGELOG entries use the root version
+
 ## Release Process
 
 rill uses a manual release process via `scripts/release.sh`. The script:
@@ -76,18 +92,17 @@ rill uses a manual release process via `scripts/release.sh`. The script:
 1. Verifies clean working directory and main branch
 2. Builds all packages (`pnpm run -r build`)
 3. Runs all tests (`pnpm run -r test`)
-4. Publishes to npm with `--access public`
-5. Creates git tags (`@rcrsr/rill@x.y.z`, `@rcrsr/rill-cli@x.y.z`, etc.)
-6. Pushes tags to remote
+4. Creates a git tag (`v0.13.x`) from root version
+5. Pushes tag to trigger CI (CI publishes all packages; npm skips already-published versions)
 
 ### Release Checklist
 
 Before running `./scripts/release.sh`:
 
-- [ ] Update version in root `package.json`
-- [ ] Run `pnpm sync-versions` to propagate to all packages
-- [ ] Run `pnpm check-versions` to verify consistency
-- [ ] Update CHANGELOG.md with release notes
+- [ ] Bump patch in root `package.json`
+- [ ] Bump patch in each changed package's `package.json`
+- [ ] Run `pnpm check-versions` to verify minor alignment
+- [ ] Update CHANGELOG.md with release notes under root version
 - [ ] Commit version changes: `git commit -m "chore: release vx.y.z"`
 - [ ] Ensure working directory is clean
 - [ ] Ensure on main branch

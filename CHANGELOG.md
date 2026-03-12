@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.3] - 2026-03-11
+
+### Changed
+
+- **`rill-run` uses config `main` field** — Removed `.rill` file positional argument. Script path comes from `main` in `rill-config.json`. Optional positional arg specifies a root directory containing the config.
+- **Independent package versioning** — Packages share `major.minor` but increment patch independently. `sync-versions` syncs major.minor only. `check-versions` validates major.minor alignment.
+
 ## [0.13.2] - 2026-03-11
 
 ### Changed

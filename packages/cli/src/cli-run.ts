@@ -25,6 +25,7 @@ import {
   marshalCliArgs,
   ConfigError,
 } from '@rcrsr/rill-config';
+import { CLI_VERSION } from './cli-shared.js';
 import { explainError } from './cli-explain.js';
 import { runScript } from './run/runner.js';
 import type { RunCliOptions } from './run/types.js';
@@ -34,14 +35,17 @@ import type { RunCliOptions } from './run/types.js';
 // ============================================================
 
 const USAGE = `\
-Usage: rill-run [args...]
+Usage: rill-run [root-dir]
+
+Arguments:
+  root-dir                  Optional directory containing rill-config.json (default: cwd)
 
 Options:
   --config <path>           Config file path (default: search from cwd)
   --format <mode>           Output format: human, json, compact (default: human)
   --verbose                 Show full error details (default: false)
   --max-stack-depth <n>     Error stack frame limit (default: 10)
-  --create-bindings           Write bindings source to config-defined file and exit
+  --create-bindings         Write bindings source to config-defined file and exit
   --explain <code>          Print error code documentation
   --help                    Print this help message and exit
   --version                 Print version and exit`.trimEnd();
@@ -67,7 +71,7 @@ const BASE_OPTIONS = {
 
 export function parseCliArgs(
   argv: string[] = process.argv.slice(2)
-): RunCliOptions {
+): RunCliOptions & { rootDir?: string | undefined } {
   const { values, positionals } = parseArgs({
     args: argv,
     options: BASE_OPTIONS,
@@ -81,17 +85,12 @@ export function parseCliArgs(
   }
 
   if (values['version'] === true) {
-    process.stdout.write(`rill-run ${VERSION}\n`);
+    process.stdout.write(`rill-run ${CLI_VERSION} (rill ${VERSION})\n`);
     process.exit(0);
   }
 
-  if (positionals.length === 0 && values['create-bindings'] === undefined) {
-    process.stderr.write('Error: no script path provided\n\n' + USAGE + '\n');
-    process.exit(1);
-  }
-
-  const scriptPath = positionals[0];
-  const scriptArgs = positionals.slice(1);
+  const rootDir = positionals[0];
+  const scriptArgs: string[] = [];
 
   const rawFormat = values['format'];
   const format =
@@ -103,8 +102,9 @@ export function parseCliArgs(
     !isNaN(parsedDepth) && parsedDepth >= 0 ? parsedDepth : 10;
 
   return {
-    scriptPath,
+    scriptPath: undefined,
     scriptArgs,
+    rootDir,
     config: (values['config'] as string | undefined) ?? './rill-config.json',
     format,
     verbose: values['verbose'] === true,
@@ -167,11 +167,13 @@ export async function main(): Promise<void> {
 
   const hasExplicitConfig = opts.config !== './rill-config.json';
 
+  const rootDir = opts.rootDir ?? process.cwd();
+
   let configPath: string;
   try {
     configPath = resolveConfigPath({
       ...(hasExplicitConfig ? { configFlag: opts.config } : {}),
-      cwd: process.cwd(),
+      cwd: rootDir,
     });
   } catch (err) {
     if (err instanceof ConfigError) {
@@ -220,7 +222,7 @@ export async function main(): Promise<void> {
   if (mainField !== undefined && mainField.includes(':')) {
     const { filePath, handlerName } = parseMainField(mainField);
 
-    const absolutePath = resolve(process.cwd(), filePath);
+    const absolutePath = resolve(rootDir, filePath);
     let source: string;
     try {
       source = readFileSync(absolutePath, 'utf-8');
@@ -309,11 +311,16 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Module mode: use main field as script path, or use CLI positional
-  const scriptPath =
-    mainField !== undefined
-      ? resolve(process.cwd(), mainField)
-      : opts.scriptPath;
+  // Module mode: main field in config is required
+  if (mainField === undefined) {
+    process.stderr.write(
+      'Error: no main field in rill-config.json\n' +
+        'Add a "main" field pointing to your entry script, e.g.: "main": "src/index.rill"\n'
+    );
+    process.exit(1);
+  }
+
+  const scriptPath = resolve(rootDir, mainField);
 
   const runOpts: RunCliOptions = {
     ...opts,

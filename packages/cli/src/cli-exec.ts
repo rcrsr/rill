@@ -14,6 +14,7 @@ import {
   formatError,
   determineExitCode,
   VERSION,
+  CLI_VERSION,
   detectHelpVersionFlag,
 } from './cli-shared.js';
 import { explainError } from './cli-explain.js';
@@ -275,7 +276,7 @@ Examples:
         return;
 
       case 'version': {
-        console.log(VERSION);
+        console.log(`rill-exec ${CLI_VERSION} (rill ${VERSION})`);
         return;
       }
 
