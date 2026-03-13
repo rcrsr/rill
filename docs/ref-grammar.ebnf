@@ -168,7 +168,8 @@ assert-statement = "assert" , expression , [ string ] ;
 
 error-statement = "error" , string ;
 
-postfix-expr  = primary , { "." , method-name , [ "(" , [ arguments ] , ")" ] } ;
+postfix-expr  = primary , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] )
+                              | annotation-access } ;
 
 primary       = literal
               | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T) — structural type expression *)
@@ -182,6 +183,7 @@ primary       = literal
               | block
               | grouped-expr
               | spread              (* ...$dict-expr — convert dict to ordered for arg unpacking *)
+              | annotated-expr      (* ^(key: val) expr — annotation on expression *)
               | pass ;
 
 (* Pass: returns current pipe value ($) unchanged.
@@ -197,11 +199,31 @@ primary       = literal
    throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
 pass          = "pass" ;
 
-use-expr      = "use" "<" use-id ">" [ ":" type-ref ] ;
+(* Annotated expression: attach metadata to any primary expression.
+   ^(key: value, ...) expression
+   The annotation is bound to the expression node, accessible at runtime.
+   Example: ^(description: "increment") |x| ($x + 1)
+   Example: ^("user input") $data *)
+annotated-expr = annotation , primary ;
+
+(* Annotation access: read annotation values from closures.
+   .^key reads the annotation named "key" from a closure value.
+   Chained with method calls: $fn.^output, $fn.^description.
+   Returns the annotation value or errors if not present.
+   Example: $fn.^output         -- read "output" annotation
+   Example: $fn.^description    -- read "description" annotation *)
+annotation-access = "." , "^" , identifier ;
+
+use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
               (* Semantic: resolves a module by scheme and path.
                  Static form (identifier ":" identifier { "." identifier }) is checker-resolvable.
                  Variable form ("$" identifier) and computed form ("(" pipe-chain ")") are runtime-only.
-                 Strict mode rejects variable and computed forms. *)
+                 Strict mode rejects variable and computed forms.
+                 Closure annotation form describes the expected callable signature. *)
+
+use-closure-annotation = "|" , param-type-item , { "," , param-type-item } , "|" ;
+              (* Closure annotation on use<>: describes parameter types of the resolved callable.
+                 Example: use<ext:tool>:|input: string, count: number| *)
 
 use-id        = identifier ":" identifier { "." identifier }
               | "$" identifier
@@ -647,8 +669,16 @@ type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tu
                  "shape" and "field" removed: shape system replaced by structural type constructors. *)
 
 (* type-ref: a type reference used in assertion, param, and capture positions.
-   Either a primitive/collection type name (optionally parameterized) or a variable holding a type value. *)
-type-ref          = type-name [ "(" , type-ref-arg-list , ")" ] | "$" , identifier ;
+   A single type (optionally parameterized), a variable, or a union of types.
+   Union members are flattened: nested unions spread into the member list.
+   Examples:
+     string                          -- single type
+     list(number)                    -- parameterized type
+     string | number                 -- union of two types
+     string | number | bool          -- union of three types
+     $myType                         -- dynamic type from variable *)
+type-ref          = type-ref-member , { "|" , type-ref-member } ;
+type-ref-member   = type-name , [ "(" , type-ref-arg-list , ")" ] | "$" , identifier ;
 type-ref-arg-list = type-ref-arg , { "," , type-ref-arg } , [ "," ] ;
 type-ref-arg      = identifier , ":" , type-ref | type-ref ;
 
