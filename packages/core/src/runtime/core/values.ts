@@ -339,6 +339,11 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
         const bParam = b.params[i]!;
         if (aParam[0] !== bParam[0]) return false;
         if (!structuralTypeEquals(aParam[1], bParam[1])) return false;
+        const aDefault = aParam[2];
+        const bDefault = bParam[2];
+        if (aDefault === undefined && bDefault === undefined) continue;
+        if (aDefault === undefined || bDefault === undefined) return false;
+        if (!deepEquals(aDefault, bDefault)) return false;
       }
     }
     if (a.ret === undefined && b.ret === undefined) return true;
@@ -523,7 +528,10 @@ export function paramToTypeTuple(
 
 /** Format a RillValue as a rill literal for use in type signatures. */
 function formatRillLiteral(value: RillValue): string {
-  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value === 'string') {
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';

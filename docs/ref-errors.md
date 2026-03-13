@@ -827,17 +827,22 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 
 ### rill-r044
 
-**Description:** Missing required field during structural conversion.
+**Description:** Missing required field or element during structural conversion.
 
-**Cause:** The `:>` operator requires all fields without defaults to be present in the source value. A field without a default was absent from the source dict.
+**Cause:** The `:>` operator requires all fields and elements without defaults to be present in the source value. A field or element without a default was absent from the source.
 
-**Resolution:** Supply the missing field in the source value, or add a default to the type annotation.
+**Resolution:** Supply the missing field or element in the source value, or add a default to the type annotation.
 
-**Example:**
+**Examples:**
 
 ```text
-{ name: "Alice" } :> { name: str, age: int }
-# Error: RILL-R044: cannot convert {name: "Alice"} to {name: str, age: int}: missing required field 'age'
+[name: "Alice"] :> dict(name: string, age: number)
+# Error: RILL-R044: cannot convert dict to dict: missing required field 'age'
+```
+
+```text
+tuple["a"] :> tuple(string, number)
+# Error: RILL-R044: cannot convert tuple to tuple: missing required element at position 1
 ```
 
 ---

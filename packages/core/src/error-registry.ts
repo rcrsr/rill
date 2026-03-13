@@ -1244,17 +1244,21 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: 'RILL-R044',
     category: 'runtime',
-    description: 'Missing required field in structural conversion',
+    description: 'Missing required member in conversion',
     messageTemplate:
-      "cannot convert {source} to {target}: missing required field '{name}'",
+      "cannot convert {source} to {target}: missing required member '{name}'",
     cause:
-      'The :> operator requires all fields without defaults to be present in the source value.',
+      'The :> operator requires all fields/elements without defaults to be present in the source value.',
     resolution:
-      'Supply the missing field in the source value, or add a default to the type annotation.',
+      'Supply the missing field or element in the source value, or add a default to the type annotation.',
     examples: [
       {
         description: 'Dict missing a required field',
         code: '{name: "Alice"} :> {name: string, age: number}  # age is missing',
+      },
+      {
+        description: 'Tuple missing a required element',
+        code: 'tuple["a"] :> tuple(string, number)  # element at position 1 is missing',
       },
     ],
   },
