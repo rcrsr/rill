@@ -10,13 +10,9 @@ ROOT_VERSION=$(node -p "require('./package.json').version")
 ROOT_MAJOR_MINOR=$(echo "$ROOT_VERSION" | sed 's/\.[0-9]*$//')
 ERRORS=0
 
-for pkg in packages/core packages/rill-config packages/cli; do
+for pkg in packages/*/; do
   pkg="${pkg%/}"
   [ -f "$pkg/package.json" ] || continue
-
-  # Skip private packages
-  PRIVATE=$(node -p "require('./$pkg/package.json').private || false")
-  [ "$PRIVATE" = "true" ] && continue
 
   NAME=$(node -p "require('./$pkg/package.json').name")
   VERSION=$(node -p "require('./$pkg/package.json').version")

@@ -18,17 +18,8 @@ function mapParamType(param: RillParam): string {
 }
 
 function serializeParam(param: RillParam): string {
-  const parts: string[] = [];
-
-  const desc = param.annotations['description'];
-  if (typeof desc === 'string' && desc.length > 0) {
-    parts.push(`^(description: "${desc}") `);
-  }
-
   const typeName = mapParamType(param);
-  parts.push(`${param.name}: ${typeName}`);
-
-  return parts.join('');
+  return `${param.name}: ${typeName}`;
 }
 
 export function isLeafFunction(

@@ -60,7 +60,7 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('use<ext:ns.sub.fn1>');
   });
 
-  it('emits param description annotation when present', () => {
+  it('omits param annotations from bindings output', () => {
     const tree: NestedExtConfig = {
       ext: {
         greet: {
@@ -78,8 +78,8 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('description: ');
-    expect(result).toContain('The name to greet');
+    expect(result).not.toContain('description');
+    expect(result).toContain('name: string');
   });
 
   it('appends return type suffix after closing | when returnType is set', () => {

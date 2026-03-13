@@ -12,7 +12,6 @@ import {
   moduleResolver,
   toNative,
   isTuple,
-  anyTypeValue,
   type RillValue,
   type RillTuple,
   type RuntimeOptions,
@@ -50,9 +49,11 @@ function convertTreeToRillValues(
       typeof (value as { fn: unknown }).fn === 'function' &&
       'params' in value
     ) {
-      const rillFn = value as unknown as {
+      const rillFn = value as {
         fn: (...args: unknown[]) => unknown;
-        params: readonly unknown[];
+        params: unknown;
+        returnType: unknown;
+        annotations?: Record<string, RillValue>;
       };
       result[key] = {
         __type: 'callable' as const,
@@ -60,8 +61,8 @@ function convertTreeToRillValues(
         isProperty: false,
         fn: rillFn.fn,
         params: rillFn.params,
-        annotations: {},
-        returnType: anyTypeValue,
+        returnType: rillFn.returnType,
+        annotations: rillFn.annotations ?? {},
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(
@@ -221,7 +222,12 @@ function formatRillError(
 
   parts.push(`${data.errorId}: ${data.message}`);
 
-  if (data.location !== undefined && sources !== undefined) {
+  if (data.sourceId !== undefined && data.location !== undefined) {
+    // Error occurred in a resolved module source — show the sourceId as the file label
+    parts.push(
+      `  at ${data.sourceId}:${data.location.line}:${data.location.column}`
+    );
+  } else if (data.location !== undefined && sources !== undefined) {
     const match = resolveSourceSnippet(data.location, sources, filePath);
     parts.push(
       `  at ${match.label}:${data.location.line}:${data.location.column}`

@@ -23,7 +23,7 @@
  */
 
 import type { UseExprNode } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { RillError, RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
 import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
@@ -162,12 +162,23 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           scriptNode = parseSource(result.text);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          const wrapped = RuntimeError.fromNode(
-            'RILL-R056',
-            `Resolver error for '${key}': ${message}`,
-            node,
-            { sourceId: key }
-          );
+          // Use the parse error's location within the resolved source, not the use<> call site
+          const parseLocation =
+            err instanceof RillError ? err.location : undefined;
+          const wrapped =
+            parseLocation !== undefined
+              ? new RuntimeError(
+                  'RILL-R056',
+                  `Resolver error for '${key}': ${message.replace(/ at \d+:\d+$/, '')}`,
+                  parseLocation,
+                  { sourceId: key }
+                )
+              : RuntimeError.fromNode(
+                  'RILL-R056',
+                  `Resolver error for '${key}': ${message}`,
+                  node,
+                  { sourceId: key }
+                );
           (wrapped as { sourceId: string }).sourceId = key;
           wrapped.cause = err;
           throw wrapped;

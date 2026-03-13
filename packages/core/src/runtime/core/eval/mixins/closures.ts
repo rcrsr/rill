@@ -51,6 +51,7 @@ import type {
   PipeInvokeNode,
   VariableNode,
   SourceLocation,
+  SourceSpan,
   ExpressionNode,
   SpreadArgNode,
   BlockNode,
@@ -226,8 +227,23 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      const result = callable.fn(effectiveArgs, this.ctx, callLocation);
-      return result instanceof Promise ? await result : result;
+      try {
+        const result = callable.fn(effectiveArgs, this.ctx, callLocation);
+        return result instanceof Promise ? await result : result;
+      } catch (error) {
+        if (error instanceof RuntimeError && !error.location && callLocation) {
+          // Enrich extension errors with call site location via construction
+          const span: SourceSpan = { start: callLocation, end: callLocation };
+          throw new RuntimeError(
+            error.errorId,
+            error.toData().message,
+            callLocation,
+            error.context,
+            span
+          );
+        }
+        throw error;
+      }
     }
 
     /**
@@ -833,12 +849,31 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // buildMethodEntry wraps fn(args) where args[0] = receiver and args[1..] = method args
         // Invoke fn directly to preserve the receiver-as-first-arg contract without
         // triggering invokeCallable's arity validation (params counts method args only)
-        const result = typeMethod.fn(
-          [receiver, ...args],
-          this.ctx,
-          this.getNodeLocation(node)
-        );
-        return result instanceof Promise ? await result : result;
+        try {
+          const result = typeMethod.fn(
+            [receiver, ...args],
+            this.ctx,
+            this.getNodeLocation(node)
+          );
+          return result instanceof Promise ? await result : result;
+        } catch (error) {
+          const callLocation = this.getNodeLocation(node);
+          if (
+            error instanceof RuntimeError &&
+            !error.location &&
+            callLocation
+          ) {
+            const span: SourceSpan = { start: callLocation, end: callLocation };
+            throw new RuntimeError(
+              error.errorId,
+              error.toData().message,
+              callLocation,
+              error.context,
+              span
+            );
+          }
+          throw error;
+        }
       }
 
       // Dict-bound closure lookup: only reached when method not in type dict
@@ -901,12 +936,34 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             fallbackMethod !== undefined &&
             isApplicationCallable(fallbackMethod)
           ) {
-            const result = fallbackMethod.fn(
-              [receiver, ...args],
-              this.ctx,
-              this.getNodeLocation(node)
-            );
-            return result instanceof Promise ? await result : result;
+            try {
+              const result = fallbackMethod.fn(
+                [receiver, ...args],
+                this.ctx,
+                this.getNodeLocation(node)
+              );
+              return result instanceof Promise ? await result : result;
+            } catch (error) {
+              const callLocation = this.getNodeLocation(node);
+              if (
+                error instanceof RuntimeError &&
+                !error.location &&
+                callLocation
+              ) {
+                const span: SourceSpan = {
+                  start: callLocation,
+                  end: callLocation,
+                };
+                throw new RuntimeError(
+                  error.errorId,
+                  error.toData().message,
+                  callLocation,
+                  error.context,
+                  span
+                );
+              }
+              throw error;
+            }
           }
         }
       }
