@@ -12,5 +12,19 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          codemirror: [
+            '@codemirror/commands',
+            '@codemirror/language',
+            '@codemirror/state',
+            '@codemirror/view',
+            '@lezer/highlight',
+          ],
+        },
+      },
+    },
   },
 });

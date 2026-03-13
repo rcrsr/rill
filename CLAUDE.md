@@ -117,6 +117,14 @@ cd packages/core
 pnpm publish --dry-run --access public
 ```
 
+## GitHub CLI Workaround
+
+`gh pr edit` fails silently due to a Projects Classic deprecation error. Use the REST API instead:
+
+```bash
+gh api repos/rcrsr/rill/pulls/<NUMBER> --method PATCH -f body="new body"
+```
+
 ## Architecture
 
 ```

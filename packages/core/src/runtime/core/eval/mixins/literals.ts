@@ -46,6 +46,7 @@ import { RuntimeError } from '../../../../types.js';
 import type { RillType, RillValue } from '../../values.js';
 import {
   anyTypeValue,
+  deepEquals,
   formatValue,
   inferElementType,
   isReservedMethod,
@@ -529,9 +530,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: DictNode,
       input: RillValue
     ): Promise<RillValue> {
-      // Import deepEquals for type-aware key matching
-      const { deepEquals } = await import('../../values.js');
-
       // Search entries for matching key (process in order, return first match)
       for (const entry of node.entries) {
         let matchFound = false;
@@ -725,8 +723,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       },
       skipClosureResolution = false
     ): Promise<RillValue> {
-      const { deepEquals } = await import('../../values.js');
-
       // Search dict entries for matching key
       for (const [key, value] of Object.entries(dict)) {
         // Simple key match using deep equality
