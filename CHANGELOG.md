@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Structural type default values** — Dict, ordered, and tuple types support per-field defaults with `= literal` syntax. The `:>` operator auto-hydrates missing fields
 
+### Changed
+
+- **`.^input` reflection** — Returns a `RillOrdered` value directly for all callable kinds, simplifying type introspection
+
 ## [0.14.0] - 2026-03-12
 
 ### Breaking Changes

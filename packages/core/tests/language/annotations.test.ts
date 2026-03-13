@@ -401,6 +401,36 @@ describe('Rill Runtime: Annotations', () => {
         );
       });
 
+      it('throws RILL-R003 for annotation access .^input on number (AC-10)', async () => {
+        const script = `
+          42 => $num
+          $num.^input
+        `;
+        await expect(run(script)).rejects.toThrow(
+          /annotation not found: \^input/
+        );
+      });
+
+      it('throws RILL-R003 for annotation access .^input on string (AC-11)', async () => {
+        const script = `
+          "hello" => $s
+          $s.^input
+        `;
+        await expect(run(script)).rejects.toThrow(
+          /annotation not found: \^input/
+        );
+      });
+
+      it('throws RILL-R003 for annotation access .^input on dict (AC-12)', async () => {
+        const script = `
+          dict[a: 1] => $d
+          $d.^input
+        `;
+        await expect(run(script)).rejects.toThrow(
+          /annotation not found: \^input/
+        );
+      });
+
       it('preserves annotations through pipe chains', async () => {
         const script = `
           ^(label: "test") |x|($x * 2) => $fn
