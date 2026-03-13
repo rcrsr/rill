@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-03-13
+
+### Breaking Changes
+
+- **`RillType` shape change** — Dict fields use `RillFieldType` (type + optional default). Tuple elements, ordered fields, and closure params gain optional third default element. Extensions reading these fields must update.
+- **`.^input` return value** — Returns `RillOrdered` directly instead of a structural type descriptor
+- **`:>` conversion errors** — Missing required fields now throw `RILL-R044` instead of `RILL-R036`
+
 ### Added
 
 - **Structural type default values** — Dict, ordered, and tuple types support per-field defaults with `= literal` syntax. The `:>` operator auto-hydrates missing fields
+- **`RillFieldType` export** — Type and `isFieldTypeWithDefault` guard exported from `@rcrsr/rill` for extension use
+- **Typed CLI arg parsing** — `--create-bindings` uses handler param types for correct boolean flag handling
 
 ### Changed
 
