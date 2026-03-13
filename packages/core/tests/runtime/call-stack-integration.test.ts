@@ -121,7 +121,14 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('"hello".upper() -> capture()', {
         functions: {
           capture: {
-            params: [],
+            params: [
+              {
+                name: 'val',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, c) => {
               ctx = c;
               return null;
@@ -255,7 +262,14 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('dict[fn: |x|{ capture() }].fn(42)', {
         functions: {
           capture: {
-            params: [],
+            params: [
+              {
+                name: 'val',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, ctx) => {
               capturedStack = [...ctx.callStack];
               return null;

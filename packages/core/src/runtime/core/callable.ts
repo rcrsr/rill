@@ -21,7 +21,6 @@
  */
 
 import type { BodyNode, SourceLocation } from '../../types.js';
-import type { RillMethod } from './types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import type { RillType, RillTypeValue, RillValue } from './values.js';
@@ -32,6 +31,7 @@ import {
   isTuple,
   structuralTypeEquals,
   structuralTypeMatches,
+  anyTypeValue,
 } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -77,33 +77,8 @@ export interface RillParam {
 export interface RillFunction {
   readonly params: readonly RillParam[];
   readonly fn: CallableFn;
-  readonly description?: string;
-  readonly returnType?: RillType;
-}
-
-/**
- * Base interface for all callable signatures.
- * signature is an annotated rill closure type signature string.
- */
-export interface RillCallableSignature {
-  readonly signature: string;
-}
-
-/**
- * Signature for a host-provided function.
- * Discriminated from RillFunction by presence of signature field.
- */
-export interface RillFunctionSignature extends RillCallableSignature {
-  readonly fn: CallableFn;
-}
-
-/**
- * Signature for a built-in method with receiver type constraints.
- * receiverTypes contains valid RillTypeName strings (e.g., ["string", "list"]).
- */
-export interface RillMethodSignature extends RillCallableSignature {
-  readonly method: RillMethod;
-  readonly receiverTypes: readonly string[];
+  readonly annotations?: Record<string, RillValue>;
+  readonly returnType: RillTypeValue;
 }
 
 /** Common fields for all callable types */
@@ -115,6 +90,9 @@ interface CallableBase {
    * For runtime callables, the dict is passed as first argument.
    */
   readonly isProperty: boolean;
+  readonly params: readonly RillParam[];
+  readonly annotations: Record<string, RillValue>;
+  readonly returnType: RillTypeValue;
   /** Reference to containing dict (set when stored in a dict) */
   boundDict?: Record<string, RillValue>;
 }
@@ -122,23 +100,14 @@ interface CallableBase {
 /**
  * Script callable - parsed from Rill source code.
  *
- * Carries closure-level and parameter-level annotations captured at creation time.
- * Both annotation fields default to empty objects ({}) when no annotations present.
+ * Carries closure-level annotations captured at creation time.
+ * Per-parameter annotations are accessible via params[i].annotations.
  */
 export interface ScriptCallable extends CallableBase {
   readonly kind: 'script';
-  readonly params: readonly RillParam[];
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
   readonly definingScope: RuntimeContextLike;
-  /** Evaluated closure-level annotations (e.g., ^(timeout: 30)) */
-  readonly annotations: Record<string, RillValue>;
-  /** Evaluated parameter annotations keyed by parameter name */
-  readonly paramAnnotations: Record<string, Record<string, RillValue>>;
-  /** Cached input structural type built from params at creation time — used by `$fn.^input` */
-  readonly inputShape: RillType;
-  /** Return type target from `:type-target` syntax — set in Phase 2, undefined until then */
-  readonly returnShape?: RillTypeValue | undefined;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */
@@ -150,14 +119,7 @@ export interface RuntimeCallable extends CallableBase {
 /** Application callable - host application-provided functions */
 export interface ApplicationCallable extends CallableBase {
   readonly kind: 'application';
-  readonly params: RillParam[] | undefined;
   readonly fn: CallableFn;
-  /** Human-readable function description (optional, from host functions) */
-  readonly description?: string;
-  /** Return type declaration (optional, from host functions) */
-  readonly returnType?: RillType | undefined;
-  /** Original signature string as provided by host (only set for RillFunctionSignature registrations) */
-  readonly originalSignature?: string | undefined;
 }
 
 /** Union of all callable types */
@@ -206,7 +168,12 @@ export function callable(
   return {
     __type: 'callable',
     kind: 'application',
-    params: undefined,
+    // Use undefined to signal "untyped" — skips arity validation in invokeCallable.
+    // Explicitly registered callables use params: [] (typed zero-param) and DO validate.
+    // See [DEVIATION] in Implementation Notes.
+    params: undefined as unknown as readonly RillParam[],
+    annotations: {},
+    returnType: anyTypeValue,
     fn,
     isProperty,
   };
@@ -306,21 +273,6 @@ export function callableEquals(
   // Compare closure-level annotations
   if (!annotationsEqual(a.annotations, b.annotations, valueEquals)) {
     return false;
-  }
-
-  // Compare parameter-level annotations
-  const paramNamesA = Object.keys(a.paramAnnotations);
-  const paramNamesB = Object.keys(b.paramAnnotations);
-  if (paramNamesA.length !== paramNamesB.length) return false;
-
-  for (const paramName of paramNamesA) {
-    if (!(paramName in b.paramAnnotations)) return false;
-    const annotsA = a.paramAnnotations[paramName];
-    const annotsB = b.paramAnnotations[paramName];
-    if (annotsA === undefined || annotsB === undefined) return false;
-    if (!annotationsEqual(annotsA, annotsB, valueEquals)) {
-      return false;
-    }
   }
 
   return true;

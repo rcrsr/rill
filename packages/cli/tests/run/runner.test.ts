@@ -9,7 +9,7 @@ import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { RuntimeError } from '@rcrsr/rill';
+import { RuntimeError, rillTypeToTypeValue } from '@rcrsr/rill';
 
 let _executeErrorOverride: Error | null = null;
 
@@ -169,7 +169,15 @@ describe('runScript', () => {
   describe('ext drilling', () => {
     function makeExtTree(): NestedExtConfig {
       return {
-        llm: { openai: { message: { fn: async () => true, params: [] } } },
+        llm: {
+          openai: {
+            message: {
+              fn: async () => true,
+              params: [],
+              returnType: rillTypeToTypeValue({ type: 'any' }),
+            },
+          },
+        },
       };
     }
 
@@ -333,7 +341,8 @@ describe('runScript', () => {
     it('limits stack frames to 2 when maxStackDepth is 2', async () => {
       const result = await runTempScript('true', { maxStackDepth: 2 });
       expect(result.exitCode).toBe(1);
-      expect(result.errorOutput).toContain('at 1:1');
+      // Frame at line 1 shown as source snippet, frame at line 2 shown as fallback
+      expect(result.errorOutput).toMatch(/1 \|/);
       expect(result.errorOutput).toContain('at 2:3');
       expect(result.errorOutput).not.toContain('at 3:1');
     });
@@ -341,7 +350,8 @@ describe('runScript', () => {
     it('shows all frames when maxStackDepth exceeds frame count', async () => {
       const result = await runTempScript('true', { maxStackDepth: 10 });
       expect(result.exitCode).toBe(1);
-      expect(result.errorOutput).toContain('at 1:1');
+      // Frame at line 1 shown as source snippet, frames at lines 2 and 3 as fallback
+      expect(result.errorOutput).toMatch(/1 \|/);
       expect(result.errorOutput).toContain('at 2:3');
       expect(result.errorOutput).toContain('at 3:1');
     });

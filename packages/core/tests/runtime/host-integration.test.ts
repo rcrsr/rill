@@ -5,12 +5,17 @@
 
 import {
   AbortError,
+  anyTypeValue,
+  buildTypeMethodDicts,
   callable,
   createRuntimeContext,
+  inferStructuralType,
   isApplicationCallable,
   isCallable,
   isScriptCallable,
   parse,
+  rillTypeToTypeValue,
+  type ApplicationCallable,
   type RillFunction,
   type RillValue,
   type SourceLocation,
@@ -477,6 +482,405 @@ describe('Rill Runtime: Host Integration', () => {
       expect(isCallable([1, 2, 3])).toBe(false);
       expect(isCallable({ key: 'value' })).toBe(false);
       expect(isCallable(null)).toBe(false);
+    });
+  });
+
+  describe('inferStructuralType on ApplicationCallable', () => {
+    it('reads params and returnType from ApplicationCallable', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: [{ name: 'text', type: { type: 'string' }, annotations: {} }],
+        returnType: rillTypeToTypeValue({ type: 'dict' }),
+        annotations: {},
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.params).toEqual([['text', { type: 'string' }]]);
+        expect(result.ret).toEqual({ type: 'dict' });
+      }
+    });
+
+    it('uses empty params when ApplicationCallable.params is empty', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: [],
+        returnType: anyTypeValue,
+        annotations: {},
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.params).toEqual([]);
+      }
+    });
+
+    it('uses anyTypeValue as ret when returnType is anyTypeValue', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable' as const,
+        kind: 'application' as const,
+        isProperty: false,
+        fn: () => 'test',
+        params: [],
+        returnType: anyTypeValue,
+        annotations: {},
+      };
+      const result = inferStructuralType(fn as unknown as RillValue);
+      expect(result.type).toBe('closure');
+      if (result.type === 'closure') {
+        expect(result.ret).toEqual({ type: 'any' });
+      }
+    });
+  });
+
+  describe('typeMethodDicts (AC-39, IR-1)', () => {
+    it('typeMethodDicts is populated at context creation', () => {
+      const ctx = createRuntimeContext();
+      expect(ctx.typeMethodDicts).toBeDefined();
+      expect(ctx.typeMethodDicts.size).toBeGreaterThan(0);
+    });
+
+    it('typeMethodDicts contains entries for all built-in types', () => {
+      const ctx = createRuntimeContext();
+      for (const typeName of [
+        'string',
+        'list',
+        'dict',
+        'number',
+        'bool',
+        'vector',
+      ]) {
+        expect(ctx.typeMethodDicts.has(typeName)).toBe(true);
+      }
+    });
+
+    it('typeMethodDicts values are frozen dicts of ApplicationCallable (AC-8, AC-9, AC-10)', () => {
+      const ctx = createRuntimeContext();
+      const stringMethods = ctx.typeMethodDicts.get('string');
+      expect(stringMethods).toBeDefined();
+      expect(Object.isFrozen(stringMethods)).toBe(true);
+      // string.trim() should be present as a callable value
+      expect(stringMethods!['trim']).toBeDefined();
+      expect(isCallable(stringMethods!['trim'] as RillValue)).toBe(true);
+
+      const listMethods = ctx.typeMethodDicts.get('list');
+      expect(listMethods).toBeDefined();
+      // list.first() should be present
+      expect(listMethods!['first']).toBeDefined();
+      expect(isCallable(listMethods!['first'] as RillValue)).toBe(true);
+
+      const dictMethods = ctx.typeMethodDicts.get('dict');
+      expect(dictMethods).toBeDefined();
+      // dict.keys() should be present
+      expect(dictMethods!['keys']).toBeDefined();
+      expect(isCallable(dictMethods!['keys'] as RillValue)).toBe(true);
+    });
+
+    it('typeMethodDicts is built fresh per context (not a shared reference)', () => {
+      const ctx = createRuntimeContext();
+      const ctx2 = createRuntimeContext();
+      // Each context builds its own map; they are distinct instances.
+      expect(ctx2.typeMethodDicts).not.toBe(ctx.typeMethodDicts);
+      // But their contents are equivalent.
+      expect(ctx2.typeMethodDicts.get('string')).toBeDefined();
+      expect(ctx2.typeMethodDicts.get('list')).toBeDefined();
+    });
+  });
+});
+
+// Separate describe block for EC-6 / AC-16 / AC-17 duplicate detection tests.
+describe('buildTypeMethodDicts duplicate detection (EC-6, AC-16, AC-17)', () => {
+  it('same method name on different types does not throw (AC-17)', () => {
+    // "len" exists on both string and list — no error expected.
+    const ctx = createRuntimeContext();
+    const stringLen = ctx.typeMethodDicts.get('string')?.['len'];
+    const listLen = ctx.typeMethodDicts.get('list')?.['len'];
+    expect(stringLen).toBeDefined();
+    expect(listLen).toBeDefined();
+    // They are separate callable instances.
+    expect(stringLen).not.toBe(listLen);
+  });
+
+  it('throws on duplicate method name for the same type (EC-6, AC-16)', () => {
+    const fn: RillFunction = {
+      params: [],
+      fn: async () => '',
+      annotations: {},
+      returnType: anyTypeValue,
+    };
+    // Pass the same typeName twice with the same method name to trigger EC-6.
+    expect(() =>
+      buildTypeMethodDicts([
+        ['string', { trim: fn }],
+        ['string', { trim: fn }],
+      ])
+    ).toThrow("Duplicate method 'trim' on type 'string'");
+  });
+});
+
+// ============================================================
+// Reflection on all 3 callable kinds (AC-1, 2, 3, 4, 23, 25, 26, 28, 29, 30, 31, 32, 33, 37)
+// ============================================================
+describe('Callable reflection via ^ operator', () => {
+  describe('^description on ApplicationCallable (AC-1, AC-4, AC-25, AC-26)', () => {
+    it('returns description string when annotations.description is set (AC-25, AC-26)', async () => {
+      const result = await run('$greet.^description', {
+        variables: {
+          greet: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: false,
+            fn: () => 'hello',
+            params: [],
+            returnType: anyTypeValue,
+            annotations: { description: 'Says hello' },
+          } satisfies ApplicationCallable,
+        },
+      });
+      expect(result).toBe('Says hello');
+    });
+
+    it('returns {} when annotations.description is absent (AC-23)', async () => {
+      const result = await run('$myFn.^description', {
+        variables: {
+          myFn: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: false,
+            fn: () => null,
+            params: [],
+            returnType: anyTypeValue,
+            annotations: {},
+          } satisfies ApplicationCallable,
+        },
+      });
+      // No description annotation: ^description returns {}
+      expect(result).toEqual({});
+    });
+
+    it('does not throw RILL-R003 when ^ applied to callable (AC-4)', async () => {
+      // Applying ^ to any callable kind must not produce RILL-R003
+      await expect(
+        run('$myFn.^description', {
+          variables: {
+            myFn: {
+              __type: 'callable' as const,
+              kind: 'application' as const,
+              isProperty: false,
+              fn: () => null,
+              params: [],
+              returnType: anyTypeValue,
+              annotations: {},
+            } satisfies ApplicationCallable,
+          },
+        })
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe('^description on RuntimeCallable (AC-32)', () => {
+    it('.^description on log returns {} (no annotations on runtime callables)', () => {
+      // Access the log callable from context directly and reflect on it
+      const ctx = createRuntimeContext();
+      const logCallable = ctx.functions.get('log');
+      expect(logCallable).toBeDefined();
+      // annotations is an empty record on RuntimeCallables
+      expect(
+        (logCallable as unknown as { annotations: Record<string, unknown> })
+          .annotations['description']
+      ).toBeUndefined();
+    });
+  });
+
+  describe('^description on ScriptCallable (AC-1)', () => {
+    it('returns description annotation value from rill script closure', async () => {
+      // Annotation must precede the closure expression
+      const result = await run(
+        '^("greets") |x: string| { $x } => $fn\n$fn.^description'
+      );
+      expect(result).toBe('greets');
+    });
+  });
+
+  describe('^input on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
+    it('returns structural closure type with params (AC-28)', async () => {
+      const result = (await run('$myFn.^input', {
+        variables: {
+          myFn: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: false,
+            fn: () => null,
+            params: [
+              {
+                name: 'text',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: rillTypeToTypeValue({ type: 'string' }),
+            annotations: {},
+          } satisfies ApplicationCallable,
+        },
+      })) as Record<string, unknown>;
+      expect(result).toHaveProperty('type', 'closure');
+    });
+
+    it('returns empty params for zero-param callable (AC-29)', async () => {
+      const result = (await run('$myFn.^input', {
+        variables: {
+          myFn: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: false,
+            fn: () => null,
+            params: [],
+            returnType: anyTypeValue,
+            annotations: {},
+          } satisfies ApplicationCallable,
+        },
+      })) as Record<string, unknown>;
+      expect(result).toHaveProperty('type', 'closure');
+      // params is present on the closure type shape
+      expect(result['params']).toBeDefined();
+    });
+  });
+
+  describe('^input on ScriptCallable (AC-37)', () => {
+    it('returns closure type reflecting script closure params', async () => {
+      const result = (await run(
+        '|x: string, y: number| { $x } => $fn\n$fn.^input'
+      )) as Record<string, unknown>;
+      expect(result).toHaveProperty('type', 'closure');
+    });
+  });
+
+  describe('^output on ApplicationCallable (AC-3, AC-30, AC-31)', () => {
+    it('returns registered returnType RillTypeValue (AC-30, AC-31)', async () => {
+      const returnType = rillTypeToTypeValue({ type: 'string' });
+      const result = (await run('$myFn.^output', {
+        variables: {
+          myFn: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: false,
+            fn: () => null,
+            params: [],
+            returnType,
+            annotations: {},
+          } satisfies ApplicationCallable,
+        },
+      })) as Record<string, unknown>;
+      // ^output returns the RillTypeValue — which has a __rill_type sentinel
+      expect(result).toHaveProperty('__rill_type', true);
+      expect(result).toHaveProperty('typeName', 'string');
+    });
+  });
+
+  describe('^output on RuntimeCallable (AC-33)', () => {
+    it('.^output on log returns anyTypeValue (BC-7)', () => {
+      // Access the log callable from context directly and check returnType
+      const ctx = createRuntimeContext();
+      const logCallable = ctx.functions.get('log') as unknown as {
+        returnType: Record<string, unknown>;
+      };
+      expect(logCallable).toBeDefined();
+      expect(logCallable.returnType).toHaveProperty('__rill_type', true);
+      expect(logCallable.returnType).toHaveProperty('typeName', 'any');
+    });
+  });
+});
+
+// ============================================================
+// Method dispatch with $ receiver binding (AC-14)
+// ============================================================
+describe('Method dispatch with $ binding (AC-14)', () => {
+  it('$ is bound to the receiver inside the method body (trim strips whitespace)', async () => {
+    // string.trim() uses the receiver as $; receiver = " hello "
+    const result = await run('" hello ".trim()');
+    expect(result).toBe('hello');
+  });
+
+  it('built-in type method receives receiver as first arg (len)', async () => {
+    // Built-in methods are registered via buildTypeMethodDicts; fn(args) where args[0] = receiver.
+    // len() returns the character count of the receiver string.
+    const result = await run('"hello".len()');
+    expect(result).toBe(5);
+  });
+});
+
+// ============================================================
+// Error contracts (EC-1, EC-2, EC-4, EC-7, AC-34, AC-35)
+// ============================================================
+describe('Error contracts', () => {
+  describe('EC-1 / AC-34: method on wrong type → RILL-R003', () => {
+    it('calling string method trim() on number throws RILL-R003', async () => {
+      // trim exists on string type; calling on number triggers cross-type receiver error
+      try {
+        await run('42.trim()');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R003');
+      }
+    });
+
+    it('error message contains the type name (AC-34)', async () => {
+      try {
+        await run('42.trim()');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        const msg = (err as Error).message;
+        expect(msg).toContain('number');
+      }
+    });
+  });
+
+  describe('EC-2 / AC-35: method on callable value → RILL-R003', () => {
+    it('calling .method() on a callable throws RILL-R003', async () => {
+      try {
+        await run('$fn.someMethod()', {
+          variables: {
+            fn: callable(() => null),
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R003');
+      }
+    });
+  });
+
+  describe('EC-4: unknown annotation key → RILL-R008', () => {
+    it('accessing unknown annotation key on callable throws RILL-R008', async () => {
+      try {
+        await run('$fn.^unknownKey', {
+          variables: {
+            fn: callable(() => null),
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
+      }
+    });
+  });
+
+  describe('EC-7 / AC-24: wrong argument type to method → RILL-R001', () => {
+    it('passing number where string expected throws RILL-R001', async () => {
+      // starts_with expects |prefix: string| — passing a number triggers RILL-R001
+      try {
+        await run('"hello".starts_with(42)');
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R001');
+      }
     });
   });
 });

@@ -24,9 +24,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   getFunctions,
   getDocumentationCoverage,
+  rillTypeToTypeValue,
 } from '@rcrsr/rill';
 
 describe('Rill Runtime: Function Metadata', () => {
@@ -45,8 +47,8 @@ describe('Rill Runtime: Function Metadata', () => {
                 },
               ],
               fn: (args) => `Hello, ${args[0]}!`,
-              description: 'Greets a user by name',
-              returnType: { type: 'string' },
+              annotations: { description: 'Greets a user by name' },
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
           },
         });
@@ -77,8 +79,8 @@ describe('Rill Runtime: Function Metadata', () => {
                 },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
-              description: 'Adds two numbers',
-              returnType: { type: 'number' },
+              annotations: { description: 'Adds two numbers' },
+              returnType: rillTypeToTypeValue({ type: 'number' }),
             },
           },
         });
@@ -102,8 +104,8 @@ describe('Rill Runtime: Function Metadata', () => {
                 },
               ],
               fn: (args) => (args[0] as string).length > 0,
-              description: 'Checks if string is non-empty',
-              returnType: { type: 'bool' },
+              annotations: { description: 'Checks if string is non-empty' },
+              returnType: rillTypeToTypeValue({ type: 'bool' }),
             },
           },
         });
@@ -129,7 +131,8 @@ describe('Rill Runtime: Function Metadata', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Function without return type',
+              annotations: { description: 'Function without return type' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -146,12 +149,14 @@ describe('Rill Runtime: Function Metadata', () => {
             first: {
               params: [],
               fn: () => 'first',
-              description: 'First function',
+              annotations: { description: 'First function' },
+              returnType: anyTypeValue,
             },
             second: {
               params: [],
               fn: () => 42,
-              description: 'Second function',
+              annotations: { description: 'Second function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -185,7 +190,6 @@ describe('Rill Runtime: Function Metadata', () => {
               body: { type: 'Body' as const, statements: [] },
               definingScope: {} as any,
               annotations: {},
-              paramAnnotations: {},
               isProperty: false,
             },
           },
@@ -206,32 +210,32 @@ describe('Rill Runtime: Function Metadata', () => {
             getString: {
               params: [],
               fn: () => 'text',
-              returnType: { type: 'string' },
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
             getNumber: {
               params: [],
               fn: () => 42,
-              returnType: { type: 'number' },
+              returnType: rillTypeToTypeValue({ type: 'number' }),
             },
             getBool: {
               params: [],
               fn: () => true,
-              returnType: { type: 'bool' },
+              returnType: rillTypeToTypeValue({ type: 'bool' }),
             },
             getList: {
               params: [],
               fn: () => [1, 2, 3],
-              returnType: { type: 'list' },
+              returnType: rillTypeToTypeValue({ type: 'list' }),
             },
             getDict: {
               params: [],
               fn: () => ({ key: 'value' }),
-              returnType: { type: 'dict' },
+              returnType: rillTypeToTypeValue({ type: 'dict' }),
             },
             getAny: {
               params: [],
               fn: () => 'anything',
-              returnType: { type: 'any' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -276,6 +280,7 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: false,
@@ -297,6 +302,7 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
+                returnType: anyTypeValue,
               },
             },
           })
@@ -317,7 +323,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: false,
@@ -341,6 +348,7 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -364,7 +372,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: undefined,
+                returnType: anyTypeValue,
+                // No annotations.description
               },
             },
             requireDescriptions: true,
@@ -388,7 +397,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: '',
+                annotations: { description: '' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -412,7 +422,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: '   ',
+                annotations: { description: '   ' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -438,7 +449,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -462,7 +474,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -486,7 +499,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -510,7 +524,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -540,7 +555,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'Function with description',
+                annotations: { description: 'Function with description' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -566,7 +582,8 @@ describe('Rill Runtime: Function Metadata', () => {
                   },
                 ],
                 fn: (args) => args[0],
-                description: 'A fully documented function',
+                annotations: { description: 'A fully documented function' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -581,7 +598,8 @@ describe('Rill Runtime: Function Metadata', () => {
               noParams: {
                 params: [],
                 fn: () => 'result',
-                description: 'Function with no parameters',
+                annotations: { description: 'Function with no parameters' },
+                returnType: anyTypeValue,
               },
             },
             requireDescriptions: true,
@@ -608,7 +626,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'A documented function',
+          annotations: { description: 'A documented function' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -634,7 +653,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'First function',
+          annotations: { description: 'First function' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
         ctx.functions.set('second', {
@@ -649,7 +669,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Second function',
+          annotations: { description: 'Second function' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -683,7 +704,8 @@ describe('Rill Runtime: Function Metadata', () => {
           kind: 'application',
           params: [],
           fn: () => 'result',
-          description: '   ',
+          annotations: { description: '   ' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -709,7 +731,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Function description',
+          annotations: { description: 'Function description' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -729,6 +752,8 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [],
           fn: () => 'result',
           description: '',
+          annotations: {},
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -749,7 +774,8 @@ describe('Rill Runtime: Function Metadata', () => {
           kind: 'application',
           params: [],
           fn: () => 'result',
-          description: 'Function with no parameters',
+          annotations: { description: 'Function with no parameters' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -777,7 +803,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Documented function',
+          annotations: { description: 'Documented function' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
         ctx.functions.set('undocumented', {
@@ -786,6 +813,8 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [],
           fn: () => 'result',
           description: '',
+          annotations: {},
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -811,7 +840,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Documented',
+          annotations: { description: 'Documented' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
         ctx.functions.set('undocumented1', {
@@ -820,6 +850,8 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [],
           fn: () => 'result',
           description: '',
+          annotations: {},
+          returnType: anyTypeValue,
           isProperty: false,
         });
         ctx.functions.set('undocumented2', {
@@ -828,6 +860,8 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [],
           fn: () => 'result',
           description: '',
+          annotations: {},
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -848,7 +882,8 @@ describe('Rill Runtime: Function Metadata', () => {
           kind: 'application',
           params: [],
           fn: () => 'result',
-          description: 'Documented',
+          annotations: { description: 'Documented' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -859,6 +894,8 @@ describe('Rill Runtime: Function Metadata', () => {
             params: [],
             fn: () => 'result',
             description: '',
+            annotations: {},
+            returnType: anyTypeValue,
             isProperty: false,
           });
         }
@@ -887,7 +924,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Function has description',
+          annotations: { description: 'Function has description' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 
@@ -919,7 +957,8 @@ describe('Rill Runtime: Function Metadata', () => {
             },
           ],
           fn: (args) => args[0],
-          description: 'Function description',
+          annotations: { description: 'Function description' },
+          returnType: anyTypeValue,
           isProperty: false,
         });
 

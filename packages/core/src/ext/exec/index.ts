@@ -11,7 +11,10 @@ import type {
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import type { RillFunction } from '../../runtime/core/callable.js';
-import type { RillValue } from '../../runtime/core/values.js';
+import {
+  rillTypeToTypeValue,
+  type RillValue,
+} from '../../runtime/core/values.js';
 import {
   type CommandConfig,
   type CommandResult,
@@ -184,9 +187,11 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
         },
       ],
       fn: commandFn,
-      description:
-        commandConfig.description ?? `Execute ${commandName} command`,
-      returnType: { type: 'dict' },
+      annotations: {
+        description:
+          commandConfig.description ?? `Execute ${commandName} command`,
+      },
+      returnType: rillTypeToTypeValue({ type: 'dict' }),
     };
   }
 
@@ -210,8 +215,8 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
   functions['commands'] = {
     params: [],
     fn: commands,
-    description: 'List all configured commands',
-    returnType: { type: 'list' },
+    annotations: { description: 'List all configured commands' },
+    returnType: rillTypeToTypeValue({ type: 'list' }),
   };
 
   // ============================================================

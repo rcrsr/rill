@@ -12,8 +12,11 @@ import type {
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import type { RillValue } from '../../runtime/core/values.js';
 import { isDict, type RillFunction } from '../../runtime/core/callable.js';
+import {
+  rillTypeToTypeValue,
+  type RillValue,
+} from '../../runtime/core/values.js';
 import {
   type FetchExtensionConfig,
   type InternalEndpointConfig,
@@ -310,18 +313,18 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
       };
     });
 
-    const returnType =
+    const returnTypeValue =
       (endpointConfig.responseShape ?? defaultResponseShape) === 'full'
-        ? { type: 'dict' as const }
-        : { type: 'any' as const };
+        ? rillTypeToTypeValue({ type: 'dict' })
+        : rillTypeToTypeValue({ type: 'any' });
 
     const hostFunctionDef: RillFunction = {
       params: rillParams,
       fn: endpointFn,
       ...(endpointConfig.description !== undefined
-        ? { description: endpointConfig.description }
+        ? { annotations: { description: endpointConfig.description } }
         : {}),
-      returnType,
+      returnType: returnTypeValue,
     };
 
     functions[endpointName] = hostFunctionDef;
@@ -353,8 +356,8 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
   functions['endpoints'] = {
     params: [],
     fn: endpoints,
-    description: 'List configured endpoints',
-    returnType: { type: 'list' },
+    annotations: { description: 'List configured endpoints' },
+    returnType: rillTypeToTypeValue({ type: 'list' }),
   };
 
   // ============================================================

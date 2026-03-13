@@ -12,7 +12,10 @@ import type {
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import type { RillValue } from '../../runtime/core/values.js';
+import {
+  rillTypeToTypeValue,
+  type RillValue,
+} from '../../runtime/core/values.js';
 
 // ============================================================
 // TYPES
@@ -161,8 +164,8 @@ export function createCryptoExtension(
         },
       ],
       fn: hash,
-      description: 'Hash content, returns hex output',
-      returnType: { type: 'string' },
+      annotations: { description: 'Hash content, returns hex output' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     hmac: {
       params: [
@@ -180,14 +183,16 @@ export function createCryptoExtension(
         },
       ],
       fn: hmac,
-      description: 'Generate HMAC signature, returns hex output',
-      returnType: { type: 'string' },
+      annotations: {
+        description: 'Generate HMAC signature, returns hex output',
+      },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     uuid: {
       params: [],
       fn: uuid,
-      description: 'Generate random UUID v4',
-      returnType: { type: 'string' },
+      annotations: { description: 'Generate random UUID v4' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     random: {
       params: [
@@ -199,8 +204,8 @@ export function createCryptoExtension(
         },
       ],
       fn: random,
-      description: 'Generate random bytes as hex string',
-      returnType: { type: 'string' },
+      annotations: { description: 'Generate random bytes as hex string' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
   };
 }

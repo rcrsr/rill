@@ -7,6 +7,7 @@
 
 import type { RillTypeName } from '../../types.js';
 import { RuntimeError } from '../../types.js';
+import { VALID_TYPE_NAMES } from '../../constants.js';
 import {
   callableEquals,
   isCallable,
@@ -339,19 +340,12 @@ export function inferStructuralType(value: RillValue): RillType {
     return { type: 'vector' };
   }
   if (isCallable(value)) {
-    if (isScriptCallable(value)) {
-      const params: [string, RillType][] = value.params.map((p) => [
-        p.name,
-        p.type ?? { type: 'any' }, // TODO(task-3.3): p.type is already RillType | undefined
-      ]);
-      let ret: RillType = { type: 'any' };
-      if (isTypeValue(value.returnShape as RillValue)) {
-        ret = (value.returnShape as RillTypeValue).structure;
-      }
-      return { type: 'closure', params, ret };
-    }
-    // Non-script callables have no annotations
-    return { type: 'closure', params: [], ret: { type: 'any' } };
+    const params: [string, RillType][] = (value.params ?? []).map((p) => [
+      p.name,
+      p.type ?? { type: 'any' },
+    ]);
+    const ret: RillType = value.returnType.structure;
+    return { type: 'closure', params, ret };
   }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;
@@ -447,25 +441,16 @@ export function structuralTypeMatches(
     if (!isCallable(value)) return false;
     // Absent params sub-field: matches any closure value of that compound type
     if (type.params === undefined) return true;
-    if (!isScriptCallable(value)) {
-      // Non-script callables: match if type has no param constraints
-      return (
-        type.params.every((_, i) => type.params![i]![1].type === 'any') &&
-        (type.ret === undefined || type.ret.type === 'any')
-      );
-    }
-    if (value.params.length !== type.params.length) return false;
+    const valueParams = value.params ?? [];
+    if (valueParams.length !== type.params.length) return false;
     for (let i = 0; i < type.params.length; i++) {
       const [expectedName, expectedType] = type.params[i]!;
-      const param = value.params[i]!;
+      const param = valueParams[i]!;
       if (param.name !== expectedName) return false;
-      const paramType: RillType = param.type ?? { type: 'any' }; // TODO(task-3.3): param.type is already RillType | undefined
+      const paramType: RillType = param.type ?? { type: 'any' };
       if (!structuralTypeEquals(paramType, expectedType)) return false;
     }
-    let retType: RillType = { type: 'any' };
-    if (isTypeValue(value.returnShape as RillValue)) {
-      retType = (value.returnShape as RillTypeValue).structure;
-    }
+    const retType: RillType = value.returnType.structure;
     if (type.ret === undefined) return true;
     return structuralTypeEquals(retType, type.ret);
   }
@@ -881,6 +866,32 @@ export function deepEquals(a: RillValue, b: RillValue): boolean {
 
 /** Reserved dict method names that cannot be overridden */
 export const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
+
+/**
+ * Singleton RillTypeValue representing the 'any' type.
+ * Used as the default returnType for callable() factory and ApplicationCallable.
+ */
+export const anyTypeValue: RillTypeValue = Object.freeze({
+  __rill_type: true as const,
+  typeName: 'any' as const,
+  structure: { type: 'any' as const },
+});
+
+/**
+ * Convert a RillType structural descriptor to a RillTypeValue.
+ * Uses the RillType's `type` field as the `typeName`.
+ * Falls back to 'any' for compound types that lack a direct RillTypeName mapping.
+ */
+export function rillTypeToTypeValue(type: RillType): RillTypeValue {
+  const validNames: readonly string[] = VALID_TYPE_NAMES;
+  return Object.freeze({
+    __rill_type: true as const,
+    typeName: (validNames.includes(type.type)
+      ? type.type
+      : 'any') as RillTypeName,
+    structure: type,
+  });
+}
 
 /** Check if a key name is reserved */
 export function isReservedMethod(name: string): boolean {

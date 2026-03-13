@@ -397,26 +397,26 @@ describe('Rill Language: Type Value Expressions', () => {
   });
 
   // ============================================================
-  // AC-19: Unknown annotation key on type value → RILL-R003
-  // Type values are not annotation containers; ^key on them raises RILL-R003.
+  // EC-5: ^key on type value → RILL-R008 (annotation access not supported on type values)
+  // Type values are not annotation containers; any ^key (other than ^type) raises RILL-R008.
   // ============================================================
 
-  describe('Unknown annotation key on type value raises RILL-R003 (AC-19)', () => {
-    it('42.^type.^unknownKey throws RILL-R003 (AC-19)', async () => {
+  describe('Unknown annotation key on type value raises RILL-R008 (EC-5)', () => {
+    it('42.^type.^unknownKey throws RILL-R008 (EC-5)', async () => {
       try {
         await run('42 => $v\n$v.^type => $t\n$t.^unknownKey');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('errorId', 'RILL-R003');
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
       }
     });
 
-    it('number type value with .^someKey throws RILL-R003 (AC-19)', async () => {
+    it('number type value with .^someKey throws RILL-R008 (EC-5)', async () => {
       try {
         await run('number => $v\n$v.^someKey');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('errorId', 'RILL-R003');
+        expect(err).toHaveProperty('errorId', 'RILL-R008');
       }
     });
   });

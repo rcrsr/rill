@@ -3,6 +3,7 @@
  * Builds the ResolverConfig used by RuntimeOptions.
  */
 
+import { resolve } from 'node:path';
 import {
   contextResolver,
   extResolver,
@@ -29,13 +30,20 @@ function convertTreeToRillValues(
       typeof (value as { fn: unknown }).fn === 'function' &&
       'params' in value
     ) {
-      const rillFn = value as { fn: (...args: unknown[]) => unknown };
+      const rillFn = value as {
+        fn: (...args: unknown[]) => unknown;
+        params: unknown;
+        returnType: unknown;
+        annotations?: Record<string, RillValue>;
+      };
       result[key] = {
         __type: 'callable' as const,
         kind: 'application' as const,
         isProperty: false,
         fn: rillFn.fn,
-        params: (value as { params: unknown }).params,
+        params: rillFn.params,
+        returnType: rillFn.returnType,
+        annotations: rillFn.annotations ?? {},
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(
@@ -63,6 +71,7 @@ export function buildResolvers(options: {
   extensionBindings: string;
   contextBindings: string;
   modulesConfig: Record<string, string>;
+  configDir: string;
 }): ResolverConfig {
   const {
     extTree,
@@ -70,15 +79,16 @@ export function buildResolvers(options: {
     extensionBindings,
     contextBindings,
     modulesConfig,
+    configDir,
   } = options;
 
   const extConfig = convertTreeToRillValues(extTree);
 
   // Build the module: resolver config, excluding reserved keys (ext, context)
   const userModuleConfig: Record<string, string> = {};
-  for (const [id, path] of Object.entries(modulesConfig)) {
+  for (const [id, value] of Object.entries(modulesConfig)) {
     if (id !== 'ext' && id !== 'context') {
-      userModuleConfig[id] = path;
+      userModuleConfig[id] = resolve(configDir, value);
     }
   }
 

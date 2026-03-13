@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.14.0] - 2026-03-12
+
+### Breaking Changes
+
+- **`RillFunction` interface change** — `description?: string` replaced by `annotations?: Record<string, RillValue>`. `returnType` changed from optional `RillType` to required `RillTypeValue`. Extension authors must update all `RillFunction` implementations. See migration guide in `docs/integration-extensions.md`.
+- **Removed types** — `RillCallableSignature`, `RillFunctionSignature`, and `RillMethodSignature` removed from public exports. Use `RillFunction` and the unified callable reflection API instead.
+- **Removed `basePath` from module resolver config** — Module paths must be absolute. Callers resolve paths relative to config directory before passing them in.
+
+### Changed
+
+- **Unified callable representations** — Callable signatures now use a single `CallableBase` interface for all callable kinds instead of separate hierarchies. Reflection operators work consistently across closures, application callables, and runtime functions
+- **Module paths resolve relative to config directory** — `moduleResolver` no longer accepts `basePath`. The CLI and `rill-config` resolve paths against `configDir` before passing absolute paths to the resolver.
+
+### Added
+
+- **Unified callable reflection** — `.^description`, `.^input`, and `.^output` now work on all callable kinds: script closures, application callables, and runtime functions. Reflection is consistent regardless of how a callable was created.
+- **Type method dicts** — Built-in methods now stored in per-type `typeMethodDicts` on `RuntimeContext`. Host applications can inspect or override type-specific methods at runtime.
+- **Cross-module error reporting** — Runtime errors from `use<module:...>` imports include `sourceId` and source text for snippet rendering. Call stack frames carry `sourceId` for cross-module tracing.
+- **Error formatter exports** — `formatRillError` and `formatRillErrorJson` exported from `@rcrsr/rill`. CLI error formatting moved to core.
+- **Fiddle call stack display** — Error output in the playground shows call stack frames with source snippets and caret indicators.
+- **`sourceId` and `sourceText` on RuntimeContext** — Child contexts track their originating source file for cross-module error attribution.
+
 ## [0.13.3] - 2026-03-11
 
 ### Changed

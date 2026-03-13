@@ -80,10 +80,7 @@ export function Output({
                 <div className="output-logs-label">Log</div>
                 <ul className="output-logs-entries" aria-label="Execution log">
                   {logs.map((entry, index) => (
-                    <li
-                      key={`${index}-${entry}`}
-                      className="output-logs-entry"
-                    >
+                    <li key={`${index}-${entry}`} className="output-logs-entry">
                       {entry}
                     </li>
                   ))}
@@ -105,10 +102,7 @@ export function Output({
                 <div className="output-logs-label">Log</div>
                 <ul className="output-logs-entries" aria-label="Execution log">
                   {logs.map((entry, index) => (
-                    <li
-                      key={`${index}-${entry}`}
-                      className="output-logs-entry"
-                    >
+                    <li key={`${index}-${entry}`} className="output-logs-entry">
                       {entry}
                     </li>
                   ))}
@@ -133,6 +127,35 @@ export function Output({
                 <div className="output-error-location">
                   line {error.line}
                   {error.column !== null && `, col ${error.column}`}
+                </div>
+              )}
+
+              {error.callStack && error.callStack.length > 0 && (
+                <div className="output-error-callstack">
+                  <div className="output-error-callstack-label">
+                    called from:
+                  </div>
+                  {error.callStack.map((frame, index) => (
+                    <div key={index} className="output-error-frame">
+                      {frame.sourceLine !== undefined ? (
+                        <pre className="output-error-frame-source">
+                          <span className="output-error-frame-gutter">
+                            {frame.line}
+                          </span>
+                          {frame.sourceLine}
+                          {'\n'}
+                          <span className="output-error-frame-gutter">
+                            {' '.repeat(String(frame.line).length)}
+                          </span>
+                          {' '.repeat(Math.max(0, frame.column - 1))}^
+                        </pre>
+                      ) : (
+                        <span className="output-error-frame-location">
+                          line {frame.line}, col {frame.column}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 

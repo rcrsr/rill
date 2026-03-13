@@ -7,7 +7,7 @@
 Create a simple extension with a factory function:
 
 ```typescript
-import { createRuntimeContext, hoistExtension } from '@rcrsr/rill';
+import { createRuntimeContext, hoistExtension, rillTypeToTypeValue } from '@rcrsr/rill';
 import type { ExtensionResult } from '@rcrsr/rill';
 
 function createGreetExtension(config: { prefix: string }): ExtensionResult {
@@ -15,8 +15,8 @@ function createGreetExtension(config: { prefix: string }): ExtensionResult {
     greet: {
       params: [{ name: 'name', type: 'string' }],
       fn: (args) => `${config.prefix} ${args[0]}!`,
-      description: 'Generate greeting',
-      returnType: 'string',
+      annotations: { description: 'Generate greeting' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
   };
 }
@@ -34,6 +34,7 @@ Every extension exports a factory function returning `ExtensionResult`:
 
 ```typescript
 import type { ExtensionResult, RillFunction } from '@rcrsr/rill';
+import { rillTypeToTypeValue } from '@rcrsr/rill';
 
 function createMyExtension(config: MyConfig): ExtensionResult {
   // Validate config eagerly (throw on invalid)
@@ -42,8 +43,8 @@ function createMyExtension(config: MyConfig): ExtensionResult {
     greet: {
       params: [{ name: 'name', type: 'string' }],
       fn: (args) => `Hello, ${args[0]}!`,
-      description: 'Generate greeting',
-      returnType: 'string',
+      annotations: { description: 'Generate greeting' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     dispose: () => {
       // Cleanup resources (connections, processes, etc.)
@@ -213,6 +214,8 @@ const ctx = createRuntimeContext({
 Extensions that manage external resources (processes, connections, timers) must implement `dispose()`:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 function createPooledExtension(config: PoolConfig): ExtensionResult {
   const pool = createConnectionPool(config);
 
@@ -220,8 +223,8 @@ function createPooledExtension(config: PoolConfig): ExtensionResult {
     query: {
       params: [{ name: 'sql', type: 'string' }],
       fn: async (args) => pool.query(args[0]),
-      description: 'Execute SQL query',
-      returnType: 'any',
+      annotations: { description: 'Execute SQL query' },
+      returnType: anyTypeValue,
     },
     dispose: () => {
       pool.close();
@@ -255,6 +258,8 @@ Extensions that hold in-memory state can implement `suspend()` and `restore()` o
 `suspend()` returns a JSON-serializable snapshot of extension state. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
 
 ```typescript
+import { rillTypeToTypeValue } from '@rcrsr/rill';
+
 function createCounterExtension(): ExtensionResult {
   let count = 0;
 
@@ -262,8 +267,8 @@ function createCounterExtension(): ExtensionResult {
     increment: {
       params: [],
       fn: () => ++count,
-      description: 'Increment counter',
-      returnType: 'number',
+      annotations: { description: 'Increment counter' },
+      returnType: rillTypeToTypeValue({ type: 'number' }),
     },
     suspend: () => ({ count }),
     restore: (state) => {
@@ -365,6 +370,8 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 Use rill's parameter type system for automatic validation:
 
 ```typescript
+import { rillTypeToTypeValue } from '@rcrsr/rill';
+
 return {
   send: {
     params: [
@@ -380,8 +387,8 @@ return {
       }
       return await doSend(message);
     },
-    description: 'Send a message',
-    returnType: 'dict',
+    annotations: { description: 'Send a message' },
+    returnType: rillTypeToTypeValue({ type: 'dict' }),
   },
 };
 ```
@@ -418,6 +425,8 @@ fn: async (args, ctx) => {
 When spawning processes or opening connections, track them for `dispose()`:
 
 ```typescript
+import { rillTypeToTypeValue } from '@rcrsr/rill';
+
 function createMyExtension(): ExtensionResult {
   const activeProcesses = new Set<() => void>();
 
@@ -437,8 +446,8 @@ function createMyExtension(): ExtensionResult {
           cleanup();
         }
       },
-      description: 'Run command',
-      returnType: 'string',
+      annotations: { description: 'Run command' },
+      returnType: rillTypeToTypeValue({ type: 'string' }),
     },
     dispose: () => {
       for (const cleanup of activeProcesses) {
@@ -500,6 +509,111 @@ fn: async (args, ctx) => {
 
 **Examples:** The qdrant, pinecone, and chroma extensions in [rill-ext](https://github.com/rcrsr/rill-ext) show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
 
+
+## Migration: RillFunction Interface Change
+
+v0.14.0 introduces a breaking change to the `RillFunction` interface. The `description` and `returnType` fields changed shape, and three registration types were removed.
+
+### Before and After
+
+**Before (v0.13.x):**
+
+```typescript
+import type { RillFunction, RillFunctionSignature, RillMethodSignature } from '@rcrsr/rill';
+
+const fn: RillFunction = {
+  params: [{ name: 'text', type: { type: 'string' } }],
+  fn: async (args) => process(args[0]),
+  description: 'Process text input',
+  returnType: { type: 'string' },  // RillType shape — was optional
+};
+```
+
+**After (v0.14.0):**
+
+```typescript
+import type { RillFunction } from '@rcrsr/rill';
+import { rillTypeToTypeValue } from '@rcrsr/rill';
+
+const fn: RillFunction = {
+  params: [{ name: 'text', type: { type: 'string' } }],
+  fn: async (args) => process(args[0]),
+  annotations: { description: 'Process text input' },
+  returnType: rillTypeToTypeValue({ type: 'string' }),  // RillTypeValue — now required
+};
+```
+
+---
+
+### Migration Steps
+
+**Step 1: Replace `description: string` with `annotations.description`**
+
+`description` is no longer a direct field on `RillFunction`. Move it into `annotations`:
+
+```typescript
+// Before
+{ fn, params, description: 'My function' }
+
+// After
+{ fn, params, annotations: { description: 'My function' } }
+```
+
+TypeScript compile error if you keep the old field:
+
+```text
+// Error: Object literal may only specify known properties,
+// and 'description' does not exist in type 'RillFunction'
+{ fn, params, description: 'My function' }
+```
+
+**Step 2: Replace `returnType?: RillType` with `returnType: RillTypeValue` (required)**
+
+`returnType` is now required. The type changed from `RillType` to `RillTypeValue`. If you previously omitted `returnType` (it was optional), use `anyTypeValue` as the equivalent default:
+
+```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
+// Before — returnType omitted (was optional)
+{ fn, params }
+
+// After — returnType required; anyTypeValue = "no constraint"
+{ fn, params, returnType: anyTypeValue }
+```
+
+TypeScript compile error if you pass the old `RillType` shape:
+
+```text
+// Error: Type '{ type: string }' is not assignable to type 'RillTypeValue'
+{ fn, params, returnType: { type: 'string' } as RillType }
+```
+
+TypeScript compile error if you omit `returnType`:
+
+```text
+// Error: Property 'returnType' is missing in type '...' but required in type 'RillFunction'
+{ fn, params, annotations: { description: 'text' } }
+```
+
+**Step 3: Remove any use of `RillFunctionSignature`, `RillMethodSignature`, `RillCallableSignature`**
+
+These types are removed in v0.14.0. Remove all imports and usages:
+
+```typescript
+// Before — remove these imports
+import type { RillFunctionSignature, RillMethodSignature, RillCallableSignature } from '@rcrsr/rill';
+```
+
+TypeScript compile error if you import any removed type:
+
+```text
+// Error: Module '@rcrsr/rill' has no exported member 'RillFunctionSignature'
+import type { RillFunctionSignature } from '@rcrsr/rill';
+```
+
+Replace any use of `RillFunctionSignature` with `RillFunction`.
+
+---
 
 ## API Reference
 

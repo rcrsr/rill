@@ -7,6 +7,7 @@ import {
   buildExtensionBindings,
 } from '@rcrsr/rill-config';
 import type { ContextFieldSchema, NestedExtConfig } from '@rcrsr/rill-config';
+import { rillTypeToTypeValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -32,6 +33,7 @@ describe('buildExtensionBindings', () => {
               annotations: {},
             },
           ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
         },
       },
     };
@@ -47,6 +49,7 @@ describe('buildExtensionBindings', () => {
           fn1: {
             fn: async () => null,
             params: [],
+            returnType: rillTypeToTypeValue({ type: 'any' }),
           },
         },
       },
@@ -57,7 +60,7 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('use<ext:ns.sub.fn1>');
   });
 
-  it('emits param description annotation when present', () => {
+  it('omits param annotations from bindings output', () => {
     const tree: NestedExtConfig = {
       ext: {
         greet: {
@@ -70,12 +73,34 @@ describe('buildExtensionBindings', () => {
               annotations: { description: 'The name to greet' },
             },
           ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
         },
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('description: ');
-    expect(result).toContain('The name to greet');
+    expect(result).not.toContain('description');
+    expect(result).toContain('name: string');
+  });
+
+  it('appends return type suffix after closing | when returnType is set', () => {
+    const tree: NestedExtConfig = {
+      tools: {
+        summarize: {
+          fn: async () => 'summary',
+          params: [
+            {
+              name: 'text',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'string' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('| :string');
   });
 });
 

@@ -4,6 +4,8 @@
 
 import { buildResolvers } from '@rcrsr/rill-config';
 import type { NestedExtConfig } from '@rcrsr/rill-config';
+import { isApplicationCallable } from '@rcrsr/rill';
+import type { ApplicationCallable, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -93,6 +95,40 @@ describe('buildResolvers', () => {
       const contextValues = { userId: 'abc123', count: 42 };
       const result = buildResolvers(makeOptions({ contextValues }));
       expect(result.configurations.resolvers['context']).toEqual(contextValues);
+    });
+  });
+
+  describe('convertTreeToRillValues preserves returnType and description', () => {
+    it('converted ApplicationCallable carries returnType from source RillFunction', () => {
+      const tree: NestedExtConfig = {
+        tools: {
+          greet: {
+            fn: async () => 'hello',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: { type: 'string' },
+            annotations: { description: 'Greets by name' },
+          },
+        },
+      };
+      const result = buildResolvers(makeOptions({ extTree: tree }));
+      const extConfig = result.configurations.resolvers['ext'] as Record<
+        string,
+        RillValue
+      >;
+      const toolsDict = extConfig['tools'] as Record<string, RillValue>;
+      const greetCallable = toolsDict['greet'];
+
+      expect(isApplicationCallable(greetCallable)).toBe(true);
+      const ac = greetCallable as unknown as ApplicationCallable;
+      expect(ac.returnType).toEqual({ type: 'string' });
+      expect(ac.annotations['description']).toBe('Greets by name');
     });
   });
 });

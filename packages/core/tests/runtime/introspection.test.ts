@@ -17,6 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   getFunctions,
   getLanguageReference,
@@ -38,7 +39,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => `Hello, ${args[0]}!`,
-              description: 'Greets a user by name',
+              annotations: { description: 'Greets a user by name' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -72,7 +74,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
-              description: 'Adds two numbers',
+              annotations: { description: 'Adds two numbers' },
+              returnType: anyTypeValue,
             },
             concat: {
               params: [
@@ -90,7 +93,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => `${args[0]}${args[1]}`,
-              description: 'Concatenates two strings',
+              annotations: { description: 'Concatenates two strings' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -124,7 +128,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => String(args[0]).replace('{}', String(args[1])),
-              description: 'Formats a string template',
+              annotations: { description: 'Formats a string template' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -156,6 +161,7 @@ describe('Rill Runtime: Introspection API', () => {
             legacy: {
               params: [],
               fn: () => 'result',
+              returnType: anyTypeValue,
             },
           },
         });
@@ -181,11 +187,13 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'A host function',
+              annotations: { description: 'A host function' },
+              returnType: anyTypeValue,
             },
             builtinFunc: {
               params: [],
               fn: () => 'builtin',
+              returnType: anyTypeValue,
             },
           },
         });
@@ -217,7 +225,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => (args[0] as number) + (args[1] as number),
-              description: 'Adds two numbers',
+              annotations: { description: 'Adds two numbers' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -243,7 +252,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => String(args[0]).toUpperCase(),
-              description: 'Converts to uppercase',
+              annotations: { description: 'Converts to uppercase' },
+              returnType: anyTypeValue,
             },
             'str::lower': {
               params: [
@@ -255,7 +265,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => String(args[0]).toLowerCase(),
-              description: 'Converts to lowercase',
+              annotations: { description: 'Converts to lowercase' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -281,7 +292,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => `reading ${args[0]}`,
-              description: 'Reads a file',
+              annotations: { description: 'Reads a file' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -347,6 +359,7 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
+              returnType: anyTypeValue,
             },
           },
         });
@@ -370,7 +383,8 @@ describe('Rill Runtime: Introspection API', () => {
                 }, // No description
               ],
               fn: (args) => args[0],
-              description: 'A test function',
+              annotations: { description: 'A test function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -394,7 +408,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Has description',
+              annotations: { description: 'Has description' },
+              returnType: anyTypeValue,
             },
             withoutDesc: {
               params: [
@@ -406,6 +421,7 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
+              returnType: anyTypeValue,
             },
           },
         });
@@ -439,7 +455,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => `${args[0]} ${args[1]}`,
-              description: 'Mixed documentation',
+              annotations: { description: 'Mixed documentation' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -462,7 +479,8 @@ describe('Rill Runtime: Introspection API', () => {
             valid: {
               params: [],
               fn: () => 'valid',
-              description: 'Valid function',
+              annotations: { description: 'Valid function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -485,12 +503,14 @@ describe('Rill Runtime: Introspection API', () => {
             first: {
               params: [],
               fn: () => 'first',
-              description: 'First function',
+              annotations: { description: 'First function' },
+              returnType: anyTypeValue,
             },
             last: {
               params: [],
               fn: () => 'last',
-              description: 'Last function',
+              annotations: { description: 'Last function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -557,7 +577,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Valid function',
+              annotations: { description: 'Valid function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -584,7 +605,8 @@ describe('Rill Runtime: Introspection API', () => {
             valid: {
               params: [],
               fn: () => 'valid',
-              description: 'Valid function',
+              annotations: { description: 'Valid function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -624,7 +646,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'First',
+              annotations: { description: 'First' },
+              returnType: anyTypeValue,
             },
             last: {
               params: [
@@ -636,7 +659,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Last',
+              annotations: { description: 'Last' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -733,7 +757,8 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Test function',
+              annotations: { description: 'Test function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -765,6 +790,7 @@ describe('Rill Runtime: Introspection API', () => {
                 },
               ],
               fn: (args) => args[0],
+              returnType: anyTypeValue,
             },
           },
         });
@@ -797,7 +823,8 @@ describe('Rill Runtime: Introspection API', () => {
             hostFunc: {
               params: [],
               fn: () => 'host',
-              description: 'Host function',
+              annotations: { description: 'Host function' },
+              returnType: anyTypeValue,
             },
           },
         });
@@ -861,7 +888,8 @@ describe('Rill Runtime: Introspection API', () => {
             topLevel: {
               params: [],
               fn: () => 'top',
-              description: 'Top level function',
+              annotations: { description: 'Top level function' },
+              returnType: anyTypeValue,
             },
           },
         });

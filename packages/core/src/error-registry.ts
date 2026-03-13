@@ -1391,7 +1391,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate: 'moduleResolver config must be a plain object',
     cause: 'The config passed to moduleResolver is not a plain object.',
     resolution:
-      'Pass a plain object as the moduleResolver config (e.g., { basePath: "/app", myModule: "./mod.rill" }).',
+      'Pass a plain object as the moduleResolver config (e.g., { myModule: "/app/mod.rill" }). Paths must be absolute; resolve them before passing in.',
     examples: [
       {
         description: 'Non-object config',

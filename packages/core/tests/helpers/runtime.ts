@@ -3,6 +3,7 @@
  */
 
 import {
+  anyTypeValue,
   createRuntimeContext,
   createStepper,
   execute,
@@ -77,6 +78,7 @@ export function mockAsyncFn(
 ): RillFunction {
   return {
     params: [],
+    returnType: anyTypeValue,
     fn: async () => {
       await new Promise((r) => setTimeout(r, delay));
       return returnValue;
@@ -96,6 +98,7 @@ export function mockFn(returnValue: RillValue = null): RillFunction & {
   };
   const hostDef = {
     params: [],
+    returnType: anyTypeValue,
     fn,
   } as RillFunction & { calls: RillValue[][]; callCount: number };
   hostDef.calls = calls;

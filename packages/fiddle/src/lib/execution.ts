@@ -10,19 +10,32 @@ import {
   execute,
   toNative,
   ERROR_REGISTRY,
+  getCallStack,
   getHelpUrl,
   VERSION,
   type ScriptNode,
   type SchemeResolver,
   type RuntimeOptions,
   type RillFunction,
-  type RillFunctionSignature,
 } from '@rcrsr/rill';
 import { EXECUTION_TIMEOUT_MS } from './constants.js';
 
 // ============================================================
 // TYPE DEFINITIONS
 // ============================================================
+
+/**
+ * Structured error from failed execution
+ */
+/** A single frame in the call stack */
+export interface FiddleCallFrame {
+  /** Source line number (1-based) */
+  line: number;
+  /** Source column number (1-based) */
+  column: number;
+  /** Source text of the line (if available) */
+  sourceLine?: string | undefined;
+}
 
 /**
  * Structured error from failed execution
@@ -46,6 +59,8 @@ export interface FiddleError {
   resolution?: string | undefined;
   /** Code examples from ERROR_REGISTRY */
   examples?: Array<{ description: string; code: string }> | undefined;
+  /** Call stack frames (callers of the error site) */
+  callStack?: FiddleCallFrame[] | undefined;
 }
 
 /**
@@ -76,7 +91,7 @@ export interface FiddleResolverConfig {
   /** Per-scheme configuration data passed to each resolver */
   configurations: { resolvers: Record<string, unknown> };
   /** Host functions exposed to scripts (e.g. "ext::fn") */
-  functions?: Record<string, RillFunction | RillFunctionSignature> | undefined;
+  functions?: Record<string, RillFunction> | undefined;
 }
 
 // ============================================================
@@ -174,8 +189,8 @@ export async function executeRill(
   } catch (err) {
     const duration = performance.now() - startTime;
 
-    // Convert error to FiddleError
-    const fiddleError = convertError(err);
+    // Convert error to FiddleError (pass source for call stack line lookup)
+    const fiddleError = convertError(err, source);
 
     return {
       status: 'error',
@@ -190,7 +205,7 @@ export async function executeRill(
 /**
  * Convert thrown error to FiddleError structure
  */
-function convertError(err: unknown): FiddleError {
+function convertError(err: unknown, source?: string): FiddleError {
   // EC-1, EC-2, EC-3: RillError hierarchy (LexerError, ParseError, RuntimeError)
   if (isRillError(err)) {
     const basicError: FiddleError = {
@@ -200,6 +215,12 @@ function convertError(err: unknown): FiddleError {
       column: err.location?.column ?? null,
       errorId: err.errorId,
     };
+
+    // Extract call stack frames, deduplicating the primary error location
+    const callStack = extractCallStack(err, source);
+    if (callStack.length > 0) {
+      basicError.callStack = callStack;
+    }
 
     // Enrich with metadata from ERROR_REGISTRY if available
     if (err.errorId) {
@@ -226,6 +247,53 @@ function convertError(err: unknown): FiddleError {
     column: null,
     errorId: null,
   };
+}
+
+/**
+ * Extract call stack frames from a RillError, resolving source lines.
+ * Filters out frames that duplicate the primary error location.
+ */
+function extractCallStack(
+  err: RillErrorLike,
+  source?: string
+): FiddleCallFrame[] {
+  // getCallStack requires an actual RillError instance with context
+  if (!err || typeof err !== 'object' || !('context' in err)) return [];
+
+  let frames;
+  try {
+    frames = getCallStack(err as Parameters<typeof getCallStack>[0]);
+  } catch {
+    return [];
+  }
+
+  if (frames.length === 0) return [];
+
+  const sourceLines = source?.split('\n');
+
+  return frames
+    .filter((frame) => {
+      // Deduplicate frames matching the primary error location
+      if (!err.location) return true;
+      const loc = frame.location.start;
+      return (
+        loc.line !== err.location.line || loc.column !== err.location.column
+      );
+    })
+    .map((frame) => {
+      const loc = frame.location.start;
+      const result: FiddleCallFrame = {
+        line: loc.line,
+        column: loc.column,
+      };
+      if (sourceLines) {
+        const idx = loc.line - 1;
+        if (idx >= 0 && idx < sourceLines.length) {
+          result.sourceLine = sourceLines[idx];
+        }
+      }
+      return result;
+    });
 }
 
 /**

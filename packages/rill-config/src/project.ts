@@ -4,6 +4,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { ConfigNotFoundError } from './errors.js';
 import { parseConfig } from './parse.js';
 import { checkRuntimeVersion, validateContext } from './validate.js';
@@ -94,6 +95,7 @@ export async function loadProject(options: {
     extensionBindings,
     contextBindings,
     modulesConfig: config.modules ?? {},
+    configDir: dirname(configPath),
   });
 
   return {

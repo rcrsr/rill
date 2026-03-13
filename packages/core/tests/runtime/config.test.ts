@@ -231,7 +231,7 @@ describe('Rill Runtime: Configuration', () => {
           },
         ],
         fn: (): string => 'result',
-        description: 'Test function',
+        annotations: { description: 'Test function' },
       };
 
       expect(() =>
@@ -342,7 +342,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: '   ',
+          annotations: { description: '   ' },
         };
 
         expect(() =>
@@ -366,7 +366,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: '',
+          annotations: { description: '' },
         };
 
         expect(() =>
@@ -433,7 +433,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -457,7 +457,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -481,7 +481,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -505,7 +505,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -541,7 +541,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -565,7 +565,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -587,7 +587,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function',
+          annotations: { description: 'Test function' },
         };
 
         expect(() =>
@@ -610,7 +610,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: '\t\t',
+          annotations: { description: '\t\t' },
         };
 
         expect(() =>
@@ -634,7 +634,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Valid function description',
+          annotations: { description: 'Valid function description' },
         };
 
         expect(() =>
@@ -658,7 +658,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: '  Valid function description  ',
+          annotations: { description: '  Valid function description  ' },
         };
 
         expect(() =>
@@ -688,7 +688,7 @@ describe('Rill Runtime: Configuration', () => {
             },
           ],
           fn: (): string => 'result',
-          description: 'Test function with documentation',
+          annotations: { description: 'Test function with documentation' },
         };
 
         expect(() =>
@@ -703,7 +703,7 @@ describe('Rill Runtime: Configuration', () => {
         const testFn = {
           params: [],
           fn: (): string => 'result',
-          description: 'Function with no parameters',
+          annotations: { description: 'Function with no parameters' },
         };
 
         expect(() =>

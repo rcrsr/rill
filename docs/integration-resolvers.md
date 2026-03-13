@@ -18,8 +18,7 @@ const ctx = createRuntimeContext({
   configurations: {
     resolvers: {
       host: {
-        basePath: '/app/modules',
-        utils: 'utils.rill',
+        utils: './utils.rill',
       },
       ext: {
         qdrant: myQdrantExtension,
@@ -89,9 +88,8 @@ const ctx = createRuntimeContext({
   configurations: {
     resolvers: {
       host: {
-        basePath: '/app/modules',
-        utils: 'utils.rill',
-        helpers: 'lib/helpers.rill',
+        utils: './utils.rill',
+        helpers: './lib/helpers.rill',
       },
     },
   },
@@ -104,8 +102,7 @@ const ctx = createRuntimeContext({
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `basePath` | `string` | No | Base directory for resolving relative file paths. Defaults to `process.cwd()` |
-| `[moduleId]` | `string` | Yes (at least one) | Maps a module identifier to a file path |
+| `[moduleId]` | `string` | Yes (at least one) | Maps a module identifier to a file path (relative to the config file's directory) |
 
 **Error codes:**
 
@@ -115,7 +112,7 @@ const ctx = createRuntimeContext({
 | `RILL-R051` | File read failure (I/O error or missing file) |
 | `RILL-R059` | Config is missing or malformed |
 
-`moduleResolver` returns `{ kind: 'source', text: string }` after reading the target file. Paths resolve relative to `basePath` when provided, otherwise relative to `process.cwd()`.
+`moduleResolver` returns `{ kind: 'source', text: string }` after reading the target file. Paths resolve relative to the config file's directory.
 
 ### extResolver
 
@@ -235,11 +232,11 @@ The structural type formats as a human-readable string via `formatStructuralType
 
 Dict fields are sorted alphabetically in the formatted output.
 
-### Closure Introspection: .^input and .^output
+### Callable Introspection: .^input and .^output
 
-Script closures expose their parameter and return type shapes via `.^input` and `.^output`.
+All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
 
-**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. Only `ScriptCallable` closures populate this — other callable kinds return an empty ordered value.
+**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables.
 
 ```typescript
 // Script closure returned from execute():

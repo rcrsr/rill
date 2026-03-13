@@ -114,7 +114,14 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       let callCount = 0;
 
       const slowFn = {
-        params: [],
+        params: [
+          {
+            name: '_',
+            type: undefined,
+            defaultValue: 0,
+            annotations: {},
+          },
+        ],
         fn: async (): Promise<RillValue> => {
           callCount++;
           if (callCount >= 2) {
@@ -143,7 +150,14 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         run('"" -> { slow() -> slow() -> slow() }', {
           functions: {
             slow: {
-              params: [],
+              params: [
+                {
+                  name: '_',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: async () => {
                 controller.abort();
                 return 'done';
@@ -182,7 +196,14 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         run('"test" -> check -> check', {
           functions: {
             check: {
-              params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'input',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: async (args) => {
                 callCount++;
                 if (callCount >= 1) {

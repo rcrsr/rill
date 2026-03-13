@@ -4,6 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import {
   parse,
   execute,
@@ -17,7 +18,12 @@ import {
   type RuntimeOptions,
   type SchemeResolver,
 } from '@rcrsr/rill';
-import { ParseError, RillError, getCallStack } from '@rcrsr/rill';
+import {
+  ParseError,
+  RillError,
+  formatRillError,
+  formatRillErrorJson,
+} from '@rcrsr/rill';
 import { buildExtensionBindings, isLeafFunction } from '@rcrsr/rill-config';
 import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import type { RunCliOptions } from './types.js';
@@ -51,7 +57,9 @@ function convertTreeToRillValues(
     ) {
       const rillFn = value as {
         fn: (...args: unknown[]) => unknown;
-        params: unknown[];
+        params: unknown;
+        returnType: unknown;
+        annotations?: Record<string, RillValue>;
       };
       result[key] = {
         __type: 'callable' as const,
@@ -59,6 +67,8 @@ function convertTreeToRillValues(
         isProperty: false,
         fn: rillFn.fn,
         params: rillFn.params,
+        returnType: rillFn.returnType,
+        annotations: rillFn.annotations ?? {},
       } as unknown as RillValue;
     } else {
       result[key] = convertTreeToRillValues(
@@ -83,12 +93,13 @@ function convertTreeToRillValues(
 export function buildModuleResolver(
   bindingsSource: string,
   modulesConfig: Record<string, string>,
-  extTree: NestedExtConfig
+  extTree: NestedExtConfig,
+  configDir: string
 ): SchemeResolver {
   const moduleConfig: Record<string, string> = {};
-  for (const [id, path] of Object.entries(modulesConfig)) {
+  for (const [id, value] of Object.entries(modulesConfig)) {
     if (id !== 'ext') {
-      moduleConfig[id] = path;
+      moduleConfig[id] = resolve(configDir, value);
     }
   }
 
@@ -171,97 +182,6 @@ function formatOutput(
 }
 
 // ============================================================
-// ERROR FORMATTING
-// ============================================================
-
-function resolveSourceSnippet(
-  location: { line: number; column: number },
-  sources: { script?: string; bindings?: string },
-  filePath?: string
-): { label: string; sourceLine?: string } {
-  if (sources.script !== undefined) {
-    const lines = sources.script.split('\n');
-    const idx = location.line - 1;
-    if (
-      idx >= 0 &&
-      idx < lines.length &&
-      location.column <= lines[idx]!.length + 1
-    ) {
-      return {
-        label: filePath ?? '<script>',
-        ...(lines[idx] !== undefined ? { sourceLine: lines[idx] } : {}),
-      };
-    }
-  }
-  if (sources.bindings !== undefined) {
-    const lines = sources.bindings.split('\n');
-    const idx = location.line - 1;
-    if (idx >= 0 && idx < lines.length) {
-      return {
-        label: '<generated bindings>',
-        ...(lines[idx] !== undefined ? { sourceLine: lines[idx] } : {}),
-      };
-    }
-  }
-  return { label: filePath ?? '<unknown>' };
-}
-
-function formatRillError(
-  error: RillError,
-  verbose: boolean,
-  maxStackDepth: number,
-  filePath?: string,
-  sources?: { script?: string; bindings?: string }
-): string {
-  const data = error.toData();
-  const parts: string[] = [];
-
-  parts.push(`${data.errorId}: ${data.message}`);
-
-  if (data.location !== undefined && sources !== undefined) {
-    const match = resolveSourceSnippet(data.location, sources, filePath);
-    parts.push(
-      `  at ${match.label}:${data.location.line}:${data.location.column}`
-    );
-    if (match.sourceLine !== undefined) {
-      parts.push('');
-      const lineNum = String(data.location.line);
-      parts.push(`  ${lineNum} | ${match.sourceLine}`);
-      const caretCol = Math.max(0, data.location.column - 1);
-      parts.push(`  ${' '.repeat(lineNum.length)} | ${' '.repeat(caretCol)}^`);
-    }
-  } else if (data.location !== undefined) {
-    parts.push(
-      `  at line ${data.location.line}, column ${data.location.column}`
-    );
-  }
-
-  if (
-    verbose &&
-    data.context !== undefined &&
-    Object.keys(data.context).length > 0
-  ) {
-    parts.push(`  context: ${JSON.stringify(data.context, null, 2)}`);
-  }
-
-  if (verbose && data.helpUrl !== undefined) {
-    parts.push(`  help: ${data.helpUrl}`);
-  }
-
-  const frames = getCallStack(error);
-  const visibleFrames = frames.slice(0, maxStackDepth);
-  for (const frame of visibleFrames) {
-    const loc = `${frame.location.start.line}:${frame.location.start.column}`;
-    const name =
-      frame.functionName !== undefined ? ` in ${frame.functionName}` : '';
-    const ctx = frame.context !== undefined ? ` (${frame.context})` : '';
-    parts.push(`  at ${loc}${name}${ctx}`);
-  }
-
-  return parts.join('\n');
-}
-
-// ============================================================
 // RUNNER
 // ============================================================
 
@@ -289,10 +209,12 @@ export async function runScript(
 
   const extConfig = convertTreeToRillValues(extTree);
   const modulesConfig = config.modules ?? {};
+  const configDir = dirname(resolve(opts.config));
   const customModuleResolver = buildModuleResolver(
     bindingsSrc,
     modulesConfig,
-    extTree
+    extTree,
+    configDir
   );
 
   const runtimeOptions: RuntimeOptions = {
@@ -325,13 +247,18 @@ export async function runScript(
     ast = parse(source);
   } catch (err: unknown) {
     if (err instanceof ParseError) {
-      const formatted = formatRillError(
-        err,
-        opts.verbose,
-        opts.maxStackDepth,
-        opts.scriptPath,
-        { script: source }
-      );
+      const formatted =
+        opts.format === 'json'
+          ? formatRillErrorJson(err, {
+              maxStackDepth: opts.maxStackDepth,
+              filePath: opts.scriptPath,
+            })
+          : formatRillError(err, {
+              verbose: opts.verbose,
+              maxStackDepth: opts.maxStackDepth,
+              filePath: opts.scriptPath,
+              sources: { script: source },
+            });
       return { exitCode: 1, errorOutput: formatted };
     }
     const message = err instanceof Error ? err.message : String(err);
@@ -344,13 +271,18 @@ export async function runScript(
     result = execResult.result;
   } catch (err: unknown) {
     if (err instanceof RillError) {
-      const formatted = formatRillError(
-        err,
-        opts.verbose,
-        opts.maxStackDepth,
-        opts.scriptPath,
-        { script: source, bindings: bindingsSrc }
-      );
+      const formatted =
+        opts.format === 'json'
+          ? formatRillErrorJson(err, {
+              maxStackDepth: opts.maxStackDepth,
+              filePath: opts.scriptPath,
+            })
+          : formatRillError(err, {
+              verbose: opts.verbose,
+              maxStackDepth: opts.maxStackDepth,
+              filePath: opts.scriptPath,
+              sources: { script: source, bindings: bindingsSrc },
+            });
       return { exitCode: 1, errorOutput: formatted };
     }
     const message = err instanceof Error ? err.message : String(err);

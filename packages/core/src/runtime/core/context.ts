@@ -6,10 +6,8 @@
  */
 
 import { RuntimeError } from '../../types.js';
-import { parseSignatureRegistration } from '../../signature-parser.js';
 import { BUILTIN_FUNCTIONS, BUILTIN_METHODS } from '../ext/builtins.js';
 import type {
-  RillMethod,
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
@@ -20,6 +18,8 @@ import { inferType, type RillValue } from './values.js';
 import {
   callable,
   validateDefaultValueType,
+  type ApplicationCallable,
+  type RillFunction,
   type RillParam,
 } from './callable.js';
 
@@ -29,9 +29,78 @@ import {
 const UNTYPED_BUILTINS = new Set(['log', 'chain']);
 
 // Built-in methods that do their own internal arg validation with specific error
-// messages expected by protected language tests. Storing methodParams for these
-// would cause the generic validateCallableArgs message to fire first.
-const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
+// messages expected by protected language tests. Generic validateCallableArgs
+// must not fire before the method body's own check.
+export const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
+
+// Built-in methods that perform their own receiver type checking with specific
+// error messages. Generic RILL-R003 must not fire before the method body runs.
+// Mirrors the old flat-structure convention of receiverTypes: [].
+export const UNVALIDATED_METHOD_RECEIVERS = new Set([
+  'head',
+  'tail',
+  'first',
+  'at',
+  'eq',
+  'ne',
+  'keys',
+  'values',
+  'entries',
+  'has',
+  'has_any',
+  'has_all',
+  'dimensions',
+  'model',
+  'similarity',
+  'dot',
+  'distance',
+  'norm',
+  'normalize',
+]);
+
+/**
+ * Build a ReadonlyMap of frozen ApplicationCallable dicts from an array of
+ * [typeName, methods] pairs. Accepts pairs (not a plain object) so the same
+ * typeName can appear more than once — duplicate method names across entries
+ * for the same type trigger an Error (EC-6).
+ *
+ * Re-exported from the public barrel index for host integration use.
+ */
+export function buildTypeMethodDicts(
+  pairs: Array<[string, Record<string, RillFunction>]>
+): ReadonlyMap<string, Readonly<Record<string, RillValue>>> {
+  const registry = new Map<string, Set<string>>();
+  const result = new Map<string, Readonly<Record<string, RillValue>>>();
+
+  for (const [typeName, methods] of pairs) {
+    const seen = registry.get(typeName) ?? new Set<string>();
+    registry.set(typeName, seen);
+
+    const existing = result.get(typeName) ?? {};
+    const dict: Record<string, RillValue> = { ...existing };
+
+    for (const [name, fn] of Object.entries(methods)) {
+      if (seen.has(name)) {
+        throw new Error(`Duplicate method '${name}' on type '${typeName}'`);
+      }
+      seen.add(name);
+      const appCallable: import('./callable.js').ApplicationCallable = {
+        __type: 'callable',
+        kind: 'application',
+        params: fn.params as RillParam[],
+        returnType: fn.returnType,
+        annotations: fn.annotations ?? {},
+        isProperty: false,
+        fn: fn.fn,
+      };
+      dict[name] = appCallable;
+    }
+
+    result.set(typeName, Object.freeze(dict));
+  }
+
+  return result;
+}
 
 // Module-level caches: parse signatures once at load time, not per context creation.
 
@@ -51,26 +120,30 @@ function initBuiltinCaches(): void {
       BUILTIN_FN_CACHE.set(name, { appCallable: callable(entry.fn, false) });
       continue;
     }
-    const parsed = parseSignatureRegistration(entry.signature, name);
     const appCallable = callable(entry.fn, false);
     const typedCallable: import('./callable.js').ApplicationCallable = {
       ...appCallable,
-      params: parsed.params as RillParam[],
-      ...(parsed.returnType !== undefined
-        ? { returnType: parsed.returnType }
-        : {}),
+      params: entry.params as RillParam[],
+      returnType: entry.returnType,
     };
     BUILTIN_FN_CACHE.set(name, { appCallable: typedCallable });
   }
 
-  for (const [name, impl] of Object.entries(BUILTIN_METHODS)) {
-    if (impl.receiverTypes.length > 0) {
-      BUILTIN_METHOD_RECEIVER_TYPES_CACHE.set(name, impl.receiverTypes);
-    }
-    if (!UNVALIDATED_METHOD_PARAMS.has(name)) {
-      const parsed = parseSignatureRegistration(impl.signature, name);
-      if (parsed.params.length > 0) {
-        BUILTIN_METHOD_PARAMS_CACHE.set(name, parsed.params);
+  for (const [typeName, methods] of Object.entries(BUILTIN_METHODS)) {
+    for (const [name, impl] of Object.entries(methods)) {
+      // Accumulate receiver types across all type groups for this method name.
+      // Skip methods that perform their own receiver type checking.
+      if (!UNVALIDATED_METHOD_RECEIVERS.has(name)) {
+        const existing = BUILTIN_METHOD_RECEIVER_TYPES_CACHE.get(name);
+        BUILTIN_METHOD_RECEIVER_TYPES_CACHE.set(
+          name,
+          existing !== undefined ? [...existing, typeName] : [typeName]
+        );
+      }
+      if (!UNVALIDATED_METHOD_PARAMS.has(name)) {
+        if (impl.params.length > 0) {
+          BUILTIN_METHOD_PARAMS_CACHE.set(name, impl.params as RillParam[]);
+        }
       }
     }
   }
@@ -102,10 +175,6 @@ export function createRuntimeContext(
     | import('./callable.js').CallableFn
     | import('./callable.js').ApplicationCallable
   >();
-  const methods = new Map<string, RillMethod>();
-  const methodReceiverTypes = new Map<string, readonly string[]>();
-  const methodParams = new Map<string, readonly RillParam[]>();
-
   // Set initial variables (and infer their types)
   if (options.variables) {
     for (const [name, value] of Object.entries(options.variables)) {
@@ -124,27 +193,10 @@ export function createRuntimeContext(
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      let params: readonly RillParam[];
-      let fn: import('./callable.js').CallableFn;
-      let description: string | undefined;
-      let returnType: import('./values.js').RillType | undefined;
-      let originalSignature: string | undefined;
-
-      if ('signature' in definition) {
-        // Signature form: parse the signature string at registration time (IR-5)
-        const parsed = parseSignatureRegistration(definition.signature, name);
-        params = parsed.params;
-        fn = definition.fn;
-        description = parsed.description;
-        returnType = parsed.returnType;
-        originalSignature = definition.signature;
-      } else {
-        // Structured form: RillFunction with explicit RillParam[]
-        params = definition.params as RillParam[];
-        fn = definition.fn;
-        description = definition.description;
-        returnType = definition.returnType;
-      }
+      const params = definition.params as RillParam[];
+      const description = definition.annotations?.['description'] as
+        | string
+        | undefined;
 
       // Validate default values at registration time (EC-4)
       for (const param of params) {
@@ -179,30 +231,19 @@ export function createRuntimeContext(
         }
       }
 
-      // Create ApplicationCallable with params field populated
-      const appCallable = callable(fn, false);
-      const typedCallable: import('./callable.js').ApplicationCallable = {
-        ...appCallable,
-        params: params as RillParam[],
-        ...(description !== undefined ? { description } : {}),
-        ...(returnType !== undefined ? { returnType } : {}),
-        ...(originalSignature !== undefined ? { originalSignature } : {}),
+      // Direct RillFunction mapping (AC-15: only structured form accepted)
+      const appCallable: ApplicationCallable = {
+        __type: 'callable',
+        kind: 'application',
+        isProperty: false,
+        fn: definition.fn,
+        params,
+        annotations: definition.annotations ?? {},
+        returnType: definition.returnType,
       };
 
-      // Store ApplicationCallable for runtime validation
-      functions.set(name, typedCallable);
+      functions.set(name, appCallable);
     }
-  }
-
-  // Set built-in methods from module-level caches (parsed once at load time).
-  for (const [name, impl] of Object.entries(BUILTIN_METHODS)) {
-    methods.set(name, impl.method);
-  }
-  for (const [name, types] of BUILTIN_METHOD_RECEIVER_TYPES_CACHE) {
-    methodReceiverTypes.set(name, types);
-  }
-  for (const [name, params] of BUILTIN_METHOD_PARAMS_CACHE) {
-    methodParams.set(name, params);
   }
 
   // Compile autoException patterns into RegExp objects
@@ -231,14 +272,20 @@ export function createRuntimeContext(
       : []
   );
 
+  // Build typeMethodDicts fresh per context so duplicate detection (EC-6)
+  // uses isolated state and does not leak across context instances.
+  const typeMethodDicts = buildTypeMethodDicts(
+    Object.entries(BUILTIN_METHODS) as Array<
+      [string, Record<string, RillFunction>]
+    >
+  );
+
   return {
     parent: undefined,
     variables,
     variableTypes,
     functions,
-    methods,
-    methodReceiverTypes,
-    methodParams,
+    typeMethodDicts,
     callbacks: { ...defaultCallbacks, ...options.callbacks },
     observability: options.observability ?? {},
     pipeValue: null,
@@ -262,7 +309,10 @@ export function createRuntimeContext(
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
  */
-export function createChildContext(parent: RuntimeContext): RuntimeContext {
+export function createChildContext(
+  parent: RuntimeContext,
+  overrides?: { sourceId?: string; sourceText?: string }
+): RuntimeContext {
   return {
     parent,
     variables: new Map<string, RillValue>(),
@@ -271,9 +321,7 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
       import('../../types.js').RillTypeName | import('./values.js').RillType
     >(),
     functions: parent.functions,
-    methods: parent.methods,
-    methodReceiverTypes: parent.methodReceiverTypes,
-    methodParams: parent.methodParams,
+    typeMethodDicts: parent.typeMethodDicts,
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,
@@ -289,6 +337,8 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     resolverConfigs: parent.resolverConfigs,
     resolvingSchemes: parent.resolvingSchemes,
     parseSource: parent.parseSource,
+    sourceId: overrides?.sourceId ?? parent.sourceId,
+    sourceText: overrides?.sourceText ?? parent.sourceText,
   };
 }
 

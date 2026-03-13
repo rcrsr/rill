@@ -62,7 +62,14 @@ describe('CoreMixin Error Contracts', () => {
         run('"test" -> slow() -> slow()', {
           functions: {
             slow: {
-              params: [],
+              params: [
+                {
+                  name: '_',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: async () => {
                 await new Promise((r) => setTimeout(r, 30));
                 return 'done';
@@ -177,7 +184,14 @@ describe('CoreMixin Error Contracts', () => {
         run('list[1, 2, 3] -> each { count() }', {
           functions: {
             count: {
-              params: [],
+              params: [
+                {
+                  name: '_',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: () => {
                 callCount++;
                 if (callCount >= 2) {
@@ -201,7 +215,14 @@ describe('CoreMixin Error Contracts', () => {
         run('fn(a(), b())', {
           functions: {
             fn: {
-              params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'x',
+                  type: { type: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
             },
             a: {
@@ -284,8 +305,18 @@ describe('CoreMixin Error Contracts', () => {
         functions: {
           add: {
             params: [
-              { name: 'a', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
-              { name: 'b', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) =>
               (typeof args[0] === 'number' ? args[0] : 0) +

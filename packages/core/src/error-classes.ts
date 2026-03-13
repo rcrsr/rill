@@ -22,6 +22,8 @@ export interface CallFrame {
   readonly functionName?: string | undefined;
   /** Additional context (e.g., "in each body") */
   readonly context?: string | undefined;
+  /** Source identifier for cross-module call stacks (e.g. file path or "module:greetings") */
+  readonly sourceId?: string | undefined;
 }
 
 // ============================================================

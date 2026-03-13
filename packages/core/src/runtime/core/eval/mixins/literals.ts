@@ -45,6 +45,7 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillType, RillValue } from '../../values.js';
 import {
+  anyTypeValue,
   formatValue,
   inferElementType,
   isReservedMethod,
@@ -53,7 +54,6 @@ import {
 } from '../../values.js';
 import {
   isCallable,
-  paramsToStructuralType,
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
@@ -78,13 +78,8 @@ import { getVariable } from '../../context.js';
  *
  * @internal
  */
-async function captureClosureAnnotations(
-  ctx: RuntimeContext,
-  closureNode: ClosureNode,
-  evaluateExpression: (expr: ExpressionNode) => Promise<RillValue>
-): Promise<{
+async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   annotations: Record<string, RillValue>;
-  paramAnnotations: Record<string, Record<string, RillValue>>;
 }> {
   // Capture closure-level annotations from immediateAnnotation field [IR-7].
   // When a closure is created within a directly-annotated statement like:
@@ -94,20 +89,7 @@ async function captureClosureAnnotations(
   const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
   ctx.immediateAnnotation = undefined;
 
-  // Capture parameter-level annotations
-  const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-
-  for (const param of closureNode.params) {
-    if (param.annotations && param.annotations.length > 0) {
-      const paramAnnots = await evaluateAnnotations(
-        param.annotations,
-        evaluateExpression
-      );
-      paramAnnotations[param.name] = paramAnnots;
-    }
-  }
-
-  return { annotations, paramAnnotations };
+  return { annotations };
 }
 
 /**
@@ -895,12 +877,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const definingScope = this.ctx;
 
       // Capture annotations at closure creation time
-      const { annotations, paramAnnotations } = await captureClosureAnnotations(
-        this.ctx,
-        node,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).evaluateExpression.bind(this)
-      );
+      const { annotations } = await captureClosureAnnotations(this.ctx);
 
       const rillParams: RillParam[] = [];
       for (const param of node.params) {
@@ -945,24 +922,33 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
 
+        // Evaluate per-param annotations inline
+        let paramAnnots: Record<string, RillValue> = {};
+        if (param.annotations && param.annotations.length > 0) {
+          paramAnnots = await evaluateAnnotations(
+            param.annotations,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).evaluateExpression.bind(this)
+          );
+        }
+
         rillParams.push({
           name: param.name,
           type: resolvedType,
           defaultValue,
-          annotations: paramAnnotations[param.name] ?? {},
+          annotations: paramAnnots,
         });
       }
 
       const isProperty = rillParams.length === 0;
-      const inputShape = paramsToStructuralType(rillParams);
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
       // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
-      // Absent → returnShape remains undefined (omission implies :any, AC-17, AC-18, AC-19).
-      let returnShape: ScriptCallable['returnShape'] = undefined;
+      // Absent → returnType defaults to anyTypeValue (omission implies :any, AC-17, AC-18, AC-19).
+      let returnType = anyTypeValue;
       if (node.returnTypeTarget !== undefined) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        returnShape = (this as any).resolveTypeRef(
+        returnType = (this as any).resolveTypeRef(
           node.returnTypeTarget,
           (name: string) => getVariable(this.ctx, name)
         );
@@ -976,9 +962,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty,
         annotations,
-        paramAnnotations,
-        inputShape,
-        returnShape,
+        returnType,
       };
     }
 
@@ -1008,9 +992,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const annotations = this.ctx.immediateAnnotation ?? {};
       this.ctx.immediateAnnotation = undefined;
 
-      const paramAnnotations: Record<string, Record<string, RillValue>> = {};
-      const inputShape = paramsToStructuralType(rillParams);
-
       return {
         __type: 'callable',
         kind: 'script',
@@ -1019,9 +1000,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         definingScope,
         isProperty: false,
         annotations,
-        paramAnnotations,
-        inputShape,
-        returnShape: undefined,
+        returnType: anyTypeValue,
       };
     }
 

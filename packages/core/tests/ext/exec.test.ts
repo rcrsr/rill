@@ -32,8 +32,10 @@ describe('exec extension factory', () => {
       expect(ext.echo).toMatchObject({
         params: expect.any(Array),
         fn: expect.any(Function),
-        description: expect.any(String),
-        returnType: { type: 'dict' },
+        annotations: expect.objectContaining({
+          description: expect.any(String),
+        }),
+        returnType: expect.objectContaining({ __rill_type: true }),
       });
     });
 
@@ -470,7 +472,7 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      expect(ext.git.description).toBe('Git version control');
+      expect(ext.git.annotations?.['description']).toBe('Git version control');
     });
 
     it('generates default description when not provided', () => {
@@ -482,7 +484,9 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      expect(ext.echo.description).toBe('Execute echo command');
+      expect(ext.echo.annotations?.['description']).toBe(
+        'Execute echo command'
+      );
     });
 
     it('declares returnType as dict', () => {
@@ -494,7 +498,10 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      expect(ext.echo.returnType).toEqual({ type: 'dict' });
+      expect(ext.echo.returnType).toMatchObject({
+        __rill_type: true,
+        structure: { type: 'dict' },
+      });
     });
   });
 

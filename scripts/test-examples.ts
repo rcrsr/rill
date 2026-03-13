@@ -172,7 +172,10 @@ function createMockFunctions(): Record<string, RillFunction> {
         model: String(model),
       }),
     },
-    'app::sleep': { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
+    'app::sleep': {
+      params: [{ name: 'ms', type: { type: 'number' } }],
+      fn: () => null,
+    },
     'app::process': {
       params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',
@@ -189,7 +192,10 @@ function createMockFunctions(): Record<string, RillFunction> {
       params: [{ name: 'action', type: { type: 'string' } }],
       fn: () => 'success',
     },
-    'app::pause': { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
+    'app::pause': {
+      params: [{ name: 'ms', type: { type: 'number' } }],
+      fn: () => null,
+    },
     'app::call': {
       params: [
         { name: 'fn_name', type: { type: 'string' } },
@@ -769,8 +775,11 @@ function createMockFunctions(): Record<string, RillFunction> {
       params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'handled',
     },
-    validate: { params: [{ name: 'value', type: { type: 'string' } }], fn: (v) => v },
-    check_status: { params: [], fn: () => 'ok' },
+    validate: {
+      params: [{ name: 'value', type: { type: 'string' } }],
+      fn: (v) => v,
+    },
+    check_status: { params: [{ name: 'value' }], fn: () => 'ok' },
     get_page: {
       params: [{ name: 'url', type: { type: 'string' } }],
       fn: () => '<html></html>',
@@ -791,13 +800,22 @@ function createMockFunctions(): Record<string, RillFunction> {
       params: [{ name: 'content', type: { type: 'string' } }],
       fn: () => true,
     },
-    command: { params: [{ name: 'cmd', type: { type: 'string' } }], fn: () => 'output' },
-    skip: { params: [{ name: 'reason', type: { type: 'string' } }], fn: () => null },
+    command: {
+      params: [{ name: 'cmd', type: { type: 'string' } }],
+      fn: () => 'output',
+    },
+    skip: {
+      params: [{ name: 'reason', type: { type: 'string' } }],
+      fn: () => null,
+    },
     attempt: {
       params: [{ name: 'action', type: { type: 'string' } }],
       fn: () => 'success',
     },
-    pause: { params: [{ name: 'ms', type: { type: 'number' } }], fn: () => null },
+    pause: {
+      params: [{ name: 'ms', type: { type: 'number' } }],
+      fn: () => null,
+    },
     slow_process: {
       params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',

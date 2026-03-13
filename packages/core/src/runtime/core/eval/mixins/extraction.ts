@@ -19,6 +19,7 @@ import type {
   ExpressionNode,
   ListSpreadNode,
   DictEntryNode,
+  SourceLocation,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -237,13 +238,13 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       const startBound = node.start
-        ? await this.evaluateSliceBound(node.start)
+        ? await this.evaluateSliceBound(node.start, node.span.start)
         : null;
       const stopBound = node.stop
-        ? await this.evaluateSliceBound(node.stop)
+        ? await this.evaluateSliceBound(node.stop, node.span.start)
         : null;
       const stepBound = node.step
-        ? await this.evaluateSliceBound(node.step)
+        ? await this.evaluateSliceBound(node.step, node.span.start)
         : null;
 
       if (isList) {
@@ -269,10 +270,11 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Returns the numeric value of the bound.
      */
     private async evaluateSliceBound(
-      bound: SliceNode['start']
+      bound: SliceNode['start'],
+      location?: SourceLocation
     ): Promise<number> {
       if (bound === null) {
-        throw new RuntimeError('RILL-R002', 'Slice bound is null', undefined);
+        throw new RuntimeError('RILL-R002', 'Slice bound is null', location);
       }
 
       switch (bound.type) {

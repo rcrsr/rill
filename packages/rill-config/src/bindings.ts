@@ -18,17 +18,8 @@ function mapParamType(param: RillParam): string {
 }
 
 function serializeParam(param: RillParam): string {
-  const parts: string[] = [];
-
-  const desc = param.annotations['description'];
-  if (typeof desc === 'string' && desc.length > 0) {
-    parts.push(`^(description: "${desc}") `);
-  }
-
   const typeName = mapParamType(param);
-  parts.push(`${param.name}: ${typeName}`);
-
-  return parts.join('');
+  return `${param.name}: ${typeName}`;
 }
 
 export function isLeafFunction(
@@ -57,7 +48,10 @@ function buildNestedDict(
 
     if (isLeafFunction(child)) {
       const paramStr = child.params.map(serializeParam).join(', ');
-      entries.push(`${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|`);
+      const returnSuffix = ` :${child.returnType.typeName}`;
+      entries.push(
+        `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
+      );
     } else {
       const nested = buildNestedDict(
         child as NestedExtConfig,

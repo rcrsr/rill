@@ -7,6 +7,7 @@ export { LexerError, tokenize, type TokenizeOptions } from './lexer/index.js';
 export { parse, parseWithRecovery } from './parser/index.js';
 export type { ParseResult, RecoveryErrorNode, ErrorNode } from './types.js';
 export {
+  anyTypeValue,
   type ApplicationCallable,
   BreakSignal,
   callable,
@@ -43,6 +44,7 @@ export {
   getFunctions,
   getLanguageReference,
   buildFieldDescriptor,
+  buildTypeMethodDicts,
   formatStructuralType,
   inferElementType,
   inferStructuralType,
@@ -72,12 +74,10 @@ export {
   prefixFunctions,
   pushCallFrame,
   RESERVED_DICT_METHODS,
+  rillTypeToTypeValue,
   ReturnSignal,
   type RillCallable,
-  type RillCallableSignature,
   type RillFunction,
-  type RillFunctionSignature,
-  type RillMethodSignature,
   type RillParam,
   type RillIterator,
   type RillTuple,
@@ -119,6 +119,17 @@ export {
   getHelpUrl,
   createError,
 } from './types.js';
+
+// ============================================================
+// ERROR FORMATTING
+// ============================================================
+export {
+  formatRillError,
+  formatRillErrorJson,
+  type FormatErrorOptions,
+  type FormatErrorJsonOptions,
+  type SourceMap,
+} from './error-formatter.js';
 
 // ============================================================
 // CONSTANTS

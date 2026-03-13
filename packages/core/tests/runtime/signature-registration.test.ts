@@ -1,21 +1,21 @@
 /**
- * Rill Runtime Tests: Signature Registration
+ * Rill Runtime Tests: Structured Function Registration
  *
  * Specification Mapping (conduct/specifications/host-type-system-refactor.md):
  *
- * FR-HTR-7 (Signature string registration):
+ * FR-HTR-7 (Structured registration):
  * - AC-17: Structured RillParam[] registers and validates on every call
- * - AC-18: Mixed structured and signature entries in same map process without error
+ * - AC-18: Multiple structured entries in same functions map process without error
  * - AC-19: Structured registration with requireDescriptions validates all param descriptions
- * - AC-20: '|message: string|:string' parses to string param and string return type
- * - AC-21: Closure-level ^(description: "...") extracted as function description
- * - AC-22: Parameter-level ^(description: "...") populates param's description annotation
- * - AC-23: '= value' default syntax parsed and applied
- * - AC-24: Syntax error in signature → descriptive Error at registration time (not call time)
- * - AC-25: requireDescriptions rejects signature without closure-level description annotation
+ * - AC-20: Structured params carry typed param and return type
+ * - AC-21: annotations.description sets function description
+ * - AC-22: Parameter-level annotations.description populates param description
+ * - AC-23: defaultValue in RillParam is applied when argument omitted
+ * - AC-24: Structured registration with missing required param throws at call time
+ * - AC-25: requireDescriptions rejects structured function without annotations.description
  *
  * Error contracts:
- * - AC-53: '|broken: |:string' → Error with parse error details at registration (EC-8)
+ * - AC-53: Missing required argument → Error at call time (EC-8)
  * - AC-55: requireDescriptions without description → Error (EC-10)
  *
  * BLOCKED:
@@ -25,7 +25,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, getFunctions, RuntimeError } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRuntimeContext,
+  getFunctions,
+  rillTypeToTypeValue,
+  RuntimeError,
+} from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 
@@ -45,6 +51,7 @@ describe('Rill Runtime: Signature Registration', () => {
                 },
               ],
               fn: (args) => args[0],
+              returnType: anyTypeValue,
             },
           },
         })
@@ -63,6 +70,7 @@ describe('Rill Runtime: Signature Registration', () => {
             },
           ],
           fn: (args: unknown[]) => args[0],
+          returnType: anyTypeValue,
         },
       };
 
@@ -77,8 +85,8 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-18: Mixed structured and signature entries process without error', () => {
-    it('registers both structured and signature entries in one functions map', () => {
+  describe('AC-18: Multiple structured entries in same functions map process without error', () => {
+    it('registers both structured entries in one functions map', () => {
       expect(() =>
         createRuntimeContext({
           functions: {
@@ -92,18 +100,27 @@ describe('Rill Runtime: Signature Registration', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'Structured form',
+              annotations: { description: 'Structured form' },
+              returnType: anyTypeValue,
             },
-            sig: {
-              signature: '|y: string|:string',
+            typed: {
+              params: [
+                {
+                  name: 'y',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
           },
         })
       ).not.toThrow();
     });
 
-    it('calls both structured and signature functions after mixed registration', async () => {
+    it('calls both functions after registration', async () => {
       const r1 = await run('structured(10)', {
         functions: {
           structured: {
@@ -116,16 +133,25 @@ describe('Rill Runtime: Signature Registration', () => {
               },
             ],
             fn: (args) => (args[0] as number) * 2,
+            returnType: anyTypeValue,
           },
-          sig: {
-            signature: '|y: string|:string',
+          typed: {
+            params: [
+              {
+                name: 'y',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `${args[0]}!`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
       expect(r1).toBe(20);
 
-      const r2 = await run('sig("hi")', {
+      const r2 = await run('typed("hi")', {
         functions: {
           structured: {
             params: [
@@ -137,10 +163,19 @@ describe('Rill Runtime: Signature Registration', () => {
               },
             ],
             fn: (args) => (args[0] as number) * 2,
+            returnType: anyTypeValue,
           },
-          sig: {
-            signature: '|y: string|:string',
+          typed: {
+            params: [
+              {
+                name: 'y',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `${args[0]}!`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -163,7 +198,8 @@ describe('Rill Runtime: Signature Registration', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'A function',
+              annotations: { description: 'A function' },
+              returnType: anyTypeValue,
             },
           },
           requireDescriptions: true,
@@ -185,7 +221,8 @@ describe('Rill Runtime: Signature Registration', () => {
                 },
               ],
               fn: (args) => args[0],
-              description: 'A function',
+              annotations: { description: 'A function' },
+              returnType: anyTypeValue,
             },
           },
           requireDescriptions: true,
@@ -194,13 +231,21 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-20: Signature string parses to typed param and return type', () => {
-    it('parses string param and string return type from signature', async () => {
+  describe('AC-20: Structured params carry typed param and return type', () => {
+    it('structured registration exposes typed param and return type in metadata', async () => {
       const ctx = createRuntimeContext({
         functions: {
           echo: {
-            signature: '|message: string|:string',
+            params: [
+              {
+                name: 'message',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -214,25 +259,41 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(echo?.returnType).toBe('string');
     });
 
-    it('enforces parsed string type at call time', async () => {
+    it('enforces typed param at call time', async () => {
       await expect(
         run('echo(42)', {
           functions: {
             echo: {
-              signature: '|message: string|:string',
+              params: [
+                {
+                  name: 'message',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: (args) => args[0],
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
           },
         })
       ).rejects.toThrow(RuntimeError);
     });
 
-    it('accepts valid string arg for signature-registered function', async () => {
+    it('accepts valid arg for typed function', async () => {
       const result = await run('echo("hello")', {
         functions: {
           echo: {
-            signature: '|message: string|:string',
+            params: [
+              {
+                name: 'message',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => args[0],
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -240,14 +301,22 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-21: Closure-level description annotation extracted as function description', () => {
-    it('extracts description from ^(description: "...") closure annotation', () => {
+  describe('AC-21: annotations.description sets function description', () => {
+    it('extracts description from annotations.description', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature:
-              '^(description: "Greets the user") |name: string|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            annotations: { description: 'Greets the user' },
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -257,30 +326,45 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(greet?.description).toBe('Greets the user');
     });
 
-    it('extracts description from shorthand bare string annotation', () => {
+    it('returns empty description when annotations.description absent', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature: '^("Greets the user") |name: string|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
 
       const fns = getFunctions(ctx);
       const greet = fns.find((f) => f.name === 'greet');
-      expect(greet?.description).toBe('Greets the user');
+      expect(greet?.description).toBe('');
     });
   });
 
   describe('AC-22: Parameter-level annotation populates param description', () => {
-    it('extracts param description from ^(description: "...") param annotation', () => {
+    it('extracts param description from param annotations.description', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature:
-              '|^(description: "The name to greet") name: string|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'The name to greet' },
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -290,13 +374,21 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(greet?.params[0]?.description).toBe('The name to greet');
     });
 
-    it('supports both closure-level and param-level annotations in same signature', () => {
+    it('supports both function-level and param-level descriptions', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature:
-              '^(description: "A greeter") |^(description: "The name") name: string|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'The name' },
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            annotations: { description: 'A greeter' },
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -309,24 +401,40 @@ describe('Rill Runtime: Signature Registration', () => {
   });
 
   describe('AC-23: = value default syntax parsed and applied', () => {
-    it('parses string default value from signature', async () => {
+    it('applies string default value when arg omitted', async () => {
       const result = await run('greet()', {
         functions: {
           greet: {
-            signature: '|name: string = "world"|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: 'world',
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
       expect(result).toBe('Hello world');
     });
 
-    it('parses number default value from signature', async () => {
+    it('applies number default value when arg omitted', async () => {
       const result = await run('scale()', {
         functions: {
           scale: {
-            signature: '|factor: number = 2|:number',
+            params: [
+              {
+                name: 'factor',
+                type: { type: 'number' },
+                defaultValue: 2,
+                annotations: {},
+              },
+            ],
             fn: (args) => (args[0] as number) * 10,
+            returnType: rillTypeToTypeValue({ type: 'number' }),
           },
         },
       });
@@ -337,8 +445,16 @@ describe('Rill Runtime: Signature Registration', () => {
       const result = await run('greet("alice")', {
         functions: {
           greet: {
-            signature: '|name: string = "world"|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: 'world',
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -349,8 +465,16 @@ describe('Rill Runtime: Signature Registration', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
-            signature: '|name: string = "world"|:string',
+            params: [
+              {
+                name: 'name',
+                type: { type: 'string' },
+                defaultValue: 'world',
+                annotations: {},
+              },
+            ],
             fn: (args) => `Hello ${args[0]}`,
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });
@@ -361,66 +485,96 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-24 / AC-53: Syntax error in signature throws descriptive Error at registration (EC-8)', () => {
-    it('throws Error synchronously at registration for invalid signature', () => {
+  describe('AC-24 / AC-53: Missing required argument throws descriptive Error at call time (EC-8)', () => {
+    it('throws Error synchronously at registration for invalid params', () => {
+      // Invalid: passing non-array as params triggers error at registration
       expect(() =>
         createRuntimeContext({
           functions: {
             broken: {
-              signature: '|broken: |:string',
+              params: null as any,
               fn: (args) => args[0],
+              returnType: anyTypeValue,
             },
           },
         })
       ).toThrow(Error);
     });
 
-    it('error message names the function and includes parse details', () => {
-      try {
-        createRuntimeContext({
+    it('error message includes function name when missing required argument', async () => {
+      await expect(
+        run('multiArg("only-one")', {
           functions: {
-            badFn: {
-              signature: '|broken: |:string',
-              fn: (args) => args[0],
+            multiArg: {
+              params: [
+                {
+                  name: 'first',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'second',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: (args) => `${args[0]} ${args[1]}`,
+              returnType: anyTypeValue,
             },
           },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(Error);
-        const msg = (err as Error).message;
-        expect(msg).toContain('badFn');
-      }
+        })
+      ).rejects.toThrow(/multiArg|second/);
     });
 
-    it('throws at registration, not at call time', () => {
-      // The error must occur when createRuntimeContext is called,
-      // not when the function is invoked in a script.
-      let threwAtRegistration = false;
-      try {
-        createRuntimeContext({
-          functions: {
-            broken: {
-              signature: 'not a valid signature at all!!!',
-              fn: (args) => args[0],
-            },
+    it('throws at call time when required argument missing', async () => {
+      let threwAtCallTime = false;
+      // Registration succeeds
+      const ctx = createRuntimeContext({
+        functions: {
+          required: {
+            params: [
+              {
+                name: 'x',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args[0],
+            returnType: anyTypeValue,
           },
+        },
+      });
+      // Error occurs at call time, not registration time
+      try {
+        await run('required()', {
+          functions: Object.fromEntries(ctx.functions),
         });
       } catch {
-        threwAtRegistration = true;
+        threwAtCallTime = true;
       }
-      expect(threwAtRegistration).toBe(true);
+      expect(threwAtCallTime).toBe(true);
     });
   });
 
-  describe('AC-25 / AC-55: requireDescriptions rejects signature without closure-level description (EC-10)', () => {
-    it('throws when signature has no description annotation and requireDescriptions is true', () => {
+  describe('AC-25 / AC-55: requireDescriptions rejects function without description (EC-10)', () => {
+    it('throws when function has no description annotation and requireDescriptions is true', () => {
       expect(() =>
         createRuntimeContext({
           functions: {
             echo: {
-              signature: '|message: string|:string',
+              params: [
+                {
+                  name: 'message',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: { description: 'The message' },
+                },
+              ],
               fn: (args) => args[0],
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
           },
           requireDescriptions: true,
@@ -428,14 +582,22 @@ describe('Rill Runtime: Signature Registration', () => {
       ).toThrow(/echo.*requires description|requires description.*echo/i);
     });
 
-    it('passes when signature has description annotation', () => {
+    it('passes when function has annotations.description', () => {
       expect(() =>
         createRuntimeContext({
           functions: {
             echo: {
-              signature:
-                '^(description: "Echoes a message") |^(description: "The message") message: string|:string',
+              params: [
+                {
+                  name: 'message',
+                  type: { type: 'string' },
+                  defaultValue: undefined,
+                  annotations: { description: 'The message' },
+                },
+              ],
               fn: (args) => args[0],
+              annotations: { description: 'Echoes a message' },
+              returnType: rillTypeToTypeValue({ type: 'string' }),
             },
           },
           requireDescriptions: true,
@@ -444,14 +606,28 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-63: Signature with all features parses correctly', () => {
-    it('parses annotation, multiple typed params with defaults, and return type', async () => {
+  describe('AC-63: Structured registration with all features parses correctly', () => {
+    it('registers function with annotation, typed params with defaults, and return type', async () => {
       const ctx = createRuntimeContext({
         functions: {
           format: {
-            signature:
-              '^(description: "Format a template") |^(description: "Template string") template: string, ^(description: "Value to insert") value: string = "default"|:string',
+            params: [
+              {
+                name: 'template',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'Template string' },
+              },
+              {
+                name: 'value',
+                type: { type: 'string' },
+                defaultValue: 'default',
+                annotations: { description: 'Value to insert' },
+              },
+            ],
             fn: (args) => String(args[0]).replace('{}', String(args[1])),
+            annotations: { description: 'Format a template' },
+            returnType: rillTypeToTypeValue({ type: 'string' }),
           },
         },
       });

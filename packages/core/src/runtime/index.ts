@@ -47,10 +47,7 @@ export type {
   ApplicationCallable,
   CallableFn,
   RillCallable,
-  RillCallableSignature,
   RillFunction,
-  RillFunctionSignature,
-  RillMethodSignature,
   RillParam,
   RuntimeCallable,
   ScriptCallable,
@@ -86,6 +83,7 @@ export type {
 export type { RillStructuralType } from './core/values.js';
 
 export {
+  anyTypeValue,
   createTuple,
   createVector,
   formatStructuralType,
@@ -97,6 +95,7 @@ export {
   isTypeValue,
   isVector,
   isReservedMethod,
+  rillTypeToTypeValue,
   RESERVED_DICT_METHODS,
   structuralTypeEquals,
   structuralTypeMatches,
@@ -152,7 +151,7 @@ export {
 // CONTEXT FACTORY
 // ============================================================
 
-export { createRuntimeContext } from './core/context.js';
+export { buildTypeMethodDicts, createRuntimeContext } from './core/context.js';
 
 // ============================================================
 // CALL STACK MANAGEMENT

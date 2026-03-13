@@ -48,8 +48,7 @@ export function introspectHandler(
   const description = typeof closureDesc === 'string' ? closureDesc : undefined;
 
   const params: HandlerParam[] = closure.params.map((param) => {
-    const paramAnnotations = closure.paramAnnotations[param.name] ?? {};
-    const paramDesc = paramAnnotations['description'];
+    const paramDesc = param.annotations?.['description'];
 
     const entry: HandlerParam = {
       name: param.name,
