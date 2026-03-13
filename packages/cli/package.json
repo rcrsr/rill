@@ -20,6 +20,7 @@
   },
   "scripts": {
     "build": "tsc --build",
+    "build:dev": "tsc --build tsconfig.dev.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --config ../../eslint.config.js src/",
