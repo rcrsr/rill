@@ -306,16 +306,22 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-19: performance benchmark — avg ≤ 0.9 ms per conversion', () => {
-    it('100 conversions with default hydration average ≤ 0.9 ms each', async () => {
-      const iterations = 100;
+    it('500 conversions with default hydration average within regression threshold', async () => {
+      const warmup = 10;
+      const iterations = 500;
+      // Warmup: allow JIT compilation to stabilize
+      for (let i = 0; i < warmup; i++) {
+        await run('[b: "b"] -> :>dict(b: string, a: string = "default")');
+      }
       const start = performance.now();
       for (let i = 0; i < iterations; i++) {
         await run('[b: "b"] -> :>dict(b: string, a: string = "default")');
       }
       const elapsed = performance.now() - start;
       const avgMs = elapsed / iterations;
+      // Baseline ~0.225 ms; 4x regression threshold for CI variance
       expect(avgMs).toBeLessThanOrEqual(0.9);
-    });
+    }, 60_000);
   });
 
   // ============================================================
