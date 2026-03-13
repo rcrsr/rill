@@ -3,6 +3,7 @@
  * Builds the ResolverConfig used by RuntimeOptions.
  */
 
+import { resolve } from 'node:path';
 import {
   contextResolver,
   extResolver,
@@ -70,6 +71,7 @@ export function buildResolvers(options: {
   extensionBindings: string;
   contextBindings: string;
   modulesConfig: Record<string, string>;
+  configDir: string;
 }): ResolverConfig {
   const {
     extTree,
@@ -77,15 +79,16 @@ export function buildResolvers(options: {
     extensionBindings,
     contextBindings,
     modulesConfig,
+    configDir,
   } = options;
 
   const extConfig = convertTreeToRillValues(extTree);
 
   // Build the module: resolver config, excluding reserved keys (ext, context)
   const userModuleConfig: Record<string, string> = {};
-  for (const [id, path] of Object.entries(modulesConfig)) {
+  for (const [id, value] of Object.entries(modulesConfig)) {
     if (id !== 'ext' && id !== 'context') {
-      userModuleConfig[id] = path;
+      userModuleConfig[id] = resolve(configDir, value);
     }
   }
 

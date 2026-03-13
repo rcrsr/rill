@@ -628,8 +628,7 @@ import { moduleResolver } from '@rcrsr/rill';
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `basePath` | `string` | No | Base directory for resolving relative file paths. Defaults to `process.cwd()` |
-| `[moduleId]` | `string` | Yes (at least one) | Maps a module identifier to a file path |
+| `[moduleId]` | `string` | Yes (at least one) | Maps a module identifier to a file path (relative to the config file's directory) |
 
 **Error codes:**
 
@@ -647,9 +646,8 @@ const ctx = createRuntimeContext({
   configurations: {
     resolvers: {
       host: {
-        basePath: '/app/modules',
-        utils: 'utils.rill',
-        helpers: 'lib/helpers.rill',
+        utils: './utils.rill',
+        helpers: './lib/helpers.rill',
       },
     },
   },
@@ -658,7 +656,7 @@ const ctx = createRuntimeContext({
 // Scripts can now use: use<host:utils>
 ```
 
-`moduleResolver` returns `{ kind: 'source', text: string }` after reading the target file. Paths are resolved relative to `basePath` when provided, otherwise relative to `process.cwd()`.
+`moduleResolver` returns `{ kind: 'source', text: string }` after reading the target file. Paths resolve relative to the config file's directory.
 
 ---
 

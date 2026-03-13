@@ -183,8 +183,23 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           wrapped.cause = err;
           throw wrapped;
         }
-        const childCtx = createChildContext(this.ctx);
-        const execResult = await execute(scriptNode, childCtx);
+        const childCtx = createChildContext(this.ctx, {
+          sourceId: result.sourceId ?? key,
+          sourceText: result.text,
+        });
+        let execResult;
+        try {
+          execResult = await execute(scriptNode, childCtx);
+        } catch (err) {
+          // Enrich runtime errors from module execution with sourceId and sourceText
+          if (err instanceof RillError && !err.sourceId) {
+            (err as { sourceId: string }).sourceId = result.sourceId ?? key;
+            const ctx = (err.context ?? {}) as Record<string, unknown>;
+            ctx['sourceText'] = result.text;
+            (err as { context: Record<string, unknown> }).context = ctx;
+          }
+          throw err;
+        }
         return execResult.result;
       } finally {
         // Remove after resolver call and any source execution complete (or error)

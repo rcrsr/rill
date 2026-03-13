@@ -575,6 +575,43 @@ body {
   margin-bottom: var(--space-sm);
 }
 
+.output-error-callstack {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--void-raised);
+  border-radius: 6px;
+  border: 1px solid var(--void-border);
+}
+
+.output-error-callstack-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: var(--space-xs);
+}
+
+.output-error-frame-source {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.output-error-frame-gutter {
+  color: var(--text-dim);
+  margin-right: 1ch;
+  user-select: none;
+}
+
+.output-error-frame-location {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
 .output-error-cause {
   font-size: 0.8rem;
   color: var(--text-secondary);

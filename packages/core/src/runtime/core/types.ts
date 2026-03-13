@@ -110,7 +110,7 @@ export interface ErrorEvent {
  */
 export type ResolverResult =
   | { kind: 'value'; value: RillValue }
-  | { kind: 'source'; text: string };
+  | { kind: 'source'; text: string; sourceId?: string };
 
 /**
  * Resolves a scheme-qualified resource to a value or source text.
@@ -193,6 +193,10 @@ export interface RuntimeContext {
   readonly parseSource?:
     | ((text: string) => import('../../types.js').ScriptNode)
     | undefined;
+  /** Identifies the current source file for cross-module error reporting */
+  readonly sourceId?: string | undefined;
+  /** Source text of the current file for cross-module error snippets */
+  readonly sourceText?: string | undefined;
 }
 
 /** Options for creating a runtime context */

@@ -260,12 +260,13 @@ Configures module resolver behavior for `use:` imports. Keys and values depend o
 ```text
 {
   "modules": {
-    "baseDir": "./scripts"
+    "greetings": "./greet.rill",
+    "utils": "./utils.rill"
   }
 }
 ```
 
-See [Resolver Registration](integration-resolvers.md) for resolver-specific options.
+Paths are relative to the config file's directory. See [Resolver Registration](integration-resolvers.md) for resolver-specific options.
 
 ---
 

@@ -56,7 +56,7 @@ import type {
   SpreadArgNode,
   BlockNode,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { RillError, RuntimeError } from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
@@ -176,6 +176,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             end: callLocation,
           },
           functionName: name,
+          sourceId: this.ctx.sourceId,
         };
         pushCallFrame(this.ctx, frame);
       }
@@ -191,6 +192,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             functionName
           );
         }
+      } catch (error) {
+        // Snapshot call stack onto error before finally pops the frame.
+        // First snapshot wins — nested calls capture the deepest stack.
+        if (error instanceof RillError && this.ctx.callStack.length > 0) {
+          const ctx = error.context as Record<string, unknown> | undefined;
+          if (ctx && !ctx['callStack']) {
+            ctx['callStack'] = [...this.ctx.callStack];
+          } else if (!ctx) {
+            // context is readonly on the property, but we can override via cast
+            // for errors constructed without a context object
+            (error as { context: Record<string, unknown> }).context = {
+              callStack: [...this.ctx.callStack],
+            };
+          }
+        }
+        throw error;
       } finally {
         // Pop call frame after invocation completes (IR-3)
         // Ensure pop happens even on error paths
@@ -261,12 +278,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const hasExplicitParams =
         callable.params.length > 0 && callable.params[0]!.name !== '$';
 
+      const defScope = callable.definingScope as RuntimeContext;
       const callableCtx: RuntimeContext = {
         ...this.ctx,
-        parent: callable.definingScope as RuntimeContext,
+        parent: defScope,
         variables: new Map(),
         variableTypes: new Map(),
         pipeValue: hasExplicitParams ? null : this.ctx.pipeValue,
+        sourceId: defScope.sourceId ?? this.ctx.sourceId,
+        sourceText: defScope.sourceText ?? this.ctx.sourceText,
       };
 
       if (callable.boundDict) {
@@ -377,6 +397,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
         return result;
+      } catch (error) {
+        // Enrich errors with sourceId and sourceText from the callable's execution context
+        // First assignment wins — preserves the deepest (most specific) source
+        if (
+          error instanceof RillError &&
+          !error.sourceId &&
+          callableCtx.sourceId
+        ) {
+          (error as { sourceId: string }).sourceId = callableCtx.sourceId;
+          if (callableCtx.sourceText) {
+            const ctx = (error.context ?? {}) as Record<string, unknown>;
+            ctx['sourceText'] = callableCtx.sourceText;
+            (error as { context: Record<string, unknown> }).context = ctx;
+          }
+        }
+        throw error;
       } finally {
         this.ctx = savedCtx;
       }

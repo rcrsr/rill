@@ -84,7 +84,6 @@ The caller cannot distinguish source-backed from value-backed modules.
 
 ```typescript
 type ModuleResolverConfig = {
-  basePath?: string;            // Base directory for resolving relative paths
   [moduleId: string]: string;   // Maps module ID to file path
 };
 ```
@@ -106,7 +105,6 @@ const ctx = createRuntimeContext({
   configurations: {
     resolvers: {
       module: {
-        basePath: '/app/scripts',
         greetings: './greet.rill',
         utils: './utils.rill',
       },
@@ -166,7 +164,7 @@ const ctx = createRuntimeContext({
   },
   configurations: {
     resolvers: {
-      module: { basePath: '/app', greetings: './greet.rill' },
+      module: { greetings: './greet.rill' },
     },
   },
   parseSource: parse,

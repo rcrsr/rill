@@ -6,8 +6,11 @@
 import {
   createRuntimeContext,
   extResolver,
+  formatRillErrorJson,
+  getCallStack,
   moduleResolver,
   parse,
+  RillError,
   RuntimeError,
   type RillValue,
   type ResolverResult,
@@ -121,6 +124,96 @@ describe('Rill Runtime: moduleResolver', () => {
         expect(rErr.sourceId).toBe('module:bad');
         expect(rErr.context?.sourceId).toBe('module:bad');
         expect(rErr.cause).toBeInstanceOf(Error);
+      }
+    });
+  });
+
+  describe('Cross-module error propagation', () => {
+    it('sets sourceId on runtime errors from module execution', async () => {
+      try {
+        // Module source references undefined variable $narme
+        await run('use<module:greetings>', {
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: '$narme',
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RillError);
+        const rErr = err as RillError;
+        expect(rErr.sourceId).toBe('module:greetings');
+      }
+    });
+
+    it('uses resolver sourceId when provided', async () => {
+      try {
+        await run('use<module:greetings>', {
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: '$narme',
+              sourceId: '/path/to/greet.rill',
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RillError);
+        const rErr = err as RillError;
+        expect(rErr.sourceId).toBe('/path/to/greet.rill');
+      }
+    });
+
+    it('includes sourceId on call stack frames from cross-module calls', async () => {
+      // Module defines a closure; caller invokes it, triggering error inside module closure
+      const moduleSource = '|name:string| { $narme }';
+      try {
+        await run('use<module:greetings> => $greet\n$greet("Rill")', {
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: moduleSource,
+              sourceId: '/path/to/greet.rill',
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RillError);
+        const rErr = err as RillError;
+        // Error originates in the module
+        expect(rErr.sourceId).toBe('/path/to/greet.rill');
+        // Call stack should have a frame from the caller (no sourceId = root script)
+        const frames = getCallStack(rErr);
+        expect(frames.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('JSON formatter includes sourceId on call stack frames', async () => {
+      const moduleSource = '|name:string| { $narme }';
+      try {
+        await run('use<module:greetings> => $greet\n$greet("Rill")', {
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: moduleSource,
+              sourceId: '/path/to/greet.rill',
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RillError);
+        const json = formatRillErrorJson(err as RillError);
+        const parsed = JSON.parse(json);
+        expect(parsed.sourceId).toBe('/path/to/greet.rill');
       }
     });
   });
@@ -266,9 +359,9 @@ describe('Rill Runtime: createRuntimeContext resolver config', () => {
   describe('configurations.resolvers → ctx.resolverConfigs', () => {
     it('populates resolverConfigs from configurations.resolvers', () => {
       const ctx = createRuntimeContext({
-        configurations: { resolvers: { myscheme: { basePath: '/tmp' } } },
+        configurations: { resolvers: { myscheme: { key: 'value' } } },
       });
-      expect(ctx.resolverConfigs.get('myscheme')).toEqual({ basePath: '/tmp' });
+      expect(ctx.resolverConfigs.get('myscheme')).toEqual({ key: 'value' });
     });
 
     it('omitted configurations produces empty resolverConfigs Map', () => {

@@ -309,7 +309,10 @@ export function createRuntimeContext(
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
  */
-export function createChildContext(parent: RuntimeContext): RuntimeContext {
+export function createChildContext(
+  parent: RuntimeContext,
+  overrides?: { sourceId?: string; sourceText?: string }
+): RuntimeContext {
   return {
     parent,
     variables: new Map<string, RillValue>(),
@@ -334,6 +337,8 @@ export function createChildContext(parent: RuntimeContext): RuntimeContext {
     resolverConfigs: parent.resolverConfigs,
     resolvingSchemes: parent.resolvingSchemes,
     parseSource: parent.parseSource,
+    sourceId: overrides?.sourceId ?? parent.sourceId,
+    sourceText: overrides?.sourceText ?? parent.sourceText,
   };
 }
 

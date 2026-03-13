@@ -121,6 +121,17 @@ export {
 } from './types.js';
 
 // ============================================================
+// ERROR FORMATTING
+// ============================================================
+export {
+  formatRillError,
+  formatRillErrorJson,
+  type FormatErrorOptions,
+  type FormatErrorJsonOptions,
+  type SourceMap,
+} from './error-formatter.js';
+
+// ============================================================
 // CONSTANTS
 // ============================================================
 export { VALID_TYPE_NAMES } from './constants.js';

@@ -16,10 +16,9 @@ import type { RillValue } from './values.js';
 /**
  * Resolves a module ID to Rill source text by reading a file.
  *
- * Config shape: `{ basePath?: string; [moduleId: string]: string }`
- * - `basePath` is optional; file paths resolve relative to it when provided,
- *   otherwise relative to `process.cwd()`.
- * - Each other key is a module ID mapping to a file path string.
+ * Config shape: `{ [moduleId: string]: string }`
+ * - Each key is a module ID mapping to an absolute file path string.
+ *   The caller is responsible for resolving paths before passing them in.
  *
  * Error codes:
  * - RILL-R059 when config is not a plain object
@@ -38,8 +37,6 @@ export const moduleResolver: SchemeResolver = async (
   }
 
   const cfg = config as Record<string, string>;
-  const basePath =
-    typeof cfg['basePath'] === 'string' ? cfg['basePath'] : undefined;
 
   const filePath = cfg[resource];
   if (typeof filePath !== 'string') {
@@ -52,15 +49,10 @@ export const moduleResolver: SchemeResolver = async (
   }
 
   const { readFile } = await import('node:fs/promises');
-  const { resolve } = await import('node:path');
-
-  const absolutePath = basePath
-    ? resolve(basePath, filePath)
-    : resolve(process.cwd(), filePath);
 
   let text: string;
   try {
-    text = await readFile(absolutePath, { encoding: 'utf8' });
+    text = await readFile(filePath, { encoding: 'utf8' });
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     throw new RuntimeError(
@@ -71,7 +63,7 @@ export const moduleResolver: SchemeResolver = async (
     );
   }
 
-  return { kind: 'source', text };
+  return { kind: 'source', text, sourceId: filePath };
 };
 
 // ============================================================
