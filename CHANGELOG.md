@@ -29,16 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fiddle call stack display** — Error output in the playground shows call stack frames with source snippets and caret indicators.
 - **`sourceId` and `sourceText` on RuntimeContext** — Child contexts track their originating source file for cross-module error attribution.
 
-### Migration
-
-Extension authors upgrading from `0.13.x` to `0.14.x` must update `RillFunction` registrations:
-
-1. Replace `description?: string` with `annotations?: Record<string, RillValue>`
-2. Add a required `returnType: RillTypeValue` field to each function definition
-3. Remove any imports of `RillCallableSignature`, `RillFunctionSignature`, or `RillMethodSignature`
-
-See `docs/integration-extensions.md` for a step-by-step migration guide with code examples.
-
 ## [0.13.3] - 2026-03-11
 
 ### Changed
