@@ -82,6 +82,37 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('name: string');
   });
 
+  it('renders full structural type for dict params and return type', () => {
+    const tree: NestedExtConfig = {
+      tools: {
+        infer: {
+          fn: async () => ({ result: 'ok' }),
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  model: { type: 'string' },
+                  temperature: { type: 'number' },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({
+            type: 'dict',
+            fields: { result: { type: 'string' } },
+          }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('dict(model: string, temperature: number)');
+    expect(result).toContain('dict(result: string)');
+  });
+
   it('appends return type suffix after closing | when returnType is set', () => {
     const tree: NestedExtConfig = {
       tools: {
