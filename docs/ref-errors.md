@@ -16,7 +16,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R043, RILL-R050 - RILL-R061)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R044, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -821,6 +821,23 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 # Script with only a comment (no pipe value)
 # This script produces nothing
 # Error: RILL-R043: Non-producing body
+```
+
+---
+
+### rill-r044
+
+**Description:** Missing required field during structural conversion.
+
+**Cause:** The `:>` operator requires all fields without defaults to be present in the source value. A field without a default was absent from the source dict.
+
+**Resolution:** Supply the missing field in the source value, or add a default to the type annotation.
+
+**Example:**
+
+```text
+{ name: "Alice" } :> { name: str, age: int }
+# Error: RILL-R044: cannot convert {name: "Alice"} to {name: str, age: int}: missing required field 'age'
 ```
 
 ---

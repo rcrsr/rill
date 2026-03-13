@@ -59,9 +59,9 @@ One more guardrail: variables lock to the type of their first value. If you capt
 
 ## Values, Not References
 
-Every value in rill is an independent copy. When you capture a dict into a variable, changing one copy never affects another. Two variables with the same contents are always equal, because rill compares by value, not by identity.
+Every value in rill is immutable. When you capture a dict into a variable, no operation can modify it afterward. Two variables with the same contents are always equal, because rill compares by value, not by identity.
 
-There is no aliasing and no shared mutable state. Two parts of a script cannot reach each other's data through a hidden reference. This makes generated scripts easy to follow: the value a variable holds is exactly what was written into it.
+There is no aliasing and no shared mutable state. Two parts of a script cannot reach each other's data through a hidden reference. Immutability enforces this: the value a variable holds is exactly what was written into it, and nothing can change it.
 
 ## Where to Go Next
 

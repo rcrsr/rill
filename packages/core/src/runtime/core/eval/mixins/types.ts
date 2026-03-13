@@ -32,7 +32,12 @@ import type {
   TypeRefArg,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue, RillTypeValue, RillType } from '../../values.js';
+import type {
+  RillValue,
+  RillTypeValue,
+  RillType,
+  RillFieldType,
+} from '../../values.js';
 import {
   inferType,
   checkType,
@@ -175,7 +180,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
-          const elements: RillType[] = args.map(resolveArg);
+          const elements: [RillType, RillValue?][] = args.map(
+            (arg): [RillType, RillValue?] => [resolveArg(arg)]
+          );
           const structure: RillType = { type: 'tuple', elements };
           return Object.freeze({
             __rill_type: true as const,
@@ -194,10 +201,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const orderedFields: [string, RillType][] = args.map((arg) => [
-          arg.name!,
-          resolveArg(arg),
-        ]);
+        const orderedFields: [string, RillType, RillValue?][] = args.map(
+          (arg): [string, RillType, RillValue?] => [arg.name!, resolveArg(arg)]
+        );
         const structure: RillType = {
           type: 'ordered',
           fields: orderedFields,
@@ -452,14 +458,33 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const fields: Record<string, RillType> = {};
+        const fields: Record<string, RillFieldType> = {};
         for (const arg of node.args) {
           if (arg.kind === 'named') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const argVal: RillValue = await (this as any).evaluateExpression(
               arg.value
             );
-            fields[arg.name] = await resolveArgAsType(argVal);
+            const resolvedType = await resolveArgAsType(argVal);
+            if (arg.defaultValue !== undefined) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const defaultVal: RillValue = await (this as any).evaluatePrimary(
+                arg.defaultValue
+              );
+              if (!structuralTypeMatches(defaultVal, resolvedType)) {
+                throw new RuntimeError(
+                  'RILL-R004',
+                  `Default value for field '${arg.name}' must be ${formatStructuralType(resolvedType)}, got ${inferType(defaultVal)}`,
+                  location
+                );
+              }
+              fields[arg.name] = {
+                type: resolvedType,
+                defaultValue: defaultVal,
+              };
+            } else {
+              fields[arg.name] = resolvedType;
+            }
           }
         }
         const structure: RillType = { type: 'dict', fields };
@@ -481,14 +506,38 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const elements: RillType[] = [];
+        const elements: [RillType, RillValue?][] = [];
         for (const arg of node.args) {
           if (arg.kind === 'positional') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const argVal: RillValue = await (this as any).evaluateExpression(
               arg.value
             );
-            elements.push(await resolveArgAsType(argVal));
+            const resolvedType = await resolveArgAsType(argVal);
+            if (arg.defaultValue !== undefined) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const defaultVal: RillValue = await (this as any).evaluatePrimary(
+                arg.defaultValue
+              );
+              elements.push([resolvedType, defaultVal]);
+            } else {
+              elements.push([resolvedType]);
+            }
+          }
+        }
+        // EC-3: defaults must be trailing-only — no element without a default
+        // may follow an element that has one.
+        let sawDefault = false;
+        for (let i = 0; i < elements.length; i++) {
+          const hasDefault = elements[i]!.length === 2;
+          if (hasDefault) {
+            sawDefault = true;
+          } else if (sawDefault) {
+            throw new RuntimeError(
+              'RILL-P003',
+              `tuple() default values must be trailing: element at position ${i} has no default but a preceding element does`,
+              location
+            );
           }
         }
         const structure: RillType = { type: 'tuple', elements };
@@ -510,14 +559,30 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
       }
-      const orderedFields: [string, RillType][] = [];
+      const orderedFields: [string, RillType, RillValue?][] = [];
       for (const arg of node.args) {
         if (arg.kind === 'named') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const argVal: RillValue = await (this as any).evaluateExpression(
             arg.value
           );
-          orderedFields.push([arg.name, await resolveArgAsType(argVal)]);
+          const resolvedType = await resolveArgAsType(argVal);
+          if (arg.defaultValue !== undefined) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const defaultVal: RillValue = await (this as any).evaluatePrimary(
+              arg.defaultValue
+            );
+            if (!structuralTypeMatches(defaultVal, resolvedType)) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `Default value for field '${arg.name}' must be ${formatStructuralType(resolvedType)}, got ${inferType(defaultVal)}`,
+                location
+              );
+            }
+            orderedFields.push([arg.name, resolvedType, defaultVal]);
+          } else {
+            orderedFields.push([arg.name, resolvedType]);
+          }
         }
       }
       const structure: RillType = {

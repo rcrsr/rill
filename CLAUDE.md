@@ -128,7 +128,7 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 1. **Pipes over assignment** — No `=` operator. Data flows via `->`.
 2. **Type-safe** — No implicit coercion. `"5" + 1` errors, not `"51"` or `6`.
 3. **No null/undefined** — Empty values valid, "no value" cannot exist.
-4. **Value-based** — Deep copy, value comparison. No references.
+4. **Value-based** — Immutable values, value comparison. No mutation after creation.
 5. **Immutable types** — Variables lock type on first assignment.
 6. **Singular control flow** — No exceptions. Errors halt execution.
 7. **Vanilla language** — Host provides all domain functions.

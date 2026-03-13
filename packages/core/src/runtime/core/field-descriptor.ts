@@ -10,7 +10,7 @@
 
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import type { RillType } from './values.js';
+import type { RillFieldType, RillType } from './values.js';
 
 /**
  * Field descriptor — carries field name and structural type when accessing a
@@ -19,7 +19,7 @@ import type { RillType } from './values.js';
 export interface RillFieldDescriptor {
   readonly __rill_field_descriptor: true;
   readonly fieldName: string;
-  readonly fieldType: RillType;
+  readonly fieldType: RillFieldType;
 }
 
 /**

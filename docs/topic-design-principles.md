@@ -116,15 +116,15 @@ $count  # Still 0
 
 ### 6. Everything Is a Value
 
-No references. All copies are deep. All comparisons are by value. Types lock on first assignment.
+No references. All values are immutable. All comparisons are by value. Types lock on first assignment.
 
 ```rill
 [1, 2, 3] == list[1, 2, 3]    # true — content equality
 [1, 2] => $a
-$a => $b                          # $b is an independent deep copy
+$a => $b                          # $b behaves independently — values cannot be mutated
 ```
 
-**Mainstream habit to break:** Expecting two variables to point at the same object. In rill, every binding holds its own copy.
+**Mainstream habit to break:** Expecting two variables to point at the same mutable object. In rill, values are immutable, so bindings never interfere with each other.
 
 ### 7. Variables Have `$` Prefix
 
@@ -246,7 +246,7 @@ $str -> .empty ? "no" ! "yes"
 | `for (i = 0; ...)` | `each`, `map`, `filter`, `fold` |
 | `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
-| `a = b` (shared ref) | `=>` always deep-copies |
+| `a = b` (shared ref) | `=>` binds immutable values — no mutation possible |
 
 ---
 

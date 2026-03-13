@@ -717,6 +717,8 @@ The `:>type` operator converts a value to the target type. Same-type conversions
 ⁴ `true` maps to `1`, `false` maps to `0`.
 ⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
+**Structural conversion with signatures:** `:>dict(sig)`, `:>ordered(sig)`, and `:>tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
+
 ---
 
 ## Spread Call Operator

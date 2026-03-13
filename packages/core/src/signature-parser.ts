@@ -96,8 +96,10 @@ function staticTypeRefToRillType(
   }
 
   if (typeName === 'tuple') {
-    const elements = args.map((arg) =>
-      staticTypeRefToRillType(arg.ref, functionName)
+    const elements: [RillType, RillValue?][] = args.map(
+      (arg): [RillType, RillValue?] => [
+        staticTypeRefToRillType(arg.ref, functionName),
+      ]
     );
     return { type: 'tuple', elements };
   }

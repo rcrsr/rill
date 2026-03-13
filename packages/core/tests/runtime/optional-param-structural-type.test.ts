@@ -226,6 +226,107 @@ describe('Optional parameter structural types', () => {
     });
   });
 
+  describe('formatStructuralType dict branch with defaults', () => {
+    it('renders dict field with string default', () => {
+      const type: RillType = {
+        type: 'dict',
+        fields: {
+          a: { type: { type: 'string' }, defaultValue: 'Test' },
+          b: { type: 'number' },
+        },
+      };
+      expect(formatStructuralType(type)).toBe(
+        'dict(a: string = "Test", b: number)'
+      );
+    });
+
+    it('renders dict with all fields having defaults', () => {
+      const type: RillType = {
+        type: 'dict',
+        fields: {
+          x: { type: { type: 'number' }, defaultValue: 0 },
+          y: { type: { type: 'bool' }, defaultValue: true },
+        },
+      };
+      expect(formatStructuralType(type)).toBe(
+        'dict(x: number = 0, y: bool = true)'
+      );
+    });
+
+    it('renders dict with no defaults unchanged', () => {
+      const type: RillType = {
+        type: 'dict',
+        fields: {
+          name: { type: 'string' },
+          count: { type: 'number' },
+        },
+      };
+      expect(formatStructuralType(type)).toBe(
+        'dict(count: number, name: string)'
+      );
+    });
+  });
+
+  describe('formatStructuralType ordered branch with defaults', () => {
+    it('renders ordered field with string default', () => {
+      const type: RillType = {
+        type: 'ordered',
+        fields: [
+          ['a', { type: 'string' }, 'Test'],
+          ['b', { type: 'number' }],
+        ],
+      };
+      expect(formatStructuralType(type)).toBe(
+        'ordered(a: string = "Test", b: number)'
+      );
+    });
+
+    it('renders ordered with number default', () => {
+      const type: RillType = {
+        type: 'ordered',
+        fields: [['count', { type: 'number' }, 42]],
+      };
+      expect(formatStructuralType(type)).toBe('ordered(count: number = 42)');
+    });
+
+    it('renders ordered with no defaults unchanged', () => {
+      const type: RillType = {
+        type: 'ordered',
+        fields: [
+          ['x', { type: 'number' }],
+          ['y', { type: 'string' }],
+        ],
+      };
+      expect(formatStructuralType(type)).toBe('ordered(x: number, y: string)');
+    });
+  });
+
+  describe('formatStructuralType tuple branch with defaults', () => {
+    it('renders tuple element with number default', () => {
+      const type: RillType = {
+        type: 'tuple',
+        elements: [[{ type: 'string' }], [{ type: 'number' }, 0]],
+      };
+      expect(formatStructuralType(type)).toBe('tuple(string, number = 0)');
+    });
+
+    it('renders tuple element with boolean default', () => {
+      const type: RillType = {
+        type: 'tuple',
+        elements: [[{ type: 'bool' }, false]],
+      };
+      expect(formatStructuralType(type)).toBe('tuple(bool = false)');
+    });
+
+    it('renders tuple with no defaults unchanged', () => {
+      const type: RillType = {
+        type: 'tuple',
+        elements: [[{ type: 'string' }], [{ type: 'number' }]],
+      };
+      expect(formatStructuralType(type)).toBe('tuple(string, number)');
+    });
+  });
+
   describe('script closures with default params', () => {
     it('script closure with string default shows default in ^input', async () => {
       const result = await run(`

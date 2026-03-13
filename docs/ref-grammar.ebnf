@@ -705,8 +705,8 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ type-arg-
 
 type-arg-list    = type-arg , { "," , type-arg } , [ "," ] ;
 
-type-arg         = identifier , ":" , expression   (* named: key: type-expr *)
-               | expression ;                      (* positional: type-expr *)
+type-arg         = identifier , ":" , expression , [ "=" , literal ]   (* named: key: type-expr [= default] *)
+               | expression , [ "=" , literal ] ;                      (* positional: type-expr [= default] *)
 
 (* Closure signature literal: a type expression for closure type inspection.
    Syntax mirrors closure definition but uses "|" delimiters and ": return".
