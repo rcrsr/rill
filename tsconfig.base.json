@@ -8,8 +8,9 @@
 
     // Output
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "removeComments": true,
 
     // Strict Type Checking
     "strict": true,
