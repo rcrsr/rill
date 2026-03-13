@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Structural type default values** — Dict, ordered, and tuple types support per-field defaults with `= literal` syntax. The `:>` operator auto-hydrates missing fields
+
 ## [0.14.0] - 2026-03-12
 
 ### Breaking Changes
