@@ -164,7 +164,6 @@ export function formatRillError(
         ];
         const gutterWidth = String(Math.max(...allLineNums)).length;
 
-        parts.push('');
         parts.push(
           ...renderSnippet(
             data.location.line,
@@ -187,7 +186,6 @@ export function formatRillError(
       ];
       const gutterWidth = String(Math.max(...allLineNums)).length;
 
-      parts.push('');
       parts.push(
         ...renderSnippet(
           data.location.line,
