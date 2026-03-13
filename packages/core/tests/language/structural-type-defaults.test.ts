@@ -395,4 +395,96 @@ describe('Rill Language: Structural Type Default Values', () => {
       ).rejects.toThrow(/missing required element at position 1/);
     });
   });
+
+  // ============================================================
+  // AC-20: nested ordered field hydrated during dict-to-ordered conversion
+  // ============================================================
+
+  describe('AC-20: nested ordered field hydrated during dict-to-ordered conversion', () => {
+    it('outer field present, inner default x=42 hydrated in nested ordered', async () => {
+      const result = await run(
+        '[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number = 42, y: string))'
+      );
+      expect(isOrdered(result)).toBe(true);
+      const outerEntries = orderedEntries(result);
+      expect(outerEntries).toHaveLength(1);
+      expect(outerEntries[0]![0]).toBe('outer');
+      const inner = outerEntries[0]![1];
+      expect(isOrdered(inner)).toBe(true);
+      const innerEntries = orderedEntries(inner);
+      expect(innerEntries).toEqual([
+        ['x', 42],
+        ['y', 'z'],
+      ]);
+    });
+  });
+
+  // ============================================================
+  // AC-21: nested dict inside ordered field hydrated (cross-type nesting)
+  // ============================================================
+
+  describe('AC-21: nested dict inside ordered field hydrated (cross-type nesting)', () => {
+    it('dict-to-ordered with nested dict field hydrates dict defaults', async () => {
+      const result = await run(
+        '[outer: [y: "z"]] -> :>ordered(outer: dict(x: number = 42, y: string))'
+      );
+      expect(isOrdered(result)).toBe(true);
+      const outerEntries = orderedEntries(result);
+      expect(outerEntries).toHaveLength(1);
+      expect(outerEntries[0]![0]).toBe('outer');
+      expect(outerEntries[0]![1]).toEqual({ x: 42, y: 'z' });
+    });
+  });
+
+  // ============================================================
+  // AC-22: nested ordered inside dict field hydrated (reverse cross-type nesting)
+  // ============================================================
+
+  describe('AC-22: nested ordered inside dict field hydrated (reverse cross-type nesting)', () => {
+    it('dict-to-dict with nested ordered field hydrates ordered defaults', async () => {
+      const result = await run(
+        '[outer: [y: "z"]] -> :>dict(outer: ordered(x: number = 42, y: string))'
+      );
+      expect(result).toMatchObject({ outer: expect.anything() });
+      const outer = (result as Record<string, unknown>).outer;
+      expect(isOrdered(outer)).toBe(true);
+      const innerEntries = orderedEntries(outer);
+      expect(innerEntries).toEqual([
+        ['x', 42],
+        ['y', 'z'],
+      ]);
+    });
+  });
+
+  // ============================================================
+  // AC-23: all ordered fields have defaults, empty dict fully hydrated
+  // ============================================================
+
+  describe('AC-23: all ordered fields have defaults, empty dict fully hydrated', () => {
+    it('dict[] -> :>ordered(a: string = "x", b: number = 0) produces ordered with all defaults', async () => {
+      const result = await run(
+        'dict[] -> :>ordered(a: string = "x", b: number = 0)'
+      );
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toEqual([
+        ['a', 'x'],
+        ['b', 0],
+      ]);
+    });
+  });
+
+  // ============================================================
+  // EC-7: nested ordered missing required field → RILL-R044
+  // ============================================================
+
+  describe('EC-7: nested ordered missing required field errors with RILL-R044', () => {
+    it('[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number, y: string)) throws RILL-R044', async () => {
+      await expect(
+        run(
+          '[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number, y: string))'
+        )
+      ).rejects.toThrow(/missing required field 'x'/);
+    });
+  });
 });

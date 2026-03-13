@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Nested hydration in `:>ordered()` conversion** — `dict :>ordered(sig)` now hydrates nested dict and ordered fields with defaults, matching existing `dict :>dict(sig)` behavior
+
 ## [0.15.0] - 2026-03-13
 
 ### Breaking Changes

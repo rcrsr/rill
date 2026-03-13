@@ -343,7 +343,9 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const hasDefault = field.length === 3;
 
         if (fieldName in dictInput) {
-          entries.push([fieldName, dictInput[fieldName]!]);
+          let fieldValue: RillValue = dictInput[fieldName]!;
+          fieldValue = this.hydrateNested(fieldValue, field[1]!, node);
+          entries.push([fieldName, fieldValue]);
         } else if (hasDefault) {
           entries.push([fieldName, deepCopyRillValue(field[2]!)]);
         } else {
@@ -408,7 +410,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const innerType = isFieldTypeWithDefault(resolvedField)
               ? resolvedField.type
               : resolvedField;
-            fieldValue = this.hydrateNestedDict(fieldValue, innerType, node);
+            fieldValue = this.hydrateNested(fieldValue, innerType, node);
           }
           result[fieldName] = fieldValue;
         } else {
@@ -497,56 +499,85 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Recursively hydrate a dict value against a nested dict RillType.
-     * Only applies when the field type is a dict with explicit fields.
-     * Returns the value unchanged if it is not a dict or the type has no fields.
+     * Recursively hydrate a value against a nested dict or ordered RillType.
+     * Only applies when the field type is a dict or ordered with explicit fields.
+     * Returns the value unchanged if the type has no fields or the value type does not match.
      */
-    private hydrateNestedDict(
+    private hydrateNested(
       value: RillValue,
       fieldType: RillType,
       node: ConvertNode
     ): RillValue {
-      if (fieldType.type !== 'dict' || !fieldType.fields) {
-        return value;
-      }
-      if (!isDict(value)) {
-        return value;
-      }
-      const dictValue = value as Record<string, RillValue>;
-      const result: Record<string, RillValue> = {};
-      for (const [fieldName, resolvedField] of Object.entries(
-        fieldType.fields
-      )) {
-        if (fieldName in dictValue) {
-          let fieldValue: RillValue = dictValue[fieldName]!;
-          if (isFieldTypeWithDefault(resolvedField)) {
-            fieldValue = this.hydrateNestedDict(
-              fieldValue,
-              resolvedField.type,
-              node
-            );
+      if (fieldType.type === 'dict' && fieldType.fields && isDict(value)) {
+        const dictValue = value as Record<string, RillValue>;
+        const result: Record<string, RillValue> = {};
+        for (const [fieldName, resolvedField] of Object.entries(
+          fieldType.fields
+        )) {
+          if (fieldName in dictValue) {
+            let fieldValue: RillValue = dictValue[fieldName]!;
+            if (isFieldTypeWithDefault(resolvedField)) {
+              fieldValue = this.hydrateNested(
+                fieldValue,
+                resolvedField.type,
+                node
+              );
+            } else {
+              fieldValue = this.hydrateNested(fieldValue, resolvedField, node);
+            }
+            result[fieldName] = fieldValue;
           } else {
-            fieldValue = this.hydrateNestedDict(
-              fieldValue,
-              resolvedField,
+            if (isFieldTypeWithDefault(resolvedField)) {
+              result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+            } else {
+              throw new RuntimeError(
+                'RILL-R044',
+                `cannot convert dict to dict: missing required field '${fieldName}'`,
+                this.getNodeLocation(node),
+                { source: 'dict', target: 'dict' }
+              );
+            }
+          }
+        }
+        return result;
+      } else if (fieldType.type === 'ordered' && fieldType.fields) {
+        // Build a key->value lookup from either an ordered value or a dict value.
+        const lookup = new Map<string, RillValue>(
+          isOrdered(value)
+            ? value.entries
+            : isDict(value)
+              ? Object.entries(value as Record<string, RillValue>)
+              : []
+        );
+        const resultEntries: [string, RillValue][] = [];
+        for (const field of fieldType.fields as [
+          string,
+          RillType,
+          RillValue?,
+        ][]) {
+          const name = field[0]!;
+          const innerType = field[1]!;
+          if (lookup.has(name)) {
+            const fieldValue = this.hydrateNested(
+              lookup.get(name)!,
+              innerType,
               node
             );
-          }
-          result[fieldName] = fieldValue;
-        } else {
-          if (isFieldTypeWithDefault(resolvedField)) {
-            result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+            resultEntries.push([name, fieldValue]);
+          } else if (field.length === 3) {
+            resultEntries.push([name, deepCopyRillValue(field[2]!)]);
           } else {
             throw new RuntimeError(
               'RILL-R044',
-              `cannot convert dict to dict: missing required field '${fieldName}'`,
+              `cannot convert dict to ordered: missing required field '${name}'`,
               this.getNodeLocation(node),
-              { source: 'dict', target: 'dict' }
+              { source: 'dict', target: 'ordered' }
             );
           }
         }
+        return createOrdered(resultEntries);
       }
-      return result;
+      return value;
     }
 
     /** Throw EC-10 incompatible conversion error. */
