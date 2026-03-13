@@ -29,6 +29,7 @@ import {
   formatStructuralType,
   inferType,
   isTuple,
+  paramToTypeTuple,
   structuralTypeEquals,
   structuralTypeMatches,
   anyTypeValue,
@@ -292,10 +293,13 @@ export function callableEquals(
  * @returns Frozen RillType with closure variant
  */
 export function paramsToStructuralType(params: readonly RillParam[]): RillType {
-  const closureParams: [string, RillType][] = params.map((param) => {
-    const paramType: RillType = param.type ?? { type: 'any' };
-    return [param.name, paramType];
-  });
+  const closureParams = params.map((param) =>
+    paramToTypeTuple(
+      param.name,
+      param.type ?? { type: 'any' },
+      param.defaultValue
+    )
+  );
 
   return Object.freeze({
     type: 'closure' as const,

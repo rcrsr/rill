@@ -1114,7 +1114,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (shape.type === 'closure') {
           return {
             type: shape.type,
-            params: createOrdered(shape.params as [string, RillValue][]),
+            params: createOrdered(
+              shape.params as unknown as [string, RillValue][]
+            ),
             // Use callable.returnType.structure so :type-target return annotation is reflected
             // Fall back to { type: 'any' } for callables without returnType (legacy construction)
             ret: value.returnType?.structure ?? { type: 'any' as const },

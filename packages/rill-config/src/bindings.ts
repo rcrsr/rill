@@ -18,8 +18,42 @@ function mapParamType(param: RillParam): string {
   return formatStructuralType(param.type);
 }
 
+function formatDefaultLiteral(value: unknown): string {
+  if (typeof value === 'string') {
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    const items = value.map(formatDefaultLiteral).join(', ');
+    return `list[${items}]`;
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) {
+      return '[:]';
+    }
+    const pairs = entries
+      .map(([k, v]) => `${k}: ${formatDefaultLiteral(v)}`)
+      .join(', ');
+    return `[${pairs}]`;
+  }
+  return String(value);
+}
+
 function serializeParam(param: RillParam): string {
   const typeName = mapParamType(param);
+  if (param.defaultValue !== undefined) {
+    return `${param.name}: ${typeName} = ${formatDefaultLiteral(param.defaultValue)}`;
+  }
   return `${param.name}: ${typeName}`;
 }
 

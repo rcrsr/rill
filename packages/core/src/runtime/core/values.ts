@@ -73,7 +73,7 @@ export type RillType =
   | { type: 'list'; element?: RillType }
   | {
       type: 'closure';
-      params?: [string, RillType][];
+      params?: [string, RillType, RillValue?][];
       ret?: RillType;
     }
   | { type: 'tuple'; elements?: RillType[] }
@@ -340,10 +340,9 @@ export function inferStructuralType(value: RillValue): RillType {
     return { type: 'vector' };
   }
   if (isCallable(value)) {
-    const params: [string, RillType][] = (value.params ?? []).map((p) => [
-      p.name,
-      p.type ?? { type: 'any' },
-    ]);
+    const params = (value.params ?? []).map((p) =>
+      paramToTypeTuple(p.name, p.type ?? { type: 'any' }, p.defaultValue)
+    );
     const ret: RillType = value.returnType.structure;
     return { type: 'closure', params, ret };
   }
@@ -462,6 +461,24 @@ export function structuralTypeMatches(
   return false;
 }
 
+/** Build a closure param tuple, omitting the optional third element when no default. */
+export function paramToTypeTuple(
+  name: string,
+  type: RillType,
+  defaultValue: RillValue | undefined
+): [string, RillType, RillValue?] {
+  return defaultValue !== undefined ? [name, type, defaultValue] : [name, type];
+}
+
+/** Format a RillValue as a rill literal for use in type signatures. */
+function formatRillLiteral(value: RillValue): string {
+  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (value === null) return 'null';
+  return formatValue(value);
+}
+
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructuralType(type: RillType): string {
   if (
@@ -505,7 +522,11 @@ export function formatStructuralType(type: RillType): string {
   if (type.type === 'closure') {
     if (type.params === undefined) return 'closure';
     const params = type.params
-      .map(([name, t]) => `${name}: ${formatStructuralType(t)}`)
+      .map(([name, t, defaultVal]) => {
+        const base = `${name}: ${formatStructuralType(t)}`;
+        if (defaultVal === undefined) return base;
+        return `${base} = ${formatRillLiteral(defaultVal)}`;
+      })
       .join(', ');
     const ret = type.ret !== undefined ? formatStructuralType(type.ret) : 'any';
     return `|${params}| :${ret}`;
