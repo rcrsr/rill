@@ -16,17 +16,7 @@
 {{ if .Params.description }}
 {{ .Params.description }}
 {{ end }}
-{{- $headings := findRE `(?m)^#{2,4} .+` .RawContent }}
-{{- range $headings }}
-{{- $text := replaceRE `^#{2,4} ` "" . }}
-{{- if hasPrefix . "#### " }}
-    * {{ $text }}
-{{- else if hasPrefix . "### " }}
-  * {{ $text }}
-{{- else }}
-* {{ $text }}
-{{- end }}
-{{- end }}
+{{- template "llms-headings" . }}
 {{- end }}
 {{ range .RegularPages }}
 {{- template "llms-page" . }}
@@ -42,6 +32,10 @@
 {{ if .Params.description }}
 {{ .Params.description }}
 {{ end }}
+{{- template "llms-headings" . }}
+{{- end -}}
+
+{{- define "llms-headings" -}}
 {{- $headings := findRE `(?m)^#{2,4} .+` .RawContent }}
 {{- range $headings }}
 {{- $text := replaceRE `^#{2,4} ` "" . }}
