@@ -236,7 +236,7 @@ Dict fields are sorted alphabetically in the formatted output.
 
 All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
 
-**`.^input`** returns a `RillOrdered` value. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables.
+**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables. Untyped host callables return an empty ordered dict, not `false`.
 
 ```typescript
 // Script closure returned from execute():
@@ -260,7 +260,7 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // }
 ```
 
-> **Behavioral change (v0.x):** Hosts inspecting `.^input` on parameterized closures now see full structural sub-fields. Code that checks `structure.type === 'list'` is unaffected. Code that assumed `element` was always absent must handle the populated case.
+> **Behavioral change (v0.x):** `.^input` now returns an ordered dict for all closure kinds. Previously, untyped host callables returned `false` as a sentinel. They now return an empty ordered dict. Code that checked `result === false` must be updated to check `result.entries.length === 0` instead.
 
 **`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ type: 'any' }`:
 

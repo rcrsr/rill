@@ -99,7 +99,7 @@ Parser.prototype.parseTypeConstructor = function (
  * Otherwise parse as positional.
  */
 function parseTypeArg(parser: Parser): TypeConstructorArg {
-  // Named arg: identifier ":" expression
+  // Named arg: identifier ":" expression [= literal]
   if (
     check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
     peek(parser.state, 1).type === TOKEN_TYPES.COLON
@@ -108,10 +108,22 @@ function parseTypeArg(parser: Parser): TypeConstructorArg {
     advance(parser.state); // consume ':'
     skipNewlines(parser.state);
     const value: ExpressionNode = parser.parseExpression();
+    if (check(parser.state, TOKEN_TYPES.ASSIGN)) {
+      advance(parser.state); // consume =
+      skipNewlines(parser.state);
+      const defaultValue = parser.parseLiteral();
+      return { kind: 'named', name: nameToken.value, value, defaultValue };
+    }
     return { kind: 'named', name: nameToken.value, value };
   }
 
-  // Positional arg: expression
+  // Positional arg: expression [= literal]
   const value: ExpressionNode = parser.parseExpression();
+  if (check(parser.state, TOKEN_TYPES.ASSIGN)) {
+    advance(parser.state); // consume =
+    skipNewlines(parser.state);
+    const defaultValue = parser.parseLiteral();
+    return { kind: 'positional', value, defaultValue };
+  }
   return { kind: 'positional', value };
 }

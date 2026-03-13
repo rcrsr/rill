@@ -22,7 +22,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 **Key principles:**
 - **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
 - **Type-locked variables**: A variable that holds a string always holds a string
-- **Value-based**: All copies are deep, all comparisons by value
+- **Value-based**: All values are immutable, all comparisons by value
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 

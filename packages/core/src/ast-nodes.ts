@@ -375,8 +375,13 @@ export interface TypeConstructorNode extends BaseNode {
 }
 
 export type TypeConstructorArg =
-  | { kind: 'positional'; value: ExpressionNode }
-  | { kind: 'named'; name: string; value: ExpressionNode };
+  | { kind: 'positional'; value: ExpressionNode; defaultValue?: LiteralNode }
+  | {
+      kind: 'named';
+      name: string;
+      value: ExpressionNode;
+      defaultValue?: LiteralNode;
+    };
 
 /**
  * Closure signature literal: |param: type, ...| :returnType

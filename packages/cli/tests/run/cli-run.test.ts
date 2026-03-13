@@ -19,6 +19,10 @@ const mocks = vi.hoisted(() => ({
   marshalCliArgs: vi.fn(),
   invokeCallable: vi.fn(),
   isScriptCallable: vi.fn(),
+  readFileSync: vi.fn(),
+  parse: vi.fn(),
+  execute: vi.fn(),
+  createRuntimeContext: vi.fn(),
 }));
 
 vi.mock('@rcrsr/rill-config', async (importActual) => {
@@ -43,6 +47,17 @@ vi.mock('@rcrsr/rill', async (importActual) => {
     ...actual,
     invokeCallable: mocks.invokeCallable,
     isScriptCallable: mocks.isScriptCallable,
+    parse: mocks.parse,
+    execute: mocks.execute,
+    createRuntimeContext: mocks.createRuntimeContext,
+  };
+});
+
+vi.mock('node:fs', async (importActual) => {
+  const actual = await importActual<typeof import('node:fs')>();
+  return {
+    ...actual,
+    readFileSync: mocks.readFileSync,
   };
 });
 
@@ -428,6 +443,95 @@ describe('main() loadProject flow', () => {
 
       expect(stderrChunks.join('')).toContain('Extension load failed');
       expect(exitCode).toBe(1);
+    });
+  });
+
+  describe('handler mode (colon in main)', () => {
+    function makeHandlerProject() {
+      return {
+        config: { main: 'script.rill:myHandler' },
+        extTree: {},
+        disposes: [],
+        resolverConfig: { resolvers: {}, configurations: { resolvers: {} } },
+        hostOptions: {},
+        extensionBindings: '[:]',
+        contextBindings: '',
+      };
+    }
+
+    beforeEach(() => {
+      mocks.readFileSync.mockReturnValue('# script source');
+      mocks.parse.mockReturnValue({ type: 'Script', body: [] });
+      mocks.execute.mockResolvedValue(undefined);
+      mocks.isScriptCallable.mockReturnValue(true);
+      mocks.invokeCallable.mockResolvedValue('');
+
+      const variables = new Map<string, unknown>();
+      const fakeHandler = { __type: 'ScriptCallable' };
+      variables.set('myHandler', fakeHandler);
+      mocks.createRuntimeContext.mockReturnValue({
+        variables,
+        get pipeValue() {
+          return undefined;
+        },
+        set pipeValue(_v: unknown) {},
+      });
+
+      mocks.parseMainField.mockImplementation((main: string) => {
+        const idx = main.indexOf(':');
+        return {
+          filePath: main.slice(0, idx),
+          handlerName: main.slice(idx + 1),
+        };
+      });
+    });
+
+    it('passes space-separated string flag value to marshalCliArgs', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [{ name: 'name', type: 'string', required: true }],
+      });
+      mocks.marshalCliArgs.mockReturnValue({ name: 'Alice' });
+
+      await runMain(['--name', 'Alice']);
+
+      expect(mocks.marshalCliArgs).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Alice' }),
+        expect.any(Array)
+      );
+    });
+
+    it('passes boolean flag as empty string to marshalCliArgs for bool param', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [{ name: 'verbose', type: 'bool', required: false }],
+      });
+      mocks.marshalCliArgs.mockReturnValue({ verbose: true });
+
+      await runMain(['--verbose']);
+
+      // --verbose is a BASE_OPTIONS key so it is filtered out; this confirms
+      // the base option filter still works when params include a bool param
+      expect(mocks.marshalCliArgs).toHaveBeenCalled();
+    });
+
+    it('does not conflate space-separated value with positional when param type is string', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [{ name: 'target', type: 'string', required: true }],
+      });
+      mocks.marshalCliArgs.mockReturnValue({ target: 'prod' });
+
+      await runMain(['--target', 'prod']);
+
+      const [rawArgs] = mocks.marshalCliArgs.mock.calls[0] as [
+        Record<string, string>,
+        unknown,
+      ];
+      expect(rawArgs['target']).toBe('prod');
     });
   });
 

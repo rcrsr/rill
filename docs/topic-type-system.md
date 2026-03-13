@@ -44,6 +44,33 @@ $lt.^type.name
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
 | `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
 
+### Default Values in Type Constructors
+
+Type constructor fields accept a default value using `= literal` syntax after the field type. When you convert a value with `:>`, the runtime fills in any missing fields using those defaults.
+
+```rill
+[b: "b"] -> :>dict(b: string, a: string = "a")
+# Result: [a: "a", b: "b"]
+```
+
+The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
+
+```rill
+[x: 1] -> :>ordered(x: number, y: number = 0)
+# Result: ordered[x: 1, y: 0]
+```
+
+```rill
+tuple["x"] -> :>tuple(string, number = 0)
+# Result: tuple["x", 0]
+```
+
+Tuple defaults are restricted to trailing positions. You cannot place a defaulted field before a required field in a tuple constructor.
+
+The `:` assertion operator does not hydrate defaults. Only `:>` conversion fills missing fields. Use `:` when you want strict validation with no field synthesis.
+
+When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `:>` compatibility matrix.
+
 ### Comparing Structural Types
 
 ```rill

@@ -709,7 +709,7 @@ describe('Callable reflection via ^ operator', () => {
   });
 
   describe('^input on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
-    it('returns structural closure type with params (AC-28)', async () => {
+    it('returns RillOrdered with params entries (AC-28)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
           myFn: {
@@ -730,10 +730,11 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       })) as Record<string, unknown>;
-      expect(result).toHaveProperty('type', 'closure');
+      expect(result['__rill_ordered']).toBe(true);
+      expect(Array.isArray(result['entries'])).toBe(true);
     });
 
-    it('returns empty params for zero-param callable (AC-29)', async () => {
+    it('returns empty entries for zero-param callable (AC-5, AC-29)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
           myFn: {
@@ -747,18 +748,18 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       })) as Record<string, unknown>;
-      expect(result).toHaveProperty('type', 'closure');
-      // params is present on the closure type shape
-      expect(result['params']).toBeDefined();
+      expect(result['__rill_ordered']).toBe(true);
+      expect(result['entries']).toEqual([]);
     });
   });
 
   describe('^input on ScriptCallable (AC-37)', () => {
-    it('returns closure type reflecting script closure params', async () => {
+    it('returns RillOrdered reflecting script closure params', async () => {
       const result = (await run(
         '|x: string, y: number| { $x } => $fn\n$fn.^input'
       )) as Record<string, unknown>;
-      expect(result).toHaveProperty('type', 'closure');
+      expect(result['__rill_ordered']).toBe(true);
+      expect(Array.isArray(result['entries'])).toBe(true);
     });
   });
 

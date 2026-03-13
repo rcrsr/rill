@@ -33,7 +33,12 @@ import type {
   TypeRef,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
+import type {
+  RillValue,
+  RillType,
+  RillFieldType,
+  RillTuple,
+} from '../../values.js';
 import {
   inferType,
   isTuple,
@@ -42,6 +47,7 @@ import {
   createOrdered,
   createTuple,
   formatValue,
+  isFieldTypeWithDefault,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -80,7 +86,13 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeRef.constructorName === 'ordered') {
           return this.convertToOrderedWithSig(input, typeRef, node);
         }
-        // Non-ordered constructors: convert first, then assert structural type
+        if (typeRef.constructorName === 'dict') {
+          return this.convertToDictWithSig(input, typeRef, node);
+        }
+        if (typeRef.constructorName === 'tuple') {
+          return this.convertToTupleWithSig(input, typeRef, node);
+        }
+        // Non-dict/ordered constructors: convert first, then assert structural type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
         const result = this.applyConversion(
@@ -293,14 +305,19 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Convert dict -> :>ordered(field: type, ...) using structural signature.
-     * Extracts fields in the order specified by the signature.
+     * Convert dict -> :>ordered(field: type = default, ...) using structural signature.
+     *
+     * - Input must be a dict (else RILL-R036)
+     * - Iterates signature fields in declaration order
+     * - Missing field with default: inserts deep copy of default value
+     * - Missing field without default: emits RILL-R044
+     * - Extra keys not in signature: omitted from result
      */
-    private convertToOrderedWithSig(
+    private async convertToOrderedWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
       node: ConvertNode
-    ): RillValue {
+    ): Promise<RillValue> {
       if (!isDict(input)) {
         throw new RuntimeError(
           'RILL-R036',
@@ -310,30 +327,226 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
+      // Evaluate the full type constructor to get resolved fields with defaults.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
+      const resolvedFields: [string, RillType, RillValue?][] =
+        typeValue.structure.type === 'ordered' && typeValue.structure.fields
+          ? (typeValue.structure.fields as [string, RillType, RillValue?][])
+          : [];
+
       const dictInput = input as Record<string, RillValue>;
       const entries: [string, RillValue][] = [];
 
-      for (const arg of sigNode.args) {
-        if (arg.kind !== 'named') {
+      for (const field of resolvedFields) {
+        const fieldName = field[0]!;
+        const hasDefault = field.length === 3;
+
+        if (fieldName in dictInput) {
+          entries.push([fieldName, dictInput[fieldName]!]);
+        } else if (hasDefault) {
+          entries.push([fieldName, deepCopyRillValue(field[2]!)]);
+        } else {
           throw new RuntimeError(
-            'RILL-R037',
-            'dict to ordered conversion requires structural type signature',
-            this.getNodeLocation(node)
-          );
-        }
-        const fieldName = arg.name;
-        if (!(fieldName in dictInput)) {
-          throw new RuntimeError(
-            'RILL-R036',
-            `cannot convert dict to ordered: missing field '${fieldName}'`,
+            'RILL-R044',
+            `cannot convert dict to ordered: missing required field '${fieldName}'`,
             this.getNodeLocation(node),
             { source: 'dict', target: 'ordered' }
           );
         }
-        entries.push([fieldName, dictInput[fieldName]!]);
       }
 
       return createOrdered(entries);
+    }
+
+    /**
+     * Convert dict -> :>dict(field: type = default, ...) using structural signature [IR-4].
+     *
+     * - Input must be a dict (else RILL-R036)
+     * - Iterates signature fields in declaration order
+     * - Missing field with default: inserts deep copy of default value
+     * - Missing field without default: emits RILL-R044
+     * - Extra keys not in signature: omitted from result
+     * - Recurses into nested dict-typed fields for nested hydration
+     */
+    private async convertToDictWithSig(
+      input: RillValue,
+      sigNode: TypeConstructorNode,
+      node: ConvertNode
+    ): Promise<RillValue> {
+      if (!isDict(input)) {
+        throw new RuntimeError(
+          'RILL-R036',
+          `cannot convert ${inferType(input)} to dict`,
+          this.getNodeLocation(node),
+          { source: inferType(input), target: 'dict' }
+        );
+      }
+
+      // Evaluate the full type constructor to get resolved fields with defaults.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
+      const resolvedFields: Record<string, RillFieldType> =
+        typeValue.structure.type === 'dict' && typeValue.structure.fields
+          ? (typeValue.structure.fields as Record<string, RillFieldType>)
+          : {};
+
+      const dictInput = input as Record<string, RillValue>;
+      const result: Record<string, RillValue> = {};
+
+      for (const arg of sigNode.args) {
+        if (arg.kind !== 'named') {
+          continue;
+        }
+        const fieldName = arg.name;
+        const resolvedField = resolvedFields[fieldName];
+
+        if (fieldName in dictInput) {
+          // Field present in input: use it, recursing if the field type is a nested dict
+          let fieldValue: RillValue = dictInput[fieldName]!;
+          if (resolvedField !== undefined) {
+            const innerType = isFieldTypeWithDefault(resolvedField)
+              ? resolvedField.type
+              : resolvedField;
+            fieldValue = this.hydrateNestedDict(fieldValue, innerType, node);
+          }
+          result[fieldName] = fieldValue;
+        } else {
+          // Field missing from input: use default if available, else error
+          if (
+            resolvedField !== undefined &&
+            isFieldTypeWithDefault(resolvedField)
+          ) {
+            result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+          } else {
+            throw new RuntimeError(
+              'RILL-R044',
+              `cannot convert dict to dict: missing required field '${fieldName}'`,
+              this.getNodeLocation(node),
+              { source: 'dict', target: 'dict' }
+            );
+          }
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * Convert tuple/list -> :>tuple(type, ...) using structural signature [IR-5].
+     *
+     * - Input must be a tuple or list (else RILL-R036)
+     * - Iterates signature elements in declaration order
+     * - Missing trailing element with default: inserts deep copy of default value
+     * - Missing element without default: emits RILL-R044 with position
+     * - Extra elements beyond signature length: omitted from result
+     */
+    private async convertToTupleWithSig(
+      input: RillValue,
+      sigNode: TypeConstructorNode,
+      node: ConvertNode
+    ): Promise<RillValue> {
+      const isTupleInput = isTuple(input);
+      const isListInput =
+        Array.isArray(input) && !isTupleInput && !isOrdered(input);
+      if (!isTupleInput && !isListInput) {
+        throw new RuntimeError(
+          'RILL-R036',
+          `cannot convert ${inferType(input)} to tuple`,
+          this.getNodeLocation(node),
+          { source: inferType(input), target: 'tuple' }
+        );
+      }
+
+      // Evaluate the full type constructor to get resolved elements with defaults.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
+      const resolvedElements: [RillType, RillValue?][] =
+        typeValue.structure.type === 'tuple' && typeValue.structure.elements
+          ? (typeValue.structure.elements as [RillType, RillValue?][])
+          : [];
+
+      const inputEntries: RillValue[] = isTupleInput
+        ? (input as unknown as RillTuple).entries
+        : (input as RillValue[]);
+
+      const result: RillValue[] = [];
+
+      for (let i = 0; i < resolvedElements.length; i++) {
+        const element = resolvedElements[i]!;
+        const hasDefault = element.length === 2;
+
+        if (i < inputEntries.length) {
+          // Element present in input: use it directly
+          result.push(inputEntries[i]!);
+        } else if (hasDefault) {
+          // Missing trailing element with default: deep copy default
+          result.push(deepCopyRillValue(element[1]!));
+        } else {
+          // Missing element without default
+          throw new RuntimeError(
+            'RILL-R044',
+            `cannot convert ${inferType(input)} to tuple: missing required element at position ${i}`,
+            this.getNodeLocation(node),
+            { source: inferType(input), target: 'tuple' }
+          );
+        }
+      }
+
+      return createTuple(result);
+    }
+
+    /**
+     * Recursively hydrate a dict value against a nested dict RillType.
+     * Only applies when the field type is a dict with explicit fields.
+     * Returns the value unchanged if it is not a dict or the type has no fields.
+     */
+    private hydrateNestedDict(
+      value: RillValue,
+      fieldType: RillType,
+      node: ConvertNode
+    ): RillValue {
+      if (fieldType.type !== 'dict' || !fieldType.fields) {
+        return value;
+      }
+      if (!isDict(value)) {
+        return value;
+      }
+      const dictValue = value as Record<string, RillValue>;
+      const result: Record<string, RillValue> = {};
+      for (const [fieldName, resolvedField] of Object.entries(
+        fieldType.fields
+      )) {
+        if (fieldName in dictValue) {
+          let fieldValue: RillValue = dictValue[fieldName]!;
+          if (isFieldTypeWithDefault(resolvedField)) {
+            fieldValue = this.hydrateNestedDict(
+              fieldValue,
+              resolvedField.type,
+              node
+            );
+          } else {
+            fieldValue = this.hydrateNestedDict(
+              fieldValue,
+              resolvedField,
+              node
+            );
+          }
+          result[fieldName] = fieldValue;
+        } else {
+          if (isFieldTypeWithDefault(resolvedField)) {
+            result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+          } else {
+            throw new RuntimeError(
+              'RILL-R044',
+              `cannot convert dict to dict: missing required field '${fieldName}'`,
+              this.getNodeLocation(node),
+              { source: 'dict', target: 'dict' }
+            );
+          }
+        }
+      }
+      return result;
     }
 
     /** Throw EC-10 incompatible conversion error. */
@@ -350,6 +563,38 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       );
     }
   };
+}
+
+/**
+ * Deep copy a RillValue, producing a new independent value.
+ * Handles primitives, arrays, plain dicts, and null.
+ * Special markers (closures, tuples, ordered, vectors, type values) are returned
+ * as-is since they are immutable by contract.
+ */
+function deepCopyRillValue(value: RillValue): RillValue {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(deepCopyRillValue);
+  }
+  // Plain dict: copy recursively. Special markers (RillTuple, RillOrdered, etc.)
+  // carry __rill_* own properties and are treated as immutable; return as-is.
+  if (
+    !('__rill_tuple' in value) &&
+    !('__rill_ordered' in value) &&
+    !('__rill_vector' in value) &&
+    !('__rill_type' in value) &&
+    !('__type' in value) &&
+    !('__rill_field_descriptor' in value)
+  ) {
+    const copy: Record<string, RillValue> = {};
+    for (const [k, v] of Object.entries(value as Record<string, RillValue>)) {
+      copy[k] = deepCopyRillValue(v);
+    }
+    return copy;
+  }
+  return value;
 }
 
 /**

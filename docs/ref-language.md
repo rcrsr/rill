@@ -8,7 +8,7 @@ rill is an embeddable, sandboxed scripting language designed for AI agents.
 
 ## Overview
 
-rill is an imperative scripting language that is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught—there are no implicit conversions. Type annotations are optional, but variables lock their type on first assignment. The language is value-based: no references, all copies are deep, all comparisons are by value. Empty values are valid (empty strings, lists, dicts), but null and undefined do not exist. Control flow is singular: no exceptions, no try/catch. Data flows through pipes (`->`), not assignment.
+rill is an imperative scripting language that is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught—there are no implicit conversions. Type annotations are optional, but variables lock their type on first assignment. The language is value-based: all values are immutable, all comparisons are by value. Empty values are valid (empty strings, lists, dicts), but null and undefined do not exist. Control flow is singular: no exceptions, no try/catch. Data flows through pipes (`->`), not assignment.
 
 ## Design Principles
 
@@ -167,9 +167,9 @@ Type constructors are primary expressions that produce structural type values. T
 | Constructor | Syntax | Example |
 |-------------|--------|---------|
 | List type | `list(T)` | `list(number)`, `list(list(string))` |
-| Dict type | `dict(k: T, ...)` | `dict(a: number, b: string)` |
-| Tuple type | `tuple(T, T2, ...)` | `tuple(number, string, bool)` |
-| Ordered type | `ordered(k: T, ...)` | `ordered(a: number, b: string)` |
+| Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
+| Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
+| Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 
 `^type` returns a structural type value — not a coarse string:

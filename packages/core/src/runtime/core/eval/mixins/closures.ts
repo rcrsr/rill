@@ -1108,19 +1108,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'input') {
         // Untyped host callables have params set to undefined at runtime (see callable() factory)
         if (value.params === undefined) {
-          return false;
+          return createOrdered([]);
         }
-        const shape = paramsToStructuralType(value.params);
-        if (shape.type === 'closure') {
-          return {
-            type: shape.type,
-            params: createOrdered(shape.params as [string, RillValue][]),
-            // Use callable.returnType.structure so :type-target return annotation is reflected
-            // Fall back to { type: 'any' } for callables without returnType (legacy construction)
-            ret: value.returnType?.structure ?? { type: 'any' as const },
-          } as unknown as RillValue;
-        }
-        return shape as unknown as RillValue;
+        const shape = paramsToStructuralType(value.params) as unknown as {
+          type: 'closure';
+          params: [string, RillValue][];
+        };
+        return createOrdered(shape.params);
       }
 
       // IR-3: ^output reads callable.returnType directly for all kinds

@@ -214,27 +214,34 @@ $fn()
 
 ### `.^input` Reflection
 
-The `.^input` annotation returns a structural type describing the closure signature. For an anonymous typed closure, the `$` parameter carries the declared type:
+`.^input` returns an ordered dict of the closure's input parameters. Anonymous params use `$` as the key name. Named params use their declared name. This mirrors `.^output`, which describes the return side of the signature.
+
+| Receiver Kind | Return Value |
+|---|---|
+| Bare block `{ ... }` | `ordered($: any)` |
+| Anonymous typed `\|string\| { ... }` | `ordered($: string)` |
+| Named param `\|x: string\| { ... }` | `ordered(x: string)` |
+| Named with default `\|a: str, b: str = "hi"\| { ... }` | `ordered(a: string, b: string = "hi")` |
+| Zero-param host callable | `ordered()` |
+| Untyped host callable | `ordered()` |
+| Non-callable value | Raises RILL-R003 |
 
 ```rill
 |string|{ $ } => $fn
 $fn.^input
-# Result: closure structural type with $ param typed string
-# formatStructuralType output: closure($: string) -> any
+# Result: ordered($: string)
 ```
 
 ```rill
 |list(string)|{ $ } => $fn
 $fn.^input
-# Result: closure structural type with $ param typed list(string)
-# formatStructuralType output: closure($: list(string)) -> any
+# Result: ordered($: list(string))
 ```
 
 ```rill
 { $ * 2 } => $fn
 $fn.^input
-# Result: closure structural type with $ param typed any
-# formatStructuralType output: closure($: any) -> any
+# Result: ordered($: any)
 ```
 
 The `.^output` annotation returns the declared return type as a type value. Unannotated closures return `any`:

@@ -69,16 +69,38 @@ export type RillType =
   | { type: 'vector' }
   | { type: 'type' }
   | { type: 'any' }
-  | { type: 'dict'; fields?: Record<string, RillType> }
+  | { type: 'dict'; fields?: Record<string, RillFieldType> }
   | { type: 'list'; element?: RillType }
   | {
       type: 'closure';
-      params?: [string, RillType][];
+      params?: [string, RillType, RillValue?][];
       ret?: RillType;
     }
-  | { type: 'tuple'; elements?: RillType[] }
-  | { type: 'ordered'; fields?: [string, RillType][] }
+  | { type: 'tuple'; elements?: [RillType, RillValue?][] }
+  | { type: 'ordered'; fields?: [string, RillType, RillValue?][] }
   | { type: 'union'; members: RillType[] };
+
+/**
+ * Dict field type - either a plain RillType or a RillType paired with a default value.
+ * Used in dict structural types to carry optional default values per field.
+ */
+export type RillFieldType =
+  | RillType
+  | { type: RillType; defaultValue: RillValue };
+
+/**
+ * Type guard to distinguish the `{ type, defaultValue }` form of RillFieldType
+ * from a plain RillType.
+ */
+export function isFieldTypeWithDefault(
+  fieldType: RillFieldType
+): fieldType is { type: RillType; defaultValue: RillValue } {
+  return (
+    typeof fieldType === 'object' &&
+    fieldType !== null &&
+    'defaultValue' in fieldType
+  );
+}
 
 /**
  * @deprecated Use RillType instead. Will be removed in the next major version.
@@ -249,7 +271,15 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
       if (key !== bKeys[i]) return false;
       const aField = a.fields[key]!;
       const bField = b.fields[key]!;
-      if (!structuralTypeEquals(aField, bField)) return false;
+      const aHasDefault = isFieldTypeWithDefault(aField);
+      const bHasDefault = isFieldTypeWithDefault(bField);
+      if (aHasDefault !== bHasDefault) return false;
+      const aType = aHasDefault ? aField.type : aField;
+      const bType = bHasDefault ? bField.type : bField;
+      if (!structuralTypeEquals(aType, bType)) return false;
+      if (aHasDefault && bHasDefault) {
+        if (!deepEquals(aField.defaultValue, bField.defaultValue)) return false;
+      }
     }
     return true;
   }
@@ -259,7 +289,14 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
     if (a.elements === undefined || b.elements === undefined) return false;
     if (a.elements.length !== b.elements.length) return false;
     for (let i = 0; i < a.elements.length; i++) {
-      if (!structuralTypeEquals(a.elements[i]!, b.elements[i]!)) return false;
+      const aElem = a.elements[i]!;
+      const bElem = b.elements[i]!;
+      if (!structuralTypeEquals(aElem[0], bElem[0])) return false;
+      const aDefault = aElem[1];
+      const bDefault = bElem[1];
+      if (aDefault === undefined && bDefault === undefined) continue;
+      if (aDefault === undefined || bDefault === undefined) return false;
+      if (!deepEquals(aDefault, bDefault)) return false;
     }
     return true;
   }
@@ -273,6 +310,11 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
       const bField = b.fields[i]!;
       if (aField[0] !== bField[0]) return false;
       if (!structuralTypeEquals(aField[1], bField[1])) return false;
+      const aDefault = aField[2];
+      const bDefault = bField[2];
+      if (aDefault === undefined && bDefault === undefined) continue;
+      if (aDefault === undefined || bDefault === undefined) return false;
+      if (!deepEquals(aDefault, bDefault)) return false;
     }
     return true;
   }
@@ -327,23 +369,27 @@ export function inferStructuralType(value: RillValue): RillType {
   if (isTuple(value)) {
     return {
       type: 'tuple',
-      elements: value.entries.map(inferStructuralType),
+      elements: value.entries.map((e): [RillType, RillValue?] => [
+        inferStructuralType(e),
+      ]),
     };
   }
   if (isOrdered(value)) {
     return {
       type: 'ordered',
-      fields: value.entries.map(([k, v]) => [k, inferStructuralType(v)]),
+      fields: value.entries.map(([k, v]): [string, RillType, RillValue?] => [
+        k,
+        inferStructuralType(v),
+      ]),
     };
   }
   if (isVector(value)) {
     return { type: 'vector' };
   }
   if (isCallable(value)) {
-    const params: [string, RillType][] = (value.params ?? []).map((p) => [
-      p.name,
-      p.type ?? { type: 'any' },
-    ]);
+    const params = (value.params ?? []).map((p) =>
+      paramToTypeTuple(p.name, p.type ?? { type: 'any' }, p.defaultValue)
+    );
     const ret: RillType = value.returnType.structure;
     return { type: 'closure', params, ret };
   }
@@ -404,7 +450,11 @@ export function structuralTypeMatches(
     const dict = value as Record<string, RillValue>;
     for (const key of dictKeys) {
       if (!(key in dict)) return false;
-      if (!structuralTypeMatches(dict[key]!, type.fields[key]!)) return false;
+      const fieldType = type.fields[key]!;
+      const resolvedType = isFieldTypeWithDefault(fieldType)
+        ? fieldType.type
+        : fieldType;
+      if (!structuralTypeMatches(dict[key]!, resolvedType)) return false;
     }
     return true;
   }
@@ -416,7 +466,7 @@ export function structuralTypeMatches(
     if (type.elements.length === 0) return value.entries.length === 0;
     if (value.entries.length !== type.elements.length) return false;
     for (let i = 0; i < type.elements.length; i++) {
-      if (!structuralTypeMatches(value.entries[i]!, type.elements[i]!))
+      if (!structuralTypeMatches(value.entries[i]!, type.elements[i]![0]))
         return false;
     }
     return true;
@@ -462,6 +512,24 @@ export function structuralTypeMatches(
   return false;
 }
 
+/** Build a closure param tuple, omitting the optional third element when no default. */
+export function paramToTypeTuple(
+  name: string,
+  type: RillType,
+  defaultValue: RillValue | undefined
+): [string, RillType, RillValue?] {
+  return defaultValue !== undefined ? [name, type, defaultValue] : [name, type];
+}
+
+/** Format a RillValue as a rill literal for use in type signatures. */
+function formatRillLiteral(value: RillValue): string {
+  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (value === null) return 'null';
+  return formatValue(value);
+}
+
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructuralType(type: RillType): string {
   if (
@@ -484,28 +552,44 @@ export function formatStructuralType(type: RillType): string {
     if (type.fields === undefined) return 'dict';
     const parts = Object.keys(type.fields)
       .sort()
-      .map((k) => `${k}: ${formatStructuralType(type.fields![k]!)}`);
+      .map((k) => {
+        const fieldType = type.fields![k]!;
+        if (isFieldTypeWithDefault(fieldType)) {
+          return `${k}: ${formatStructuralType(fieldType.type)} = ${formatRillLiteral(fieldType.defaultValue)}`;
+        }
+        return `${k}: ${formatStructuralType(fieldType)}`;
+      });
     return `dict(${parts.join(', ')})`;
   }
 
   if (type.type === 'tuple') {
     if (type.elements === undefined) return 'tuple';
-    const parts = type.elements.map(formatStructuralType);
+    const parts = type.elements.map(([t, defaultVal]) => {
+      const base = formatStructuralType(t);
+      if (defaultVal === undefined) return base;
+      return `${base} = ${formatRillLiteral(defaultVal)}`;
+    });
     return `tuple(${parts.join(', ')})`;
   }
 
   if (type.type === 'ordered') {
     if (type.fields === undefined) return 'ordered';
-    const parts = type.fields.map(
-      ([k, t]) => `${k}: ${formatStructuralType(t)}`
-    );
+    const parts = type.fields.map(([k, t, defaultVal]) => {
+      const base = `${k}: ${formatStructuralType(t)}`;
+      if (defaultVal === undefined) return base;
+      return `${base} = ${formatRillLiteral(defaultVal)}`;
+    });
     return `ordered(${parts.join(', ')})`;
   }
 
   if (type.type === 'closure') {
     if (type.params === undefined) return 'closure';
     const params = type.params
-      .map(([name, t]) => `${name}: ${formatStructuralType(t)}`)
+      .map(([name, t, defaultVal]) => {
+        const base = `${name}: ${formatStructuralType(t)}`;
+        if (defaultVal === undefined) return base;
+        return `${base} = ${formatRillLiteral(defaultVal)}`;
+      })
       .join(', ');
     const ret = type.ret !== undefined ? formatStructuralType(type.ret) : 'any';
     return `|${params}| :${ret}`;

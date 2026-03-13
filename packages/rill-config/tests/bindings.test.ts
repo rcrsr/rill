@@ -82,6 +82,215 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('name: string');
   });
 
+  it('renders string default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        greet: {
+          fn: async () => 'hi',
+          params: [
+            {
+              name: 'name',
+              type: { type: 'string' },
+              defaultValue: 'World',
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('name: string = "World"');
+  });
+
+  it('renders number default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        repeat: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'count',
+              type: { type: 'number' },
+              defaultValue: 42,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('count: number = 42');
+  });
+
+  it('renders default value only for params that have one', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        send: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'message',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'retries',
+              type: { type: 'number' },
+              defaultValue: 3,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('message: string');
+    expect(result).not.toContain('message: string =');
+    expect(result).toContain('retries: number = 3');
+  });
+
+  it('renders boolean default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        toggle: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'flag',
+              type: { type: 'bool' },
+              defaultValue: false,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('flag: bool = false');
+  });
+
+  it('renders full structural type for dict params and return type', () => {
+    const tree: NestedExtConfig = {
+      tools: {
+        infer: {
+          fn: async () => ({ result: 'ok' }),
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  model: { type: 'string' },
+                  temperature: { type: 'number' },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({
+            type: 'dict',
+            fields: { result: { type: 'string' } },
+          }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('dict(model: string, temperature: number)');
+    expect(result).toContain('dict(result: string)');
+  });
+
+  it('renders dict default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        call: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'options',
+              type: { type: 'dict', fields: {} },
+              defaultValue: { model: 'gpt-4', temperature: 0.7 },
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain(
+      'options: dict() = [model: "gpt-4", temperature: 0.7]'
+    );
+  });
+
+  it('renders empty dict default value as [:]', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        call: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'options',
+              type: { type: 'dict', fields: {} },
+              defaultValue: {},
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('options: dict() = [:]');
+  });
+
+  it('renders list default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        process: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'items',
+              type: { type: 'list', elementType: { type: 'string' } },
+              defaultValue: ['a', 'b'],
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('items: list = list["a", "b"]');
+  });
+
+  it('renders nested dict default value in param binding', () => {
+    const tree: NestedExtConfig = {
+      ext: {
+        configure: {
+          fn: async () => null,
+          params: [
+            {
+              name: 'config',
+              type: { type: 'dict', fields: {} },
+              defaultValue: { nested: { key: 'val' } },
+              annotations: {},
+            },
+          ],
+          returnType: rillTypeToTypeValue({ type: 'any' }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('config: dict() = [nested: [key: "val"]]');
+  });
+
   it('appends return type suffix after closing | when returnType is set', () => {
     const tree: NestedExtConfig = {
       tools: {
