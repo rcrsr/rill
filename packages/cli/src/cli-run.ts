@@ -24,6 +24,7 @@ import {
   introspectHandler,
   marshalCliArgs,
   ConfigError,
+  type HandlerParam,
 } from '@rcrsr/rill-config';
 import { CLI_VERSION } from './cli-shared.js';
 import { explainError } from './cli-explain.js';
@@ -122,10 +123,22 @@ export function parseCliArgs(
  * Extract unknown flags from argv as handler parameter strings.
  * Filters out known base options and their values.
  */
-function extractHandlerArgs(argv: string[]): Record<string, string> {
+function extractHandlerArgs(
+  argv: string[],
+  params: ReadonlyArray<HandlerParam>
+): Record<string, string> {
+  const handlerOptions: Record<string, { type: 'string' | 'boolean' }> = {
+    ...BASE_OPTIONS,
+  };
+  for (const param of params) {
+    handlerOptions[param.name] = {
+      type: param.type === 'bool' ? 'boolean' : 'string',
+    };
+  }
+
   const { values } = parseArgs({
     args: argv,
-    options: BASE_OPTIONS,
+    options: handlerOptions,
     allowPositionals: true,
     strict: false,
   });
@@ -273,7 +286,7 @@ export async function main(): Promise<void> {
     }
 
     const introspection = introspectHandler(handlerValue);
-    const rawHandlerArgs = extractHandlerArgs(argv);
+    const rawHandlerArgs = extractHandlerArgs(argv, introspection.params);
 
     let handlerArgs: Record<string, unknown>;
     try {
