@@ -2,27 +2,55 @@
 
 > {{ .Site.Params.description }}
 
-{{ range $section := site.Sections }}
-{{- template "llms-section-tree" dict "context" . "level" 2 }}
-{{ end }}
+## Documentation Map
+{{ with site.GetPage "/docs" }}
+{{- range .Sections }}
+{{- template "llms-section" . }}
+{{- end }}
+{{- end }}
 
-{{- define "llms-section-tree" -}}
-{{- $context := .context -}}
-{{- $level := .level | default 2 -}}
-{{- $headerHashes := strings.Repeat $level "#" -}}
+{{- define "llms-section" -}}
 {{- "\n" -}}
-{{ $headerHashes }} {{ $context.Title }}
-
-{{- range $context.RegularPages }}
-{{- $desc := .Params.description }}
-{{- if $desc }}
-- [{{ .Title }}]({{ .Permalink }}): {{ $desc }}
+## {{ .Title }}
+{{- if and (not .RegularPages) .RawContent }}
+{{ if .Params.description }}
+{{ .Params.description }}
+{{ end }}
+{{- $headings := findRE `(?m)^#{2,4} .+` .RawContent }}
+{{- range $headings }}
+{{- $text := replaceRE `^#{2,4} ` "" . }}
+{{- if hasPrefix . "#### " }}
+    * {{ $text }}
+{{- else if hasPrefix . "### " }}
+  * {{ $text }}
 {{- else }}
-- [{{ .Title }}]({{ .Permalink }})
+* {{ $text }}
 {{- end }}
 {{- end }}
+{{- end }}
+{{ range .RegularPages }}
+{{- template "llms-page" . }}
+{{- end }}
+{{- range .Sections }}
+{{- template "llms-section" . }}
+{{- end }}
+{{- end -}}
 
-{{- range $context.Sections }}
-{{ template "llms-section-tree" dict "context" . "level" (add $level 1) }}
+{{- define "llms-page" }}
+
+### [{{ .Title }}]({{ .Permalink }})
+{{ if .Params.description }}
+{{ .Params.description }}
+{{ end }}
+{{- $headings := findRE `(?m)^#{2,4} .+` .RawContent }}
+{{- range $headings }}
+{{- $text := replaceRE `^#{2,4} ` "" . }}
+{{- if hasPrefix . "#### " }}
+    * {{ $text }}
+{{- else if hasPrefix . "### " }}
+  * {{ $text }}
+{{- else }}
+* {{ $text }}
+{{- end }}
 {{- end }}
 {{- end -}}
