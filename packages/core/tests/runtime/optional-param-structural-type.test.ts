@@ -176,20 +176,12 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^input', { variables: { fn } });
       const shape = result as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: [string, { type: string }, RillValue?][];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: [string, { type: string }, RillValue?][];
       };
 
-      expect(shape.type).toBe('closure');
-      expect(shape.params.entries[0]).toEqual([
-        'name',
-        { type: 'string' },
-        'World',
-      ]);
+      expect(shape.__rill_ordered).toBe(true);
+      expect(shape.entries[0]).toEqual(['name', { type: 'string' }, 'World']);
     });
 
     it('host callable without default omits third element in ^input', async () => {
@@ -212,17 +204,13 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^input', { variables: { fn } });
       const shape = result as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: [string, { type: string }][];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: [string, { type: string }][];
       };
 
-      expect(shape.type).toBe('closure');
-      expect(shape.params.entries[0]).toEqual(['x', { type: 'number' }]);
-      expect(shape.params.entries[0]).toHaveLength(2);
+      expect(shape.__rill_ordered).toBe(true);
+      expect(shape.entries[0]).toEqual(['x', { type: 'number' }]);
+      expect(shape.entries[0]).toHaveLength(2);
     });
   });
 
@@ -334,20 +322,12 @@ describe('Optional parameter structural types', () => {
         $greet.^input
       `);
       const shape = result as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: [string, { type: string }, RillValue?][];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: [string, { type: string }, RillValue?][];
       };
 
-      expect(shape.type).toBe('closure');
-      expect(shape.params.entries[0]).toEqual([
-        'name',
-        { type: 'string' },
-        'World',
-      ]);
+      expect(shape.__rill_ordered).toBe(true);
+      expect(shape.entries[0]).toEqual(['name', { type: 'string' }, 'World']);
     });
 
     it('script closure with number default shows default in ^input', async () => {
@@ -356,20 +336,12 @@ describe('Optional parameter structural types', () => {
         $fn.^input
       `);
       const shape = result as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: [string, { type: string }, RillValue?][];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: [string, { type: string }, RillValue?][];
       };
 
-      expect(shape.type).toBe('closure');
-      expect(shape.params.entries[0]).toEqual([
-        'count',
-        { type: 'number' },
-        10,
-      ]);
+      expect(shape.__rill_ordered).toBe(true);
+      expect(shape.entries[0]).toEqual(['count', { type: 'number' }, 10]);
     });
 
     it('mixed required and optional params in script closure', async () => {
@@ -378,21 +350,17 @@ describe('Optional parameter structural types', () => {
         $add.^input
       `);
       const shape = result as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: (
-            | [string, { type: string }]
-            | [string, { type: string }, RillValue]
-          )[];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: (
+          | [string, { type: string }]
+          | [string, { type: string }, RillValue]
+        )[];
       };
 
-      expect(shape.type).toBe('closure');
-      expect(shape.params.entries[0]).toEqual(['x', { type: 'number' }]);
-      expect(shape.params.entries[0]).toHaveLength(2);
-      expect(shape.params.entries[1]).toEqual(['y', { type: 'number' }, 0]);
+      expect(shape.__rill_ordered).toBe(true);
+      expect(shape.entries[0]).toEqual(['x', { type: 'number' }]);
+      expect(shape.entries[0]).toHaveLength(2);
+      expect(shape.entries[1]).toEqual(['y', { type: 'number' }, 0]);
     });
   });
 });

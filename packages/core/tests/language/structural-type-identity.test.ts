@@ -555,18 +555,13 @@ describe('Rill Language: Structural Type Identity', () => {
         $fn.^input
       `;
       const result = (await run(script)) as {
-        type: string;
-        params: {
-          __rill_ordered: true;
-          entries: [string, { type: string; element: { type: string } }][];
-        };
-        ret: { type: string };
+        __rill_ordered: true;
+        entries: [string, { type: string; element: { type: string } }][];
       };
-      expect(result.type).toBe('closure');
-      expect(result.params.__rill_ordered).toBe(true);
-      expect(result.params.entries).toHaveLength(1);
-      expect(result.params.entries[0]![0]).toBe('x');
-      expect(result.params.entries[0]![1]).toEqual({
+      expect(result.__rill_ordered).toBe(true);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]![0]).toBe('x');
+      expect(result.entries[0]![1]).toEqual({
         type: 'list',
         element: { type: 'string' },
       });
@@ -578,14 +573,9 @@ describe('Rill Language: Structural Type Identity', () => {
         $fn.^input
       `;
       const result = (await run(script)) as {
-        params: {
-          entries: [
-            string,
-            { type: string; fields: Record<string, unknown> },
-          ][];
-        };
+        entries: [string, { type: string; fields: Record<string, unknown> }][];
       };
-      expect(result.params.entries[0]![1]).toEqual({
+      expect(result.entries[0]![1]).toEqual({
         type: 'dict',
         fields: { name: { type: 'string' } },
       });
