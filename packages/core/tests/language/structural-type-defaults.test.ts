@@ -487,4 +487,70 @@ describe('Rill Language: Structural Type Default Values', () => {
       ).rejects.toThrow(/missing required field 'x'/);
     });
   });
+
+  // ============================================================
+  // AC-24: ordered input converted to dict via :>dict(sig)
+  // ============================================================
+
+  describe('AC-24: ordered input converted to dict via :>dict(sig)', () => {
+    it('ordered[b: "b"] -> :>dict(b: string, a: string = "a") hydrates default', async () => {
+      const result = await run(
+        'ordered[b: "b"] -> :>dict(b: string, a: string = "a")'
+      );
+      expect(result).toEqual({ a: 'a', b: 'b' });
+    });
+
+    it('ordered[a: 1, b: 2] -> :>dict(a: number, b: number) passes through all fields', async () => {
+      const result = await run(
+        'ordered[a: 1, b: 2] -> :>dict(a: number, b: number)'
+      );
+      expect(result).toEqual({ a: 1, b: 2 });
+    });
+
+    it('ordered[a: 1] -> :>dict(a: number, b: number) throws RILL-R044 for missing required', async () => {
+      await expect(
+        run('ordered[a: 1] -> :>dict(a: number, b: number)')
+      ).rejects.toThrow(
+        /cannot convert ordered to dict|missing required field 'b'/
+      );
+    });
+  });
+
+  // ============================================================
+  // AC-25: ordered input converted to ordered via :>ordered(sig)
+  // ============================================================
+
+  describe('AC-25: ordered input converted to ordered via :>ordered(sig)', () => {
+    it('ordered[b: "b"] -> :>ordered(b: string, a: string = "a") hydrates default', async () => {
+      const result = await run(
+        'ordered[b: "b"] -> :>ordered(b: string, a: string = "a")'
+      );
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toEqual([
+        ['b', 'b'],
+        ['a', 'a'],
+      ]);
+    });
+
+    it('ordered[a: 1, b: 2] -> :>ordered(a: number, b: number) passes through all fields', async () => {
+      const result = await run(
+        'ordered[a: 1, b: 2] -> :>ordered(a: number, b: number)'
+      );
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ]);
+    });
+
+    it('ordered[a: 1] -> :>ordered(a: number, b: number) throws RILL-R044 for missing required', async () => {
+      await expect(
+        run('ordered[a: 1] -> :>ordered(a: number, b: number)')
+      ).rejects.toThrow(
+        /cannot convert ordered to ordered|missing required field 'b'/
+      );
+    });
+  });
 });
