@@ -85,7 +85,7 @@ import {
   isTypeValue,
   isTuple,
   isOrdered,
-  createOrdered,
+  paramToTypeTuple,
   inferStructuralType,
   structuralTypeMatches,
   formatStructuralType,
@@ -99,9 +99,9 @@ import type { CallFrame } from '../../../../types.js';
 /**
  * Result of bindArgsToParams: parameter names mapped to evaluated values.
  *
- * The map is keyed by parameter name. All parameters are present: either
- * bound from the call arguments or filled from defaultValue. Missing required
- * parameters throw before this type is returned.
+ * Only explicitly bound parameters are present (positional, tuple, ordered,
+ * or dict spread). Missing parameters are absent from the map; callers pass
+ * undefined for them, and marshalArgs handles defaults and required checks.
  *
  * Phase 2 integration: callers convert this to a positional RillValue[] via
  *   params.map(p => bound.params.get(p.name)!)
@@ -1117,19 +1117,16 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'input') {
         // Untyped host callables have params set to undefined at runtime (see callable() factory)
         if (value.params === undefined) {
-          return createOrdered([]);
+          return rillTypeToTypeValue({ type: 'ordered', fields: [] });
         }
-        const entries: [string, RillValue, RillValue?][] = value.params.map(
-          (param): [string, RillValue, RillValue?] => {
-            const typeValue = rillTypeToTypeValue(
-              param.type ?? { type: 'any' }
-            );
-            return param.defaultValue !== undefined
-              ? [param.name, typeValue, param.defaultValue]
-              : [param.name, typeValue];
-          }
+        const fields = value.params.map((param) =>
+          paramToTypeTuple(
+            param.name,
+            param.type ?? { type: 'any' },
+            param.defaultValue
+          )
         );
-        return createOrdered(entries);
+        return rillTypeToTypeValue({ type: 'ordered', fields });
       }
 
       // IR-3: ^output reads callable.returnType directly for all kinds
@@ -1191,10 +1188,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      const params = callable.params as readonly {
-        name: string;
-        defaultValue: RillValue | null | undefined;
-      }[];
+      const params = callable.params as readonly { name: string }[];
       const bound = new Map<string, RillValue>();
 
       // Positional index: next unbound parameter position
@@ -1326,21 +1320,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       } finally {
         this.ctx.pipeValue = savedPipeValue;
-      }
-
-      // EC-8: check for missing required parameters
-      for (const param of params) {
-        if (!bound.has(param.name)) {
-          if (param.defaultValue !== null && param.defaultValue !== undefined) {
-            bound.set(param.name, param.defaultValue);
-          } else {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Missing required parameter '${param.name}'`,
-              callLocation
-            );
-          }
-        }
       }
 
       return { params: bound };

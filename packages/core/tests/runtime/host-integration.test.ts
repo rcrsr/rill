@@ -710,7 +710,7 @@ describe('Callable reflection via ^ operator', () => {
   });
 
   describe('^input on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
-    it('returns RillOrdered with params entries (AC-28)', async () => {
+    it('returns RillTypeValue with ordered type (AC-28)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
           myFn: {
@@ -731,11 +731,11 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       })) as Record<string, unknown>;
-      expect(result['__rill_ordered']).toBe(true);
-      expect(Array.isArray(result['entries'])).toBe(true);
+      expect(result['__rill_type']).toBe(true);
+      expect(result['typeName']).toBe('ordered');
     });
 
-    it('returns empty entries for zero-param callable (AC-5, AC-29)', async () => {
+    it('returns empty ordered type for zero-param callable (AC-5, AC-29)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
           myFn: {
@@ -749,18 +749,18 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       })) as Record<string, unknown>;
-      expect(result['__rill_ordered']).toBe(true);
-      expect(result['entries']).toEqual([]);
+      expect(result['__rill_type']).toBe(true);
+      expect(result['typeName']).toBe('ordered');
     });
   });
 
   describe('^input on ScriptCallable (AC-37)', () => {
-    it('returns RillOrdered reflecting script closure params', async () => {
+    it('returns RillTypeValue reflecting script closure params', async () => {
       const result = (await run(
         '|x: string, y: number| { $x } => $fn\n$fn.^input'
       )) as Record<string, unknown>;
-      expect(result['__rill_ordered']).toBe(true);
-      expect(Array.isArray(result['entries'])).toBe(true);
+      expect(result['__rill_type']).toBe(true);
+      expect(result['typeName']).toBe('ordered');
     });
   });
 

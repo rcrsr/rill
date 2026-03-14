@@ -176,14 +176,16 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^input', { variables: { fn } });
       const shape = result as {
-        __rill_ordered: true;
-        entries: [string, unknown, RillValue?][];
+        __rill_type: true;
+        typeName: string;
+        structure: { type: string; fields: [string, unknown, RillValue?][] };
       };
 
-      expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries[0]).toEqual([
+      expect(shape.__rill_type).toBe(true);
+      expect(shape.typeName).toBe('ordered');
+      expect(shape.structure.fields[0]).toEqual([
         'name',
-        rillTypeToTypeValue({ type: 'string' }),
+        { type: 'string' },
         'World',
       ]);
     });
@@ -208,16 +210,15 @@ describe('Optional parameter structural types', () => {
 
       const result = await run('$fn.^input', { variables: { fn } });
       const shape = result as {
-        __rill_ordered: true;
-        entries: [string, unknown][];
+        __rill_type: true;
+        typeName: string;
+        structure: { type: string; fields: [string, unknown][] };
       };
 
-      expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries[0]).toEqual([
-        'x',
-        rillTypeToTypeValue({ type: 'number' }),
-      ]);
-      expect(shape.entries[0]).toHaveLength(2);
+      expect(shape.__rill_type).toBe(true);
+      expect(shape.typeName).toBe('ordered');
+      expect(shape.structure.fields[0]).toEqual(['x', { type: 'number' }]);
+      expect(shape.structure.fields[0]).toHaveLength(2);
     });
   });
 
@@ -329,14 +330,16 @@ describe('Optional parameter structural types', () => {
         $greet.^input
       `);
       const shape = result as {
-        __rill_ordered: true;
-        entries: [string, unknown, RillValue?][];
+        __rill_type: true;
+        typeName: string;
+        structure: { type: string; fields: [string, unknown, RillValue?][] };
       };
 
-      expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries[0]).toEqual([
+      expect(shape.__rill_type).toBe(true);
+      expect(shape.typeName).toBe('ordered');
+      expect(shape.structure.fields[0]).toEqual([
         'name',
-        rillTypeToTypeValue({ type: 'string' }),
+        { type: 'string' },
         'World',
       ]);
     });
@@ -347,14 +350,16 @@ describe('Optional parameter structural types', () => {
         $fn.^input
       `);
       const shape = result as {
-        __rill_ordered: true;
-        entries: [string, unknown, RillValue?][];
+        __rill_type: true;
+        typeName: string;
+        structure: { type: string; fields: [string, unknown, RillValue?][] };
       };
 
-      expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries[0]).toEqual([
+      expect(shape.__rill_type).toBe(true);
+      expect(shape.typeName).toBe('ordered');
+      expect(shape.structure.fields[0]).toEqual([
         'count',
-        rillTypeToTypeValue({ type: 'number' }),
+        { type: 'number' },
         10,
       ]);
     });
@@ -365,21 +370,19 @@ describe('Optional parameter structural types', () => {
         $add.^input
       `);
       const shape = result as {
-        __rill_ordered: true;
-        entries: ([string, unknown] | [string, unknown, RillValue])[];
+        __rill_type: true;
+        typeName: string;
+        structure: {
+          type: string;
+          fields: ([string, unknown] | [string, unknown, RillValue])[];
+        };
       };
 
-      expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries[0]).toEqual([
-        'x',
-        rillTypeToTypeValue({ type: 'number' }),
-      ]);
-      expect(shape.entries[0]).toHaveLength(2);
-      expect(shape.entries[1]).toEqual([
-        'y',
-        rillTypeToTypeValue({ type: 'number' }),
-        0,
-      ]);
+      expect(shape.__rill_type).toBe(true);
+      expect(shape.typeName).toBe('ordered');
+      expect(shape.structure.fields[0]).toEqual(['x', { type: 'number' }]);
+      expect(shape.structure.fields[0]).toHaveLength(2);
+      expect(shape.structure.fields[1]).toEqual(['y', { type: 'number' }, 0]);
     });
   });
 });

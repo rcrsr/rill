@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`.^input` returns type token** — `$fn.^input` now returns a `RillTypeValue` with `typeName: 'ordered'` and the parameter types in `structure.fields`, matching `.^output` behavior. `log` prints `ordered(x: number, y: number)` instead of the internal `RillOrdered` representation
 - **Nested hydration in `:>ordered()` conversion** — `dict :>ordered(sig)` now hydrates nested dict and ordered fields with defaults, matching existing `dict :>dict(sig)` behavior
 - **Ordered input for sig'd conversions** — `ordered :>dict(sig)` and `ordered :>ordered(sig)` now accepted; RILL-R044 errors report correct source type
 
