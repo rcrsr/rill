@@ -36,7 +36,7 @@ import type {
   RillValue,
   RillTypeValue,
   RillType,
-  RillFieldType,
+  RillFieldDef,
 } from '../../values.js';
 import {
   inferType,
@@ -158,9 +158,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
-          const fields: Record<string, RillType> = {};
+          const fields: Record<string, RillFieldDef> = {};
           for (const arg of args) {
-            fields[arg.name!] = resolveArg(arg);
+            fields[arg.name!] = { type: resolveArg(arg) };
           }
           const structure: RillType = { type: 'dict', fields };
           return Object.freeze({
@@ -180,8 +180,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
-          const elements: [RillType, RillValue?][] = args.map(
-            (arg): [RillType, RillValue?] => [resolveArg(arg)]
+          const elements: RillFieldDef[] = args.map(
+            (arg): RillFieldDef => ({ type: resolveArg(arg) })
           );
           const structure: RillType = { type: 'tuple', elements };
           return Object.freeze({
@@ -197,12 +197,12 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (arg.name === undefined) {
             throw new RuntimeError(
               'RILL-R004',
-              'dict() requires named arguments (field: type)'
+              'ordered() requires named arguments (field: type)'
             );
           }
         }
-        const orderedFields: [string, RillType, RillValue?][] = args.map(
-          (arg): [string, RillType, RillValue?] => [arg.name!, resolveArg(arg)]
+        const orderedFields: RillFieldDef[] = args.map(
+          (arg): RillFieldDef => ({ name: arg.name!, type: resolveArg(arg) })
         );
         const structure: RillType = {
           type: 'ordered',
@@ -458,7 +458,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const fields: Record<string, RillFieldType> = {};
+        const fields: Record<string, RillFieldDef> = {};
         for (const arg of node.args) {
           if (arg.kind === 'named') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -483,7 +483,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 defaultValue: defaultVal,
               };
             } else {
-              fields[arg.name] = resolvedType;
+              fields[arg.name] = { type: resolvedType };
             }
           }
         }
@@ -506,7 +506,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
-        const elements: [RillType, RillValue?][] = [];
+        const elements: RillFieldDef[] = [];
         for (const arg of node.args) {
           if (arg.kind === 'positional') {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -519,9 +519,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               const defaultVal: RillValue = await (this as any).evaluatePrimary(
                 arg.defaultValue
               );
-              elements.push([resolvedType, defaultVal]);
+              elements.push({ type: resolvedType, defaultValue: defaultVal });
             } else {
-              elements.push([resolvedType]);
+              elements.push({ type: resolvedType });
             }
           }
         }
@@ -529,7 +529,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // may follow an element that has one.
         let sawDefault = false;
         for (let i = 0; i < elements.length; i++) {
-          const hasDefault = elements[i]!.length === 2;
+          const hasDefault = elements[i]!.defaultValue !== undefined;
           if (hasDefault) {
             sawDefault = true;
           } else if (sawDefault) {
@@ -559,7 +559,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
       }
-      const orderedFields: [string, RillType, RillValue?][] = [];
+      const orderedFields: RillFieldDef[] = [];
       for (const arg of node.args) {
         if (arg.kind === 'named') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -579,9 +579,13 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 location
               );
             }
-            orderedFields.push([arg.name, resolvedType, defaultVal]);
+            orderedFields.push({
+              name: arg.name,
+              type: resolvedType,
+              defaultValue: defaultVal,
+            });
           } else {
-            orderedFields.push([arg.name, resolvedType]);
+            orderedFields.push({ name: arg.name, type: resolvedType });
           }
         }
       }
@@ -627,14 +631,14 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       };
 
       // Evaluate parameter types
-      const params: [string, RillType][] = [];
+      const params: RillFieldDef[] = [];
       for (const param of node.params) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const paramVal: RillValue = await (this as any).evaluateExpression(
           param.typeExpr
         );
         const paramType = await resolveTypeExpr(paramVal);
-        params.push([param.name, paramType]);
+        params.push({ name: param.name, type: paramType });
       }
 
       // Evaluate return type (EC-8: required — parser enforces this at parse time)

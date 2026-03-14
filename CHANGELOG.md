@@ -11,12 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
 - **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
+- **`RillFieldDef` type export** — Unified field definition type exported from `@rcrsr/rill` for dict, tuple, ordered, and closure types. Replaces `RillFieldType`
+
+### Changed (Breaking)
+
+- **`RillType` union members** — Dict, tuple, ordered, and closure field shapes now use `RillFieldDef` instead of positional tuples and `RillFieldType`. Extensions reading type structure must update
+- **`RillFieldDescriptor.fieldType`** — Property type changed from `RillFieldType` to `RillFieldDef`
+- **`paramToTypeTuple` renamed to `paramToFieldDef`** — Returns a `RillFieldDef` object instead of a positional tuple. Callers must update function name and destructuring
+
+### Removed (Breaking)
+
+- **`RillFieldType` type alias** — Removed from public exports. Use `RillFieldDef` instead
+- **`isFieldTypeWithDefault` guard function** — Removed from public exports. Use `field.defaultValue !== undefined` instead
 
 ### Fixed
 
 - **`.^input` returns type token** — `$fn.^input` now returns a `RillTypeValue` with `typeName: 'ordered'` and the parameter types in `structure.fields`, matching `.^output` behavior. `log` prints `ordered(x: number, y: number)` instead of the internal `RillOrdered` representation
 - **Nested hydration in `:>ordered()` conversion** — `dict :>ordered(sig)` now hydrates nested dict and ordered fields with defaults, matching existing `dict :>dict(sig)` behavior
 - **Ordered input for sig'd conversions** — `ordered :>dict(sig)` and `ordered :>ordered(sig)` now accepted; RILL-R044 errors report correct source type
+- **Tuple `:` assertion accepts trailing defaulted fields** — Tuple type assertion now accepts values that omit trailing fields when those fields have defaults. Previously rejected valid inputs
+- **`ordered()` error message in `resolveTypeRef`** — Error message now correctly names `ordered()` instead of `dict()`
+- **Tuple parameter defaults hydrated before host invocation** — Tuple parameters with default values are hydrated before the host function is called, matching dict and ordered behavior
+- **Nested tuple defaults hydrated in `:>` conversion** — Nested tuple field defaults are hydrated during `:>` conversion, matching nested dict field behavior
 
 ## [0.15.0] - 2026-03-13
 

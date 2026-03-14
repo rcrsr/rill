@@ -553,4 +553,153 @@ describe('Rill Language: Structural Type Default Values', () => {
       );
     });
   });
+
+  // ============================================================
+  // AC-1 (task 1.11): tuple : assertion accepts value omitting trailing defaulted fields
+  // ============================================================
+
+  describe('AC-1 (1.11): tuple : assertion accepts value omitting trailing defaulted fields', () => {
+    it('tuple["x"] passes :$t where $t = tuple(string, number = 0)', async () => {
+      const result = await run(
+        'tuple(string, number = 0) => $t\ntuple["x"] -> :$t'
+      );
+      expect(isTuple(result)).toBe(true);
+      const tupleResult = result as { entries: unknown[] };
+      expect(tupleResult.entries).toEqual(['x']);
+    });
+
+    it('tuple["x", 1] also passes :$t where $t = tuple(string, number = 0)', async () => {
+      const result = await run(
+        'tuple(string, number = 0) => $t\ntuple["x", 1] -> :$t'
+      );
+      expect(isTuple(result)).toBe(true);
+      const tupleResult = result as { entries: unknown[] };
+      expect(tupleResult.entries).toEqual(['x', 1]);
+    });
+  });
+
+  // ============================================================
+  // AC-2 (task 1.11): tuple : assertion rejects value missing non-defaulted field
+  // ============================================================
+
+  describe('AC-2 (1.11): tuple : assertion rejects value missing non-defaulted field', () => {
+    it('tuple["x"] fails :$t where $t = tuple(string, number)', async () => {
+      await expect(
+        run('tuple(string, number) => $t\ntuple["x"] -> :$t')
+      ).rejects.toThrow(/Type assertion failed/);
+    });
+  });
+
+  // ============================================================
+  // AC-7 (task 1.11): :? returns true for value omitting trailing defaulted fields
+  // ============================================================
+
+  describe('AC-7 (1.11): :? returns true for value omitting trailing defaulted fields', () => {
+    it('dict: [a: "x"] :?$t returns true where $t = dict(a: string, b: number = 0)', async () => {
+      const result = await run(
+        'dict(a: string, b: number = 0) => $t\n[a: "x"] -> :?$t'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('tuple: tuple["x"] :?$t returns true where $t = tuple(string, number = 0)', async () => {
+      const result = await run(
+        'tuple(string, number = 0) => $t\ntuple["x"] -> :?$t'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('ordered: ordered[a: "x"] :?$t returns true where $t = ordered(a: string, b: number = 0)', async () => {
+      const result = await run(
+        'ordered(a: string, b: number = 0) => $t\nordered[a: "x"] -> :?$t'
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // AC-8 (task 1.11): :? returns false for value missing non-defaulted field
+  // ============================================================
+
+  describe('AC-8 (1.11): :? returns false for value missing non-defaulted field', () => {
+    it('dict: [a: "x"] :?$t returns false where $t = dict(a: string, b: number)', async () => {
+      const result = await run(
+        'dict(a: string, b: number) => $t\n[a: "x"] -> :?$t'
+      );
+      expect(result).toBe(false);
+    });
+
+    it('tuple: tuple["x"] :?$t returns false where $t = tuple(string, number)', async () => {
+      const result = await run(
+        'tuple(string, number) => $t\ntuple["x"] -> :?$t'
+      );
+      expect(result).toBe(false);
+    });
+
+    it('ordered: ordered[a: "x"] :?$t returns false where $t = ordered(a: string, b: number)', async () => {
+      const result = await run(
+        'ordered(a: string, b: number) => $t\nordered[a: "x"] -> :?$t'
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // EC-1 (task 1.11): tuple assertion returns false for missing non-trailing non-defaulted element
+  // ============================================================
+
+  describe('EC-1 (1.11): tuple check returns false for missing non-trailing non-defaulted element', () => {
+    it('tuple["x"] :?$t returns false where $t = tuple(string, number, bool = true)', async () => {
+      const result = await run(
+        'tuple(string, number, bool = true) => $t\ntuple["x"] -> :?$t'
+      );
+      expect(result).toBe(false);
+    });
+
+    it('tuple["x"] :$t throws where $t = tuple(string, number, bool = true)', async () => {
+      await expect(
+        run('tuple(string, number, bool = true) => $t\ntuple["x"] -> :$t')
+      ).rejects.toThrow(/Type assertion failed/);
+    });
+  });
+
+  // ============================================================
+  // BC-3 (task 1.11): dict with all fields defaulted, empty dict conversion succeeds
+  // ============================================================
+
+  describe('BC-3 (1.11): dict with all fields defaulted, empty dict assertion and conversion', () => {
+    it('dict[] passes :$t where $t = dict(a: string = "x", b: number = 0)', async () => {
+      const result = await run(
+        'dict(a: string = "x", b: number = 0) => $t\ndict[] -> :$t'
+      );
+      expect(result).toEqual({});
+    });
+
+    it('dict[] -> :>dict(a: string = "x", b: number = 0) hydrates all defaults', async () => {
+      const result = await run(
+        'dict[] -> :>dict(a: string = "x", b: number = 0)'
+      );
+      expect(result).toEqual({ a: 'x', b: 0 });
+    });
+  });
+
+  // ============================================================
+  // BC-5 (task 1.11): closure params with defaults display correctly in formatStructuralType
+  // ============================================================
+
+  describe('BC-5 (1.11): closure params with defaults display correctly', () => {
+    it('closure with default param displays default in ^type string', async () => {
+      const result = await run(
+        '|x: string, y: number = 42| { $x } => $fn\n$fn.^type -> :>string'
+      );
+      expect(result).toBe('|x: string, y: number = 42| :any');
+    });
+
+    it('closure with string default param displays quoted default', async () => {
+      const result = await run(
+        '|name: string = "world"| { $name } => $fn\n$fn.^type -> :>string'
+      );
+      expect(result).toBe('|name: string = "world"| :any');
+    });
+  });
 });

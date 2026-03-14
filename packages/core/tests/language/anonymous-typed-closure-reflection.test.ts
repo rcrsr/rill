@@ -97,13 +97,13 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: [string, unknown][] };
+        structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields).toHaveLength(1);
-      expect(shape.structure.fields[0]![0]).toBe('$');
-      expect(shape.structure.fields[0]![1]).toEqual({ type: 'string' });
+      expect(shape.structure.fields[0]!.name).toBe('$');
+      expect(shape.structure.fields[0]!.type).toEqual({ type: 'string' });
     });
 
     it('AC-29: |number|{ $ * 2 } .^input has $ param typed number', async () => {
@@ -114,10 +114,10 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const result = await run(script);
       const shape = result as {
         __rill_type: true;
-        structure: { type: string; fields: [string, unknown][] };
+        structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields[0]![1]).toEqual({ type: 'number' });
+      expect(shape.structure.fields[0]!.type).toEqual({ type: 'number' });
     });
 
     it('AC-29: two |string|{ } closures have equal .^input', async () => {
@@ -149,14 +149,14 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: [string, unknown][] };
+        structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields).toHaveLength(1);
-      expect(shape.structure.fields[0]![0]).toBe('$');
+      expect(shape.structure.fields[0]!.name).toBe('$');
       // Bare block uses typeName: 'any' internally
-      expect(shape.structure.fields[0]![1]).toEqual({ type: 'any' });
+      expect(shape.structure.fields[0]!.type).toEqual({ type: 'any' });
     });
 
     it('AC-10/AC-42: bare block .^input equals |any|{ } .^input', async () => {

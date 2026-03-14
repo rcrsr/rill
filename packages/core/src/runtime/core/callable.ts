@@ -28,12 +28,11 @@ import {
   formatValue,
   formatStructuralType,
   inferType,
-  isFieldTypeWithDefault,
   isOrdered,
   createOrdered,
   deepCopyRillValue,
   isTuple,
-  paramToTypeTuple,
+  paramToFieldDef,
   structuralTypeEquals,
   structuralTypeMatches,
   anyTypeValue,
@@ -298,7 +297,7 @@ export function callableEquals(
  */
 export function paramsToStructuralType(params: readonly RillParam[]): RillType {
   const closureParams = params.map((param) =>
-    paramToTypeTuple(
+    paramToFieldDef(
       param.name,
       param.type ?? { type: 'any' },
       param.defaultValue
@@ -363,17 +362,14 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
   if (type.type === 'dict' && type.fields && isDict(value)) {
     const dictValue = value as Record<string, RillValue>;
     const result: Record<string, RillValue> = {};
-    for (const [fieldName, fieldType] of Object.entries(type.fields)) {
-      const resolvedInnerType: RillType = isFieldTypeWithDefault(fieldType)
-        ? fieldType.type
-        : fieldType;
+    for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
       if (fieldName in dictValue) {
         result[fieldName] = hydrateFieldDefaults(
           dictValue[fieldName]!,
-          resolvedInnerType
+          fieldDef.type
         );
-      } else if (isFieldTypeWithDefault(fieldType)) {
-        result[fieldName] = deepCopyRillValue(fieldType.defaultValue);
+      } else if (fieldDef.defaultValue !== undefined) {
+        result[fieldName] = deepCopyRillValue(fieldDef.defaultValue);
       }
       // Missing without default: leave absent for Stage 3
     }
@@ -385,20 +381,47 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
       value.entries.map(([k, v]) => [k, v] as [string, RillValue])
     );
     const resultEntries: [string, RillValue][] = [];
-    for (const field of type.fields as [string, RillType, RillValue?][]) {
-      const name = field[0]!;
-      const innerType = field[1]!;
+    for (const field of type.fields) {
+      const name = field.name ?? '';
       if (lookup.has(name)) {
         resultEntries.push([
           name,
-          hydrateFieldDefaults(lookup.get(name)!, innerType),
+          hydrateFieldDefaults(lookup.get(name)!, field.type),
         ]);
-      } else if (field.length === 3) {
-        resultEntries.push([name, deepCopyRillValue(field[2]!)]);
+      } else if (field.defaultValue !== undefined) {
+        resultEntries.push([name, deepCopyRillValue(field.defaultValue)]);
       }
       // Missing without default: leave absent for Stage 3
     }
     return createOrdered(resultEntries);
+  }
+
+  if (type.type === 'tuple' && type.elements && isTuple(value)) {
+    const elements = type.elements;
+    const entries = value.entries;
+    // All fields present: recurse into nested types for present positions
+    if (entries.length >= elements.length) {
+      const resultEntries = elements.map((el, i) =>
+        hydrateFieldDefaults(entries[i]!, el.type)
+      );
+      // Preserve any extra trailing entries beyond the type definition
+      for (let i = elements.length; i < entries.length; i++) {
+        resultEntries.push(entries[i]!);
+      }
+      return { __rill_tuple: true as const, entries: resultEntries };
+    }
+    // Value shorter: fill missing trailing positions with defaults
+    const resultEntries: RillValue[] = [];
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i]!;
+      if (i < entries.length) {
+        resultEntries.push(hydrateFieldDefaults(entries[i]!, el.type));
+      } else if (el.defaultValue !== undefined) {
+        resultEntries.push(deepCopyRillValue(el.defaultValue));
+      }
+      // Missing without default: leave absent (shorter tuple) for Stage 3
+    }
+    return { __rill_tuple: true as const, entries: resultEntries };
   }
 
   return value;

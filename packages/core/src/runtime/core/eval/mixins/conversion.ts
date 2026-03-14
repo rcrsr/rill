@@ -36,7 +36,7 @@ import { RuntimeError } from '../../../../types.js';
 import type {
   RillValue,
   RillType,
-  RillFieldType,
+  RillFieldDef,
   RillTuple,
 } from '../../values.js';
 import {
@@ -47,7 +47,6 @@ import {
   createOrdered,
   createTuple,
   formatValue,
-  isFieldTypeWithDefault,
   deepCopyRillValue,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
@@ -338,23 +337,22 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate the full type constructor to get resolved fields with defaults.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedFields: [string, RillType, RillValue?][] =
+      const resolvedFields: RillFieldDef[] =
         typeValue.structure.type === 'ordered' && typeValue.structure.fields
-          ? (typeValue.structure.fields as [string, RillType, RillValue?][])
+          ? (typeValue.structure.fields as RillFieldDef[])
           : [];
 
       const entries: [string, RillValue][] = [];
 
       for (const field of resolvedFields) {
-        const fieldName = field[0]!;
-        const hasDefault = field.length === 3;
+        const fieldName = field.name!;
 
         if (fieldName in dictInput) {
           let fieldValue: RillValue = dictInput[fieldName]!;
-          fieldValue = this.hydrateNested(fieldValue, field[1]!, node);
+          fieldValue = this.hydrateNested(fieldValue, field.type, node);
           entries.push([fieldName, fieldValue]);
-        } else if (hasDefault) {
-          entries.push([fieldName, deepCopyRillValue(field[2]!)]);
+        } else if (field.defaultValue !== undefined) {
+          entries.push([fieldName, deepCopyRillValue(field.defaultValue)]);
         } else {
           throw new RuntimeError(
             'RILL-R044',
@@ -402,9 +400,9 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate the full type constructor to get resolved fields with defaults.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedFields: Record<string, RillFieldType> =
+      const resolvedFields: Record<string, RillFieldDef> =
         typeValue.structure.type === 'dict' && typeValue.structure.fields
-          ? (typeValue.structure.fields as Record<string, RillFieldType>)
+          ? (typeValue.structure.fields as Record<string, RillFieldDef>)
           : {};
       const result: Record<string, RillValue> = {};
 
@@ -419,17 +417,18 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Field present in input: use it, recursing if the field type is a nested dict
           let fieldValue: RillValue = dictInput[fieldName]!;
           if (resolvedField !== undefined) {
-            const innerType = isFieldTypeWithDefault(resolvedField)
-              ? resolvedField.type
-              : resolvedField;
-            fieldValue = this.hydrateNested(fieldValue, innerType, node);
+            fieldValue = this.hydrateNested(
+              fieldValue,
+              resolvedField.type,
+              node
+            );
           }
           result[fieldName] = fieldValue;
         } else {
           // Field missing from input: use default if available, else error
           if (
             resolvedField !== undefined &&
-            isFieldTypeWithDefault(resolvedField)
+            resolvedField.defaultValue !== undefined
           ) {
             result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
           } else {
@@ -475,9 +474,9 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate the full type constructor to get resolved elements with defaults.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedElements: [RillType, RillValue?][] =
+      const resolvedElements: RillFieldDef[] =
         typeValue.structure.type === 'tuple' && typeValue.structure.elements
-          ? (typeValue.structure.elements as [RillType, RillValue?][])
+          ? (typeValue.structure.elements as RillFieldDef[])
           : [];
 
       const inputEntries: RillValue[] = isTupleInput
@@ -488,14 +487,13 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       for (let i = 0; i < resolvedElements.length; i++) {
         const element = resolvedElements[i]!;
-        const hasDefault = element.length === 2;
 
         if (i < inputEntries.length) {
-          // Element present in input: use it directly
-          result.push(inputEntries[i]!);
-        } else if (hasDefault) {
+          // Element present in input: recurse into nested types
+          result.push(this.hydrateNested(inputEntries[i]!, element.type, node));
+        } else if (element.defaultValue !== undefined) {
           // Missing trailing element with default: deep copy default
-          result.push(deepCopyRillValue(element[1]!));
+          result.push(deepCopyRillValue(element.defaultValue));
         } else {
           // Missing element without default
           throw new RuntimeError(
@@ -511,8 +509,8 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Recursively hydrate a value against a nested dict or ordered RillType.
-     * Only applies when the field type is a dict or ordered with explicit fields.
+     * Recursively hydrate a value against a nested dict, ordered, or tuple RillType.
+     * Only applies when the field type has explicit fields/elements.
      * Returns the value unchanged if the type has no fields or the value type does not match.
      */
     private hydrateNested(
@@ -527,19 +525,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           fieldType.fields
         )) {
           if (fieldName in dictValue) {
-            let fieldValue: RillValue = dictValue[fieldName]!;
-            if (isFieldTypeWithDefault(resolvedField)) {
-              fieldValue = this.hydrateNested(
-                fieldValue,
-                resolvedField.type,
-                node
-              );
-            } else {
-              fieldValue = this.hydrateNested(fieldValue, resolvedField, node);
-            }
+            const fieldValue = this.hydrateNested(
+              dictValue[fieldName]!,
+              resolvedField.type,
+              node
+            );
             result[fieldName] = fieldValue;
           } else {
-            if (isFieldTypeWithDefault(resolvedField)) {
+            if (resolvedField.defaultValue !== undefined) {
               result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
             } else {
               throw new RuntimeError(
@@ -565,22 +558,17 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             : Object.entries(value as Record<string, RillValue>)
         );
         const resultEntries: [string, RillValue][] = [];
-        for (const field of fieldType.fields as [
-          string,
-          RillType,
-          RillValue?,
-        ][]) {
-          const name = field[0]!;
-          const innerType = field[1]!;
+        for (const field of fieldType.fields as RillFieldDef[]) {
+          const name = field.name!;
           if (lookup.has(name)) {
             const fieldValue = this.hydrateNested(
               lookup.get(name)!,
-              innerType,
+              field.type,
               node
             );
             resultEntries.push([name, fieldValue]);
-          } else if (field.length === 3) {
-            resultEntries.push([name, deepCopyRillValue(field[2]!)]);
+          } else if (field.defaultValue !== undefined) {
+            resultEntries.push([name, deepCopyRillValue(field.defaultValue)]);
           } else {
             throw new RuntimeError(
               'RILL-R044',
@@ -591,6 +579,34 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
         return createOrdered(resultEntries);
+      } else if (fieldType.type === 'tuple' && fieldType.elements) {
+        // Only hydrate if the runtime value is a tuple; return unchanged otherwise.
+        if (!isTuple(value)) {
+          return value;
+        }
+        const inputEntries = (value as unknown as RillTuple).entries;
+        const resultEntries: RillValue[] = [];
+        for (let i = 0; i < fieldType.elements.length; i++) {
+          const element = fieldType.elements[i]!;
+          if (i < inputEntries.length) {
+            const elementValue = this.hydrateNested(
+              inputEntries[i]!,
+              element.type,
+              node
+            );
+            resultEntries.push(elementValue);
+          } else if (element.defaultValue !== undefined) {
+            resultEntries.push(deepCopyRillValue(element.defaultValue));
+          } else {
+            throw new RuntimeError(
+              'RILL-R044',
+              `cannot convert tuple to tuple: missing required element at position ${i}`,
+              this.getNodeLocation(node),
+              { source: 'tuple', target: 'tuple' }
+            );
+          }
+        }
+        return createTuple(resultEntries);
       }
       return value;
     }

@@ -415,4 +415,42 @@ describe('Rill Runtime: Type Assertions', () => {
       await expect(run('"x" :list(')).rejects.toThrow();
     });
   });
+
+  // ============================================================
+  // Tuple Trailing-Default Assertions (AC-1, AC-2 from task 1.11)
+  // ============================================================
+
+  describe('Tuple trailing-default assertions (task 1.11)', () => {
+    it('AC-1: tuple assertion accepts shorter value when trailing elements have defaults', async () => {
+      const result = await run(
+        'tuple(string, number = 0) => $t\ntuple["x"] -> :$t'
+      );
+      expect(result).toEqual({
+        __rill_tuple: true,
+        entries: ['x'],
+      });
+    });
+
+    it('AC-1: tuple assertion accepts full-length value when trailing elements have defaults', async () => {
+      const result = await run(
+        'tuple(string, number = 0) => $t\ntuple["x", 5] -> :$t'
+      );
+      expect(result).toEqual({
+        __rill_tuple: true,
+        entries: ['x', 5],
+      });
+    });
+
+    it('AC-2: tuple assertion rejects missing non-defaulted element', async () => {
+      await expect(
+        run('tuple(string, number) => $t\ntuple["x"] -> :$t')
+      ).rejects.toThrow(/Type assertion failed/);
+    });
+
+    it('AC-2: tuple assertion rejects when all required elements are missing', async () => {
+      await expect(
+        run('tuple(string, number) => $t\ntuple[] -> :$t')
+      ).rejects.toThrow(/Type assertion failed/);
+    });
+  });
 });

@@ -550,6 +550,31 @@ interface RillFunction {
 | `annotations` | `Record<string, RillValue> \| undefined` | Key-value metadata. `annotations.description` replaces the old `description` field. Optional; defaults to `{}` |
 | `returnType` | `RillTypeValue` | Declared return type. Required. Use `anyTypeValue` as the equivalent of "no constraint". Runtime does NOT validate return values at call time |
 
+### Tuple Parameter Hydration
+
+When a host function parameter type is `{ type: 'tuple' }` and `type.elements` contains fields with `defaultValue !== undefined`, the runtime fills missing trailing positions with deep copies of those defaults before invoking `fn`.
+
+This happens at Stage 2.5 of `marshalArgs`, after argument validation and before `fn` is called.
+
+```typescript
+const fn: RillFunction = {
+  params: [{
+    name: 'coords',
+    type: {
+      type: 'tuple',
+      elements: [
+        { type: { type: 'number' } },
+        { type: { type: 'number' }, defaultValue: 0 },  // default: 0
+      ],
+    },
+  }],
+  fn: (args) => args.coords,  // caller passes tuple[1] → receives tuple[1, 0]
+  returnType: rillTypeToTypeValue({ type: 'tuple' }),
+};
+```
+
+Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list, dict, ordered, or closure types.
+
 ---
 
 ## generateManifest
@@ -729,6 +754,28 @@ const ctx = createRuntimeContext({
 
 ---
 
+## RillFieldDef
+
+`RillFieldDef` describes a single field within a compound type. All four compound collection types use `RillFieldDef` to represent their element or field definitions.
+
+```typescript
+interface RillFieldDef {
+  name?: string;
+  type: RillType;
+  defaultValue?: RillValue;
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | `string` | No | Field name. Present for dict, ordered, and closure params. Absent for positional tuple elements |
+| `type` | `RillType` | Yes | Structural type of this field or element |
+| `defaultValue` | `RillValue` | No | Default value when the field is omitted. `undefined` = field is required. Detect presence with `field.defaultValue !== undefined` |
+
+See [RillStructuralType](#rillstructuraltype) for field access patterns per collection type.
+
+---
+
 ## RillStructuralType
 
 **Note:** `RillType` is the canonical name. `RillStructuralType` is a deprecated alias that will be removed in a future major version.
@@ -744,11 +791,11 @@ type RillType =
   | { type: 'vector' }
   | { type: 'type' }
   | { type: 'any' }
-  | { type: 'dict';    fields?: Record<string, RillType> }
+  | { type: 'dict';    fields?: Record<string, RillFieldDef> }
   | { type: 'list';    element?: RillType }
-  | { type: 'closure'; params?: [string, RillType][]; ret?: RillType }
-  | { type: 'tuple';   elements?: RillType[] }
-  | { type: 'ordered'; fields?: [string, RillType][] }
+  | { type: 'closure'; params?: RillFieldDef[]; ret?: RillType }
+  | { type: 'tuple';   elements?: RillFieldDef[] }
+  | { type: 'ordered'; fields?: RillFieldDef[] }
   | { type: 'union';   members: RillType[] };
 
 // Deprecated alias — same type
@@ -761,12 +808,12 @@ The `type` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 
 | Variant | Field | Type | Required | Semantics |
 |---------|-------|------|----------|-----------|
-| `dict` | `fields` | `Record<string, RillType>` | No | Absent = any dict |
+| `dict` | `fields` | `Record<string, RillFieldDef>` | No | Absent = any dict. Key access: `type.fields[key]` (O(1)) |
 | `list` | `element` | `RillType` | No | Absent = any list |
-| `closure` | `params` | `[string, RillType][]` | No | Absent = any closure |
+| `closure` | `params` | `RillFieldDef[]` | No | Absent = any closure. Index access: `type.params[i]` |
 | `closure` | `ret` | `RillType` | No | Absent = any return type |
-| `tuple` | `elements` | `RillType[]` | No | Absent = any tuple |
-| `ordered` | `fields` | `[string, RillType][]` | No | Absent = any ordered |
+| `tuple` | `elements` | `RillFieldDef[]` | No | Absent = any tuple. Index access: `type.elements[i]` |
+| `ordered` | `fields` | `RillFieldDef[]` | No | Absent = any ordered. Index access: `type.fields[i]` |
 | `union` | `members` | `RillType[]` | Yes | Non-empty array of member types |
 
 ### Breaking Change: `kind` Removed
@@ -789,7 +836,7 @@ Prior versions used a `kind` field as the discriminator. That shape is removed. 
 
 ```typescript
 // Structural type system
-export type { RillType, RillFieldDescriptor };
+export type { RillType, RillFieldDef, RillFieldDescriptor };
 export type { RillStructuralType };  // deprecated alias for RillType
 export {
   inferStructuralType,
@@ -890,10 +937,10 @@ Formats a structural type descriptor as a human-readable string.
 | `{ type: 'list' }` | `"list"` |
 | `{ type: 'list', element: { type: 'number' } }` | `"list(number)"` |
 | `{ type: 'dict' }` | `"dict"` |
-| `{ type: 'dict', fields: { x: { type: 'number' } } }` | `"dict(x: number)"` |
+| `{ type: 'dict', fields: { x: { name: 'x', type: { type: 'number' } } } }` | `"dict(x: number)"` |
 | `{ type: 'closure' }` | `"closure"` |
-| `{ type: 'closure', params: [['x', { type: 'number' }]], ret: { type: 'string' } }` | `"\|x: number\| :string"` |
-| `{ type: 'closure', params: [['$', { type: 'list', element: { type: 'string' } }]], ret: { type: 'any' } }` | `"\|$: list(string)\| :any"` |
+| `{ type: 'closure', params: [{ name: 'x', type: { type: 'number' } }], ret: { type: 'string' } }` | `"\|x: number\| :string"` |
+| `{ type: 'closure', params: [{ name: '$', type: { type: 'list', element: { type: 'string' } } }], ret: { type: 'any' } }` | `"\|$: list(string)\| :any"` |
 
 Absent sub-fields on compound variants format as the bare type name.
 
@@ -910,6 +957,24 @@ buildFieldDescriptor(
 Builds a frozen `RillFieldDescriptor` for a named field within a structural dict type.
 
 `structuralType` must narrow to `{ type: 'dict' }` at the call site. `structuralType.fields` must contain `fieldName` or `RILL-R003` is thrown.
+
+### RillFieldDescriptor
+
+`RillFieldDescriptor` carries the full `RillFieldDef` for a specific named field. The runtime produces descriptors when evaluating field-access expressions on typed dicts.
+
+```typescript
+interface RillFieldDescriptor {
+  readonly __rill_field_descriptor: true;
+  readonly fieldName: string;
+  readonly fieldType: RillFieldDef;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `__rill_field_descriptor` | `true` | Brand field. Distinguishes descriptors from plain dicts |
+| `fieldName` | `string` | Name of the accessed field |
+| `fieldType` | `RillFieldDef` | Full field definition including type and optional default |
 
 ### `paramsToStructuralType`
 

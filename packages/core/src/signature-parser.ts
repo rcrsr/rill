@@ -27,7 +27,11 @@ import {
 } from './parser/index.js';
 import type { TypeRef } from './types.js';
 import type { RillParam } from './runtime/core/callable.js';
-import type { RillType, RillValue } from './runtime/core/values.js';
+import type {
+  RillFieldDef,
+  RillType,
+  RillValue,
+} from './runtime/core/values.js';
 
 // ============================================================
 // TypeRef → RillType static conversion
@@ -83,23 +87,26 @@ function staticTypeRefToRillType(
   }
 
   if (typeName === 'dict') {
-    const fields: Record<string, RillType> = {};
+    const fields: Record<string, RillFieldDef> = {};
     for (const arg of args) {
       if (arg.name === undefined) {
         throw new Error(
           `Invalid signature for function '${functionName}': dict type arguments must be named (e.g. dict(key: string))`
         );
       }
-      fields[arg.name] = staticTypeRefToRillType(arg.ref, functionName);
+      fields[arg.name] = {
+        type: staticTypeRefToRillType(arg.ref, functionName),
+      };
     }
     return { type: 'dict', fields };
   }
 
   if (typeName === 'tuple') {
-    const elements: [RillType, RillValue?][] = args.map(
-      (arg): [RillType, RillValue?] => [
-        staticTypeRefToRillType(arg.ref, functionName),
-      ]
+    const elements: RillFieldDef[] = args.map(
+      (arg): RillFieldDef => ({
+        ...(arg.name !== undefined ? { name: arg.name } : {}),
+        type: staticTypeRefToRillType(arg.ref, functionName),
+      })
     );
     return { type: 'tuple', elements };
   }

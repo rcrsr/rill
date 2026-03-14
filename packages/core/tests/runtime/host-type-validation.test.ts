@@ -185,8 +185,8 @@ describe('Rill Runtime: Host Type Validation', () => {
                 type: {
                   type: 'dict',
                   fields: {
-                    name: { type: 'string' },
-                    age: { type: 'number' },
+                    name: { type: { type: 'string' } },
+                    age: { type: { type: 'number' } },
                   },
                 },
                 defaultValue: undefined,

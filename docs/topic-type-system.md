@@ -208,6 +208,50 @@ $val -> :dict -> .keys        # assert dict, then get keys
 ["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
 ```
 
+#### Trailing Defaults in Collection Type Assertions
+
+`:` and `:?` accept values that omit trailing fields when those fields have defaults in the type constructor. This applies to `dict`, `tuple`, and `ordered`.
+
+Assign the type constructor to a variable, then use the variable in assertion position:
+
+```rill
+# dict: value omits trailing defaulted field
+dict(b: string, a: string = "a") => $dt
+[b: "b"] -> :$dt
+# Result: [b: "b"]
+```
+
+```rill
+# dict check
+dict(b: string, a: string = "a") => $dt
+[b: "b"] -> :?$dt
+# Result: true
+```
+
+```rill
+# tuple: value shorter than type, trailing field has default
+tuple(string, number = 0) => $tt
+tuple["x"] -> :$tt
+# Result: tuple["x"]
+```
+
+```rill
+# ordered: value omits trailing defaulted field
+ordered(x: number, y: number = 0) => $ot
+ordered[x: 1] -> :$ot
+# Result: ordered[x: 1]
+```
+
+The assertion passes and returns the original value unchanged. No field synthesis occurs. Use `:>` (convert) to fill missing fields with their defaults.
+
+A missing field without a default causes the assertion to fail:
+
+```text
+# Error: expected dict(b: string, a: string), missing required field 'a'
+dict(b: string, a: string) => $dt
+[b: "b"] -> :$dt
+```
+
 ### Check Type (`:?type`)
 
 Returns boolean, no error:

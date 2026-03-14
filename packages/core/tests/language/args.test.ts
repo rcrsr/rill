@@ -306,7 +306,7 @@ describe('explicit spread call syntax', () => {
                 type: 'dict',
                 fields: {
                   a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: 'number' },
+                  b: { type: { type: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -335,7 +335,7 @@ describe('explicit spread call syntax', () => {
                 type: 'dict',
                 fields: {
                   a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: 'number' },
+                  b: { type: { type: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -362,7 +362,7 @@ describe('explicit spread call syntax', () => {
             type: 'dict' as const,
             fields: {
               a: { type: { type: 'string' as const }, defaultValue: 'hello' },
-              b: { type: 'number' as const },
+              b: { type: { type: 'number' as const } },
             },
           },
           defaultValue: undefined,
@@ -394,7 +394,7 @@ describe('explicit spread call syntax', () => {
                 type: 'dict',
                 fields: {
                   a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: 'number' },
+                  b: { type: { type: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -422,15 +422,17 @@ describe('explicit spread call syntax', () => {
               type: {
                 type: 'dict',
                 fields: {
-                  a: { type: 'number' },
+                  a: { type: { type: 'number' } },
                   inner: {
-                    type: 'dict',
-                    fields: {
-                      x: {
-                        type: { type: 'string' },
-                        defaultValue: 'default',
+                    type: {
+                      type: 'dict',
+                      fields: {
+                        x: {
+                          type: { type: 'string' },
+                          defaultValue: 'default',
+                        },
+                        y: { type: { type: 'number' } },
                       },
-                      y: { type: 'number' },
                     },
                   },
                 },

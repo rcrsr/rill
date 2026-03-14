@@ -28,9 +28,9 @@ import {
   type RillParam,
 } from '../../src/runtime/core/callable.js';
 
-// createOrdered is internal to values.ts. Direct import is intentional
-// for constructing ordered values in dict/ordered field default hydration tests.
-import { createOrdered } from '../../src/runtime/core/values.js';
+// createOrdered and createTuple are internal to values.ts. Direct import is
+// intentional for constructing ordered/tuple values in field default hydration tests.
+import { createOrdered, createTuple } from '../../src/runtime/core/values.js';
 
 // BUILTIN_METHODS is internal to builtins.ts. Direct import is intentional
 // for testing the EC-4 error contract in buildMethodEntry.
@@ -232,7 +232,7 @@ describe('marshalArgs', () => {
             type: 'dict',
             fields: {
               a: { type: { type: 'string' }, defaultValue: 'hello' },
-              b: { type: 'number' },
+              b: { type: { type: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -270,7 +270,7 @@ describe('marshalArgs', () => {
             type: 'dict',
             fields: {
               a: { type: { type: 'string' }, defaultValue: 'hello' },
-              b: { type: 'number' },
+              b: { type: { type: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -331,10 +331,12 @@ describe('marshalArgs', () => {
             type: 'dict',
             fields: {
               outer: {
-                type: 'dict',
-                fields: {
-                  a: { type: { type: 'number' }, defaultValue: 42 },
-                  b: { type: 'string' },
+                type: {
+                  type: 'dict',
+                  fields: {
+                    a: { type: { type: 'number' }, defaultValue: 42 },
+                    b: { type: { type: 'string' } },
+                  },
                 },
               },
             },
@@ -357,8 +359,12 @@ describe('marshalArgs', () => {
           type: {
             type: 'ordered',
             fields: [
-              ['a', { type: 'number' }],
-              ['b', { type: 'string' }, 'default-b'],
+              { name: 'a', type: { type: 'number' } },
+              {
+                name: 'b',
+                type: { type: 'string' },
+                defaultValue: 'default-b',
+              },
             ],
           },
           defaultValue: undefined,
@@ -376,6 +382,93 @@ describe('marshalArgs', () => {
         ['a', 1],
         ['b', 'default-b'],
       ]);
+    });
+  });
+
+  // ============================================================
+  // Tuple field default hydration (AC-5, BC-1, BC-2)
+  // ============================================================
+
+  describe('AC-5: tuple param hydration — omitted trailing default filled', () => {
+    it('fills omitted trailing tuple element from field-level default', () => {
+      const params: RillParam[] = [
+        {
+          name: 'coords',
+          type: {
+            type: 'tuple',
+            elements: [
+              { type: { type: 'number' } },
+              { type: { type: 'number' }, defaultValue: 0 },
+            ],
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Tuple with only first element; second should hydrate from default
+      const arg = createTuple([10]);
+      const result = marshalArgs([arg], params, opts);
+      const tuple = (result as Record<string, unknown>).coords as {
+        __rill_tuple: boolean;
+        entries: unknown[];
+      };
+      expect(tuple.__rill_tuple).toBe(true);
+      expect(tuple.entries).toEqual([10, 0]);
+    });
+  });
+
+  describe('BC-1: all-default tuple with empty value', () => {
+    it('fills all elements when tuple is empty and all have defaults', () => {
+      const params: RillParam[] = [
+        {
+          name: 'tri',
+          type: {
+            type: 'tuple',
+            elements: [
+              { type: { type: 'string' }, defaultValue: 'a' },
+              { type: { type: 'number' }, defaultValue: 1 },
+              { type: { type: 'bool' }, defaultValue: true },
+            ],
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const arg = createTuple([]);
+      const result = marshalArgs([arg], params, opts);
+      const tuple = (result as Record<string, unknown>).tri as {
+        __rill_tuple: boolean;
+        entries: unknown[];
+      };
+      expect(tuple.__rill_tuple).toBe(true);
+      expect(tuple.entries).toEqual(['a', 1, true]);
+    });
+  });
+
+  describe('BC-2: zero-default tuple with exact-length value', () => {
+    it('passes through when tuple matches element count with no defaults', () => {
+      const params: RillParam[] = [
+        {
+          name: 'pair',
+          type: {
+            type: 'tuple',
+            elements: [
+              { type: { type: 'number' } },
+              { type: { type: 'string' } },
+            ],
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const arg = createTuple([42, 'hello']);
+      const result = marshalArgs([arg], params, opts);
+      const tuple = (result as Record<string, unknown>).pair as {
+        __rill_tuple: boolean;
+        entries: unknown[];
+      };
+      expect(tuple.__rill_tuple).toBe(true);
+      expect(tuple.entries).toEqual([42, 'hello']);
     });
   });
 });
@@ -431,64 +524,69 @@ describe('EC-4: buildMethodEntry receiver missing from record raises RILL-R044',
 // ============================================================
 
 describe('.^input default preservation', () => {
-  describe('AC-4: closure with default → 3-element field', () => {
-    it('returns 3-element field [name, type, defaultValue] for param with default', async () => {
+  describe('AC-4: closure with default → RillFieldDef with defaultValue', () => {
+    it('returns RillFieldDef with defaultValue for param with default', async () => {
       // |y: number = 2| produces a typed param with a default value
       const result = (await run(
         '|y: number = 2| { $y } => $fn\n$fn.^input'
       )) as {
         __rill_type: boolean;
         typeName: string;
-        structure: { type: string; fields: [string, unknown, unknown?][] };
+        structure: {
+          type: string;
+          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+        };
       };
       expect(result['__rill_type']).toBe(true);
       expect(result.typeName).toBe('ordered');
       const fields = result.structure.fields;
       expect(fields).toHaveLength(1);
-      // 3-element tuple: [paramName, RillType, defaultValue]
-      expect(fields[0]).toHaveLength(3);
-      expect(fields[0]![0]).toBe('y');
-      // Third element is the default value
-      expect(fields[0]![2]).toBe(2);
+      expect(fields[0]!.name).toBe('y');
+      expect(fields[0]!.defaultValue).toBe(2);
     });
 
-    it('mixed params: typed-with-default produces 3-element, typed-no-default produces 2-element', async () => {
+    it('mixed params: defaulted has defaultValue, required omits it', async () => {
       // |x: string, y: number = 10| — x has no default, y has default
       const result = (await run(
         '|x: string, y: number = 10| { $x } => $fn\n$fn.^input'
       )) as {
-        structure: { type: string; fields: [string, unknown, unknown?][] };
+        structure: {
+          type: string;
+          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+        };
       };
       const fields = result.structure.fields;
       expect(fields).toHaveLength(2);
-      // x: no default → 2-element
-      expect(fields[0]).toHaveLength(2);
-      expect(fields[0]![0]).toBe('x');
-      // y: default=10 → 3-element
-      expect(fields[1]).toHaveLength(3);
-      expect(fields[1]![0]).toBe('y');
-      expect(fields[1]![2]).toBe(10);
+      // x: no default → no defaultValue property
+      expect(fields[0]!.name).toBe('x');
+      expect(fields[0]).not.toHaveProperty('defaultValue');
+      // y: default=10 → defaultValue present
+      expect(fields[1]!.name).toBe('y');
+      expect(fields[1]!.defaultValue).toBe(10);
     });
   });
 
-  describe('AC-19: closure without defaults → 2-element fields', () => {
-    it('returns 2-element fields for typed params with no defaults', async () => {
+  describe('AC-19: closure without defaults → RillFieldDef without defaultValue', () => {
+    it('returns RillFieldDef fields without defaultValue for undefaulted params', async () => {
       const result = (await run(
         '|x: string, y: number| { $x } => $fn\n$fn.^input'
       )) as {
         __rill_type: boolean;
         typeName: string;
-        structure: { type: string; fields: [string, unknown, unknown?][] };
+        structure: {
+          type: string;
+          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+        };
       };
       expect(result['__rill_type']).toBe(true);
       expect(result.typeName).toBe('ordered');
       const fields = result.structure.fields;
       expect(fields).toHaveLength(2);
-      // Both params have no defaults: 2-element tuples
-      expect(fields[0]).toHaveLength(2);
-      expect(fields[0]![0]).toBe('x');
-      expect(fields[1]).toHaveLength(2);
-      expect(fields[1]![0]).toBe('y');
+      // Both params have no defaults: no defaultValue property
+      expect(fields[0]!.name).toBe('x');
+      expect(fields[0]).not.toHaveProperty('defaultValue');
+      expect(fields[1]!.name).toBe('y');
+      expect(fields[1]).not.toHaveProperty('defaultValue');
     });
   });
 

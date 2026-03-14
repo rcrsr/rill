@@ -1261,13 +1261,16 @@ describe('Rill Runtime: Annotations', () => {
         const shape = inputResult as {
           __rill_type: true;
           typeName: string;
-          structure: { type: string; fields: [string, unknown][] };
+          structure: {
+            type: string;
+            fields: { name: string; type: unknown }[];
+          };
         };
         expect(shape.__rill_type).toBe(true);
         expect(shape.typeName).toBe('ordered');
         expect(shape.structure.fields).toEqual([
-          ['name', { type: 'string' }],
-          ['age', { type: 'number' }],
+          { name: 'name', type: { type: 'string' } },
+          { name: 'age', type: { type: 'number' } },
         ]);
       });
     });
@@ -1319,10 +1322,15 @@ describe('Rill Runtime: Annotations', () => {
         const shape = result1 as {
           __rill_type: true;
           typeName: string;
-          structure: { type: string; fields: [string, unknown][] };
+          structure: {
+            type: string;
+            fields: { name: string; type: unknown }[];
+          };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.structure.fields).toEqual([['data', { type: 'string' }]]);
+        expect(shape.structure.fields).toEqual([
+          { name: 'data', type: { type: 'string' } },
+        ]);
       });
     });
 
@@ -1371,10 +1379,15 @@ describe('Rill Runtime: Annotations', () => {
         const shape = result as {
           __rill_type: true;
           typeName: string;
-          structure: { type: string; fields: [string, unknown][] };
+          structure: {
+            type: string;
+            fields: { name: string; type: unknown }[];
+          };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.structure.fields).toEqual([['x', { type: 'string' }]]);
+        expect(shape.structure.fields).toEqual([
+          { name: 'x', type: { type: 'string' } },
+        ]);
       });
     });
   });
@@ -1385,10 +1398,12 @@ describe('Rill Runtime: Annotations', () => {
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: [string, unknown][] };
+        structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields).toEqual([['x', { type: 'number' }]]);
+      expect(shape.structure.fields).toEqual([
+        { name: 'x', type: { type: 'number' } },
+      ]);
     });
 
     it('untyped param returns any structural type entry (VAL-1)', async () => {
@@ -1396,10 +1411,12 @@ describe('Rill Runtime: Annotations', () => {
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: [string, unknown][] };
+        structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields).toEqual([['x', { type: 'any' }]]);
+      expect(shape.structure.fields).toEqual([
+        { name: 'x', type: { type: 'any' } },
+      ]);
     });
   });
 });

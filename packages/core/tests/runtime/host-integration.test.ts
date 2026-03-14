@@ -500,7 +500,9 @@ describe('Rill Runtime: Host Integration', () => {
       const result = inferStructuralType(fn as unknown as RillValue);
       expect(result.type).toBe('closure');
       if (result.type === 'closure') {
-        expect(result.params).toEqual([['text', { type: 'string' }]]);
+        expect(result.params).toEqual([
+          { name: 'text', type: { type: 'string' } },
+        ]);
         expect(result.ret).toEqual({ type: 'dict' });
       }
     });

@@ -85,7 +85,7 @@ import {
   isTypeValue,
   isTuple,
   isOrdered,
-  paramToTypeTuple,
+  paramToFieldDef,
   inferStructuralType,
   structuralTypeMatches,
   formatStructuralType,
@@ -1120,7 +1120,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return rillTypeToTypeValue({ type: 'ordered', fields: [] });
         }
         const fields = value.params.map((param) =>
-          paramToTypeTuple(
+          paramToFieldDef(
             param.name,
             param.type ?? { type: 'any' },
             param.defaultValue

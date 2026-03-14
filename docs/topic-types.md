@@ -374,6 +374,32 @@ ordered[x: 1, y: 2] -> $fn(...)        # 3
 ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ```
 
+### Trailing Defaults with Tuples
+
+Tuple type constructors accept default values on trailing positional fields. When you assert or check against a tuple type, values shorter than the full field count match if every omitted trailing field has a default.
+
+Assign the type constructor to a variable, then use the variable in `:?` or `:` position:
+
+```rill
+tuple(string, number = 0) => $t
+tuple["x"] -> :?$t
+# Result: true
+```
+
+The value `tuple["x"]` has 1 element. The type has 2 fields, but the second field defaults to `0`. The check passes because the omitted trailing field has a default.
+
+```rill
+tuple(string, number = 0) => $t
+tuple["x"] -> :$t
+# Result: tuple["x"]
+```
+
+The `:` assertion also accepts the shorter value. No field synthesis occurs — the returned value is unchanged. Use `:>` to fill missing fields with their defaults.
+
+Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
+
+This matches the trailing-default behavior of `dict` and `ordered` type constructors.
+
 ### Parallel Spread with Tuples
 
 Use tuples with explicit spread `...` to pass positional args in `map`:

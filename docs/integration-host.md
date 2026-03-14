@@ -359,6 +359,53 @@ greet("Alice")            # "Hello, Alice!"
 greet("Bob", "Hi")        # "Hi, Bob!"
 ```
 
+### Field-Level Default Hydration
+
+When a parameter type is `dict`, `ordered`, or `tuple`, the runtime fills missing fields with declared defaults before calling the host function. This happens at Stage 2.5 of `marshalArgs`, after top-level parameter defaults are applied and before type checking.
+
+For tuple parameters, missing trailing elements are filled from the element type's `defaultValue`:
+
+```typescript
+functions: {
+  format: {
+    params: [
+      {
+        name: 'point',
+        type: {
+          type: 'tuple',
+          elements: [
+            { type: { type: 'number' } },
+            { type: { type: 'string' }, defaultValue: 'unnamed' },
+          ],
+        },
+      },
+    ],
+    fn: (args) => {
+      // args[0] is always a tuple with 2 elements
+      // If caller passed (42,), runtime fills element 1 with "unnamed"
+      const point = args[0] as { __rill_tuple: true; entries: unknown[] };
+      return `${point.entries[1]}: ${point.entries[0]}`;
+    },
+  },
+},
+```
+
+```text
+format((42,))          # "unnamed: 42"  -- trailing default filled
+format((42, "home"))   # "home: 42"     -- both elements present, no fill
+```
+
+The same hydration applies to `dict` and `ordered` parameters: missing named fields with declared defaults are filled before invocation.
+
+| Parameter type | Missing field condition | Result |
+|----------------|------------------------|--------|
+| `tuple` | Trailing elements with `defaultValue` | Filled with deep copy of default |
+| `tuple` | Trailing elements without `defaultValue` | Left absent; type check at Stage 3 catches |
+| `dict` | Named fields with `defaultValue` | Filled with deep copy of default |
+| `ordered` | Named fields with `defaultValue` | Filled with deep copy of default |
+
+Hydration is recursive: if a filled default itself has a structured type with defaults, those are also hydrated.
+
 ### Type Mismatch Errors
 
 When argument types don't match, the runtime throws `RuntimeError` with code `RUNTIME_TYPE_ERROR`:
