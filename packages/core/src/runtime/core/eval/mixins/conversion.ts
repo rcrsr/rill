@@ -560,7 +560,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Build a key->value lookup from either an ordered value or a dict value.
         const lookup = new Map<string, RillValue>(
           isOrdered(value)
-            ? value.entries
+            ? value.entries.map(([k, v]) => [k, v] as [string, RillValue])
             : Object.entries(value as Record<string, RillValue>)
         );
         const resultEntries: [string, RillValue][] = [];

@@ -225,7 +225,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `handled:${args[0]}`,
+              fn: (args) => `handled:${args['input']}`,
             },
           },
         }
@@ -247,7 +247,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `processed:${args[0]}`,
+              fn: (args) => `processed:${args['input']}`,
             },
           },
         }
@@ -269,7 +269,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `error:${args[0]}`,
+              fn: (args) => `error:${args['input']}`,
             },
           },
         }
@@ -291,7 +291,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `processed:${args[0]}`,
+              fn: (args) => `processed:${args['input']}`,
             },
           },
         }
@@ -313,7 +313,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `error:${args[0]}`,
+              fn: (args) => `error:${args['input']}`,
             },
             processMsg: {
               params: [
@@ -324,7 +324,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `processed:${args[0]}`,
+              fn: (args) => `processed:${args['input']}`,
             },
           },
         }
@@ -346,7 +346,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `error:${args[0]}`,
+              fn: (args) => `error:${args['input']}`,
             },
             handleWarn: {
               params: [
@@ -357,7 +357,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `warn:${args[0]}`,
+              fn: (args) => `warn:${args['input']}`,
             },
             handleInfo: {
               params: [
@@ -368,7 +368,7 @@ describe('Rill Runtime: Conditionals', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `info:${args[0]}`,
+              fn: (args) => `info:${args['input']}`,
             },
           },
         }

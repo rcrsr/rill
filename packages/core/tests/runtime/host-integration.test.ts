@@ -38,7 +38,7 @@ describe('Rill Runtime: Host Integration', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => String(args[0]).toUpperCase(),
+            fn: (args) => String(args['text']).toUpperCase(),
           },
         },
       });
@@ -64,8 +64,9 @@ describe('Rill Runtime: Host Integration', () => {
               },
             ],
             fn: (args) => {
-              const str = String(args[0]);
-              const count = typeof args[1] === 'number' ? args[1] : 1;
+              const str = String(args['str']);
+              const count =
+                typeof args['count'] === 'number' ? args['count'] : 1;
               return str.repeat(count);
             },
           },
@@ -89,7 +90,7 @@ describe('Rill Runtime: Host Integration', () => {
             ],
             fn: (args, ctx) => {
               const prefix = ctx.variables.get('prefix') ?? '';
-              return `${prefix}${args[0]}`;
+              return `${prefix}${args['text']}`;
             },
           },
         },
@@ -111,7 +112,7 @@ describe('Rill Runtime: Host Integration', () => {
             ],
             fn: async (args) => {
               await new Promise((r) => setTimeout(r, 10));
-              return `fetched:${args[0]}`;
+              return `fetched:${args['url']}`;
             },
           },
         },
@@ -800,9 +801,9 @@ describe('Callable reflection via ^ operator', () => {
 });
 
 // ============================================================
-// Method dispatch with $ receiver binding (AC-14)
+// Method dispatch with $ receiver binding (AC-8)
 // ============================================================
-describe('Method dispatch with $ binding (AC-14)', () => {
+describe('Method dispatch with $ binding (AC-8)', () => {
   it('$ is bound to the receiver inside the method body (trim strips whitespace)', async () => {
     // string.trim() uses the receiver as $; receiver = " hello "
     const result = await run('" hello ".trim()');
@@ -883,5 +884,370 @@ describe('Error contracts', () => {
         expect(err).toHaveProperty('errorId', 'RILL-R001');
       }
     });
+  });
+});
+
+// ============================================================
+// Spread marshaling integration (IR-5, EC-5, AC-7, AC-9, AC-13, AC-14)
+// ============================================================
+describe('Spread marshaling: host function (ApplicationCallable)', () => {
+  /**
+   * Build an ApplicationCallable with params (x: any, y: any) that records
+   * the positional args it receives from the runtime.
+   */
+  function makeCaptureXY(): {
+    capturedArgs: Record<string, RillValue>;
+    fn: ApplicationCallable;
+  } {
+    const capturedArgs: Record<string, RillValue> = {};
+    const fn: ApplicationCallable = {
+      __type: 'callable' as const,
+      kind: 'application' as const,
+      isProperty: false,
+      params: [
+        {
+          name: 'x',
+          type: { type: 'any' },
+          defaultValue: undefined,
+          annotations: {},
+        },
+        {
+          name: 'y',
+          type: { type: 'any' },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ],
+      returnType: anyTypeValue,
+      annotations: {},
+      fn: (args) => {
+        Object.assign(capturedArgs, args);
+        return null;
+      },
+    };
+    return { capturedArgs, fn };
+  }
+
+  describe('AC-7: dict spread by name delivers args in param-declaration order', () => {
+    it('dict[y: 2, x: 1] onto fn(x, y) — host receives x=1 at index 0, y=2 at index 1', async () => {
+      // Arrange
+      const { capturedArgs, fn } = makeCaptureXY();
+
+      // Act: dict spread maps by name regardless of key order in the dict literal
+      await run('$fn(...dict[y: 2, x: 1])', {
+        variables: { fn: fn as unknown as RillValue },
+      });
+
+      // Assert: host receives named keys; x=1, y=2 regardless of dict insertion order
+      expect(capturedArgs['x']).toBe(1);
+      expect(capturedArgs['y']).toBe(2);
+    });
+
+    it('dict[x: 10, y: 20] in matching order also binds correctly', async () => {
+      const { capturedArgs, fn } = makeCaptureXY();
+
+      await run('$fn(...dict[x: 10, y: 20])', {
+        variables: { fn: fn as unknown as RillValue },
+      });
+
+      expect(capturedArgs['x']).toBe(10);
+      expect(capturedArgs['y']).toBe(20);
+    });
+  });
+
+  describe('AC-9: tuple spread by position delivers args in tuple order', () => {
+    it('tuple[1, 2] onto fn(x, y) — host receives x=1 at index 0, y=2 at index 1', async () => {
+      // Arrange
+      const { capturedArgs, fn } = makeCaptureXY();
+
+      // Act: tuple spread maps values positionally; position 0 → x, position 1 → y
+      await run('$fn(...tuple[1, 2])', {
+        variables: { fn: fn as unknown as RillValue },
+      });
+
+      // Assert: host receives named keys keyed by param name
+      expect(capturedArgs['x']).toBe(1);
+      expect(capturedArgs['y']).toBe(2);
+    });
+
+    it('tuple spread via pipe: tuple[5, 6] -> $fn(...) produces same positional binding', async () => {
+      const { capturedArgs, fn } = makeCaptureXY();
+
+      await run('tuple[5, 6] -> $fn(...)', {
+        variables: { fn: fn as unknown as RillValue },
+      });
+
+      expect(capturedArgs['x']).toBe(5);
+      expect(capturedArgs['y']).toBe(6);
+    });
+  });
+
+  describe('AC-13: bare spread with null spread value raises RILL-R001', () => {
+    it('spreading a null variable raises RILL-R001', async () => {
+      const { fn } = makeCaptureXY();
+
+      // Arrange: $nullVar holds null (valid RillValue); spreading it into
+      // bindArgsToParams produces spreadValue === null, which triggers RILL-R001.
+      // This is distinct from bare ... with no pipe (which raises RILL-R005).
+      try {
+        await run('$fn(...$nullVar)', {
+          variables: {
+            fn: fn as unknown as RillValue,
+            nullVar: null,
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R001');
+      }
+    });
+  });
+
+  describe('AC-14: dict spread key matching no param raises RILL-R001', () => {
+    it('key "z" absent from fn(x, y) params throws RILL-R001', async () => {
+      const { fn } = makeCaptureXY();
+
+      try {
+        // "z" is not a declared parameter
+        await run('$fn(...dict[x: 1, z: 99])', {
+          variables: { fn: fn as unknown as RillValue },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R001');
+      }
+    });
+
+    it('error message names the unrecognized key', async () => {
+      const { fn } = makeCaptureXY();
+
+      try {
+        await run('$fn(...dict[x: 1, badKey: 99])', {
+          variables: { fn: fn as unknown as RillValue },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect((err as Error).message).toMatch(/badKey/);
+      }
+    });
+  });
+});
+
+// ============================================================
+// Ordered-param marshaling acceptance tests (Phase 2)
+// ============================================================
+
+describe('AC-3: Host function receives Record<string, RillValue> with named keys', () => {
+  it('fn with params (x, y) called as fn(1, 2) receives {x: 1, y: 2}', async () => {
+    let receivedArgs: Record<string, RillValue> | undefined;
+
+    await run('add(10, 20)', {
+      functions: {
+        add: {
+          params: [
+            {
+              name: 'x',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'y',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            receivedArgs = args;
+            return null;
+          },
+        },
+      },
+    });
+
+    expect(receivedArgs).toBeDefined();
+    expect(receivedArgs!['x']).toBe(10);
+    expect(receivedArgs!['y']).toBe(20);
+    // Verify it is a plain Record, not an array
+    expect(Array.isArray(receivedArgs)).toBe(false);
+    expect(typeof receivedArgs).toBe('object');
+  });
+
+  it('fn with string param receives value keyed by param name', async () => {
+    let receivedArgs: Record<string, RillValue> | undefined;
+
+    await run('greet("alice")', {
+      functions: {
+        greet: {
+          params: [
+            {
+              name: 'name',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            receivedArgs = args;
+            return `Hello ${args['name']}`;
+          },
+        },
+      },
+    });
+
+    expect(receivedArgs!['name']).toBe('alice');
+  });
+});
+
+describe('AC-5: Block closure sets $ to pipe value post-marshaling', () => {
+  it('42 -> { $ } — block closure returns $ which equals the piped value', async () => {
+    // Block closure: the piped value (42) is marshaled to the $ param,
+    // then ctx.pipeValue is synced to 42 (IR-4). $ resolves to pipeValue.
+    const result = await run('42 -> { $ }');
+    expect(result).toBe(42);
+  });
+
+  it('block closure $ matches pipe value for string input', async () => {
+    // Block closure with string input: $ resolves to the piped string value.
+    const result = await run('"hello" -> { $ }');
+    expect(result).toBe('hello');
+  });
+
+  it('block closure exposes $ to host function via ctx.pipeValue', async () => {
+    // Host function with one param receives the pipe value (which becomes $).
+    let capturedDollar: RillValue = null;
+    await run('42 -> { capture($) }', {
+      functions: {
+        capture: {
+          params: [
+            {
+              name: 'value',
+              type: { type: 'any' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            capturedDollar = args['value'] ?? null;
+            return null;
+          },
+        },
+      },
+    });
+
+    expect(capturedDollar).toBe(42);
+  });
+});
+
+describe('AC-6: Named-param closure does not modify $', () => {
+  it('|x| closure called with value does not expose that value as $', async () => {
+    let capturedDollar: RillValue = null;
+
+    // A named-param closure: the pipe value before the closure should NOT be $ inside
+    await run(
+      `
+      |x| { capture() } => $fn
+      99 -> $fn(42)
+    `,
+      {
+        functions: {
+          capture: {
+            params: [],
+            fn: (_args, ctx) => {
+              capturedDollar = ctx.pipeValue;
+              return null;
+            },
+          },
+        },
+      }
+    );
+
+    // Inside a named-param closure, $ is NOT set to the piped value 42.
+    // pipeValue is null because the closure has explicit params.
+    expect(capturedDollar).toBeNull();
+  });
+});
+
+describe('AC-8: Method dispatch — bound dict fills first ordered entry', () => {
+  it('$person.greet() passes dict as receiver (first param)', async () => {
+    let receivedReceiver: RillValue = null;
+
+    const result = await run('$person.greet()', {
+      variables: {
+        person: {
+          name: 'alice',
+          greet: {
+            __type: 'callable' as const,
+            kind: 'application' as const,
+            isProperty: true,
+            params: [
+              {
+                name: 'self',
+                type: { type: 'any' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            annotations: {},
+            fn: (args) => {
+              receivedReceiver = args['self'] ?? null;
+              const self = args['self'] as Record<string, RillValue>;
+              return `Hello, I am ${self['name']}`;
+            },
+          } as ApplicationCallable,
+        },
+      },
+    });
+
+    expect(result).toBe('Hello, I am alice');
+    // The bound dict (person) was passed as the receiver argument
+    expect((receivedReceiver as Record<string, RillValue>)['name']).toBe(
+      'alice'
+    );
+  });
+});
+
+describe('AC-16: Untyped callable (params undefined) skips marshaling, works as before', () => {
+  it('callable() factory function receives raw array cast as Record', async () => {
+    let receivedFirst: RillValue = null;
+
+    let receivedArgs: unknown;
+
+    const fn = callable((args) => {
+      // Untyped callables receive positional array (RillValue[]), not a Record.
+      receivedArgs = args;
+      receivedFirst = (args as unknown as RillValue[])[0] ?? null;
+      return receivedFirst;
+    });
+
+    const result = await run('$myFn("test")', {
+      variables: { myFn: fn as unknown as RillValue },
+    });
+
+    expect(result).toBe('test');
+    expect(receivedFirst).toBe('test');
+    // AC-16: verify delivery is RillValue[] (array), not a Record
+    expect(Array.isArray(receivedArgs)).toBe(true);
+  });
+
+  it('callable() factory pipe-invoked with value works', async () => {
+    // When an untyped callable is pipe-invoked (`"piped" -> $myFn`), the runtime
+    // treats it as zero-param style: the pipe value is accessible via ctx.pipeValue,
+    // not via args (which remains empty for zero-param style invocation).
+    let capturedPipe: RillValue = null;
+
+    const fn = callable((_args, ctx) => {
+      capturedPipe = ctx.pipeValue;
+      return ctx.pipeValue;
+    });
+
+    const result = await run('"piped" -> $myFn', {
+      variables: { myFn: fn as unknown as RillValue },
+    });
+
+    expect(result).toBe('piped');
+    expect(capturedPipe).toBe('piped');
   });
 });

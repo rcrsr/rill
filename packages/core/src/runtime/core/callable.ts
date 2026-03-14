@@ -17,7 +17,7 @@
  *
  * [ASSUMPTION] validateDefaultValueType _functionName Parameter
  * - Parameter accepted but unused (prefixed with _ to satisfy eslint)
- * - Kept for API consistency with validateCallableArgs signature
+ * - Kept for API consistency with marshalArgs signature
  */
 
 import type { BodyNode, SourceLocation } from '../../types.js';
@@ -49,7 +49,7 @@ interface RuntimeContextLike {
  * Used for both host-provided functions and runtime callables.
  */
 export type CallableFn = (
-  args: RillValue[],
+  args: Record<string, RillValue>,
   ctx: RuntimeContextLike,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
@@ -337,30 +337,50 @@ export function validateDefaultValueType(
 }
 
 /**
- * Validate arguments against RillParam[] using structural type matching.
- *
- * Single validation path for all callable kinds (host, built-in, script).
- * Uses structuralTypeMatches for type checking when param.type is defined.
- * Skips type check when param.type is undefined (any-typed).
- * Applies defaultValue in-place on the args array before validation.
- *
- * @param args - Arguments array (mutated in-place when defaults applied)
- * @param params - Parameter definitions
- * @param functionName - Function name for error messages
- * @param location - Source location for error reporting
- * @throws RuntimeError with RILL-R001 on validation failure
+ * Options for marshalArgs error reporting.
  */
-export function validateCallableArgs(
+export interface MarshalOptions {
+  /** Function name included in error messages */
+  readonly functionName: string;
+  /** Source location for error reporting */
+  readonly location: SourceLocation | undefined;
+}
+
+/**
+ * Unified marshaling entry point for all 3 invocation paths.
+ *
+ * Builds a named argument map from positional args, hydrates defaults,
+ * type-checks each field, and returns a Record<string, RillValue>.
+ *
+ * Stages:
+ * 1. Excess args check (RILL-R045)
+ * 2. Default hydration + missing required check (RILL-R044)
+ * 3. Type check per field (RILL-R001)
+ *
+ * Preconditions (enforced by caller):
+ * - args contains already-evaluated RillValue[]
+ * - pipe value already inserted as first element by caller
+ * - boundDict already prepended as first element by caller
+ * - params is defined (caller skips marshalArgs for untyped callables)
+ *
+ * @param args - Positional arguments (already evaluated)
+ * @param params - Parameter definitions
+ * @param options - Error context: functionName and location
+ * @returns Named argument map keyed by param name
+ */
+export function marshalArgs(
   args: RillValue[],
   params: readonly RillParam[],
-  functionName: string,
-  location?: SourceLocation
-): void {
-  // Check for excess arguments
+  options?: MarshalOptions
+): Record<string, RillValue> {
+  const functionName = options?.functionName ?? '<anonymous>';
+  const location = options?.location;
+
+  // Stage 1: Excess args check
   if (args.length > params.length) {
     throw new RuntimeError(
-      'RILL-R001',
-      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      'RILL-R045',
+      `Function expects ${params.length} arguments, got ${args.length}`,
       location,
       {
         functionName,
@@ -370,23 +390,24 @@ export function validateCallableArgs(
     );
   }
 
-  // Validate each parameter
+  const result: Record<string, RillValue> = {};
+
+  // Stage 2 + 3: Hydrate defaults, check required, type-check
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
     if (param === undefined) continue;
 
-    let arg = args[i];
+    let value = args[i];
 
-    // Apply defaultValue in-place for missing arguments
-    if (arg === undefined) {
+    // Hydrate default when no positional arg was supplied
+    if (value === undefined) {
       if (param.defaultValue !== undefined) {
-        arg = param.defaultValue;
-        args[i] = arg;
+        value = param.defaultValue;
       } else {
-        // Missing required argument
+        // Stage 2: Missing required parameter
         throw new RuntimeError(
-          'RILL-R001',
-          `Missing required argument '${param.name}' for function '${functionName}'`,
+          'RILL-R044',
+          `Missing argument for parameter '${param.name}'`,
           location,
           {
             functionName,
@@ -396,14 +417,14 @@ export function validateCallableArgs(
       }
     }
 
-    // Type check via structuralTypeMatches when param.type is defined
+    // Stage 3: Type check when param.type is defined
     if (param.type !== undefined) {
-      if (!structuralTypeMatches(arg, param.type)) {
+      if (!structuralTypeMatches(value, param.type)) {
         const expectedType = formatStructuralType(param.type);
-        const actualType = inferType(arg);
+        const actualType = inferType(value);
         throw new RuntimeError(
           'RILL-R001',
-          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
           location,
           {
             functionName,
@@ -414,5 +435,9 @@ export function validateCallableArgs(
         );
       }
     }
+
+    result[param.name] = value;
   }
+
+  return result;
 }

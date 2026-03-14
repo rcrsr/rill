@@ -1299,7 +1299,7 @@ describe('Rill Runtime: Annotations', () => {
               annotations: {},
             },
           ],
-          fn: (args) => args[0],
+          fn: (args) => args['data'],
           isProperty: false,
         };
         const result1 = await run(`$fn.^input`, {

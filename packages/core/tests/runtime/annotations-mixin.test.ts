@@ -166,7 +166,7 @@ describe('AnnotationsMixin', () => {
                 },
               ],
               fn: (args) => {
-                throw new RuntimeError('RILL-R004', String(args[0]), {
+                throw new RuntimeError('RILL-R004', String(args['msg']), {
                   line: 1,
                   column: 1,
                   offset: 0,

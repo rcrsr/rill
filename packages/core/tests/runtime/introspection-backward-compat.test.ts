@@ -34,7 +34,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello, ${args[0]}!`,
+            fn: (args) => `Hello, ${args['name']}!`,
             returnType: anyTypeValue,
           },
         },
@@ -61,7 +61,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
             returnType: anyTypeValue,
           },
         },
@@ -93,7 +93,8 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: { description: 'Value to insert' },
               }, // With description
             ],
-            fn: (args) => String(args[0]).replace('{}', String(args[1])),
+            fn: (args) =>
+              String(args['template']).replace('{}', String(args['value'])),
             returnType: anyTypeValue,
           },
         },
@@ -121,7 +122,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) * 2,
+            fn: (args) => (args['x'] as number) * 2,
             returnType: anyTypeValue,
           },
         },
@@ -142,7 +143,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['input'],
             returnType: anyTypeValue,
           },
         },
@@ -173,7 +174,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
             returnType: anyTypeValue,
           },
         },
@@ -213,9 +214,9 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
               },
             ],
             fn: (args) => {
-              const input = String(args[0]);
-              const count = args[1] as number;
-              const flag = args[2] as boolean;
+              const input = String(args['input']);
+              const count = args['count'] as number;
+              const flag = args['flag'] as boolean;
               return flag ? input.repeat(count) : input;
             },
             returnType: anyTypeValue,
@@ -252,7 +253,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `${args[0]} ${args[1]} ${args[2]}`,
+            fn: (args) => `${args['a']} ${args['b']} ${args['c']}`,
             returnType: anyTypeValue,
           },
         },
@@ -285,7 +286,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             annotations: {},
           },
         ],
-        fn: (args) => args[0],
+        fn: (args) => args['x'],
         returnType: anyTypeValue,
         // No annotations field - should compile without error
       };
@@ -306,7 +307,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['input'],
             returnType: anyTypeValue,
             // No annotations - old style
           },
@@ -319,7 +320,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: { description: 'Input value' },
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['input'],
             annotations: { description: 'New style function with docs' },
             returnType: anyTypeValue,
           },
@@ -339,7 +340,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['input'],
             returnType: anyTypeValue,
           },
           new: {
@@ -351,7 +352,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: { description: 'Input value' },
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['input'],
             annotations: { description: 'New style function with docs' },
             returnType: anyTypeValue,
           },

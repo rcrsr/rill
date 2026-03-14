@@ -52,7 +52,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => `Hello, ${args[0]}!`,
+          fn: (args) => `Hello, ${args['name']}!`,
         },
         farewell: {
           params: [
@@ -63,7 +63,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => `Goodbye, ${args[0]}!`,
+          fn: (args) => `Goodbye, ${args['name']}!`,
         },
         dispose: () => {
           // cleanup
@@ -104,7 +104,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => (args[0] as number) * 2,
+          fn: (args) => (args['x'] as number) * 2,
         },
       };
 
@@ -134,7 +134,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => (args[0] as number) + (args[1] as number),
+          fn: (args) => (args['a'] as number) + (args['b'] as number),
         },
       };
 
@@ -158,7 +158,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => (args[0] as number) * 3,
+          fn: (args) => (args['x'] as number) * 3,
         },
       };
 
@@ -181,7 +181,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => `reading ${args[0]}`,
+          fn: (args) => `reading ${args['path']}`,
         },
       };
 
@@ -195,7 +195,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => `querying ${args[0]}`,
+          fn: (args) => `querying ${args['sql']}`,
         },
       };
 
@@ -237,7 +237,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => (args[0] as string).toUpperCase(),
+          fn: (args) => (args['s'] as string).toUpperCase(),
         },
       };
 
@@ -251,7 +251,7 @@ describe('hoistExtension: Success Cases', () => {
               annotations: {},
             },
           ],
-          fn: (args) => (args[0] as string).toLowerCase(),
+          fn: (args) => (args['s'] as string).toLowerCase(),
         },
       };
 

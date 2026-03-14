@@ -193,9 +193,9 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * IR-15, EC-20 (key not in schema)
    * Returns empty string for missing keys in open mode.
    */
-  const get = async (args: RillValue[]): Promise<RillValue> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
+  const get = async (args: Record<string, RillValue>): Promise<RillValue> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
     const store = await getStore(mountName);
     const value = store.get(key);
     // In rill, functions cannot return undefined - return empty string for missing keys in open mode
@@ -207,10 +207,12 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * IR-2
    * Never throws for missing keys (unlike get in declared mode).
    */
-  const get_or = async (args: RillValue[]): Promise<RillValue> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
-    const fallback = args[2] as RillValue;
+  const get_or = async (
+    args: Record<string, RillValue>
+  ): Promise<RillValue> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
+    const fallback = args['fallback'] as RillValue;
     const store = await getStore(mountName);
 
     // Check if key exists using has() to avoid schema validation errors
@@ -226,10 +228,10 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Set value with validation.
    * IR-16, EC-20-24
    */
-  const set = async (args: RillValue[]): Promise<boolean> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
-    const value = args[2] as RillValue;
+  const set = async (args: Record<string, RillValue>): Promise<boolean> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
+    const value = args['value'] as RillValue;
     const store = await getStore(mountName);
 
     await store.set(key, value);
@@ -240,10 +242,10 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Merge partial dict into existing dict value.
    * IR-4, EC-5, EC-6
    */
-  const merge = async (args: RillValue[]): Promise<boolean> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
-    const partial = args[2] as Record<string, RillValue>;
+  const merge = async (args: Record<string, RillValue>): Promise<boolean> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
+    const partial = args['partial'] as Record<string, RillValue>;
     const store = await getStore(mountName);
 
     // Get current value
@@ -274,9 +276,11 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Delete key.
    * IR-17
    */
-  const deleteKey = async (args: RillValue[]): Promise<boolean> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
+  const deleteKey = async (
+    args: Record<string, RillValue>
+  ): Promise<boolean> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
     const store = await getStore(mountName);
     return store.delete(key);
   };
@@ -285,8 +289,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Get all keys.
    * IR-6
    */
-  const keys = async (args: RillValue[]): Promise<string[]> => {
-    const mountName = args[0] as string;
+  const keys = async (args: Record<string, RillValue>): Promise<string[]> => {
+    const mountName = args['mount'] as string;
     const store = await getStore(mountName);
     return store.keys();
   };
@@ -295,9 +299,9 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Check key existence.
    * IR-7
    */
-  const has = async (args: RillValue[]): Promise<boolean> => {
-    const mountName = args[0] as string;
-    const key = args[1] as string;
+  const has = async (args: Record<string, RillValue>): Promise<boolean> => {
+    const mountName = args['mount'] as string;
+    const key = args['key'] as string;
     const store = await getStore(mountName);
     return store.has(key);
   };
@@ -306,8 +310,8 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Clear all keys (restores schema defaults if declared mode).
    * IR-8
    */
-  const clear = async (args: RillValue[]): Promise<boolean> => {
-    const mountName = args[0] as string;
+  const clear = async (args: Record<string, RillValue>): Promise<boolean> => {
+    const mountName = args['mount'] as string;
     const store = await getStore(mountName);
     store.clear();
     return true;
@@ -318,9 +322,9 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * IR-9
    */
   const getAll = async (
-    args: RillValue[]
+    args: Record<string, RillValue>
   ): Promise<Record<string, RillValue>> => {
-    const mountName = args[0] as string;
+    const mountName = args['mount'] as string;
     const store = await getStore(mountName);
     return store.getAll();
   };
@@ -329,8 +333,10 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
    * Get schema information (empty list in open mode).
    * IR-10
    */
-  const schema = async (args: RillValue[]): Promise<RillValue[]> => {
-    const mountName = args[0] as string;
+  const schema = async (
+    args: Record<string, RillValue>
+  ): Promise<RillValue[]> => {
+    const mountName = args['mount'] as string;
     const mountConfig = mounts[mountName];
 
     if (!mountConfig) {

@@ -59,7 +59,11 @@ describe('fs extension', () => {
 
       // Write content just under 10MB (should succeed)
       const content = 'x'.repeat(10485760 - 100);
-      await fsExt.write.fn(['workspace', 'large.txt', content], {} as any);
+      await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'large.txt',
+        content: content,
+      });
       expect(true).toBe(true); // No error thrown
     });
 
@@ -74,7 +78,11 @@ describe('fs extension', () => {
       // EC-6: File exceeds size limit
       const content = 'x'.repeat(1001);
       await expect(
-        fsExt.write.fn(['workspace', 'too-large.txt', content], {} as any)
+        fsExt.write.fn({
+          mount: 'workspace',
+          path: 'too-large.txt',
+          content: content,
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -86,8 +94,15 @@ describe('fs extension', () => {
         encoding: 'ascii',
       });
 
-      await fsExt.write.fn(['workspace', 'ascii.txt', 'hello'], {} as any);
-      const result = await fsExt.read.fn(['workspace', 'ascii.txt'], {} as any);
+      await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'ascii.txt',
+        content: 'hello',
+      });
+      const result = await fsExt.read.fn({
+        mount: 'workspace',
+        path: 'ascii.txt',
+      });
       expect(result).toBe('hello');
     });
 
@@ -122,7 +137,10 @@ describe('fs extension', () => {
       const filePath = path.join(testMount, 'test.txt');
       await fs.writeFile(filePath, 'hello world', 'utf-8');
 
-      const result = await fsExt.read.fn(['workspace', 'test.txt'], {} as any);
+      const result = await fsExt.read.fn({
+        mount: 'workspace',
+        path: 'test.txt',
+      });
       expect(result).toBe('hello world');
     });
 
@@ -137,10 +155,10 @@ describe('fs extension', () => {
       const content = 'Hello 世界 🌍';
       await fs.writeFile(filePath, content, 'utf-8');
 
-      const result = await fsExt.read.fn(
-        ['workspace', 'unicode.txt'],
-        {} as any
-      );
+      const result = await fsExt.read.fn({
+        mount: 'workspace',
+        path: 'unicode.txt',
+      });
       expect(result).toBe(content);
     });
 
@@ -153,11 +171,11 @@ describe('fs extension', () => {
       });
 
       await expect(
-        fsExt.read.fn(['workspace', 'nonexistent.txt'], {} as any)
+        fsExt.read.fn({ mount: 'workspace', path: 'nonexistent.txt' })
       ).rejects.toThrow(RuntimeError);
 
       try {
-        await fsExt.read.fn(['workspace', 'nonexistent.txt'], {} as any);
+        await fsExt.read.fn({ mount: 'workspace', path: 'nonexistent.txt' });
       } catch (error) {
         expect((error as RuntimeError).errorId).toBe('RILL-R004');
         expect((error as RuntimeError).message).toContain('file not found');
@@ -177,11 +195,11 @@ describe('fs extension', () => {
       await fs.writeFile(filePath, 'x'.repeat(200), 'utf-8');
 
       await expect(
-        fsExt.read.fn(['workspace', 'large.txt'], {} as any)
+        fsExt.read.fn({ mount: 'workspace', path: 'large.txt' })
       ).rejects.toThrow(RuntimeError);
 
       try {
-        await fsExt.read.fn(['workspace', 'large.txt'], {} as any);
+        await fsExt.read.fn({ mount: 'workspace', path: 'large.txt' });
       } catch (error) {
         expect((error as RuntimeError).errorId).toBe('RILL-R004');
         expect((error as RuntimeError).message).toContain('exceeds size limit');
@@ -205,7 +223,7 @@ describe('fs extension', () => {
 
       // Should fail with per-mount limit (50 bytes)
       await expect(
-        fsExt.read.fn(['workspace', 'test.txt'], {} as any)
+        fsExt.read.fn({ mount: 'workspace', path: 'test.txt' })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -247,10 +265,11 @@ describe('fs extension', () => {
         },
       });
 
-      const bytesWritten = await fsExt.write.fn(
-        ['workspace', 'output.txt', 'test content'],
-        {} as any
-      );
+      const bytesWritten = await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'output.txt',
+        content: 'test content',
+      });
 
       expect(bytesWritten).toBe('12'); // "test content" is 12 bytes
 
@@ -269,10 +288,11 @@ describe('fs extension', () => {
       const filePath = path.join(testMount, 'replace.txt');
       await fs.writeFile(filePath, 'old content', 'utf-8');
 
-      await fsExt.write.fn(
-        ['workspace', 'replace.txt', 'new content'],
-        {} as any
-      );
+      await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'replace.txt',
+        content: 'new content',
+      });
 
       const content = await fs.readFile(filePath, 'utf-8');
       expect(content).toBe('new content');
@@ -285,7 +305,11 @@ describe('fs extension', () => {
         },
       });
 
-      await fsExt.write.fn(['workspace', 'new.txt', 'hello'], {} as any);
+      await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'new.txt',
+        content: 'hello',
+      });
 
       const filePath = path.join(testMount, 'new.txt');
       const content = await fs.readFile(filePath, 'utf-8');
@@ -299,10 +323,11 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.write.fn(
-        ['workspace', 'bytes.txt', 'Hello 世界'],
-        {} as any
-      );
+      const result = await fsExt.write.fn({
+        mount: 'workspace',
+        path: 'bytes.txt',
+        content: 'Hello 世界',
+      });
 
       // "Hello 世界" is 12 bytes in UTF-8 (5 ASCII + 1 space + 6 for 世界)
       expect(result).toBe('12');
@@ -317,7 +342,11 @@ describe('fs extension', () => {
       });
 
       await expect(
-        fsExt.write.fn(['workspace', 'large.txt', 'x'.repeat(100)], {} as any)
+        fsExt.write.fn({
+          mount: 'workspace',
+          path: 'large.txt',
+          content: 'x'.repeat(100),
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -365,7 +394,11 @@ describe('fs extension', () => {
       const filePath = path.join(testMount, 'append.txt');
       await fs.writeFile(filePath, 'line1\n', 'utf-8');
 
-      await fsExt.append.fn(['workspace', 'append.txt', 'line2\n'], {} as any);
+      await fsExt.append.fn({
+        mount: 'workspace',
+        path: 'append.txt',
+        content: 'line2\n',
+      });
 
       const content = await fs.readFile(filePath, 'utf-8');
       expect(content).toBe('line1\nline2\n');
@@ -378,7 +411,11 @@ describe('fs extension', () => {
         },
       });
 
-      await fsExt.append.fn(['workspace', 'new.txt', 'content'], {} as any);
+      await fsExt.append.fn({
+        mount: 'workspace',
+        path: 'new.txt',
+        content: 'content',
+      });
 
       const filePath = path.join(testMount, 'new.txt');
       const content = await fs.readFile(filePath, 'utf-8');
@@ -392,10 +429,11 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.append.fn(
-        ['workspace', 'log.txt', 'new entry'],
-        {} as any
-      );
+      const result = await fsExt.append.fn({
+        mount: 'workspace',
+        path: 'log.txt',
+        content: 'new entry',
+      });
 
       expect(result).toBe('9'); // "new entry" is 9 bytes
     });
@@ -413,7 +451,11 @@ describe('fs extension', () => {
 
       // Appending 30 more bytes would exceed 100 byte limit
       await expect(
-        fsExt.append.fn(['workspace', 'growing.txt', 'x'.repeat(30)], {} as any)
+        fsExt.append.fn({
+          mount: 'workspace',
+          path: 'growing.txt',
+          content: 'x'.repeat(30),
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -444,7 +486,7 @@ describe('fs extension', () => {
       await fs.writeFile(path.join(testMount, 'file2.txt'), 'data', 'utf-8');
       await fs.mkdir(path.join(testMount, 'subdir'));
 
-      const result = await fsExt.list.fn(['workspace'], {} as any);
+      const result = await fsExt.list.fn({ mount: 'workspace' });
 
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(3);
@@ -481,7 +523,10 @@ describe('fs extension', () => {
         'utf-8'
       );
 
-      const result = await fsExt.list.fn(['workspace', 'subdir'], {} as any);
+      const result = await fsExt.list.fn({
+        mount: 'workspace',
+        path: 'subdir',
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -499,7 +544,7 @@ describe('fs extension', () => {
 
       await fs.writeFile(path.join(testMount, 'root.txt'), 'data', 'utf-8');
 
-      const result = await fsExt.list.fn(['workspace'], {} as any);
+      const result = await fsExt.list.fn({ mount: 'workspace' });
 
       expect(result.length).toBeGreaterThan(0);
     });
@@ -541,7 +586,7 @@ describe('fs extension', () => {
         'utf-8'
       );
 
-      const result = await fsExt.find.fn(['workspace'], {} as any);
+      const result = await fsExt.find.fn({ mount: 'workspace' });
 
       expect(Array.isArray(result)).toBe(true);
       expect(result).toContain('root.txt');
@@ -565,7 +610,10 @@ describe('fs extension', () => {
         'utf-8'
       );
 
-      const result = await fsExt.find.fn(['workspace', '*.txt'], {} as any);
+      const result = await fsExt.find.fn({
+        mount: 'workspace',
+        pattern: '*.txt',
+      });
 
       expect(result).toContain('doc.txt');
       expect(result).toContain(path.join('subdir', 'nested.txt'));
@@ -586,7 +634,7 @@ describe('fs extension', () => {
         'utf-8'
       );
 
-      const result = await fsExt.find.fn(['workspace'], {} as any);
+      const result = await fsExt.find.fn({ mount: 'workspace' });
 
       // Should be relative path, not absolute
       expect(result[0]).toBe(path.join('a', 'b', 'file.txt'));
@@ -618,10 +666,10 @@ describe('fs extension', () => {
 
       await fs.writeFile(path.join(testMount, 'exists.txt'), 'data', 'utf-8');
 
-      const result = await fsExt.exists.fn(
-        ['workspace', 'exists.txt'],
-        {} as any
-      );
+      const result = await fsExt.exists.fn({
+        mount: 'workspace',
+        path: 'exists.txt',
+      });
 
       expect(result).toBe(true);
     });
@@ -633,10 +681,10 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.exists.fn(
-        ['workspace', 'nonexistent.txt'],
-        {} as any
-      );
+      const result = await fsExt.exists.fn({
+        mount: 'workspace',
+        path: 'nonexistent.txt',
+      });
 
       expect(result).toBe(false);
     });
@@ -650,7 +698,10 @@ describe('fs extension', () => {
 
       await fs.mkdir(path.join(testMount, 'mydir'));
 
-      const result = await fsExt.exists.fn(['workspace', 'mydir'], {} as any);
+      const result = await fsExt.exists.fn({
+        mount: 'workspace',
+        path: 'mydir',
+      });
 
       expect(result).toBe(true);
     });
@@ -680,10 +731,10 @@ describe('fs extension', () => {
       const filePath = path.join(testMount, 'delete.txt');
       await fs.writeFile(filePath, 'data', 'utf-8');
 
-      const result = await fsExt.remove.fn(
-        ['workspace', 'delete.txt'],
-        {} as any
-      );
+      const result = await fsExt.remove.fn({
+        mount: 'workspace',
+        path: 'delete.txt',
+      });
 
       expect(result).toBe(true);
 
@@ -698,10 +749,10 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.remove.fn(
-        ['workspace', 'nonexistent.txt'],
-        {} as any
-      );
+      const result = await fsExt.remove.fn({
+        mount: 'workspace',
+        path: 'nonexistent.txt',
+      });
 
       expect(result).toBe(false);
     });
@@ -732,7 +783,10 @@ describe('fs extension', () => {
       const content = 'test data';
       await fs.writeFile(filePath, content, 'utf-8');
 
-      const result = await fsExt.stat.fn(['workspace', 'meta.txt'], {} as any);
+      const result = await fsExt.stat.fn({
+        mount: 'workspace',
+        path: 'meta.txt',
+      });
 
       expect(result).toMatchObject({
         name: 'meta.txt',
@@ -756,7 +810,7 @@ describe('fs extension', () => {
 
       await fs.mkdir(path.join(testMount, 'mydir'));
 
-      const result = await fsExt.stat.fn(['workspace', 'mydir'], {} as any);
+      const result = await fsExt.stat.fn({ mount: 'workspace', path: 'mydir' });
 
       expect(result).toMatchObject({
         name: 'mydir',
@@ -775,11 +829,11 @@ describe('fs extension', () => {
       });
 
       await expect(
-        fsExt.stat.fn(['workspace', 'missing.txt'], {} as any)
+        fsExt.stat.fn({ mount: 'workspace', path: 'missing.txt' })
       ).rejects.toThrow(RuntimeError);
 
       try {
-        await fsExt.stat.fn(['workspace', 'missing.txt'], {} as any);
+        await fsExt.stat.fn({ mount: 'workspace', path: 'missing.txt' });
       } catch (error) {
         expect((error as RuntimeError).errorId).toBe('RILL-R004');
         expect((error as RuntimeError).message).toContain('file not found');
@@ -808,7 +862,10 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.mkdir.fn(['workspace', 'newdir'], {} as any);
+      const result = await fsExt.mkdir.fn({
+        mount: 'workspace',
+        path: 'newdir',
+      });
 
       expect(result).toBe(true);
 
@@ -824,10 +881,10 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.mkdir.fn(
-        ['workspace', path.join('a', 'b', 'c')],
-        {} as any
-      );
+      const result = await fsExt.mkdir.fn({
+        mount: 'workspace',
+        path: path.join('a', 'b', 'c'),
+      });
 
       expect(result).toBe(true);
 
@@ -845,7 +902,10 @@ describe('fs extension', () => {
 
       await fs.mkdir(path.join(testMount, 'existing'));
 
-      const result = await fsExt.mkdir.fn(['workspace', 'existing'], {} as any);
+      const result = await fsExt.mkdir.fn({
+        mount: 'workspace',
+        path: 'existing',
+      });
 
       expect(result).toBe(false);
     });
@@ -875,10 +935,11 @@ describe('fs extension', () => {
       const srcPath = path.join(testMount, 'source.txt');
       await fs.writeFile(srcPath, 'copy this', 'utf-8');
 
-      const result = await fsExt.copy.fn(
-        ['workspace', 'source.txt', 'dest.txt'],
-        {} as any
-      );
+      const result = await fsExt.copy.fn({
+        mount: 'workspace',
+        src: 'source.txt',
+        dest: 'dest.txt',
+      });
 
       expect(result).toBe(true);
 
@@ -899,7 +960,11 @@ describe('fs extension', () => {
       });
 
       await expect(
-        fsExt.copy.fn(['workspace', 'missing.txt', 'dest.txt'], {} as any)
+        fsExt.copy.fn({
+          mount: 'workspace',
+          src: 'missing.txt',
+          dest: 'dest.txt',
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -915,7 +980,11 @@ describe('fs extension', () => {
       await fs.writeFile(srcPath, 'x'.repeat(100), 'utf-8');
 
       await expect(
-        fsExt.copy.fn(['workspace', 'large.txt', 'copy.txt'], {} as any)
+        fsExt.copy.fn({
+          mount: 'workspace',
+          src: 'large.txt',
+          dest: 'copy.txt',
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -944,10 +1013,11 @@ describe('fs extension', () => {
       const srcPath = path.join(testMount, 'source.txt');
       await fs.writeFile(srcPath, 'move this', 'utf-8');
 
-      const result = await fsExt.move.fn(
-        ['workspace', 'source.txt', 'moved.txt'],
-        {} as any
-      );
+      const result = await fsExt.move.fn({
+        mount: 'workspace',
+        src: 'source.txt',
+        dest: 'moved.txt',
+      });
 
       expect(result).toBe(true);
 
@@ -967,7 +1037,11 @@ describe('fs extension', () => {
       });
 
       await expect(
-        fsExt.move.fn(['workspace', 'missing.txt', 'dest.txt'], {} as any)
+        fsExt.move.fn({
+          mount: 'workspace',
+          src: 'missing.txt',
+          dest: 'dest.txt',
+        })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -994,7 +1068,7 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.mounts.fn([], {} as any);
+      const result = await fsExt.mounts.fn({});
 
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(2);
@@ -1022,7 +1096,7 @@ describe('fs extension', () => {
         },
       });
 
-      const result = await fsExt.mounts.fn([], {} as any);
+      const result = await fsExt.mounts.fn({});
 
       expect(result[0]).toMatchObject({
         name: 'test',
@@ -1055,7 +1129,7 @@ describe('fs extension', () => {
       });
 
       try {
-        await fsExt.read.fn(['workspace', 'missing.txt'], {} as any);
+        await fsExt.read.fn({ mount: 'workspace', path: 'missing.txt' });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(RuntimeError);
@@ -1073,10 +1147,11 @@ describe('fs extension', () => {
       });
 
       try {
-        await fsExt.write.fn(
-          ['workspace', 'large.txt', 'x'.repeat(100)],
-          {} as any
-        );
+        await fsExt.write.fn({
+          mount: 'workspace',
+          path: 'large.txt',
+          content: 'x'.repeat(100),
+        });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(RuntimeError);

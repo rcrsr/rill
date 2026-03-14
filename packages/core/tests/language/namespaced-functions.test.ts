@@ -13,8 +13,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('math::double(21)', {
         functions: {
           'math::double': {
-            params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => (args[0] as number) * 2,
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => (args['x'] as number) * 2,
           },
         },
       });
@@ -26,10 +33,20 @@ describe('Rill Runtime: Namespaced Functions', () => {
         functions: {
           'std::math::add': {
             params: [
-              { name: 'a', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
-              { name: 'b', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
           },
         },
       });
@@ -40,8 +57,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('org::pkg::mod::func("test")', {
         functions: {
           'org::pkg::mod::func': {
-            params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => `called:${args[0]}`,
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => `called:${args['input']}`,
           },
         },
       });
@@ -54,8 +78,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('"hello" -> str::upper', {
         functions: {
           'str::upper': {
-            params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => String(args[0]).toUpperCase(),
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => String(args['input']).toUpperCase(),
           },
         },
       });
@@ -66,8 +97,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('10 -> math::ops::square', {
         functions: {
           'math::ops::square': {
-            params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => (args[0] as number) ** 2,
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => (args['x'] as number) ** 2,
           },
         },
       });
@@ -81,14 +119,31 @@ describe('Rill Runtime: Namespaced Functions', () => {
         functions: {
           'math::add': {
             params: [
-              { name: 'a', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
-              { name: 'b', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
+              {
+                name: 'a',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
           },
           double: {
-            params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => (args[0] as number) * 2,
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => (args['x'] as number) * 2,
           },
         },
       });
@@ -99,8 +154,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('5 -> math::double -> math::double', {
         functions: {
           'math::double': {
-            params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => (args[0] as number) * 2,
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => (args['x'] as number) * 2,
           },
         },
       });
@@ -111,8 +173,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('check::positive(5) ? "yes" ! "no"', {
         functions: {
           'check::positive': {
-            params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-            fn: (args) => (args[0] as number) > 0,
+            params: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => (args['x'] as number) > 0,
           },
         },
       });
@@ -126,14 +195,34 @@ describe('Rill Runtime: Namespaced Functions', () => {
         functions: {
           'str::join': {
             params: [
-              { name: 'sep', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-              { name: 'a', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-              { name: 'b', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-              { name: 'c', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+              {
+                name: 'sep',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'a',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'b',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'c',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args) => {
-              const sep = String(args[0]);
-              const items = args.slice(1).map(String);
+              const sep = String(args['sep']);
+              const items = [args['a'], args['b'], args['c']].map(String);
               return items.join(sep);
             },
           },
@@ -148,13 +237,23 @@ describe('Rill Runtime: Namespaced Functions', () => {
         functions: {
           'str::pad': {
             params: [
-              { name: 'len', type: { type: 'number' }, defaultValue: undefined, annotations: {} },
-              { name: 'char', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+              {
+                name: 'len',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+              {
+                name: 'char',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
             ],
             fn: (args, ctx) => {
               const str = String(ctx.pipeValue);
-              const len = args[0] as number;
-              const char = String(args[1] ?? ' ');
+              const len = args['len'] as number;
+              const char = String(args['char'] ?? ' ');
               return str.padEnd(len, char);
             },
           },
@@ -170,8 +269,15 @@ describe('Rill Runtime: Namespaced Functions', () => {
         variables: { name: 'Alice' },
         functions: {
           'ctx::getVar': {
-            params: [{ name: 'varName', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-            fn: (args, ctx) => ctx.variables.get(String(args[0])) ?? '',
+            params: [
+              {
+                name: 'varName',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args, ctx) => ctx.variables.get(String(args['varName'])) ?? '',
           },
         },
       });
@@ -182,9 +288,16 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('io::delay(10)', {
         functions: {
           'io::delay': {
-            params: [{ name: 'ms', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'ms',
+                type: { type: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: async (args) => {
-              await new Promise((r) => setTimeout(r, args[0] as number));
+              await new Promise((r) => setTimeout(r, args['ms'] as number));
               return 'done';
             },
           },

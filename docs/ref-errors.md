@@ -16,7 +16,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R044, RILL-R050 - RILL-R061)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -843,6 +843,24 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 ```text
 tuple["a"] :> tuple(string, number)
 # Error: RILL-R044: cannot convert tuple to tuple: missing required element at position 1
+```
+
+---
+
+### rill-r045
+
+**Description:** Too many arguments passed to closure
+
+**Cause:** The number of arguments supplied exceeds the number of declared parameters. This error is raised at the pre-ordered marshaling stage (stage 1), before type checking.
+
+**Resolution:** Remove the extra arguments, or add additional parameters to the closure signature.
+
+**Example:**
+
+```text
+|x, y| $x + $y
+$(1, 2, 3)
+# Error: RILL-R045: Expected 2 args, got 3
 ```
 
 ---

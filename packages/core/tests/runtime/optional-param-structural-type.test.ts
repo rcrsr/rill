@@ -161,7 +161,7 @@ describe('Optional parameter structural types', () => {
         __type: 'callable',
         kind: 'application',
         isProperty: false,
-        fn: (args) => `${args[0]}!`,
+        fn: (args) => `${args['name']}!`,
         params: [
           {
             name: 'name',

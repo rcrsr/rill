@@ -78,7 +78,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.echo.fn([['hello', 'world']]);
+      const result = await ext.echo.fn({ args: ['hello', 'world'] });
 
       expect(result).toMatchObject({
         stdout: expect.stringContaining('hello world'),
@@ -95,7 +95,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.pwd.fn([[]]);
+      const result = await ext.pwd.fn({ args: [] });
 
       expect(result).toMatchObject({
         stdout: expect.any(String),
@@ -112,7 +112,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.pwd.fn([]);
+      const result = await ext.pwd.fn({});
 
       expect(result).toMatchObject({
         stdout: expect.any(String),
@@ -129,7 +129,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.echo.fn([[123, 456, true]]);
+      const result = await ext.echo.fn({ args: [123, 456, true] });
 
       expect(result).toMatchObject({
         stdout: expect.stringContaining('123'),
@@ -218,7 +218,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.env.fn([[]]);
+      const result = await ext.env.fn({ args: [] });
 
       // Should have minimal environment
       expect(result.stdout).toBeDefined();
@@ -236,7 +236,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.printenv.fn([['CUSTOM_VAR']]);
+      const result = await ext.printenv.fn({ args: ['CUSTOM_VAR'] });
 
       expect(result.stdout.trim()).toBe('test_value');
     });
@@ -255,7 +255,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.printenv.fn([['TEST_VAR']]);
+      const result = await ext.printenv.fn({ args: ['TEST_VAR'] });
 
       expect(result.stdout.trim()).toBe('overridden');
 
@@ -272,7 +272,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.pwd.fn([[]]);
+      const result = await ext.pwd.fn({ args: [] });
 
       expect(result.stdout.trim()).toBe('/tmp');
     });
@@ -288,7 +288,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.commands.fn([]);
+      const result = await ext.commands.fn({});
 
       expect(result).toEqual([
         { name: 'git', description: 'Git VCS' },
@@ -304,7 +304,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.commands.fn([]);
+      const result = await ext.commands.fn({});
 
       expect(result).toEqual([{ name: 'echo', description: '' }]);
     });
@@ -315,7 +315,7 @@ describe('exec extension factory', () => {
       };
 
       const ext = createExecExtension(config);
-      const result = await ext.commands.fn([]);
+      const result = await ext.commands.fn({});
 
       expect(result).toEqual([]);
     });
@@ -344,7 +344,7 @@ describe('exec extension factory', () => {
 
     it('aborts in-flight processes when dispose() called', async () => {
       // Start a long-running process
-      const promise = ext.sleep.fn([['5']]);
+      const promise = ext.sleep.fn({ args: ['5'] });
       execPromises.push(promise);
 
       // Give it a moment to start
@@ -371,7 +371,7 @@ describe('exec extension factory', () => {
     });
 
     it('clears abort controller tracking after dispose', async () => {
-      const promise = ext.sleep.fn([['5']]);
+      const promise = ext.sleep.fn({ args: ['5'] });
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       await ext.dispose!();
@@ -412,10 +412,10 @@ describe('exec extension factory', () => {
       const ext = createExecExtension(config);
 
       // Allowed args should work
-      await expect(ext.git.fn([['status']])).resolves.toBeDefined();
+      await expect(ext.git.fn({ args: ['status'] })).resolves.toBeDefined();
 
       // Disallowed args should fail
-      await expect(ext.git.fn([['push', 'origin']])).rejects.toThrow();
+      await expect(ext.git.fn({ args: ['push', 'origin'] })).rejects.toThrow();
     });
   });
 
@@ -515,7 +515,7 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      await expect(ext.test.fn([['forbidden']])).rejects.toThrow();
+      await expect(ext.test.fn({ args: ['forbidden'] })).rejects.toThrow();
     });
 
     it('propagates timeout errors from runner', async () => {
@@ -527,7 +527,7 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      await expect(ext.sleep.fn([['10']])).rejects.toThrow();
+      await expect(ext.sleep.fn({ args: ['10'] })).rejects.toThrow();
     });
 
     it('propagates binary not found errors from runner', async () => {
@@ -539,7 +539,7 @@ describe('exec extension factory', () => {
 
       const ext = createExecExtension(config);
 
-      await expect(ext.fake.fn([[]])).rejects.toThrow();
+      await expect(ext.fake.fn({ args: [] })).rejects.toThrow();
     });
   });
 });

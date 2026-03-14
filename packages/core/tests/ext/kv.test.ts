@@ -99,77 +99,81 @@ describe('kv extension factory', () => {
   describe('backward compatibility (single-store config)', () => {
     it('get() returns empty string for missing key in open mode (IR-15)', async () => {
       const ext = createKvExtension({ store: storePath });
-      const result = await ext.get.fn(['default', 'missing']);
+      const result = await ext.get.fn({ mount: 'default', key: 'missing' });
       expect(result).toBe('');
     });
 
     it('set() stores value and returns true (IR-16)', async () => {
       const ext = createKvExtension({ store: storePath });
-      const result = await ext.set.fn(['default', 'key1', 'value1']);
+      const result = await ext.set.fn({
+        mount: 'default',
+        key: 'key1',
+        value: 'value1',
+      });
       expect(result).toBe(true);
 
-      const value = await ext.get.fn(['default', 'key1']);
+      const value = await ext.get.fn({ mount: 'default', key: 'key1' });
       expect(value).toBe('value1');
     });
 
     it('delete() removes key and returns true (IR-17)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'key1', 'value1']);
+      await ext.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
 
-      const result = await ext.delete.fn(['default', 'key1']);
+      const result = await ext.delete.fn({ mount: 'default', key: 'key1' });
       expect(result).toBe(true);
 
-      const value = await ext.get.fn(['default', 'key1']);
+      const value = await ext.get.fn({ mount: 'default', key: 'key1' });
       expect(value).toBe(''); // Missing key returns empty string
     });
 
     it('delete() returns false for missing key', async () => {
       const ext = createKvExtension({ store: storePath });
-      const result = await ext.delete.fn(['default', 'missing']);
+      const result = await ext.delete.fn({ mount: 'default', key: 'missing' });
       expect(result).toBe(false);
     });
 
     it('keys() returns list of all keys (IR-6)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 2]);
-      await ext.set.fn(['default', 'c', 3]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 2 });
+      await ext.set.fn({ mount: 'default', key: 'c', value: 3 });
 
-      const result = await ext.keys.fn(['default']);
+      const result = await ext.keys.fn({ mount: 'default' });
       expect(result).toEqual(expect.arrayContaining(['a', 'b', 'c']));
       expect(result).toHaveLength(3);
     });
 
     it('has() checks key existence (IR-7)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'key1', 'value1']);
+      await ext.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
 
-      const exists = await ext.has.fn(['default', 'key1']);
+      const exists = await ext.has.fn({ mount: 'default', key: 'key1' });
       expect(exists).toBe(true);
 
-      const missing = await ext.has.fn(['default', 'missing']);
+      const missing = await ext.has.fn({ mount: 'default', key: 'missing' });
       expect(missing).toBe(false);
     });
 
     it('clear() removes all keys (IR-8)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 2]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 2 });
 
-      const result = await ext.clear.fn(['default']);
+      const result = await ext.clear.fn({ mount: 'default' });
       expect(result).toBe(true);
 
-      const keys = await ext.keys.fn(['default']);
+      const keys = await ext.keys.fn({ mount: 'default' });
       expect(keys).toHaveLength(0);
     });
 
     it('getAll() returns dict of all entries (IR-9)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 'text']);
-      await ext.set.fn(['default', 'c', true]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 'text' });
+      await ext.set.fn({ mount: 'default', key: 'c', value: true });
 
-      const result = await ext.getAll.fn(['default']);
+      const result = await ext.getAll.fn({ mount: 'default' });
       expect(result).toEqual({
         a: 1,
         b: 'text',
@@ -179,7 +183,7 @@ describe('kv extension factory', () => {
 
     it('schema() returns empty list in open mode (IR-10)', async () => {
       const ext = createKvExtension({ store: storePath });
-      const result = await ext.schema.fn(['default']);
+      const result = await ext.schema.fn({ mount: 'default' });
       expect(result).toEqual([]);
     });
   });
@@ -187,16 +191,28 @@ describe('kv extension factory', () => {
   describe('get_or operation', () => {
     it('returns stored value when key exists (IR-2)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'key1', 'stored_value']);
+      await ext.set.fn({
+        mount: 'default',
+        key: 'key1',
+        value: 'stored_value',
+      });
 
-      const result = await ext.get_or.fn(['default', 'key1', 'fallback']);
+      const result = await ext.get_or.fn({
+        mount: 'default',
+        key: 'key1',
+        fallback: 'fallback',
+      });
       expect(result).toBe('stored_value');
     });
 
     it('returns fallback when key missing (IR-2)', async () => {
       const ext = createKvExtension({ store: storePath });
 
-      const result = await ext.get_or.fn(['default', 'missing', 'fallback']);
+      const result = await ext.get_or.fn({
+        mount: 'default',
+        key: 'missing',
+        fallback: 'fallback',
+      });
       expect(result).toBe('fallback');
     });
 
@@ -204,11 +220,11 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath });
 
       // Should not throw even though key is missing
-      const result = await ext.get_or.fn([
-        'default',
-        'missing',
-        'default_value',
-      ]);
+      const result = await ext.get_or.fn({
+        mount: 'default',
+        key: 'missing',
+        fallback: 'default_value',
+      });
       expect(result).toBe('default_value');
     });
 
@@ -216,28 +232,48 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath });
 
       // String value
-      await ext.set.fn(['default', 'str', 'hello']);
-      const str = await ext.get_or.fn(['default', 'str', 'fallback']);
+      await ext.set.fn({ mount: 'default', key: 'str', value: 'hello' });
+      const str = await ext.get_or.fn({
+        mount: 'default',
+        key: 'str',
+        fallback: 'fallback',
+      });
       expect(str).toBe('hello');
 
       // Number value
-      await ext.set.fn(['default', 'num', 42]);
-      const num = await ext.get_or.fn(['default', 'num', 0]);
+      await ext.set.fn({ mount: 'default', key: 'num', value: 42 });
+      const num = await ext.get_or.fn({
+        mount: 'default',
+        key: 'num',
+        fallback: 0,
+      });
       expect(num).toBe(42);
 
       // Boolean value
-      await ext.set.fn(['default', 'bool', true]);
-      const bool = await ext.get_or.fn(['default', 'bool', false]);
+      await ext.set.fn({ mount: 'default', key: 'bool', value: true });
+      const bool = await ext.get_or.fn({
+        mount: 'default',
+        key: 'bool',
+        fallback: false,
+      });
       expect(bool).toBe(true);
 
       // Dict value
-      await ext.set.fn(['default', 'dict', { a: 1 }]);
-      const dict = await ext.get_or.fn(['default', 'dict', {}]);
+      await ext.set.fn({ mount: 'default', key: 'dict', value: { a: 1 } });
+      const dict = await ext.get_or.fn({
+        mount: 'default',
+        key: 'dict',
+        fallback: {},
+      });
       expect(dict).toEqual({ a: 1 });
 
       // List value
-      await ext.set.fn(['default', 'list', [1, 2, 3]]);
-      const list = await ext.get_or.fn(['default', 'list', []]);
+      await ext.set.fn({ mount: 'default', key: 'list', value: [1, 2, 3] });
+      const list = await ext.get_or.fn({
+        mount: 'default',
+        key: 'list',
+        fallback: [],
+      });
       expect(list).toEqual([1, 2, 3]);
     });
 
@@ -249,11 +285,11 @@ describe('kv extension factory', () => {
 
       // Unlike get() which would throw in declared mode for unknown keys,
       // get_or() returns the fallback
-      const result = await ext.get_or.fn([
-        'default',
-        'unknown',
-        'safe_fallback',
-      ]);
+      const result = await ext.get_or.fn({
+        mount: 'default',
+        key: 'unknown',
+        fallback: 'safe_fallback',
+      });
       expect(result).toBe('safe_fallback');
     });
 
@@ -268,14 +304,22 @@ describe('kv extension factory', () => {
         },
       });
 
-      await ext.set.fn(['m1', 'key', 'value1']);
+      await ext.set.fn({ mount: 'm1', key: 'key', value: 'value1' });
 
       // Existing key in m1
-      const result1 = await ext.get_or.fn(['m1', 'key', 'fallback']);
+      const result1 = await ext.get_or.fn({
+        mount: 'm1',
+        key: 'key',
+        fallback: 'fallback',
+      });
       expect(result1).toBe('value1');
 
       // Missing key in m2
-      const result2 = await ext.get_or.fn(['m2', 'key', 'fallback']);
+      const result2 = await ext.get_or.fn({
+        mount: 'm2',
+        key: 'key',
+        fallback: 'fallback',
+      });
       expect(result2).toBe('fallback');
     });
   });
@@ -285,36 +329,60 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath });
 
       // Set initial dict value
-      await ext.set.fn(['default', 'config', { a: 1, b: 2, c: 3 }]);
+      await ext.set.fn({
+        mount: 'default',
+        key: 'config',
+        value: { a: 1, b: 2, c: 3 },
+      });
 
       // Merge partial update
-      const result = await ext.merge.fn(['default', 'config', { b: 20, d: 4 }]);
+      const result = await ext.merge.fn({
+        mount: 'default',
+        key: 'config',
+        partial: { b: 20, d: 4 },
+      });
       expect(result).toBe(true);
 
       // Verify merged result
-      const merged = await ext.get.fn(['default', 'config']);
+      const merged = await ext.get.fn({ mount: 'default', key: 'config' });
       expect(merged).toEqual({ a: 1, b: 20, c: 3, d: 4 });
     });
 
     it('returns true on success (IR-4)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'data', { x: 1 }]);
+      await ext.set.fn({ mount: 'default', key: 'data', value: { x: 1 } });
 
-      const result = await ext.merge.fn(['default', 'data', { y: 2 }]);
+      const result = await ext.merge.fn({
+        mount: 'default',
+        key: 'data',
+        partial: { y: 2 },
+      });
       expect(result).toBe(true);
     });
 
     it('is idempotent - repeated calls produce same result (IR-4)', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'settings', { theme: 'light', lang: 'en' }]);
+      await ext.set.fn({
+        mount: 'default',
+        key: 'settings',
+        value: { theme: 'light', lang: 'en' },
+      });
 
       // First merge
-      await ext.merge.fn(['default', 'settings', { theme: 'dark' }]);
-      const result1 = await ext.get.fn(['default', 'settings']);
+      await ext.merge.fn({
+        mount: 'default',
+        key: 'settings',
+        partial: { theme: 'dark' },
+      });
+      const result1 = await ext.get.fn({ mount: 'default', key: 'settings' });
 
       // Second merge with same partial
-      await ext.merge.fn(['default', 'settings', { theme: 'dark' }]);
-      const result2 = await ext.get.fn(['default', 'settings']);
+      await ext.merge.fn({
+        mount: 'default',
+        key: 'settings',
+        partial: { theme: 'dark' },
+      });
+      const result2 = await ext.get.fn({ mount: 'default', key: 'settings' });
 
       // Results should be identical
       expect(result1).toEqual(result2);
@@ -325,14 +393,14 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath });
 
       // Set non-dict value
-      await ext.set.fn(['default', 'count', 42]);
+      await ext.set.fn({ mount: 'default', key: 'count', value: 42 });
 
       // Attempt to merge into non-dict
       await expect(
-        ext.merge.fn(['default', 'count', { x: 1 }])
+        ext.merge.fn({ mount: 'default', key: 'count', partial: { x: 1 } })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.merge.fn(['default', 'count', { x: 1 }])
+        ext.merge.fn({ mount: 'default', key: 'count', partial: { x: 1 } })
       ).rejects.toThrow('Cannot merge into non-dict value at key "count"');
     });
 
@@ -342,7 +410,7 @@ describe('kv extension factory', () => {
         store: storePath,
         mode: 'read-write',
       });
-      await ext1.set.fn(['default', 'data', { a: 1 }]);
+      await ext1.set.fn({ mount: 'default', key: 'data', value: { a: 1 } });
       await ext1.dispose!();
 
       // Open in read-only mode
@@ -353,10 +421,10 @@ describe('kv extension factory', () => {
 
       // Attempt merge in read-only mode
       await expect(
-        ext2.merge.fn(['default', 'data', { b: 2 }])
+        ext2.merge.fn({ mount: 'default', key: 'data', partial: { b: 2 } })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext2.merge.fn(['default', 'data', { b: 2 }])
+        ext2.merge.fn({ mount: 'default', key: 'data', partial: { b: 2 } })
       ).rejects.toThrow("Mount 'default' is read-only");
     });
 
@@ -364,35 +432,47 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath });
 
       // Merge into non-existent key
-      await ext.merge.fn(['default', 'new', { x: 10, y: 20 }]);
+      await ext.merge.fn({
+        mount: 'default',
+        key: 'new',
+        partial: { x: 10, y: 20 },
+      });
 
-      const value = await ext.get.fn(['default', 'new']);
+      const value = await ext.get.fn({ mount: 'default', key: 'new' });
       expect(value).toEqual({ x: 10, y: 20 });
     });
 
     it('handles empty partial dict', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn(['default', 'data', { a: 1, b: 2 }]);
+      await ext.set.fn({
+        mount: 'default',
+        key: 'data',
+        value: { a: 1, b: 2 },
+      });
 
       // Merge empty partial (no-op)
-      await ext.merge.fn(['default', 'data', {}]);
+      await ext.merge.fn({ mount: 'default', key: 'data', partial: {} });
 
-      const value = await ext.get.fn(['default', 'data']);
+      const value = await ext.get.fn({ mount: 'default', key: 'data' });
       expect(value).toEqual({ a: 1, b: 2 });
     });
 
     it('overwrites existing fields with partial values', async () => {
       const ext = createKvExtension({ store: storePath });
-      await ext.set.fn([
-        'default',
-        'user',
-        { name: 'Alice', age: 30, city: 'NYC' },
-      ]);
+      await ext.set.fn({
+        mount: 'default',
+        key: 'user',
+        value: { name: 'Alice', age: 30, city: 'NYC' },
+      });
 
       // Overwrite multiple fields
-      await ext.merge.fn(['default', 'user', { age: 31, city: 'LA' }]);
+      await ext.merge.fn({
+        mount: 'default',
+        key: 'user',
+        partial: { age: 31, city: 'LA' },
+      });
 
-      const value = await ext.get.fn(['default', 'user']);
+      const value = await ext.get.fn({ mount: 'default', key: 'user' });
       expect(value).toEqual({ name: 'Alice', age: 31, city: 'LA' });
     });
   });
@@ -406,7 +486,7 @@ describe('kv extension factory', () => {
 
     it('get() returns schema default for missing key (IR-15)', async () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
-      const result = await ext.get.fn(['default', 'count']);
+      const result = await ext.get.fn({ mount: 'default', key: 'count' });
       expect(result).toBe(0);
     });
 
@@ -414,58 +494,58 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
 
       // Valid set
-      await ext.set.fn(['default', 'count', 42]);
-      const value = await ext.get.fn(['default', 'count']);
+      await ext.set.fn({ mount: 'default', key: 'count', value: 42 });
+      const value = await ext.get.fn({ mount: 'default', key: 'count' });
       expect(value).toBe(42);
 
       // Invalid type - should throw
       await expect(
-        ext.set.fn(['default', 'count', 'not-a-number'])
+        ext.set.fn({ mount: 'default', key: 'count', value: 'not-a-number' })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.set.fn(['default', 'count', 'not-a-number'])
+        ext.set.fn({ mount: 'default', key: 'count', value: 'not-a-number' })
       ).rejects.toThrow('expects number, got string');
     });
 
     it('get() throws for key not in schema (EC-20)', async () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
 
-      await expect(ext.get.fn(['default', 'unknown'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.get.fn(['default', 'unknown'])).rejects.toThrow(
-        'not declared in schema'
-      );
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'unknown' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'unknown' })
+      ).rejects.toThrow('not declared in schema');
     });
 
     it('set() throws for key not in schema (EC-20)', async () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
 
-      await expect(ext.set.fn(['default', 'unknown', 'value'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'unknown', 'value'])).rejects.toThrow(
-        'not declared in schema'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'unknown', value: 'value' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'unknown', value: 'value' })
+      ).rejects.toThrow('not declared in schema');
     });
 
     it('clear() restores schema defaults (IR-8)', async () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
 
-      await ext.set.fn(['default', 'count', 100]);
-      await ext.set.fn(['default', 'name', 'Alice']);
+      await ext.set.fn({ mount: 'default', key: 'count', value: 100 });
+      await ext.set.fn({ mount: 'default', key: 'name', value: 'Alice' });
 
-      await ext.clear.fn(['default']);
+      await ext.clear.fn({ mount: 'default' });
 
-      const count = await ext.get.fn(['default', 'count']);
-      const name = await ext.get.fn(['default', 'name']);
+      const count = await ext.get.fn({ mount: 'default', key: 'count' });
+      const name = await ext.get.fn({ mount: 'default', key: 'name' });
       expect(count).toBe(0);
       expect(name).toBe('');
     });
 
     it('schema() returns list of schema entries (IR-10)', async () => {
       const ext = createKvExtension({ store: storePath, schema: testSchema });
-      const result = await ext.schema.fn(['default']);
+      const result = await ext.schema.fn({ mount: 'default' });
 
       expect(result).toEqual(
         expect.arrayContaining([
@@ -488,18 +568,18 @@ describe('kv extension factory', () => {
       // Value at exact size limit should succeed
       // JSON.stringify adds 2 bytes for quotes, so 98 chars = 100 bytes
       const atLimit = 'x'.repeat(98);
-      await ext.set.fn(['default', 'key', atLimit]);
-      const stored = await ext.get.fn(['default', 'key']);
+      await ext.set.fn({ mount: 'default', key: 'key', value: atLimit });
+      const stored = await ext.get.fn({ mount: 'default', key: 'key' });
       expect(stored).toBe(atLimit);
 
       // Value exceeding limit by 1 byte should fail (99 chars = 101 bytes)
       const overLimit = 'y'.repeat(99);
-      await expect(ext.set.fn(['default', 'key2', overLimit])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'key2', overLimit])).rejects.toThrow(
-        'exceeds size limit'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key2', value: overLimit })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key2', value: overLimit })
+      ).rejects.toThrow('exceeds size limit');
     });
 
     it('throws when value exceeds maxValueSize (EC-22)', async () => {
@@ -510,12 +590,12 @@ describe('kv extension factory', () => {
 
       const largeValue = 'x'.repeat(200);
 
-      await expect(ext.set.fn(['default', 'key', largeValue])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'key', largeValue])).rejects.toThrow(
-        'exceeds size limit'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key', value: largeValue })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key', value: largeValue })
+      ).rejects.toThrow('exceeds size limit');
     });
 
     it('throws when store exceeds maxStoreSize (EC-23)', async () => {
@@ -525,14 +605,14 @@ describe('kv extension factory', () => {
       });
 
       // Add entries until store size is exceeded
-      await ext.set.fn(['default', 'a', 'x'.repeat(5)]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 'x'.repeat(5) });
 
       // This should exceed the limit (would be ~40 bytes total)
       await expect(
-        ext.set.fn(['default', 'b', 'y'.repeat(20)])
+        ext.set.fn({ mount: 'default', key: 'b', value: 'y'.repeat(20) })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.set.fn(['default', 'b', 'y'.repeat(20)])
+        ext.set.fn({ mount: 'default', key: 'b', value: 'y'.repeat(20) })
       ).rejects.toThrow('store exceeds size limit');
     });
 
@@ -542,17 +622,17 @@ describe('kv extension factory', () => {
         maxEntries: 3,
       });
 
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 2]);
-      await ext.set.fn(['default', 'c', 3]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 2 });
+      await ext.set.fn({ mount: 'default', key: 'c', value: 3 });
 
       // Fourth entry should fail
-      await expect(ext.set.fn(['default', 'd', 4])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'd', 4])).rejects.toThrow(
-        'exceeds entry limit'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'd', value: 4 })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'd', value: 4 })
+      ).rejects.toThrow('exceeds entry limit');
     });
 
     it('allows updating existing key without exceeding entry limit', async () => {
@@ -561,12 +641,12 @@ describe('kv extension factory', () => {
         maxEntries: 2,
       });
 
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 2]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 2 });
 
       // Update existing key should succeed
-      await ext.set.fn(['default', 'a', 10]);
-      const value = await ext.get.fn(['default', 'a']);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 10 });
+      const value = await ext.get.fn({ mount: 'default', key: 'a' });
       expect(value).toBe(10);
     });
   });
@@ -575,14 +655,14 @@ describe('kv extension factory', () => {
     it('persists state across invocations with dispose policy', async () => {
       // First instance
       const ext1 = createKvExtension({ store: storePath });
-      await ext1.set.fn(['default', 'key1', 'value1']);
-      await ext1.set.fn(['default', 'key2', 42]);
+      await ext1.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
+      await ext1.set.fn({ mount: 'default', key: 'key2', value: 42 });
       await ext1.dispose!();
 
       // Second instance should load persisted data
       const ext2 = createKvExtension({ store: storePath });
-      const value1 = await ext2.get.fn(['default', 'key1']);
-      const value2 = await ext2.get.fn(['default', 'key2']);
+      const value1 = await ext2.get.fn({ mount: 'default', key: 'key1' });
+      const value2 = await ext2.get.fn({ mount: 'default', key: 'key2' });
 
       expect(value1).toBe('value1');
       expect(value2).toBe(42);
@@ -595,8 +675,8 @@ describe('kv extension factory', () => {
       };
 
       const ext = createKvExtension({ store: storePath, schema });
-      const count = await ext.get.fn(['default', 'count']);
-      const flag = await ext.get.fn(['default', 'flag']);
+      const count = await ext.get.fn({ mount: 'default', key: 'count' });
+      const flag = await ext.get.fn({ mount: 'default', key: 'flag' });
 
       expect(count).toBe(100);
       expect(flag).toBe(true);
@@ -615,13 +695,13 @@ describe('kv extension factory', () => {
       );
 
       const ext = createKvExtension({ store: storePath, schema });
-      const count = await ext.get.fn(['default', 'count']);
+      const count = await ext.get.fn({ mount: 'default', key: 'count' });
 
       // Should load valid value
       expect(count).toBe(42);
 
       // Extra keys should be dropped
-      const keys = await ext.keys.fn(['default']);
+      const keys = await ext.keys.fn({ mount: 'default' });
       expect(keys).toEqual(['count']);
     });
 
@@ -633,12 +713,12 @@ describe('kv extension factory', () => {
 
       // Error should occur when first operation is attempted
       const ext = createKvExtension({ store: storePath });
-      await expect(ext.get.fn(['default', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.get.fn(['default', 'key'])).rejects.toThrow(
-        'state file corrupt'
-      );
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow('state file corrupt');
     });
 
     it('throws when store file has wrong type (EC-25)', async () => {
@@ -646,12 +726,12 @@ describe('kv extension factory', () => {
       await fs.writeFile(storePath, JSON.stringify([1, 2, 3]), 'utf-8');
 
       const ext = createKvExtension({ store: storePath });
-      await expect(ext.get.fn(['default', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.get.fn(['default', 'key'])).rejects.toThrow(
-        'state file corrupt'
-      );
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.get.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow('state file corrupt');
     });
   });
 
@@ -659,8 +739,8 @@ describe('kv extension factory', () => {
     it('batches writes with dispose policy (default)', async () => {
       const ext = createKvExtension({ store: storePath });
 
-      await ext.set.fn(['default', 'key1', 'value1']);
-      await ext.set.fn(['default', 'key2', 'value2']);
+      await ext.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
+      await ext.set.fn({ mount: 'default', key: 'key2', value: 'value2' });
 
       // File should not exist yet (no immediate write)
       const exists = await fs
@@ -682,7 +762,7 @@ describe('kv extension factory', () => {
         writePolicy: 'immediate',
       });
 
-      await ext.set.fn(['default', 'key1', 'value1']);
+      await ext.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
 
       // File should exist immediately
       const content = await fs.readFile(storePath, 'utf-8');
@@ -693,7 +773,7 @@ describe('kv extension factory', () => {
     it('performs atomic writes (write .tmp, then rename)', async () => {
       const ext = createKvExtension({ store: storePath });
 
-      await ext.set.fn(['default', 'key1', 'value1']);
+      await ext.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
       await ext.dispose!();
 
       // .tmp file should not exist after successful write
@@ -725,56 +805,65 @@ describe('kv extension factory', () => {
     it('validates string type', async () => {
       const ext = createKvExtension({ store: storePath, schema });
 
-      await ext.set.fn(['default', 'str', 'hello']);
-      expect(await ext.get.fn(['default', 'str'])).toBe('hello');
+      await ext.set.fn({ mount: 'default', key: 'str', value: 'hello' });
+      expect(await ext.get.fn({ mount: 'default', key: 'str' })).toBe('hello');
 
-      await expect(ext.set.fn(['default', 'str', 123])).rejects.toThrow(
-        'got number'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'str', value: 123 })
+      ).rejects.toThrow('got number');
     });
 
     it('validates number type', async () => {
       const ext = createKvExtension({ store: storePath, schema });
 
-      await ext.set.fn(['default', 'num', 42]);
-      expect(await ext.get.fn(['default', 'num'])).toBe(42);
+      await ext.set.fn({ mount: 'default', key: 'num', value: 42 });
+      expect(await ext.get.fn({ mount: 'default', key: 'num' })).toBe(42);
 
-      await expect(ext.set.fn(['default', 'num', 'text'])).rejects.toThrow(
-        'got string'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'num', value: 'text' })
+      ).rejects.toThrow('got string');
     });
 
     it('validates bool type', async () => {
       const ext = createKvExtension({ store: storePath, schema });
 
-      await ext.set.fn(['default', 'bool', true]);
-      expect(await ext.get.fn(['default', 'bool'])).toBe(true);
+      await ext.set.fn({ mount: 'default', key: 'bool', value: true });
+      expect(await ext.get.fn({ mount: 'default', key: 'bool' })).toBe(true);
 
-      await expect(ext.set.fn(['default', 'bool', 1])).rejects.toThrow(
-        'got number'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'bool', value: 1 })
+      ).rejects.toThrow('got number');
     });
 
     it('validates list type', async () => {
       const ext = createKvExtension({ store: storePath, schema });
 
-      await ext.set.fn(['default', 'list', [1, 2, 3]]);
-      expect(await ext.get.fn(['default', 'list'])).toEqual([1, 2, 3]);
+      await ext.set.fn({ mount: 'default', key: 'list', value: [1, 2, 3] });
+      expect(await ext.get.fn({ mount: 'default', key: 'list' })).toEqual([
+        1, 2, 3,
+      ]);
 
-      await expect(ext.set.fn(['default', 'list', { a: 1 }])).rejects.toThrow(
-        'got dict'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'list', value: { a: 1 } })
+      ).rejects.toThrow('got dict');
     });
 
     it('validates dict type', async () => {
       const ext = createKvExtension({ store: storePath, schema });
 
-      await ext.set.fn(['default', 'dict', { a: 1, b: 2 }]);
-      expect(await ext.get.fn(['default', 'dict'])).toEqual({ a: 1, b: 2 });
+      await ext.set.fn({
+        mount: 'default',
+        key: 'dict',
+        value: { a: 1, b: 2 },
+      });
+      expect(await ext.get.fn({ mount: 'default', key: 'dict' })).toEqual({
+        a: 1,
+        b: 2,
+      });
 
-      await expect(ext.set.fn(['default', 'dict', [1, 2]])).rejects.toThrow(
-        'got list'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'dict', value: [1, 2] })
+      ).rejects.toThrow('got list');
     });
   });
 
@@ -785,12 +874,12 @@ describe('kv extension factory', () => {
         mode: 'read',
       });
 
-      await expect(ext.set.fn(['default', 'key', 'value'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'key', 'value'])).rejects.toThrow(
-        "Mount 'default' is read-only"
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key', value: 'value' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'key', value: 'value' })
+      ).rejects.toThrow("Mount 'default' is read-only");
     });
 
     it('read-only mode rejects delete operation (IC-2)', async () => {
@@ -799,12 +888,12 @@ describe('kv extension factory', () => {
         mode: 'read',
       });
 
-      await expect(ext.delete.fn(['default', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.delete.fn(['default', 'key'])).rejects.toThrow(
-        "Mount 'default' is read-only"
-      );
+      await expect(
+        ext.delete.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.delete.fn({ mount: 'default', key: 'key' })
+      ).rejects.toThrow("Mount 'default' is read-only");
     });
 
     it('read-only mode rejects clear operation (IC-2)', async () => {
@@ -813,8 +902,10 @@ describe('kv extension factory', () => {
         mode: 'read',
       });
 
-      await expect(ext.clear.fn(['default'])).rejects.toThrow(RuntimeError);
-      await expect(ext.clear.fn(['default'])).rejects.toThrow(
+      await expect(ext.clear.fn({ mount: 'default' })).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(ext.clear.fn({ mount: 'default' })).rejects.toThrow(
         "Mount 'default' is read-only"
       );
     });
@@ -825,7 +916,7 @@ describe('kv extension factory', () => {
         store: storePath,
         mode: 'read-write',
       });
-      await ext1.set.fn(['default', 'key1', 'value1']);
+      await ext1.set.fn({ mount: 'default', key: 'key1', value: 'value1' });
       await ext1.dispose!();
 
       // Now open in read-only mode
@@ -835,16 +926,16 @@ describe('kv extension factory', () => {
       });
 
       // All read operations should work
-      const value = await ext2.get.fn(['default', 'key1']);
+      const value = await ext2.get.fn({ mount: 'default', key: 'key1' });
       expect(value).toBe('value1');
 
-      const exists = await ext2.has.fn(['default', 'key1']);
+      const exists = await ext2.has.fn({ mount: 'default', key: 'key1' });
       expect(exists).toBe(true);
 
-      const keys = await ext2.keys.fn(['default']);
+      const keys = await ext2.keys.fn({ mount: 'default' });
       expect(keys).toContain('key1');
 
-      const all = await ext2.getAll.fn(['default']);
+      const all = await ext2.getAll.fn({ mount: 'default' });
       expect(all).toEqual({ key1: 'value1' });
     });
 
@@ -855,15 +946,15 @@ describe('kv extension factory', () => {
       });
 
       // Write operations should work
-      await ext.set.fn(['default', 'key', 'value']);
-      expect(await ext.get.fn(['default', 'key'])).toBe('value');
+      await ext.set.fn({ mount: 'default', key: 'key', value: 'value' });
+      expect(await ext.get.fn({ mount: 'default', key: 'key' })).toBe('value');
 
-      await ext.delete.fn(['default', 'key']);
-      expect(await ext.has.fn(['default', 'key'])).toBe(false);
+      await ext.delete.fn({ mount: 'default', key: 'key' });
+      expect(await ext.has.fn({ mount: 'default', key: 'key' })).toBe(false);
 
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.clear.fn(['default']);
-      expect(await ext.keys.fn(['default'])).toHaveLength(0);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.clear.fn({ mount: 'default' });
+      expect(await ext.keys.fn({ mount: 'default' })).toHaveLength(0);
     });
 
     it('mode defaults to read-write when not specified', async () => {
@@ -872,8 +963,8 @@ describe('kv extension factory', () => {
       });
 
       // Should allow write operations
-      await ext.set.fn(['default', 'key', 'value']);
-      expect(await ext.get.fn(['default', 'key'])).toBe('value');
+      await ext.set.fn({ mount: 'default', key: 'key', value: 'value' });
+      expect(await ext.get.fn({ mount: 'default', key: 'key' })).toBe('value');
     });
 
     it('write mode allows write operations', async () => {
@@ -883,9 +974,9 @@ describe('kv extension factory', () => {
       });
 
       // Should allow write operations
-      await ext.set.fn(['default', 'key', 'value']);
-      await ext.delete.fn(['default', 'key']);
-      await ext.clear.fn(['default']);
+      await ext.set.fn({ mount: 'default', key: 'key', value: 'value' });
+      await ext.delete.fn({ mount: 'default', key: 'key' });
+      await ext.clear.fn({ mount: 'default' });
     });
   });
 
@@ -894,15 +985,15 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath, schema: {} });
 
       // schema() should return empty list for empty schema
-      const schemaResult = await ext.schema.fn(['default']);
+      const schemaResult = await ext.schema.fn({ mount: 'default' });
       expect(schemaResult).toEqual([]);
 
       // NOTE: AC-31 specifies empty schema should behave as open mode,
       // but current implementation treats {} as declared mode (rejects unknown keys).
       // This is a known limitation - see [DEVIATION] in Implementation Notes.
-      await expect(ext.set.fn(['default', 'any_key', 'value'])).rejects.toThrow(
-        'not declared in schema'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'any_key', value: 'value' })
+      ).rejects.toThrow('not declared in schema');
     });
 
     it('max entries boundary: accept at limit, reject after (AC-28)', async () => {
@@ -912,20 +1003,20 @@ describe('kv extension factory', () => {
       });
 
       // Should accept entries up to the limit
-      await ext.set.fn(['default', 'a', 1]);
-      await ext.set.fn(['default', 'b', 2]);
+      await ext.set.fn({ mount: 'default', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'default', key: 'b', value: 2 });
 
       // Verify both entries exist
-      expect(await ext.has.fn(['default', 'a'])).toBe(true);
-      expect(await ext.has.fn(['default', 'b'])).toBe(true);
+      expect(await ext.has.fn({ mount: 'default', key: 'a' })).toBe(true);
+      expect(await ext.has.fn({ mount: 'default', key: 'b' })).toBe(true);
 
       // Next set should throw
-      await expect(ext.set.fn(['default', 'c', 3])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['default', 'c', 3])).rejects.toThrow(
-        'exceeds entry limit'
-      );
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'c', value: 3 })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'default', key: 'c', value: 3 })
+      ).rejects.toThrow('exceeds entry limit');
     });
 
     it('empty store returns schema defaults on first run (AC-24)', async () => {
@@ -939,9 +1030,11 @@ describe('kv extension factory', () => {
       const ext = createKvExtension({ store: storePath, schema });
 
       // Should return schema defaults
-      expect(await ext.get.fn(['default', 'run_count'])).toBe(0);
-      expect(await ext.get.fn(['default', 'last_user'])).toBe('anonymous');
-      expect(await ext.get.fn(['default', 'active'])).toBe(true);
+      expect(await ext.get.fn({ mount: 'default', key: 'run_count' })).toBe(0);
+      expect(await ext.get.fn({ mount: 'default', key: 'last_user' })).toBe(
+        'anonymous'
+      );
+      expect(await ext.get.fn({ mount: 'default', key: 'active' })).toBe(true);
     });
   });
 
@@ -968,7 +1061,7 @@ describe('kv extension factory', () => {
         },
       });
 
-      const result = await ext.mounts.fn([]);
+      const result = await ext.mounts.fn({});
 
       expect(result).toEqual(
         expect.arrayContaining([
@@ -999,7 +1092,7 @@ describe('kv extension factory', () => {
         maxValueSize: 2048,
       });
 
-      const result = await ext.mounts.fn([]);
+      const result = await ext.mounts.fn({});
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -1029,7 +1122,7 @@ describe('kv extension factory', () => {
         },
       });
 
-      const result = await ext.mounts.fn([]);
+      const result = await ext.mounts.fn({});
 
       const declaredMount = result.find(
         (m: Record<string, unknown>) => m.name === 'declared'
@@ -1047,7 +1140,7 @@ describe('kv extension factory', () => {
         store: storePath,
       });
 
-      const result = await ext.mounts.fn([]);
+      const result = await ext.mounts.fn({});
 
       expect(result[0]).toMatchObject({
         maxEntries: 10000,
@@ -1067,12 +1160,12 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.get.fn(['unknown', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.get.fn(['unknown', 'key'])).rejects.toThrow(
-        "Mount 'unknown' not found"
-      );
+      await expect(
+        ext.get.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.get.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow("Mount 'unknown' not found");
     });
 
     it('set() throws MountError for unknown mount', async () => {
@@ -1085,12 +1178,12 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.set.fn(['unknown', 'key', 'value'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.set.fn(['unknown', 'key', 'value'])).rejects.toThrow(
-        "Mount 'unknown' not found"
-      );
+      await expect(
+        ext.set.fn({ mount: 'unknown', key: 'key', value: 'value' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.set.fn({ mount: 'unknown', key: 'key', value: 'value' })
+      ).rejects.toThrow("Mount 'unknown' not found");
     });
 
     it('delete() throws MountError for unknown mount', async () => {
@@ -1103,12 +1196,12 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.delete.fn(['unknown', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.delete.fn(['unknown', 'key'])).rejects.toThrow(
-        "Mount 'unknown' not found"
-      );
+      await expect(
+        ext.delete.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.delete.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow("Mount 'unknown' not found");
     });
 
     it('merge() throws MountError for unknown mount', async () => {
@@ -1121,12 +1214,12 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.merge.fn(['unknown', 'key', {}])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.merge.fn(['unknown', 'key', {}])).rejects.toThrow(
-        "Mount 'unknown' not found"
-      );
+      await expect(
+        ext.merge.fn({ mount: 'unknown', key: 'key', partial: {} })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.merge.fn({ mount: 'unknown', key: 'key', partial: {} })
+      ).rejects.toThrow("Mount 'unknown' not found");
     });
 
     it('get_or() throws MountError for unknown mount', async () => {
@@ -1140,10 +1233,10 @@ describe('kv extension factory', () => {
       });
 
       await expect(
-        ext.get_or.fn(['unknown', 'key', 'fallback'])
+        ext.get_or.fn({ mount: 'unknown', key: 'key', fallback: 'fallback' })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.get_or.fn(['unknown', 'key', 'fallback'])
+        ext.get_or.fn({ mount: 'unknown', key: 'key', fallback: 'fallback' })
       ).rejects.toThrow("Mount 'unknown' not found");
     });
 
@@ -1157,8 +1250,10 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.keys.fn(['unknown'])).rejects.toThrow(RuntimeError);
-      await expect(ext.keys.fn(['unknown'])).rejects.toThrow(
+      await expect(ext.keys.fn({ mount: 'unknown' })).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(ext.keys.fn({ mount: 'unknown' })).rejects.toThrow(
         "Mount 'unknown' not found"
       );
     });
@@ -1173,12 +1268,12 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.has.fn(['unknown', 'key'])).rejects.toThrow(
-        RuntimeError
-      );
-      await expect(ext.has.fn(['unknown', 'key'])).rejects.toThrow(
-        "Mount 'unknown' not found"
-      );
+      await expect(
+        ext.has.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow(RuntimeError);
+      await expect(
+        ext.has.fn({ mount: 'unknown', key: 'key' })
+      ).rejects.toThrow("Mount 'unknown' not found");
     });
 
     it('clear() throws MountError for unknown mount', async () => {
@@ -1191,8 +1286,10 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.clear.fn(['unknown'])).rejects.toThrow(RuntimeError);
-      await expect(ext.clear.fn(['unknown'])).rejects.toThrow(
+      await expect(ext.clear.fn({ mount: 'unknown' })).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(ext.clear.fn({ mount: 'unknown' })).rejects.toThrow(
         "Mount 'unknown' not found"
       );
     });
@@ -1207,8 +1304,10 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.getAll.fn(['unknown'])).rejects.toThrow(RuntimeError);
-      await expect(ext.getAll.fn(['unknown'])).rejects.toThrow(
+      await expect(ext.getAll.fn({ mount: 'unknown' })).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(ext.getAll.fn({ mount: 'unknown' })).rejects.toThrow(
         "Mount 'unknown' not found"
       );
     });
@@ -1223,8 +1322,10 @@ describe('kv extension factory', () => {
         },
       });
 
-      await expect(ext.schema.fn(['unknown'])).rejects.toThrow(RuntimeError);
-      await expect(ext.schema.fn(['unknown'])).rejects.toThrow(
+      await expect(ext.schema.fn({ mount: 'unknown' })).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(ext.schema.fn({ mount: 'unknown' })).rejects.toThrow(
         "Mount 'unknown' not found"
       );
     });
@@ -1241,16 +1342,17 @@ describe('kv extension factory', () => {
 
       // All functions should throw for unknown mount
       const functionsToTest = [
-        () => ext.get.fn(['unknown', 'key']),
-        () => ext.set.fn(['unknown', 'key', 'value']),
-        () => ext.delete.fn(['unknown', 'key']),
-        () => ext.merge.fn(['unknown', 'key', {}]),
-        () => ext.get_or.fn(['unknown', 'key', 'fallback']),
-        () => ext.keys.fn(['unknown']),
-        () => ext.has.fn(['unknown', 'key']),
-        () => ext.clear.fn(['unknown']),
-        () => ext.getAll.fn(['unknown']),
-        () => ext.schema.fn(['unknown']),
+        () => ext.get.fn({ mount: 'unknown', key: 'key' }),
+        () => ext.set.fn({ mount: 'unknown', key: 'key', value: 'value' }),
+        () => ext.delete.fn({ mount: 'unknown', key: 'key' }),
+        () => ext.merge.fn({ mount: 'unknown', key: 'key', partial: {} }),
+        () =>
+          ext.get_or.fn({ mount: 'unknown', key: 'key', fallback: 'fallback' }),
+        () => ext.keys.fn({ mount: 'unknown' }),
+        () => ext.has.fn({ mount: 'unknown', key: 'key' }),
+        () => ext.clear.fn({ mount: 'unknown' }),
+        () => ext.getAll.fn({ mount: 'unknown' }),
+        () => ext.schema.fn({ mount: 'unknown' }),
       ];
 
       for (const fn of functionsToTest) {
@@ -1278,19 +1380,19 @@ describe('kv extension factory', () => {
       });
 
       // Set values in different mounts
-      await ext.set.fn(['user', 'name', 'Alice']);
-      await ext.set.fn(['cache', 'token', 'abc123']);
+      await ext.set.fn({ mount: 'user', key: 'name', value: 'Alice' });
+      await ext.set.fn({ mount: 'cache', key: 'token', value: 'abc123' });
 
       // Verify mount isolation
-      const userName = await ext.get.fn(['user', 'name']);
-      const cacheToken = await ext.get.fn(['cache', 'token']);
+      const userName = await ext.get.fn({ mount: 'user', key: 'name' });
+      const cacheToken = await ext.get.fn({ mount: 'cache', key: 'token' });
 
       expect(userName).toBe('Alice');
       expect(cacheToken).toBe('abc123');
 
       // Verify missing keys in other mounts
-      const userToken = await ext.get.fn(['user', 'token']);
-      const cacheName = await ext.get.fn(['cache', 'name']);
+      const userToken = await ext.get.fn({ mount: 'user', key: 'token' });
+      const cacheName = await ext.get.fn({ mount: 'cache', key: 'name' });
 
       expect(userToken).toBe(''); // Missing key returns empty string
       expect(cacheName).toBe('');
@@ -1314,34 +1416,34 @@ describe('kv extension factory', () => {
       });
 
       // Set values in both mounts
-      await ext.set.fn(['m1', 'a', 1]);
-      await ext.set.fn(['m1', 'b', 2]);
-      await ext.set.fn(['m2', 'c', 3]);
+      await ext.set.fn({ mount: 'm1', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'm1', key: 'b', value: 2 });
+      await ext.set.fn({ mount: 'm2', key: 'c', value: 3 });
 
       // IR-6: keys() returns keys from specified mount only
-      const m1Keys = await ext.keys.fn(['m1']);
-      const m2Keys = await ext.keys.fn(['m2']);
+      const m1Keys = await ext.keys.fn({ mount: 'm1' });
+      const m2Keys = await ext.keys.fn({ mount: 'm2' });
 
       expect(m1Keys).toEqual(expect.arrayContaining(['a', 'b']));
       expect(m1Keys).toHaveLength(2);
       expect(m2Keys).toEqual(['c']);
 
       // IR-7: has() checks specified mount only
-      expect(await ext.has.fn(['m1', 'a'])).toBe(true);
-      expect(await ext.has.fn(['m2', 'a'])).toBe(false);
+      expect(await ext.has.fn({ mount: 'm1', key: 'a' })).toBe(true);
+      expect(await ext.has.fn({ mount: 'm2', key: 'a' })).toBe(false);
 
       // IR-9: getAll() returns entries from specified mount only
-      const m1All = await ext.getAll.fn(['m1']);
-      const m2All = await ext.getAll.fn(['m2']);
+      const m1All = await ext.getAll.fn({ mount: 'm1' });
+      const m2All = await ext.getAll.fn({ mount: 'm2' });
 
       expect(m1All).toEqual({ a: 1, b: 2 });
       expect(m2All).toEqual({ c: 3 });
 
       // IR-8: clear() clears specified mount only
-      await ext.clear.fn(['m1']);
+      await ext.clear.fn({ mount: 'm1' });
 
-      expect(await ext.keys.fn(['m1'])).toHaveLength(0);
-      expect(await ext.keys.fn(['m2'])).toHaveLength(1); // m2 unaffected
+      expect(await ext.keys.fn({ mount: 'm1' })).toHaveLength(0);
+      expect(await ext.keys.fn({ mount: 'm2' })).toHaveLength(1); // m2 unaffected
     });
 
     it('schema() returns schema from specified mount (IR-10)', async () => {
@@ -1366,13 +1468,13 @@ describe('kv extension factory', () => {
       });
 
       // user mount has schema
-      const userSchema = await ext.schema.fn(['user']);
+      const userSchema = await ext.schema.fn({ mount: 'user' });
       expect(userSchema).toEqual([
         { key: 'name', type: 'string', description: 'User name' },
       ]);
 
       // cache mount has no schema
-      const cacheSchema = await ext.schema.fn(['cache']);
+      const cacheSchema = await ext.schema.fn({ mount: 'cache' });
       expect(cacheSchema).toEqual([]);
     });
 
@@ -1387,8 +1489,8 @@ describe('kv extension factory', () => {
         },
       });
 
-      await ext.set.fn(['m1', 'a', 1]);
-      await ext.set.fn(['m2', 'b', 2]);
+      await ext.set.fn({ mount: 'm1', key: 'a', value: 1 });
+      await ext.set.fn({ mount: 'm2', key: 'b', value: 2 });
       await ext.dispose!();
 
       // Both stores should be flushed

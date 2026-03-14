@@ -42,10 +42,12 @@ export interface RillTuple {
 /**
  * Ordered type - represents named key-value pairs with preserved insertion order.
  * Created by the * (spread) operator from dicts.
+ * Entries may carry an optional third element (default value) when representing
+ * closure parameter reflection via `.^input`.
  */
 export interface RillOrdered {
   readonly __rill_ordered: true;
-  readonly entries: [string, RillValue][];
+  readonly entries: [string, RillValue, RillValue?][];
 }
 
 /**
@@ -172,8 +174,14 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
   );
 }
 
-/** Create ordered from entries array (named, preserves insertion order) */
-export function createOrdered(entries: [string, RillValue][]): RillOrdered {
+/**
+ * Create ordered from entries array (named, preserves insertion order).
+ * Entries may be 2-element [name, value] or 3-element [name, value, default]
+ * tuples; the third element carries a default value for `.^input` reflection.
+ */
+export function createOrdered(
+  entries: [string, RillValue, RillValue?][]
+): RillOrdered {
   return Object.freeze({ __rill_ordered: true, entries: [...entries] });
 }
 

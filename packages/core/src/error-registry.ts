@@ -1263,6 +1263,23 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
 
+  {
+    errorId: 'RILL-R045',
+    category: 'runtime',
+    description: 'Too many arguments passed to callable',
+    messageTemplate: 'Expected {expected} args, got {actual}',
+    cause:
+      'The number of arguments passed to a callable exceeds the number of declared parameters.',
+    resolution:
+      'Remove the excess arguments or add more parameters to the callable definition.',
+    examples: [
+      {
+        description: 'Too many arguments to a two-param closure',
+        code: '|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params',
+      },
+    ],
+  },
+
   // Resolver errors (RILL-R050–RILL-R059)
   {
     errorId: 'RILL-R050',

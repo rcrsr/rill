@@ -191,7 +191,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = (await extension.endpoints.fn([], ctx)) as RillValue[];
+      const result = (await extension.endpoints.fn({}, ctx)) as RillValue[];
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
@@ -223,7 +223,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = (await extension.endpoints.fn([], ctx)) as RillValue[];
+      const result = (await extension.endpoints.fn({}, ctx)) as RillValue[];
 
       expect(result[0]).toEqual({
         name: 'getUser',
@@ -250,8 +250,8 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      await expect(extension.getUser.fn([], ctx)).rejects.toThrow(RuntimeError);
-      await expect(extension.getUser.fn([], ctx)).rejects.toThrow(
+      await expect(extension.getUser.fn({}, ctx)).rejects.toThrow(RuntimeError);
+      await expect(extension.getUser.fn({}, ctx)).rejects.toThrow(
         'parameter "id" is required'
       );
     });
@@ -275,10 +275,10 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       await expect(
-        extension.createUser.fn([{ name: 'John' }], ctx)
+        extension.createUser.fn({ name: 'John' }, ctx)
       ).rejects.toThrow(RuntimeError);
       await expect(
-        extension.createUser.fn([{ name: 'John' }], ctx)
+        extension.createUser.fn({ name: 'John' }, ctx)
       ).rejects.toThrow('parameter "email" is required');
     });
 
@@ -307,7 +307,7 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Should not throw - uses default value
-      await expect(extension.listUsers.fn([], ctx)).resolves.toBeDefined();
+      await expect(extension.listUsers.fn({}, ctx)).resolves.toBeDefined();
     });
 
     it('does not throw when parameter has required: false', async () => {
@@ -335,7 +335,7 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Should not throw - parameter is optional
-      await expect(extension.listUsers.fn([], ctx)).resolves.toBeDefined();
+      await expect(extension.listUsers.fn({}, ctx)).resolves.toBeDefined();
     });
   });
 
@@ -357,7 +357,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn(['123'], ctx);
+      const result = await extension.getUser.fn({ id: '123' }, ctx);
 
       expect(result).toEqual({ id: 123, name: 'John' });
       expect(fetchCallCount).toBe(1);
@@ -387,7 +387,7 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       const result = await extension.createPost.fn(
-        ['Test Post', 'Post content'],
+        { title: 'Test Post', body: 'Post content' },
         ctx
       );
 
@@ -413,7 +413,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn([{ id: '123' }], ctx);
+      const result = await extension.getUser.fn({ id: '123' }, ctx);
 
       expect(result).toEqual({ id: 123, name: 'John' });
       expect(fetchCallCount).toBe(1);
@@ -443,7 +443,7 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       const result = await extension.createPost.fn(
-        [{ title: 'Test', published: true }],
+        { title: 'Test', published: true },
         ctx
       );
 
@@ -553,7 +553,7 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Can only call configured endpoint with configured path
-      await extension.getResource.fn(['123'], ctx);
+      await extension.getResource.fn({ id: '123' }, ctx);
 
       // No way to specify arbitrary URL
       expect(extension).not.toHaveProperty('request');
@@ -604,7 +604,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn(['123'], ctx);
+      const result = await extension.getUser.fn({ id: '123' }, ctx);
 
       // Should return just the body, not wrapped in response object
       expect(result).toEqual({ id: 123, name: 'Test' });
@@ -632,7 +632,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn(['123'], ctx);
+      const result = await extension.getUser.fn({ id: '123' }, ctx);
 
       // Should return full response with status, headers, body
       expect(result).toHaveProperty('status', 200);

@@ -29,7 +29,7 @@ import {
 const UNTYPED_BUILTINS = new Set(['log', 'chain']);
 
 // Built-in methods that do their own internal arg validation with specific error
-// messages expected by protected language tests. Generic validateCallableArgs
+// messages expected by protected language tests. Generic marshalArgs
 // must not fire before the method body's own check.
 export const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
 

@@ -11,9 +11,16 @@ import { run } from '../helpers/runtime.js';
 
 // Helper functions
 const double = {
-  params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-  fn: (args: RillValue[]): number => {
-    const x = args[0];
+  params: [
+    {
+      name: 'x',
+      type: { type: 'number' },
+      defaultValue: undefined,
+      annotations: {},
+    },
+  ],
+  fn: (args: Record<string, RillValue>): number => {
+    const x = args['x'];
     return typeof x === 'number' ? x * 2 : 0;
   },
 };

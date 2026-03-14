@@ -30,9 +30,9 @@ const ctx = createRuntimeContext({
     utils: {
       // Property-style callable (computed property)
       timestamp: callable(() => Date.now(), true),
-      // Regular callable
+      // Untyped callable: params is undefined, args is RillValue[] (no marshaling)
       format: callable((args) => {
-        const [template, ...values] = args;
+        const [template, ...values] = args as unknown as RillValue[];
         return String(template).replace(/\{\}/g, () =>
           String(values.shift() ?? '')
         );
@@ -45,7 +45,7 @@ const ctx = createRuntimeContext({
       params: [{ name: 'text', type: { type: 'string' } }],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
-        return await callLLM(args[0]);
+        return await callLLM(args.text);
       },
       annotations: { description: 'Send a prompt to the LLM and return the response' },
       returnType: rillTypeToTypeValue({ type: 'string' }),
@@ -506,6 +506,30 @@ interface RillParam {
 
 ---
 
+## CallableFn
+
+`CallableFn` is the function signature for typed host function implementations.
+
+```typescript
+type CallableFn = (
+  args: Record<string, RillValue>,
+  ctx: RuntimeContextLike,
+  location?: SourceLocation
+) => RillValue | Promise<RillValue>;
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `args` | `Record<string, RillValue>` | Named arguments keyed by parameter name. The runtime marshals positional call-site arguments into this record using the declared `params` list before invoking `fn` |
+| `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
+| `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
+
+**Returns:** `RillValue` or `Promise<RillValue>`.
+
+**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]` — their internal type cast is unchanged.
+
+---
+
 ## RillFunction
 
 `RillFunction` is the single registration path for all host functions.
@@ -522,7 +546,7 @@ interface RillFunction {
 | Field | Type | Description |
 |-------|------|-------------|
 | `params` | `readonly RillParam[]` | Parameter descriptors. Runtime validates arguments before calling `fn` |
-| `fn` | `CallableFn` | The function implementation |
+| `fn` | `CallableFn` | The function implementation. The runtime marshals call-site arguments into `Record<string, RillValue>` keyed by parameter name before invoking `fn`. See [CallableFn](#callablefn) |
 | `annotations` | `Record<string, RillValue> \| undefined` | Key-value metadata. `annotations.description` replaces the old `description` field. Optional; defaults to `{}` |
 | `returnType` | `RillTypeValue` | Declared return type. Required. Use `anyTypeValue` as the equivalent of "no constraint". Runtime does NOT validate return values at call time |
 
