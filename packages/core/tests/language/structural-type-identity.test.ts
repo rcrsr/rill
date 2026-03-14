@@ -13,9 +13,15 @@
  *
  */
 
+import { rillTypeToTypeValue, type RillType } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
+
+/** Build the expected RillTypeValue for a given RillType */
+function tv(type: RillType) {
+  return rillTypeToTypeValue(type);
+}
 
 describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
@@ -556,15 +562,14 @@ describe('Rill Language: Structural Type Identity', () => {
       `;
       const result = (await run(script)) as {
         __rill_ordered: true;
-        entries: [string, { type: string; element: { type: string } }][];
+        entries: [string, unknown][];
       };
       expect(result.__rill_ordered).toBe(true);
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0]![0]).toBe('x');
-      expect(result.entries[0]![1]).toEqual({
-        type: 'list',
-        element: { type: 'string' },
-      });
+      expect(result.entries[0]![1]).toEqual(
+        tv({ type: 'list', element: { type: 'string' } })
+      );
     });
 
     it('AC-11: |x: dict(name: string)| closure .^input reflects dict structure', async () => {
@@ -573,12 +578,11 @@ describe('Rill Language: Structural Type Identity', () => {
         $fn.^input
       `;
       const result = (await run(script)) as {
-        entries: [string, { type: string; fields: Record<string, unknown> }][];
+        entries: [string, unknown][];
       };
-      expect(result.entries[0]![1]).toEqual({
-        type: 'dict',
-        fields: { name: { type: 'string' } },
-      });
+      expect(result.entries[0]![1]).toEqual(
+        tv({ type: 'dict', fields: { name: { type: 'string' } } })
+      );
     });
   });
 

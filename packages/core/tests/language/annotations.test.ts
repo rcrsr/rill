@@ -9,7 +9,9 @@ import {
   ParseError,
   isScriptCallable,
   callable,
+  rillTypeToTypeValue,
   type ApplicationCallable,
+  type RillType,
 } from '@rcrsr/rill';
 import { run, runWithContext } from '../helpers/runtime.js';
 
@@ -1262,10 +1264,11 @@ describe('Rill Runtime: Annotations', () => {
           __rill_ordered: true;
           entries: [string, unknown][];
         };
+        const tv = (t: RillType) => rillTypeToTypeValue(t);
         expect(shape.__rill_ordered).toBe(true);
         expect(shape.entries).toEqual([
-          ['name', { type: 'string' }],
-          ['age', { type: 'number' }],
+          ['name', tv({ type: 'string' })],
+          ['age', tv({ type: 'number' })],
         ]);
       });
     });
@@ -1286,7 +1289,7 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('AC-34: Concurrent read access to $fn.^input on the same closure is safe', () => {
       it('structural type param entry is stable across multiple reads (AC-34)', async () => {
-        // $fn.^input returns RillOrdered directly: { __rill_ordered: true, entries: [['data', { type: 'string' }]] }
+        // $fn.^input returns RillOrdered directly: { __rill_ordered: true, entries: [['data', RillTypeValue]] }
         // Access the structural type twice and verify both reads return the same value
         const processCallable: ApplicationCallable = {
           __type: 'callable',
@@ -1314,7 +1317,9 @@ describe('Rill Runtime: Annotations', () => {
           entries: [string, unknown][];
         };
         expect(shape.__rill_ordered).toBe(true);
-        expect(shape.entries).toEqual([['data', { type: 'string' }]]);
+        expect(shape.entries).toEqual([
+          ['data', rillTypeToTypeValue({ type: 'string' })],
+        ]);
       });
     });
 
@@ -1339,9 +1344,9 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
-    describe('EC-5: paramsToStructuralType maps RillParam.type directly to structural type', () => {
-      it('host callable with typed RillParam maps to correct structural type without throwing (EC-5)', async () => {
-        // paramsToStructuralType reads param.type (RillType) directly.
+    describe('EC-5: ^input maps RillParam.type to RillTypeValue in structural type', () => {
+      it('host callable with typed RillParam maps to correct type value without throwing (EC-5)', async () => {
+        // ^input reads param.type (RillType) and converts via rillTypeToTypeValue.
         // Build an ApplicationCallable with a RillParam using type: { type: 'string' }.
         const fn: ApplicationCallable = {
           __type: 'callable',
@@ -1363,7 +1368,9 @@ describe('Rill Runtime: Annotations', () => {
           entries: [string, unknown][];
         };
         expect(shape.__rill_ordered).toBe(true);
-        expect(shape.entries).toEqual([['x', { type: 'string' }]]);
+        expect(shape.entries).toEqual([
+          ['x', rillTypeToTypeValue({ type: 'string' })],
+        ]);
       });
     });
   });
@@ -1376,7 +1383,9 @@ describe('Rill Runtime: Annotations', () => {
         entries: [string, unknown][];
       };
       expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries).toEqual([['x', { type: 'number' }]]);
+      expect(shape.entries).toEqual([
+        ['x', rillTypeToTypeValue({ type: 'number' })],
+      ]);
     });
 
     it('untyped param returns any structural type entry (VAL-1)', async () => {
@@ -1386,7 +1395,9 @@ describe('Rill Runtime: Annotations', () => {
         entries: [string, unknown][];
       };
       expect(shape.__rill_ordered).toBe(true);
-      expect(shape.entries).toEqual([['x', { type: 'any' }]]);
+      expect(shape.entries).toEqual([
+        ['x', rillTypeToTypeValue({ type: 'any' })],
+      ]);
     });
   });
 });

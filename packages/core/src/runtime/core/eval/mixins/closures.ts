@@ -70,7 +70,6 @@ import {
   isApplicationCallable,
   isDict,
   marshalArgs,
-  paramsToStructuralType,
 } from '../../callable.js';
 import {
   getVariable,
@@ -91,6 +90,7 @@ import {
   structuralTypeMatches,
   formatStructuralType,
   anyTypeValue,
+  rillTypeToTypeValue,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -1111,22 +1111,25 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return value.annotations['description'] ?? {};
       }
 
-      // IR-3: ^input computes from callable.params via paramsToStructuralType() for all kinds
-      // Params are converted from internal tuples to RillOrdered so the
-      // value survives rill's homogeneous-list constraint.
+      // IR-3: ^input computes from callable.params for all kinds.
+      // Each param's RillType is converted to a RillTypeValue so it is recognized
+      // as a type token (not a plain dict) in rill's type system.
       if (key === 'input') {
         // Untyped host callables have params set to undefined at runtime (see callable() factory)
         if (value.params === undefined) {
           return createOrdered([]);
         }
-        // paramsToStructuralType always returns a closure RillType variant.
-        // Params are [string, RillType, RillValue?][]; RillType is a plain object
-        // that is structurally a valid RillValue at runtime (dict variant).
-        const closureType = paramsToStructuralType(value.params) as {
-          type: 'closure';
-          params: [string, RillValue, RillValue?][];
-        };
-        return createOrdered(closureType.params);
+        const entries: [string, RillValue, RillValue?][] = value.params.map(
+          (param): [string, RillValue, RillValue?] => {
+            const typeValue = rillTypeToTypeValue(
+              param.type ?? { type: 'any' }
+            );
+            return param.defaultValue !== undefined
+              ? [param.name, typeValue, param.defaultValue]
+              : [param.name, typeValue];
+          }
+        );
+        return createOrdered(entries);
       }
 
       // IR-3: ^output reads callable.returnType directly for all kinds
