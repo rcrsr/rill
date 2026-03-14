@@ -301,9 +301,9 @@ function createMockFunctions(): Record<string, RillFunction> {
         { name: 'key', type: { type: 'string' }, defaultValue: '' },
       ],
       fn: (args) => {
-        // args is an array: [key] or [mount, key]; default fills '' for missing 2nd param
-        const a = args as unknown as string[];
-        const key = !a[1] ? a[0] : a[1];
+        const keyOrMount = args.key_or_mount as string;
+        const keyParam = args.key as string;
+        const key = !keyParam ? keyOrMount : keyParam;
         // Return appropriate test values for common keys
         if (key === 'user_count' || key === 'run_count') return 42;
         if (key === 'last_sync') return '2024-01-15';

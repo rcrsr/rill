@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
+- **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
+
 ### Fixed
 
 - **`.^input` returns type token** — `$fn.^input` now returns a `RillTypeValue` with `typeName: 'ordered'` and the parameter types in `structure.fields`, matching `.^output` behavior. `log` prints `ordered(x: number, y: number)` instead of the internal `RillOrdered` representation

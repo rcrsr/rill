@@ -153,6 +153,7 @@ describe('Rill Language: Structural Type Error Contracts', () => {
       );
     });
 
+    // Duplicate of line 37 (AC-40); retained for RILL-R002 error contract coverage
     it('throws RILL-R002 for bool vs number mismatch [AC-13]', async () => {
       await expect(run('list[true, 1]')).rejects.toThrow(
         'List elements must be the same type'
