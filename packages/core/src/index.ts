@@ -13,6 +13,7 @@ export {
   callable,
   type CallableFn,
   type CallFrame,
+  commonType,
   type CaptureEvent,
   type ConfigFieldDescriptor,
   createRuntimeContext,

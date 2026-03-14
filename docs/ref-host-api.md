@@ -794,6 +794,7 @@ export type { RillStructuralType };  // deprecated alias for RillType
 export {
   inferStructuralType,
   inferElementType,
+  commonType,
   structuralTypeEquals,
   structuralTypeMatches,
   formatStructuralType,
@@ -818,13 +819,33 @@ Pure function. Result is a frozen object.
 inferElementType(elements: RillValue[]): RillType
 ```
 
-Infers the element type for a homogeneous list. All elements must share the same structural type (verified via `structuralTypeEquals`).
+Infers the element type for a list by folding element types left-to-right using `commonType`. Starts with the first element's type and folds each subsequent element's type via `commonType`. When `commonType` returns `null`, throws `RILL-R002`.
 
 | Input | Result |
 |-------|--------|
 | Empty array | `{ type: 'any' }` |
 | Uniform-type array | Structural type of the common element |
-| Mixed-type array | Throws `RILL-R002` |
+| Same-compound elements with differing sub-structure | Bare compound type (e.g., `{ type: 'list' }`) |
+| Mixed top-level types | Throws `RILL-R002` |
+
+### `commonType`
+
+```typescript
+commonType(a: RillType, b: RillType): RillType | null
+```
+
+Returns the most specific shared type for two `RillType` values. Used inside `inferElementType` to fold element types.
+
+Cascade order:
+
+| Step | Condition | Result |
+|------|-----------|--------|
+| Any-narrowing | Either input is `{ type: 'any' }` | The concrete (non-any) type |
+| Structural match | `structuralTypeEquals(a, b)` is true | `a` |
+| Bare type fallback | Same compound `type` but structurally unequal | Bare compound type with sub-fields omitted (e.g., `{ type: 'list' }`) |
+| Incompatible | Top-level `type` values differ | `null` (caller raises `RILL-R002`) |
+
+Pure function, no side effects.
 
 ### `structuralTypeEquals`
 

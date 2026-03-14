@@ -359,11 +359,13 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r002
 
-**Description:** Operator type mismatch
+**Description:** Operator type mismatch or list element type mismatch
 
-**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion.
+**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion. Also raised when list elements have incompatible top-level types.
 
-**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods.
+Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
+
+**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. For lists, ensure all elements share the same top-level type.
 
 **Example:**
 
@@ -376,6 +378,23 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 # Arithmetic on non-numbers
 "hello" * 2
+
+# List with incompatible element types
+# Error: RILL-R002
+list[1, "hello"]
+
+# Error: RILL-R002 (list vs string top-level mismatch)
+list[list[1], "hello"]
+
+# Error: RILL-R002 (bool vs number mismatch)
+list[true, 1]
+```
+
+Elements that share the same compound type infer the bare type without error:
+
+```text
+# No error — infers list(list)
+list[list[1,2], list["a","b"]]
 ```
 
 ---

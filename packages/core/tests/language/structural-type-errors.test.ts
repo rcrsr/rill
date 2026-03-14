@@ -137,6 +137,30 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
+  // Type Inference Cascade Error Contracts (AC-11, AC-12, AC-13)
+  // ============================================================
+
+  describe('Type Inference Cascade Error Contracts', () => {
+    it('throws RILL-R002 for primitive top-level mismatch [AC-11]', async () => {
+      await expect(run('list[1, "hello"]')).rejects.toThrow(
+        'List elements must be the same type'
+      );
+    });
+
+    it('throws RILL-R002 for list vs string mismatch [AC-12]', async () => {
+      await expect(run('list[list[1], "hello"]')).rejects.toThrow(
+        'List elements must be the same type'
+      );
+    });
+
+    it('throws RILL-R002 for bool vs number mismatch [AC-13]', async () => {
+      await expect(run('list[true, 1]')).rejects.toThrow(
+        'List elements must be the same type'
+      );
+    });
+  });
+
+  // ============================================================
   // EC-4: list() error shows clear message
   // ============================================================
 

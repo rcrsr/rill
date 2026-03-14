@@ -13,7 +13,10 @@ import { describe, expect, it } from 'vitest';
 // or directly via a thin re-export shim if available.
 // Since it IS exported from values.ts (not re-exported from index),
 // we import it from the internal path under test isolation.
-import { structuralTypeEquals } from '../../src/runtime/core/values.js';
+import {
+  commonType,
+  structuralTypeEquals,
+} from '../../src/runtime/core/values.js';
 
 describe('structuralTypeEquals', () => {
   describe('dict branch - default value comparison', () => {
@@ -205,6 +208,87 @@ describe('structuralTypeEquals', () => {
         elements: [[{ type: 'bool' }, false]],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
+    });
+  });
+
+  describe('commonType', () => {
+    it('returns the specific type when first arg is any [AC-9]', () => {
+      const result = commonType({ type: 'any' }, { type: 'number' });
+      expect(result).toEqual({ type: 'number' });
+    });
+
+    it('returns the specific type when second arg is any (symmetric) [AC-9]', () => {
+      const result = commonType({ type: 'number' }, { type: 'any' });
+      expect(result).toEqual({ type: 'number' });
+    });
+
+    it('returns input type for two structurally equal list(number) types [AC-10]', () => {
+      const listNum: RillType = { type: 'list', element: { type: 'number' } };
+      const listNum2: RillType = { type: 'list', element: { type: 'number' } };
+      const result = commonType(listNum, listNum2);
+      expect(result).toEqual({ type: 'list', element: { type: 'number' } });
+    });
+
+    it('returns null for incompatible leaf types [AC-14]', () => {
+      const result = commonType({ type: 'number' }, { type: 'string' });
+      expect(result).toBeNull();
+    });
+
+    it('never returns undefined for any input combination [AC-15]', () => {
+      const leafTypes: RillType[] = [
+        { type: 'number' },
+        { type: 'string' },
+        { type: 'bool' },
+        { type: 'vector' },
+        { type: 'type' },
+        { type: 'any' },
+      ];
+      const compoundTypes: RillType[] = [
+        { type: 'list', element: { type: 'number' } },
+        { type: 'dict', fields: { x: { type: { type: 'number' } } } },
+        { type: 'tuple', elements: [[{ type: 'number' }]] },
+        { type: 'ordered', fields: [['x', { type: 'number' }]] },
+        { type: 'closure', params: [] },
+        { type: 'union', members: [{ type: 'string' }] },
+      ];
+      const allTypes = [...leafTypes, ...compoundTypes];
+
+      // leaf x leaf
+      for (const a of leafTypes) {
+        for (const b of leafTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+        }
+      }
+
+      // compound x compound
+      for (const a of compoundTypes) {
+        for (const b of compoundTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+        }
+      }
+
+      // leaf x compound (both directions)
+      for (const a of leafTypes) {
+        for (const b of compoundTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+          expect(commonType(b, a)).not.toBeUndefined();
+        }
+      }
+
+      // Verify all 144 combinations were checked (12 types total)
+      expect(allTypes).toHaveLength(12);
+      expect(
+        leafTypes.length * leafTypes.length +
+          compoundTypes.length * compoundTypes.length +
+          leafTypes.length * compoundTypes.length * 2
+      ).toBe(144);
+    });
+
+    it('returns bare list for list(number) vs list(string) [AC-20]', () => {
+      const listNum: RillType = { type: 'list', element: { type: 'number' } };
+      const listStr: RillType = { type: 'list', element: { type: 'string' } };
+      const result = commonType(listNum, listStr);
+      expect(result).toEqual({ type: 'list' });
     });
   });
 

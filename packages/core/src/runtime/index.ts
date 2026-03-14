@@ -85,6 +85,7 @@ export type { RillStructuralType } from './core/values.js';
 
 export {
   anyTypeValue,
+  commonType,
   createTuple,
   createVector,
   formatStructuralType,

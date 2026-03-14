@@ -580,6 +580,48 @@ describe('Rill Runtime: Closure Semantics', () => {
   });
 
   // ============================================================
+  // Closure Type Inference Cascade
+  // ============================================================
+
+  describe('Closure Type Inference Cascade', () => {
+    it('AC-6: list[{$ + 1}, {$ + 2}] infers structural closure match (same shape)', async () => {
+      // Implicit-param closures share identical signature -> structural match
+      const result = await run('list[{$ + 1}, {$ + 2}].^type.signature');
+      expect(result).toBe('list(|$: any| :any)');
+    });
+
+    it('AC-7: list[|a: number, b: string|($a), |a: number, b: string|($b)] infers structural closure match', async () => {
+      // Typed closures with identical params -> structural match preserves full sig
+      const result = await run(
+        'list[|a: number, b: string|($a), |a: number, b: string|($b)].^type.signature'
+      );
+      expect(result).toBe('list(|a: number, b: string| :any)');
+    });
+
+    it('AC-17: list[|x|($x), |a, b|($a)] infers list(closure) (arity differs)', async () => {
+      // Different param counts -> bare closure fallback
+      const result = await run('list[|x|($x), |a, b|($a)].^type.signature');
+      expect(result).toBe('list(closure)');
+    });
+
+    it('AC-18: list[|x: number|($x + 1), |y: number|($y + 1)] infers list(closure) (param names differ)', async () => {
+      // Same types but different param names -> bare closure fallback
+      const result = await run(
+        'list[|x: number|($x + 1), |y: number|($y + 1)].^type.signature'
+      );
+      expect(result).toBe('list(closure)');
+    });
+
+    it('AC-19: list[|x: number|($x), |x: string|($x)] infers list(closure) (param types differ)', async () => {
+      // Same param name but different types -> bare closure fallback
+      const result = await run(
+        'list[|x: number|($x), |x: string|($x)].^type.signature'
+      );
+      expect(result).toBe('list(closure)');
+    });
+  });
+
+  // ============================================================
   // Return Type Assertions
   // ============================================================
 

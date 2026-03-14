@@ -85,6 +85,47 @@ $d.^type == dict(a: number, b: string)
 # Result: true
 ```
 
+### Type Inference Cascade
+
+When rill infers the element type of a list literal, it uses a two-level cascade:
+
+1. **Structural match** — all elements share the same full structural type. The list retains that type.
+2. **Bare type fallback** — elements share the same compound kind (e.g., all lists, all closures) but differ in sub-structure. The list uses the bare compound type, stripping the sub-structure.
+
+```rill
+[list[1,2], list["a","b"]].^type.signature
+# Result: "list(list)"
+```
+
+The inner lists are `list(number)` and `list(string)`. They share the `list` kind but differ in element type, so the cascade falls back to bare `list`, producing `list(list)`.
+
+```rill
+[|x|($x), |a, b|($a)].^type.signature
+# Result: "list(closure)"
+```
+
+The closures have different arities, so the cascade falls back to bare `closure`.
+
+**Any-narrowing** applies when one element is an empty collection. An empty list has type `list(any)`. Paired with a concrete element type, the cascade narrows `any` to that type:
+
+```rill
+[list[], list[1,2]].^type.signature
+# Result: "list(list(number))"
+```
+
+`list[]` contributes `list(any)`. `list[1,2]` contributes `list(number)`. The `any` narrows to `number`, yielding `list(list(number))`.
+
+The cascade is recursive. If the bare fallback at one level produces a bare type, the next level applies the same rules:
+
+```rill
+[list[list[1]], list[list["a"]]].^type.signature
+# Result: "list(list(list))"
+```
+
+The outer list sees two `list(list(?))` elements where the inner element types differ, so the cascade produces `list(list(list))`.
+
+If the top-level types are incompatible (e.g., mixing a number and a list), rill raises RILL-R002.
+
 ### `.^type.name` for Coarse Type Name
 
 `.^type.name` returns the coarse type name as a string:
@@ -130,6 +171,8 @@ The string representation of structural types follows this format:
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
+| Bare list (no element type) | `"list"` |
+| Bare closure (no params) | `"closure"` |
 
 ## Type Assertions
 

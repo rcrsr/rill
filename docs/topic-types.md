@@ -138,6 +138,8 @@ Use explicit boolean checks when needed:
 
 Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent — `list[...]` is canonical (used in output and the LLM reference).
 
+When list elements share a compound type but differ in sub-structure, rill infers the bare compound type. See [Type Inference Cascade](topic-type-system.md#type-inference-cascade).
+
 ```rill
 [1, 2, 3]         # bare form
 list[1, 2, 3]     # keyword form (canonical)

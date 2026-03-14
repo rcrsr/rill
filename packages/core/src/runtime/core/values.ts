@@ -232,18 +232,68 @@ export function inferType(value: RillValue): RillTypeName {
 export function inferElementType(elements: RillValue[]): RillType {
   if (elements.length === 0) return { type: 'any' };
   const firstElem = elements[0]!;
-  const firstType = inferStructuralType(firstElem);
+  let accType = inferStructuralType(firstElem);
   for (let i = 1; i < elements.length; i++) {
     const elem = elements[i]!;
     const elemType = inferStructuralType(elem);
-    if (!structuralTypeEquals(firstType, elemType)) {
+    const merged = commonType(accType, elemType);
+    if (merged === null) {
       throw new RuntimeError(
         'RILL-R002',
-        `List elements must be the same type: expected ${formatStructuralType(firstType)}, got ${formatStructuralType(elemType)} at index ${i}`
+        `List elements must be the same type: expected ${formatStructuralType(accType)}, got ${formatStructuralType(elemType)} at index ${i}`
       );
     }
+    accType = merged;
   }
-  return firstType;
+  return accType;
+}
+
+/**
+ * Return the most specific shared type for two RillType values.
+ * Returns null when types are incompatible at the top level.
+ *
+ * Cascade priority:
+ * 1. Any-narrowing: if either side is `any`, return the other
+ * 2. Structural match: delegate to structuralTypeEquals; on true, return a
+ * 3. Recursive list: merge inner element types
+ * 4. Bare type fallback: same compound type but structural mismatch
+ * 5. Incompatible: different top-level types return null
+ */
+export function commonType(a: RillType, b: RillType): RillType | null {
+  // 1. Any-narrowing
+  if (a.type === 'any') return b;
+  if (b.type === 'any') return a;
+
+  // 5. Incompatible top-level types (checked early to short-circuit)
+  if (a.type !== b.type) return null;
+
+  // 2. Structural match
+  if (structuralTypeEquals(a, b)) return a;
+
+  // 3. Recursive list element merging
+  if (a.type === 'list' && b.type === 'list') {
+    if (a.element !== undefined && b.element !== undefined) {
+      const inner = commonType(a.element, b.element);
+      if (inner !== null) return { type: 'list', element: inner };
+    }
+    return { type: 'list' };
+  }
+
+  // 4. Bare type fallback for compound types.
+  // The cast is safe for closure/dict/tuple/ordered (all sub-fields optional).
+  // For union, members is required by RillType but omitted here intentionally:
+  // bare union signals structural incompatibility without enumerating members.
+  if (
+    a.type === 'closure' ||
+    a.type === 'dict' ||
+    a.type === 'tuple' ||
+    a.type === 'ordered' ||
+    a.type === 'union'
+  ) {
+    return { type: a.type } as RillType;
+  }
+
+  return null;
 }
 
 /** Compare two structural types for equality. */
