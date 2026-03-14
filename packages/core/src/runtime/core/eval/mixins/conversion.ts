@@ -48,6 +48,7 @@ import {
   createTuple,
   formatValue,
   isFieldTypeWithDefault,
+  deepCopyRillValue,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -608,38 +609,6 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       );
     }
   };
-}
-
-/**
- * Deep copy a RillValue, producing a new independent value.
- * Handles primitives, arrays, plain dicts, and null.
- * Special markers (closures, tuples, ordered, vectors, type values) are returned
- * as-is since they are immutable by contract.
- */
-function deepCopyRillValue(value: RillValue): RillValue {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(deepCopyRillValue);
-  }
-  // Plain dict: copy recursively. Special markers (RillTuple, RillOrdered, etc.)
-  // carry __rill_* own properties and are treated as immutable; return as-is.
-  if (
-    !('__rill_tuple' in value) &&
-    !('__rill_ordered' in value) &&
-    !('__rill_vector' in value) &&
-    !('__rill_type' in value) &&
-    !('__type' in value) &&
-    !('__rill_field_descriptor' in value)
-  ) {
-    const copy: Record<string, RillValue> = {};
-    for (const [k, v] of Object.entries(value as Record<string, RillValue>)) {
-      copy[k] = deepCopyRillValue(v);
-    }
-    return copy;
-  }
-  return value;
 }
 
 /**

@@ -28,6 +28,10 @@ import {
   formatValue,
   formatStructuralType,
   inferType,
+  isFieldTypeWithDefault,
+  isOrdered,
+  createOrdered,
+  deepCopyRillValue,
   isTuple,
   paramToTypeTuple,
   structuralTypeEquals,
@@ -347,6 +351,60 @@ export interface MarshalOptions {
 }
 
 /**
+ * Hydrate missing dict/ordered field-level defaults into a value.
+ *
+ * When a param has type `dict(a: string = "x", b: number)` and the caller
+ * passes `[b: 2]`, this fills in `a` with its default `"x"`. Fields without
+ * defaults are left absent so Stage 3 catches them with RILL-R001.
+ *
+ * Pure function: no class context, no evaluator, no side effects.
+ */
+function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
+  if (type.type === 'dict' && type.fields && isDict(value)) {
+    const dictValue = value as Record<string, RillValue>;
+    const result: Record<string, RillValue> = {};
+    for (const [fieldName, fieldType] of Object.entries(type.fields)) {
+      const resolvedInnerType: RillType = isFieldTypeWithDefault(fieldType)
+        ? fieldType.type
+        : fieldType;
+      if (fieldName in dictValue) {
+        result[fieldName] = hydrateFieldDefaults(
+          dictValue[fieldName]!,
+          resolvedInnerType
+        );
+      } else if (isFieldTypeWithDefault(fieldType)) {
+        result[fieldName] = deepCopyRillValue(fieldType.defaultValue);
+      }
+      // Missing without default: leave absent for Stage 3
+    }
+    return result;
+  }
+
+  if (type.type === 'ordered' && type.fields && isOrdered(value)) {
+    const lookup = new Map<string, RillValue>(
+      value.entries.map(([k, v]) => [k, v] as [string, RillValue])
+    );
+    const resultEntries: [string, RillValue][] = [];
+    for (const field of type.fields as [string, RillType, RillValue?][]) {
+      const name = field[0]!;
+      const innerType = field[1]!;
+      if (lookup.has(name)) {
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(lookup.get(name)!, innerType),
+        ]);
+      } else if (field.length === 3) {
+        resultEntries.push([name, deepCopyRillValue(field[2]!)]);
+      }
+      // Missing without default: leave absent for Stage 3
+    }
+    return createOrdered(resultEntries);
+  }
+
+  return value;
+}
+
+/**
  * Unified marshaling entry point for all 3 invocation paths.
  *
  * Builds a named argument map from positional args, hydrates defaults,
@@ -355,6 +413,7 @@ export interface MarshalOptions {
  * Stages:
  * 1. Excess args check (RILL-R045)
  * 2. Default hydration + missing required check (RILL-R044)
+ * 2.5. Dict/ordered field-level default hydration
  * 3. Type check per field (RILL-R001)
  *
  * Preconditions (enforced by caller):
@@ -415,6 +474,11 @@ export function marshalArgs(
           }
         );
       }
+    }
+
+    // Stage 2.5: Hydrate dict/ordered field-level defaults
+    if (param.type !== undefined) {
+      value = hydrateFieldDefaults(value, param.type);
     }
 
     // Stage 3: Type check when param.type is defined

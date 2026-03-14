@@ -462,7 +462,11 @@ export function structuralTypeMatches(
     if (dictKeys.length === 0) return true;
     const dict = value as Record<string, RillValue>;
     for (const key of dictKeys) {
-      if (!(key in dict)) return false;
+      if (!(key in dict)) {
+        const fieldType = type.fields[key]!;
+        if (isFieldTypeWithDefault(fieldType)) continue;
+        return false;
+      }
       const fieldType = type.fields[key]!;
       const resolvedType = isFieldTypeWithDefault(fieldType)
         ? fieldType.type
@@ -490,8 +494,16 @@ export function structuralTypeMatches(
     // Absent fields sub-field: matches any ordered value
     if (type.fields === undefined) return true;
     if (type.fields.length === 0) return value.entries.length === 0;
-    if (value.entries.length !== type.fields.length) return false;
-    for (let i = 0; i < type.fields.length; i++) {
+    // Reject if value has more entries than type fields
+    if (value.entries.length > type.fields.length) return false;
+    // Reject if value is shorter and any trailing missing field lacks a default
+    if (value.entries.length < type.fields.length) {
+      for (let i = value.entries.length; i < type.fields.length; i++) {
+        const field = type.fields[i]!;
+        if (field.length !== 3) return false;
+      }
+    }
+    for (let i = 0; i < value.entries.length; i++) {
       const [expectedName, expectedType] = type.fields[i]!;
       const [actualName, actualValue] = value.entries[i]!;
       if (actualName !== expectedName) return false;
@@ -1026,4 +1038,36 @@ export function isRillIterator(value: RillValue): value is RillIterator {
   // 'value' field only required when not done
   if (!dict['done'] && !('value' in dict)) return false;
   return true;
+}
+
+/**
+ * Deep copy a RillValue, producing a new independent value.
+ * Handles primitives, arrays, plain dicts, and null.
+ * Special markers (closures, tuples, ordered, vectors, type values) are returned
+ * as-is since they are immutable by contract.
+ */
+export function deepCopyRillValue(value: RillValue): RillValue {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(deepCopyRillValue);
+  }
+  // Plain dict: copy recursively. Special markers (RillTuple, RillOrdered, etc.)
+  // carry __rill_* own properties and are treated as immutable; return as-is.
+  if (
+    !('__rill_tuple' in value) &&
+    !('__rill_ordered' in value) &&
+    !('__rill_vector' in value) &&
+    !('__rill_type' in value) &&
+    !('__type' in value) &&
+    !('__rill_field_descriptor' in value)
+  ) {
+    const copy: Record<string, RillValue> = {};
+    for (const [k, v] of Object.entries(value as Record<string, RillValue>)) {
+      copy[k] = deepCopyRillValue(v);
+    }
+    return copy;
+  }
+  return value;
 }
