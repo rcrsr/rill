@@ -423,14 +423,15 @@ list[list[1,2], list["a","b"]]
 
 ### rill-r004
 
-**Description:** Type conversion failure or return type assertion failure
+**Description:** Type conversion failure, return type assertion failure, or uniform type assertion failure
 
-**Cause:** Two distinct causes raise RILL-R004:
+**Cause:** Three distinct causes raise RILL-R004:
 
 1. **Type conversion failure** — Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
 2. **Return type assertion failure** — Closure return type annotation (`:type` after `}`) does not match the actual return value type.
+3. **Uniform type assertion failure** — Value does not match the uniform value type constraint in `dict(T)`, `ordered(T)`, or `tuple(T)`.
 
-**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type.
+**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type. For uniform type assertions: ensure all values in the collection match the declared uniform type T.
 
 **Example:**
 
@@ -444,6 +445,10 @@ json({ "hi" })
 # Return type annotation mismatch
 5 -> |number|{ "hello" }:number
 # Error: RILL-R004: Type assertion failed: expected number, got string
+
+# Uniform type assertion failure
+{name: "a", run: "b"} -> :>dict(closure)
+# Error: RILL-R004: Type assertion failed: expected dict(closure), got dict(name: string, run: string)
 ```
 
 ---

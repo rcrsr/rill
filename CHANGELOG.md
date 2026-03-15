@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Uniform value types for `dict`, `ordered`, and `tuple`** — `dict(T)`, `ordered(T)`, and `tuple(T)` assert that all values in the collection match type T, mirroring the existing `list(T)` pattern. Type inference now uses a three-level cascade (structural → uniform → bare), so `[{a: 1}, {b: 2}]` infers `list(dict(number))`. Empty collections always pass. Mismatch raises RILL-R004.
 - **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
 - **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
 - **`RillFieldDef` type export** — Unified field definition type exported from `@rcrsr/rill` for dict, tuple, ordered, and closure types. Replaces `RillFieldType`
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (Breaking)
 
+- **`tuple(T)` single-arg form repurposed** — `tuple(T)` with a single positional argument now defines a uniform value type (all entries match T), not a 1-element structural tuple. Use `tuple(T1, T2)` with 2+ positional arguments for structural tuples with specific element types.
 - **`RillType` union members** — Dict, tuple, ordered, and closure field shapes now use `RillFieldDef` instead of positional tuples and `RillFieldType`. Extensions reading type structure must update
 - **`RillFieldDescriptor.fieldType`** — Property type changed from `RillFieldType` to `RillFieldDef`
 - **`paramToTypeTuple` renamed to `paramToFieldDef`** — Returns a `RillFieldDef` object instead of a positional tuple. Callers must update function name and destructuring

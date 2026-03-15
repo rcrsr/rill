@@ -85,13 +85,28 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // AC-43: dict(string) with positional arg throws RILL-R004
+  // AC-43: dict(string) with single positional arg produces uniform type
+  // (Task 1.5: uniform path for 1 positional arg)
   // ============================================================
 
-  describe('dict() with positional argument (AC-43)', () => {
-    it('throws when dict() is called with a positional argument', async () => {
-      await expect(run('dict(string)')).rejects.toThrow(
-        'dict() requires named arguments'
+  describe('dict() with single positional argument (AC-43)', () => {
+    it('produces uniform dict type with valueType', async () => {
+      const result = (await run('dict(string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('dict');
+      expect(result.structure.type).toBe('dict');
+      expect(result.structure.valueType).toEqual({ type: 'string' });
+    });
+
+    it('throws when dict() mixes positional and named arguments', async () => {
+      await expect(run('dict(string, x: number)')).rejects.toThrow(
+        'dict() cannot mix positional and named arguments'
+      );
+    });
+
+    it('throws when dict() has 2+ positional arguments', async () => {
+      await expect(run('dict(string, number)')).rejects.toThrow(
+        'dict() requires exactly 1 positional type argument'
       );
     });
   });
@@ -125,13 +140,28 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // EC-6: Type constructor in dict/ordered requires named args
+  // EC-6: ordered() with single positional arg produces uniform type
+  // (Task 1.5: uniform path for 1 positional arg)
   // ============================================================
 
-  describe('EC-6: ordered() with positional argument', () => {
-    it('throws when ordered() is called with a positional argument', async () => {
-      await expect(run('ordered(string)')).rejects.toThrow(
-        'ordered() requires named arguments'
+  describe('ordered() with single positional argument (EC-6)', () => {
+    it('produces uniform ordered type with valueType', async () => {
+      const result = (await run('ordered(string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('ordered');
+      expect(result.structure.type).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ type: 'string' });
+    });
+
+    it('throws when ordered() mixes positional and named arguments', async () => {
+      await expect(run('ordered(string, x: number)')).rejects.toThrow(
+        'ordered() cannot mix positional and named arguments'
+      );
+    });
+
+    it('throws when ordered() has 2+ positional arguments', async () => {
+      await expect(run('ordered(string, number)')).rejects.toThrow(
+        'ordered() requires exactly 1 positional type argument'
       );
     });
   });

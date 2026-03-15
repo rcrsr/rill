@@ -323,6 +323,22 @@ Closures in dicts have `$` late-bound to the containing dict. See [Closures](top
 $obj.str    # "toolkit: 3 items" (auto-invoked)
 ```
 
+### Uniform Value Type
+
+`dict(T)` asserts that every value in the dict matches type T. The dict itself is returned unchanged.
+
+```rill
+[a: 1, b: 2] -> :>dict(number)
+# Result: dict[a: 1, b: 2]
+```
+
+An empty dict passes — no values to violate the constraint.
+
+```rill
+dict[] -> :>dict(number)
+# Result: dict[]
+```
+
 ## Ordered
 
 `ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
@@ -344,6 +360,17 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
 `ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
+
+### Uniform Value Type
+
+`ordered(T)` asserts that every entry value in the ordered container matches type T. The container is returned unchanged.
+
+```rill
+ordered[x: 1, y: 2] -> :>ordered(number)
+# Result: ordered[x: 1, y: 2]
+```
+
+An empty ordered container passes — no values to violate the constraint.
 
 ## Tuples
 
@@ -421,6 +448,19 @@ Use tuples with explicit spread `...` to pass positional args in `map`:
 |x, y|($x * $y) => $mul
 [tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
 ```
+
+### Uniform Value Type
+
+`tuple(T)` asserts that every entry in the tuple matches type T. The tuple is returned unchanged.
+
+```rill
+tuple[1, 2, 3] -> :>tuple(number)
+# Result: tuple[1, 2, 3]
+```
+
+An empty tuple passes — no values to violate the constraint.
+
+**Breaking change:** The single-positional-argument form `tuple(T)` now defines a uniform value type, not a 1-element structural tuple. Use `tuple(T1, T2)` (two or more positional args) for structural tuples with specific element types.
 
 ## Vectors
 

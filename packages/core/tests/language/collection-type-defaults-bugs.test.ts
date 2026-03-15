@@ -44,22 +44,26 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // positional arg. The error message must say "ordered()" not "dict()".
   // ============================================================
 
-  describe('AC-3: resolveTypeRef ordered error says ordered()', () => {
-    it(':ordered(number) assertion error mentions ordered() not dict()', async () => {
-      await expect(run('[a: 1] -> :ordered(number)')).rejects.toThrow(
-        /ordered\(\) requires named arguments/
+  describe('AC-3: resolveTypeRef ordered uniform type path', () => {
+    it(':dict(number) resolves as uniform dict type and passes assertion', async () => {
+      // Single positional arg now produces uniform dict type
+      // [a: 1] is a dict with number values, so :dict(number) passes
+      const result = await run('[a: 1] -> :dict(number)');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it(':dict(string) assertion fails when value types do not match', async () => {
+      // [a: 1] has number values, not string
+      await expect(run('[a: 1] -> :dict(string)')).rejects.toThrow(
+        /Type assertion failed/
       );
     });
 
-    it(':ordered(number) assertion error does not mention dict()', async () => {
-      let errorMessage = '';
-      try {
-        await run('[a: 1] -> :ordered(number)');
-      } catch (e) {
-        errorMessage = (e as Error).message;
-      }
-      expect(errorMessage).toContain('ordered()');
-      expect(errorMessage).not.toContain('dict()');
+    it(':ordered(number) assertion fails on dict value (type mismatch)', async () => {
+      // [a: 1] is a dict, not an ordered, so :ordered(number) fails
+      await expect(run('[a: 1] -> :ordered(number)')).rejects.toThrow(
+        /Type assertion failed/
+      );
     });
   });
 
@@ -68,31 +72,21 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // identical error text for ordered with positional arg
   // ============================================================
 
-  describe('AC-4: identical error text from resolveTypeRef and evaluateTypeConstructor', () => {
-    it('type assertion and type constructor produce the same error message', async () => {
-      // resolveTypeRef path: type assertion :ordered(number)
-      let resolveError = '';
-      try {
-        await run('[a: 1] -> :ordered(number)');
-      } catch (e) {
-        resolveError = (e as Error).message;
-      }
+  describe('AC-4: resolveTypeRef and evaluateTypeConstructor uniform type parity', () => {
+    it('resolveTypeRef accepts dict(number) as uniform type', async () => {
+      // resolveTypeRef path: :dict(number) resolves as uniform dict type
+      const result = await run('[a: 1] -> :dict(number)');
+      expect(result).toEqual({ a: 1 });
+    });
 
-      // evaluateTypeConstructor path: ordered(number) as expression
-      let constructorError = '';
-      try {
-        await run('ordered(number)');
-      } catch (e) {
-        constructorError = (e as Error).message;
-      }
-
-      // Both messages contain the same ordered() error text
-      expect(resolveError).toContain(
-        'ordered() requires named arguments (field: type)'
-      );
-      expect(constructorError).toContain(
-        'ordered() requires named arguments (field: type)'
-      );
+    it('evaluateTypeConstructor accepts ordered(number) as uniform type', async () => {
+      // evaluateTypeConstructor path: ordered(number) produces uniform type
+      // (Task 1.5: uniform path for 1 positional arg)
+      const result = (await run('ordered(number)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('ordered');
+      expect(result.structure.type).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ type: 'number' });
     });
   });
 
@@ -133,16 +127,17 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // RILL-R004 with ordered() in the message
   // ============================================================
 
-  describe('EC-2: ordered() with positional arg raises RILL-R004', () => {
-    it('ordered(number) throws RILL-R004 mentioning ordered()', async () => {
-      await expect(run('ordered(number)')).rejects.toThrow(
-        /ordered\(\) requires named arguments/
-      );
+  describe('EC-2: ordered() uniform type path (Task 1.5)', () => {
+    it('ordered(number) produces uniform ordered type', async () => {
+      const result = (await run('ordered(number)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ type: 'number' });
     });
 
-    it(':>ordered(number) conversion path also throws ordered() error', async () => {
-      await expect(run('[a: 1] -> :>ordered(number)')).rejects.toThrow(
-        /ordered\(\) requires named arguments/
+    it('ordered(string, number) with 2+ positional args throws RILL-R004', async () => {
+      await expect(run('ordered(string, number)')).rejects.toThrow(
+        /ordered\(\) requires exactly 1 positional type argument/
       );
     });
   });
@@ -154,15 +149,18 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
 
   describe('EC-3: tuple conversion missing required element raises RILL-R044', () => {
     it('tuple[1] -> :>tuple(number, string) throws with position 1', async () => {
+      // 2 positional args: structural path with elements (unchanged)
       await expect(run('tuple[1] -> :>tuple(number, string)')).rejects.toThrow(
         /missing required element at position 1/
       );
     });
 
-    it('tuple[] -> :>tuple(number) throws with position 0', async () => {
-      await expect(run('tuple[] -> :>tuple(number)')).rejects.toThrow(
-        /missing required element at position 0/
-      );
+    it('tuple(number) produces uniform tuple type (Task 1.5)', async () => {
+      // 1 positional arg: uniform path with valueType
+      const result = (await run('tuple(number)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('tuple');
+      expect(result.structure.valueType).toEqual({ type: 'number' });
     });
   });
 
@@ -192,12 +190,14 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
 
   describe('EC-5: nested tuple conversion missing required element raises RILL-R044', () => {
     it('dict with nested tuple missing element throws RILL-R044', async () => {
+      // Named args: structural path (unchanged)
       await expect(
         run('[items: tuple[1]] -> :>dict(items: tuple(number, string, bool))')
       ).rejects.toThrow(/missing required element at position/);
     });
 
     it('ordered with nested tuple missing element throws RILL-R044', async () => {
+      // Named args: structural path (unchanged)
       await expect(
         run(
           '[items: tuple[1]] -> :>ordered(items: tuple(number, string, bool))'
@@ -205,10 +205,10 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       ).rejects.toThrow(/missing required element at position/);
     });
 
-    it('tuple inside tuple missing required element throws RILL-R044', async () => {
-      // Outer tuple has a nested tuple element that is too short
+    it('tuple with 2 structural elements still validates nested tuples', async () => {
+      // 2 positional args: structural path (unchanged)
       await expect(
-        run('tuple[tuple[1]] -> :>tuple(tuple(number, string))')
+        run('tuple[tuple[1], 2] -> :>tuple(tuple(number, string), number)')
       ).rejects.toThrow(/missing required element at position/);
     });
   });
@@ -219,17 +219,8 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
   // ============================================================
 
   describe('BC-4: nested dict inside tuple field defaults hydrated recursively', () => {
-    it('tuple element is a dict type with defaulted field, default hydrated', async () => {
-      const result = await run(
-        'tuple[[y: "z"]] -> :>tuple(dict(x: number = 42, y: string))'
-      );
-      expect(isTuple(result)).toBe(true);
-      const tupleResult = result as { entries: unknown[] };
-      expect(tupleResult.entries).toHaveLength(1);
-      expect(tupleResult.entries[0]).toEqual({ x: 42, y: 'z' });
-    });
-
     it('tuple with two elements: second is dict with defaults', async () => {
+      // 2 positional args: structural path (unchanged)
       const result = await run(
         'tuple[1, [b: "b"]] -> :>tuple(number, dict(a: string = "a", b: string))'
       );
@@ -241,14 +232,16 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
     });
 
     it('nested dict inside tuple with all fields present passes through', async () => {
+      // 2 positional args: structural path (unchanged)
       const result = await run(
-        'tuple[[x: 10, y: "z"]] -> :>tuple(dict(x: number = 42, y: string))'
+        'tuple[[x: 10, y: "z"], 1] -> :>tuple(dict(x: number = 42, y: string), number)'
       );
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
-      expect(tupleResult.entries).toHaveLength(1);
+      expect(tupleResult.entries).toHaveLength(2);
       // x is present in input (10), not replaced by default (42)
       expect(tupleResult.entries[0]).toEqual({ x: 10, y: 'z' });
+      expect(tupleResult.entries[1]).toBe(1);
     });
   });
 });

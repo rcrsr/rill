@@ -381,9 +381,11 @@ describe('Rill Runtime: Type Assertions', () => {
       );
     });
 
-    it('EC-5: dict(string) annotation (positional) halts with "requires named arguments"', async () => {
+    it('EC-5: dict(string) annotation (positional) resolves as uniform dict type', async () => {
+      // Single positional arg now produces uniform dict type { type: 'dict', valueType: { type: 'string' } }
+      // "x" is not a dict, so assertType raises a type mismatch
       await expect(run('"x" :dict(string)')).rejects.toThrow(
-        'dict() requires named arguments'
+        'Type assertion failed'
       );
     });
 

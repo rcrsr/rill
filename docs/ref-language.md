@@ -167,6 +167,9 @@ Type constructors are primary expressions that produce structural type values. T
 | Constructor | Syntax | Example |
 |-------------|--------|---------|
 | List type | `list(T)` | `list(number)`, `list(list(string))` |
+| Dict type (uniform) | `dict(T)` | `dict(number)` |
+| Tuple type (uniform) | `tuple(T)` | `tuple(number)` |
+| Ordered type (uniform) | `ordered(T)` | `ordered(string)` |
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |

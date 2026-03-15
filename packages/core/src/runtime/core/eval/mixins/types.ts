@@ -149,15 +149,39 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         if (typeName === 'dict') {
-          // EC-5: dict requires named args only
-          for (const arg of args) {
-            if (arg.name === undefined) {
-              throw new RuntimeError(
-                'RILL-R004',
-                'dict() requires named arguments (field: type)'
-              );
-            }
+          const positional = args.filter((a) => a.name === undefined);
+          const named = args.filter((a) => a.name !== undefined);
+
+          // EC-1: Cannot mix positional and named arguments
+          if (positional.length > 0 && named.length > 0) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'dict() cannot mix positional and named arguments'
+            );
           }
+
+          // Uniform path: exactly 1 positional, 0 named → valueType
+          if (positional.length === 1 && named.length === 0) {
+            const structure: RillType = {
+              type: 'dict',
+              valueType: resolveArg(positional[0]!),
+            };
+            return Object.freeze({
+              __rill_type: true as const,
+              typeName,
+              structure,
+            });
+          }
+
+          // EC-2: dict with 2+ positional args
+          if (positional.length >= 2) {
+            throw new RuntimeError(
+              'RILL-R004',
+              'dict() requires exactly 1 positional type argument'
+            );
+          }
+
+          // Structural path: named args only → fields
           const fields: Record<string, RillFieldDef> = {};
           for (const arg of args) {
             fields[arg.name!] = { type: resolveArg(arg) };
@@ -180,6 +204,21 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
           }
+
+          // Uniform path: exactly 1 positional, 0 named → valueType
+          if (args.length === 1 && args[0]!.name === undefined) {
+            const structure: RillType = {
+              type: 'tuple',
+              valueType: resolveArg(args[0]!),
+            };
+            return Object.freeze({
+              __rill_type: true as const,
+              typeName,
+              structure,
+            });
+          }
+
+          // Structural path: 2+ positional → elements
           const elements: RillFieldDef[] = args.map(
             (arg): RillFieldDef => ({ type: resolveArg(arg) })
           );
@@ -192,15 +231,39 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         // typeName === 'ordered'
-        // EC-5: ordered requires named args only
-        for (const arg of args) {
-          if (arg.name === undefined) {
-            throw new RuntimeError(
-              'RILL-R004',
-              'ordered() requires named arguments (field: type)'
-            );
-          }
+        const ordPositional = args.filter((a) => a.name === undefined);
+        const ordNamed = args.filter((a) => a.name !== undefined);
+
+        // EC-1: Cannot mix positional and named arguments
+        if (ordPositional.length > 0 && ordNamed.length > 0) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'ordered() cannot mix positional and named arguments'
+          );
         }
+
+        // Uniform path: exactly 1 positional, 0 named → valueType
+        if (ordPositional.length === 1 && ordNamed.length === 0) {
+          const structure: RillType = {
+            type: 'ordered',
+            valueType: resolveArg(ordPositional[0]!),
+          };
+          return Object.freeze({
+            __rill_type: true as const,
+            typeName,
+            structure,
+          });
+        }
+
+        // EC-2: ordered with 2+ positional args
+        if (ordPositional.length >= 2) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'ordered() requires exactly 1 positional type argument'
+          );
+        }
+
+        // Structural path: named args only → fields
         const orderedFields: RillFieldDef[] = args.map(
           (arg): RillFieldDef => ({ name: arg.name!, type: resolveArg(arg) })
         );
@@ -269,7 +332,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           'element' in expected ||
           'fields' in expected ||
           'elements' in expected ||
-          'members' in expected;
+          'members' in expected ||
+          'valueType' in expected;
         if (hasSubFields) {
           if (!structuralTypeMatches(value, expected)) {
             const expectedStr = formatStructuralType(expected);
@@ -343,7 +407,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         'element' in resolved.structure ||
         'fields' in resolved.structure ||
         'elements' in resolved.structure ||
-        'members' in resolved.structure;
+        'members' in resolved.structure ||
+        'valueType' in resolved.structure;
       if (hasSubFields) {
         return structuralTypeMatches(value, resolved.structure);
       }
@@ -389,13 +454,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Evaluate a type constructor node into a RillTypeValue [IR-7].
      *
-     * Handles list(T), dict(k: T, ...), tuple(T1, T2, ...), ordered(k: T, ...).
+     * Handles list(T), dict(...), tuple(...), ordered(...).
      * All arguments must evaluate to RillTypeValue.
      *
+     * Uniform path: when exactly 1 positional arg and 0 named args,
+     * produces a type with valueType set (dict, tuple, ordered) [IR-2].
+     *
      * Error contracts:
+     * - EC-1: positional and named args mixed -> RILL-R004
+     * - EC-2: dict/ordered with 2+ positional args -> RILL-R004
      * - EC-4: list() with != 1 arg -> RILL-R004
      * - EC-5: non-type argument -> RILL-R004
-     * - EC-6: positional arg in dict/ordered -> RILL-R004
      * - EC-7: named arg in tuple -> RILL-R004
      */
     async evaluateTypeConstructor(
@@ -448,16 +517,43 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       if (name === 'dict') {
-        // EC-6: dict() requires named arguments
-        for (const arg of node.args) {
-          if (arg.kind === 'positional') {
-            throw new RuntimeError(
-              'RILL-R004',
-              'dict() requires named arguments (field: type)',
-              location
-            );
-          }
+        const positional = node.args.filter((a) => a.kind === 'positional');
+        const named = node.args.filter((a) => a.kind === 'named');
+
+        // EC-1: Cannot mix positional and named arguments
+        if (positional.length > 0 && named.length > 0) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'dict() cannot mix positional and named arguments',
+            location
+          );
         }
+
+        // Uniform path: exactly 1 positional, 0 named → valueType
+        if (positional.length === 1 && named.length === 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const argVal: RillValue = await (this as any).evaluateExpression(
+            positional[0]!.value
+          );
+          const resolvedType = await resolveArgAsType(argVal);
+          const structure: RillType = { type: 'dict', valueType: resolvedType };
+          return Object.freeze({
+            __rill_type: true as const,
+            typeName: 'dict' as RillTypeName,
+            structure,
+          });
+        }
+
+        // EC-2: dict with 2+ positional args
+        if (positional.length >= 2) {
+          throw new RuntimeError(
+            'RILL-R004',
+            'dict() requires exactly 1 positional type argument',
+            location
+          );
+        }
+
+        // Structural path: named args only → fields
         const fields: Record<string, RillFieldDef> = {};
         for (const arg of node.args) {
           if (arg.kind === 'named') {
@@ -506,6 +602,31 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         }
+
+        // Uniform path: exactly 1 positional, 0 named → valueType
+        const tupleNamed = node.args.filter((a) => a.kind === 'named');
+        if (
+          node.args.length === 1 &&
+          node.args[0]!.kind === 'positional' &&
+          tupleNamed.length === 0
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const argVal: RillValue = await (this as any).evaluateExpression(
+            node.args[0]!.value
+          );
+          const resolvedType = await resolveArgAsType(argVal);
+          const structure: RillType = {
+            type: 'tuple',
+            valueType: resolvedType,
+          };
+          return Object.freeze({
+            __rill_type: true as const,
+            typeName: 'tuple' as RillTypeName,
+            structure,
+          });
+        }
+
+        // Structural path: 2+ positional → elements
         const elements: RillFieldDef[] = [];
         for (const arg of node.args) {
           if (arg.kind === 'positional') {
@@ -549,16 +670,46 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // name === 'ordered'
-      // EC-6: ordered() requires named arguments
-      for (const arg of node.args) {
-        if (arg.kind === 'positional') {
-          throw new RuntimeError(
-            'RILL-R004',
-            'ordered() requires named arguments (field: type)',
-            location
-          );
-        }
+      const ordPositional = node.args.filter((a) => a.kind === 'positional');
+      const ordNamed = node.args.filter((a) => a.kind === 'named');
+
+      // EC-1: Cannot mix positional and named arguments
+      if (ordPositional.length > 0 && ordNamed.length > 0) {
+        throw new RuntimeError(
+          'RILL-R004',
+          'ordered() cannot mix positional and named arguments',
+          location
+        );
       }
+
+      // Uniform path: exactly 1 positional, 0 named → valueType
+      if (ordPositional.length === 1 && ordNamed.length === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const argVal: RillValue = await (this as any).evaluateExpression(
+          ordPositional[0]!.value
+        );
+        const resolvedType = await resolveArgAsType(argVal);
+        const structure: RillType = {
+          type: 'ordered',
+          valueType: resolvedType,
+        };
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: 'ordered' as RillTypeName,
+          structure,
+        });
+      }
+
+      // EC-2: ordered with 2+ positional args
+      if (ordPositional.length >= 2) {
+        throw new RuntimeError(
+          'RILL-R004',
+          'ordered() requires exactly 1 positional type argument',
+          location
+        );
+      }
+
+      // Structural path: named args only → fields
       const orderedFields: RillFieldDef[] = [];
       for (const arg of node.args) {
         if (arg.kind === 'named') {

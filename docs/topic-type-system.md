@@ -39,6 +39,9 @@ $lt.^type.name
 | Constructor | Example | Produced Type |
 |-------------|---------|---------------|
 | `list(T)` | `list(number)` | List-of-number type |
+| `dict(T)` | `dict(number)` | Uniform dict type (all values same type) |
+| `ordered(T)` | `ordered(string)` | Uniform ordered type (all values same type) |
+| `tuple(T)` | `tuple(number)` | Uniform tuple type (all entries same type) |
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
@@ -111,10 +114,18 @@ $d.^type == dict(a: number, b: string)
 
 ### Type Inference Cascade
 
-When rill infers the element type of a list literal, it uses a two-level cascade:
+When rill infers the element type of a list literal, it uses a three-level cascade:
 
 1. **Structural match** — all elements share the same full structural type. The list retains that type.
-2. **Bare type fallback** — elements share the same compound kind (e.g., all lists, all closures) but differ in sub-structure. The list uses the bare compound type, stripping the sub-structure.
+2. **Uniform merge** — elements share the same compound kind and all their sub-values share a common type. The list retains the uniform form (e.g., `list(dict(number))`).
+3. **Bare type fallback** — elements share the same compound kind (e.g., all lists, all closures) but differ in sub-structure. The list uses the bare compound type, stripping the sub-structure.
+
+```rill
+list[dict[a: 1], dict[b: 2]].^type.signature
+# Result: "list(dict(number))"
+```
+
+Both dicts have number values, so the uniform merge succeeds and produces `dict(number)` as the element type.
 
 ```rill
 [list[1,2], list["a","b"]].^type.signature
@@ -191,11 +202,17 @@ The string representation of structural types follows this format:
 | Any value | `"any"` |
 | Primitive | `"string"`, `"number"`, `"bool"` |
 | List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
+| Dict (uniform) | `"dict(number)"` (all values same type) |
+| Ordered (uniform) | `"ordered(string)"` (all values same type) |
+| Tuple (uniform) | `"tuple(closure)"` (all entries same type) |
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
 | Bare list (no element type) | `"list"` |
+| Bare dict (no fields) | `"dict"` |
+| Bare tuple (no elements) | `"tuple"` |
+| Bare ordered (no fields) | `"ordered"` |
 | Bare closure (no params) | `"closure"` |
 
 ## Type Assertions

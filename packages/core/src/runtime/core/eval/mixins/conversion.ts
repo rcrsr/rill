@@ -85,16 +85,42 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Structural type constructor: :>ordered(name: type, ...) or :>list(T), :>dict(...), :>tuple(...)
       if (isTypeConstructorNode(typeRef)) {
-        if (typeRef.constructorName === 'ordered') {
-          return this.convertToOrderedWithSig(input, typeRef, node);
-        }
-        if (typeRef.constructorName === 'dict') {
-          return this.convertToDictWithSig(input, typeRef, node);
-        }
-        if (typeRef.constructorName === 'tuple') {
+        // For dict/ordered/tuple, evaluate the type constructor to determine
+        // uniform (valueType) vs structural (fields/elements) dispatch.
+        if (
+          typeRef.constructorName === 'ordered' ||
+          typeRef.constructorName === 'dict' ||
+          typeRef.constructorName === 'tuple'
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const typeValue = await (this as any).evaluateTypeConstructor(
+            typeRef
+          );
+          const structure = typeValue.structure;
+
+          // Uniform types (valueType present): use general convert-then-assert path
+          if ('valueType' in structure && structure.valueType) {
+            const result = this.applyConversion(
+              input,
+              typeRef.constructorName,
+              node
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).assertType(result, structure, node.span.start);
+            return result;
+          }
+
+          // Structural types (fields/elements present): use structural-specific handlers
+          if (typeRef.constructorName === 'ordered') {
+            return this.convertToOrderedWithSig(input, typeRef, node);
+          }
+          if (typeRef.constructorName === 'dict') {
+            return this.convertToDictWithSig(input, typeRef, node);
+          }
           return this.convertToTupleWithSig(input, typeRef, node);
         }
-        // Non-dict/ordered constructors: convert first, then assert structural type
+
+        // Non-dict/ordered/tuple constructors: convert first, then assert structural type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
         const result = this.applyConversion(
