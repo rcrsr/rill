@@ -139,7 +139,8 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 4. **Value-based** — Immutable values, value comparison. No mutation after creation.
 5. **Immutable types** — Variables lock type on first assignment.
 6. **Singular control flow** — No exceptions. Errors halt execution.
-7. **Vanilla language** — Host provides all domain functions.
+7. **No truthiness** — No boolean coercion. Conditions require explicit bool values.
+8. **Vanilla language** — Host provides all domain functions.
 
 ## Documentation
 
