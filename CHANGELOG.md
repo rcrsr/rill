@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
 - **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
 - **`RillFieldDef` type export** — Unified field definition type exported from `@rcrsr/rill` for dict, tuple, ordered, and closure types. Replaces `RillFieldType`
+- **`hasCollectionFields` and `emptyForType` utilities** — Internal helpers for detecting collection types with defined fields and creating empty collection seeds
 
 ### Changed (Breaking)
 
@@ -26,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Nested default synthesis for collection-typed fields** — Missing fields whose type is a collection with all-defaulted children are synthesized by seeding an empty collection and hydrating. `dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))` produces `{a: 1, b: {c: 5}}`
+- **Explicit collection defaults hydrated through nested type** — Default values that are themselves collections now pass through nested hydration. `dict(x: number = 42) = [:]` fills `x: 42` instead of returning an empty dict
 - **`.^input` returns type token** — `$fn.^input` now returns a `RillTypeValue` with `typeName: 'ordered'` and the parameter types in `structure.fields`, matching `.^output` behavior. `log` prints `ordered(x: number, y: number)` instead of the internal `RillOrdered` representation
 - **Nested hydration in `:>ordered()` conversion** — `dict :>ordered(sig)` now hydrates nested dict and ordered fields with defaults, matching existing `dict :>dict(sig)` behavior
 - **Ordered input for sig'd conversions** — `ordered :>dict(sig)` and `ordered :>ordered(sig)` now accepted; RILL-R044 errors report correct source type

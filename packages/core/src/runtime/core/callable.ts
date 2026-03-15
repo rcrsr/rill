@@ -36,6 +36,8 @@ import {
   structuralTypeEquals,
   structuralTypeMatches,
   anyTypeValue,
+  hasCollectionFields,
+  emptyForType,
 } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -369,9 +371,17 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
           fieldDef.type
         );
       } else if (fieldDef.defaultValue !== undefined) {
-        result[fieldName] = deepCopyRillValue(fieldDef.defaultValue);
+        result[fieldName] = hydrateFieldDefaults(
+          deepCopyRillValue(fieldDef.defaultValue),
+          fieldDef.type
+        );
+      } else if (hasCollectionFields(fieldDef.type)) {
+        result[fieldName] = hydrateFieldDefaults(
+          emptyForType(fieldDef.type),
+          fieldDef.type
+        );
       }
-      // Missing without default: leave absent for Stage 3
+      // Missing without default and not collection: leave absent for Stage 3
     }
     return result;
   }
@@ -389,9 +399,20 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
           hydrateFieldDefaults(lookup.get(name)!, field.type),
         ]);
       } else if (field.defaultValue !== undefined) {
-        resultEntries.push([name, deepCopyRillValue(field.defaultValue)]);
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(
+            deepCopyRillValue(field.defaultValue),
+            field.type
+          ),
+        ]);
+      } else if (hasCollectionFields(field.type)) {
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(emptyForType(field.type), field.type),
+        ]);
       }
-      // Missing without default: leave absent for Stage 3
+      // Missing without default and not collection: leave absent for Stage 3
     }
     return createOrdered(resultEntries);
   }
@@ -417,9 +438,15 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
       if (i < entries.length) {
         resultEntries.push(hydrateFieldDefaults(entries[i]!, el.type));
       } else if (el.defaultValue !== undefined) {
-        resultEntries.push(deepCopyRillValue(el.defaultValue));
+        resultEntries.push(
+          hydrateFieldDefaults(deepCopyRillValue(el.defaultValue), el.type)
+        );
+      } else if (hasCollectionFields(el.type)) {
+        resultEntries.push(
+          hydrateFieldDefaults(emptyForType(el.type), el.type)
+        );
       }
-      // Missing without default: leave absent (shorter tuple) for Stage 3
+      // Missing without default and not collection: leave absent (shorter tuple) for Stage 3
     }
     return { __rill_tuple: true as const, entries: resultEntries };
   }

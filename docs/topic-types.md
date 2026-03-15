@@ -400,6 +400,19 @@ Defaults must appear at trailing positions only. A required field after a defaul
 
 This matches the trailing-default behavior of `dict` and `ordered` type constructors.
 
+#### Nested Default Synthesis
+
+When a collection-typed field has no value and no explicit default, `:>` synthesizes it if all its children have defaults. The runtime seeds an empty collection and fills each child from the nested type.
+
+```rill
+dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+# Result: dict[a: 1, b: dict[c: 5]]
+```
+
+When a field has an explicit collection default, `:>` hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
+
+If any required child field lacks a default, the conversion raises RILL-R044.
+
 ### Parallel Spread with Tuples
 
 Use tuples with explicit spread `...` to pass positional args in `map`:

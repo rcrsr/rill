@@ -172,6 +172,13 @@ Type constructors are primary expressions that produce structural type values. T
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 
+When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:
+
+- **Nested synthesis** — A missing field with no explicit default is synthesized as an empty collection when all its children have defaults. Missing children are filled from the nested type.
+- **Explicit default hydration** — An explicit collection default is hydrated through the nested type. Child defaults fill any fields the explicit default omits.
+
+If any required child field has no default, `:>` raises [RILL-R044](ref-errors.md).
+
 `^type` returns a structural type value — not a coarse string:
 
 ```rill

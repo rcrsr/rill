@@ -702,4 +702,100 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(result).toBe('|name: string = "world"| :any');
     });
   });
+
+  // ============================================================
+  // Nested default synthesis and hydration
+  // ============================================================
+
+  describe('Nested default synthesis and hydration', () => {
+    // ============================================================
+    // Missing field with nested dict where all children have defaults
+    // ============================================================
+
+    it('synthesizes missing dict field from children defaults', async () => {
+      const result = await run(
+        'dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))'
+      );
+      expect(result).toEqual({ a: 1, b: { c: 5 } });
+    });
+
+    // ============================================================
+    // Missing field with nested dict where some children lack defaults
+    // ============================================================
+
+    it('throws RILL-R044 when nested dict has missing required child', async () => {
+      await expect(
+        run(
+          'dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5, d: string))'
+        )
+      ).rejects.toThrow(/missing required field 'd'/);
+    });
+
+    // ============================================================
+    // Explicit empty default hydrated through nested type
+    // ============================================================
+
+    it('hydrates explicit empty dict default through nested type', async () => {
+      // [:] is the empty dict literal accepted by parseLiteral; dict[] is not valid in default position
+      const result = await run(
+        'dict[] -> :>dict(cfg: dict(x: number = 42) = [:])'
+      );
+      expect(result).toEqual({ cfg: { x: 42 } });
+    });
+
+    // ============================================================
+    // Multi-level nesting (3 levels deep)
+    // ============================================================
+
+    it('synthesizes defaults through 3 levels of dict nesting', async () => {
+      const result = await run(
+        'dict[] -> :>dict(a: dict(b: dict(c: number = 99)))'
+      );
+      expect(result).toEqual({ a: { b: { c: 99 } } });
+    });
+
+    // ============================================================
+    // Missing ordered field with all children defaulted
+    // ============================================================
+
+    it('synthesizes missing ordered field from children defaults', async () => {
+      const result = await run(
+        'dict[] -> :>dict(items: ordered(x: number = 1, y: string = "hi"))'
+      );
+      const items = (result as Record<string, unknown>).items;
+      expect(isOrdered(items)).toBe(true);
+      const entries = orderedEntries(items);
+      expect(entries).toEqual([
+        ['x', 1],
+        ['y', 'hi'],
+      ]);
+    });
+
+    // ============================================================
+    // Missing tuple field with all trailing defaults
+    // ============================================================
+
+    it('synthesizes missing tuple field from trailing defaults', async () => {
+      const result = await run(
+        'dict[] -> :>dict(pair: tuple(number = 0, string = ""))'
+      );
+      const pair = (result as Record<string, unknown>).pair;
+      expect(isTuple(pair)).toBe(true);
+      const tupleResult = pair as { entries: unknown[] };
+      expect(tupleResult.entries).toEqual([0, '']);
+    });
+
+    // ============================================================
+    // Cross-type nesting: dict inside ordered, synthesized
+    // ============================================================
+
+    it('synthesizes dict field inside ordered target', async () => {
+      const result = await run('dict[] -> :>ordered(a: dict(x: number = 10))');
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toHaveLength(1);
+      expect(entries[0]![0]).toBe('a');
+      expect(entries[0]![1]).toEqual({ x: 10 });
+    });
+  });
 });

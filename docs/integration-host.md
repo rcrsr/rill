@@ -406,6 +406,13 @@ The same hydration applies to `dict` and `ordered` parameters: missing named fie
 
 Hydration is recursive: if a filled default itself has a structured type with defaults, those are also hydrated.
 
+Two additional behaviors apply during recursive hydration:
+
+- **Nested synthesis** — A missing named field with no explicit default is synthesized as an empty collection when all its children declare `defaultValue`. The runtime seeds the empty collection and fills each child.
+- **Explicit default hydration** — When a field's declared `defaultValue` is itself a collection, the runtime hydrates it through the field's nested type. Child defaults fill any fields the explicit default omits.
+
+If any required child field lacks a `defaultValue`, the type check at Stage 3 catches the missing field and throws `RUNTIME_TYPE_ERROR`.
+
 ### Type Mismatch Errors
 
 When argument types don't match, the runtime throws `RuntimeError` with code `RUNTIME_TYPE_ERROR`:

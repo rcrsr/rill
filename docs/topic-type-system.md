@@ -71,6 +71,30 @@ The `:` assertion operator does not hydrate defaults. Only `:>` conversion fills
 
 When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `:>` compatibility matrix.
 
+#### Nested Collection Synthesis
+
+When a field is missing with no explicit default, the runtime synthesizes the field if its type is a collection where all children have defaults. The runtime seeds an empty collection and hydrates it.
+
+```rill
+dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+# Result: dict[a: 1, b: dict[c: 5]]
+```
+
+The field `b` has no value in the input and no explicit default on the field itself. The runtime synthesizes `b` as an empty dict and fills `c` from the nested type's default.
+
+If any child of the nested collection lacks a default, the conversion raises [RILL-R044](ref-errors.md).
+
+#### Explicit Default Hydration
+
+When a field has an explicit default that is itself a collection, the runtime hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
+
+```rill
+dict[] -> :>dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
+# Result: dict[a: dict[x: 10, y: 2]]
+```
+
+The explicit default `[x: 10]` omits `y`. The runtime fills `y` with `2` from the nested type constructor.
+
 ### Comparing Structural Types
 
 ```rill

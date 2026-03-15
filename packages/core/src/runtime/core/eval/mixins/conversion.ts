@@ -48,6 +48,8 @@ import {
   createTuple,
   formatValue,
   deepCopyRillValue,
+  hasCollectionFields,
+  emptyForType,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -352,7 +354,19 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           fieldValue = this.hydrateNested(fieldValue, field.type, node);
           entries.push([fieldName, fieldValue]);
         } else if (field.defaultValue !== undefined) {
-          entries.push([fieldName, deepCopyRillValue(field.defaultValue)]);
+          entries.push([
+            fieldName,
+            this.hydrateNested(
+              deepCopyRillValue(field.defaultValue),
+              field.type,
+              node
+            ),
+          ]);
+        } else if (hasCollectionFields(field.type)) {
+          entries.push([
+            fieldName,
+            this.hydrateNested(emptyForType(field.type), field.type, node),
+          ]);
         } else {
           throw new RuntimeError(
             'RILL-R044',
@@ -430,7 +444,20 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             resolvedField !== undefined &&
             resolvedField.defaultValue !== undefined
           ) {
-            result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+            result[fieldName] = this.hydrateNested(
+              deepCopyRillValue(resolvedField.defaultValue),
+              resolvedField.type,
+              node
+            );
+          } else if (
+            resolvedField !== undefined &&
+            hasCollectionFields(resolvedField.type)
+          ) {
+            result[fieldName] = this.hydrateNested(
+              emptyForType(resolvedField.type),
+              resolvedField.type,
+              node
+            );
           } else {
             throw new RuntimeError(
               'RILL-R044',
@@ -492,8 +519,19 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Element present in input: recurse into nested types
           result.push(this.hydrateNested(inputEntries[i]!, element.type, node));
         } else if (element.defaultValue !== undefined) {
-          // Missing trailing element with default: deep copy default
-          result.push(deepCopyRillValue(element.defaultValue));
+          // Missing trailing element with default: deep copy and hydrate
+          result.push(
+            this.hydrateNested(
+              deepCopyRillValue(element.defaultValue),
+              element.type,
+              node
+            )
+          );
+        } else if (hasCollectionFields(element.type)) {
+          // Missing element with collection type: seed empty and hydrate
+          result.push(
+            this.hydrateNested(emptyForType(element.type), element.type, node)
+          );
         } else {
           // Missing element without default
           throw new RuntimeError(
@@ -533,7 +571,17 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             result[fieldName] = fieldValue;
           } else {
             if (resolvedField.defaultValue !== undefined) {
-              result[fieldName] = deepCopyRillValue(resolvedField.defaultValue);
+              result[fieldName] = this.hydrateNested(
+                deepCopyRillValue(resolvedField.defaultValue),
+                resolvedField.type,
+                node
+              );
+            } else if (hasCollectionFields(resolvedField.type)) {
+              result[fieldName] = this.hydrateNested(
+                emptyForType(resolvedField.type),
+                resolvedField.type,
+                node
+              );
             } else {
               throw new RuntimeError(
                 'RILL-R044',
@@ -568,7 +616,19 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
             resultEntries.push([name, fieldValue]);
           } else if (field.defaultValue !== undefined) {
-            resultEntries.push([name, deepCopyRillValue(field.defaultValue)]);
+            resultEntries.push([
+              name,
+              this.hydrateNested(
+                deepCopyRillValue(field.defaultValue),
+                field.type,
+                node
+              ),
+            ]);
+          } else if (hasCollectionFields(field.type)) {
+            resultEntries.push([
+              name,
+              this.hydrateNested(emptyForType(field.type), field.type, node),
+            ]);
           } else {
             throw new RuntimeError(
               'RILL-R044',
@@ -596,7 +656,17 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
             resultEntries.push(elementValue);
           } else if (element.defaultValue !== undefined) {
-            resultEntries.push(deepCopyRillValue(element.defaultValue));
+            resultEntries.push(
+              this.hydrateNested(
+                deepCopyRillValue(element.defaultValue),
+                element.type,
+                node
+              )
+            );
+          } else if (hasCollectionFields(element.type)) {
+            resultEntries.push(
+              this.hydrateNested(emptyForType(element.type), element.type, node)
+            );
           } else {
             throw new RuntimeError(
               'RILL-R044',

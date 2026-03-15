@@ -1053,6 +1053,30 @@ export function rillTypeToTypeValue(type: RillType): RillTypeValue {
   });
 }
 
+/**
+ * Check if a type is a collection (dict, ordered, tuple) with defined
+ * fields or elements. Used to decide if an empty collection can be
+ * synthesized and hydrated.
+ */
+export function hasCollectionFields(type: RillType): boolean {
+  return (
+    (type.type === 'dict' && !!type.fields) ||
+    (type.type === 'ordered' && !!type.fields) ||
+    (type.type === 'tuple' && !!type.elements)
+  );
+}
+
+/**
+ * Create an empty collection value matching the given RillType.
+ * Assumes the type is dict, ordered, or tuple.
+ */
+export function emptyForType(type: RillType): RillValue {
+  if (type.type === 'dict') return {};
+  if (type.type === 'ordered') return createOrdered([]);
+  if (type.type === 'tuple') return createTuple([]);
+  return {};
+}
+
 /** Check if a key name is reserved */
 export function isReservedMethod(name: string): boolean {
   return (RESERVED_DICT_METHODS as readonly string[]).includes(name);
