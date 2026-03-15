@@ -558,6 +558,96 @@ describe('marshalArgs', () => {
     });
   });
 
+  // ============================================================
+  // Omitted collection-typed param with all-defaulted fields (Stage 2 synthesis)
+  // ============================================================
+
+  describe('omitted collection param with all-defaulted fields', () => {
+    it('synthesizes empty dict and hydrates field defaults when param omitted', () => {
+      const params: RillParam[] = [
+        makeParam('a', { type: 'string' }),
+        {
+          name: 'b',
+          type: {
+            type: 'dict',
+            fields: {
+              c: { type: { type: 'number' }, defaultValue: 3 },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Only first arg supplied; dict param 'b' omitted
+      const result = marshalArgs(['test'], params, opts);
+      expect(result).toEqual({ a: 'test', b: { c: 3 } });
+    });
+
+    it('synthesizes empty ordered and hydrates field defaults when param omitted', () => {
+      const params: RillParam[] = [
+        makeParam('a', { type: 'string' }),
+        {
+          name: 'b',
+          type: {
+            type: 'ordered',
+            fields: [
+              {
+                name: 'x',
+                type: { type: 'number' },
+                defaultValue: 10,
+              },
+              {
+                name: 'y',
+                type: { type: 'string' },
+                defaultValue: 'hi',
+              },
+            ],
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const result = marshalArgs(['test'], params, opts);
+      const ordered = (result as Record<string, unknown>).b as {
+        __rill_ordered: boolean;
+        entries: [string, unknown][];
+      };
+      expect((result as Record<string, unknown>).a).toBe('test');
+      expect(ordered.__rill_ordered).toBe(true);
+      expect(ordered.entries).toEqual([
+        ['x', 10],
+        ['y', 'hi'],
+      ]);
+    });
+
+    it('throws RILL-R001 when omitted dict param has a field without default', () => {
+      const params: RillParam[] = [
+        makeParam('a', { type: 'string' }),
+        {
+          name: 'b',
+          type: {
+            type: 'dict',
+            fields: {
+              c: { type: { type: 'number' }, defaultValue: 3 },
+              d: { type: { type: 'string' } }, // no default
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Omitting 'b' synthesizes empty dict, but field 'd' has no default
+      // Stage 3 type-check catches the missing required field with RILL-R001
+      expect(() => marshalArgs(['test'], params, opts)).toThrow(RuntimeError);
+      try {
+        marshalArgs(['test'], params, opts);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect((err as RuntimeError).errorId).toBe('RILL-R001');
+      }
+    });
+  });
+
   describe('BC-2: zero-default tuple with exact-length value', () => {
     it('passes through when tuple matches element count with no defaults', () => {
       const params: RillParam[] = [

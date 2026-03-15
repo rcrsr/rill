@@ -523,6 +523,10 @@ export function marshalArgs(
     if (value === undefined) {
       if (param.defaultValue !== undefined) {
         value = param.defaultValue;
+      } else if (param.type !== undefined && hasCollectionFields(param.type)) {
+        // Collection-typed param with field-level defaults: synthesize empty
+        // collection so Stage 2.5 (hydrateFieldDefaults) can fill in defaults
+        value = emptyForType(param.type);
       } else {
         // Stage 2: Missing required parameter
         throw new RuntimeError(
