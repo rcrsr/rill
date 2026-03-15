@@ -447,7 +447,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const result: Record<string, RillValue> = {};
 
       for (const arg of sigNode.args) {
-        if (arg.kind !== 'named') {
+        if (arg.name === undefined) {
           continue;
         }
         const fieldName = arg.name;

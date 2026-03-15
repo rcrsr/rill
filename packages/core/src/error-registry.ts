@@ -432,6 +432,26 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
+    errorId: 'RILL-P014',
+    category: 'parse',
+    description: 'Malformed type argument list',
+    messageTemplate: '{details}',
+    cause:
+      'A type argument list has a syntax error: missing comma, closing paren, or invalid argument.',
+    resolution:
+      'Check the type argument list for missing commas or closing parentheses.',
+    examples: [
+      {
+        description: 'Missing comma between type arguments',
+        code: 'list(string number)  # Error: expected , or )',
+      },
+      {
+        description: 'Missing closing paren',
+        code: 'dict(key: string  # Error: expected )',
+      },
+    ],
+  },
+  {
     errorId: 'RILL-P020',
     category: 'parse',
     description: "Missing ':' in use<> static form",

@@ -78,7 +78,7 @@ function staticTypeRefToRillType(
       args[0] !== undefined &&
       args[0].name === undefined
     ) {
-      const element = staticTypeRefToRillType(args[0].ref, functionName);
+      const element = staticTypeRefToRillType(args[0].value, functionName);
       return { type: 'list', element };
     }
     throw new Error(
@@ -95,7 +95,7 @@ function staticTypeRefToRillType(
         );
       }
       fields[arg.name] = {
-        type: staticTypeRefToRillType(arg.ref, functionName),
+        type: staticTypeRefToRillType(arg.value, functionName),
       };
     }
     return { type: 'dict', fields };
@@ -105,7 +105,7 @@ function staticTypeRefToRillType(
     const elements: RillFieldDef[] = args.map(
       (arg): RillFieldDef => ({
         ...(arg.name !== undefined ? { name: arg.name } : {}),
-        type: staticTypeRefToRillType(arg.ref, functionName),
+        type: staticTypeRefToRillType(arg.value, functionName),
       })
     );
     return { type: 'tuple', elements };

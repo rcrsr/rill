@@ -57,12 +57,10 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('list() with multiple arguments (AC-42)', () => {
-    it('throws when list() is called with 2 arguments — fails on arg count', async () => {
-      // list() checks arg count (must be exactly 1) before type validation.
-      // list(1, 2) has 2 args so it throws "requires exactly 1 type argument".
-      await expect(run('list(1, 2)')).rejects.toThrow(
-        'list() requires exactly 1 type argument'
-      );
+    it('throws when list() is called with non-type arguments — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef for arg values; non-type tokens
+      // like numeric literals are rejected at parse time.
+      await expect(run('list(1, 2)')).rejects.toThrow('Expected type name');
     });
   });
 
@@ -71,16 +69,14 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-5: list() with single non-type argument', () => {
-    it('throws when list(1) is called with a non-type argument', async () => {
-      await expect(run('list(1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('throws when list(1) is called with a non-type argument — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('list(1)')).rejects.toThrow('Expected type name');
     });
 
-    it('throws when list("hello") is called with a string argument', async () => {
-      await expect(run('list("hello")')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('throws when list("hello") is called with a string argument — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef; string literals are not valid type names.
+      await expect(run('list("hello")')).rejects.toThrow('Expected type name');
     });
   });
 
@@ -206,22 +202,19 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-4 to EC-9: Type constructor argument type errors', () => {
-    it('dict() with non-type value in named arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('dict(a: 1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('dict() with non-type value in named arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('dict(a: 1)')).rejects.toThrow('Expected type name');
     });
 
-    it('tuple() with non-type positional arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('tuple(1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('tuple() with non-type positional arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('tuple(1)')).rejects.toThrow('Expected type name');
     });
 
-    it('ordered() with non-type value in named arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('ordered(a: 1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('ordered() with non-type value in named arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('ordered(a: 1)')).rejects.toThrow('Expected type name');
     });
   });
 });

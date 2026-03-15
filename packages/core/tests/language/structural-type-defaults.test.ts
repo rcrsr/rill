@@ -215,14 +215,14 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-13 (EC-1, EC-3): non-trailing tuple element with default, subsequent without → RILL-P003
+  // AC-13 (EC-1, EC-3): non-trailing tuple element with default, subsequent without → RILL-R004
   // ============================================================
 
-  describe('AC-13 (EC-1, EC-3): non-trailing tuple default causes RILL-P003', () => {
-    it('tuple(string = "default", number) throws RILL-P003 at evaluation', async () => {
+  describe('AC-13 (EC-1, EC-3): non-trailing tuple default causes RILL-R004', () => {
+    it('tuple(string = "default", number) throws RILL-R004 at evaluation', async () => {
       await expect(
         run('tuple["x"] -> :>tuple(string = "default", number)')
-      ).rejects.toThrow(/RILL-P003/);
+      ).rejects.toThrow(/tuple\(\) default values must be trailing/);
     });
   });
 
@@ -328,11 +328,11 @@ describe('Rill Language: Structural Type Default Values', () => {
   // EC-1 / EC-3: non-trailing default in tuple (parse-time shape validation)
   // ============================================================
 
-  describe('EC-1 / EC-3: non-trailing positional arg with default throws RILL-P003', () => {
-    it('tuple(string = "x", number) throws RILL-P003 on non-trailing default', async () => {
+  describe('EC-1 / EC-3: non-trailing positional arg with default throws RILL-R004', () => {
+    it('tuple(string = "x", number) throws RILL-R004 on non-trailing default', async () => {
       await expect(
         run('tuple["a"] -> :>tuple(string = "x", number)')
-      ).rejects.toThrow(/RILL-P003/);
+      ).rejects.toThrow(/tuple\(\) default values must be trailing/);
     });
   });
 

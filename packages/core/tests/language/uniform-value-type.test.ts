@@ -196,10 +196,9 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   // ============================================================
 
   describe('Non-type-value positional arg', () => {
-    it('dict(42) non-type positional arg halts with RILL-R004 [EC-4]', async () => {
-      await expect(run('dict(42)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('dict(42) non-type positional arg — fails at parse time [EC-4]', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('dict(42)')).rejects.toThrow('Expected type name');
     });
   });
 });

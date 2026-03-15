@@ -42,14 +42,14 @@ import type { EvaluatorBase } from '../base.js';
  * - setVariable() (from VariablesMixin composition)
  *
  * Methods added:
- * - evaluateDestructure(node, input) -> RillValue
- * - evaluateDestruct(node, input) -> RillValue
+ * - evaluateDestructure(node, input) -> Promise<RillValue>
+ * - evaluateDestruct(node, input) -> Promise<RillValue>
  * - evaluateSlice(node, input) -> Promise<RillValue>
  * - evaluateCollectionLiteral(node) -> Promise<RillValue>
  *
  * Covers:
  * - IR-8: evaluateCollectionLiteral for ListLiteralNode, DictLiteralNode, TupleLiteralNode, OrderedLiteralNode
- * - IR-26: evaluateDestructure(node, input) -> RillValue
+ * - IR-26: evaluateDestructure(node, input) -> Promise<RillValue>
  * - IR-27: evaluateSlice(node, input) -> Promise<RillValue>
  *
  * Error handling:
@@ -65,10 +65,10 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * List destructure: [1, 2, 3] -> destruct<$a, $b, $c>  # $a=1, $b=2, $c=3
      * Dict destructure: [x: 1, y: 2] -> destruct<x: $a, y: $b>  # $a=1, $b=2
      */
-    protected evaluateDestructure(
+    protected async evaluateDestructure(
       node: DestructureNode,
       input: RillValue
-    ): RillValue {
+    ): Promise<RillValue> {
       const isList = Array.isArray(input);
       const isDictInput = isDict(input);
 
@@ -133,7 +133,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const dictResolved =
             elem.typeRef !== null
               ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (this as any).resolveTypeRef(
+                await (this as any).resolveTypeRef(
                   elem.typeRef,
                   (name: string) => getVariable(this.ctx, name) as RillValue
                 )
@@ -176,7 +176,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (elem.kind === 'skip') continue;
 
           if (elem.kind === 'nested' && elem.nested) {
-            this.evaluateDestructure(elem.nested, value);
+            await this.evaluateDestructure(elem.nested, value);
             continue;
           }
 
@@ -194,7 +194,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const listResolved =
             elem.typeRef !== null
               ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (this as any).resolveTypeRef(
+                await (this as any).resolveTypeRef(
                   elem.typeRef,
                   (name: string) => getVariable(this.ctx, name) as RillValue
                 )
@@ -385,10 +385,10 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Same semantics as evaluateDestructure but for the keyword-based syntax.
      * Delegates to evaluateDestructure since the pattern structure is identical.
      */
-    protected evaluateDestruct(
+    protected async evaluateDestruct(
       node: DestructNode,
       input: RillValue
-    ): RillValue {
+    ): Promise<RillValue> {
       // DestructNode has the same elements structure as DestructureNode.
       // Cast to DestructureNode-compatible shape for reuse.
       return this.evaluateDestructure(

@@ -7,7 +7,8 @@
 
 import {
   type TypeRef,
-  type TypeRefArg,
+  type FieldArg,
+  type LiteralNode,
   TOKEN_TYPES,
   ParseError,
 } from '../types.js';
@@ -18,6 +19,7 @@ import {
   expect,
   current,
   peek,
+  skipNewlines,
 } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 
@@ -48,9 +50,9 @@ import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
  */
 export function parseTypeRef(
   state: ParserState,
-  opts?: { allowTrailingPipe?: boolean }
+  opts?: { allowTrailingPipe?: boolean; parseLiteral?: () => LiteralNode }
 ): TypeRef {
-  const first = parseSingleType(state);
+  const first = parseSingleType(state, opts);
 
   // Union accumulation: collect additional members after each "|"
   if (!check(state, TOKEN_TYPES.PIPE_BAR)) {
@@ -109,7 +111,7 @@ export function parseTypeRef(
 
     advance(state); // consume "|"
 
-    const next = parseSingleType(state);
+    const next = parseSingleType(state, opts);
 
     // Flatten nested unions
     if (next.kind === 'union') {
@@ -134,7 +136,10 @@ export function parseTypeRef(
  * Grammar: `single-type = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]`
  * @internal
  */
-function parseSingleType(state: ParserState): TypeRef {
+function parseSingleType(
+  state: ParserState,
+  opts?: { parseLiteral?: () => LiteralNode }
+): TypeRef {
   if (check(state, TOKEN_TYPES.DOLLAR)) {
     advance(state); // consume $
     const nameToken = expect(
@@ -154,7 +159,49 @@ function parseSingleType(state: ParserState): TypeRef {
 
   advance(state); // consume "("
 
-  const args: TypeRefArg[] = [];
+  const args = parseFieldArgList(
+    state,
+    opts?.parseLiteral ? { parseLiteral: opts.parseLiteral } : undefined
+  );
+  advance(state); // consume ")"
+
+  return { kind: 'static', typeName, args };
+}
+
+// ============================================================
+// FIELD ARG LIST PARSING
+// ============================================================
+
+/**
+ * Parse a comma-separated list of field arguments between `(` and `)`.
+ *
+ * Caller has already consumed the opening `(`. This function parses zero
+ * or more arguments up to the closing `)` but does NOT consume it.
+ *
+ * Supports:
+ * - Named args:      `name: type`  → `{ name, value }`
+ * - Positional args: `type`        → `{ value }`
+ * - Default values:  `= literal`   → `{ ..., defaultValue }` (when parseLiteral provided)
+ * - Union types in value position via `parseTypeRef`
+ * - Trailing commas before `)`
+ *
+ * Named arg detection: IDENTIFIER followed by COLON lookahead.
+ *
+ * @param state - Parser state (positioned after opening paren)
+ * @param opts  - Optional parseLiteral callback for default value support
+ *
+ * @throws ParseError RILL-P014 if token after arg is not `,` or `)`  (EC-1)
+ * @throws ParseError RILL-P014 if missing closing `)`                (EC-2)
+ *
+ * @internal
+ */
+export function parseFieldArgList(
+  state: ParserState,
+  opts?: { parseLiteral?: () => LiteralNode }
+): FieldArg[] {
+  const args: FieldArg[] = [];
+
+  skipNewlines(state);
 
   // Parse arg list: allow empty "()" and trailing commas
   while (!check(state, TOKEN_TYPES.RPAREN)) {
@@ -168,19 +215,41 @@ function parseSingleType(state: ParserState): TypeRef {
       const name = tok.value;
       advance(state); // consume identifier
       advance(state); // consume ":"
-      const ref = parseTypeRef(state);
-      args.push({ name, ref });
+      skipNewlines(state);
+      const typeRefOpts = opts?.parseLiteral
+        ? { parseLiteral: opts.parseLiteral }
+        : undefined;
+      const value = parseTypeRef(state, typeRefOpts);
+      const arg: FieldArg = { name, value };
+      if (opts?.parseLiteral && check(state, TOKEN_TYPES.ASSIGN)) {
+        advance(state); // consume =
+        skipNewlines(state);
+        arg.defaultValue = opts.parseLiteral();
+      }
+      args.push(arg);
     } else {
       // Positional arg: type-ref
-      const ref = parseTypeRef(state);
-      args.push({ ref });
+      const typeRefOpts = opts?.parseLiteral
+        ? { parseLiteral: opts.parseLiteral }
+        : undefined;
+      const value = parseTypeRef(state, typeRefOpts);
+      const arg: FieldArg = { value };
+      if (opts?.parseLiteral && check(state, TOKEN_TYPES.ASSIGN)) {
+        advance(state); // consume =
+        skipNewlines(state);
+        arg.defaultValue = opts.parseLiteral();
+      }
+      args.push(arg);
     }
+
+    skipNewlines(state);
 
     // Consume trailing or separating comma
     if (check(state, TOKEN_TYPES.COMMA)) {
       advance(state);
+      skipNewlines(state);
     } else if (!check(state, TOKEN_TYPES.RPAREN)) {
-      // Neither comma nor closing paren — malformed arg list (EC-14)
+      // Neither comma nor closing paren — malformed arg list (EC-1)
       throw new ParseError(
         'RILL-P014',
         "Expected ',' or ')' in type argument list",
@@ -189,7 +258,7 @@ function parseSingleType(state: ParserState): TypeRef {
     }
   }
 
-  // Consume ")"
+  // Verify closing ")" is present (EC-2)
   if (!check(state, TOKEN_TYPES.RPAREN)) {
     throw new ParseError(
       'RILL-P014',
@@ -197,7 +266,6 @@ function parseSingleType(state: ParserState): TypeRef {
       current(state).span.start
     );
   }
-  advance(state); // consume ")"
 
-  return { kind: 'static', typeName, args };
+  return args;
 }

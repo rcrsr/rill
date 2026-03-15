@@ -174,6 +174,7 @@ Type constructors are primary expressions that produce structural type values. T
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
+| Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
 
 When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:
 
@@ -223,6 +224,14 @@ $fn(list[1, 2, 3])
 ```rill
 list[1, 2, 3] -> :list(number)
 # Result: list[1, 2, 3]
+```
+
+Type constructor defaults work in annotation position. The runtime fills missing fields from the annotation defaults when a value is passed:
+
+```rill
+|a: dict(b: number = 5)| { $a.b } => $fn
+$fn(dict[])
+# Result: 5
 ```
 
 See [Type System](topic-type-system.md) for detailed structural type documentation.

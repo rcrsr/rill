@@ -98,6 +98,26 @@ dict[] -> :>dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
 
 The explicit default `[x: 10]` omits `y`. The runtime fills `y` with `2` from the nested type constructor.
 
+#### Defaults in Closure Parameter Annotations
+
+Type constructor defaults also work in closure parameter type annotations. When the caller passes an incomplete value, the runtime fills in missing fields from the annotation defaults.
+
+```rill
+|a: dict(b: number = 5)| { $a.b } => $fn
+$fn(dict[])
+# Result: 5
+```
+
+The closure expects a dict with field `b` defaulting to `5`. Calling with an empty dict causes the runtime to fill `b` from the annotation default.
+
+```rill
+|a: tuple(number = 0, string = "")| { $a } => $fn
+$fn(tuple[])
+# Result: tuple[0, ""]
+```
+
+A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple.
+
 ### Comparing Structural Types
 
 ```rill

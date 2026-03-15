@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010, RILL-P014)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
@@ -324,6 +324,23 @@ ordered [a: 1]    # RILL-P007: use ordered[a: 1]
 # Old chain sigil
 5 -> @[$inc, $double]      # RILL-P010: use 5 -> chain([$inc, $double])
 5 -> @$fn                  # RILL-P010: use 5 -> chain($fn)
+```
+
+---
+
+### rill-p014
+
+**Description:** Malformed type argument list in collection type constructor
+
+**Cause:** The token after a type argument is not `,` or `)`, or the closing `)` is missing.
+
+**Resolution:** Check the argument list for missing commas between arguments and a matching closing parenthesis.
+
+**Example:**
+
+```text
+list(string number)    # RILL-P014: missing comma — use list(string, number) or list(string)
+dict(key: string       # RILL-P014: missing closing paren — use dict(key: string)
 ```
 
 ---

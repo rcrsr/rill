@@ -363,7 +363,10 @@ export function visitNode(
 
     case 'TypeConstructor':
       for (const arg of node.args) {
-        visitNode(arg.value, context, visitor);
+        // arg.value is a TypeRef (not an ASTNode) — skip it
+        if (arg.defaultValue) {
+          visitNode(arg.defaultValue, context, visitor);
+        }
       }
       break;
 
