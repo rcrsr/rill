@@ -881,7 +881,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // with the correct length, letting method body arity checks fire.
           methodArgs = {
             receiver,
-            __positionalArgs: args as unknown as RillValue,
+            __positionalArgs: args as RillValue,
           };
         } else {
           methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {

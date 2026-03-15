@@ -23,6 +23,7 @@ import { describe, expect, it } from 'vitest';
 // from the public API. Direct import is intentional for unit testing this
 // internal function — see Implementation Notes.
 import {
+  hydrateFieldDefaults,
   marshalArgs,
   type MarshalOptions,
   type RillParam,
@@ -381,6 +382,118 @@ describe('marshalArgs', () => {
       expect(ordered.entries).toEqual([
         ['a', 1],
         ['b', 'default-b'],
+      ]);
+    });
+  });
+
+  // ============================================================
+  // Extra key/entry preservation (structural match allows extras)
+  // ============================================================
+
+  describe('dict extra key preservation', () => {
+    it('preserves extra keys not declared in type.fields', () => {
+      const params: RillParam[] = [
+        {
+          name: 'opts',
+          type: {
+            type: 'dict',
+            fields: {
+              a: { type: { type: 'number' } },
+              b: { type: { type: 'number' } },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const result = marshalArgs(
+        [{ a: 1, b: 2, extra: 'preserved' }],
+        params,
+        opts
+      );
+      expect(result).toEqual({
+        opts: { a: 1, b: 2, extra: 'preserved' },
+      });
+    });
+
+    it('preserves extra keys alongside default hydration', () => {
+      const params: RillParam[] = [
+        {
+          name: 'cfg',
+          type: {
+            type: 'dict',
+            fields: {
+              a: { type: { type: 'string' }, defaultValue: 'hello' },
+              b: { type: { type: 'number' } },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // a is missing (hydrated from default), extra key present
+      const result = marshalArgs([{ b: 42, bonus: true }], params, opts);
+      expect(result).toEqual({
+        cfg: { a: 'hello', b: 42, bonus: true },
+      });
+    });
+  });
+
+  describe('ordered extra entry preservation', () => {
+    // structuralTypeMatches rejects ordered values with extra entries,
+    // so these tests call hydrateFieldDefaults directly to verify the
+    // hydration logic preserves extras independent of type checking.
+    it('preserves extra entries not declared in type.fields', () => {
+      const type = {
+        type: 'ordered' as const,
+        fields: [
+          { name: 'a', type: { type: 'number' as const } },
+          { name: 'b', type: { type: 'number' as const } },
+        ],
+      };
+      const arg = createOrdered([
+        ['a', 1],
+        ['b', 2],
+        ['extra', 'preserved'],
+      ]);
+      const result = hydrateFieldDefaults(arg, type) as {
+        __rill_ordered: boolean;
+        entries: [string, unknown][];
+      };
+      expect(result.__rill_ordered).toBe(true);
+      expect(result.entries).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['extra', 'preserved'],
+      ]);
+    });
+
+    it('preserves extra entries alongside default hydration', () => {
+      const type = {
+        type: 'ordered' as const,
+        fields: [
+          { name: 'a', type: { type: 'number' as const } },
+          {
+            name: 'b',
+            type: { type: 'string' as const },
+            defaultValue: 'default-b',
+          },
+        ],
+      };
+      // b is missing (hydrated from default), extra entry present
+      const arg = createOrdered([
+        ['a', 1],
+        ['bonus', 99],
+      ]);
+      const result = hydrateFieldDefaults(arg, type) as {
+        __rill_ordered: boolean;
+        entries: [string, unknown][];
+      };
+      expect(result.__rill_ordered).toBe(true);
+      expect(result.entries).toEqual([
+        ['a', 1],
+        ['b', 'default-b'],
+        ['bonus', 99],
       ]);
     });
   });

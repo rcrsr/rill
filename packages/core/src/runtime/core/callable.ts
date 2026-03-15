@@ -360,10 +360,14 @@ export interface MarshalOptions {
  *
  * Pure function: no class context, no evaluator, no side effects.
  */
-function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
+export function hydrateFieldDefaults(
+  value: RillValue,
+  type: RillType
+): RillValue {
   if (type.type === 'dict' && type.fields && isDict(value)) {
     const dictValue = value as Record<string, RillValue>;
-    const result: Record<string, RillValue> = {};
+    // Seed with all input entries so extra keys survive (structural match allows extras)
+    const result: Record<string, RillValue> = { ...dictValue };
     for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
       if (fieldName in dictValue) {
         result[fieldName] = hydrateFieldDefaults(
@@ -390,6 +394,7 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
     const lookup = new Map<string, RillValue>(
       value.entries.map(([k, v]) => [k, v] as [string, RillValue])
     );
+    const fieldNames = new Set<string>(type.fields.map((f) => f.name ?? ''));
     const resultEntries: [string, RillValue][] = [];
     for (const field of type.fields) {
       const name = field.name ?? '';
@@ -413,6 +418,12 @@ function hydrateFieldDefaults(value: RillValue, type: RillType): RillValue {
         ]);
       }
       // Missing without default and not collection: leave absent for Stage 3
+    }
+    // Append extra entries not declared in type.fields (structural match allows extras)
+    for (const [k, v] of value.entries) {
+      if (!fieldNames.has(k)) {
+        resultEntries.push([k, v]);
+      }
     }
     return createOrdered(resultEntries);
   }
