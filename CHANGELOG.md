@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Uniform value types for `dict`, `ordered`, and `tuple`** — `dict(T)`, `ordered(T)`, and `tuple(T)` assert that all values in the collection match type T, mirroring the existing `list(T)` pattern. Type inference now uses a three-level cascade (structural → uniform → bare), so `[{a: 1}, {b: 2}]` infers `list(dict(number))`. Empty collections always pass. Mismatch raises RILL-R004.
+- **Uniform value types for `dict`, `ordered`, and `tuple`** — `dict(T)`, `ordered(T)`, and `tuple(T)` constrain all values to a single type; `tuple(T)` single-arg syntax is now a breaking change from 1-element structural form
 - **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
 - **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
 - **`RillFieldDef` type export** — Unified field definition type exported from `@rcrsr/rill` for dict, tuple, ordered, and closure types. Replaces `RillFieldType`
