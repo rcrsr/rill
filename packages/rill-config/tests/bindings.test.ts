@@ -185,8 +185,8 @@ describe('buildExtensionBindings', () => {
               type: {
                 type: 'dict',
                 fields: {
-                  model: { type: 'string' },
-                  temperature: { type: 'number' },
+                  model: { type: { type: 'string' } },
+                  temperature: { type: { type: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -195,7 +195,7 @@ describe('buildExtensionBindings', () => {
           ],
           returnType: rillTypeToTypeValue({
             type: 'dict',
-            fields: { result: { type: 'string' } },
+            fields: { result: { type: { type: 'string' } } },
           }),
         },
       },
