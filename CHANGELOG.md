@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`RillFieldType` type alias** — Removed from public exports. Use `RillFieldDef` instead
 - **`isFieldTypeWithDefault` guard function** — Removed from public exports. Use `field.defaultValue !== undefined` instead
 
+### Changed
+
+- **Type constructor argument defaults** — Type constructor arguments now support default values from all parsing contexts, enabling defaults in annotation and expression positions
+
 ### Fixed
 
 - **Nested default synthesis for collection-typed fields** — Missing fields whose type is a collection with all-defaulted children are synthesized by seeding an empty collection and hydrating. `dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))` produces `{a: 1, b: {c: 5}}`
