@@ -26,9 +26,16 @@ describe('Multi-Server Composition', () => {
       // Mock GitHub MCP server extension
       const githubExtension: ExtensionResult = {
         list_pull_requests: {
-          params: [{ name: 'options', type: { type: 'dict' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'options',
+              type: { type: 'dict' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            const opts = args[0] as Record<string, unknown>;
+            const opts = args['options'] as Record<string, unknown>;
             const state = opts['state'] as string;
             // Mock PR list
             return [
@@ -48,10 +55,17 @@ describe('Multi-Server Composition', () => {
           },
         },
         get_pull_request: {
-          params: [{ name: 'number', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'number',
+              type: { type: 'number' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => ({
-            number: args[0],
-            title: `PR #${args[0]}`,
+            number: args['number'],
+            title: `PR #${args['number']}`,
             state: 'open',
           }),
         },
@@ -60,9 +74,16 @@ describe('Multi-Server Composition', () => {
       // Mock Slack MCP server extension
       const slackExtension: ExtensionResult = {
         post_message: {
-          params: [{ name: 'options', type: { type: 'dict' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'options',
+              type: { type: 'dict' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            const opts = args[0] as Record<string, unknown>;
+            const opts = args['options'] as Record<string, unknown>;
             const channel = opts['channel'] as string;
             const text = opts['text'] as string;
             return {
@@ -82,9 +103,16 @@ describe('Multi-Server Composition', () => {
       // Mock PostgreSQL MCP server extension
       const postgresExtension: ExtensionResult = {
         query: {
-          params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'sql',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            const sql = args[0] as string;
+            const sql = args['sql'] as string;
             // Mock query result based on SQL pattern
             if (sql.includes('pr_id = 42')) {
               return { status: 'deployed', environment: 'staging' };
@@ -96,10 +124,17 @@ describe('Multi-Server Composition', () => {
           },
         },
         execute: {
-          params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'sql',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => ({
             rowsAffected: 1,
-            command: args[0],
+            command: args['sql'],
           }),
         },
       };
@@ -148,29 +183,63 @@ describe('Multi-Server Composition', () => {
       // Create two mock servers with SAME function names
       const server1: ExtensionResult = {
         get: {
-          params: [{ name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-          fn: (args) => `server1:${args[0]}`,
+          params: [
+            {
+              name: 'key',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => `server1:${args['key']}`,
         },
         set: {
           params: [
-            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-            { name: 'value', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            {
+              name: 'key',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'value',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
           ],
-          fn: (args) => `server1:set:${args[0]}=${args[1]}`,
+          fn: (args) => `server1:set:${args['key']}=${args['value']}`,
         },
       };
 
       const server2: ExtensionResult = {
         get: {
-          params: [{ name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-          fn: (args) => `server2:${args[0]}`,
+          params: [
+            {
+              name: 'key',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => `server2:${args['key']}`,
         },
         set: {
           params: [
-            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-            { name: 'value', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
+            {
+              name: 'key',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'value',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
           ],
-          fn: (args) => `server2:set:${args[0]}=${args[1]}`,
+          fn: (args) => `server2:set:${args['key']}=${args['value']}`,
         },
       };
 
@@ -218,12 +287,19 @@ describe('Multi-Server Composition', () => {
             },
           },
           query: {
-            params: [{ name: 'sql', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'sql',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (args) => {
               queryCount += 1;
               return {
                 server: config.serverName,
-                sql: args[0],
+                sql: args['sql'],
                 queryNumber: queryCount,
               };
             },
@@ -308,9 +384,16 @@ describe('Multi-Server Composition', () => {
       // Mock API server
       const apiExtension: ExtensionResult = {
         fetch: {
-          params: [{ name: 'url', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'url',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            const url = args[0] as string;
+            const url = args['url'] as string;
             if (url.includes('/users')) {
               return { users: [{ id: 1, name: 'Alice' }] };
             }
@@ -323,12 +406,22 @@ describe('Multi-Server Composition', () => {
       const dbExtension: ExtensionResult = {
         insert: {
           params: [
-            { name: 'table', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-            { name: 'data', type: { type: 'dict' }, defaultValue: undefined, annotations: {} },
+            {
+              name: 'table',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'data',
+              type: { type: 'dict' },
+              defaultValue: undefined,
+              annotations: {},
+            },
           ],
           fn: (args) => ({
             inserted: true,
-            table: args[0],
+            table: args['table'],
             id: Math.floor(Math.random() * 1000),
           }),
         },
@@ -338,12 +431,22 @@ describe('Multi-Server Composition', () => {
       const cacheExtension: ExtensionResult = {
         set: {
           params: [
-            { name: 'key', type: { type: 'string' }, defaultValue: undefined, annotations: {} },
-            { name: 'value', type: { type: 'any' }, defaultValue: undefined, annotations: {} },
+            {
+              name: 'key',
+              type: { type: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'value',
+              type: { type: 'any' },
+              defaultValue: undefined,
+              annotations: {},
+            },
           ],
           fn: (args) => ({
             cached: true,
-            key: args[0],
+            key: args['key'],
             ttl: 3600,
           }),
         },

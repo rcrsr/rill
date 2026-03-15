@@ -218,9 +218,16 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         timeout: 100,
         functions: {
           fast: {
-            params: [{ name: 'input', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'input',
+                type: { type: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: async (args) => {
-              const input = args[0];
+              const input = args['input'];
               await new Promise((r) => setTimeout(r, 40));
               return `${input}-done`;
             },

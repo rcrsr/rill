@@ -757,7 +757,10 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     skipNewlines(this.state);
-    typeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
+    typeRef = parseTypeRef(this.state, {
+      allowTrailingPipe: true,
+      parseLiteral: () => this.parseLiteral(),
+    });
   }
 
   skipNewlines(this.state);

@@ -172,7 +172,7 @@ postfix-expr  = primary , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] 
                               | annotation-access } ;
 
 primary       = literal
-              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T) — structural type expression *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), dict(T), tuple(T), ordered(T) *)
               | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
@@ -269,7 +269,8 @@ literal       = string | number | bool | list | dict | tuple | ordered | closure
 
 closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , literal ]
               | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
-param-type    = type-ref ;  (* all type names and type variables accepted for closure params *)
+param-type    = type-ref ;  (* type-ref here supports defaults in field-args:
+                                |a: dict(b: number = 5)| fills b when caller omits it *)
 body   = block | grouped-expr | postfix-expr ;
 closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":" , type-target ]
               | "|" , type-name , "|" , body , [ ":" , type-target ] ;
@@ -630,10 +631,20 @@ spread            = "..." , postfix-expr ;
    -> :>$var — variable holding a type value
    -> :>ordered(field: type) — structural conversion
 
+   Default handling during :> conversion:
+   - Missing fields with defaults are filled from the type constructor.
+   - Nested synthesis: a missing collection field with no explicit default
+     is synthesized as an empty collection when all its children have defaults.
+   - Explicit default hydration: a collection default is hydrated through
+     the nested type, filling child fields the explicit default omits.
+   - RILL-R044 raised when a required child field has no default.
+
    Examples:
    42 -> :>string                   -- convert number to string
    $val -> :>number                 -- convert to number
-   $record -> :>ordered(x: number, y: number) -- structural conversion *)
+   $record -> :>ordered(x: number, y: number) -- structural conversion
+   dict[a: 1] -> :>dict(a: number, b: string = "x") -- fills b with "x"
+   dict[] -> :>dict(a: dict(x: number = 1)) -- nested synthesis fills a.x *)
 convert           = ":>" , ( type-ref | type-constructor ) ;
 
 (* Pipe-invoke: call the pipe value ($) as a closure
@@ -647,12 +658,17 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    - Postfix: 42:number, (expr):type - binds tighter than method calls
    - Pipe target: -> :type - asserts on pipe value ($)
 
+   Trailing defaults: values that omit trailing fields pass assertion
+   when every omitted field has a default in the type constructor.
+   No field synthesis occurs. Use :> to fill defaults.
+
    Examples:
    42:number                       -- postfix assertion
    (1 + 2):number                  -- postfix on grouped expr
    (($ < 5) @ ($ + 1)):number      -- postfix on loop result
    "hello" -> :string              -- pipe target assertion
-   $val -> :dict -> .keys          -- assert then continue chain *)
+   $val -> :dict -> .keys          -- assert then continue chain
+   tuple["x"] -> :$tt              -- passes when trailing fields have defaults *)
 type-assertion = ":" , type-target ;
 
 (* Type check: check if value is a specific type, returns bool.
@@ -674,16 +690,34 @@ type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tu
    Examples:
      string                          -- single type
      list(number)                    -- parameterized type
+     dict(number)                    -- uniform value type (all values same type)
      string | number                 -- union of two types
      string | number | bool          -- union of three types
-     $myType                         -- dynamic type from variable *)
+     $myType                         -- dynamic type from variable
+     dict(a: number = 5)             -- parameterized with default (annotation context) *)
 type-ref          = type-ref-member , { "|" , type-ref-member } ;
-type-ref-member   = type-name , [ "(" , type-ref-arg-list , ")" ] | "$" , identifier ;
-type-ref-arg-list = type-ref-arg , { "," , type-ref-arg } , [ "," ] ;
-type-ref-arg      = identifier , ":" , type-ref | type-ref ;
+type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier ;
 
 (* type-target selects the assertion/check subject. *)
 type-target   = type-ref ;
+
+(* ============================================================ *)
+(* FIELD ARGUMENT LISTS                                         *)
+(* ============================================================ *)
+
+(* field-arg-list is the shared grammar for parameterized type arguments.
+   Used by both type-ref-member (assertion/param position) and
+   type-constructor (primary expression position).
+
+   Default values (= literal) are context-dependent:
+   - Type constructors: always supported
+   - Closure param annotations: supported (defaults fill missing fields)
+   - Assertion/check position: defaults allow trailing field omission *)
+
+field-arg-list   = field-arg , { "," , field-arg } , [ "," ] ;
+
+field-arg        = identifier , ":" , type-ref , [ "=" , literal ]   (* named: key: type [= default] *)
+                 | type-ref , [ "=" , literal ] ;                     (* positional: type [= default] *)
 
 (* ============================================================ *)
 (* TYPE CONSTRUCTORS                                            *)
@@ -692,21 +726,27 @@ type-target   = type-ref ;
 (* Type constructors are PRIMARY expressions that produce structural type values.
    They can appear anywhere an expression is valid.
 
-   Examples:
+   Structural form (named or multi-positional args):
    list(number)                    -- list of numbers
    list(list(string))              -- nested list type
    dict(a: number, b: string)      -- dict with named fields
    tuple(number, string, bool)     -- positional tuple type
    ordered(x: number, y: string)   -- ordered container type
 
+   Uniform value type form (single positional arg for dict, tuple, ordered):
+   dict(number)                    -- all dict values must be number
+   tuple(number)                   -- all tuple entries must be number
+   ordered(string)                 -- all ordered values must be string
+
+   Default values (= literal) fill missing fields during :> conversion:
+   dict(a: number, b: string = "x")       -- b defaults to "x"
+   tuple(number, string = "")              -- second position defaults to ""
+   ordered(x: number, y: number = 0)      -- y defaults to 0
+   dict(a: number, b: dict(c: number = 5)) -- nested default synthesis
+
    These values are used with ^type for structural type inspection. *)
 
-type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ type-arg-list ] , ")" ;
-
-type-arg-list    = type-arg , { "," , type-arg } , [ "," ] ;
-
-type-arg         = identifier , ":" , expression , [ "=" , literal ]   (* named: key: type-expr [= default] *)
-               | expression , [ "=" , literal ] ;                      (* positional: type-expr [= default] *)
+type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")" ;
 
 (* Closure signature literal: a type expression for closure type inspection.
    Syntax mirrors closure definition but uses "|" delimiters and ": return".

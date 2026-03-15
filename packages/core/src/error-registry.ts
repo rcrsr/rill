@@ -432,6 +432,26 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
+    errorId: 'RILL-P014',
+    category: 'parse',
+    description: 'Malformed type argument list',
+    messageTemplate: '{details}',
+    cause:
+      'A type argument list has a syntax error: missing comma, closing paren, or invalid argument.',
+    resolution:
+      'Check the type argument list for missing commas or closing parentheses.',
+    examples: [
+      {
+        description: 'Missing comma between type arguments',
+        code: 'list(string number)  # Error: expected , or )',
+      },
+      {
+        description: 'Missing closing paren',
+        code: 'dict(key: string  # Error: expected )',
+      },
+    ],
+  },
+  {
     errorId: 'RILL-P020',
     category: 'parse',
     description: "Missing ':' in use<> static form",
@@ -1259,6 +1279,23 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Tuple missing a required element',
         code: 'tuple["a"] :> tuple(string, number)  # element at position 1 is missing',
+      },
+    ],
+  },
+
+  {
+    errorId: 'RILL-R045',
+    category: 'runtime',
+    description: 'Too many arguments passed to callable',
+    messageTemplate: 'Expected {expected} args, got {actual}',
+    cause:
+      'The number of arguments passed to a callable exceeds the number of declared parameters.',
+    resolution:
+      'Remove the excess arguments or add more parameters to the callable definition.',
+    examples: [
+      {
+        description: 'Too many arguments to a two-param closure',
+        code: '|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params',
       },
     ],
   },

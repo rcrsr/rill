@@ -15,8 +15,8 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R044, RILL-R050 - RILL-R061)](#runtime-errors)
+- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010, RILL-P014)](#parse-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R061)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -328,6 +328,23 @@ ordered [a: 1]    # RILL-P007: use ordered[a: 1]
 
 ---
 
+### rill-p014
+
+**Description:** Malformed type argument list in collection type constructor
+
+**Cause:** The token after a type argument is not `,` or `)`, or the closing `)` is missing.
+
+**Resolution:** Check the argument list for missing commas between arguments and a matching closing parenthesis.
+
+**Example:**
+
+```text
+list(string number)    # RILL-P014: missing comma — use list(string, number) or list(string)
+dict(key: string       # RILL-P014: missing closing paren — use dict(key: string)
+```
+
+---
+
 ## Runtime Errors
 
 Runtime errors occur during script execution when operations fail due to type mismatches, undefined references, or violated constraints.
@@ -359,11 +376,13 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r002
 
-**Description:** Operator type mismatch
+**Description:** Operator type mismatch or list element type mismatch
 
-**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion.
+**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion. Also raised when list elements have incompatible top-level types.
 
-**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods.
+Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
+
+**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. For lists, ensure all elements share the same top-level type.
 
 **Example:**
 
@@ -376,6 +395,23 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 # Arithmetic on non-numbers
 "hello" * 2
+
+# List with incompatible element types
+# Error: RILL-R002
+list[1, "hello"]
+
+# Error: RILL-R002 (list vs string top-level mismatch)
+list[list[1], "hello"]
+
+# Error: RILL-R002 (bool vs number mismatch)
+list[true, 1]
+```
+
+Elements that share the same compound type infer the bare type without error:
+
+```text
+# No error — infers list(list)
+list[list[1,2], list["a","b"]]
 ```
 
 ---
@@ -404,14 +440,15 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r004
 
-**Description:** Type conversion failure or return type assertion failure
+**Description:** Type conversion failure, return type assertion failure, or uniform type assertion failure
 
-**Cause:** Two distinct causes raise RILL-R004:
+**Cause:** Three distinct causes raise RILL-R004:
 
 1. **Type conversion failure** — Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
 2. **Return type assertion failure** — Closure return type annotation (`:type` after `}`) does not match the actual return value type.
+3. **Uniform type assertion failure** — Value does not match the uniform value type constraint in `dict(T)`, `ordered(T)`, or `tuple(T)`.
 
-**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type.
+**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type. For uniform type assertions: ensure all values in the collection match the declared uniform type T.
 
 **Example:**
 
@@ -425,6 +462,10 @@ json({ "hi" })
 # Return type annotation mismatch
 5 -> |number|{ "hello" }:number
 # Error: RILL-R004: Type assertion failed: expected number, got string
+
+# Uniform type assertion failure
+{name: "a", run: "b"} -> :>dict(closure)
+# Error: RILL-R004: Type assertion failed: expected dict(closure), got dict(name: string, run: string)
 ```
 
 ---
@@ -843,6 +884,24 @@ This replaces the former incorrect use of RILL-R005 for empty scripts.
 ```text
 tuple["a"] :> tuple(string, number)
 # Error: RILL-R044: cannot convert tuple to tuple: missing required element at position 1
+```
+
+---
+
+### rill-r045
+
+**Description:** Too many arguments passed to closure
+
+**Cause:** The number of arguments supplied exceeds the number of declared parameters. This error is raised at the pre-ordered marshaling stage (stage 1), before type checking.
+
+**Resolution:** Remove the extra arguments, or add additional parameters to the closure signature.
+
+**Example:**
+
+```text
+|x, y| $x + $y
+$(1, 2, 3)
+# Error: RILL-R045: Expected 2 args, got 3
 ```
 
 ---

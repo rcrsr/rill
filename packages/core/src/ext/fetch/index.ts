@@ -12,7 +12,7 @@ import type {
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import { isDict, type RillFunction } from '../../runtime/core/callable.js';
+import { type RillFunction } from '../../runtime/core/callable.js';
 import {
   rillTypeToTypeValue,
   type RillValue,
@@ -112,62 +112,25 @@ function mapEndpointConfig(config: EndpointConfig): InternalEndpointConfig {
 // ============================================================
 
 /**
- * Process arguments from positional or dict form.
- * Supports two calling conventions:
- * 1. Positional: endpoint(arg1, arg2, arg3)
- * 2. Dict: endpoint({name: value, ...})
+ * Process named arguments dict, applying defaults and required checks.
+ * Called from endpointFn after runtime has already marshaled positional args
+ * to a named Record<string, RillValue> map.
  *
- * @param args - Raw arguments from call site
+ * @param args - Named argument map from runtime
  * @param params - Parameter definitions
  * @param functionName - Function name for error messages
  * @returns Dict of argument name to value
  * @throws RuntimeError on missing required parameter (EC-8)
  */
 function processArguments(
-  args: RillValue[],
+  args: Record<string, RillValue>,
   params: readonly EndpointParam[],
   functionName: string
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
-  // Case 1: Single dict argument - extract named parameters
-  const firstArg = args[0];
-  if (args.length === 1 && firstArg !== undefined && isDict(firstArg)) {
-    const argsDict = firstArg as Record<string, RillValue>;
-
-    for (const param of params) {
-      const value = argsDict[param.name];
-
-      if (value === undefined) {
-        // Check if parameter has default value
-        if (param.defaultValue !== undefined) {
-          result[param.name] = param.defaultValue;
-        } else if (param.required !== false) {
-          // EC-8: Missing required parameter
-          throw new RuntimeError(
-            'RILL-R001',
-            `parameter "${param.name}" is required`,
-            undefined,
-            {
-              functionName,
-              paramName: param.name,
-            }
-          );
-        }
-      } else {
-        result[param.name] = value;
-      }
-    }
-
-    return result;
-  }
-
-  // Case 2: Positional arguments - map by position
-  for (let i = 0; i < params.length; i++) {
-    const param = params[i];
-    if (param === undefined) continue;
-
-    const value = args[i];
+  for (const param of params) {
+    const value = args[param.name];
 
     if (value === undefined) {
       // Check if parameter has default value
@@ -265,8 +228,10 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
     const params = endpointConfig.params ?? [];
 
     // Generate function for this endpoint
-    const endpointFn = async (args: RillValue[]): Promise<RillValue> => {
-      // Process arguments (positional or dict)
+    const endpointFn = async (
+      args: Record<string, RillValue>
+    ): Promise<RillValue> => {
+      // Process named arguments (apply defaults, check required)
       const processedArgs = processArguments(args, params, endpointName);
 
       // Build request

@@ -149,6 +149,58 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   });
 
   // ============================================================
+  // Type Inference Cascade (AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-16)
+  // ============================================================
+
+  describe('Type Inference Cascade', () => {
+    it('list[1,2,3] infers list(number) (AC-1)', async () => {
+      const result = await run('list[1, 2, 3].^type == list(number)');
+      expect(result).toBe(true);
+    });
+
+    it('list[list[1,2], list[3,4]] infers list(list(number)) (AC-2)', async () => {
+      const result = await run(
+        'list[list[1, 2], list[3, 4]].^type == list(list(number))'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('list[list[1,2], list["a","b"]] infers list(list) bare fallback (AC-3)', async () => {
+      const name = await run('list[list[1, 2], list["a", "b"]].^type.name');
+      expect(name).toBe('list');
+
+      const sig = await run('list[list[1, 2], list["a", "b"]].^type.signature');
+      expect(sig).toBe('list(list)');
+    });
+
+    it('list[list[1,2], list[3]] infers list(list(number)) (AC-4)', async () => {
+      const result = await run(
+        'list[list[1, 2], list[3]].^type == list(list(number))'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('list[list[], list[1,2]] infers list(list(number)) via any-narrowing (AC-5)', async () => {
+      const result = await run(
+        'list[list[], list[1, 2]].^type == list(list(number))'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('list[list[list[1]], list[list["a"]]] infers list(list(list)) recursive cascade (AC-8)', async () => {
+      const sig = await run(
+        'list[list[list[1]], list[list["a"]]].^type.signature'
+      );
+      expect(sig).toBe('list(list(list))');
+    });
+
+    it('list[list[], list[]] infers list(list(any)) both empty (AC-16)', async () => {
+      const result = await run('list[list[], list[]].^type == list(list(any))');
+      expect(result).toBe(true);
+    });
+  });
+
+  // ============================================================
   // AC-53: type.^type.^type.^type → always returns type
   // ============================================================
 

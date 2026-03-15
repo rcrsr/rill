@@ -1,26 +1,15 @@
 /**
  * Parser Extension: Type Constructor Parsing
  * type-constructor = ("list" | "dict" | "tuple" | "ordered") "(" [type-arg-list] ")" ;
- * type-arg-list    = type-arg ("," type-arg)* [","] ;
- * type-arg         = identifier ":" expression | expression ;
+ * type-arg-list    = field-arg ("," field-arg)* [","] ;
+ * field-arg        = identifier ":" type-ref | type-ref ;
  */
 
 import { Parser } from './parser.js';
-import type {
-  ExpressionNode,
-  TypeConstructorNode,
-  TypeConstructorArg,
-} from '../types.js';
+import type { TypeConstructorNode, FieldArg } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import {
-  check,
-  advance,
-  expect,
-  current,
-  skipNewlines,
-  makeSpan,
-  peek,
-} from './state.js';
+import { advance, expect, current, makeSpan } from './state.js';
+import { parseFieldArgList } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -57,22 +46,11 @@ Parser.prototype.parseTypeConstructor = function (
   // Consume the constructor name identifier token
   advance(this.state);
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-  skipNewlines(this.state);
 
-  const args: TypeConstructorArg[] = [];
-
-  if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseTypeArg(this));
-    skipNewlines(this.state);
-
-    while (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
-      skipNewlines(this.state);
-      if (check(this.state, TOKEN_TYPES.RPAREN)) break; // trailing comma
-      args.push(parseTypeArg(this));
-      skipNewlines(this.state);
-    }
-  }
+  const parseLiteral = () => this.parseLiteral();
+  const args: FieldArg[] = parseFieldArgList(this.state, {
+    parseLiteral,
+  });
 
   const rparen = expect(
     this.state,
@@ -88,42 +66,3 @@ Parser.prototype.parseTypeConstructor = function (
     span: makeSpan(start, rparen.span.end),
   };
 };
-
-// ============================================================
-// TYPE ARG PARSING (internal)
-// ============================================================
-
-/**
- * Parse a single type argument: `identifier ":" expression` (named) or `expression` (positional).
- * Lookahead: if current is IDENTIFIER and next is COLON, parse as named arg.
- * Otherwise parse as positional.
- */
-function parseTypeArg(parser: Parser): TypeConstructorArg {
-  // Named arg: identifier ":" expression [= literal]
-  if (
-    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
-    peek(parser.state, 1).type === TOKEN_TYPES.COLON
-  ) {
-    const nameToken = advance(parser.state); // consume identifier
-    advance(parser.state); // consume ':'
-    skipNewlines(parser.state);
-    const value: ExpressionNode = parser.parseExpression();
-    if (check(parser.state, TOKEN_TYPES.ASSIGN)) {
-      advance(parser.state); // consume =
-      skipNewlines(parser.state);
-      const defaultValue = parser.parseLiteral();
-      return { kind: 'named', name: nameToken.value, value, defaultValue };
-    }
-    return { kind: 'named', name: nameToken.value, value };
-  }
-
-  // Positional arg: expression [= literal]
-  const value: ExpressionNode = parser.parseExpression();
-  if (check(parser.state, TOKEN_TYPES.ASSIGN)) {
-    advance(parser.state); // consume =
-    skipNewlines(parser.state);
-    const defaultValue = parser.parseLiteral();
-    return { kind: 'positional', value, defaultValue };
-  }
-  return { kind: 'positional', value };
-}

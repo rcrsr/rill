@@ -223,7 +223,7 @@ describe('CoreMixin Error Contracts', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
             a: {
               params: [],
@@ -319,8 +319,8 @@ describe('CoreMixin Error Contracts', () => {
               },
             ],
             fn: (args) =>
-              (typeof args[0] === 'number' ? args[0] : 0) +
-              (typeof args[1] === 'number' ? args[1] : 0),
+              (typeof args['a'] === 'number' ? args['a'] : 0) +
+              (typeof args['b'] === 'number' ? args['b'] : 0),
           },
         },
       });

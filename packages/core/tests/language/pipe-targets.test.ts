@@ -41,9 +41,16 @@ describe('Rill Runtime: Pipe Targets', () => {
     it('invokes closure returned from function', async () => {
       // Function that returns a closure
       const greet: RillFunction = {
-        params: [{ name: 'name', type: { type: 'string' }, defaultValue: undefined, annotations: {} }],
-        fn: (args: RillValue[]): RillValue => {
-          const name = args[0] as string;
+        params: [
+          {
+            name: 'name',
+            type: { type: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args: Record<string, RillValue>): RillValue => {
+          const name = args['name'] as string;
           return `Hello, ${name}!`;
         },
       };
@@ -124,9 +131,16 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('uses custom function with bare name', async () => {
       const double: RillFunction = {
-        params: [{ name: 'x', type: { type: 'number' }, defaultValue: undefined, annotations: {} }],
-        fn: (args: RillValue[]): number => {
-          const x = args[0];
+        params: [
+          {
+            name: 'x',
+            type: { type: 'number' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args: Record<string, RillValue>): number => {
+          const x = args['x'];
           return typeof x === 'number' ? x * 2 : 0;
         },
       };

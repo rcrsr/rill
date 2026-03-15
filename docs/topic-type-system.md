@@ -39,6 +39,9 @@ $lt.^type.name
 | Constructor | Example | Produced Type |
 |-------------|---------|---------------|
 | `list(T)` | `list(number)` | List-of-number type |
+| `dict(T)` | `dict(number)` | Uniform dict type (all values same type) |
+| `ordered(T)` | `ordered(string)` | Uniform ordered type (all values same type) |
+| `tuple(T)` | `tuple(number)` | Uniform tuple type (all entries same type) |
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
@@ -71,6 +74,50 @@ The `:` assertion operator does not hydrate defaults. Only `:>` conversion fills
 
 When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `:>` compatibility matrix.
 
+#### Nested Collection Synthesis
+
+When a field is missing with no explicit default, the runtime synthesizes the field if its type is a collection where all children have defaults. The runtime seeds an empty collection and hydrates it.
+
+```rill
+dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+# Result: dict[a: 1, b: dict[c: 5]]
+```
+
+The field `b` has no value in the input and no explicit default on the field itself. The runtime synthesizes `b` as an empty dict and fills `c` from the nested type's default.
+
+If any child of the nested collection lacks a default, the conversion raises [RILL-R044](ref-errors.md).
+
+#### Explicit Default Hydration
+
+When a field has an explicit default that is itself a collection, the runtime hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
+
+```rill
+dict[] -> :>dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
+# Result: dict[a: dict[x: 10, y: 2]]
+```
+
+The explicit default `[x: 10]` omits `y`. The runtime fills `y` with `2` from the nested type constructor.
+
+#### Defaults in Closure Parameter Annotations
+
+Type constructor defaults also work in closure parameter type annotations. When the caller passes an incomplete value, the runtime fills in missing fields from the annotation defaults.
+
+```rill
+|a: dict(b: number = 5)| { $a.b } => $fn
+$fn(dict[])
+# Result: 5
+```
+
+The closure expects a dict with field `b` defaulting to `5`. Calling with an empty dict causes the runtime to fill `b` from the annotation default.
+
+```rill
+|a: tuple(number = 0, string = "")| { $a } => $fn
+$fn(tuple[])
+# Result: tuple[0, ""]
+```
+
+A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple.
+
 ### Comparing Structural Types
 
 ```rill
@@ -84,6 +131,55 @@ $list.^type == list(number)
 $d.^type == dict(a: number, b: string)
 # Result: true
 ```
+
+### Type Inference Cascade
+
+When rill infers the element type of a list literal, it uses a three-level cascade:
+
+1. **Structural match** — all elements share the same full structural type. The list retains that type.
+2. **Uniform merge** — elements share the same compound kind and all their sub-values share a common type. The list retains the uniform form (e.g., `list(dict(number))`).
+3. **Bare type fallback** — elements share the same compound kind (e.g., all lists, all closures) but differ in sub-structure. The list uses the bare compound type, stripping the sub-structure.
+
+```rill
+list[dict[a: 1], dict[b: 2]].^type.signature
+# Result: "list(dict(number))"
+```
+
+Both dicts have number values, so the uniform merge succeeds and produces `dict(number)` as the element type.
+
+```rill
+[list[1,2], list["a","b"]].^type.signature
+# Result: "list(list)"
+```
+
+The inner lists are `list(number)` and `list(string)`. They share the `list` kind but differ in element type, so the cascade falls back to bare `list`, producing `list(list)`.
+
+```rill
+[|x|($x), |a, b|($a)].^type.signature
+# Result: "list(closure)"
+```
+
+The closures have different arities, so the cascade falls back to bare `closure`.
+
+**Any-narrowing** applies when one element is an empty collection. An empty list has type `list(any)`. Paired with a concrete element type, the cascade narrows `any` to that type:
+
+```rill
+[list[], list[1,2]].^type.signature
+# Result: "list(list(number))"
+```
+
+`list[]` contributes `list(any)`. `list[1,2]` contributes `list(number)`. The `any` narrows to `number`, yielding `list(list(number))`.
+
+The cascade is recursive. If the bare fallback at one level produces a bare type, the next level applies the same rules:
+
+```rill
+[list[list[1]], list[list["a"]]].^type.signature
+# Result: "list(list(list))"
+```
+
+The outer list sees two `list(list(?))` elements where the inner element types differ, so the cascade produces `list(list(list))`.
+
+If the top-level types are incompatible (e.g., mixing a number and a list), rill raises RILL-R002.
 
 ### `.^type.name` for Coarse Type Name
 
@@ -126,10 +222,18 @@ The string representation of structural types follows this format:
 | Any value | `"any"` |
 | Primitive | `"string"`, `"number"`, `"bool"` |
 | List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
+| Dict (uniform) | `"dict(number)"` (all values same type) |
+| Ordered (uniform) | `"ordered(string)"` (all values same type) |
+| Tuple (uniform) | `"tuple(closure)"` (all entries same type) |
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
+| Bare list (no element type) | `"list"` |
+| Bare dict (no fields) | `"dict"` |
+| Bare tuple (no elements) | `"tuple"` |
+| Bare ordered (no fields) | `"ordered"` |
+| Bare closure (no params) | `"closure"` |
 
 ## Type Assertions
 
@@ -163,6 +267,50 @@ $val -> :dict -> .keys        # assert dict, then get keys
 
 ```text
 ["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
+```
+
+#### Trailing Defaults in Collection Type Assertions
+
+`:` and `:?` accept values that omit trailing fields when those fields have defaults in the type constructor. This applies to `dict`, `tuple`, and `ordered`.
+
+Assign the type constructor to a variable, then use the variable in assertion position:
+
+```rill
+# dict: value omits trailing defaulted field
+dict(b: string, a: string = "a") => $dt
+[b: "b"] -> :$dt
+# Result: [b: "b"]
+```
+
+```rill
+# dict check
+dict(b: string, a: string = "a") => $dt
+[b: "b"] -> :?$dt
+# Result: true
+```
+
+```rill
+# tuple: value shorter than type, trailing field has default
+tuple(string, number = 0) => $tt
+tuple["x"] -> :$tt
+# Result: tuple["x"]
+```
+
+```rill
+# ordered: value omits trailing defaulted field
+ordered(x: number, y: number = 0) => $ot
+ordered[x: 1] -> :$ot
+# Result: ordered[x: 1]
+```
+
+The assertion passes and returns the original value unchanged. No field synthesis occurs. Use `:>` (convert) to fill missing fields with their defaults.
+
+A missing field without a default causes the assertion to fail:
+
+```text
+# Error: expected dict(b: string, a: string), missing required field 'a'
+dict(b: string, a: string) => $dt
+[b: "b"] -> :$dt
 ```
 
 ### Check Type (`:?type`)

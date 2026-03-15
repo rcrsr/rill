@@ -891,7 +891,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let resolvedType: RillType | undefined = undefined;
         if (param.typeRef !== null) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const resolved = (this as any).resolveTypeRef(
+          const resolved = await (this as any).resolveTypeRef(
             param.typeRef,
             (name: string) => getVariable(this.ctx, name)
           );
@@ -944,7 +944,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       let returnType = anyTypeValue;
       if (node.returnTypeTarget !== undefined) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        returnType = (this as any).resolveTypeRef(
+        returnType = await (this as any).resolveTypeRef(
           node.returnTypeTarget,
           (name: string) => getVariable(this.ctx, name)
         );

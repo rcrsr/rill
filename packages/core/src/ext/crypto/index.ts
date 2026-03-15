@@ -88,9 +88,10 @@ export function createCryptoExtension(
    * Hash content with specified or default algorithm.
    * IR-23
    */
-  const hash = async (args: RillValue[]): Promise<string> => {
-    const input = args[0] as string;
-    const algorithm = (args[1] as string | undefined) ?? defaultAlgorithm;
+  const hash = async (args: Record<string, RillValue>): Promise<string> => {
+    const input = args['input'] as string;
+    const algorithm =
+      (args['algorithm'] as string | undefined) ?? defaultAlgorithm;
 
     // EC-27: Invalid algorithm
     validateAlgorithm(algorithm);
@@ -104,7 +105,7 @@ export function createCryptoExtension(
    * Generate HMAC signature.
    * IR-24, EC-26 (missing hmacKey)
    */
-  const hmac = async (args: RillValue[]): Promise<string> => {
+  const hmac = async (args: Record<string, RillValue>): Promise<string> => {
     // EC-26: hmacKey missing
     if (!hmacKey) {
       throw new RuntimeError(
@@ -115,8 +116,9 @@ export function createCryptoExtension(
       );
     }
 
-    const input = args[0] as string;
-    const algorithm = (args[1] as string | undefined) ?? defaultAlgorithm;
+    const input = args['input'] as string;
+    const algorithm =
+      (args['algorithm'] as string | undefined) ?? defaultAlgorithm;
 
     // EC-27: Invalid algorithm
     validateAlgorithm(algorithm);
@@ -138,8 +140,8 @@ export function createCryptoExtension(
    * Generate random bytes as hex string.
    * IR-26
    */
-  const random = async (args: RillValue[]): Promise<string> => {
-    const bytes = args[0] as number;
+  const random = async (args: Record<string, RillValue>): Promise<string> => {
+    const bytes = args['bytes'] as number;
     return crypto.randomBytes(bytes).toString('hex');
   };
 

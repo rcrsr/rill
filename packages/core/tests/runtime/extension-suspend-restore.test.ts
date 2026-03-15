@@ -89,7 +89,8 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
             { name: 'a', type: 'number' as const },
             { name: 'b', type: 'number' as const },
           ],
-          fn: (args: unknown[]) => (args[0] as number) + (args[1] as number),
+          fn: (args: unknown[]) =>
+            (args['a'] as number) + (args['b'] as number),
         },
       } satisfies ExtensionResult;
 

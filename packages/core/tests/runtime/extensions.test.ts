@@ -57,7 +57,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
           },
           multiply: {
             params: [
@@ -74,7 +74,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) * (args[1] as number),
+            fn: (args) => (args['a'] as number) * (args['b'] as number),
           },
         });
 
@@ -103,7 +103,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `content of ${args[0]}`,
+            fn: (args) => `content of ${args['path']}`,
           },
           write: {
             params: [
@@ -203,7 +203,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello, ${args[0]}!`,
+            fn: (args) => `Hello, ${args['name']}!`,
           },
         };
 
@@ -233,7 +233,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
           },
           double: {
             params: [
@@ -244,7 +244,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) * 2,
+            fn: (args) => (args['x'] as number) * 2,
           },
         };
 
@@ -503,7 +503,7 @@ describe('Rill Runtime: Extension System', () => {
             ],
             fn: (args) => {
               const logEvent: LogEvent = {
-                event: args[0] as string,
+                event: args['event'] as string,
                 subsystem,
                 timestamp: Date.now(),
               };
@@ -552,7 +552,8 @@ describe('Rill Runtime: Extension System', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `GET ${baseUrl}${args[0]} (timeout: ${timeout}ms)`,
+              fn: (args) =>
+                `GET ${baseUrl}${args['path']} (timeout: ${timeout}ms)`,
             },
           };
         };
@@ -680,7 +681,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello, ${args[0]}!`,
+            fn: (args) => `Hello, ${args['name']}!`,
           },
         };
 
@@ -808,7 +809,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `fetching from ${args[0]}`,
+            fn: (args) => `fetching from ${args['endpoint']}`,
           },
         };
 
@@ -955,7 +956,7 @@ describe('Rill Runtime: Extension System', () => {
               const id = ++callCount;
               callOrder.push(id);
               await new Promise((resolve) =>
-                setTimeout(resolve, args[0] as number)
+                setTimeout(resolve, args['delayMs'] as number)
               );
               return id;
             },
@@ -1117,7 +1118,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello, ${args[0]}!`,
+            fn: (args) => `Hello, ${args['name']}!`,
           },
           dispose: () => {
             // cleanup
@@ -1164,7 +1165,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) + (args[1] as number),
+            fn: (args) => (args['a'] as number) + (args['b'] as number),
           },
         };
 
@@ -1314,7 +1315,7 @@ describe('Rill Runtime: Extension System', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) * 2,
+            fn: (args) => (args['x'] as number) * 2,
           },
         };
 

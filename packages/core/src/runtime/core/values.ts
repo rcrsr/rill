@@ -42,10 +42,12 @@ export interface RillTuple {
 /**
  * Ordered type - represents named key-value pairs with preserved insertion order.
  * Created by the * (spread) operator from dicts.
+ * Entries may carry an optional third element (default value) when representing
+ * closure parameter reflection via `.^input`.
  */
 export interface RillOrdered {
   readonly __rill_ordered: true;
-  readonly entries: [string, RillValue][];
+  readonly entries: [string, RillValue, RillValue?][];
 }
 
 /**
@@ -59,6 +61,17 @@ export interface RillVector {
 }
 
 /**
+ * Field definition - describes a single field in a structural type.
+ * Used by dict, tuple, ordered, and closure type descriptors.
+ * Default detection: `field.defaultValue !== undefined`.
+ */
+export interface RillFieldDef {
+  name?: string;
+  type: RillType;
+  defaultValue?: RillValue;
+}
+
+/**
  * Structural type descriptor - describes the shape of a value in the type system.
  * Used by RillTypeValue to carry type structure information at runtime.
  */
@@ -69,38 +82,20 @@ export type RillType =
   | { type: 'vector' }
   | { type: 'type' }
   | { type: 'any' }
-  | { type: 'dict'; fields?: Record<string, RillFieldType> }
+  | {
+      type: 'dict';
+      fields?: Record<string, RillFieldDef>;
+      valueType?: RillType;
+    }
   | { type: 'list'; element?: RillType }
   | {
       type: 'closure';
-      params?: [string, RillType, RillValue?][];
+      params?: RillFieldDef[];
       ret?: RillType;
     }
-  | { type: 'tuple'; elements?: [RillType, RillValue?][] }
-  | { type: 'ordered'; fields?: [string, RillType, RillValue?][] }
+  | { type: 'tuple'; elements?: RillFieldDef[]; valueType?: RillType }
+  | { type: 'ordered'; fields?: RillFieldDef[]; valueType?: RillType }
   | { type: 'union'; members: RillType[] };
-
-/**
- * Dict field type - either a plain RillType or a RillType paired with a default value.
- * Used in dict structural types to carry optional default values per field.
- */
-export type RillFieldType =
-  | RillType
-  | { type: RillType; defaultValue: RillValue };
-
-/**
- * Type guard to distinguish the `{ type, defaultValue }` form of RillFieldType
- * from a plain RillType.
- */
-export function isFieldTypeWithDefault(
-  fieldType: RillFieldType
-): fieldType is { type: RillType; defaultValue: RillValue } {
-  return (
-    typeof fieldType === 'object' &&
-    fieldType !== null &&
-    'defaultValue' in fieldType
-  );
-}
 
 /**
  * @deprecated Use RillType instead. Will be removed in the next major version.
@@ -172,8 +167,14 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
   );
 }
 
-/** Create ordered from entries array (named, preserves insertion order) */
-export function createOrdered(entries: [string, RillValue][]): RillOrdered {
+/**
+ * Create ordered from entries array (named, preserves insertion order).
+ * Entries may be 2-element [name, value] or 3-element [name, value, default]
+ * tuples; the third element carries a default value for `.^input` reflection.
+ */
+export function createOrdered(
+  entries: [string, RillValue, RillValue?][]
+): RillOrdered {
   return Object.freeze({ __rill_ordered: true, entries: [...entries] });
 }
 
@@ -224,18 +225,138 @@ export function inferType(value: RillValue): RillTypeName {
 export function inferElementType(elements: RillValue[]): RillType {
   if (elements.length === 0) return { type: 'any' };
   const firstElem = elements[0]!;
-  const firstType = inferStructuralType(firstElem);
+  let accType = inferStructuralType(firstElem);
   for (let i = 1; i < elements.length; i++) {
     const elem = elements[i]!;
     const elemType = inferStructuralType(elem);
-    if (!structuralTypeEquals(firstType, elemType)) {
+    const merged = commonType(accType, elemType);
+    if (merged === null) {
       throw new RuntimeError(
         'RILL-R002',
-        `List elements must be the same type: expected ${formatStructuralType(firstType)}, got ${formatStructuralType(elemType)} at index ${i}`
+        `List elements must be the same type: expected ${formatStructuralType(accType)}, got ${formatStructuralType(elemType)} at index ${i}`
       );
     }
+    accType = merged;
   }
-  return firstType;
+  return accType;
+}
+
+/**
+ * Merge uniform value types from two sides of the same compound type.
+ * Sub-case A: both carry valueType -> recurse commonType.
+ * Sub-case B: both carry structural fields -> extract value types, merge all.
+ * Returns the merged RillType on success, undefined when no uniform merge applies.
+ */
+function mergeUniformValueType(
+  aValue: RillType | undefined,
+  bValue: RillType | undefined,
+  aFields: RillFieldDef[] | undefined,
+  bFields: RillFieldDef[] | undefined
+): RillType | undefined {
+  // Sub-case A: both carry valueType
+  if (aValue !== undefined && bValue !== undefined) {
+    const merged = commonType(aValue, bValue);
+    if (merged !== null) return merged;
+    return undefined;
+  }
+
+  // Sub-case B: both carry structural fields
+  if (aFields !== undefined && bFields !== undefined) {
+    const allTypes = [
+      ...aFields.map((f) => f.type),
+      ...bFields.map((f) => f.type),
+    ];
+    if (allTypes.length === 0) return undefined;
+    let merged: RillType = allTypes[0]!;
+    for (let i = 1; i < allTypes.length; i++) {
+      const next = commonType(merged, allTypes[i]!);
+      if (next === null) return undefined;
+      merged = next;
+    }
+    return merged;
+  }
+
+  return undefined;
+}
+
+/**
+ * Return the most specific shared type for two RillType values.
+ * Returns null when types are incompatible at the top level.
+ *
+ * Cascade priority:
+ * 1. Any-narrowing: if either side is `any`, return the other
+ * 2. Structural match: delegate to structuralTypeEquals; on true, return a
+ * 3. Recursive list: merge inner element types
+ * 3b. Uniform valueType: merge dict/tuple/ordered value types
+ * 4. Bare type fallback: same compound type but structural mismatch
+ * 5. Incompatible: different top-level types return null
+ */
+export function commonType(a: RillType, b: RillType): RillType | null {
+  // 1. Any-narrowing
+  if (a.type === 'any') return b;
+  if (b.type === 'any') return a;
+
+  // 5. Incompatible top-level types (checked early to short-circuit)
+  if (a.type !== b.type) return null;
+
+  // 2. Structural match
+  if (structuralTypeEquals(a, b)) return a;
+
+  // 3. Recursive list element merging
+  if (a.type === 'list' && b.type === 'list') {
+    if (a.element !== undefined && b.element !== undefined) {
+      const inner = commonType(a.element, b.element);
+      if (inner !== null) return { type: 'list', element: inner };
+    }
+    return { type: 'list' };
+  }
+
+  // 3b. Uniform valueType merging for dict/tuple/ordered
+  if (a.type === 'dict' && b.type === 'dict') {
+    const merged = mergeUniformValueType(
+      a.valueType,
+      b.valueType,
+      a.fields ? Object.values(a.fields) : undefined,
+      b.fields ? Object.values(b.fields) : undefined
+    );
+    if (merged !== undefined) return { type: 'dict', valueType: merged };
+  }
+
+  if (a.type === 'tuple' && b.type === 'tuple') {
+    const merged = mergeUniformValueType(
+      a.valueType,
+      b.valueType,
+      a.elements,
+      b.elements
+    );
+    if (merged !== undefined) return { type: 'tuple', valueType: merged };
+  }
+
+  if (a.type === 'ordered' && b.type === 'ordered') {
+    const merged = mergeUniformValueType(
+      a.valueType,
+      b.valueType,
+      a.fields,
+      b.fields
+    );
+    if (merged !== undefined) return { type: 'ordered', valueType: merged };
+  }
+
+  // 4. Bare type fallback for compound types.
+  // The cast is safe for closure/dict/tuple/ordered (all sub-fields optional).
+  // For union, members is required by RillType but omitted here intentionally:
+  // bare union signals structural incompatibility without enumerating members.
+  if (
+    a.type === 'closure' ||
+    a.type === 'dict' ||
+    a.type === 'tuple' ||
+    a.type === 'ordered' ||
+    a.type === 'union'
+  ) {
+    return { type: a.type } as RillType;
+  }
+
+  return null;
 }
 
 /** Compare two structural types for equality. */
@@ -261,6 +382,15 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
   }
 
   if (a.type === 'dict' && b.type === 'dict') {
+    // Uniform valueType comparison (mirrors list element at line 308)
+    const aHasValue = a.valueType !== undefined;
+    const bHasValue = b.valueType !== undefined;
+    if (aHasValue || bHasValue) {
+      if (!aHasValue || !bHasValue) return false;
+      return structuralTypeEquals(a.valueType!, b.valueType!);
+    }
+
+    // Structural fields comparison
     if (a.fields === undefined && b.fields === undefined) return true;
     if (a.fields === undefined || b.fields === undefined) return false;
     const aKeys = Object.keys(a.fields).sort();
@@ -271,29 +401,37 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
       if (key !== bKeys[i]) return false;
       const aField = a.fields[key]!;
       const bField = b.fields[key]!;
-      const aHasDefault = isFieldTypeWithDefault(aField);
-      const bHasDefault = isFieldTypeWithDefault(bField);
+      const aHasDefault = aField.defaultValue !== undefined;
+      const bHasDefault = bField.defaultValue !== undefined;
       if (aHasDefault !== bHasDefault) return false;
-      const aType = aHasDefault ? aField.type : aField;
-      const bType = bHasDefault ? bField.type : bField;
-      if (!structuralTypeEquals(aType, bType)) return false;
+      if (!structuralTypeEquals(aField.type, bField.type)) return false;
       if (aHasDefault && bHasDefault) {
-        if (!deepEquals(aField.defaultValue, bField.defaultValue)) return false;
+        if (!deepEquals(aField.defaultValue!, bField.defaultValue!))
+          return false;
       }
     }
     return true;
   }
 
   if (a.type === 'tuple' && b.type === 'tuple') {
+    // Uniform valueType comparison (mirrors list element at line 308)
+    const aHasValue = a.valueType !== undefined;
+    const bHasValue = b.valueType !== undefined;
+    if (aHasValue || bHasValue) {
+      if (!aHasValue || !bHasValue) return false;
+      return structuralTypeEquals(a.valueType!, b.valueType!);
+    }
+
+    // Structural elements comparison
     if (a.elements === undefined && b.elements === undefined) return true;
     if (a.elements === undefined || b.elements === undefined) return false;
     if (a.elements.length !== b.elements.length) return false;
     for (let i = 0; i < a.elements.length; i++) {
       const aElem = a.elements[i]!;
       const bElem = b.elements[i]!;
-      if (!structuralTypeEquals(aElem[0], bElem[0])) return false;
-      const aDefault = aElem[1];
-      const bDefault = bElem[1];
+      if (!structuralTypeEquals(aElem.type, bElem.type)) return false;
+      const aDefault = aElem.defaultValue;
+      const bDefault = bElem.defaultValue;
       if (aDefault === undefined && bDefault === undefined) continue;
       if (aDefault === undefined || bDefault === undefined) return false;
       if (!deepEquals(aDefault, bDefault)) return false;
@@ -302,16 +440,25 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
   }
 
   if (a.type === 'ordered' && b.type === 'ordered') {
+    // Uniform valueType comparison (mirrors list element at line 308)
+    const aHasValue = a.valueType !== undefined;
+    const bHasValue = b.valueType !== undefined;
+    if (aHasValue || bHasValue) {
+      if (!aHasValue || !bHasValue) return false;
+      return structuralTypeEquals(a.valueType!, b.valueType!);
+    }
+
+    // Structural fields comparison
     if (a.fields === undefined && b.fields === undefined) return true;
     if (a.fields === undefined || b.fields === undefined) return false;
     if (a.fields.length !== b.fields.length) return false;
     for (let i = 0; i < a.fields.length; i++) {
       const aField = a.fields[i]!;
       const bField = b.fields[i]!;
-      if (aField[0] !== bField[0]) return false;
-      if (!structuralTypeEquals(aField[1], bField[1])) return false;
-      const aDefault = aField[2];
-      const bDefault = bField[2];
+      if (aField.name !== bField.name) return false;
+      if (!structuralTypeEquals(aField.type, bField.type)) return false;
+      const aDefault = aField.defaultValue;
+      const bDefault = bField.defaultValue;
       if (aDefault === undefined && bDefault === undefined) continue;
       if (aDefault === undefined || bDefault === undefined) return false;
       if (!deepEquals(aDefault, bDefault)) return false;
@@ -337,10 +484,10 @@ export function structuralTypeEquals(a: RillType, b: RillType): boolean {
       for (let i = 0; i < a.params.length; i++) {
         const aParam = a.params[i]!;
         const bParam = b.params[i]!;
-        if (aParam[0] !== bParam[0]) return false;
-        if (!structuralTypeEquals(aParam[1], bParam[1])) return false;
-        const aDefault = aParam[2];
-        const bDefault = bParam[2];
+        if (aParam.name !== bParam.name) return false;
+        if (!structuralTypeEquals(aParam.type, bParam.type)) return false;
+        const aDefault = aParam.defaultValue;
+        const bDefault = bParam.defaultValue;
         if (aDefault === undefined && bDefault === undefined) continue;
         if (aDefault === undefined || bDefault === undefined) return false;
         if (!deepEquals(aDefault, bDefault)) return false;
@@ -374,18 +521,22 @@ export function inferStructuralType(value: RillValue): RillType {
   if (isTuple(value)) {
     return {
       type: 'tuple',
-      elements: value.entries.map((e): [RillType, RillValue?] => [
-        inferStructuralType(e),
-      ]),
+      elements: value.entries.map(
+        (e): RillFieldDef => ({
+          type: inferStructuralType(e),
+        })
+      ),
     };
   }
   if (isOrdered(value)) {
     return {
       type: 'ordered',
-      fields: value.entries.map(([k, v]): [string, RillType, RillValue?] => [
-        k,
-        inferStructuralType(v),
-      ]),
+      fields: value.entries.map(
+        ([k, v]): RillFieldDef => ({
+          name: k,
+          type: inferStructuralType(v),
+        })
+      ),
     };
   }
   if (isVector(value)) {
@@ -393,16 +544,16 @@ export function inferStructuralType(value: RillValue): RillType {
   }
   if (isCallable(value)) {
     const params = (value.params ?? []).map((p) =>
-      paramToTypeTuple(p.name, p.type ?? { type: 'any' }, p.defaultValue)
+      paramToFieldDef(p.name, p.type ?? { type: 'any' }, p.defaultValue)
     );
     const ret: RillType = value.returnType.structure;
     return { type: 'closure', params, ret };
   }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;
-    const fields: Record<string, RillType> = {};
+    const fields: Record<string, RillFieldDef> = {};
     for (const [k, v] of Object.entries(dict)) {
-      fields[k] = inferStructuralType(v);
+      fields[k] = { type: inferStructuralType(v) };
     }
     return { type: 'dict', fields };
   }
@@ -447,6 +598,11 @@ export function structuralTypeMatches(
 
   if (type.type === 'dict') {
     if (!isDict(value)) return false;
+    // Uniform value type check: every value must match valueType
+    if (type.valueType !== undefined) {
+      const vals = Object.values(value as Record<string, RillValue>);
+      return vals.every((v) => structuralTypeMatches(v, type.valueType!));
+    }
     // Absent fields sub-field: matches any dict value
     if (type.fields === undefined) return true;
     const dictKeys = Object.keys(type.fields);
@@ -454,24 +610,39 @@ export function structuralTypeMatches(
     if (dictKeys.length === 0) return true;
     const dict = value as Record<string, RillValue>;
     for (const key of dictKeys) {
-      if (!(key in dict)) return false;
-      const fieldType = type.fields[key]!;
-      const resolvedType = isFieldTypeWithDefault(fieldType)
-        ? fieldType.type
-        : fieldType;
-      if (!structuralTypeMatches(dict[key]!, resolvedType)) return false;
+      if (!(key in dict)) {
+        const field = type.fields[key]!;
+        if (field.defaultValue !== undefined) continue;
+        return false;
+      }
+      const field = type.fields[key]!;
+      if (!structuralTypeMatches(dict[key]!, field.type)) return false;
     }
     return true;
   }
 
   if (type.type === 'tuple') {
     if (!isTuple(value)) return false;
+    // Uniform value type check: every entry must match valueType
+    if (type.valueType !== undefined) {
+      return value.entries.every((v) =>
+        structuralTypeMatches(v, type.valueType!)
+      );
+    }
     // Absent elements sub-field: matches any tuple value
     if (type.elements === undefined) return true;
     if (type.elements.length === 0) return value.entries.length === 0;
-    if (value.entries.length !== type.elements.length) return false;
-    for (let i = 0; i < type.elements.length; i++) {
-      if (!structuralTypeMatches(value.entries[i]!, type.elements[i]![0]))
+    // Reject if value has more entries than type elements
+    if (value.entries.length > type.elements.length) return false;
+    // Reject if value is shorter and any trailing missing element lacks a default
+    if (value.entries.length < type.elements.length) {
+      for (let i = value.entries.length; i < type.elements.length; i++) {
+        const field = type.elements[i]!;
+        if (field.defaultValue === undefined) return false;
+      }
+    }
+    for (let i = 0; i < value.entries.length; i++) {
+      if (!structuralTypeMatches(value.entries[i]!, type.elements[i]!.type))
         return false;
     }
     return true;
@@ -479,15 +650,29 @@ export function structuralTypeMatches(
 
   if (type.type === 'ordered') {
     if (!isOrdered(value)) return false;
+    // Uniform value type check: every entry value must match valueType
+    if (type.valueType !== undefined) {
+      return value.entries.every(([, v]) =>
+        structuralTypeMatches(v, type.valueType!)
+      );
+    }
     // Absent fields sub-field: matches any ordered value
     if (type.fields === undefined) return true;
     if (type.fields.length === 0) return value.entries.length === 0;
-    if (value.entries.length !== type.fields.length) return false;
-    for (let i = 0; i < type.fields.length; i++) {
-      const [expectedName, expectedType] = type.fields[i]!;
+    // Reject if value has more entries than type fields
+    if (value.entries.length > type.fields.length) return false;
+    // Reject if value is shorter and any trailing missing field lacks a default
+    if (value.entries.length < type.fields.length) {
+      for (let i = value.entries.length; i < type.fields.length; i++) {
+        const field = type.fields[i]!;
+        if (field.defaultValue === undefined) return false;
+      }
+    }
+    for (let i = 0; i < value.entries.length; i++) {
+      const field = type.fields[i]!;
       const [actualName, actualValue] = value.entries[i]!;
-      if (actualName !== expectedName) return false;
-      if (!structuralTypeMatches(actualValue, expectedType)) return false;
+      if (actualName !== field.name) return false;
+      if (!structuralTypeMatches(actualValue, field.type)) return false;
     }
     return true;
   }
@@ -499,11 +684,11 @@ export function structuralTypeMatches(
     const valueParams = value.params ?? [];
     if (valueParams.length !== type.params.length) return false;
     for (let i = 0; i < type.params.length; i++) {
-      const [expectedName, expectedType] = type.params[i]!;
+      const field = type.params[i]!;
       const param = valueParams[i]!;
-      if (param.name !== expectedName) return false;
+      if (param.name !== field.name) return false;
       const paramType: RillType = param.type ?? { type: 'any' };
-      if (!structuralTypeEquals(paramType, expectedType)) return false;
+      if (!structuralTypeEquals(paramType, field.type)) return false;
     }
     const retType: RillType = value.returnType.structure;
     if (type.ret === undefined) return true;
@@ -517,13 +702,15 @@ export function structuralTypeMatches(
   return false;
 }
 
-/** Build a closure param tuple, omitting the optional third element when no default. */
-export function paramToTypeTuple(
+/** Build a closure param field definition from name, type, and optional default. */
+export function paramToFieldDef(
   name: string,
   type: RillType,
   defaultValue: RillValue | undefined
-): [string, RillType, RillValue?] {
-  return defaultValue !== undefined ? [name, type, defaultValue] : [name, type];
+): RillFieldDef {
+  const field: RillFieldDef = { name, type };
+  if (defaultValue !== undefined) field.defaultValue = defaultValue;
+  return field;
 }
 
 /** Format a RillValue as a rill literal for use in type signatures. */
@@ -557,35 +744,43 @@ export function formatStructuralType(type: RillType): string {
   }
 
   if (type.type === 'dict') {
+    if (type.valueType !== undefined && type.fields === undefined) {
+      return `dict(${formatStructuralType(type.valueType)})`;
+    }
     if (type.fields === undefined) return 'dict';
     const parts = Object.keys(type.fields)
       .sort()
       .map((k) => {
-        const fieldType = type.fields![k]!;
-        if (isFieldTypeWithDefault(fieldType)) {
-          return `${k}: ${formatStructuralType(fieldType.type)} = ${formatRillLiteral(fieldType.defaultValue)}`;
-        }
-        return `${k}: ${formatStructuralType(fieldType)}`;
+        const field = type.fields![k]!;
+        const base = `${k}: ${formatStructuralType(field.type)}`;
+        if (field.defaultValue === undefined) return base;
+        return `${base} = ${formatRillLiteral(field.defaultValue)}`;
       });
     return `dict(${parts.join(', ')})`;
   }
 
   if (type.type === 'tuple') {
+    if (type.valueType !== undefined && type.elements === undefined) {
+      return `tuple(${formatStructuralType(type.valueType)})`;
+    }
     if (type.elements === undefined) return 'tuple';
-    const parts = type.elements.map(([t, defaultVal]) => {
-      const base = formatStructuralType(t);
-      if (defaultVal === undefined) return base;
-      return `${base} = ${formatRillLiteral(defaultVal)}`;
+    const parts = type.elements.map((field) => {
+      const base = formatStructuralType(field.type);
+      if (field.defaultValue === undefined) return base;
+      return `${base} = ${formatRillLiteral(field.defaultValue)}`;
     });
     return `tuple(${parts.join(', ')})`;
   }
 
   if (type.type === 'ordered') {
+    if (type.valueType !== undefined && type.fields === undefined) {
+      return `ordered(${formatStructuralType(type.valueType)})`;
+    }
     if (type.fields === undefined) return 'ordered';
-    const parts = type.fields.map(([k, t, defaultVal]) => {
-      const base = `${k}: ${formatStructuralType(t)}`;
-      if (defaultVal === undefined) return base;
-      return `${base} = ${formatRillLiteral(defaultVal)}`;
+    const parts = type.fields.map((field) => {
+      const base = `${field.name}: ${formatStructuralType(field.type)}`;
+      if (field.defaultValue === undefined) return base;
+      return `${base} = ${formatRillLiteral(field.defaultValue)}`;
     });
     return `ordered(${parts.join(', ')})`;
   }
@@ -593,10 +788,10 @@ export function formatStructuralType(type: RillType): string {
   if (type.type === 'closure') {
     if (type.params === undefined) return 'closure';
     const params = type.params
-      .map(([name, t, defaultVal]) => {
-        const base = `${name}: ${formatStructuralType(t)}`;
-        if (defaultVal === undefined) return base;
-        return `${base} = ${formatRillLiteral(defaultVal)}`;
+      .map((field) => {
+        const base = `${field.name}: ${formatStructuralType(field.type)}`;
+        if (field.defaultValue === undefined) return base;
+        return `${base} = ${formatRillLiteral(field.defaultValue)}`;
       })
       .join(', ');
     const ret = type.ret !== undefined ? formatStructuralType(type.ret) : 'any';
@@ -985,6 +1180,30 @@ export function rillTypeToTypeValue(type: RillType): RillTypeValue {
   });
 }
 
+/**
+ * Check if a type is a collection (dict, ordered, tuple) with defined
+ * fields or elements. Used to decide if an empty collection can be
+ * synthesized and hydrated.
+ */
+export function hasCollectionFields(type: RillType): boolean {
+  return (
+    (type.type === 'dict' && (!!type.fields || !!type.valueType)) ||
+    (type.type === 'ordered' && (!!type.fields || !!type.valueType)) ||
+    (type.type === 'tuple' && (!!type.elements || !!type.valueType))
+  );
+}
+
+/**
+ * Create an empty collection value matching the given RillType.
+ * Assumes the type is dict, ordered, or tuple.
+ */
+export function emptyForType(type: RillType): RillValue {
+  if (type.type === 'dict') return {};
+  if (type.type === 'ordered') return createOrdered([]);
+  if (type.type === 'tuple') return createTuple([]);
+  return {};
+}
+
 /** Check if a key name is reserved */
 export function isReservedMethod(name: string): boolean {
   return (RESERVED_DICT_METHODS as readonly string[]).includes(name);
@@ -1018,4 +1237,36 @@ export function isRillIterator(value: RillValue): value is RillIterator {
   // 'value' field only required when not done
   if (!dict['done'] && !('value' in dict)) return false;
   return true;
+}
+
+/**
+ * Deep copy a RillValue, producing a new independent value.
+ * Handles primitives, arrays, plain dicts, and null.
+ * Special markers (closures, tuples, ordered, vectors, type values) are returned
+ * as-is since they are immutable by contract.
+ */
+export function deepCopyRillValue(value: RillValue): RillValue {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(deepCopyRillValue);
+  }
+  // Plain dict: copy recursively. Special markers (RillTuple, RillOrdered, etc.)
+  // carry __rill_* own properties and are treated as immutable; return as-is.
+  if (
+    !('__rill_tuple' in value) &&
+    !('__rill_ordered' in value) &&
+    !('__rill_vector' in value) &&
+    !('__rill_type' in value) &&
+    !('__type' in value) &&
+    !('__rill_field_descriptor' in value)
+  ) {
+    const copy: Record<string, RillValue> = {};
+    for (const [k, v] of Object.entries(value as Record<string, RillValue>)) {
+      copy[k] = deepCopyRillValue(v);
+    }
+    return copy;
+  }
+  return value;
 }

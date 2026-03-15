@@ -17,7 +17,7 @@
  *
  * [ASSUMPTION] validateDefaultValueType _functionName Parameter
  * - Parameter accepted but unused (prefixed with _ to satisfy eslint)
- * - Kept for API consistency with validateCallableArgs signature
+ * - Kept for API consistency with marshalArgs signature
  */
 
 import type { BodyNode, SourceLocation } from '../../types.js';
@@ -28,11 +28,16 @@ import {
   formatValue,
   formatStructuralType,
   inferType,
+  isOrdered,
+  createOrdered,
+  deepCopyRillValue,
   isTuple,
-  paramToTypeTuple,
+  paramToFieldDef,
   structuralTypeEquals,
   structuralTypeMatches,
   anyTypeValue,
+  hasCollectionFields,
+  emptyForType,
 } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -49,7 +54,7 @@ interface RuntimeContextLike {
  * Used for both host-provided functions and runtime callables.
  */
 export type CallableFn = (
-  args: RillValue[],
+  args: Record<string, RillValue>,
   ctx: RuntimeContextLike,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
@@ -294,7 +299,7 @@ export function callableEquals(
  */
 export function paramsToStructuralType(params: readonly RillParam[]): RillType {
   const closureParams = params.map((param) =>
-    paramToTypeTuple(
+    paramToFieldDef(
       param.name,
       param.type ?? { type: 'any' },
       param.defaultValue
@@ -337,30 +342,165 @@ export function validateDefaultValueType(
 }
 
 /**
- * Validate arguments against RillParam[] using structural type matching.
- *
- * Single validation path for all callable kinds (host, built-in, script).
- * Uses structuralTypeMatches for type checking when param.type is defined.
- * Skips type check when param.type is undefined (any-typed).
- * Applies defaultValue in-place on the args array before validation.
- *
- * @param args - Arguments array (mutated in-place when defaults applied)
- * @param params - Parameter definitions
- * @param functionName - Function name for error messages
- * @param location - Source location for error reporting
- * @throws RuntimeError with RILL-R001 on validation failure
+ * Options for marshalArgs error reporting.
  */
-export function validateCallableArgs(
+export interface MarshalOptions {
+  /** Function name included in error messages */
+  readonly functionName: string;
+  /** Source location for error reporting */
+  readonly location: SourceLocation | undefined;
+}
+
+/**
+ * Hydrate missing dict/ordered field-level defaults into a value.
+ *
+ * When a param has type `dict(a: string = "x", b: number)` and the caller
+ * passes `[b: 2]`, this fills in `a` with its default `"x"`. Fields without
+ * defaults are left absent so Stage 3 catches them with RILL-R001.
+ *
+ * Pure function: no class context, no evaluator, no side effects.
+ */
+export function hydrateFieldDefaults(
+  value: RillValue,
+  type: RillType
+): RillValue {
+  if (type.type === 'dict' && type.fields && isDict(value)) {
+    const dictValue = value as Record<string, RillValue>;
+    // Seed with all input entries so extra keys survive (structural match allows extras)
+    const result: Record<string, RillValue> = { ...dictValue };
+    for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
+      if (fieldName in dictValue) {
+        result[fieldName] = hydrateFieldDefaults(
+          dictValue[fieldName]!,
+          fieldDef.type
+        );
+      } else if (fieldDef.defaultValue !== undefined) {
+        result[fieldName] = hydrateFieldDefaults(
+          deepCopyRillValue(fieldDef.defaultValue),
+          fieldDef.type
+        );
+      } else if (hasCollectionFields(fieldDef.type)) {
+        result[fieldName] = hydrateFieldDefaults(
+          emptyForType(fieldDef.type),
+          fieldDef.type
+        );
+      }
+      // Missing without default and not collection: leave absent for Stage 3
+    }
+    return result;
+  }
+
+  if (type.type === 'ordered' && type.fields && isOrdered(value)) {
+    const lookup = new Map<string, RillValue>(
+      value.entries.map(([k, v]) => [k, v] as [string, RillValue])
+    );
+    const fieldNames = new Set<string>(type.fields.map((f) => f.name ?? ''));
+    const resultEntries: [string, RillValue][] = [];
+    for (const field of type.fields) {
+      const name = field.name ?? '';
+      if (lookup.has(name)) {
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(lookup.get(name)!, field.type),
+        ]);
+      } else if (field.defaultValue !== undefined) {
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(
+            deepCopyRillValue(field.defaultValue),
+            field.type
+          ),
+        ]);
+      } else if (hasCollectionFields(field.type)) {
+        resultEntries.push([
+          name,
+          hydrateFieldDefaults(emptyForType(field.type), field.type),
+        ]);
+      }
+      // Missing without default and not collection: leave absent for Stage 3
+    }
+    // Append extra entries not declared in type.fields (structural match allows extras)
+    for (const [k, v] of value.entries) {
+      if (!fieldNames.has(k)) {
+        resultEntries.push([k, v]);
+      }
+    }
+    return createOrdered(resultEntries);
+  }
+
+  if (type.type === 'tuple' && type.elements && isTuple(value)) {
+    const elements = type.elements;
+    const entries = value.entries;
+    // All fields present: recurse into nested types for present positions
+    if (entries.length >= elements.length) {
+      const resultEntries = elements.map((el, i) =>
+        hydrateFieldDefaults(entries[i]!, el.type)
+      );
+      // Preserve any extra trailing entries beyond the type definition
+      for (let i = elements.length; i < entries.length; i++) {
+        resultEntries.push(entries[i]!);
+      }
+      return { __rill_tuple: true as const, entries: resultEntries };
+    }
+    // Value shorter: fill missing trailing positions with defaults
+    const resultEntries: RillValue[] = [];
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i]!;
+      if (i < entries.length) {
+        resultEntries.push(hydrateFieldDefaults(entries[i]!, el.type));
+      } else if (el.defaultValue !== undefined) {
+        resultEntries.push(
+          hydrateFieldDefaults(deepCopyRillValue(el.defaultValue), el.type)
+        );
+      } else if (hasCollectionFields(el.type)) {
+        resultEntries.push(
+          hydrateFieldDefaults(emptyForType(el.type), el.type)
+        );
+      }
+      // Missing without default and not collection: leave absent (shorter tuple) for Stage 3
+    }
+    return { __rill_tuple: true as const, entries: resultEntries };
+  }
+
+  return value;
+}
+
+/**
+ * Unified marshaling entry point for all 3 invocation paths.
+ *
+ * Builds a named argument map from positional args, hydrates defaults,
+ * type-checks each field, and returns a Record<string, RillValue>.
+ *
+ * Stages:
+ * 1. Excess args check (RILL-R045)
+ * 2. Default hydration + missing required check (RILL-R044)
+ * 2.5. Dict/ordered field-level default hydration
+ * 3. Type check per field (RILL-R001)
+ *
+ * Preconditions (enforced by caller):
+ * - args contains already-evaluated RillValue[]
+ * - pipe value already inserted as first element by caller
+ * - boundDict already prepended as first element by caller
+ * - params is defined (caller skips marshalArgs for untyped callables)
+ *
+ * @param args - Positional arguments (already evaluated)
+ * @param params - Parameter definitions
+ * @param options - Error context: functionName and location
+ * @returns Named argument map keyed by param name
+ */
+export function marshalArgs(
   args: RillValue[],
   params: readonly RillParam[],
-  functionName: string,
-  location?: SourceLocation
-): void {
-  // Check for excess arguments
+  options?: MarshalOptions
+): Record<string, RillValue> {
+  const functionName = options?.functionName ?? '<anonymous>';
+  const location = options?.location;
+
+  // Stage 1: Excess args check
   if (args.length > params.length) {
     throw new RuntimeError(
-      'RILL-R001',
-      `Function '${functionName}' expects ${params.length} arguments, got ${args.length}`,
+      'RILL-R045',
+      `Function expects ${params.length} arguments, got ${args.length}`,
       location,
       {
         functionName,
@@ -370,23 +510,24 @@ export function validateCallableArgs(
     );
   }
 
-  // Validate each parameter
+  const result: Record<string, RillValue> = {};
+
+  // Stage 2 + 3: Hydrate defaults, check required, type-check
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
     if (param === undefined) continue;
 
-    let arg = args[i];
+    let value = args[i];
 
-    // Apply defaultValue in-place for missing arguments
-    if (arg === undefined) {
+    // Hydrate default when no positional arg was supplied
+    if (value === undefined) {
       if (param.defaultValue !== undefined) {
-        arg = param.defaultValue;
-        args[i] = arg;
+        value = param.defaultValue;
       } else {
-        // Missing required argument
+        // Stage 2: Missing required parameter
         throw new RuntimeError(
-          'RILL-R001',
-          `Missing required argument '${param.name}' for function '${functionName}'`,
+          'RILL-R044',
+          `Missing argument for parameter '${param.name}'`,
           location,
           {
             functionName,
@@ -396,14 +537,19 @@ export function validateCallableArgs(
       }
     }
 
-    // Type check via structuralTypeMatches when param.type is defined
+    // Stage 2.5: Hydrate dict/ordered field-level defaults
     if (param.type !== undefined) {
-      if (!structuralTypeMatches(arg, param.type)) {
+      value = hydrateFieldDefaults(value, param.type);
+    }
+
+    // Stage 3: Type check when param.type is defined
+    if (param.type !== undefined) {
+      if (!structuralTypeMatches(value, param.type)) {
         const expectedType = formatStructuralType(param.type);
-        const actualType = inferType(arg);
+        const actualType = inferType(value);
         throw new RuntimeError(
           'RILL-R001',
-          `Type mismatch in ${functionName}: parameter '${param.name}' expects ${expectedType}, got ${actualType}`,
+          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
           location,
           {
             functionName,
@@ -414,5 +560,9 @@ export function validateCallableArgs(
         );
       }
     }
+
+    result[param.name] = value;
   }
+
+  return result;
 }

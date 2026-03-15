@@ -452,10 +452,10 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const typeRef = node.existenceCheck.typeRef;
 
         // Helper: check type match using structural resolution (EC-4: mismatch returns false)
-        const matchesType = (fieldValue: RillValue): boolean => {
+        const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
           if (typeRef === null) return true;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const resolved = (this as any).resolveTypeRef(
+          const resolved = await (this as any).resolveTypeRef(
             typeRef,
             (name: string) => getVariable(this.ctx, name) as RillValue
           );
@@ -472,7 +472,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // If type-qualified check, verify type matches
             if (exists && typeRef !== null) {
-              return matchesType(fieldValue);
+              return await matchesType(fieldValue);
             }
 
             return exists;
@@ -515,7 +515,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // If type-qualified check, verify type matches
             if (exists && typeRef !== null) {
-              return matchesType(fieldValue);
+              return await matchesType(fieldValue);
             }
 
             return exists;
@@ -555,7 +555,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // If type-qualified check, verify type matches
             if (exists && typeRef !== null) {
-              return matchesType(fieldValue);
+              return await matchesType(fieldValue);
             }
 
             return exists;
@@ -826,7 +826,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (node.typeRef !== null) {
         // Resolve TypeRef and validate against the declared type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const resolved = (this as any).resolveTypeRef(
+        const resolved = await (this as any).resolveTypeRef(
           node.typeRef,
           (name: string) => getVariable(this.ctx, name) as RillValue
         );

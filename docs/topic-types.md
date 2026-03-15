@@ -138,6 +138,8 @@ Use explicit boolean checks when needed:
 
 Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent — `list[...]` is canonical (used in output and the LLM reference).
 
+When list elements share a compound type but differ in sub-structure, rill infers the bare compound type. See [Type Inference Cascade](topic-type-system.md#type-inference-cascade).
+
 ```rill
 [1, 2, 3]         # bare form
 list[1, 2, 3]     # keyword form (canonical)
@@ -321,6 +323,22 @@ Closures in dicts have `$` late-bound to the containing dict. See [Closures](top
 $obj.str    # "toolkit: 3 items" (auto-invoked)
 ```
 
+### Uniform Value Type
+
+`dict(T)` asserts that every value in the dict matches type T. The dict itself is returned unchanged.
+
+```rill
+[a: 1, b: 2] -> :>dict(number)
+# Result: dict[a: 1, b: 2]
+```
+
+An empty dict passes — no values to violate the constraint.
+
+```rill
+dict[] -> :>dict(number)
+# Result: dict[]
+```
+
 ## Ordered
 
 `ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
@@ -342,6 +360,17 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
 `ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
+
+### Uniform Value Type
+
+`ordered(T)` asserts that every entry value in the ordered container matches type T. The container is returned unchanged.
+
+```rill
+ordered[x: 1, y: 2] -> :>ordered(number)
+# Result: ordered[x: 1, y: 2]
+```
+
+An empty ordered container passes — no values to violate the constraint.
 
 ## Tuples
 
@@ -372,6 +401,45 @@ ordered[x: 1, y: 2] -> $fn(...)        # 3
 ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 ```
 
+### Trailing Defaults with Tuples
+
+Tuple type constructors accept default values on trailing positional fields. When you assert or check against a tuple type, values shorter than the full field count match if every omitted trailing field has a default.
+
+Assign the type constructor to a variable, then use the variable in `:?` or `:` position:
+
+```rill
+tuple(string, number = 0) => $t
+tuple["x"] -> :?$t
+# Result: true
+```
+
+The value `tuple["x"]` has 1 element. The type has 2 fields, but the second field defaults to `0`. The check passes because the omitted trailing field has a default.
+
+```rill
+tuple(string, number = 0) => $t
+tuple["x"] -> :$t
+# Result: tuple["x"]
+```
+
+The `:` assertion also accepts the shorter value. No field synthesis occurs — the returned value is unchanged. Use `:>` to fill missing fields with their defaults.
+
+Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
+
+This matches the trailing-default behavior of `dict` and `ordered` type constructors.
+
+#### Nested Default Synthesis
+
+When a collection-typed field has no value and no explicit default, `:>` synthesizes it if all its children have defaults. The runtime seeds an empty collection and fills each child from the nested type.
+
+```rill
+dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+# Result: dict[a: 1, b: dict[c: 5]]
+```
+
+When a field has an explicit collection default, `:>` hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
+
+If any required child field lacks a default, the conversion raises RILL-R044.
+
 ### Parallel Spread with Tuples
 
 Use tuples with explicit spread `...` to pass positional args in `map`:
@@ -380,6 +448,19 @@ Use tuples with explicit spread `...` to pass positional args in `map`:
 |x, y|($x * $y) => $mul
 [tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
 ```
+
+### Uniform Value Type
+
+`tuple(T)` asserts that every entry in the tuple matches type T. The tuple is returned unchanged.
+
+```rill
+tuple[1, 2, 3] -> :>tuple(number)
+# Result: tuple[1, 2, 3]
+```
+
+An empty tuple passes — no values to violate the constraint.
+
+**Breaking change:** The single-positional-argument form `tuple(T)` now defines a uniform value type, not a 1-element structural tuple. Use `tuple(T1, T2)` (two or more positional args) for structural tuples with specific element types.
 
 ## Vectors
 

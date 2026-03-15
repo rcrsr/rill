@@ -108,7 +108,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args) => args[0] ?? null,
+    fn: (args) => args['value'] ?? null,
   },
 
   /** Log a value and return it unchanged (passthrough) */
@@ -123,7 +123,9 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: (args, ctx) => {
-      const value = args[0] ?? null;
+      // log is in UNTYPED_BUILTINS (allows excess args), receives positional array cast as Record.
+      // Use index 0 for the message value.
+      const value = (args as unknown as RillValue[])[0] ?? null;
       const message = formatValue(value);
       (ctx as RuntimeContext).callbacks.onLog(message);
       return value;
@@ -142,7 +144,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: rillTypeToTypeValue({ type: 'string' }),
     fn: (args, _ctx, location) => {
-      const value = args[0] ?? null;
+      const value = args['value'] ?? null;
       try {
         const jsonValue = valueToJSON(value);
         return JSON.stringify(jsonValue);
@@ -175,7 +177,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: rillTypeToTypeValue({ type: 'list' }),
     fn: (args) => {
-      const input: RillValue = args[0] ?? null;
+      const input: RillValue = args['items'] ?? null;
       if (Array.isArray(input)) {
         return input.map((value, index) => ({ index, value }));
       }
@@ -218,9 +220,9 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: (args, _ctx, location) => {
-      const start = typeof args[0] === 'number' ? args[0] : 0;
-      const end = typeof args[1] === 'number' ? args[1] : 0;
-      const step = typeof args[2] === 'number' ? args[2] : 1;
+      const start = typeof args['start'] === 'number' ? args['start'] : 0;
+      const end = typeof args['stop'] === 'number' ? args['stop'] : 0;
+      const step = typeof args['step'] === 'number' ? args['step'] : 1;
 
       if (step === 0) {
         throw new RuntimeError(
@@ -271,8 +273,9 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: (args, _ctx, location) => {
-      const value = args[0] ?? '';
-      const count = typeof args[1] === 'number' ? Math.floor(args[1]) : 0;
+      const value = args['value'] ?? '';
+      const count =
+        typeof args['count'] === 'number' ? Math.floor(args['count']) : 0;
 
       if (count < 0) {
         throw new RuntimeError(
@@ -324,16 +327,18 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
+      // chain is in UNTYPED_BUILTINS, receives positional array cast as Record.
       // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
       // Detect this by checking if there is exactly one arg and a pipe value is set.
+      const positional = args as unknown as RillValue[];
       let value: RillValue;
       let arg: RillValue;
-      if (args.length === 1 && ctx.pipeValue !== null) {
+      if (positional.length === 1 && ctx.pipeValue !== null) {
         value = ctx.pipeValue;
-        arg = args[0] ?? null;
+        arg = positional[0] ?? null;
       } else {
-        value = args[0] ?? null;
-        arg = args[1] ?? null;
+        value = positional[0] ?? null;
+        arg = positional[1] ?? null;
       }
 
       if (Array.isArray(arg)) {
@@ -388,11 +393,22 @@ function createComparisonMethod(
   };
 }
 
+/** Receiver param prepended to every method's param list */
+const RECEIVER_PARAM = {
+  name: 'receiver',
+  type: { type: 'any' } as const,
+  defaultValue: undefined,
+  annotations: {},
+} as const;
+
 /**
  * Build a RillFunction entry from a method body and its signature string.
  * Wraps `method(receiver, args, ctx, location)` as `fn(args, ctx, location)`
- * where `args[0]` is the receiver. Parses the signature to extract params and
- * returnType so that task 1.4 can use them directly without re-parsing.
+ * where receiver is the first param by declaration order (named 'receiver').
+ * Parses the signature to extract params and returnType so that task 1.4
+ * can use them directly without re-parsing.
+ *
+ * EC-4: Receiver missing from record raises RILL-R044.
  */
 function buildMethodEntry(
   name: string,
@@ -400,10 +416,27 @@ function buildMethodEntry(
   method: RillMethod
 ): RillFunction {
   const parsed = parseSignatureRegistration(signature, name);
+  const methodParams = parsed.params;
   return {
-    params: parsed.params,
-    fn: (args, ctx, location) =>
-      method(args[0] ?? null, args.slice(1), ctx as RuntimeContext, location),
+    params: [RECEIVER_PARAM, ...methodParams],
+    fn: (args, ctx, location) => {
+      if (!('receiver' in args)) {
+        throw new RuntimeError(
+          'RILL-R044',
+          "Missing required parameter 'receiver'",
+          location
+        );
+      }
+      const receiver = args['receiver'] ?? null;
+      // Reconstruct positional args array for RillMethod from named params in order.
+      // UNVALIDATED_METHOD_PARAMS methods pass __positionalArgs to preserve actual
+      // arg count so method body arity checks (args.length !== 1) fire correctly.
+      const positionalArgs: RillValue[] =
+        '__positionalArgs' in args
+          ? (args['__positionalArgs'] as unknown as RillValue[])
+          : methodParams.map((p) => args[p.name] ?? null);
+      return method(receiver, positionalArgs, ctx as RuntimeContext, location);
+    },
     annotations:
       parsed.description !== undefined
         ? { description: parsed.description }

@@ -350,7 +350,7 @@ describe('executeRill', () => {
             annotations: {},
           },
         ],
-        fn: (args) => args[0]!,
+        fn: (args) => args['arg']!,
         returnType: anyTypeValue,
       };
       const config: FiddleResolverConfig = {
@@ -392,7 +392,7 @@ describe('executeRill', () => {
             annotations: {},
           },
         ],
-        fn: (args) => args[0]!,
+        fn: (args) => args['arg']!,
         returnType: anyTypeValue,
       };
       const config: FiddleResolverConfig = {

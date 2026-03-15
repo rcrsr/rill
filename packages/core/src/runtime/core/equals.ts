@@ -49,7 +49,9 @@ import type {
   ConvertNode,
   SpreadArgNode,
   TypeRef,
-  TypeRefArg,
+  FieldArg,
+  LiteralNode,
+  BoolLiteralNode,
 } from '../../types.js';
 
 /**
@@ -615,11 +617,11 @@ function typeRefStaticEquals(
 }
 
 /**
- * Compare two optional TypeRefArg arrays for structural equality.
+ * Compare two optional FieldArg arrays for structural equality.
  */
 function typeRefArgListEquals(
-  a: TypeRefArg[] | undefined,
-  b: TypeRefArg[] | undefined
+  a: FieldArg[] | undefined,
+  b: FieldArg[] | undefined
 ): boolean {
   const aArgs = a ?? [];
   const bArgs = b ?? [];
@@ -628,7 +630,8 @@ function typeRefArgListEquals(
     const aArg = aArgs[i]!;
     const bArg = bArgs[i]!;
     if (aArg.name !== bArg.name) return false;
-    if (!typeRefEquals(aArg.ref, bArg.ref)) return false;
+    if (!typeRefEquals(aArg.value, bArg.value)) return false;
+    if (!literalNodeEquals(aArg.defaultValue, bArg.defaultValue)) return false;
   }
   return true;
 }
@@ -647,4 +650,36 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
     return a.members.every((member, i) => typeRefEquals(member, b.members[i]!));
   }
   return false;
+}
+
+/**
+ * Compare two optional LiteralNode values for structural equality.
+ * Both-undefined returns true. One-undefined returns false.
+ * Complex nodes (ListLiteral, Dict, Closure) return false defensively.
+ */
+function literalNodeEquals(
+  a: LiteralNode | undefined,
+  b: LiteralNode | undefined
+): boolean {
+  if (a === undefined && b === undefined) return true;
+  if (a === undefined || b === undefined) return false;
+  if (a.type !== b.type) return false;
+
+  switch (a.type) {
+    case 'NumberLiteral':
+      return a.value === (b as NumberLiteralNode).value;
+    case 'BoolLiteral':
+      return a.value === (b as BoolLiteralNode).value;
+    case 'StringLiteral': {
+      const bStr = b as StringLiteralNode;
+      if (a.parts.length !== 1 || bStr.parts.length !== 1) return false;
+      return a.parts[0] === bStr.parts[0];
+    }
+    case 'ListLiteral':
+    case 'Dict':
+    case 'Closure':
+      return false;
+    default:
+      return false;
+  }
 }

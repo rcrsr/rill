@@ -88,11 +88,11 @@ export function mockAsyncFn(
 
 /** Create a mock sync function that tracks calls */
 export function mockFn(returnValue: RillValue = null): RillFunction & {
-  calls: RillValue[][];
+  calls: Record<string, RillValue>[];
   callCount: number;
 } {
-  const calls: RillValue[][] = [];
-  const fn = (args: RillValue[]) => {
+  const calls: Record<string, RillValue>[] = [];
+  const fn = (args: Record<string, RillValue>) => {
     calls.push(args);
     return returnValue;
   };
@@ -100,7 +100,7 @@ export function mockFn(returnValue: RillValue = null): RillFunction & {
     params: [],
     returnType: anyTypeValue,
     fn,
-  } as RillFunction & { calls: RillValue[][]; callCount: number };
+  } as RillFunction & { calls: Record<string, RillValue>[]; callCount: number };
   hostDef.calls = calls;
   Object.defineProperty(hostDef, 'callCount', {
     get: () => calls.length,

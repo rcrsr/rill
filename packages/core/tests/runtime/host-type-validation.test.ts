@@ -41,7 +41,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as string[]).join(', '),
+            fn: (args) => (args['names'] as string[]).join(', '),
           },
         },
       });
@@ -61,7 +61,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['items'],
             },
           },
         })
@@ -82,7 +82,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['items'],
             },
           },
         });
@@ -109,7 +109,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['value'],
           },
         },
       });
@@ -128,7 +128,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['value'],
           },
         },
       });
@@ -147,7 +147,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['value'],
           },
         },
       });
@@ -166,7 +166,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['value'],
           },
         },
       });
@@ -185,8 +185,8 @@ describe('Rill Runtime: Host Type Validation', () => {
                 type: {
                   type: 'dict',
                   fields: {
-                    name: { type: 'string' },
-                    age: { type: 'number' },
+                    name: { type: { type: 'string' } },
+                    age: { type: { type: 'number' } },
                   },
                 },
                 defaultValue: undefined,
@@ -194,7 +194,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               },
             ],
             fn: (args) => {
-              const person = args[0] as { name: string; age: number };
+              const person = args['person'] as { name: string; age: number };
               return `${person.name} is ${person.age}`;
             },
           },
@@ -216,7 +216,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['person'],
             },
           },
         })
@@ -236,7 +236,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['data'],
           },
         },
       });
@@ -259,7 +259,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['input'],
             },
           },
         });
@@ -267,7 +267,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const rErr = err as RuntimeError;
-        expect(rErr.errorId).toBe('RILL-R001');
+        expect(rErr.errorId).toBe('RILL-R044');
         expect(rErr.message).toContain('input');
       }
     });
@@ -285,7 +285,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello ${args[0]}`,
+              fn: (args) => `Hello ${args['username']}`,
             },
           },
         });
@@ -310,7 +310,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello ${args[0]}`,
+            fn: (args) => `Hello ${args['name']}`,
           },
         },
       });
@@ -329,7 +329,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => (args[0] as number) * 10,
+            fn: (args) => (args['factor'] as number) * 10,
           },
         },
       });
@@ -348,7 +348,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => `Hello ${args[0]}`,
+            fn: (args) => `Hello ${args['name']}`,
           },
         },
       });
@@ -370,7 +370,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
           },
         })
@@ -390,7 +390,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
           },
         })
@@ -412,7 +412,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
           },
         });
@@ -420,7 +420,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
         const rErr = err as RuntimeError;
-        expect(rErr.errorId).toBe('RILL-R001');
+        expect(rErr.errorId).toBe('RILL-R045');
         // Error message should mention expected count vs actual count
         expect(rErr.message).toMatch(/1|3/);
       }
@@ -439,7 +439,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
           },
         });
@@ -517,7 +517,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['val'],
           },
         },
       });
@@ -536,7 +536,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['val'],
           },
         },
       });
@@ -555,7 +555,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args[0],
+            fn: (args) => args['val'],
           },
         },
       });

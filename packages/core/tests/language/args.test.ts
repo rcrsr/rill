@@ -83,9 +83,16 @@ describe('explicit spread call syntax', () => {
     await run('tuple[3, 4] -> captureArg()', {
       functions: {
         captureArg: {
-          params: [{ name: 'x', type: { type: 'any' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'x',
+              type: { type: 'any' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            received = args[0];
+            received = args['x'];
             return null;
           },
         },
@@ -99,9 +106,16 @@ describe('explicit spread call syntax', () => {
     await run('ordered[a: 1] -> captureArg()', {
       functions: {
         captureArg: {
-          params: [{ name: 'x', type: { type: 'any' }, defaultValue: undefined, annotations: {} }],
+          params: [
+            {
+              name: 'x',
+              type: { type: 'any' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
           fn: (args) => {
-            received = args[0];
+            received = args['x'];
             return null;
           },
         },
@@ -215,7 +229,7 @@ describe('explicit spread call syntax', () => {
         |a, b| { ($a + $b) } => $fn
         dict[a: 1] -> $fn(...)
       `)
-    ).rejects.toThrow(/missing required parameter/i);
+    ).rejects.toThrow(/missing argument for parameter/i);
   });
 
   it('AC-18 (EC-10): spread on built-in log() errors', async () => {
@@ -240,7 +254,7 @@ describe('explicit spread call syntax', () => {
         |a, b| { ($a + $b) } => $fn
         $fn(...tuple[])
       `)
-    ).rejects.toThrow(/missing required parameter/i);
+    ).rejects.toThrow(/missing argument for parameter/i);
   });
 
   it('AC-26 (Boundary): spread of closure type errors', async () => {
@@ -272,6 +286,172 @@ describe('explicit spread call syntax', () => {
 
   it('AC-21 (EC-2): spread in method call argument list is a parse error', () => {
     expect(() => parse('$obj.method(...$args)')).toThrow();
+  });
+
+  // Field-default hydration via spread: AC-28 through AC-32
+  // ----------------------------------------------------------
+
+  it('AC-28: tuple spread hydrates missing dict field default in host function', async () => {
+    // opts typed as dict(a: string = "hello", b: number)
+    // tuple[dict[b: 42]] spreads {b: 42} positionally to opts
+    // marshalArgs Stage 2.5 fills a = "hello" from the field default
+    let received: Record<string, unknown> | undefined;
+    await run('tuple[dict[b: 42]] -> process(...)', {
+      functions: {
+        process: {
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  a: { type: { type: 'string' }, defaultValue: 'hello' },
+                  b: { type: { type: 'number' } },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            received = args['opts'] as Record<string, unknown>;
+            return null;
+          },
+        },
+      },
+    });
+    expect(received).toEqual({ a: 'hello', b: 42 });
+  });
+
+  it('AC-29: ordered spread hydrates missing dict field default in host function', async () => {
+    let received: Record<string, unknown> | undefined;
+    await run('ordered[opts: dict[b: 42]] -> process(...)', {
+      functions: {
+        process: {
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  a: { type: { type: 'string' }, defaultValue: 'hello' },
+                  b: { type: { type: 'number' } },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            received = args['opts'] as Record<string, unknown>;
+            return null;
+          },
+        },
+      },
+    });
+    expect(received).toEqual({ a: 'hello', b: 42 });
+  });
+
+  it('AC-30: spread and direct call produce identical results with dict-typed param', async () => {
+    // Regression guard: both paths converge on marshalArgs Stage 2.5
+    const paramDef = {
+      params: [
+        {
+          name: 'opts',
+          type: {
+            type: 'dict' as const,
+            fields: {
+              a: { type: { type: 'string' as const }, defaultValue: 'hello' },
+              b: { type: { type: 'number' as const } },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ],
+      fn: (args: Record<string, unknown>) => {
+        return (args['opts'] as Record<string, unknown>)['a'] ?? null;
+      },
+    };
+    const viaSpread = await run('tuple[dict[b: 42]] -> process(...)', {
+      functions: { process: paramDef },
+    });
+    const viaDirect = await run('process(dict[b: 42])', {
+      functions: { process: paramDef },
+    });
+    expect(viaSpread).toBe(viaDirect);
+  });
+
+  it('AC-31: dict spread hydrates missing dict field default in host function', async () => {
+    let received: Record<string, unknown> | undefined;
+    await run('dict[opts: dict[b: 42]] -> process(...)', {
+      functions: {
+        process: {
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  a: { type: { type: 'string' }, defaultValue: 'hello' },
+                  b: { type: { type: 'number' } },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            received = args['opts'] as Record<string, unknown>;
+            return null;
+          },
+        },
+      },
+    });
+    expect(received).toEqual({ a: 'hello', b: 42 });
+  });
+
+  it('AC-32: tuple spread hydrates nested dict field defaults in host function', async () => {
+    let received: Record<string, unknown> | undefined;
+    await run('tuple[dict[a: 1, inner: dict[y: 99]]] -> process(...)', {
+      functions: {
+        process: {
+          params: [
+            {
+              name: 'opts',
+              type: {
+                type: 'dict',
+                fields: {
+                  a: { type: { type: 'number' } },
+                  inner: {
+                    type: {
+                      type: 'dict',
+                      fields: {
+                        x: {
+                          type: { type: 'string' },
+                          defaultValue: 'default',
+                        },
+                        y: { type: { type: 'number' } },
+                      },
+                    },
+                  },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => {
+            received = args['opts'] as Record<string, unknown>;
+            return null;
+          },
+        },
+      },
+    });
+    expect((received as Record<string, unknown>)['inner']).toEqual({
+      x: 'default',
+      y: 99,
+    });
   });
 });
 

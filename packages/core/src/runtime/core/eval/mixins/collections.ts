@@ -34,7 +34,7 @@ import type { RillValue } from '../../values.js';
 import { inferType, isRillIterator, isVector } from '../../values.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
-import { isCallable, isDict } from '../../callable.js';
+import { isCallable, isDict, marshalArgs } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
@@ -312,9 +312,16 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (accumulator !== null) {
             args.push(accumulator);
           }
-          // Handle both CallableFn and ApplicationCallable (task 1.5 will refactor validation)
           const fnToCall = typeof fn === 'function' ? fn : fn.fn;
-          return fnToCall(args, this.ctx, body.span.start);
+          // Marshal args to named record if fn has params; cast otherwise (IC-1).
+          const callArgs =
+            typeof fn !== 'function' && fn.params !== undefined
+              ? marshalArgs(args, fn.params, {
+                  functionName: body.name,
+                  location: body.span.start,
+                })
+              : (args as unknown as Record<string, RillValue>);
+          return fnToCall(callArgs, this.ctx, body.span.start);
         }
 
         default: {

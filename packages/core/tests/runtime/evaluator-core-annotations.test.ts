@@ -210,7 +210,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
                   controller.abort();
                 }
                 await new Promise((r) => setTimeout(r, 5));
-                return args[0];
+                return args['input'];
               },
             },
           },

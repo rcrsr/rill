@@ -48,7 +48,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { RillParam, RillType } from '@rcrsr/rill';
-import { createRuntimeContext } from '@rcrsr/rill';
+import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { mockFn } from '../helpers/runtime.js';
 
@@ -67,7 +67,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello, ${args[0]}!`,
+              fn: (args) => `Hello, ${args['name']}!`,
             },
           },
         });
@@ -86,7 +86,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as number) * 2,
+              fn: (args) => (args['x'] as number) * 2,
             },
           },
         });
@@ -105,7 +105,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => !(args[0] as boolean),
+              fn: (args) => !(args['value'] as boolean),
             },
           },
         });
@@ -124,7 +124,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as unknown[])[0],
+              fn: (args) => (args['items'] as unknown[])[0],
             },
           },
         });
@@ -144,7 +144,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                (args[0] as Record<string, unknown>).key ?? 'missing',
+                (args['data'] as Record<string, unknown>).key ?? 'missing',
             },
           },
         });
@@ -175,7 +175,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}${args[1]}${args[2]}`,
+              fn: (args) => `${args['a']}${args['b']}${args['c']}`,
             },
           },
         });
@@ -200,7 +200,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as string).repeat(args[1] as number),
+              fn: (args) =>
+                (args['str'] as string).repeat(args['count'] as number),
             },
           },
         });
@@ -221,7 +222,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello, ${args[0]}!`,
+              fn: (args) => `Hello, ${args['name']}!`,
             },
           },
         });
@@ -246,7 +247,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}-${args[1]}`,
+              fn: (args) => `${args['start']}-${args['end']}`,
             },
           },
         });
@@ -271,7 +272,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as string).repeat(args[1] as number),
+              fn: (args) =>
+                (args['str'] as string).repeat(args['count'] as number),
             },
           },
         });
@@ -291,7 +293,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                (args[0] as number[]).reduce((a, b) => a + b, 0) as number,
+                (args['nums'] as number[]).reduce((a, b) => a + b, 0) as number,
             },
           },
         });
@@ -310,7 +312,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as Record<string, unknown>).name,
+              fn: (args) => (args['data'] as Record<string, unknown>).name,
             },
           },
         });
@@ -329,7 +331,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => !(args[0] as boolean),
+              fn: (args) => !(args['value'] as boolean),
             },
           },
         });
@@ -356,7 +358,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello, ${args[1]} ${args[0]}!`,
+              fn: (args) => `Hello, ${args['title']} ${args['name']}!`,
             },
           },
         });
@@ -381,7 +383,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello, ${args[1]} ${args[0]}!`,
+              fn: (args) => `Hello, ${args['title']} ${args['name']}!`,
             },
           },
         });
@@ -412,7 +414,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}:${args[1]} (secure: ${args[2]})`,
+              fn: (args) =>
+                `${args['host']}:${args['port']} (secure: ${args['secure']})`,
             },
           },
         });
@@ -443,7 +446,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[1]} ${args[0]} ${args[2]}`,
+              fn: (args) =>
+                `${args['prefix']} ${args['level']} ${args['suffix']}`,
             },
           },
         });
@@ -495,7 +499,10 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               },
             },
           })
-        ).rejects.toThrow('expects 0 arguments, got 3');
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R045',
+          message: expect.stringContaining('expects 0 arguments, got 3'),
+        });
       });
 
       it('empty params function works alongside typed functions', async () => {
@@ -515,7 +522,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args[0],
+                fn: (args) => args['x'],
               },
               zeroArgs: { params: [], fn: () => `called` },
             },
@@ -582,7 +589,10 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               },
             },
           })
-        ).rejects.toThrow('Type mismatch');
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R001',
+          message: expect.stringContaining('type mismatch'),
+        });
 
         expect(fn.callCount).toBe(0);
       });
@@ -606,7 +616,10 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               },
             },
           })
-        ).rejects.toThrow('expects 1 arguments, got 2');
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R045',
+          message: expect.stringContaining('expects 1 arguments, got 2'),
+        });
 
         expect(fn.callCount).toBe(0);
       });
@@ -630,7 +643,12 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               },
             },
           })
-        ).rejects.toThrow('Missing required argument');
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R044',
+          message: expect.stringContaining(
+            "Missing argument for parameter 'x'"
+          ),
+        });
 
         expect(fn.callCount).toBe(0);
       });
@@ -660,9 +678,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
     });
 
     describe('AC-6: Error messages include function/param name, expected/actual types', () => {
-      it('type mismatch error includes function name', async () => {
-        await expect(
-          run('myFunc(42)', {
+      it('type mismatch error includes function name in context', async () => {
+        try {
+          await run('myFunc(42)', {
             functions: {
               myFunc: {
                 params: [
@@ -676,8 +694,12 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 fn: () => 'not reached',
               },
             },
-          })
-        ).rejects.toThrow('myFunc');
+          });
+          expect.fail('Should have thrown');
+        } catch (err) {
+          const error = err as { context?: Record<string, unknown> };
+          expect(error.context?.functionName).toBe('myFunc');
+        }
       });
 
       it('type mismatch error includes parameter name', async () => {
@@ -777,7 +799,10 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               },
             },
           })
-        ).rejects.toThrow('expects 1 arguments, got 3');
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R045',
+          message: expect.stringContaining('expects 1 arguments, got 3'),
+        });
       });
     });
 
@@ -1021,7 +1046,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `Hello, ${args[0]}!`,
+              fn: (args) => `Hello, ${args['name']}!`,
             },
           },
         });
@@ -1040,7 +1065,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as number) * (args[0] as number),
+              fn: (args) => (args['x'] as number) * (args['x'] as number),
             },
           },
         });
@@ -1059,7 +1084,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => !(args[0] as boolean),
+              fn: (args) => !(args['value'] as boolean),
             },
           },
         });
@@ -1079,7 +1104,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                (args[0] as number[]).reduce((a, b) => a + b, 0) as number,
+                (args['nums'] as number[]).reduce((a, b) => a + b, 0) as number,
             },
           },
         });
@@ -1098,7 +1123,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as Record<string, unknown>).name,
+              fn: (args) => (args['user'] as Record<string, unknown>).name,
             },
           },
         });
@@ -1129,7 +1154,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}:${args[1]} (secure: ${args[2]})`,
+              fn: (args) =>
+                `${args['host']}:${args['port']} (secure: ${args['secure']})`,
             },
           },
         });
@@ -1158,9 +1184,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: 'RILL-R001',
           message: expect.stringMatching(
-            /Type mismatch in greet: parameter 'name' expects string, got number/
+            /type mismatch: name expects string, got number/i
           ),
         });
       });
@@ -1185,9 +1211,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: 'RILL-R001',
           message: expect.stringMatching(
-            /Type mismatch in first: parameter 'items' expects list, got string/
+            /type mismatch: items expects list, got string/i
           ),
         });
       });
@@ -1212,9 +1238,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: 'RILL-R001',
           message: expect.stringMatching(
-            /Type mismatch in getValue: parameter 'data' expects dict, got list/
+            /type mismatch: data expects dict, got list/i
           ),
         });
       });
@@ -1239,10 +1265,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Function 'double' expects 1 arguments, got 2/
-          ),
+          errorId: 'RILL-R045',
+          message: expect.stringMatching(/expects 1 arguments, got 2/),
         });
       });
     });
@@ -1266,9 +1290,9 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: 'RILL-R044',
           message: expect.stringMatching(
-            /Missing required argument 'name' for function 'greet'/
+            /Missing argument for parameter 'name'/
           ),
         });
       });
@@ -1294,20 +1318,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           });
           expect.fail('Should have thrown');
         } catch (err) {
-          const error = err as {
-            message: string;
-            context?: Record<string, unknown>;
-          };
-          // Message format: "Type mismatch in {function}: parameter '{param}' expects {expected}, got {actual}"
-          expect(error.message).toMatch(/Type mismatch in process/);
-          expect(error.message).toMatch(/parameter 'input'/);
-          expect(error.message).toMatch(/expects string/);
-          expect(error.message).toMatch(/got number/);
+          const rErr = err as RuntimeError;
+          // Verify errorId
+          expect(rErr.errorId).toBe('RILL-R001');
+          // Message format: "Parameter type mismatch: {param} expects {expected}, got {actual}"
+          expect(rErr.message).toMatch(/type mismatch/i);
+          expect(rErr.message).toMatch(/input/);
+          expect(rErr.message).toMatch(/expects string/);
+          expect(rErr.message).toMatch(/got number/);
           // Verify context includes all fields
-          expect(error.context?.functionName).toBe('process');
-          expect(error.context?.paramName).toBe('input');
-          expect(error.context?.expectedType).toBe('string');
-          expect(error.context?.actualType).toBe('number');
+          expect(rErr.context?.functionName).toBe('process');
+          expect(rErr.context?.paramName).toBe('input');
+          expect(rErr.context?.expectedType).toBe('string');
+          expect(rErr.context?.actualType).toBe('number');
         }
       });
 
@@ -1336,18 +1359,15 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           });
           expect.fail('Should have thrown');
         } catch (err) {
-          const error = err as {
-            message: string;
-            context?: Record<string, unknown>;
-          };
-          // Message format: "Function '{name}' expects {expected} arguments, got {actual}"
-          expect(error.message).toMatch(/Function 'calc'/);
-          expect(error.message).toMatch(/expects 2 arguments/);
-          expect(error.message).toMatch(/got 3/);
+          const rErr = err as RuntimeError;
+          // Verify errorId
+          expect(rErr.errorId).toBe('RILL-R045');
+          // Message format: "Function expects {expected} arguments, got {actual}"
+          expect(rErr.message).toMatch(/expects 2 arguments, got 3/);
           // Verify context includes all fields
-          expect(error.context?.functionName).toBe('calc');
-          expect(error.context?.expectedCount).toBe(2);
-          expect(error.context?.actualCount).toBe(3);
+          expect(rErr.context?.functionName).toBe('calc');
+          expect(rErr.context?.expectedCount).toBe(2);
+          expect(rErr.context?.actualCount).toBe(3);
         }
       });
 
@@ -1370,16 +1390,16 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           });
           expect.fail('Should have thrown');
         } catch (err) {
-          const error = err as {
-            message: string;
-            context?: Record<string, unknown>;
-          };
-          // Message format: "Missing required argument '{param}' for function '{name}'"
-          expect(error.message).toMatch(/Missing required argument 'template'/);
-          expect(error.message).toMatch(/for function 'format'/);
+          const rErr = err as RuntimeError;
+          // Verify errorId
+          expect(rErr.errorId).toBe('RILL-R044');
+          // Message format: "Missing argument for parameter '{param}'"
+          expect(rErr.message).toMatch(
+            /Missing argument for parameter 'template'/
+          );
           // Verify context includes all fields
-          expect(error.context?.functionName).toBe('format');
-          expect(error.context?.paramName).toBe('template');
+          expect(rErr.context?.functionName).toBe('format');
+          expect(rErr.context?.paramName).toBe('template');
         }
       });
     });
@@ -1410,10 +1430,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Function 'noArgs' expects 0 arguments, got 1/
-          ),
+          errorId: 'RILL-R045',
+          message: expect.stringMatching(/expects 0 arguments, got 1/),
         });
       });
     });
@@ -1443,7 +1461,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}-${args[1]}-${args[2]}`,
+              fn: (args) => `${args['a']}-${args['b']}-${args['c']}`,
             },
           },
         });
@@ -1474,7 +1492,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}-${args[1]}-${args[2]}`,
+              fn: (args) => `${args['a']}-${args['b']}-${args['c']}`,
             },
           },
         });
@@ -1505,7 +1523,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `${args[0]}-${args[1]}-${args[2]}`,
+              fn: (args) => `${args['a']}-${args['b']}-${args['c']}`,
             },
           },
         });
@@ -1535,7 +1553,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             manyParams: {
               params,
-              fn: (args) => args.length,
+              fn: (args) => Object.keys(args).length,
             },
           },
         });
@@ -1569,8 +1587,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(/parameter 'p10' expects number/),
+          errorId: 'RILL-R001',
+          message: expect.stringMatching(/p10 expects number/),
         });
       });
 
@@ -1592,7 +1610,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             manyParams: {
               params,
-              fn: (args) => args.length,
+              fn: (args) => Object.keys(args).length,
             },
           },
         });
@@ -1618,7 +1636,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args[0],
+                fn: (args) => args['x'],
               },
             },
           })
@@ -1637,7 +1655,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args[0],
+                fn: (args) => args['x'],
               },
             },
           })
@@ -1695,7 +1713,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             functions: {
               calc: {
                 params,
-                fn: (args) => (args[0] as number) + (args[1] as number),
+                fn: (args) => (args['a'] as number) + (args['b'] as number),
               },
             },
           })
@@ -1707,7 +1725,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             functions: {
               calc: {
                 params,
-                fn: (args) => (args[0] as number) + (args[1] as number),
+                fn: (args) => (args['a'] as number) + (args['b'] as number),
               },
             },
           })
@@ -1730,7 +1748,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(results[0]).toBe(15);
         expect(results[1]).toBe(25);
         expect(results[2]).toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: 'RILL-R045',
           message: expect.stringMatching(/expects 2 arguments, got 3/),
         });
       });
@@ -1754,7 +1772,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args[0],
+                fn: (args) => args['x'],
               },
               zeroArgs: { params: [], fn: () => `result: called` },
             },
@@ -1799,7 +1817,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['x'],
             },
             b: {
               params: [
@@ -1810,7 +1828,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args[0],
+              fn: (args) => args['y'],
             },
           },
         });
@@ -1874,7 +1892,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as unknown[]).length,
+              fn: (args) => (args['items'] as unknown[]).length,
             },
           },
         });
@@ -1893,7 +1911,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as unknown[]).length,
+              fn: (args) => (args['items'] as unknown[]).length,
             },
           },
         });
@@ -1912,7 +1930,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as unknown[]).length,
+              fn: (args) => (args['items'] as unknown[]).length,
             },
           },
         });
@@ -1931,7 +1949,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => (args[0] as unknown[][]).length,
+              fn: (args) => (args['items'] as unknown[][]).length,
             },
           },
         });
@@ -1952,7 +1970,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `received: ${args[0]}`,
+              fn: (args) => `received: ${args['value']}`,
             },
           },
         });
@@ -1971,7 +1989,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `received: ${args[0]}`,
+              fn: (args) => `received: ${args['value']}`,
             },
           },
         });
@@ -1990,7 +2008,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `received: ${args[0]}`,
+              fn: (args) => `received: ${args['value']}`,
             },
           },
         });
@@ -2010,7 +2028,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                `received list with length: ${(args[0] as unknown[]).length}`,
+                `received list with length: ${(args['value'] as unknown[]).length}`,
             },
           },
         });
@@ -2030,7 +2048,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                `received dict with key: ${(args[0] as Record<string, unknown>).key}`,
+                `received dict with key: ${(args['value'] as Record<string, unknown>).key}`,
             },
           },
         });
@@ -2051,7 +2069,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) => {
-                const v = args[0] as { type: string; values: number[] };
+                const v = args['value'] as { type: string; values: number[] };
                 return `received vector with ${v.values.length} elements`;
               },
             },

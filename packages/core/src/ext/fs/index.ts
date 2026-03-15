@@ -119,13 +119,13 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * IR-1, EC-5 (file not found), EC-6 (size limit)
    */
   const read = async (
-    args: RillValue[]
+    args: Record<string, RillValue>
     // ctx and location not used but required by CallableFn signature
   ): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
 
     // EC-5: Catch file not found from resolvePath
     let resolvedPath: string;
@@ -156,12 +156,12 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Write file contents, replacing if exists.
    * IR-2
    */
-  const write = async (args: RillValue[]): Promise<string> => {
+  const write = async (args: Record<string, RillValue>): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
-    const content = args[2] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
+    const content = args['content'] as string;
 
     const resolvedPath = await resolvePath(
       mountName,
@@ -186,12 +186,12 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Append content to file.
    * IR-3
    */
-  const append = async (args: RillValue[]): Promise<string> => {
+  const append = async (args: Record<string, RillValue>): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
-    const content = args[2] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
+    const content = args['content'] as string;
 
     const resolvedPath = await resolvePath(
       mountName,
@@ -232,11 +232,13 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * List directory contents.
    * IR-4, returns list of dicts with name, type, size.
    */
-  const list = async (args: RillValue[]): Promise<RillValue[]> => {
+  const list = async (
+    args: Record<string, RillValue>
+  ): Promise<RillValue[]> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const dirPath = (args[1] as string | undefined) ?? '';
+    const mountName = args['mount'] as string;
+    const dirPath = (args['path'] as string | undefined) ?? '';
 
     const resolvedPath = await resolvePath(mountName, dirPath, mounts, 'read');
 
@@ -261,11 +263,13 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Recursive file search with optional glob pattern.
    * IR-5
    */
-  const find = async (args: RillValue[]): Promise<RillValue[]> => {
+  const find = async (
+    args: Record<string, RillValue>
+  ): Promise<RillValue[]> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const pattern = (args[1] as string | undefined) ?? '*';
+    const mountName = args['mount'] as string;
+    const pattern = (args['pattern'] as string | undefined) ?? '*';
 
     const mount = mounts[mountName];
     if (!mount || !mount.resolvedPath) {
@@ -305,11 +309,11 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Check file existence.
    * IR-6
    */
-  const exists = async (args: RillValue[]): Promise<boolean> => {
+  const exists = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
 
     try {
       await resolvePath(mountName, filePath, mounts, 'read');
@@ -327,11 +331,11 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Delete file.
    * IR-7
    */
-  const remove = async (args: RillValue[]): Promise<boolean> => {
+  const remove = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
 
     // Catch file not found from resolvePath
     let resolvedPath: string;
@@ -363,12 +367,12 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * IR-8, returns dict with name, type, size, created, modified (ISO 8601).
    */
   const stat = async (
-    args: RillValue[]
+    args: Record<string, RillValue>
   ): Promise<Record<string, RillValue>> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const filePath = args[1] as string;
+    const mountName = args['mount'] as string;
+    const filePath = args['path'] as string;
 
     // Catch file not found from resolvePath
     let resolvedPath: string;
@@ -403,11 +407,11 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Create directory.
    * IR-9
    */
-  const mkdir = async (args: RillValue[]): Promise<boolean> => {
+  const mkdir = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const dirPath = args[1] as string;
+    const mountName = args['mount'] as string;
+    const dirPath = args['path'] as string;
 
     const mount = mounts[mountName];
     if (!mount || !mount.resolvedPath) {
@@ -472,12 +476,12 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Copy file within mount.
    * IR-10
    */
-  const copy = async (args: RillValue[]): Promise<boolean> => {
+  const copy = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const srcPath = args[1] as string;
-    const destPath = args[2] as string;
+    const mountName = args['mount'] as string;
+    const srcPath = args['src'] as string;
+    const destPath = args['dest'] as string;
 
     const resolvedSrc = await resolvePath(mountName, srcPath, mounts, 'read');
     const resolvedDest = await resolvePath(
@@ -515,12 +519,12 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
    * Move file within mount.
    * IR-11
    */
-  const move = async (args: RillValue[]): Promise<boolean> => {
+  const move = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args[0] as string;
-    const srcPath = args[1] as string;
-    const destPath = args[2] as string;
+    const mountName = args['mount'] as string;
+    const srcPath = args['src'] as string;
+    const destPath = args['dest'] as string;
 
     const resolvedSrc = await resolvePath(mountName, srcPath, mounts, 'read');
     const resolvedDest = await resolvePath(

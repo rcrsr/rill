@@ -13,7 +13,10 @@ import { describe, expect, it } from 'vitest';
 // or directly via a thin re-export shim if available.
 // Since it IS exported from values.ts (not re-exported from index),
 // we import it from the internal path under test isolation.
-import { structuralTypeEquals } from '../../src/runtime/core/values.js';
+import {
+  commonType,
+  structuralTypeEquals,
+} from '../../src/runtime/core/values.js';
 
 describe('structuralTypeEquals', () => {
   describe('dict branch - default value comparison', () => {
@@ -48,7 +51,7 @@ describe('structuralTypeEquals', () => {
       };
       const b: RillType = {
         type: 'dict',
-        fields: { x: { type: 'number' } as RillType },
+        fields: { x: { type: { type: 'number' } } },
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
     });
@@ -56,11 +59,11 @@ describe('structuralTypeEquals', () => {
     it('returns true when neither field has a default', () => {
       const a: RillType = {
         type: 'dict',
-        fields: { x: { type: 'number' } as RillType },
+        fields: { x: { type: { type: 'number' } } },
       };
       const b: RillType = {
         type: 'dict',
-        fields: { x: { type: 'number' } as RillType },
+        fields: { x: { type: { type: 'number' } } },
       };
       expect(structuralTypeEquals(a, b)).toBe(true);
     });
@@ -82,11 +85,11 @@ describe('structuralTypeEquals', () => {
     it('returns true when both fields have identical defaults', () => {
       const a: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }, 10]],
+        fields: [{ name: 'x', type: { type: 'number' }, defaultValue: 10 }],
       };
       const b: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }, 10]],
+        fields: [{ name: 'x', type: { type: 'number' }, defaultValue: 10 }],
       };
       expect(structuralTypeEquals(a, b)).toBe(true);
     });
@@ -94,11 +97,11 @@ describe('structuralTypeEquals', () => {
     it('returns false when fields have different default values', () => {
       const a: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }, 1]],
+        fields: [{ name: 'x', type: { type: 'number' }, defaultValue: 1 }],
       };
       const b: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }, 2]],
+        fields: [{ name: 'x', type: { type: 'number' }, defaultValue: 2 }],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
     });
@@ -106,11 +109,11 @@ describe('structuralTypeEquals', () => {
     it('returns false when one field has a default and the other does not', () => {
       const a: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }, 0]],
+        fields: [{ name: 'x', type: { type: 'number' }, defaultValue: 0 }],
       };
       const b: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }]],
+        fields: [{ name: 'x', type: { type: 'number' } }],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
     });
@@ -118,11 +121,11 @@ describe('structuralTypeEquals', () => {
     it('returns true when neither field has a default', () => {
       const a: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }]],
+        fields: [{ name: 'x', type: { type: 'number' } }],
       };
       const b: RillType = {
         type: 'ordered',
-        fields: [['x', { type: 'number' }]],
+        fields: [{ name: 'x', type: { type: 'number' } }],
       };
       expect(structuralTypeEquals(a, b)).toBe(true);
     });
@@ -131,15 +134,51 @@ describe('structuralTypeEquals', () => {
       const a: RillType = {
         type: 'ordered',
         fields: [
-          ['x', { type: 'number' }],
-          ['y', { type: 'string' }, 'hello'],
+          { name: 'x', type: { type: 'number' } },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'hello' },
         ],
       };
       const b: RillType = {
         type: 'ordered',
         fields: [
-          ['x', { type: 'number' }],
-          ['y', { type: 'string' }, 'world'],
+          { name: 'x', type: { type: 'number' } },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'world' },
+        ],
+      };
+      expect(structuralTypeEquals(a, b)).toBe(false);
+    });
+
+    it('two ordered types with identical defaults compare equal [AC-10]', () => {
+      const a: RillType = {
+        type: 'ordered',
+        fields: [
+          { name: 'x', type: { type: 'number' }, defaultValue: 10 },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'ok' },
+        ],
+      };
+      const b: RillType = {
+        type: 'ordered',
+        fields: [
+          { name: 'x', type: { type: 'number' }, defaultValue: 10 },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'ok' },
+        ],
+      };
+      expect(structuralTypeEquals(a, b)).toBe(true);
+    });
+
+    it('two ordered types differing only in default compare not-equal [AC-11]', () => {
+      const a: RillType = {
+        type: 'ordered',
+        fields: [
+          { name: 'x', type: { type: 'number' }, defaultValue: 10 },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'ok' },
+        ],
+      };
+      const b: RillType = {
+        type: 'ordered',
+        fields: [
+          { name: 'x', type: { type: 'number' }, defaultValue: 10 },
+          { name: 'y', type: { type: 'string' }, defaultValue: 'nope' },
         ],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
@@ -150,11 +189,11 @@ describe('structuralTypeEquals', () => {
     it('returns true when both elements have identical defaults', () => {
       const a: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }, 5]],
+        elements: [{ type: { type: 'number' }, defaultValue: 5 }],
       };
       const b: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }, 5]],
+        elements: [{ type: { type: 'number' }, defaultValue: 5 }],
       };
       expect(structuralTypeEquals(a, b)).toBe(true);
     });
@@ -162,11 +201,11 @@ describe('structuralTypeEquals', () => {
     it('returns false when elements have different default values', () => {
       const a: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }, 1]],
+        elements: [{ type: { type: 'number' }, defaultValue: 1 }],
       };
       const b: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }, 2]],
+        elements: [{ type: { type: 'number' }, defaultValue: 2 }],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
     });
@@ -174,11 +213,11 @@ describe('structuralTypeEquals', () => {
     it('returns false when one element has a default and the other does not', () => {
       const a: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }, 0]],
+        elements: [{ type: { type: 'number' }, defaultValue: 0 }],
       };
       const b: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'number' }]],
+        elements: [{ type: { type: 'number' } }],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
     });
@@ -186,11 +225,11 @@ describe('structuralTypeEquals', () => {
     it('returns true when neither element has a default', () => {
       const a: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'string' }]],
+        elements: [{ type: { type: 'string' } }],
       };
       const b: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'string' }]],
+        elements: [{ type: { type: 'string' } }],
       };
       expect(structuralTypeEquals(a, b)).toBe(true);
     });
@@ -198,13 +237,130 @@ describe('structuralTypeEquals', () => {
     it('compares boolean defaults correctly', () => {
       const a: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'bool' }, true]],
+        elements: [{ type: { type: 'bool' }, defaultValue: true }],
       };
       const b: RillType = {
         type: 'tuple',
-        elements: [[{ type: 'bool' }, false]],
+        elements: [{ type: { type: 'bool' }, defaultValue: false }],
       };
       expect(structuralTypeEquals(a, b)).toBe(false);
+    });
+
+    it('two tuple types with identical defaults compare equal [AC-10]', () => {
+      const a: RillType = {
+        type: 'tuple',
+        elements: [
+          { type: { type: 'number' }, defaultValue: 42 },
+          { type: { type: 'string' }, defaultValue: 'hi' },
+        ],
+      };
+      const b: RillType = {
+        type: 'tuple',
+        elements: [
+          { type: { type: 'number' }, defaultValue: 42 },
+          { type: { type: 'string' }, defaultValue: 'hi' },
+        ],
+      };
+      expect(structuralTypeEquals(a, b)).toBe(true);
+    });
+
+    it('two tuple types differing only in default compare not-equal [AC-11]', () => {
+      const a: RillType = {
+        type: 'tuple',
+        elements: [
+          { type: { type: 'number' }, defaultValue: 42 },
+          { type: { type: 'string' }, defaultValue: 'hi' },
+        ],
+      };
+      const b: RillType = {
+        type: 'tuple',
+        elements: [
+          { type: { type: 'number' }, defaultValue: 42 },
+          { type: { type: 'string' }, defaultValue: 'bye' },
+        ],
+      };
+      expect(structuralTypeEquals(a, b)).toBe(false);
+    });
+  });
+
+  describe('commonType', () => {
+    it('returns the specific type when first arg is any [AC-9]', () => {
+      const result = commonType({ type: 'any' }, { type: 'number' });
+      expect(result).toEqual({ type: 'number' });
+    });
+
+    it('returns the specific type when second arg is any (symmetric) [AC-9]', () => {
+      const result = commonType({ type: 'number' }, { type: 'any' });
+      expect(result).toEqual({ type: 'number' });
+    });
+
+    it('returns input type for two structurally equal list(number) types [AC-10]', () => {
+      const listNum: RillType = { type: 'list', element: { type: 'number' } };
+      const listNum2: RillType = { type: 'list', element: { type: 'number' } };
+      const result = commonType(listNum, listNum2);
+      expect(result).toEqual({ type: 'list', element: { type: 'number' } });
+    });
+
+    it('returns null for incompatible leaf types [AC-14]', () => {
+      const result = commonType({ type: 'number' }, { type: 'string' });
+      expect(result).toBeNull();
+    });
+
+    it('never returns undefined for any input combination [AC-15]', () => {
+      const leafTypes: RillType[] = [
+        { type: 'number' },
+        { type: 'string' },
+        { type: 'bool' },
+        { type: 'vector' },
+        { type: 'type' },
+        { type: 'any' },
+      ];
+      const compoundTypes: RillType[] = [
+        { type: 'list', element: { type: 'number' } },
+        { type: 'dict', fields: { x: { type: { type: 'number' } } } },
+        { type: 'tuple', elements: [{ type: { type: 'number' } }] },
+        { type: 'ordered', fields: [{ name: 'x', type: { type: 'number' } }] },
+        { type: 'closure', params: [] },
+        { type: 'union', members: [{ type: 'string' }] },
+      ];
+      const allTypes = [...leafTypes, ...compoundTypes];
+
+      // leaf x leaf
+      for (const a of leafTypes) {
+        for (const b of leafTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+        }
+      }
+
+      // compound x compound
+      for (const a of compoundTypes) {
+        for (const b of compoundTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+        }
+      }
+
+      // leaf x compound (both directions)
+      for (const a of leafTypes) {
+        for (const b of compoundTypes) {
+          expect(commonType(a, b)).not.toBeUndefined();
+          expect(commonType(b, a)).not.toBeUndefined();
+        }
+      }
+
+      // Verify all 144 combinations were checked (12 types total)
+      expect(allTypes).toHaveLength(12);
+      expect(
+        leafTypes.length * leafTypes.length +
+          compoundTypes.length * compoundTypes.length +
+          leafTypes.length * compoundTypes.length * 2
+      ).toBe(144);
+    });
+
+    it('returns bare list for list(number) vs list(string) [AC-20]', () => {
+      const listNum: RillType = { type: 'list', element: { type: 'number' } };
+      const listStr: RillType = { type: 'list', element: { type: 'string' } };
+      const result = commonType(listNum, listStr);
+      expect(result).toEqual({ type: 'list' });
     });
   });
 
@@ -240,15 +396,15 @@ describe('structuralTypeEquals', () => {
       const a: RillType = {
         type: 'dict',
         fields: {
-          x: { type: 'number' } as RillType,
-          y: { type: 'string' } as RillType,
+          x: { type: { type: 'number' } },
+          y: { type: { type: 'string' } },
         },
       };
       const b: RillType = {
         type: 'dict',
         fields: {
-          x: { type: 'number' } as RillType,
-          y: { type: 'string' } as RillType,
+          x: { type: { type: 'number' } },
+          y: { type: { type: 'string' } },
         },
       };
       expect(structuralTypeEquals(a, b)).toBe(true);

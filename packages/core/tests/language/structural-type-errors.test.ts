@@ -57,12 +57,10 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('list() with multiple arguments (AC-42)', () => {
-    it('throws when list() is called with 2 arguments — fails on arg count', async () => {
-      // list() checks arg count (must be exactly 1) before type validation.
-      // list(1, 2) has 2 args so it throws "requires exactly 1 type argument".
-      await expect(run('list(1, 2)')).rejects.toThrow(
-        'list() requires exactly 1 type argument'
-      );
+    it('throws when list() is called with non-type arguments — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef for arg values; non-type tokens
+      // like numeric literals are rejected at parse time.
+      await expect(run('list(1, 2)')).rejects.toThrow('Expected type name');
     });
   });
 
@@ -71,27 +69,40 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-5: list() with single non-type argument', () => {
-    it('throws when list(1) is called with a non-type argument', async () => {
-      await expect(run('list(1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('throws when list(1) is called with a non-type argument — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('list(1)')).rejects.toThrow('Expected type name');
     });
 
-    it('throws when list("hello") is called with a string argument', async () => {
-      await expect(run('list("hello")')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('throws when list("hello") is called with a string argument — fails at parse time', async () => {
+      // parseFieldArgList uses parseTypeRef; string literals are not valid type names.
+      await expect(run('list("hello")')).rejects.toThrow('Expected type name');
     });
   });
 
   // ============================================================
-  // AC-43: dict(string) with positional arg throws RILL-R004
+  // AC-43: dict(string) with single positional arg produces uniform type
+  // (Task 1.5: uniform path for 1 positional arg)
   // ============================================================
 
-  describe('dict() with positional argument (AC-43)', () => {
-    it('throws when dict() is called with a positional argument', async () => {
-      await expect(run('dict(string)')).rejects.toThrow(
-        'dict() requires named arguments'
+  describe('dict() with single positional argument (AC-43)', () => {
+    it('produces uniform dict type with valueType', async () => {
+      const result = (await run('dict(string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('dict');
+      expect(result.structure.type).toBe('dict');
+      expect(result.structure.valueType).toEqual({ type: 'string' });
+    });
+
+    it('throws when dict() mixes positional and named arguments', async () => {
+      await expect(run('dict(string, x: number)')).rejects.toThrow(
+        'dict() cannot mix positional and named arguments'
+      );
+    });
+
+    it('throws when dict() has 2+ positional arguments', async () => {
+      await expect(run('dict(string, number)')).rejects.toThrow(
+        'dict() requires exactly 1 positional type argument'
       );
     });
   });
@@ -125,13 +136,53 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
-  // EC-6: Type constructor in dict/ordered requires named args
+  // EC-6: ordered() with single positional arg produces uniform type
+  // (Task 1.5: uniform path for 1 positional arg)
   // ============================================================
 
-  describe('EC-6: ordered() with positional argument', () => {
-    it('throws when ordered() is called with a positional argument', async () => {
-      await expect(run('ordered(string)')).rejects.toThrow(
-        'ordered() requires named arguments'
+  describe('ordered() with single positional argument (EC-6)', () => {
+    it('produces uniform ordered type with valueType', async () => {
+      const result = (await run('ordered(string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.typeName).toBe('ordered');
+      expect(result.structure.type).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ type: 'string' });
+    });
+
+    it('throws when ordered() mixes positional and named arguments', async () => {
+      await expect(run('ordered(string, x: number)')).rejects.toThrow(
+        'ordered() cannot mix positional and named arguments'
+      );
+    });
+
+    it('throws when ordered() has 2+ positional arguments', async () => {
+      await expect(run('ordered(string, number)')).rejects.toThrow(
+        'ordered() requires exactly 1 positional type argument'
+      );
+    });
+  });
+
+  // ============================================================
+  // Type Inference Cascade Error Contracts (AC-11, AC-12, AC-13)
+  // ============================================================
+
+  describe('Type Inference Cascade Error Contracts', () => {
+    it('throws RILL-R002 for primitive top-level mismatch [AC-11]', async () => {
+      await expect(run('list[1, "hello"]')).rejects.toThrow(
+        'List elements must be the same type'
+      );
+    });
+
+    it('throws RILL-R002 for list vs string mismatch [AC-12]', async () => {
+      await expect(run('list[list[1], "hello"]')).rejects.toThrow(
+        'List elements must be the same type'
+      );
+    });
+
+    // Duplicate of line 37 (AC-40); retained for RILL-R002 error contract coverage
+    it('throws RILL-R002 for bool vs number mismatch [AC-13]', async () => {
+      await expect(run('list[true, 1]')).rejects.toThrow(
+        'List elements must be the same type'
       );
     });
   });
@@ -151,22 +202,19 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('EC-4 to EC-9: Type constructor argument type errors', () => {
-    it('dict() with non-type value in named arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('dict(a: 1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('dict() with non-type value in named arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('dict(a: 1)')).rejects.toThrow('Expected type name');
     });
 
-    it('tuple() with non-type positional arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('tuple(1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('tuple() with non-type positional arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('tuple(1)')).rejects.toThrow('Expected type name');
     });
 
-    it('ordered() with non-type value in named arg throws RILL-R004 (EC-5)', async () => {
-      await expect(run('ordered(a: 1)')).rejects.toThrow(
-        'Type constructor argument must be a type value'
-      );
+    it('ordered() with non-type value in named arg — fails at parse time (EC-5)', async () => {
+      // parseFieldArgList uses parseTypeRef; numeric literals are not valid type names.
+      await expect(run('ordered(a: 1)')).rejects.toThrow('Expected type name');
     });
   });
 });

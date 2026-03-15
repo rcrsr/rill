@@ -146,7 +146,7 @@ describe('Rill Language: use<> Expressions', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => `processed:${args[0]}`,
+              fn: (args) => `processed:${args['input']}`,
             },
           },
         });

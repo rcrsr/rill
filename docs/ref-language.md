@@ -167,10 +167,21 @@ Type constructors are primary expressions that produce structural type values. T
 | Constructor | Syntax | Example |
 |-------------|--------|---------|
 | List type | `list(T)` | `list(number)`, `list(list(string))` |
+| Dict type (uniform) | `dict(T)` | `dict(number)` |
+| Tuple type (uniform) | `tuple(T)` | `tuple(number)` |
+| Ordered type (uniform) | `ordered(T)` | `ordered(string)` |
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
+| Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
+
+When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:
+
+- **Nested synthesis** — A missing field with no explicit default is synthesized as an empty collection when all its children have defaults. Missing children are filled from the nested type.
+- **Explicit default hydration** — An explicit collection default is hydrated through the nested type. Child defaults fill any fields the explicit default omits.
+
+If any required child field has no default, `:>` raises [RILL-R044](ref-errors.md).
 
 `^type` returns a structural type value — not a coarse string:
 
@@ -213,6 +224,14 @@ $fn(list[1, 2, 3])
 ```rill
 list[1, 2, 3] -> :list(number)
 # Result: list[1, 2, 3]
+```
+
+Type constructor defaults work in annotation position. The runtime fills missing fields from the annotation defaults when a value is passed:
+
+```rill
+|a: dict(b: number = 5)| { $a.b } => $fn
+$fn(dict[])
+# Result: 5
 ```
 
 See [Type System](topic-type-system.md) for detailed structural type documentation.

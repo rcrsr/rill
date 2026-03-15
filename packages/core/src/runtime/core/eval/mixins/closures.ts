@@ -69,8 +69,7 @@ import {
   isScriptCallable,
   isApplicationCallable,
   isDict,
-  validateCallableArgs,
-  paramsToStructuralType,
+  marshalArgs,
 } from '../../callable.js';
 import {
   getVariable,
@@ -86,11 +85,12 @@ import {
   isTypeValue,
   isTuple,
   isOrdered,
-  createOrdered,
+  paramToFieldDef,
   inferStructuralType,
   structuralTypeMatches,
   formatStructuralType,
   anyTypeValue,
+  rillTypeToTypeValue,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -98,6 +98,16 @@ import type { CallFrame } from '../../../../types.js';
 
 /**
  * Result of bindArgsToParams: parameter names mapped to evaluated values.
+ *
+ * Only explicitly bound parameters are present (positional, tuple, ordered,
+ * or dict spread). Missing parameters are absent from the map; callers pass
+ * undefined for them, and marshalArgs handles defaults and required checks.
+ *
+ * Phase 2 integration: callers convert this to a positional RillValue[] via
+ *   params.map(p => bound.params.get(p.name)!)
+ * and pass that to marshalArgs stages 2-3 (skipping stage 1 excess check,
+ * which bindArgsToParams handles differently via per-source arity validation).
+ *
  * @internal
  */
 interface BoundArgs {
@@ -232,20 +242,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const effectiveArgs =
         callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
 
-      // Validate arguments for typed ApplicationCallable (task 1.5)
+      // Marshal arguments for typed ApplicationCallable (IC-1).
       // Skip when params is undefined (untyped callable() factory).
-      // Explicitly registered zero-param callables have params: [] and still validate.
+      // Untyped callables still receive RillValue[] cast as Record to preserve
+      // existing runtime behavior without changing the fn contract.
+      let fnArgs: Record<string, RillValue>;
       if (isApplicationCallable(callable) && callable.params !== undefined) {
-        validateCallableArgs(
-          effectiveArgs,
-          callable.params,
+        fnArgs = marshalArgs(effectiveArgs, callable.params, {
           functionName,
-          callLocation
-        );
+          location: callLocation,
+        });
+      } else {
+        fnArgs = effectiveArgs as unknown as Record<string, RillValue>;
       }
 
       try {
-        const result = callable.fn(effectiveArgs, this.ctx, callLocation);
+        const result = callable.fn(fnArgs, this.ctx, callLocation);
         return result instanceof Promise ? await result : result;
       } catch (error) {
         if (error instanceof RuntimeError && !error.location && callLocation) {
@@ -331,38 +343,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       const callableCtx = this.createCallableContext(callable);
 
-      // Validate excess arguments (EC-8)
-      if (args.length > callable.params.length) {
-        throw new RuntimeError(
-          'RILL-R001',
-          `Function expects ${callable.params.length} arguments, got ${args.length}`,
-          callLocation
-        );
+      // Marshal positional args to named record (IC-1).
+      // Script callables always have params defined.
+      const record = marshalArgs(args, callable.params, {
+        functionName: '<anonymous>',
+        location: callLocation,
+      });
+
+      // Bind each named value into the callable context.
+      for (const [name, value] of Object.entries(record)) {
+        callableCtx.variables.set(name, value);
       }
 
-      for (let i = 0; i < callable.params.length; i++) {
-        const param = callable.params[i]!;
-        let value: RillValue;
-
-        if (i < args.length) {
-          value = args[i]!;
-        } else if (param.defaultValue !== undefined) {
-          value = param.defaultValue;
-        } else {
-          throw new RuntimeError(
-            'RILL-R001',
-            `Missing argument for parameter '${param.name}' at position ${i}`,
-            callLocation,
-            { paramName: param.name, position: i }
-          );
-        }
-
-        this.validateParamType(param, value, callLocation);
-        callableCtx.variables.set(param.name, value);
-        // Block-closures have param named '$': sync with pipeValue for bare $ references
-        if (param.name === '$') {
-          callableCtx.pipeValue = value;
-        }
+      // IR-4: Block closure pipe sync — first param named '$' means block closure.
+      // Sync pipeValue so bare '$' references resolve correctly inside the body.
+      if (callable.params[0]?.name === '$') {
+        callableCtx.pipeValue = record['$']!;
       }
 
       // EC-1: Reject empty block bodies before execution (AC-17)
@@ -867,33 +863,36 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const typeMethod = typeDict?.[node.name];
 
       if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-        // AC-24 (EC-7): validate method args via typeMethod.params when set.
-        // Methods in UNVALIDATED_METHOD_PARAMS handle their own arg validation
-        // with specific error messages; skip generic validation for them.
-        if (
-          !UNVALIDATED_METHOD_PARAMS.has(node.name) &&
-          typeMethod.params !== undefined &&
-          typeMethod.params.length > 0
-        ) {
-          validateCallableArgs(
-            args,
-            typeMethod.params,
-            node.name,
-            this.getNodeLocation(node)
-          );
+        // IC-1: marshalArgs handles type method dispatch.
+        // effectiveArgs prepends receiver as first element; after task 2.3 typeMethod.params
+        // will include the receiver param so the counts align.
+        // UNVALIDATED_METHOD_PARAMS methods handle their own validation internally;
+        // skip marshalArgs for them and pass the positional array via cast.
+        const callLocation = this.getNodeLocation(node);
+        const effectiveArgs = [receiver, ...args];
+        let methodArgs: Record<string, RillValue>;
+        if (typeMethod.params === undefined) {
+          // Untyped method: pass positional array via cast.
+          methodArgs = effectiveArgs as unknown as Record<string, RillValue>;
+        } else if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
+          // UNVALIDATED_METHOD_PARAMS: method handles its own arity and type
+          // validation with custom error messages. Pass the actual user args
+          // via __positionalArgs so buildMethodEntry reconstructs positionalArgs
+          // with the correct length, letting method body arity checks fire.
+          methodArgs = {
+            receiver,
+            __positionalArgs: args as RillValue,
+          };
+        } else {
+          methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {
+            functionName: node.name,
+            location: callLocation,
+          });
         }
-        // buildMethodEntry wraps fn(args) where args[0] = receiver and args[1..] = method args
-        // Invoke fn directly to preserve the receiver-as-first-arg contract without
-        // triggering invokeCallable's arity validation (params counts method args only)
         try {
-          const result = typeMethod.fn(
-            [receiver, ...args],
-            this.ctx,
-            this.getNodeLocation(node)
-          );
+          const result = typeMethod.fn(methodArgs, this.ctx, callLocation);
           return result instanceof Promise ? await result : result;
         } catch (error) {
-          const callLocation = this.getNodeLocation(node);
           if (
             error instanceof RuntimeError &&
             !error.location &&
@@ -973,8 +972,18 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             isApplicationCallable(fallbackMethod)
           ) {
             try {
+              // UNVALIDATED_METHOD_RECEIVERS handle their own receiver validation.
+              // Build named record with receiver so buildMethodEntry extracts it correctly;
+              // the method body performs its own receiver type check with a custom error.
+              const fbMethodArgs: Record<string, RillValue> = { receiver };
+              if (fallbackMethod.params) {
+                for (let i = 1; i < fallbackMethod.params.length; i++) {
+                  const p = fallbackMethod.params[i];
+                  if (p) fbMethodArgs[p.name] = args[i - 1] ?? null;
+                }
+              }
               const result = fallbackMethod.fn(
-                [receiver, ...args],
+                fbMethodArgs,
                 this.ctx,
                 this.getNodeLocation(node)
               );
@@ -1102,19 +1111,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return value.annotations['description'] ?? {};
       }
 
-      // IR-3: ^input computes from callable.params via paramsToStructuralType() for all kinds
-      // Params are converted from internal tuples to RillOrdered so the
-      // value survives rill's homogeneous-list constraint.
+      // IR-3: ^input computes from callable.params for all kinds.
+      // Each param's RillType is converted to a RillTypeValue so it is recognized
+      // as a type token (not a plain dict) in rill's type system.
       if (key === 'input') {
         // Untyped host callables have params set to undefined at runtime (see callable() factory)
         if (value.params === undefined) {
-          return createOrdered([]);
+          return rillTypeToTypeValue({ type: 'ordered', fields: [] });
         }
-        const shape = paramsToStructuralType(value.params) as unknown as {
-          type: 'closure';
-          params: [string, RillValue][];
-        };
-        return createOrdered(shape.params);
+        const fields = value.params.map((param) =>
+          paramToFieldDef(
+            param.name,
+            param.type ?? { type: 'any' },
+            param.defaultValue
+          )
+        );
+        return rillTypeToTypeValue({ type: 'ordered', fields });
       }
 
       // IR-3: ^output reads callable.returnType directly for all kinds
@@ -1143,7 +1155,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Evaluates positional args LTR, evaluates the spread expression, dispatches
      * by value type (Tuple, Ordered, or Dict), validates bindings, and returns
-     * a Map of param name → value.
+     * a BoundArgs map of param name → value.
+     *
+     * Output is compatible with marshalArgs stages 2-3 (IR-1):
+     * - All params present in returned map (defaults applied, missing required throws)
+     * - Stage 1 (excess args) is NOT checked here; bindArgsToParams validates arity
+     *   differently per spread source type (tuple length, dict key match, etc.)
+     * - Phase 2 callers convert BoundArgs.params to positional RillValue[] then
+     *   feed into marshalArgs stages 2-3 for type-checking
      *
      * EC-3: bare ... with null pipe value → RuntimeError
      * EC-4: spread value is not tuple/dict/ordered → RuntimeError
@@ -1169,10 +1188,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      const params = callable.params as readonly {
-        name: string;
-        defaultValue: RillValue | null | undefined;
-      }[];
+      const params = callable.params as readonly { name: string }[];
       const bound = new Map<string, RillValue>();
 
       // Positional index: next unbound parameter position
@@ -1304,21 +1320,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       } finally {
         this.ctx.pipeValue = savedPipeValue;
-      }
-
-      // EC-8: check for missing required parameters
-      for (const param of params) {
-        if (!bound.has(param.name)) {
-          if (param.defaultValue !== null && param.defaultValue !== undefined) {
-            bound.set(param.name, param.defaultValue);
-          } else {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Missing required parameter '${param.name}'`,
-              callLocation
-            );
-          }
-        }
       }
 
       return { params: bound };

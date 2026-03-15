@@ -125,10 +125,12 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
 
   for (const [commandName, commandConfig] of Object.entries(config.commands)) {
     // Create function for this command
-    const commandFn = async (args: RillValue[]): Promise<RillValue> => {
-      // Extract args and stdin from RillValue array
-      const argsParam = (args[0] as RillValue[] | undefined) ?? [];
-      const stdinParam = args[1] as string | undefined;
+    const commandFn = async (
+      args: Record<string, RillValue>
+    ): Promise<RillValue> => {
+      // Extract args and stdin from named arg map
+      const argsParam = (args['args'] as RillValue[] | undefined) ?? [];
+      const stdinParam = args['stdin'] as string | undefined;
 
       // Convert args to string array
       const stringArgs = argsParam.map((arg) => String(arg));

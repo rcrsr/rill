@@ -1,5 +1,5 @@
 import type { SourceSpan } from './source-location.js';
-import type { RillTypeName, TypeRef } from './value-types.js';
+import type { FieldArg, RillTypeName, TypeRef } from './value-types.js';
 
 interface BaseNode {
   readonly span: SourceSpan;
@@ -371,17 +371,8 @@ export interface DictEntryNode extends BaseNode {
 export interface TypeConstructorNode extends BaseNode {
   readonly type: 'TypeConstructor';
   readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered';
-  readonly args: TypeConstructorArg[];
+  readonly args: FieldArg[];
 }
-
-export type TypeConstructorArg =
-  | { kind: 'positional'; value: ExpressionNode; defaultValue?: LiteralNode }
-  | {
-      kind: 'named';
-      name: string;
-      value: ExpressionNode;
-      defaultValue?: LiteralNode;
-    };
 
 /**
  * Closure signature literal: |param: type, ...| :returnType

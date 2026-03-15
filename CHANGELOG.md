@@ -7,10 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Uniform value types for `dict`, `ordered`, and `tuple`** — `dict(T)`, `ordered(T)`, and `tuple(T)` constrain all values to a single type; `tuple(T)` single-arg syntax is now a breaking change from 1-element structural form
+- **List literal type inference** — List literals with same-compound-type elements now infer the bare compound type instead of throwing an error
+- **`commonType` function export** — New function exported from `@rcrsr/rill` for host applications to compute common types across values
+- **`RillFieldDef` type export** — Unified field definition type exported from `@rcrsr/rill` for dict, tuple, ordered, and closure types. Replaces `RillFieldType`
+- **`hasCollectionFields` and `emptyForType` utilities** — Internal helpers for detecting collection types with defined fields and creating empty collection seeds
+
+### Changed (Breaking)
+
+- **`tuple(T)` single-arg form repurposed** — `tuple(T)` with a single positional argument now defines a uniform value type (all entries match T), not a 1-element structural tuple. Use `tuple(T1, T2)` with 2+ positional arguments for structural tuples with specific element types.
+- **`RillType` union members** — Dict, tuple, ordered, and closure field shapes now use `RillFieldDef` instead of positional tuples and `RillFieldType`. Extensions reading type structure must update
+- **`RillFieldDescriptor.fieldType`** — Property type changed from `RillFieldType` to `RillFieldDef`
+- **`paramToTypeTuple` renamed to `paramToFieldDef`** — Returns a `RillFieldDef` object instead of a positional tuple. Callers must update function name and destructuring
+
+### Removed (Breaking)
+
+- **`RillFieldType` type alias** — Removed from public exports. Use `RillFieldDef` instead
+- **`isFieldTypeWithDefault` guard function** — Removed from public exports. Use `field.defaultValue !== undefined` instead
+
+### Changed
+
+- **Type constructor argument defaults** — Type constructor arguments now support default values from all parsing contexts, enabling defaults in annotation and expression positions
+
 ### Fixed
 
+- **Nested default synthesis for collection-typed fields** — Missing fields whose type is a collection with all-defaulted children are synthesized by seeding an empty collection and hydrating. `dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))` produces `{a: 1, b: {c: 5}}`
+- **Explicit collection defaults hydrated through nested type** — Default values that are themselves collections now pass through nested hydration. `dict(x: number = 42) = [:]` fills `x: 42` instead of returning an empty dict
+- **`.^input` returns type token** — `$fn.^input` now returns a `RillTypeValue` with `typeName: 'ordered'` and the parameter types in `structure.fields`, matching `.^output` behavior. `log` prints `ordered(x: number, y: number)` instead of the internal `RillOrdered` representation
 - **Nested hydration in `:>ordered()` conversion** — `dict :>ordered(sig)` now hydrates nested dict and ordered fields with defaults, matching existing `dict :>dict(sig)` behavior
 - **Ordered input for sig'd conversions** — `ordered :>dict(sig)` and `ordered :>ordered(sig)` now accepted; RILL-R044 errors report correct source type
+- **Tuple `:` assertion accepts trailing defaulted fields** — Tuple type assertion now accepts values that omit trailing fields when those fields have defaults. Previously rejected valid inputs
+- **`ordered()` error message in `resolveTypeRef`** — Error message now correctly names `ordered()` instead of `dict()`
+- **Tuple parameter defaults hydrated before host invocation** — Tuple parameters with default values are hydrated before the host function is called, matching dict and ordered behavior
+- **Nested tuple defaults hydrated in `:>` conversion** — Nested tuple field defaults are hydrated during `:>` conversion, matching nested dict field behavior
 
 ## [0.15.0] - 2026-03-13
 
