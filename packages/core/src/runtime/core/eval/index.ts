@@ -18,7 +18,7 @@ import type {
 } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types.js';
-import type { RillValue, RillType } from '../values.js';
+import type { RillValue, TypeStructure } from '../values.js';
 import { getEvaluator } from './evaluator.js';
 
 /**
@@ -81,7 +81,7 @@ export async function handleCapture(
  */
 export function assertType(
   value: RillValue,
-  expected: RillTypeName | RillType,
+  expected: RillTypeName | TypeStructure,
   location?: SourceLocation
 ): RillValue {
   // Create a minimal context for standalone type assertions
@@ -105,6 +105,17 @@ export function assertType(
     resolverConfigs: new Map(),
     resolvingSchemes: new Set(),
     typeMethodDicts: new Map(),
+    leafTypes: new Set([
+      'string',
+      'number',
+      'bool',
+      'vector',
+      'type',
+      'any',
+      'closure',
+      'field_descriptor',
+    ]),
+    unvalidatedMethodReceivers: new Set(),
   };
 
   const evaluator = getEvaluator(minimalContext);

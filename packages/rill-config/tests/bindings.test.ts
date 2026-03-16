@@ -7,7 +7,7 @@ import {
   buildExtensionBindings,
 } from '@rcrsr/rill-config';
 import type { ContextFieldSchema, NestedExtConfig } from '@rcrsr/rill-config';
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -28,12 +28,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -49,7 +49,7 @@ describe('buildExtensionBindings', () => {
           fn1: {
             fn: async () => null,
             params: [],
-            returnType: rillTypeToTypeValue({ type: 'any' }),
+            returnType: structureToTypeValue({ kind: 'any' }),
           },
         },
       },
@@ -68,12 +68,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'name',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'The name to greet' },
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -90,12 +90,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'name',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: 'World',
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -111,12 +111,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'count',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: 42,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -132,18 +132,18 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'message',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'retries',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: 3,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -161,12 +161,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'flag',
-              type: { type: 'bool' },
+              type: { kind: 'bool' },
               defaultValue: false,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -183,19 +183,19 @@ describe('buildExtensionBindings', () => {
             {
               name: 'opts',
               type: {
-                type: 'dict',
+                kind: 'dict',
                 fields: {
-                  model: { type: { type: 'string' } },
-                  temperature: { type: { type: 'number' } },
+                  model: { type: { kind: 'string' } },
+                  temperature: { type: { kind: 'number' } },
                 },
               },
               defaultValue: undefined,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({
-            type: 'dict',
-            fields: { result: { type: { type: 'string' } } },
+          returnType: structureToTypeValue({
+            kind: 'dict',
+            fields: { result: { type: { kind: 'string' } } },
           }),
         },
       },
@@ -213,12 +213,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'options',
-              type: { type: 'dict', fields: {} },
+              type: { kind: 'dict', fields: {} },
               defaultValue: { model: 'gpt-4', temperature: 0.7 },
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -236,12 +236,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'options',
-              type: { type: 'dict', fields: {} },
+              type: { kind: 'dict', fields: {} },
               defaultValue: {},
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -257,12 +257,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'items',
-              type: { type: 'list', elementType: { type: 'string' } },
+              type: { kind: 'list', elementType: { kind: 'string' } },
               defaultValue: ['a', 'b'],
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -278,12 +278,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'config',
-              type: { type: 'dict', fields: {} },
+              type: { kind: 'dict', fields: {} },
               defaultValue: { nested: { key: 'val' } },
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'any' }),
+          returnType: structureToTypeValue({ kind: 'any' }),
         },
       },
     };
@@ -299,12 +299,12 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'text',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
           ],
-          returnType: rillTypeToTypeValue({ type: 'string' }),
+          returnType: structureToTypeValue({ kind: 'string' }),
         },
       },
     };

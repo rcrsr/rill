@@ -9,7 +9,7 @@ import { runScript } from '../../src/run/runner.js';
 import type { RunCliOptions } from '../../src/run/types.js';
 import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
 import { buildExtensionBindings } from '@rcrsr/rill-config';
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -37,18 +37,18 @@ function makeExtTree(): NestedExtConfig {
         params: [
           {
             name: 'name',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: { description: 'The name to greet' },
           },
         ],
-        returnType: rillTypeToTypeValue({ type: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
         annotations: { description: 'Greets a user by name' },
       },
       compute: {
         fn: async (_args: unknown[]) => 42,
         params: [],
-        returnType: rillTypeToTypeValue({ type: 'number' }),
+        returnType: structureToTypeValue({ kind: 'number' }),
         annotations: {},
       },
     },
@@ -166,7 +166,7 @@ describe('ext-resolution', () => {
           fn: {
             fn: async (_args: unknown[]) => 'deep',
             params: [],
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
             annotations: { description: 'A deeply nested function' },
           },
         },

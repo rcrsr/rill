@@ -141,7 +141,7 @@ describe('Rill Language: use<> Expressions', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' as const },
+                  type: { kind: 'string' as const },
                   defaultValue: undefined,
                   annotations: {},
                 },

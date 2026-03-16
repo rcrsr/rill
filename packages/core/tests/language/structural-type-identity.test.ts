@@ -564,8 +564,8 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result.structure.fields).toHaveLength(1);
       expect(result.structure.fields[0]!.name).toBe('x');
       expect(result.structure.fields[0]!.type).toEqual({
-        type: 'list',
-        element: { type: 'string' },
+        kind: 'list',
+        element: { kind: 'string' },
       });
     });
 
@@ -579,8 +579,8 @@ describe('Rill Language: Structural Type Identity', () => {
         structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(result.structure.fields[0]!.type).toEqual({
-        type: 'dict',
-        fields: { name: { type: { type: 'string' } } },
+        kind: 'dict',
+        fields: { name: { type: { kind: 'string' } } },
       });
     });
   });

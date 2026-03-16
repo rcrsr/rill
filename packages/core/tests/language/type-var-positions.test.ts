@@ -8,7 +8,7 @@
  *
  * Implementation note on AC-9 / AC-10:
  * All 5 type positions now resolve TypeRef via resolveTypeRef, dispatching on
- * both RillTypeValue and RillStructuralType. The :$t (VarTypeAssertion) and :?$t
+ * both RillTypeValue and TypeStructure. The :$t (VarTypeAssertion) and :?$t
  * (VarTypeCheck) positions accept variables holding a RillTypeValue directly.
  */
 

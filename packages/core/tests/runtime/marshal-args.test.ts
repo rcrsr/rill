@@ -47,7 +47,7 @@ describe('marshalArgs', () => {
   // Helpers to build typed params concisely
   function makeParam(
     name: string,
-    type?: { type: string },
+    type?: { kind: string },
     defaultValue?: unknown
   ): RillParam {
     return {
@@ -73,8 +73,8 @@ describe('marshalArgs', () => {
   describe('AC-2: positional binding', () => {
     it('maps args positionally when no defaults are involved', () => {
       const params = [
-        makeParam('x', { type: 'number' }),
-        makeParam('y', { type: 'number' }),
+        makeParam('x', { kind: 'number' }),
+        makeParam('y', { kind: 'number' }),
       ];
       const result = marshalArgs([1, 2], params, opts);
       expect(result).toEqual({ x: 1, y: 2 });
@@ -84,8 +84,8 @@ describe('marshalArgs', () => {
   describe('AC-1: default hydration', () => {
     it('fills missing trailing arg from defaultValue', () => {
       const params = [
-        makeParam('x', { type: 'number' }),
-        makeParam('y', { type: 'number' }, 2),
+        makeParam('x', { kind: 'number' }),
+        makeParam('y', { kind: 'number' }, 2),
       ];
       // Only first arg supplied; y must be hydrated from default
       const result = marshalArgs([1], params, opts);
@@ -95,7 +95,7 @@ describe('marshalArgs', () => {
 
   describe('AC-11 / EC-1: excess args → RILL-R045', () => {
     it('throws RILL-R045 when more args than params', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       expect(() => marshalArgs([1, 2], params, opts)).toThrow(RuntimeError);
       try {
         marshalArgs([1, 2], params, opts);
@@ -105,7 +105,7 @@ describe('marshalArgs', () => {
     });
 
     it('error message includes expected and actual count', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       try {
         marshalArgs([1, 2], params, opts);
         expect.fail('Should have thrown');
@@ -120,8 +120,8 @@ describe('marshalArgs', () => {
   describe('AC-10 / EC-2: missing required → RILL-R044', () => {
     it('throws RILL-R044 when required param has no arg and no default', () => {
       const params = [
-        makeParam('x', { type: 'number' }),
-        makeParam('y', { type: 'number' }),
+        makeParam('x', { kind: 'number' }),
+        makeParam('y', { kind: 'number' }),
       ];
       // Only x supplied; y is required with no default
       expect(() => marshalArgs([1], params, opts)).toThrow(RuntimeError);
@@ -134,8 +134,8 @@ describe('marshalArgs', () => {
 
     it('error message names the missing parameter', () => {
       const params = [
-        makeParam('x', { type: 'number' }),
-        makeParam('y', { type: 'number' }),
+        makeParam('x', { kind: 'number' }),
+        makeParam('y', { kind: 'number' }),
       ];
       try {
         marshalArgs([1], params, opts);
@@ -149,7 +149,7 @@ describe('marshalArgs', () => {
 
   describe('AC-12 / EC-3: type mismatch → RILL-R001', () => {
     it('throws RILL-R001 when arg type does not match param type', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       // Passing a string where number is expected
       expect(() => marshalArgs(['not-a-number'], params, opts)).toThrow(
         RuntimeError
@@ -162,7 +162,7 @@ describe('marshalArgs', () => {
     });
 
     it('error message names the mismatched parameter', () => {
-      const params = [makeParam('score', { type: 'number' })];
+      const params = [makeParam('score', { kind: 'number' })];
       try {
         marshalArgs(['bad'], params, opts);
         expect.fail('Should have thrown');
@@ -173,7 +173,7 @@ describe('marshalArgs', () => {
     });
 
     it('passes when arg matches declared type', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       const result = marshalArgs([42], params, opts);
       expect(result).toEqual({ x: 42 });
     });
@@ -190,7 +190,7 @@ describe('marshalArgs', () => {
 
   describe('functionName in options', () => {
     it('includes functionName in RILL-R044 error context', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       const customOpts: MarshalOptions = {
         functionName: 'mySpecialFn',
         location: undefined,
@@ -207,7 +207,7 @@ describe('marshalArgs', () => {
     });
 
     it('falls back to <anonymous> when options is undefined', () => {
-      const params = [makeParam('x', { type: 'number' })];
+      const params = [makeParam('x', { kind: 'number' })];
       try {
         marshalArgs([], params, undefined);
         expect.fail('Should have thrown');
@@ -230,10 +230,10 @@ describe('marshalArgs', () => {
         {
           name: 'opts',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
-              a: { type: { type: 'string' }, defaultValue: 'hello' },
-              b: { type: { type: 'number' } },
+              a: { type: { kind: 'string' }, defaultValue: 'hello' },
+              b: { type: { kind: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -249,10 +249,10 @@ describe('marshalArgs', () => {
         {
           name: 'cfg',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
-              x: { type: { type: 'string' }, defaultValue: 'alpha' },
-              y: { type: { type: 'number' }, defaultValue: 99 },
+              x: { type: { kind: 'string' }, defaultValue: 'alpha' },
+              y: { type: { kind: 'number' }, defaultValue: 99 },
             },
           },
           defaultValue: undefined,
@@ -268,10 +268,10 @@ describe('marshalArgs', () => {
         {
           name: 'opts',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
-              a: { type: { type: 'string' }, defaultValue: 'hello' },
-              b: { type: { type: 'number' } },
+              a: { type: { kind: 'string' }, defaultValue: 'hello' },
+              b: { type: { kind: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -296,10 +296,10 @@ describe('marshalArgs', () => {
         {
           name: 'opts',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
               inner: {
-                type: { type: 'dict' },
+                type: { kind: 'dict' },
                 defaultValue: { nested: 'x' },
               },
             },
@@ -329,14 +329,14 @@ describe('marshalArgs', () => {
         {
           name: 'data',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
               outer: {
                 type: {
-                  type: 'dict',
+                  kind: 'dict',
                   fields: {
-                    a: { type: { type: 'number' }, defaultValue: 42 },
-                    b: { type: { type: 'string' } },
+                    a: { type: { kind: 'number' }, defaultValue: 42 },
+                    b: { type: { kind: 'string' } },
                   },
                 },
               },
@@ -358,12 +358,12 @@ describe('marshalArgs', () => {
         {
           name: 'pair',
           type: {
-            type: 'ordered',
+            kind: 'ordered',
             fields: [
-              { name: 'a', type: { type: 'number' } },
+              { name: 'a', type: { kind: 'number' } },
               {
                 name: 'b',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'default-b',
               },
             ],
@@ -396,10 +396,10 @@ describe('marshalArgs', () => {
         {
           name: 'opts',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
-              a: { type: { type: 'number' } },
-              b: { type: { type: 'number' } },
+              a: { type: { kind: 'number' } },
+              b: { type: { kind: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -421,10 +421,10 @@ describe('marshalArgs', () => {
         {
           name: 'cfg',
           type: {
-            type: 'dict',
+            kind: 'dict',
             fields: {
-              a: { type: { type: 'string' }, defaultValue: 'hello' },
-              b: { type: { type: 'number' } },
+              a: { type: { kind: 'string' }, defaultValue: 'hello' },
+              b: { type: { kind: 'number' } },
             },
           },
           defaultValue: undefined,
@@ -440,15 +440,15 @@ describe('marshalArgs', () => {
   });
 
   describe('ordered extra entry preservation', () => {
-    // structuralTypeMatches rejects ordered values with extra entries,
+    // structureMatches rejects ordered values with extra entries,
     // so these tests call hydrateFieldDefaults directly to verify the
     // hydration logic preserves extras independent of type checking.
     it('preserves extra entries not declared in type.fields', () => {
       const type = {
-        type: 'ordered' as const,
+        kind: 'ordered' as const,
         fields: [
-          { name: 'a', type: { type: 'number' as const } },
-          { name: 'b', type: { type: 'number' as const } },
+          { name: 'a', type: { kind: 'number' as const } },
+          { name: 'b', type: { kind: 'number' as const } },
         ],
       };
       const arg = createOrdered([
@@ -470,12 +470,12 @@ describe('marshalArgs', () => {
 
     it('preserves extra entries alongside default hydration', () => {
       const type = {
-        type: 'ordered' as const,
+        kind: 'ordered' as const,
         fields: [
-          { name: 'a', type: { type: 'number' as const } },
+          { name: 'a', type: { kind: 'number' as const } },
           {
             name: 'b',
-            type: { type: 'string' as const },
+            type: { kind: 'string' as const },
             defaultValue: 'default-b',
           },
         ],
@@ -508,10 +508,10 @@ describe('marshalArgs', () => {
         {
           name: 'coords',
           type: {
-            type: 'tuple',
+            kind: 'tuple',
             elements: [
-              { type: { type: 'number' } },
-              { type: { type: 'number' }, defaultValue: 0 },
+              { type: { kind: 'number' } },
+              { type: { kind: 'number' }, defaultValue: 0 },
             ],
           },
           defaultValue: undefined,
@@ -536,11 +536,11 @@ describe('marshalArgs', () => {
         {
           name: 'tri',
           type: {
-            type: 'tuple',
+            kind: 'tuple',
             elements: [
-              { type: { type: 'string' }, defaultValue: 'a' },
-              { type: { type: 'number' }, defaultValue: 1 },
-              { type: { type: 'bool' }, defaultValue: true },
+              { type: { kind: 'string' }, defaultValue: 'a' },
+              { type: { kind: 'number' }, defaultValue: 1 },
+              { type: { kind: 'bool' }, defaultValue: true },
             ],
           },
           defaultValue: undefined,
@@ -558,16 +558,106 @@ describe('marshalArgs', () => {
     });
   });
 
+  // ============================================================
+  // Omitted collection-typed param with all-defaulted fields (Stage 2 synthesis)
+  // ============================================================
+
+  describe('omitted collection param with all-defaulted fields', () => {
+    it('synthesizes empty dict and hydrates field defaults when param omitted', () => {
+      const params: RillParam[] = [
+        makeParam('a', { kind: 'string' }),
+        {
+          name: 'b',
+          type: {
+            kind: 'dict',
+            fields: {
+              c: { type: { kind: 'number' }, defaultValue: 3 },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Only first arg supplied; dict param 'b' omitted
+      const result = marshalArgs(['test'], params, opts);
+      expect(result).toEqual({ a: 'test', b: { c: 3 } });
+    });
+
+    it('synthesizes empty ordered and hydrates field defaults when param omitted', () => {
+      const params: RillParam[] = [
+        makeParam('a', { kind: 'string' }),
+        {
+          name: 'b',
+          type: {
+            kind: 'ordered',
+            fields: [
+              {
+                name: 'x',
+                type: { kind: 'number' },
+                defaultValue: 10,
+              },
+              {
+                name: 'y',
+                type: { kind: 'string' },
+                defaultValue: 'hi',
+              },
+            ],
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const result = marshalArgs(['test'], params, opts);
+      const ordered = (result as Record<string, unknown>).b as {
+        __rill_ordered: boolean;
+        entries: [string, unknown][];
+      };
+      expect((result as Record<string, unknown>).a).toBe('test');
+      expect(ordered.__rill_ordered).toBe(true);
+      expect(ordered.entries).toEqual([
+        ['x', 10],
+        ['y', 'hi'],
+      ]);
+    });
+
+    it('throws RILL-R001 when omitted dict param has a field without default', () => {
+      const params: RillParam[] = [
+        makeParam('a', { kind: 'string' }),
+        {
+          name: 'b',
+          type: {
+            kind: 'dict',
+            fields: {
+              c: { type: { kind: 'number' }, defaultValue: 3 },
+              d: { type: { kind: 'string' } }, // no default
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Omitting 'b' synthesizes empty dict, but field 'd' has no default
+      // Stage 3 type-check catches the missing required field with RILL-R001
+      expect(() => marshalArgs(['test'], params, opts)).toThrow(RuntimeError);
+      try {
+        marshalArgs(['test'], params, opts);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect((err as RuntimeError).errorId).toBe('RILL-R001');
+      }
+    });
+  });
+
   describe('BC-2: zero-default tuple with exact-length value', () => {
     it('passes through when tuple matches element count with no defaults', () => {
       const params: RillParam[] = [
         {
           name: 'pair',
           type: {
-            type: 'tuple',
+            kind: 'tuple',
             elements: [
-              { type: { type: 'number' } },
-              { type: { type: 'string' } },
+              { type: { kind: 'number' } },
+              { type: { kind: 'string' } },
             ],
           },
           defaultValue: undefined,
@@ -706,7 +796,7 @@ describe('.^input default preservation', () => {
   describe('AC-20: untyped callable → empty ordered type', () => {
     it('callable() factory (untyped host callable) returns empty ordered type for .^input', async () => {
       // The callable() factory sets params to undefined (untyped).
-      // evaluateAnnotationAccess returns rillTypeToTypeValue({ type: 'ordered', fields: [] }) for this case.
+      // evaluateAnnotationAccess returns structureToTypeValue({ kind: 'ordered', fields: [] }) for this case.
       const { callable } = await import('@rcrsr/rill');
       const result = (await run('$fn.^input', {
         variables: {

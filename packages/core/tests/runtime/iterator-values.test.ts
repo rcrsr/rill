@@ -1,11 +1,15 @@
 /**
  * Tests for iterator value utilities
  * Verifies formatValue for iterator type
+ *
+ * Integration tests:
+ * EC-3: iterator == iterator raises RILL-R002 via script execution
  */
 
 import { describe, expect, it } from 'vitest';
 import { callable } from '../../src/runtime/core/callable.js';
-import { formatValue, isRillIterator } from '../../src/runtime/core/values.js';
+import { formatValue, isIterator } from '../../src/runtime/core/values.js';
+import { run } from '../helpers/runtime.js';
 
 describe('Iterator value utilities', () => {
   describe('formatValue', () => {
@@ -29,7 +33,7 @@ describe('Iterator value utilities', () => {
       expect(formatValue(iterator)).toBe('type(iterator)');
     });
 
-    it('correctly identifies iterator via isRillIterator guard', () => {
+    it('correctly identifies iterator via isIterator guard', () => {
       const iterator = {
         done: false,
         value: 42,
@@ -38,14 +42,34 @@ describe('Iterator value utilities', () => {
           next: callable(() => ({ done: true, next: callable(() => ({})) })),
         })),
       };
-      expect(isRillIterator(iterator)).toBe(true);
+      expect(isIterator(iterator)).toBe(true);
     });
 
     it('correctly rejects non-iterator dicts', () => {
-      expect(isRillIterator({ done: true })).toBe(false);
-      expect(isRillIterator({ next: callable(() => ({})) })).toBe(false);
-      expect(isRillIterator({ done: 'true', next: callable(() => ({})) })).toBe(
+      expect(isIterator({ done: true })).toBe(false);
+      expect(isIterator({ next: callable(() => ({})) })).toBe(false);
+      expect(isIterator({ done: 'true', next: callable(() => ({})) })).toBe(
         false
+      );
+    });
+  });
+
+  // ============================================================
+  // Integration: EC-3 iterator equality via script execution
+  // ============================================================
+
+  describe('EC-3 integration: iterator equality via script', () => {
+    it('raises RILL-R002 for iterator == iterator', async () => {
+      await expect(run('range(1, 3) == range(1, 3)')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
+      );
+    });
+
+    it('raises RILL-R002 for iterator != iterator', async () => {
+      await expect(run('range(1, 3) != range(4, 6)')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
       );
     });
   });

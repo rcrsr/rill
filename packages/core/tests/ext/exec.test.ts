@@ -450,13 +450,13 @@ describe('exec extension factory', () => {
       expect(ext.echo.params).toEqual([
         {
           name: 'args',
-          type: { type: 'list' },
+          type: { kind: 'list' },
           defaultValue: [],
           annotations: { description: 'Command arguments' },
         },
         {
           name: 'stdin',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: '',
           annotations: { description: 'Standard input data' },
         },
@@ -500,7 +500,7 @@ describe('exec extension factory', () => {
 
       expect(ext.echo.returnType).toMatchObject({
         __rill_type: true,
-        structure: { type: 'dict' },
+        structure: { kind: 'dict' },
       });
     });
   });

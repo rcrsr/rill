@@ -177,13 +177,13 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
       params: [
         {
           name: 'args',
-          type: { type: 'list' },
+          type: { kind: 'list' },
           defaultValue: [],
           annotations: { description: 'Command arguments' },
         },
         {
           name: 'stdin',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: '',
           annotations: { description: 'Standard input data' },
         },
@@ -193,7 +193,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
         description:
           commandConfig.description ?? `Execute ${commandName} command`,
       },
-      returnType: rillTypeToTypeValue({ type: 'dict' }),
+      returnType: rillTypeToTypeValue({ kind: 'dict' }),
     };
   }
 
@@ -218,7 +218,7 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
     params: [],
     fn: commands,
     annotations: { description: 'List all configured commands' },
-    returnType: rillTypeToTypeValue({ type: 'list' }),
+    returnType: rillTypeToTypeValue({ kind: 'list' }),
   };
 
   // ============================================================

@@ -35,9 +35,12 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type {
   RillValue,
-  RillType,
+  TypeStructure,
   RillFieldDef,
   RillTuple,
+  DictStructure,
+  TupleStructure,
+  OrderedStructure,
 } from '../../values.js';
 import {
   inferType,
@@ -46,12 +49,13 @@ import {
   isTypeValue,
   createOrdered,
   createTuple,
-  formatValue,
   deepCopyRillValue,
   hasCollectionFields,
   emptyForType,
 } from '../../values.js';
 import { isDict } from '../../callable.js';
+import { BUILT_IN_TYPES } from '../../type-registrations.js';
+
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -169,167 +173,78 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Apply conversion from source value to target type name.
-     * Implements the compatibility matrix from IR-9.
+     * Dispatches to protocol.convertTo on the source type's registration.
+     *
+     * IR-6: Replaces the hardcoded conversion matrix with protocol dispatch.
+     *
+     * Special cases preserved:
+     * - Same type = no-op (short-circuit)
+     * - dict -> :>ordered without structural sig raises RILL-R037 (EC-11)
+     * - String-to-number parse failure raises RILL-R038 (EC-12)
+     * - Missing convertTo target raises RILL-R036 (EC-10)
      */
     private applyConversion(
       input: RillValue,
       targetType: RillTypeName,
       node: ConvertNode
     ): RillValue {
-      const sourceType = inferType(input);
+      const sourceType = inferType(input) as RillTypeName;
 
       // Same type = no-op
       if (sourceType === targetType) {
         return input;
       }
 
-      // Apply compatibility matrix
-      switch (targetType) {
-        case 'list':
-          return this.convertToList(input, sourceType, node);
-
-        case 'dict':
-          return this.convertToDict(input, sourceType, node);
-
-        case 'tuple':
-          return this.convertToTuple(input, sourceType, node);
-
-        case 'ordered':
-          // dict -> :>ordered without structural sig is always a runtime error (EC-11)
-          if (sourceType === 'dict') {
-            throw new RuntimeError(
-              'RILL-R037',
-              'dict to ordered conversion requires structural type signature',
-              this.getNodeLocation(node)
-            );
-          }
-          return this.convertToOrdered(input, sourceType, node);
-
-        case 'number':
-          return this.convertToNumber(input, sourceType, node);
-
-        case 'string':
-          return this.convertToString(input, sourceType, node);
-
-        case 'bool':
-          return this.convertToBoolean(input, sourceType, node);
-
-        default:
-          this.throwIncompatible(sourceType, targetType, node);
+      // dict -> :>ordered without structural sig is always RILL-R037 (EC-11)
+      if (sourceType === 'dict' && targetType === 'ordered') {
+        throw new RuntimeError(
+          'RILL-R037',
+          'dict to ordered conversion requires structural type signature',
+          this.getNodeLocation(node)
+        );
       }
 
-      // TypeScript exhaustiveness
-      return input;
-    }
+      // Find source type registration and dispatch via protocol.convertTo
+      const reg = BUILT_IN_TYPES.find((r) => r.name === sourceType);
+      const converter = reg?.protocol.convertTo?.[targetType];
 
-    /** Convert to list type. Valid source: tuple. */
-    private convertToList(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      if (isTuple(input)) {
-        return input.entries;
+      if (!converter) {
+        throw new RuntimeError(
+          'RILL-R036',
+          `cannot convert ${sourceType} to ${targetType}`,
+          this.getNodeLocation(node),
+          { source: sourceType, target: targetType }
+        );
       }
-      this.throwIncompatible(sourceType, 'list', node);
-      return input;
-    }
 
-    /** Convert to dict type. Valid source: ordered. */
-    private convertToDict(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      if (isOrdered(input)) {
-        const result: Record<string, RillValue> = {};
-        for (const [key, value] of input.entries) {
-          result[key] = value;
-        }
-        return result;
-      }
-      this.throwIncompatible(sourceType, 'dict', node);
-      return input;
-    }
+      try {
+        return converter(input);
+      } catch (err) {
+        // Protocol converters throw plain Errors; wrap as RuntimeError
+        // with the appropriate error code.
+        if (err instanceof RuntimeError) throw err;
 
-    /** Convert to tuple type. Valid source: list. */
-    private convertToTuple(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      if (Array.isArray(input) && !isTuple(input) && !isOrdered(input)) {
-        return createTuple(input);
-      }
-      this.throwIncompatible(sourceType, 'tuple', node);
-      return input;
-    }
-
-    /** Convert to ordered type. Valid source: dict (with sig, handled separately). */
-    private convertToOrdered(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      // Only dict -> ordered is valid, but it requires a sig (checked by caller)
-      this.throwIncompatible(sourceType, 'ordered', node);
-      return input;
-    }
-
-    /** Convert to number type. Valid source: string (parseable) or bool. */
-    private convertToNumber(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      if (sourceType === 'string') {
-        const str = input as string;
-        const parsed = Number(str);
-        if (isNaN(parsed) || str.trim() === '') {
+        // String-to-number parse failures use RILL-R038 (EC-12)
+        // Preserve the protocol's detailed message (includes unparseable value).
+        if (sourceType === 'string' && targetType === 'number') {
+          const message = err instanceof Error ? err.message : String(err);
           throw new RuntimeError(
             'RILL-R038',
-            `cannot convert string "${str}" to number`,
+            message,
             this.getNodeLocation(node),
-            { value: str }
+            { value: input }
           );
         }
-        return parsed;
-      }
-      if (sourceType === 'bool') {
-        return (input as boolean) ? 1 : 0;
-      }
-      this.throwIncompatible(sourceType, 'number', node);
-      return input;
-    }
 
-    /** Convert to bool type. Valid source: number (0 or 1) or string ("true" or "false"). */
-    private convertToBoolean(
-      input: RillValue,
-      sourceType: RillTypeName,
-      node: ConvertNode
-    ): RillValue {
-      if (sourceType === 'number') {
-        const n = input as number;
-        if (n === 0) return false;
-        if (n === 1) return true;
-        this.throwIncompatible(sourceType, 'bool', node);
+        // All other conversion failures use RILL-R036 (EC-10)
+        // Use consistent "cannot convert X to Y" format.
+        throw new RuntimeError(
+          'RILL-R036',
+          `cannot convert ${sourceType} to ${targetType}`,
+          this.getNodeLocation(node),
+          { source: sourceType, target: targetType }
+        );
       }
-      if (sourceType === 'string') {
-        const s = input as string;
-        if (s === 'true') return true;
-        if (s === 'false') return false;
-        this.throwIncompatible(sourceType, 'bool', node);
-      }
-      this.throwIncompatible(sourceType, 'bool', node);
-    }
-
-    /** Convert to string type. Valid source: any type via formatValue semantics. */
-    private convertToString(
-      input: RillValue,
-      _sourceType: RillTypeName,
-      _node: ConvertNode
-    ): RillValue {
-      return formatValue(input);
     }
 
     /**
@@ -366,7 +281,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
       const resolvedFields: RillFieldDef[] =
-        typeValue.structure.type === 'ordered' && typeValue.structure.fields
+        typeValue.structure.kind === 'ordered' && typeValue.structure.fields
           ? (typeValue.structure.fields as RillFieldDef[])
           : [];
 
@@ -441,7 +356,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
       const resolvedFields: Record<string, RillFieldDef> =
-        typeValue.structure.type === 'dict' && typeValue.structure.fields
+        typeValue.structure.kind === 'dict' && typeValue.structure.fields
           ? (typeValue.structure.fields as Record<string, RillFieldDef>)
           : {};
       const result: Record<string, RillValue> = {};
@@ -528,7 +443,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
       const resolvedElements: RillFieldDef[] =
-        typeValue.structure.type === 'tuple' && typeValue.structure.elements
+        typeValue.structure.kind === 'tuple' && typeValue.structure.elements
           ? (typeValue.structure.elements as RillFieldDef[])
           : [];
 
@@ -579,15 +494,18 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      */
     private hydrateNested(
       value: RillValue,
-      fieldType: RillType,
+      fieldType: TypeStructure,
       node: ConvertNode
     ): RillValue {
-      if (fieldType.type === 'dict' && fieldType.fields && isDict(value)) {
+      if (
+        fieldType.kind === 'dict' &&
+        (fieldType as DictStructure).fields &&
+        isDict(value)
+      ) {
+        const ft = fieldType as DictStructure;
         const dictValue = value as Record<string, RillValue>;
         const result: Record<string, RillValue> = {};
-        for (const [fieldName, resolvedField] of Object.entries(
-          fieldType.fields
-        )) {
+        for (const [fieldName, resolvedField] of Object.entries(ft.fields!)) {
           if (fieldName in dictValue) {
             const fieldValue = this.hydrateNested(
               dictValue[fieldName]!,
@@ -619,7 +537,11 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
         return result;
-      } else if (fieldType.type === 'ordered' && fieldType.fields) {
+      } else if (
+        fieldType.kind === 'ordered' &&
+        (fieldType as OrderedStructure).fields
+      ) {
+        const ft = fieldType as OrderedStructure;
         // Only hydrate if the runtime value is an ordered or dict; return unchanged otherwise.
         if (!isOrdered(value) && !isDict(value)) {
           return value;
@@ -632,7 +554,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             : Object.entries(value as Record<string, RillValue>)
         );
         const resultEntries: [string, RillValue][] = [];
-        for (const field of fieldType.fields as RillFieldDef[]) {
+        for (const field of ft.fields!) {
           const name = field.name!;
           if (lookup.has(name)) {
             const fieldValue = this.hydrateNested(
@@ -665,15 +587,19 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
         return createOrdered(resultEntries);
-      } else if (fieldType.type === 'tuple' && fieldType.elements) {
+      } else if (
+        fieldType.kind === 'tuple' &&
+        (fieldType as TupleStructure).elements
+      ) {
+        const ft = fieldType as TupleStructure;
         // Only hydrate if the runtime value is a tuple; return unchanged otherwise.
         if (!isTuple(value)) {
           return value;
         }
         const inputEntries = (value as unknown as RillTuple).entries;
         const resultEntries: RillValue[] = [];
-        for (let i = 0; i < fieldType.elements.length; i++) {
-          const element = fieldType.elements[i]!;
+        for (let i = 0; i < ft.elements!.length; i++) {
+          const element = ft.elements![i]!;
           if (i < inputEntries.length) {
             const elementValue = this.hydrateNested(
               inputEntries[i]!,
@@ -705,20 +631,6 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return createTuple(resultEntries);
       }
       return value;
-    }
-
-    /** Throw EC-10 incompatible conversion error. */
-    private throwIncompatible(
-      source: RillTypeName,
-      target: RillTypeName,
-      node: ConvertNode
-    ): never {
-      throw new RuntimeError(
-        'RILL-R036',
-        `cannot convert ${source} to ${target}`,
-        this.getNodeLocation(node),
-        { source, target }
-      );
     }
   };
 }

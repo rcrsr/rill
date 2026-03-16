@@ -1,9 +1,9 @@
 /**
- * Tests for formatValue, valueToJSON, and toNative
+ * Tests for formatValue, serializeValue, and toNative
  *
  * IR-1: formatValue(value: RillValue): string — pure function, guard order:
  *   shape → callable → tuple → iterator → list → vector → type value → field descriptor → dict
- * IR-2: valueToJSON(value: RillValue): unknown — throws plain Error for non-serializable types
+ * IR-2: serializeValue(value: RillValue): unknown — throws plain Error for non-serializable types
  * IR-3: toNative(value: RillValue): NativeResult — always returns NativeResult { rillTypeName, rillTypeSignature, value }; non-native types (closures/iterators/vectors/type values) produce descriptor objects
  *
  * AC-1: Script returns number → ExecutionResult.result is JS number
@@ -25,13 +25,13 @@
  * AC-17: Guard clause ordering: shape before dict; callable before dict/array; tuple before dict
  *
  * EC-1 through EC-5: toNative — EC-1,EC-2 return descriptor objects for non-native types; EC-3,EC-6 convert tuple/ordered to JS array/object
- * EC-8 through EC-14: valueToJSON throws plain Error for non-serializable types
+ * EC-8 through EC-14: serializeValue throws plain Error for non-serializable types
  */
 
 import { describe, expect, it } from 'vitest';
 import {
   formatValue,
-  valueToJSON,
+  serializeValue,
   toNative,
   createVector,
   createOrdered,
@@ -55,7 +55,7 @@ function makeTypeValue(typeName: string): RillTypeValue {
     __rill_type: true as const,
     typeName: typeName as RillTypeValue['typeName'],
     structure: {
-      type: typeName as RillTypeValue['typeName'],
+      kind: typeName as RillTypeValue['typeName'],
     } as RillTypeValue['structure'],
   };
 }
@@ -243,52 +243,52 @@ describe('formatValue', () => {
 });
 
 // ============================================================
-// valueToJSON — JSON serialization
+// serializeValue — JSON serialization
 // ============================================================
 
-describe('valueToJSON', () => {
+describe('serializeValue', () => {
   describe('serializable types', () => {
     it('serializes null', () => {
-      expect(valueToJSON(null)).toBeNull();
+      expect(serializeValue(null)).toBeNull();
     });
 
     it('serializes string', () => {
-      expect(valueToJSON('hello')).toBe('hello');
+      expect(serializeValue('hello')).toBe('hello');
     });
 
     it('serializes number', () => {
-      expect(valueToJSON(42)).toBe(42);
+      expect(serializeValue(42)).toBe(42);
     });
 
     it('serializes boolean true', () => {
-      expect(valueToJSON(true)).toBe(true);
+      expect(serializeValue(true)).toBe(true);
     });
 
     it('serializes boolean false', () => {
-      expect(valueToJSON(false)).toBe(false);
+      expect(serializeValue(false)).toBe(false);
     });
 
     it('AC-3 (unit): serializes list to array', () => {
-      expect(valueToJSON([1, 2, 3])).toEqual([1, 2, 3]);
+      expect(serializeValue([1, 2, 3])).toEqual([1, 2, 3]);
     });
 
     it('AC-4 (unit): serializes dict to plain object', () => {
-      expect(valueToJSON({ a: 1 })).toEqual({ a: 1 });
+      expect(serializeValue({ a: 1 })).toEqual({ a: 1 });
     });
 
     it('serializes empty list', () => {
-      expect(valueToJSON([])).toEqual([]);
+      expect(serializeValue([])).toEqual([]);
     });
 
     it('serializes empty dict', () => {
-      expect(valueToJSON({})).toEqual({});
+      expect(serializeValue({})).toEqual({});
     });
   });
 
   describe('AC-14: recursive serialization', () => {
     it('serializes nested list', () => {
       expect(
-        valueToJSON([
+        serializeValue([
           [1, 2],
           [3, 4],
         ])
@@ -299,24 +299,29 @@ describe('valueToJSON', () => {
     });
 
     it('serializes nested dict', () => {
-      expect(valueToJSON({ outer: { inner: 42 } })).toEqual({
+      expect(serializeValue({ outer: { inner: 42 } })).toEqual({
         outer: { inner: 42 },
       });
     });
 
     it('serializes list containing dict', () => {
-      expect(valueToJSON([{ a: 1 }, { b: 2 }])).toEqual([{ a: 1 }, { b: 2 }]);
+      expect(serializeValue([{ a: 1 }, { b: 2 }])).toEqual([
+        { a: 1 },
+        { b: 2 },
+      ]);
     });
 
     it('serializes dict containing list', () => {
-      expect(valueToJSON({ items: [1, 2, 3] })).toEqual({ items: [1, 2, 3] });
+      expect(serializeValue({ items: [1, 2, 3] })).toEqual({
+        items: [1, 2, 3],
+      });
     });
   });
 
   describe('EC-8: closure throws plain Error', () => {
     it('throws Error (not RuntimeError) for callable', () => {
       const fn = callable(() => null);
-      expect(() => valueToJSON(fn)).toThrow(
+      expect(() => serializeValue(fn)).toThrow(
         'closures are not JSON-serializable'
       );
     });
@@ -325,7 +330,7 @@ describe('valueToJSON', () => {
       const fn = callable(() => null);
       let caught: unknown;
       try {
-        valueToJSON(fn);
+        serializeValue(fn);
       } catch (e) {
         caught = e;
       }
@@ -337,7 +342,7 @@ describe('valueToJSON', () => {
   describe('EC-9: iterator throws plain Error', () => {
     it('throws Error for iterator', () => {
       const iterator = makeIterator();
-      expect(() => valueToJSON(iterator)).toThrow(
+      expect(() => serializeValue(iterator)).toThrow(
         'iterators are not JSON-serializable'
       );
     });
@@ -346,7 +351,7 @@ describe('valueToJSON', () => {
       const iterator = makeIterator();
       let caught: unknown;
       try {
-        valueToJSON(iterator);
+        serializeValue(iterator);
       } catch (e) {
         caught = e;
       }
@@ -358,7 +363,7 @@ describe('valueToJSON', () => {
   describe('EC-10: tuple throws plain Error', () => {
     it('throws Error for tuple', () => {
       const tuple = createTupleFromDict({ a: 1 });
-      expect(() => valueToJSON(tuple)).toThrow(
+      expect(() => serializeValue(tuple)).toThrow(
         'tuples are not JSON-serializable'
       );
     });
@@ -367,7 +372,7 @@ describe('valueToJSON', () => {
       const tuple = createTupleFromDict({ a: 1 });
       let caught: unknown;
       try {
-        valueToJSON(tuple);
+        serializeValue(tuple);
       } catch (e) {
         caught = e;
       }
@@ -378,7 +383,7 @@ describe('valueToJSON', () => {
 
   describe('EC-11: type value throws plain Error', () => {
     it('throws Error for type value', () => {
-      expect(() => valueToJSON(makeTypeValue('string'))).toThrow(
+      expect(() => serializeValue(makeTypeValue('string'))).toThrow(
         'type values are not JSON-serializable'
       );
     });
@@ -386,7 +391,7 @@ describe('valueToJSON', () => {
     it('thrown error is plain Error, not RuntimeError', () => {
       let caught: unknown;
       try {
-        valueToJSON(makeTypeValue('number'));
+        serializeValue(makeTypeValue('number'));
       } catch (e) {
         caught = e;
       }
@@ -398,7 +403,7 @@ describe('valueToJSON', () => {
   describe('EC-12: vector throws plain Error', () => {
     it('throws Error for vector', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
-      expect(() => valueToJSON(vec)).toThrow(
+      expect(() => serializeValue(vec)).toThrow(
         'vectors are not JSON-serializable'
       );
     });
@@ -407,7 +412,7 @@ describe('valueToJSON', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
       let caught: unknown;
       try {
-        valueToJSON(vec);
+        serializeValue(vec);
       } catch (e) {
         caught = e;
       }

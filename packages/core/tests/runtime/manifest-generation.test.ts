@@ -25,7 +25,7 @@
  * Boundary conditions:
  * - AC-59: Zero-param function has empty param list in manifest
  * - AC-60: Empty function map produces [:] (EC-6)
- * - AC-61: type: { type: 'any' } serializes as 'any' in manifest
+ * - AC-61: type: { kind: 'any' } serializes as 'any' in manifest
  * - AC-62: dict param with no fields serializes as 'dict'
  *
  * DEFERRED:
@@ -37,7 +37,7 @@ import {
   anyTypeValue,
   createRuntimeContext,
   generateManifest,
-  rillTypeToTypeValue,
+  structureToTypeValue,
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
@@ -51,7 +51,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -90,7 +90,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -119,7 +119,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -158,7 +158,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -170,7 +170,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'y',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -201,13 +201,13 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -223,7 +223,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
@@ -245,7 +245,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'The name to greet' },
               },
@@ -270,13 +270,13 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'message',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => args['message'],
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -293,14 +293,14 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'message',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => args['message'],
             annotations: { description: 'Echoes the message' },
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -317,7 +317,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -330,13 +330,13 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'y',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => args['y'],
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -356,13 +356,13 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -384,7 +384,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -439,7 +439,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'val',
-                type: { type: 'any' },
+                type: { kind: 'any' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -483,7 +483,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'data',
-                type: { type: 'dict' },
+                type: { kind: 'dict' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -506,7 +506,7 @@ describe('Rill Runtime: Manifest Generation', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },

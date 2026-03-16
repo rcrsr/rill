@@ -47,7 +47,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'name',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -58,7 +58,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'name',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -99,7 +99,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -123,13 +123,13 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'a',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'b',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -153,7 +153,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -176,7 +176,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'path',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -190,7 +190,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 'sql',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -232,7 +232,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 's',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -246,7 +246,7 @@ describe('hoistExtension: Success Cases', () => {
           params: [
             {
               name: 's',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },

@@ -40,12 +40,12 @@ import type {
   MethodCallNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillType, RillValue } from '../../values.js';
+import type { TypeStructure, RillValue } from '../../values.js';
 import {
-  formatStructuralType,
+  formatStructure,
   inferType,
   isTypeValue,
-  structuralTypeMatches,
+  structureMatches,
 } from '../../values.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
@@ -81,7 +81,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected setVariable(
       name: string,
       value: RillValue,
-      explicitType?: RillTypeName | RillType,
+      explicitType?: RillTypeName | TypeStructure,
       location?: SourceLocation
     ): void {
       const valueType = inferType(value);
@@ -93,8 +93,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (explicitType !== undefined) {
         if (typeof explicitType === 'object') {
           // Structural type check
-          if (!structuralTypeMatches(value, explicitType)) {
-            const expectedLabel = formatStructuralType(explicitType);
+          if (!structureMatches(value, explicitType)) {
+            const expectedLabel = formatStructure(explicitType);
             throw new RuntimeError(
               'RILL-R001',
               `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
@@ -140,8 +140,8 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (lockedType !== undefined && lockedType !== 'any') {
         if (typeof lockedType === 'object') {
           // Structural locked type — validate full shape
-          if (!structuralTypeMatches(value, lockedType)) {
-            const expectedLabel = formatStructuralType(lockedType);
+          if (!structureMatches(value, lockedType)) {
+            const expectedLabel = formatStructure(lockedType);
             throw new RuntimeError(
               'RILL-R001',
               `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${expectedLabel})`,
@@ -172,8 +172,10 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!this.ctx.variableTypes.has(name)) {
         // Store structural type (object) directly so re-assignment checks
         // validate the full shape. Fall back to valueType when no annotation.
-        const lockType: RillTypeName | RillType =
-          explicitType !== undefined ? explicitType : valueType;
+        const lockType: RillTypeName | TypeStructure =
+          explicitType !== undefined
+            ? explicitType
+            : (valueType as RillTypeName);
         this.ctx.variableTypes.set(name, lockType);
       }
     }
@@ -379,7 +381,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             if (field === 'name') {
               value = value.typeName;
             } else if (field === 'signature') {
-              value = formatStructuralType(value.structure);
+              value = formatStructure(value.structure);
             } else {
               throw new RuntimeError(
                 'RILL-R003',
@@ -459,7 +461,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             typeRef,
             (name: string) => getVariable(this.ctx, name) as RillValue
           );
-          return structuralTypeMatches(fieldValue, resolved.structure);
+          return structureMatches(fieldValue, resolved.structure);
         };
 
         if (finalAccess.kind === 'literal') {

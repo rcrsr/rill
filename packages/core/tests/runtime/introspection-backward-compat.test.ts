@@ -29,7 +29,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -50,13 +50,13 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -82,13 +82,13 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'template',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               }, // No description
               {
                 name: 'value',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'Value to insert' },
               }, // With description
@@ -117,7 +117,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -138,7 +138,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -163,13 +163,13 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -196,19 +196,19 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'count',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'flag',
-                type: { type: 'bool' },
+                type: { kind: 'bool' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -236,19 +236,19 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'c',
-                type: { type: 'bool' },
+                type: { kind: 'bool' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -275,13 +275,13 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
         params: [
           {
             name: 'x',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },
           {
             name: 'y',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -302,7 +302,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -315,7 +315,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'Input value' },
               },
@@ -335,7 +335,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -347,7 +347,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'Input value' },
               },

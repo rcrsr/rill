@@ -6,7 +6,7 @@
  *
  * Implementation notes:
  * - AC-48 (*[] spread on empty list) is skipped: list spread is removed.
- * - formatStructuralType output: list(number), dict(a: number), tuple(number, string),
+ * - formatStructure output: list(number), dict(a: number), tuple(number, string),
  *   ordered(a: number), any. Dict fields are sorted alphabetically.
  * - ordered[] produces an empty RillOrdered = ordered().
  */

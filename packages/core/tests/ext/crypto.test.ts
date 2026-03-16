@@ -31,7 +31,7 @@ describe('crypto extension factory', () => {
         }),
         returnType: expect.objectContaining({
           __rill_type: true,
-          structure: { type: 'string' },
+          structure: { kind: 'string' },
         }),
       });
     });

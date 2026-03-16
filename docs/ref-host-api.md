@@ -10,7 +10,7 @@ import {
   execute,
   createRuntimeContext,
   callable,
-  rillTypeToTypeValue,
+  structureToTypeValue,
   AbortError,
   type RillValue,
 } from '@rcrsr/rill';
@@ -42,13 +42,13 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { type: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' } }],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
       },
       annotations: { description: 'Send a prompt to the LLM and return the response' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: structureToTypeValue({ kind: 'string' }),
     },
   },
 
@@ -101,9 +101,9 @@ export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable
 
 // Host function types
 export type { RillParam, RillFunction };
-export type { RillType };
+export type { TypeStructure };
+export type { TypeDefinition, TypeProtocol };
 export type { RillTypeValue };
-export type { RillStructuralType };  // deprecated alias for RillType
 
 // Value types
 export type { RillValue };
@@ -156,7 +156,7 @@ export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, Ve
 interface NativeResult {
   /** Base rill type name — matches RillTypeName, or "iterator" for lazy sequences */
   rillTypeName: string;
-  /** Full structural signature from formatStructuralType,
+  /** Full structural signature from formatStructure,
    *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
   rillTypeSignature: string;
   /** JS-native representation. Always populated — never undefined.
@@ -491,7 +491,7 @@ const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ })
 ```typescript
 interface RillParam {
   readonly name: string;
-  readonly type: RillType | undefined;
+  readonly type: TypeStructure | undefined;
   readonly defaultValue: RillValue | undefined;
   readonly annotations: Record<string, RillValue>;
 }
@@ -500,7 +500,7 @@ interface RillParam {
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Parameter name |
-| `type` | `RillType \| undefined` | Structural type descriptor. `undefined` = any type (no validation) |
+| `type` | `TypeStructure \| undefined` | Structural type descriptor. `undefined` = any type (no validation) |
 | `defaultValue` | `RillValue \| undefined` | Default value when argument missing. `undefined` = required parameter |
 | `annotations` | `Record<string, RillValue>` | Key-value metadata. Empty object when no annotations. `annotations.description` is the parameter description |
 
@@ -552,7 +552,7 @@ interface RillFunction {
 
 ### Tuple Parameter Hydration
 
-When a host function parameter type is `{ type: 'tuple' }` and `type.elements` contains fields with `defaultValue !== undefined`, the runtime fills missing trailing positions with deep copies of those defaults before invoking `fn`.
+When a host function parameter type is `{ kind: 'tuple' }` and `type.fields` contains fields with `defaultValue !== undefined`, the runtime fills missing trailing positions with deep copies of those defaults before invoking `fn`.
 
 This happens at Stage 2.5 of `marshalArgs`, after argument validation and before `fn` is called.
 
@@ -561,15 +561,15 @@ const fn: RillFunction = {
   params: [{
     name: 'coords',
     type: {
-      type: 'tuple',
-      elements: [
-        { type: { type: 'number' } },
-        { type: { type: 'number' }, defaultValue: 0 },  // default: 0
+      kind: 'tuple',
+      fields: [
+        { type: { kind: 'number' } },
+        { type: { kind: 'number' }, defaultValue: 0 },  // default: 0
       ],
     },
   }],
   fn: (args) => args.coords,  // caller passes tuple[1] → receives tuple[1, 0]
-  returnType: rillTypeToTypeValue({ type: 'tuple' }),
+  returnType: structureToTypeValue({ kind: 'tuple' }),
 };
 ```
 
@@ -754,246 +754,14 @@ const ctx = createRuntimeContext({
 
 ---
 
-## RillFieldDef
+## Type System API
 
-`RillFieldDef` describes a single field within a compound type. All four compound collection types use `RillFieldDef` to represent their element or field definitions.
-
-```typescript
-interface RillFieldDef {
-  name?: string;
-  type: RillType;
-  defaultValue?: RillValue;
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | No | Field name. Present for dict, ordered, and closure params. Absent for positional tuple elements |
-| `type` | `RillType` | Yes | Structural type of this field or element |
-| `defaultValue` | `RillValue` | No | Default value when the field is omitted. `undefined` = field is required. Detect presence with `field.defaultValue !== undefined` |
-
-See [RillStructuralType](#rillstructuraltype) for field access patterns per collection type.
-
----
-
-## RillStructuralType
-
-**Note:** `RillType` is the canonical name. `RillStructuralType` is a deprecated alias that will be removed in a future major version.
-
-`RillType` is a discriminated union that describes the structural shape of any rill value. The runtime uses it for type checking, type inference, and formatting.
-
-```typescript
-// Canonical type
-type RillType =
-  | { type: 'number' }
-  | { type: 'string' }
-  | { type: 'bool' }
-  | { type: 'vector' }
-  | { type: 'type' }
-  | { type: 'any' }
-  | { type: 'dict';    fields?: Record<string, RillFieldDef> }
-  | { type: 'list';    element?: RillType }
-  | { type: 'closure'; params?: RillFieldDef[]; ret?: RillType }
-  | { type: 'tuple';   elements?: RillFieldDef[] }
-  | { type: 'ordered'; fields?: RillFieldDef[] }
-  | { type: 'union';   members: RillType[] };
-
-// Deprecated alias — same type
-type RillStructuralType = RillType;
-```
-
-The `type` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `vector`, `type`, `any`) carry no sub-fields. Compound variants carry optional sub-fields — absent sub-fields match any value of that compound type.
-
-### Field Constraints
-
-| Variant | Field | Type | Required | Semantics |
-|---------|-------|------|----------|-----------|
-| `dict` | `fields` | `Record<string, RillFieldDef>` | No | Absent = any dict. Key access: `type.fields[key]` (O(1)) |
-| `list` | `element` | `RillType` | No | Absent = any list |
-| `closure` | `params` | `RillFieldDef[]` | No | Absent = any closure. Index access: `type.params[i]` |
-| `closure` | `ret` | `RillType` | No | Absent = any return type |
-| `tuple` | `elements` | `RillFieldDef[]` | No | Absent = any tuple. Index access: `type.elements[i]` |
-| `ordered` | `fields` | `RillFieldDef[]` | No | Absent = any ordered. Index access: `type.fields[i]` |
-| `union` | `members` | `RillType[]` | Yes | Non-empty array of member types |
-
-### Breaking Change: `kind` Removed
-
-Prior versions used a `kind` field as the discriminator. That shape is removed. Update all code that reads `kind`, `name`, or checks for a `primitive` variant.
-
-| Old Shape | New Shape |
-|-----------|-----------|
-| `{ kind: 'primitive', name: 'string' }` | `{ type: 'string' }` |
-| `{ kind: 'primitive', name: 'number' }` | `{ type: 'number' }` |
-| `{ kind: 'primitive', name: 'bool' }` | `{ type: 'bool' }` |
-| `{ kind: 'list', element: T }` | `{ type: 'list', element?: T }` |
-| `{ kind: 'dict', fields: F }` | `{ type: 'dict', fields?: F }` |
-| `{ kind: 'closure', params: P, ret: R }` | `{ type: 'closure', params?: P, ret?: R }` |
-| `{ kind: 'tuple', elements: E }` | `{ type: 'tuple', elements?: E }` |
-| `{ kind: 'ordered', fields: F }` | `{ type: 'ordered', fields?: F }` |
-| `{ kind: 'any' }` | `{ type: 'any' }` |
-
-### Exports
-
-```typescript
-// Structural type system
-export type { RillType, RillFieldDef, RillFieldDescriptor };
-export type { RillStructuralType };  // deprecated alias for RillType
-export {
-  inferStructuralType,
-  inferElementType,
-  commonType,
-  structuralTypeEquals,
-  structuralTypeMatches,
-  formatStructuralType,
-  buildFieldDescriptor,
-  paramsToStructuralType,
-};
-```
-
-### `inferStructuralType`
-
-```typescript
-inferStructuralType(value: RillValue): RillType
-```
-
-Returns the structural type descriptor for any rill value. Primitive values return leaf variants. Compound values return their respective variants with sub-fields populated from the value's actual structure. Callable values return `{ type: 'closure' }` with `params` and `ret` populated.
-
-Pure function. Result is a frozen object.
-
-### `inferElementType`
-
-```typescript
-inferElementType(elements: RillValue[]): RillType
-```
-
-Infers the element type for a list by folding element types left-to-right using `commonType`. Starts with the first element's type and folds each subsequent element's type via `commonType`. When `commonType` returns `null`, throws `RILL-R002`.
-
-| Input | Result |
-|-------|--------|
-| Empty array | `{ type: 'any' }` |
-| Uniform-type array | Structural type of the common element |
-| Same-compound elements with differing sub-structure | Bare compound type (e.g., `{ type: 'list' }`) |
-| Mixed top-level types | Throws `RILL-R002` |
-
-### `commonType`
-
-```typescript
-commonType(a: RillType, b: RillType): RillType | null
-```
-
-Returns the most specific shared type for two `RillType` values. Used inside `inferElementType` to fold element types.
-
-Cascade order:
-
-| Step | Condition | Result |
-|------|-----------|--------|
-| Any-narrowing | Either input is `{ type: 'any' }` | The concrete (non-any) type |
-| Structural match | `structuralTypeEquals(a, b)` is true | `a` |
-| Bare type fallback | Same compound `type` but structurally unequal | Bare compound type with sub-fields omitted (e.g., `{ type: 'list' }`) |
-| Incompatible | Top-level `type` values differ | `null` (caller raises `RILL-R002`) |
-
-Pure function, no side effects.
-
-### `structuralTypeEquals`
-
-```typescript
-structuralTypeEquals(a: RillType, b: RillType): boolean
-```
-
-Compares two structural types for deep structural equality. Switches on the `type` discriminator. Leaf variants compare by `type` alone. Compound variants compare sub-fields recursively.
-
-Pure function. Variants with different `type` values always return `false`. Absent sub-fields on compound variants are equal to other absent sub-fields.
-
-### `structuralTypeMatches`
-
-```typescript
-structuralTypeMatches(value: RillValue, type: RillType): boolean
-```
-
-Checks if a value matches a structural type descriptor. Used by the `:?` runtime type check operator.
-
-| Type descriptor | Matching behavior |
-|-----------------|-------------------|
-| `{ type: 'any' }` | Matches all values |
-| Compound with absent sub-fields | Matches any value of that compound type |
-| Compound with sub-fields present | Deep structural match against sub-fields |
-
-Pure function.
-
-### `formatStructuralType`
-
-```typescript
-formatStructuralType(type: RillType): string
-```
-
-Formats a structural type descriptor as a human-readable string.
-
-| Input | Output |
-|-------|--------|
-| `{ type: 'number' }` | `"number"` |
-| `{ type: 'string' }` | `"string"` |
-| `{ type: 'bool' }` | `"bool"` |
-| `{ type: 'any' }` | `"any"` |
-| `{ type: 'list' }` | `"list"` |
-| `{ type: 'list', element: { type: 'number' } }` | `"list(number)"` |
-| `{ type: 'dict' }` | `"dict"` |
-| `{ type: 'dict', fields: { x: { name: 'x', type: { type: 'number' } } } }` | `"dict(x: number)"` |
-| `{ type: 'closure' }` | `"closure"` |
-| `{ type: 'closure', params: [{ name: 'x', type: { type: 'number' } }], ret: { type: 'string' } }` | `"\|x: number\| :string"` |
-| `{ type: 'closure', params: [{ name: '$', type: { type: 'list', element: { type: 'string' } } }], ret: { type: 'any' } }` | `"\|$: list(string)\| :any"` |
-
-Absent sub-fields on compound variants format as the bare type name.
-
-### `buildFieldDescriptor`
-
-```typescript
-buildFieldDescriptor(
-  structuralType: RillType & { type: 'dict' },
-  fieldName: string,
-  location: SourceLocation
-): RillFieldDescriptor
-```
-
-Builds a frozen `RillFieldDescriptor` for a named field within a structural dict type.
-
-`structuralType` must narrow to `{ type: 'dict' }` at the call site. `structuralType.fields` must contain `fieldName` or `RILL-R003` is thrown.
-
-### RillFieldDescriptor
-
-`RillFieldDescriptor` carries the full `RillFieldDef` for a specific named field. The runtime produces descriptors when evaluating field-access expressions on typed dicts.
-
-```typescript
-interface RillFieldDescriptor {
-  readonly __rill_field_descriptor: true;
-  readonly fieldName: string;
-  readonly fieldType: RillFieldDef;
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `__rill_field_descriptor` | `true` | Brand field. Distinguishes descriptors from plain dicts |
-| `fieldName` | `string` | Name of the accessed field |
-| `fieldType` | `RillFieldDef` | Full field definition including type and optional default |
-
-### `paramsToStructuralType`
-
-```typescript
-paramsToStructuralType(params: RillParam[]): RillType
-```
-
-Builds a `RillType` closure variant from a parameter list. Return type is always `{ type: 'any' }`. Result is a frozen object.
-
-| Param shape | Maps to |
-|-------------|---------|
-| `param.type` defined | The `RillType` from `param.type` |
-| `param.type` undefined | `{ type: 'any' }` |
-
----
+`TypeStructure`, `TypeDefinition`, `TypeProtocol`, `RillFieldDef`, and related structural type exports are documented in [Host API Types Reference](ref-host-api-types.md).
 
 ## See Also
 
 - [Host Integration](integration-host.md) — Embedding guide and runtime configuration
 - [Extensions](integration-extensions.md) — Reusable function packages
 - [Modules](integration-modules.md) — Module convention
+- [Host API Types](ref-host-api-types.md) — TypeStructure, TypeDefinition, TypeProtocol
 

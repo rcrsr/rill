@@ -7,7 +7,7 @@
  * AC = Acceptance Criterion from anonymous-typed-closure spec.
  *
  * Runtime internals:
- * - `.^input` returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { type: 'ordered', fields: [...] } }
+ * - `.^input` returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { kind: 'ordered', fields: [...] } }
  * - `.^output` returns RillTypeValue: { __rill_type: true, typeName, structure }
  *
  * Anonymous typed closure `|T|{ body }` produces param `$` with type T.
@@ -103,7 +103,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields).toHaveLength(1);
       expect(shape.structure.fields[0]!.name).toBe('$');
-      expect(shape.structure.fields[0]!.type).toEqual({ type: 'string' });
+      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'string' });
     });
 
     it('AC-29: |number|{ $ * 2 } .^input has $ param typed number', async () => {
@@ -117,7 +117,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
         structure: { type: string; fields: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields[0]!.type).toEqual({ type: 'number' });
+      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'number' });
     });
 
     it('AC-29: two |string|{ } closures have equal .^input', async () => {
@@ -156,7 +156,7 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       expect(shape.structure.fields).toHaveLength(1);
       expect(shape.structure.fields[0]!.name).toBe('$');
       // Bare block uses typeName: 'any' internally
-      expect(shape.structure.fields[0]!.type).toEqual({ type: 'any' });
+      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'any' });
     });
 
     it('AC-10/AC-42: bare block .^input equals |any|{ } .^input', async () => {

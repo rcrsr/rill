@@ -410,38 +410,38 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to retrieve' },
         },
       ],
       fn: get,
       annotations: { description: 'Get value or schema default' },
-      returnType: rillTypeToTypeValue({ type: 'any' }),
+      returnType: rillTypeToTypeValue({ kind: 'any' }),
     },
     get_or: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to retrieve' },
         },
         {
           name: 'fallback',
-          type: { type: 'any' },
+          type: { kind: 'any' },
           defaultValue: undefined,
           annotations: { description: 'Fallback value if key missing' },
         },
@@ -450,50 +450,50 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
       annotations: {
         description: 'Get value or return fallback if key missing',
       },
-      returnType: rillTypeToTypeValue({ type: 'any' }),
+      returnType: rillTypeToTypeValue({ kind: 'any' }),
     },
     set: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to set' },
         },
         {
           name: 'value',
-          type: { type: 'any' },
+          type: { kind: 'any' },
           defaultValue: undefined,
           annotations: { description: 'Value to store' },
         },
       ],
       fn: set,
       annotations: { description: 'Set value with validation' },
-      returnType: rillTypeToTypeValue({ type: 'bool' }),
+      returnType: rillTypeToTypeValue({ kind: 'bool' }),
     },
     merge: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to merge into' },
         },
         {
           name: 'partial',
-          type: { type: 'dict' },
+          type: { kind: 'dict' },
           defaultValue: undefined,
           annotations: { description: 'Partial dict to merge' },
         },
@@ -502,103 +502,103 @@ export function createKvExtension(config: KvConfig): ExtensionResult {
       annotations: {
         description: 'Merge partial dict into existing dict value',
       },
-      returnType: rillTypeToTypeValue({ type: 'bool' }),
+      returnType: rillTypeToTypeValue({ kind: 'bool' }),
     },
     delete: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to delete' },
         },
       ],
       fn: deleteKey,
       annotations: { description: 'Delete key' },
-      returnType: rillTypeToTypeValue({ type: 'bool' }),
+      returnType: rillTypeToTypeValue({ kind: 'bool' }),
     },
     keys: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
       ],
       fn: keys,
       annotations: { description: 'Get all keys in mount' },
-      returnType: rillTypeToTypeValue({ type: 'list' }),
+      returnType: rillTypeToTypeValue({ kind: 'list' }),
     },
     has: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'key',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Key to check' },
         },
       ],
       fn: has,
       annotations: { description: 'Check key existence' },
-      returnType: rillTypeToTypeValue({ type: 'bool' }),
+      returnType: rillTypeToTypeValue({ kind: 'bool' }),
     },
     clear: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
       ],
       fn: clear,
       annotations: { description: 'Clear all keys in mount' },
-      returnType: rillTypeToTypeValue({ type: 'bool' }),
+      returnType: rillTypeToTypeValue({ kind: 'bool' }),
     },
     getAll: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
       ],
       fn: getAll,
       annotations: { description: 'Get all entries as dict' },
-      returnType: rillTypeToTypeValue({ type: 'dict' }),
+      returnType: rillTypeToTypeValue({ kind: 'dict' }),
     },
     schema: {
       params: [
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
       ],
       fn: schema,
       annotations: { description: 'Get schema information' },
-      returnType: rillTypeToTypeValue({ type: 'list' }),
+      returnType: rillTypeToTypeValue({ kind: 'list' }),
     },
     mounts: {
       params: [],
       fn: mountsList,
       annotations: { description: 'Get list of mount metadata' },
-      returnType: rillTypeToTypeValue({ type: 'list' }),
+      returnType: rillTypeToTypeValue({ kind: 'list' }),
     },
   };
 

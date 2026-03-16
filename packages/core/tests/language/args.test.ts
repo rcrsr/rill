@@ -86,7 +86,7 @@ describe('explicit spread call syntax', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'any' },
+              type: { kind: 'any' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -109,7 +109,7 @@ describe('explicit spread call syntax', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'any' },
+              type: { kind: 'any' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -303,10 +303,10 @@ describe('explicit spread call syntax', () => {
             {
               name: 'opts',
               type: {
-                type: 'dict',
+                kind: 'dict',
                 fields: {
-                  a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: { type: 'number' } },
+                  a: { type: { kind: 'string' }, defaultValue: 'hello' },
+                  b: { type: { kind: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -332,10 +332,10 @@ describe('explicit spread call syntax', () => {
             {
               name: 'opts',
               type: {
-                type: 'dict',
+                kind: 'dict',
                 fields: {
-                  a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: { type: 'number' } },
+                  a: { type: { kind: 'string' }, defaultValue: 'hello' },
+                  b: { type: { kind: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -359,10 +359,10 @@ describe('explicit spread call syntax', () => {
         {
           name: 'opts',
           type: {
-            type: 'dict' as const,
+            kind: 'dict' as const,
             fields: {
-              a: { type: { type: 'string' as const }, defaultValue: 'hello' },
-              b: { type: { type: 'number' as const } },
+              a: { type: { kind: 'string' as const }, defaultValue: 'hello' },
+              b: { type: { kind: 'number' as const } },
             },
           },
           defaultValue: undefined,
@@ -391,10 +391,10 @@ describe('explicit spread call syntax', () => {
             {
               name: 'opts',
               type: {
-                type: 'dict',
+                kind: 'dict',
                 fields: {
-                  a: { type: { type: 'string' }, defaultValue: 'hello' },
-                  b: { type: { type: 'number' } },
+                  a: { type: { kind: 'string' }, defaultValue: 'hello' },
+                  b: { type: { kind: 'number' } },
                 },
               },
               defaultValue: undefined,
@@ -420,18 +420,18 @@ describe('explicit spread call syntax', () => {
             {
               name: 'opts',
               type: {
-                type: 'dict',
+                kind: 'dict',
                 fields: {
-                  a: { type: { type: 'number' } },
+                  a: { type: { kind: 'number' } },
                   inner: {
                     type: {
-                      type: 'dict',
+                      kind: 'dict',
                       fields: {
                         x: {
-                          type: { type: 'string' },
+                          type: { kind: 'string' },
                           defaultValue: 'default',
                         },
-                        y: { type: { type: 'number' } },
+                        y: { type: { kind: 'number' } },
                       },
                     },
                   },

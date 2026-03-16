@@ -220,7 +220,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -242,7 +242,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -264,7 +264,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -286,7 +286,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -308,7 +308,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -319,7 +319,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -341,7 +341,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -352,7 +352,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -363,7 +363,7 @@ describe('Rill Runtime: Conditionals', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },

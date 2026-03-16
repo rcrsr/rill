@@ -14,7 +14,7 @@ const double = {
   params: [
     {
       name: 'x',
-      type: { type: 'number' },
+      type: { kind: 'number' },
       defaultValue: undefined,
       annotations: {},
     },

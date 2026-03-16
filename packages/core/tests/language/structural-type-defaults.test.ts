@@ -130,7 +130,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   // AC-7: dict(a: string = "Test") formatted via :>string → "dict(a: string = "Test")"
   // ============================================================
 
-  describe('AC-7: formatStructuralType includes default values in output', () => {
+  describe('AC-7: formatStructure includes default values in output', () => {
     it('dict(a: string = "Test") -> :>string produces the formatted type string', async () => {
       const result = await run('dict(a: string = "Test") -> :>string');
       expect(result).toBe('dict(a: string = "Test")');
@@ -684,7 +684,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // BC-5 (task 1.11): closure params with defaults display correctly in formatStructuralType
+  // BC-5 (task 1.11): closure params with defaults display correctly in formatStructure
   // ============================================================
 
   describe('BC-5 (1.11): closure params with defaults display correctly', () => {

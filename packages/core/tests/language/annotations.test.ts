@@ -1234,13 +1234,13 @@ describe('Rill Runtime: Annotations', () => {
           params: [
             {
               name: 'name',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'age',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -1254,7 +1254,7 @@ describe('Rill Runtime: Annotations', () => {
               typeof hostFn === 'object' &&
               '__type' in hostFn)
         ).toBe(true);
-        // $fn.^input returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { type: 'ordered', fields: [...] } }
+        // $fn.^input returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { kind: 'ordered', fields: [...] } }
         const inputResult = await run(`$fn.^input`, {
           variables: { fn: hostFn },
         });
@@ -1269,8 +1269,8 @@ describe('Rill Runtime: Annotations', () => {
         expect(shape.__rill_type).toBe(true);
         expect(shape.typeName).toBe('ordered');
         expect(shape.structure.fields).toEqual([
-          { name: 'name', type: { type: 'string' } },
-          { name: 'age', type: { type: 'number' } },
+          { name: 'name', type: { kind: 'string' } },
+          { name: 'age', type: { kind: 'number' } },
         ]);
       });
     });
@@ -1304,7 +1304,7 @@ describe('Rill Runtime: Annotations', () => {
           params: [
             {
               name: 'data',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -1329,7 +1329,7 @@ describe('Rill Runtime: Annotations', () => {
         };
         expect(shape.__rill_type).toBe(true);
         expect(shape.structure.fields).toEqual([
-          { name: 'data', type: { type: 'string' } },
+          { name: 'data', type: { kind: 'string' } },
         ]);
       });
     });
@@ -1359,15 +1359,15 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('EC-5: ^input maps RillParam.type to RillTypeValue in structural type', () => {
       it('host callable with typed RillParam maps to correct type value without throwing (EC-5)', async () => {
-        // ^input reads param.type (RillType) and converts via rillTypeToTypeValue.
-        // Build an ApplicationCallable with a RillParam using type: { type: 'string' }.
+        // ^input reads param.type (TypeStructure) and converts via structureToTypeValue.
+        // Build an ApplicationCallable with a RillParam using type: { kind: 'string' }.
         const fn: ApplicationCallable = {
           __type: 'callable',
           kind: 'application',
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -1386,7 +1386,7 @@ describe('Rill Runtime: Annotations', () => {
         };
         expect(shape.__rill_type).toBe(true);
         expect(shape.structure.fields).toEqual([
-          { name: 'x', type: { type: 'string' } },
+          { name: 'x', type: { kind: 'string' } },
         ]);
       });
     });
@@ -1402,7 +1402,7 @@ describe('Rill Runtime: Annotations', () => {
       };
       expect(shape.__rill_type).toBe(true);
       expect(shape.structure.fields).toEqual([
-        { name: 'x', type: { type: 'number' } },
+        { name: 'x', type: { kind: 'number' } },
       ]);
     });
 
@@ -1415,7 +1415,7 @@ describe('Rill Runtime: Annotations', () => {
       };
       expect(shape.__rill_type).toBe(true);
       expect(shape.structure.fields).toEqual([
-        { name: 'x', type: { type: 'any' } },
+        { name: 'x', type: { kind: 'any' } },
       ]);
     });
   });

@@ -36,7 +36,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'names',
-                type: { type: 'list', element: { type: 'string' } },
+                type: { kind: 'list', element: { kind: 'string' } },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -56,7 +56,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list', element: { type: 'string' } },
+                  type: { kind: 'list', element: { kind: 'string' } },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -77,7 +77,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list', element: { type: 'string' } },
+                  type: { kind: 'list', element: { kind: 'string' } },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -183,10 +183,10 @@ describe('Rill Runtime: Host Type Validation', () => {
               {
                 name: 'person',
                 type: {
-                  type: 'dict',
+                  kind: 'dict',
                   fields: {
-                    name: { type: { type: 'string' } },
-                    age: { type: { type: 'number' } },
+                    name: { type: { kind: 'string' } },
+                    age: { type: { kind: 'number' } },
                   },
                 },
                 defaultValue: undefined,
@@ -211,7 +211,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'person',
-                  type: { type: 'dict' },
+                  type: { kind: 'dict' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -231,7 +231,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'data',
-                type: { type: 'dict' },
+                type: { kind: 'dict' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -254,7 +254,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -280,7 +280,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'username',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -305,7 +305,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
@@ -324,7 +324,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'factor',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: 2,
                 annotations: {},
               },
@@ -343,7 +343,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
@@ -365,7 +365,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'label',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 42,
                   annotations: {},
                 },
@@ -385,7 +385,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'count',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -407,7 +407,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -434,7 +434,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -512,7 +512,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'val',
-                type: { type: 'any' },
+                type: { kind: 'any' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -531,7 +531,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'val',
-                type: { type: 'any' },
+                type: { kind: 'any' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -550,7 +550,7 @@ describe('Rill Runtime: Host Type Validation', () => {
             params: [
               {
                 name: 'val',
-                type: { type: 'any' },
+                type: { kind: 'any' },
                 defaultValue: undefined,
                 annotations: {},
               },

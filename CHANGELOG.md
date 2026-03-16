@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- **`RillType` renamed to `TypeStructure`** — The core type discriminated union is now `TypeStructure`. All host code and extensions referencing `RillType` must update to `TypeStructure`
+- **Discriminator field `.type` renamed to `.kind`** — `TypeStructure` variants use `.kind` instead of `.type`. Pattern matches and property accesses on type objects must update
+- **`RillStructuralType` removed** — Was a deprecated alias for `RillType`. Use `TypeStructure` directly
+- **`inferStructuralType` renamed to `inferStructure`** — Function signature unchanged; only the name changed
+- **`rillTypeToTypeValue` renamed to `structureToTypeValue`** — Function signature unchanged; only the name changed
+- **`formatStructuralType` renamed to `formatStructure`** — Function signature unchanged; only the name changed
+- **`structuralTypeEquals` renamed to `structureEquals`** — Function signature unchanged; only the name changed
+- **`structuralTypeMatches` renamed to `structureMatches`** — Function signature unchanged; only the name changed
+- **`isRillIterator` renamed to `isIterator`** — Function signature unchanged; only the name changed
+- **`valueToJSON` renamed to `serializeValue`** — Function signature unchanged; only the name changed
+- **`deepCopyRillValue` renamed to `copyValue`** — Function signature unchanged; only the name changed
+- **`buildTypeMethodDicts` removed from public API** — Internal helper no longer exported. Host code must not call this function directly
+- **`VALID_TYPE_NAMES` removed from public API** — Internal constant no longer exported. Host code referencing this set must maintain its own copy
+- **`true > false` raises RILL-R002** — Boolean ordering via `>` now raises a runtime error instead of coercing through `formatValue`. Code relying on bool comparison ordering must be rewritten
+
+### Added
+
+- **`TypeDefinition` type export** — New type exported from `@rcrsr/rill` representing a named type definition for use in host applications
+- **`TypeProtocol` type export** — New type exported from `@rcrsr/rill` representing the protocol interface for type operations
+- **`TypeStructure` catch-all variant** — `TypeStructure` now includes a catch-all variant `{ kind: string; data?: unknown }` for forward compatibility with future type kinds
+- **`deserializeValue` function** — New function exported from `@rcrsr/rill` for typed deserialization of serialized rill values
+
+### Changed
+
+- **Type dispatch via registration protocol** — Type operations now use a registration-based protocol system; host code extending type behavior must register operations via the TypeProtocol interface
+
 ## [0.16.0] - 2026-03-14
 
 ### Added

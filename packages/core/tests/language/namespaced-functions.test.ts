@@ -16,7 +16,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -35,13 +35,13 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -60,7 +60,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -81,7 +81,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -100,7 +100,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -121,13 +121,13 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -138,7 +138,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -157,7 +157,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -176,7 +176,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -197,25 +197,25 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'sep',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'a',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'c',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -239,13 +239,13 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'len',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'char',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -272,7 +272,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'varName',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -291,7 +291,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
             params: [
               {
                 name: 'ms',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },

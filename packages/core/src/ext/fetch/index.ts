@@ -264,11 +264,11 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
 
     // Build parameter definitions for RillFunction
     const rillParams = params.map((param) => {
-      // Map EndpointParam type string to RillType object
+      // Map EndpointParam type string to TypeStructure object
       const rillType =
         param.type !== 'dict'
-          ? { type: param.type as 'string' | 'number' | 'bool' }
-          : { type: 'dict' as const };
+          ? { kind: param.type as 'string' | 'number' | 'bool' }
+          : { kind: 'dict' as const };
 
       return {
         name: param.name,
@@ -280,8 +280,8 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
 
     const returnTypeValue =
       (endpointConfig.responseShape ?? defaultResponseShape) === 'full'
-        ? rillTypeToTypeValue({ type: 'dict' })
-        : rillTypeToTypeValue({ type: 'any' });
+        ? rillTypeToTypeValue({ kind: 'dict' })
+        : rillTypeToTypeValue({ kind: 'any' });
 
     const hostFunctionDef: RillFunction = {
       params: rillParams,
@@ -322,7 +322,7 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
     params: [],
     fn: endpoints,
     annotations: { description: 'List configured endpoints' },
-    returnType: rillTypeToTypeValue({ type: 'list' }),
+    returnType: rillTypeToTypeValue({ kind: 'list' }),
   };
 
   // ============================================================

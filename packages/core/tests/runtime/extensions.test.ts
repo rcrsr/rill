@@ -46,13 +46,13 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -63,13 +63,13 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -98,7 +98,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'path',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -109,13 +109,13 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'path',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'content',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -198,7 +198,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -222,13 +222,13 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -239,7 +239,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -496,7 +496,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'event',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -547,7 +547,7 @@ describe('Rill Runtime: Extension System', () => {
               params: [
                 {
                   name: 'path',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -676,7 +676,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -804,7 +804,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'endpoint',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -947,7 +947,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'delayMs',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -1113,7 +1113,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -1154,13 +1154,13 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -1310,7 +1310,7 @@ describe('Rill Runtime: Extension System', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },

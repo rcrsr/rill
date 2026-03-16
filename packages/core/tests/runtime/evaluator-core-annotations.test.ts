@@ -199,7 +199,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },

@@ -94,7 +94,7 @@ describe('Rill Runtime: Expressions', () => {
         params: [
           {
             name: 'n',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -112,7 +112,7 @@ describe('Rill Runtime: Expressions', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },

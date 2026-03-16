@@ -90,8 +90,8 @@ describe('Rill Language: Structural Type Error Contracts', () => {
       const result = (await run('dict(string)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('dict');
-      expect(result.structure.type).toBe('dict');
-      expect(result.structure.valueType).toEqual({ type: 'string' });
+      expect(result.structure.kind).toBe('dict');
+      expect(result.structure.valueType).toEqual({ kind: 'string' });
     });
 
     it('throws when dict() mixes positional and named arguments', async () => {
@@ -145,8 +145,8 @@ describe('Rill Language: Structural Type Error Contracts', () => {
       const result = (await run('ordered(string)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('ordered');
-      expect(result.structure.type).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ type: 'string' });
+      expect(result.structure.kind).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ kind: 'string' });
     });
 
     it('throws when ordered() mixes positional and named arguments', async () => {

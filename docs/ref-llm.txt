@@ -83,7 +83,7 @@ Pattern summary:
 ### 6. No Exceptions
 
 Errors halt execution. No try/catch. Use conditionals for error handling.
-Built-in: `assert` (validate condition), `error` (halt with message).
+Keywords: `assert` (validate condition), `error` (halt with message).
 
 ### 7. Value Semantics (No References)
 
@@ -92,45 +92,6 @@ All copies are deep. All comparisons are by value. No object identity.
     list[1, 2, 3] == list[1, 2, 3]   # true (content equality)
     list[1, 2] => $a
     $a => $b                          # $b is an independent deep copy
-
-## Grammar Patterns
-
-rill uses two bracket forms as grammar constructs (not function calls):
-
-**`keyword[...]`** — collection literals. Keyword and `[` must be adjacent (no space):
-
-    list[1, 2, 3]                       # list
-    dict[name: "alice", age: 30]        # dict (key: value pairs)
-    tuple[1, 2, 3]                      # positional argument unpacking
-    ordered[a: 1, b: 2]                 # named argument unpacking
-
-    list [1, 2]                         # ERROR: RILL-P007 (space before bracket)
-
-**`keyword<...>`** — extraction operators. Custom grammar with `,` or `:` separators:
-
-    list[1, 2, 3] -> destruct<$a, $b, $c>    # destructure into variables
-    list[0,1,2,3] -> slice<1:3>               # slice with start:stop:step
-
-These are NOT function calls. They are parsed as special syntax by the compiler.
-
-## Callable Types
-
-rill has three callable types:
-
-| Type | Source | Examples |
-|------|--------|---------|
-| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
-| Built-in function | Shipped with runtime | `log`, `json`, `range`, `chain`, `error` |
-| Host function | Registered by host app | `app::fetch()`, `app::prompt()` |
-
-The `$` prefix disambiguates callables from variables and keys:
-
-    name()    -> built-in or host function call
-    $name()   -> closure invocation
-    $name     -> variable reference
-    name      -> dict key literal
-
-Without `$`, `process(data)` is ambiguous: is `process` a function or stored closure? Is `data` a variable or key? This would require tracking all declarations.
 
 ## Syntax Quick Reference
 
@@ -151,7 +112,27 @@ Without `$`, `process(data)` is ambiguous: is `process` a function or stored clo
     Ordered:       ordered[a: 1, b: 2]         # named argument unpacking (preserves order)
     Closures:      |x|($x + 1)                 # like lambda/arrow functions
     Type annot:    "hi" => $x:string           # lock type on capture
+    Modules:       use<module:greetings> => $g  # host-provided imports
     Comments:      # single line only
+
+CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is ERROR (RILL-P007).
+
+## Callable Types
+
+rill has three callable types:
+
+| Type | Source | Examples |
+|------|--------|---------|
+| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
+| Built-in function | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
+| Host function | Registered by host app | `app::fetch()`, `app::prompt()` |
+
+The `$` prefix disambiguates callables from variables and keys:
+
+    name()    -> built-in or host function call
+    $name()   -> closure invocation
+    $name     -> variable reference
+    name      -> dict key literal
 
 ## Pipes and $ Binding
 
@@ -171,12 +152,27 @@ Without `$`, `process(data)` is ambiguous: is `process` a function or stored clo
 Implied `$`: bare `.method()` means `$ -> .method()`.
 Example: `"hello" -> .upper` is the same as `"hello" -> $.upper()`.
 
+Always prefer implicit `$` shorthand:
+
+    $.method()  ->  .method            "x" -> .upper  (not $.upper())
+    func($)     ->  func               "x" -> log     (not log($))
+    $fn($)      ->  $fn                5 -> $double   (not $double($))
+
+Don't capture just to continue — use line continuation instead:
+
+    # avoid                          # good
+    "x" => $a                        "x"
+    $a -> .upper => $b                 -> .upper
+    $b -> .len                         -> .len
+
+Only capture when the variable is reused later in the code.
+
 ## Control Flow
 
 Conditional (if-else):
 
     cond ? then_expr ! else_expr
-    cond ? then_expr                    # else returns null
+    cond ? then_expr                    # else returns empty string
 
 Piped conditional (`$` becomes condition):
 
@@ -238,7 +234,51 @@ Pass (returns `$` unchanged, explicit no-op):
 
 Note: `pass` requires pipe context. Using `pass` without `$` throws error.
 
+## Closures
+
+**Block-closures:** `{ body }` in expression position
+
+    { $ + 1 } => $inc                  # implicit $ parameter
+    $inc(5)                            # 6
+    5 -> $inc                          # 6 (pipe invocation)
+    dict[x: { $ * 2 }]                # dict value is closure
+
+**Explicit closures:** `|params| body`
+
+    |x|($x + 1) => $inc                # named parameter
+    |a, b|($a + $b) => $add            # multiple params
+    |x = 0|($x + 1) => $inc_or_one     # default value
+    |x: number|($x + 1) => $typed      # type annotation
+
+`{ body }` vs `( expr )` distinction:
+
+| Syntax | Semantics | Example |
+|---|---|---|
+| `{ body }` | Deferred (closure) | `{ $ + 1 } => $fn` |
+| `( expr )` | Eager (immediate eval) | `( 5 + 1 ) => $x` gives 6 |
+
+LATE BINDING: closures capture scope, not values. Variables resolve at call time.
+
+`$` vs named params:
+- Use `$` in inline pipes and loops: `"hello" -> { .upper }`
+- Use named params in stored closures: `|x| ($x * 2) => $double`
+- `$` is undefined when a stored closure is called later — always use params.
+
+Zero-param dict closures (methods):
+
+    dict[count: 3, double: ||{ $.count * 2 }] => $obj
+    $obj.double                         # 6 ($ is bound to dict)
+
 ## Collection Operators
+
+Choose the right operator:
+
+    Transform each item?         -> map { }
+    Side effects per item?       -> each { }
+    Single result from list?     -> fold(init) { $@ + $ }
+    Filter items?                -> filter { }
+    Results + running total?     -> each(init) { ... $@ ... }
+    Loop with state?             -> (cond) @ { } (see Control Flow)
 
 | Operator | Execution | Returns | Break? |
 |---|---|---|---|
@@ -276,77 +316,6 @@ String iteration (iterates over characters):
     "abc" -> each { "{$}!" }            # list["a!", "b!", "c!"]
     "hello" -> filter { $ != "l" }      # list["h", "e", "o"]
 
-## Closures
-
-Two ways to create closures:
-
-**Block-closures:** `{ body }` in expression position
-
-    { $ + 1 } => $inc                  # implicit $ parameter
-    $inc(5)                            # 6
-    5 -> $inc                          # 6 (pipe invocation)
-    dict[x: { $ * 2 }]                # dict value is closure
-    { "hi" }:?closure                  # true
-
-**Explicit closures:** `|params| body`
-
-    |x|($x + 1) => $inc                # named parameter
-    |a, b|($a + $b) => $add            # multiple params
-    |x = 0|($x + 1) => $inc_or_one     # default value
-    |x: number|($x + 1) => $typed      # type annotation
-
-**Anonymous typed closures:** `|type|{ body }` — reserved type keyword as param, `$` is type-checked piped input
-
-    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
-    5 -> |number|{ $ * 2 }                  # 10
-    |number|{ $ * 2 }:number => $double     # stored with return type assertion
-    5 -> $double                             # 10
-    "hi" -> $double                          # RILL-R001: expected number, got string
-
-All 11 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, any, type
-Parameterized: |list(number)|{ $ -> each { $ * 2 } }
-
-**Return type assertions** (enforced at runtime — RILL-R004 on mismatch):
-
-    |x: number| { "{$x}" }:string => $fn    # asserts string return type
-    $fn(42)                                  # "42" (passes assertion)
-
-    |x: number| { $x * 2 }:string => $fn    # mismatch halts with RILL-R004
-    $fn(5)                                   # RILL-R004: expected string, got number
-
-Valid return type targets: any type name (string, number, bool, closure, list, dict, tuple,
-ordered, vector, any, type), or a parameterized type constructor (list(string),
-dict(a: number, b: string)).
-Declared return type accessible via $fn.^output annotation.
-
-**Description shorthand** (bare string in `^(...)` expands to `description: <string>`):
-
-    ^("Get weather for city") |city: string|($city) => $weather
-    $weather.^description                        # "Get weather for city"
-
-    ^("Fetch profile", cache: true) |id|($id) => $get_user
-    $get_user.^description                       # "Fetch profile"
-    $get_user.^cache                             # true
-
-`{ body }` vs `( expr )` distinction:
-
-| Syntax | Semantics | Example |
-|---|---|---|
-| `{ body }` | Deferred (closure) | `{ $ + 1 } => $fn` |
-| `( expr )` | Eager (immediate eval) | `( 5 + 1 ) => $x` gives 6 |
-
-LATE BINDING: closures capture scope, not values. Variables resolve at call time.
-
-`$` vs named params:
-- Use `$` in inline pipes and loops: `"hello" -> { .upper }`
-- Use named params in stored closures: `|x| ($x * 2) => $double`
-- `$` is undefined when a stored closure is called later — always use params.
-
-Zero-param dict closures (methods):
-
-    dict[count: 3, double: ||{ $.count * 2 }] => $obj
-    $obj.double                         # 6 ($ is bound to dict)
-
 ## Property Access
 
     $data.field                           # dict field
@@ -362,7 +331,262 @@ Zero-param dict closures (methods):
     $data.?$key&number                    # variable existence + type check
     $data.?($a -> "{$}_b")&list           # computed existence + type check
 
-## Dispatch Operators
+Dict keys take priority over built-in methods. A dict with key `len` returns that key's value, not the built-in `.len` method.
+
+## Types and Assertions
+
+**Type names:**
+
+    string   number   bool     list     dict     ordered
+    tuple    closure  vector   iterator any      type
+
+**Type assertion** `:type` — errors if value does not match:
+
+    42:number                             # passes
+    "x":number                           # RILL-R002: expected number, got string
+    $val:list(string)                     # assert parameterized type
+
+**Type check** `:?type` — returns boolean, never errors:
+
+    42:?number                            # true
+    "x":?number                           # false
+
+Both forms work as pipe targets:
+
+    $val -> :number                       # assert in pipe
+    $val -> :?number                      # check in pipe
+
+**Union types** (`T1|T2`) — match any member type:
+
+    42 -> :string|number                  # passes (number matches)
+    42:?string|number                     # true
+    "hello" => $x:string|number           # capture with union type
+
+**Enforcing dict shapes** with `dict(field: type, ...)`:
+
+    $data -> :dict(name: string, age: number)   # assert exact fields and types
+    $data:?dict(name: string, age: number)      # check without error
+
+Use in closure params to validate input structure:
+
+    |d: dict(name: string, age: number)| {
+      "{$d.name} is {$d.age}"
+    } => $format_person
+
+**Parameterized type constructors** (structural types):
+
+    list(string)                          # list of strings
+    dict(name: string, age: number)       # dict with named fields
+    tuple(number, string)                 # positional tuple
+    ordered(x: number, y: number)        # named ordered args
+
+**Type conversion** `:>type` — explicit conversion between compatible types:
+
+    42 -> :>string                        # "42"
+    "3.14" -> :>number                    # 3.14
+    list[1, 2] -> :>tuple                 # tuple[1, 2]
+    tuple[1, 2] -> :>list                 # list[1, 2]
+    ordered[a: 1] -> :>dict              # dict[a: 1]
+
+## Common Patterns
+
+**Process an API response:**
+
+    app::fetch("https://api.example.com/users") => $response
+    $response.data
+      -> filter { $.active }
+      -> map { dict[name: $.name, email: $.email] }
+      -> each {
+        "Processing {$.name}" -> log
+        app::send_welcome($.email)
+      }
+
+**Build a result from a list:**
+
+    list["alice", "bob", "charlie"]
+      -> map { dict[name: $, greeting: "Hello, {$}!"] }
+      -> fold(dict[]) {
+        dict[...$@, $.name: $.greeting]
+      }
+    # dict[alice: "Hello, alice!", bob: "Hello, bob!", charlie: "Hello, charlie!"]
+
+**Validate and transform input:**
+
+    $input -> assert $:?string "Expected string input"
+    $input
+      -> .trim
+      -> assert !.empty "Input cannot be empty"
+      -> .split(",")
+      -> map .trim
+      -> filter (!.empty)
+
+**Stateful retry loop:**
+
+    dict[attempts: 0, max: 3, result: "", done: false]
+      -> (!$.done && $.attempts < $.max) @ {
+        $.attempts + 1 => $try
+        app::fetch($url) => $res
+        $res.?status&number
+          ? ($res.status == 200)
+            ? dict[attempts: $try, max: $.max, result: $res.body, done: true]
+            ! dict[attempts: $try, max: $.max, result: "", done: false]
+          ! dict[attempts: $try, max: $.max, result: "", done: false]
+      }
+      -> $.done ? $.result ! error "Failed after {$.max} attempts"
+
+**Reduce with running state:**
+
+    list[10, 25, 5, 40, 15]
+      -> each(dict[sum: 0, max: 0]) {
+        $.sum + $@ => $new_sum
+        ($ > $@.max) ? $ ! $@.max => $new_max
+        dict[sum: $new_sum, max: $new_max]
+      }
+    # each item produces the running state; last element is final
+
+## Method Reference
+
+### String Methods
+
+| Method | Description |
+|---|---|
+| `.len` | length |
+| `.empty` | is empty string |
+| `.trim` | remove whitespace |
+| `.upper` | uppercase |
+| `.lower` | lowercase |
+| `.head` | first character |
+| `.tail` | last character |
+| `.at(i)` | character at index |
+| `.first` | iterator at first character |
+| `.split(sep)` | split into list (default: newline) |
+| `.lines` | split on newlines |
+| `.contains(s)` | substring check |
+| `.starts_with(s)` | prefix check |
+| `.ends_with(s)` | suffix check |
+| `.index_of(s)` | first match position (-1 if none) |
+| `.replace(p, r)` | replace first regex match |
+| `.replace_all(p, r)` | replace all regex matches |
+| `.match(regex)` | first match info (dict with matched, index, groups) |
+| `.is_match(regex)` | boolean regex check |
+| `.repeat(n)` | repeat n times |
+| `.pad_start(n, f)` | pad start |
+| `.pad_end(n, f)` | pad end |
+
+### List Methods
+
+| Method | Description |
+|---|---|
+| `.len` | length |
+| `.empty` | is empty |
+| `.head` | first element |
+| `.tail` | last element |
+| `.first` | iterator at first element |
+| `.at(i)` | element at index |
+| `.join(sep)` | join elements with separator |
+| `.has(val)` | contains value (deep equality) |
+| `.has_any(list)` | contains any value from candidates |
+| `.has_all(list)` | contains all values from candidates |
+
+### Dict Methods
+
+| Method | Description |
+|---|---|
+| `.len` | number of entries |
+| `.empty` | is empty |
+| `.first` | iterator at first entry |
+| `.keys` | keys as list |
+| `.values` | values as list |
+| `.entries` | list of `tuple[k, v]` pairs |
+
+### Comparison Methods
+
+    .eq(val) ==   .ne(val) !=   .lt(val) <   .gt(val) >   .le(val) <=   .ge(val) >=
+    Example: $age -> .ge(18) ? "adult" ! "minor"
+
+### Built-in Functions
+
+| Function | Description |
+|---|---|
+| `log(val)` | print and pass through |
+| `json(val)` | convert to JSON string |
+| `identity(val)` | returns input unchanged |
+| `range(start, end, step?)` | number sequence (iterator) |
+| `repeat(val, count)` | repeat value n times (iterator) |
+| `enumerate(coll)` | lists: `tuple[index, value]`; dicts: `tuple[index, key, value]` |
+| `chain($fn)` | apply single closure; chain(val, list[$f, $g]) applies in sequence |
+
+## Style
+
+### Naming: snake_case
+
+    $user_name, $item_list, $is_valid             # variables
+    $double_value, $cleanup_text                  # closures
+    dict[first_name: "x", last_name: "y"]         # dict keys
+
+### Spacing
+
+    Operators:     space both sides       5 + 3, $x -> .upper, "a" => $b
+    Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
+    Braces:        space inside           { $x + 1 }, each { $ * 2 }
+    Brackets:      no inner space         $list[0], $dict.items[1]
+    Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
+    Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
+    Closures:      space after params     |x| ($x * 2), |a, b| { $a + $b }
+    Methods:       no space before . or ( $str.upper(), $list.join(", ")
+    Pipes:         space both sides       "x" -> .upper -> .len
+    Continuations: indent 2 spaces        $data
+                                            -> .filter { $.active }
+                                            -> map { $.name }
+
+## Extended Reference
+
+### Typed Closures
+
+**Anonymous typed closures:** `|type|{ body }` — reserved type keyword as param, `$` is type-checked piped input
+
+    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
+    5 -> |number|{ $ * 2 }                  # 10
+    |number|{ $ * 2 }:number => $double     # stored with return type assertion
+    5 -> $double                             # 10
+    "hi" -> $double                          # RILL-R001: expected number, got string
+
+All 12 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, iterator, any, type
+Parameterized: |list(number)|{ $ -> each { $ * 2 } }
+
+**Return type assertions** (enforced at runtime — RILL-R004 on mismatch):
+
+    |x: number| { "{$x}" }:string => $fn    # asserts string return type
+    $fn(42)                                  # "42" (passes assertion)
+
+    |x: number| { $x * 2 }:string => $fn    # mismatch halts with RILL-R004
+    $fn(5)                                   # RILL-R004: expected string, got number
+
+### Callable Reflection
+
+`.^input` and `.^output` work on ALL callable types:
+
+    |x: number, y: string|($x) => $fn
+    $fn.^input                             # ordered(x: number, y: string)
+    $fn.^output                            # any (no return type declared)
+
+    |x: number|{ $x * 2 }:number => $fn2
+    $fn2.^output                           # number
+
+`.^input` returns an ordered dict mapping parameter names to type values.
+`.^output` returns the declared return type (`any` if undeclared).
+Both work on script closures, built-in functions, and host functions.
+
+**Description shorthand** (bare string in `^(...)` expands to `description: <string>`):
+
+    ^("Get weather for city") |city: string|($city) => $weather
+    $weather.^description                        # "Get weather for city"
+
+    ^("Fetch profile", cache: true) |id|($id) => $get_user
+    $get_user.^description                       # "Fetch profile"
+    $get_user.^cache                             # true
+
+### Dispatch Operators
 
 **Dict dispatch** (single key) — pipe a value to a dict to match keys:
 
@@ -394,82 +618,41 @@ Note: lists require same-type elements. For mixed paths (strings and numbers), u
     dict[users: list[dict[name: "Alice"]]] => $d
     $d.users[0].name                                                       # "Alice"
 
-## Types and Type Expressions
+### Extraction Operators
 
-**Type names:**
+Destructure (`destruct<>`):
 
-    string   number   bool     list     dict     ordered
-    tuple    closure  vector   any      type
+    list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
+    dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
+    list[1, 2, 3] -> destruct<$first, _, $third>    # _ skips element
 
-**Type names are first-class values** — assign to variables, use in dynamic expressions:
+Slice (`slice<start:stop:step>`):
 
-    number => $t                          # store a type value
-    42 -> :$t                             # dynamic assertion (same as :number)
-    42 -> :?$t                            # dynamic check: true
-    42 -> :>$t                            # dynamic conversion (same as :>number)
-    $val.^type == $t                      # compare against stored type
+    list[0,1,2,3,4] -> slice<1:3>               # list[1, 2]
+    list[0,1,2,3,4] -> slice<-2:>               # list[3, 4]
+    list[0,1,2,3,4] -> slice<::-1>              # list[4,3,2,1,0] (reverse)
+    "hello" -> slice<1:4>                       # "ell"
 
-**Parameterized type constructors** (structural types):
+### List Spread
 
-    list(string)                          # list of strings
-    dict(name: string, age: number)       # dict with named fields
-    tuple(number, string)                 # positional tuple
-    ordered(x: number, y: number)        # named ordered args
-    |x: number, y: string| :any          # closure signature type
+    list[1, 2] => $a
+    list[...$a, 3]                      # list[1, 2, 3]
+    list[...$a, ...$b]                  # concatenate lists
+    list[...($nums -> map {$ * 2})]     # spread expression result
 
-Closure signatures include parameter names — `|x: number|` and `|y: number|` are different types.
+### Argument Unpacking
 
-**Type assertion** `:type` — errors if value does not match:
+    tuple[1, 2, 3] -> $fn(...)             # positional spread: $fn(1, 2, 3)
+    ordered[a: 10, b: 2] -> $fn(...)       # named spread: keys must match parameter order
+    tuple[...$list, 3] -> $fn(...)         # spread in tuple then spread into call
+    tuple[1, 2, 3] => $args
+    $args -> $fn(...)                      # spread stored tuple
+    ordered[a: 1, b: 2] => $named
+    $named -> $fn(...)                     # spread stored ordered
 
-    42:number                             # passes
-    "x":number                           # RILL-R002: expected number, got string
-    $val:list(string)                     # assert parameterized type
+### Type Conversion Matrix
 
-**Enforcing dict shapes** with `dict(field: type, ...)`:
-
-    $data -> :dict(name: string, age: number)   # assert exact fields and types
-    $data:?dict(name: string, age: number)      # check without error
-    $data:dict(name: string) -> .name           # assert then access
-
-Use in closure params to validate input structure:
-
-    |d: dict(name: string, age: number)| {
-      "{$d.name} is {$d.age}"
-    } => $format_person
-
-**Type check** `:?type` — returns boolean, never errors:
-
-    42:?number                            # true
-    "x":?number                           # false
-    $val:?list(string)                    # structural check
-
-Both forms work as pipe targets:
-
-    $val -> :number                       # assert in pipe
-    $val -> :?number                      # check in pipe
-
-**`^type` operator** — returns a type value for inspection:
-
-    42.^type                              # type value for number
-    42.^type.name                         # "number"
-    list[1, 2].^type.name                 # "list"
-    list[1, 2].^type.signature            # "list(number)"
-
-**Type value equality:**
-
-    $val.^type == list(number)            # true if $val is list(number)
-    $val.^type == $other.^type            # compare structural types
-
-**Type conversion** `:>type` — explicit conversion between compatible types:
-
-    42 -> :>string                        # "42"
-    "3.14" -> :>number                    # 3.14
-    list[1, 2] -> :>tuple                 # tuple[1, 2]
-    tuple[1, 2] -> :>list                 # list[1, 2]
-    ordered[a: 1] -> :>dict              # dict[a: 1]
-    dict[x: 1, y: 2] -> :>ordered(x: number, y: number)  # structural
-
-Compatibility matrix (error = halts with RILL-R036, no-op = same-type identity):
+`:>type` compatibility (error = halts with RILL-R036, no-op = same-type identity):
 
     Source   | :>list  | :>dict  | :>tuple | :>ordered(sig) | :>number | :>string | :>bool
     ---------|---------|---------|---------|----------------|----------|----------|-------
@@ -487,115 +670,43 @@ Compatibility matrix (error = halts with RILL-R036, no-op = same-type identity):
     ⁴ true maps to 1, false maps to 0
     ⁵ 0 maps to false, 1 maps to true; all other values halt with RILL-R036
 
-## Comparison Methods
+**Default values in type constructors** (used with `:>` conversion):
 
-    .eq(val) ==   .ne(val) !=   .lt(val) <   .gt(val) >   .le(val) <=   .ge(val) >=
-    Example: $age -> .ge(18) ? "adult" ! "minor"
+    dict(a: string, b: string = "x")     # field b defaults to "x"
+    ordered(x: number, y: number = 0)    # field y defaults to 0
+    tuple(string, number = 0)            # trailing element defaults to 0
 
-## Operator Precedence (Highest to Lowest)
+    dict[b: "b"] -> :>dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
-1. Member access: `.field`, `[index]`
-2. Type operators: `:type`, `:?type`
-3. Unary: `-`, `!`
-4. Multiplicative: `*`, `/`, `%`
-5. Additive: `+`, `-`
-6. Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
-7. Logical AND: `&&`
-8. Logical OR: `||`
-9. Default: `??`
-10. Pipe: `->`
-11. Capture: `=>`
+Only `:>` conversion fills defaults. `:` assertion does NOT hydrate defaults.
+`:>dict(...)` and `:>ordered(...)` fill missing fields from type constructor defaults.
+Nested fields are recursively hydrated.
 
-Use parentheses to override: `(2 + 3) * 4`
+### Type Inspection
 
-## Extraction Operators
+**`^type` operator** — returns a type value for inspection:
 
-Destructure (`destruct<>`):
+    42.^type                              # type value for number
+    42.^type.name                         # "number"
+    list[1, 2].^type.name                 # "list"
+    list[1, 2].^type.signature            # "list(number)"
 
-    list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
-    dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
-    list[1, 2, 3] -> destruct<$first, _, $third>    # _ skips element
+**Type value equality:**
 
-Slice (`slice<start:stop:step>`):
+    $val.^type == list(number)            # true if $val is list(number)
+    $val.^type == $other.^type            # compare structural types
 
-    list[0,1,2,3,4] -> slice<1:3>               # list[1, 2]
-    list[0,1,2,3,4] -> slice<-2:>               # list[3, 4]
-    list[0,1,2,3,4] -> slice<::-1>              # list[4,3,2,1,0] (reverse)
-    "hello" -> slice<1:4>                       # "ell"
+### Modules
 
-## List Spread in Literals
+`use<scheme:resource>` resolves a named resource through a host-registered scheme resolver:
 
-    list[1, 2] => $a
-    list[...$a, 3]                      # list[1, 2, 3]
-    list[...$a, ...$b]                  # concatenate lists
-    list[...($nums -> map {$ * 2})]     # spread expression result
+    use<module:greetings> => $g            # load module, capture as $g
+    $g.hello("World")                      # call module member
+    use<ext:qdrant.search>                 # load extension member
 
-## Tuples and Ordered for Argument Unpacking
+`use<>` returns the resolved value (dict, closure, or any rill type). The host registers resolvers for each scheme. Scripts cannot define resolvers.
 
-    tuple[1, 2, 3] -> $fn(...)             # positional spread: $fn(1, 2, 3)
-    ordered[a: 10, b: 2] -> $fn(...)       # named spread: keys must match parameter order
-    tuple[...$list, 3] -> $fn(...)         # spread in tuple then spread into call
-    tuple[1, 2, 3] => $args
-    $args -> $fn(...)                      # spread stored tuple
-    ordered[a: 1, b: 2] => $named
-    $named -> $fn(...)                     # spread stored ordered
-
-## String Methods
-
-| Method | Description |
-|---|---|
-| `.len` | length |
-| `.empty` | is empty string |
-| `.trim` | remove whitespace |
-| `.upper` | uppercase |
-| `.lower` | lowercase |
-| `.head` | first character |
-| `.tail` | last character |
-| `.at(i)` | character at index |
-| `.split(sep)` | split into list (default: newline) |
-| `.lines` | split on newlines |
-| `.join(sep)` | join list with separator |
-| `.contains(s)` | substring check |
-| `.starts_with(s)` | prefix check |
-| `.ends_with(s)` | suffix check |
-| `.index_of(s)` | first match position (-1 if none) |
-| `.replace(p, r)` | replace first regex match |
-| `.replace_all(p, r)` | replace all regex matches |
-| `.match(regex)` | first match info (dict with matched, index, groups) |
-| `.is_match(regex)` | boolean regex check |
-| `.repeat(n)` | repeat n times |
-| `.pad_start(n, f)` | pad start |
-| `.pad_end(n, f)` | pad end |
-
-## List/Dict Methods
-
-| Method | Description |
-|---|---|
-| `.len` | length |
-| `.empty` | is empty |
-| `.head` | first element |
-| `.tail` | last element |
-| `.at(i)` | element at index |
-| `.keys` | dict keys as list |
-| `.values` | dict values as list |
-| `.entries` | dict as list of `tuple[k, v]` pairs |
-| `.has(val)` | list contains value (deep equality) |
-| `.has_any(list)` | list contains any value from candidates |
-| `.has_all(list)` | list contains all values from candidates |
-
-## Built-in Functions
-
-| Function | Description |
-|---|---|
-| `log(val)` | print and pass through |
-| `json(val)` | convert to JSON string |
-| `identity(val)` | returns input unchanged |
-| `range(start, end, step?)` | number sequence (iterator) |
-| `repeat(val, count)` | repeat value n times (iterator) |
-| `enumerate(coll)` | lists: `tuple[index, value]`; dicts: `tuple[index, key, value]` |
-| `chain($fn)` | apply single closure; chain(val, list[$f, $g]) applies in sequence |
-
-## Iterators
+### Iterators
 
 Lazy sequence generation. Collection operators auto-expand iterators.
 
@@ -613,7 +724,7 @@ Iterator protocol (dict with `value`, `done`, `next`):
     $it.value                             # current element
     $it.next()                            # returns new iterator at next position
 
-## Iteration Limits
+### Iteration Limits
 
 Default: 10,000 iterations max for loops.
 Override: `^(limit: N)` at operator level (between operator name and body).
@@ -624,7 +735,23 @@ Override: `^(limit: N)` at operator level (between operator name and body).
 
 Invalid annotation keys produce a runtime error.
 
-## Script Return Values
+### Operator Precedence (Highest to Lowest)
+
+1. Member access: `.field`, `[index]`
+2. Type operators: `:type`, `:?type`
+3. Unary: `-`, `!`
+4. Multiplicative: `*`, `/`, `%`
+5. Additive: `+`, `-`
+6. Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
+7. Logical AND: `&&`
+8. Logical OR: `||`
+9. Default: `??`
+10. Pipe: `->`
+11. Capture: `=>`
+
+Use parentheses to override: `(2 + 3) * 4`
+
+### Script Return Values
 
 | Return value | Exit code |
 |---|---|
@@ -632,41 +759,3 @@ Invalid annotation keys produce a runtime error.
 | `false` / empty string | 1 |
 | `list[0, "message"]` | 0 with message |
 | `list[1, "message"]` | 1 with message |
-
-## Style
-
-### Naming: snake_case
-
-    $user_name, $item_list, $is_valid             # variables
-    $double_value, $cleanup_text                  # closures
-    dict[first_name: "x", last_name: "y"]         # dict keys
-
-### Spacing
-
-    Operators:     space both sides       5 + 3, $x -> .upper, "a" => $b
-    Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
-    Braces:        space inside           { $x + 1 }, each { $ * 2 }
-    Brackets:      no inner space         $list[0], $dict.items[1]
-    Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
-    Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
-    Closures:      space after params     |x| ($x * 2), |a, b| { $a + $b }
-    Methods:       no space before . or ( $str.upper(), $list.join(", ")
-    Pipes:         space both sides       "x" -> .upper -> .len
-    Continuations: indent 2 spaces        $data
-                                            -> .filter { $.active }
-                                            -> map { $.name }
-
-### Implicit $ Shorthand (Always Prefer)
-
-    $.method()  ->  .method            "x" -> .upper  (not $.upper())
-    func($)     ->  func               "x" -> log     (not log($))
-    $fn($)      ->  $fn                5 -> $double   (not $double($))
-
-Don't capture just to continue — use line continuation instead:
-
-    # avoid                          # good
-    "x" => $a                        "x"
-    $a -> .upper => $b                 -> .upper
-    $b -> .len                         -> .len
-
-Only capture when the variable is reused later in the code.

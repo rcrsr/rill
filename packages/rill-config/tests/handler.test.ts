@@ -24,14 +24,14 @@ function makeCallable(options: {
   annotations?: Record<string, unknown>;
   params?: Array<{
     name: string;
-    type?: { type: string };
+    type?: { kind: string };
     defaultValue?: unknown;
     annotations?: Record<string, unknown>;
   }>;
 }): ScriptCallable {
   const params = (options.params ?? []).map((p) => ({
     name: p.name,
-    type: p.type as { type: string } | undefined,
+    type: p.type as { kind: string } | undefined,
     defaultValue: p.defaultValue as unknown,
     annotations: (p.annotations ?? {}) as Record<string, unknown>,
   }));
@@ -51,7 +51,7 @@ function makeCallable(options: {
       pipeValue: null,
     } as ScriptCallable['definingScope'],
     annotations: (options.annotations ?? {}) as Record<string, unknown>,
-    inputShape: { type: 'closure', params: [], ret: { type: 'any' } },
+    inputShape: { kind: 'closure', params: [], ret: { kind: 'any' } },
   } as unknown as ScriptCallable;
 }
 
@@ -96,7 +96,7 @@ describe('introspectHandler', () => {
   describe('parameter introspection', () => {
     it('maps param name and type from closure params', () => {
       const closure = makeCallable({
-        params: [{ name: 'input', type: { type: 'string' } }],
+        params: [{ name: 'input', type: { kind: 'string' } }],
       });
       const result = introspectHandler(closure);
       expect(result.params).toHaveLength(1);
@@ -109,7 +109,7 @@ describe('introspectHandler', () => {
         params: [
           {
             name: 'required',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
           },
         ],
@@ -120,7 +120,7 @@ describe('introspectHandler', () => {
 
     it('sets required=false and includes defaultValue when defaultValue is present', () => {
       const closure = makeCallable({
-        params: [{ name: 'opt', type: { type: 'number' }, defaultValue: 10 }],
+        params: [{ name: 'opt', type: { kind: 'number' }, defaultValue: 10 }],
       });
       const result = introspectHandler(closure);
       expect(result.params[0]?.required).toBe(false);
@@ -140,7 +140,7 @@ describe('introspectHandler', () => {
         params: [
           {
             name: 'query',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             annotations: { description: 'The search query' },
           },
         ],
@@ -151,7 +151,7 @@ describe('introspectHandler', () => {
 
     it('omits param description when param.annotations has no description', () => {
       const closure = makeCallable({
-        params: [{ name: 'count', type: { type: 'number' }, annotations: {} }],
+        params: [{ name: 'count', type: { kind: 'number' }, annotations: {} }],
       });
       const result = introspectHandler(closure);
       expect(result.params[0]?.description).toBeUndefined();

@@ -47,7 +47,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { RillParam, RillType } from '@rcrsr/rill';
+import type { RillParam, TypeStructure } from '@rcrsr/rill';
 import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { mockFn } from '../helpers/runtime.js';
@@ -62,7 +62,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -81,7 +81,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -100,7 +100,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -119,7 +119,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -138,7 +138,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'data',
-                  type: { type: 'dict' },
+                  type: { kind: 'dict' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -158,19 +158,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'c',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -189,13 +189,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'str',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'count',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -217,7 +217,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'World',
                   annotations: {},
                 },
@@ -236,13 +236,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'start',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 0,
                   annotations: {},
                 },
                 {
                   name: 'end',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 10,
                   annotations: {},
                 },
@@ -261,13 +261,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'str',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'count',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 3,
                   annotations: {},
                 },
@@ -287,7 +287,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'nums',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: [1, 2, 3],
                   annotations: {},
                 },
@@ -307,7 +307,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'data',
-                  type: { type: 'dict' },
+                  type: { kind: 'dict' },
                   defaultValue: { name: 'Alice', annotations: {} },
                   annotations: {},
                 },
@@ -326,7 +326,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -347,13 +347,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'title',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'Mr.',
                   annotations: {},
                 },
@@ -372,13 +372,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'title',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'Mr.',
                   annotations: {},
                 },
@@ -397,19 +397,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'host',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'localhost',
                   annotations: {},
                 },
                 {
                   name: 'port',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 8080,
                   annotations: {},
                 },
                 {
                   name: 'secure',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: false,
                   annotations: {},
                 },
@@ -429,19 +429,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'level',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'prefix',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: '[LOG]',
                   annotations: {},
                 },
                 {
                   name: 'suffix',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: '',
                   annotations: {},
                 },
@@ -517,7 +517,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -556,7 +556,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -580,7 +580,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -607,7 +607,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -634,7 +634,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -662,7 +662,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -686,7 +686,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -710,7 +710,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'userName',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -730,7 +730,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -750,7 +750,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -770,7 +770,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'requiredParam',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -790,7 +790,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -815,7 +815,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'myParam',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -843,7 +843,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -870,7 +870,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'requiredParam',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -900,7 +900,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'count',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: 'not a number',
                     annotations: {},
                   },
@@ -925,7 +925,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'bool' },
+                    type: { kind: 'bool' },
                     defaultValue: 42,
                     annotations: {},
                   },
@@ -952,7 +952,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'value',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: '100',
                     annotations: {},
                   },
@@ -974,7 +974,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'flag',
-                    type: { type: 'bool' },
+                    type: { kind: 'bool' },
                     defaultValue: 0,
                     annotations: {},
                   },
@@ -996,7 +996,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'data',
-                    type: { type: 'dict' },
+                    type: { kind: 'dict' },
                     defaultValue: [1, 2, 3],
                     annotations: {},
                   },
@@ -1018,7 +1018,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'collection',
-                    type: { type: 'list' },
+                    type: { kind: 'list' },
                     defaultValue: { a: 1, annotations: {} },
                     annotations: {},
                   },
@@ -1041,7 +1041,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'World',
                   annotations: {},
                 },
@@ -1060,7 +1060,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 5,
                   annotations: {},
                 },
@@ -1079,7 +1079,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -1098,7 +1098,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'nums',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: [1, 2, 3],
                   annotations: {},
                 },
@@ -1118,7 +1118,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'user',
-                  type: { type: 'dict' },
+                  type: { kind: 'dict' },
                   defaultValue: { name: 'Alice', annotations: {} },
                   annotations: {},
                 },
@@ -1137,19 +1137,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'host',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'localhost',
                   annotations: {},
                 },
                 {
                   name: 'port',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 8080,
                   annotations: {},
                 },
                 {
                   name: 'secure',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: false,
                   annotations: {},
                 },
@@ -1174,7 +1174,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'name',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1201,7 +1201,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'items',
-                    type: { type: 'list' },
+                    type: { kind: 'list' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1228,7 +1228,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'data',
-                    type: { type: 'dict' },
+                    type: { kind: 'dict' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1255,7 +1255,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1280,7 +1280,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'name',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1307,7 +1307,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'input',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1342,13 +1342,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'a',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
                   {
                     name: 'b',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1379,7 +1379,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'template',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1444,19 +1444,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'default1',
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 42,
                   annotations: {},
                 },
                 {
                   name: 'c',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -1475,19 +1475,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'default1',
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 42,
                   annotations: {},
                 },
                 {
                   name: 'c',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -1506,19 +1506,19 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: 'default1',
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: 42,
                   annotations: {},
                 },
                 {
                   name: 'c',
-                  type: { type: 'bool' },
+                  type: { kind: 'bool' },
                   defaultValue: true,
                   annotations: {},
                 },
@@ -1538,8 +1538,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           (_, i): RillParam => ({
             name: `p${i}`,
             type: (i % 2 === 0
-              ? { type: 'number' }
-              : { type: 'string' }) as RillType,
+              ? { kind: 'number' }
+              : { kind: 'string' }) as TypeStructure,
             defaultValue: undefined,
             annotations: {},
           })
@@ -1566,7 +1566,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           { length: 25 },
           (_, i): RillParam => ({
             name: `p${i}`,
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           })
@@ -1597,7 +1597,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           { length: 20 },
           (_, i): RillParam => ({
             name: `p${i}`,
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: i >= 15 ? i : undefined,
             annotations: {},
           })
@@ -1631,7 +1631,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1650,7 +1650,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1669,7 +1669,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1695,13 +1695,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         const params: RillParam[] = [
           {
             name: 'a',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
           {
             name: 'b',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: 10,
             annotations: {},
           },
@@ -1767,7 +1767,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1790,7 +1790,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1812,7 +1812,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1823,7 +1823,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'y',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1862,7 +1862,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -1887,7 +1887,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1906,7 +1906,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1925,7 +1925,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1944,7 +1944,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'items',
-                  type: { type: 'list' },
+                  type: { kind: 'list' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1965,7 +1965,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -1984,7 +1984,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -2003,7 +2003,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -2022,7 +2022,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -2042,7 +2042,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -2056,14 +2056,14 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('accepts vector argument for any parameter', async () => {
-        const vec = { type: 'vector', values: [1, 2, 3] };
+        const vec = { kind: 'vector', values: [1, 2, 3] };
         const result = await run('acceptAny(getVector())', {
           functions: {
             acceptAny: {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'any' },
+                  type: { kind: 'any' },
                   defaultValue: undefined,
                   annotations: {},
                 },

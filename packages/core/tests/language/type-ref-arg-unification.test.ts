@@ -18,8 +18,8 @@ import {
   isTuple,
   parse,
   ParseError,
-  structuralTypeEquals,
-  formatStructuralType,
+  structureEquals,
+  formatStructure,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
@@ -68,11 +68,11 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const result = (await run('dict(a: string | number)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('dict');
-      expect(result.structure.type).toBe('dict');
+      expect(result.structure.kind).toBe('dict');
       // Field 'a' has a union type
       const fieldA = result.structure.fields.a;
       expect(fieldA).toBeDefined();
-      expect(fieldA.type.type).toBe('union');
+      expect(fieldA.type.kind).toBe('union');
       expect(fieldA.type.members).toHaveLength(2);
     });
   });
@@ -102,7 +102,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const annotResult = await run('[b: 42] -> :dict(b: number)');
       // The expression type should have the same field definition
       expect(exprType.__rill_type).toBe(true);
-      expect(exprType.structure.fields.b.type).toEqual({ type: 'number' });
+      expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
       // Annotation passes the value through
       expect(annotResult).toEqual({ b: 42 });
     });
@@ -112,7 +112,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const exprType = (await run('dict(b: number = 5)')) as any;
       // Annotation context: :> conversion hydrates defaults
       const convResult = await run('dict[] -> :>dict(b: number = 5)');
-      expect(exprType.structure.fields.b.type).toEqual({ type: 'number' });
+      expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
       expect(exprType.structure.fields.b.defaultValue).toBe(5);
       expect(convResult).toEqual({ b: 5 });
     });
@@ -207,7 +207,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const result = (await run('dict(a: number,)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('dict');
-      expect(result.structure.fields.a.type).toEqual({ type: 'number' });
+      expect(result.structure.fields.a.type).toEqual({ kind: 'number' });
     });
 
     it('tuple(number, string,) parses and produces correct type value', async () => {
@@ -254,14 +254,14 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
     it('row 5: dict(a: number) expression context', async () => {
       const result = (await run('dict(a: number)')) as any;
       expect(result.__rill_type).toBe(true);
-      expect(result.structure.fields.a.type).toEqual({ type: 'number' });
+      expect(result.structure.fields.a.type).toEqual({ kind: 'number' });
     });
 
     // Row 6: dict(a: number = 5) — named with default, expression context
     it('row 6: dict(a: number = 5) expression context', async () => {
       const result = (await run('dict(a: number = 5)')) as any;
       expect(result.__rill_type).toBe(true);
-      expect(result.structure.fields.a.type).toEqual({ type: 'number' });
+      expect(result.structure.fields.a.type).toEqual({ kind: 'number' });
       expect(result.structure.fields.a.defaultValue).toBe(5);
     });
 
@@ -270,8 +270,8 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const result = (await run('tuple(number, string)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.structure.elements).toHaveLength(2);
-      expect(result.structure.elements[0].type).toEqual({ type: 'number' });
-      expect(result.structure.elements[1].type).toEqual({ type: 'string' });
+      expect(result.structure.elements[0].type).toEqual({ kind: 'number' });
+      expect(result.structure.elements[1].type).toEqual({ kind: 'string' });
     });
 
     // Row 8: tuple(number = 0, string = "") — positional with defaults, expression context
@@ -293,7 +293,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       const result = (await run('list(string)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('list');
-      expect(result.structure.element).toEqual({ type: 'string' });
+      expect(result.structure.element).toEqual({ kind: 'string' });
     });
 
     it('list[1, 2, 3] -> :list(number) assertion passes', async () => {
@@ -311,8 +311,8 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       // Verify that key public API symbols are still exported
       expect(typeof isTuple).toBe('function');
       expect(typeof parse).toBe('function');
-      expect(typeof structuralTypeEquals).toBe('function');
-      expect(typeof formatStructuralType).toBe('function');
+      expect(typeof structureEquals).toBe('function');
+      expect(typeof formatStructure).toBe('function');
       expect(ParseError).toBeDefined();
     });
   });
