@@ -13,21 +13,22 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Enable Corepack and install pnpm
         run: corepack enable && corepack prepare --activate
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '25'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3
-        with:
-          hugo-version: '0.152.2'
+        run: |
+          HUGO_VERSION="0.152.2"
+          curl -fsSL "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin hugo
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
