@@ -50,9 +50,10 @@ declare -A FILE_MAP=(
   ["integration-backends"]="integration/backends 7"
   ["ref-language"]="reference/language 1"
   ["ref-host-api"]="reference/host-api 2"
-  ["ref-errors"]="reference/errors 3"
-  ["ref-config"]="reference/config 4"
-  ["ref-config-api"]="reference/config-api 5"
+  ["ref-host-api-types"]="reference/host-api-types 3"
+  ["ref-errors"]="reference/errors 4"
+  ["ref-config"]="reference/config 5"
+  ["ref-config-api"]="reference/config-api 6"
 )
 
 # Link rewrite map: source filename → Hugo path
@@ -85,6 +86,7 @@ declare -A LINK_MAP=(
   ["bundled-extensions.md"]="/docs/extensions/"
   ["ref-language.md"]="/docs/reference/language/"
   ["ref-host-api.md"]="/docs/reference/host-api/"
+  ["ref-host-api-types.md"]="/docs/reference/host-api-types/"
   ["ref-errors.md"]="/docs/reference/errors/"
   ["ref-config.md"]="/docs/reference/config/"
   ["ref-config-api.md"]="/docs/reference/config-api/"

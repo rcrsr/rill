@@ -28,7 +28,7 @@ import {
   createRuntimeContext,
   getFunctions,
   getDocumentationCoverage,
-  rillTypeToTypeValue,
+  structureToTypeValue,
 } from '@rcrsr/rill';
 
 describe('Rill Runtime: Function Metadata', () => {
@@ -41,14 +41,14 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
               ],
               fn: (args) => `Hello, ${args['name']}!`,
               annotations: { description: 'Greets a user by name' },
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
         });
@@ -67,20 +67,20 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
               ],
               fn: (args) => (args['a'] as number) + (args['b'] as number),
               annotations: { description: 'Adds two numbers' },
-              returnType: rillTypeToTypeValue({ type: 'number' }),
+              returnType: structureToTypeValue({ kind: 'number' }),
             },
           },
         });
@@ -98,14 +98,14 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'value',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
               ],
               fn: (args) => (args['value'] as string).length > 0,
               annotations: { description: 'Checks if string is non-empty' },
-              returnType: rillTypeToTypeValue({ type: 'bool' }),
+              returnType: structureToTypeValue({ kind: 'bool' }),
             },
           },
         });
@@ -125,7 +125,7 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -182,7 +182,7 @@ describe('Rill Runtime: Function Metadata', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' } as const,
+                  type: { kind: 'string' } as const,
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -210,27 +210,27 @@ describe('Rill Runtime: Function Metadata', () => {
             getString: {
               params: [],
               fn: () => 'text',
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
             getNumber: {
               params: [],
               fn: () => 42,
-              returnType: rillTypeToTypeValue({ type: 'number' }),
+              returnType: structureToTypeValue({ kind: 'number' }),
             },
             getBool: {
               params: [],
               fn: () => true,
-              returnType: rillTypeToTypeValue({ type: 'bool' }),
+              returnType: structureToTypeValue({ kind: 'bool' }),
             },
             getList: {
               params: [],
               fn: () => [1, 2, 3],
-              returnType: rillTypeToTypeValue({ type: 'list' }),
+              returnType: structureToTypeValue({ kind: 'list' }),
             },
             getDict: {
               params: [],
               fn: () => ({ key: 'value' }),
-              returnType: rillTypeToTypeValue({ type: 'dict' }),
+              returnType: structureToTypeValue({ kind: 'dict' }),
             },
             getAny: {
               params: [],
@@ -274,7 +274,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -296,7 +296,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -317,7 +317,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -342,7 +342,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'A param' },
                   },
@@ -366,7 +366,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'A param' },
                   },
@@ -391,7 +391,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'A param' },
                   },
@@ -416,7 +416,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'A param' },
                   },
@@ -443,7 +443,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -468,7 +468,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -493,7 +493,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: '' },
                   },
@@ -518,7 +518,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: '  \n  ' },
                   },
@@ -543,13 +543,13 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'first',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'First param' },
                   },
                   {
                     name: 'second',
-                    type: { type: 'number' },
+                    type: { kind: 'number' },
                     defaultValue: undefined,
                     annotations: {},
                   },
@@ -576,7 +576,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 params: [
                   {
                     name: 'x',
-                    type: { type: 'string' },
+                    type: { kind: 'string' },
                     defaultValue: undefined,
                     annotations: { description: 'The input string' },
                   },
@@ -620,7 +620,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'Input value' },
             },
@@ -647,7 +647,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'a',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'First param' },
             },
@@ -663,7 +663,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'b',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: { description: 'Second param' },
             },
@@ -725,7 +725,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: '  \n  ' },
             },
@@ -797,7 +797,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'Documented param' },
             },
@@ -834,7 +834,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'Param' },
             },
@@ -918,7 +918,7 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'x',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: '' },
             },
@@ -945,13 +945,13 @@ describe('Rill Runtime: Function Metadata', () => {
           params: [
             {
               name: 'a',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: { description: 'First param documented' },
             },
             {
               name: 'b',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: { description: '' },
             },

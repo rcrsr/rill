@@ -213,7 +213,7 @@ $t.^type == type
 # Result: true
 ```
 
-### `formatStructuralType` Output Format
+### `formatStructure` Output Format
 
 The string representation of structural types follows this format:
 
@@ -639,7 +639,7 @@ $t.name
 # Result: "dict"
 ```
 
-`.signature` returns the full structural representation via `formatStructuralType`:
+`.signature` returns the full structural representation via `formatStructure`:
 
 ```rill
 list(number) => $t
@@ -762,6 +762,8 @@ The following table lists all built-in methods with their typed signatures. Meth
 | `.gt` | number, string | `other: any` | `bool` |
 | `.le` | number, string | `other: any` | `bool` |
 | `.ge` | number, string | `other: any` | `bool` |
+
+`bool` supports only equality (`==`, `!=`). Ordering (`<`, `>`, `<=`, `>=`) on `bool` raises RILL-R002.
 | `.keys` | dict (runtime checked) | (none) | `list` |
 | `.values` | dict (runtime checked) | (none) | `list` |
 | `.entries` | dict (runtime checked) | (none) | `list` |

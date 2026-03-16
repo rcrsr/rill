@@ -33,7 +33,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'name',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -62,13 +62,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -81,13 +81,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'y',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -114,7 +114,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'template',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {
                     description: 'The template string with placeholders',
@@ -122,7 +122,7 @@ describe('Rill Runtime: Introspection API', () => {
                 },
                 {
                   name: 'value',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: { description: 'The value to insert' },
                 },
@@ -182,7 +182,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -214,13 +214,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -247,7 +247,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'text',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -260,7 +260,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'text',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -287,7 +287,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'path',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -354,7 +354,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -378,7 +378,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 }, // No description
@@ -403,7 +403,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -416,7 +416,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'b',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -444,13 +444,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'documented',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: { description: 'This param has docs' },
                 },
                 {
                   name: 'undocumented',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -572,7 +572,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -641,7 +641,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'a',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -654,7 +654,7 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'b',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -746,13 +746,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'required',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'optional',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -779,13 +779,13 @@ describe('Rill Runtime: Introspection API', () => {
               params: [
                 {
                   name: 'noDefault',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'explicitUndefined',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },

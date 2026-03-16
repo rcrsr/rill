@@ -198,30 +198,30 @@ interface RillTuple {
 interface RillTypeValue {
   __rill_type: true;
   name: string;                    // coarse name: "list", "dict", "number", etc.
-  structure: RillStructuralType;   // full structural type
+  structure: TypeStructure;        // full structural type
 }
 ```
 
-`RillStructuralType` uses a `type` discriminator field. The `kind`, `name`, and `primitive` fields no longer exist:
+`TypeStructure` uses a `kind` discriminator field. The `name` and `primitive` fields no longer exist:
 
 ```typescript
-type RillStructuralType =
-  | { type: 'number' }
-  | { type: 'string' }
-  | { type: 'bool' }
-  | { type: 'vector' }
-  | { type: 'type' }
-  | { type: 'any' }
-  | { type: 'dict';    fields?: Record<string, RillStructuralType> }
-  | { type: 'list';    element?: RillStructuralType }
-  | { type: 'closure'; params?: [string, RillStructuralType][]; ret?: RillStructuralType }
-  | { type: 'tuple';   elements?: RillStructuralType[] }
-  | { type: 'ordered'; fields?: [string, RillStructuralType][] }
+type TypeStructure =
+  | { kind: 'number' }
+  | { kind: 'string' }
+  | { kind: 'bool' }
+  | { kind: 'vector' }
+  | { kind: 'type' }
+  | { kind: 'any' }
+  | { kind: 'dict';    fields?: Record<string, TypeStructure> }
+  | { kind: 'list';    element?: TypeStructure }
+  | { kind: 'closure'; params?: [string, TypeStructure][]; ret?: TypeStructure }
+  | { kind: 'tuple';   elements?: TypeStructure[] }
+  | { kind: 'ordered'; fields?: [string, TypeStructure][] }
 ```
 
-**Breaking change from previous versions:** `{ kind: 'primitive', name: 'string' }` is now `{ type: 'string' }`. `{ kind: 'any' }` is now `{ type: 'any' }`. `{ kind: 'dict', fields: F }` is now `{ type: 'dict', fields?: F }`. Switch on `structure.type`, not `structure.kind`.
+**Breaking change from previous versions:** `{ kind: 'primitive', name: 'string' }` is now `{ kind: 'string' }`. `{ type: 'any' }` (pre-rename) is now `{ kind: 'any' }`. `{ type: 'dict', fields: F }` (pre-rename) is now `{ kind: 'dict', fields?: F }`. Switch on `structure.kind`, not `structure.type`.
 
-The structural type formats as a human-readable string via `formatStructuralType`:
+The structural type formats as a human-readable string via `formatStructure`:
 
 | Expression | `:>string` output |
 |------------|---------------|
@@ -245,36 +245,36 @@ All callable kinds expose their parameter and return type shapes via `.^input` a
 const closure = result.result; // RillCallable (ScriptCallable)
 // $fn.^input -> ordered[x: ^number, y: ^string]
 // Host side: RillOrdered with entries [["x", RillTypeValue], ["y", RillTypeValue]]
-// entries[0][1].structure -> { type: 'number' }
-// entries[1][1].structure -> { type: 'string' }
+// entries[0][1].structure -> { kind: 'number' }
+// entries[1][1].structure -> { kind: 'string' }
 ```
 
 ```typescript
 // Parameterized closure: |x: list(string), y: number| { $x }
-// entries[0][1].structure -> { type: 'list', element: { type: 'string' } }
-// entries[1][1].structure -> { type: 'number' }
+// entries[0][1].structure -> { kind: 'list', element: { kind: 'string' } }
+// entries[1][1].structure -> { kind: 'number' }
 //
 // Use structure.element to inspect the list's element type:
-// if (entries[0][1].structure.type === 'list') {
-//   const elementType = entries[0][1].structure.element; // { type: 'string' }
+// if (entries[0][1].structure.kind === 'list') {
+//   const elementType = entries[0][1].structure.element; // { kind: 'string' }
 // }
 ```
 
 > **Behavioral change (v0.x):** `.^input` now returns an ordered dict for all closure kinds. Previously, untyped host callables returned `false` as a sentinel. They now return an empty ordered dict. Code that checked `result === false` must be updated to check `result.entries.length === 0` instead.
 
-**`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ type: 'any' }`:
+**`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
 
 ```typescript
 // Closure with declared return: |x: number| :string -> ...
 // $fn.^output -> ^string
-// Host side: RillTypeValue with structure { type: 'string' }
+// Host side: RillTypeValue with structure { kind: 'string' }
 
 // Closure with no declared return type:
 // $fn.^output -> ^any
-// Host side: RillTypeValue with structure { type: 'any' }
+// Host side: RillTypeValue with structure { kind: 'any' }
 ```
 
-Both accessors use `structure.type` (not `structure.kind`) to discriminate the structural type.
+Both accessors use `structure.kind` (not `structure.type`) to discriminate the structural type.
 
 ---
 
@@ -298,7 +298,7 @@ interface NativeResult {
   /** Base rill type name — "string", "number", "bool", "list", "dict",
    *  "tuple", "ordered", "closure", "vector", "type", or "iterator" */
   rillTypeName: string;
-  /** Full structural type signature from formatStructuralType,
+  /** Full structural type signature from formatStructure,
    *  e.g. "list(number)", "dict(a: number, b: string)", "|x: number| :string" */
   rillTypeSignature: string;
   /** JS-native representation. Always populated — never undefined.
@@ -341,7 +341,7 @@ const result = toNative(closureValue);
 // result.value             -> { signature: "|x: number| :string" }
 ```
 
-`signature` is identical to `rillTypeSignature` — both come from `formatStructuralType`.
+`signature` is identical to `rillTypeSignature` — both come from `formatStructure`.
 
 **vector** — `value` is `{ model: string, dimensions: number }`:
 
@@ -361,7 +361,7 @@ const result = toNative(typeValue);
 // result.value             -> { name: "list", signature: "list(number)" }
 ```
 
-`name` is the coarse type name; `signature` is the full structural signature from `formatStructuralType`.
+`name` is the coarse type name; `signature` is the full structural signature from `formatStructure`.
 
 **iterator** — `value` is `{ done: boolean }`:
 
@@ -384,7 +384,7 @@ The `NativeResult` interface was redesigned. Hosts consuming `toNative()` must u
 | `result.native === null` guard | Not needed — `value` is always populated | Remove null checks |
 | Non-native types return `native: null` | Non-native types return descriptor objects | Read descriptor fields instead |
 
-### valueToJSON
+### serializeValue
 
 The built-in `json` function (used inside scripts as `value -> json`) throws `RILL-R004` for non-serializable types (closure, iterator, vector, type value, tuple, ordered). Use `toNative()` at the host boundary for safe, non-throwing conversion with type metadata.
 
@@ -405,7 +405,7 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { type: 'string' }, annotations: { description: 'Person to greet' } },
+        { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args[0]}!`,
@@ -511,12 +511,12 @@ import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      params: [{ name: 'x', type: { type: 'string' }, annotations: { description: 'Input value' } }],
+      params: [{ name: 'x', type: { kind: 'string' }, annotations: { description: 'Input value' } }],
       description: 'A documented function',
       fn: (args) => args[0],
     },
     undocumented: {
-      params: [{ name: 'x', type: { type: 'string' } }],
+      params: [{ name: 'x', type: { kind: 'string' } }],
       fn: (args) => args[0],
     },
   },

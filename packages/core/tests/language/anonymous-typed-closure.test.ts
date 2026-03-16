@@ -512,7 +512,7 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
       `;
       const err = await run(script).catch((e: unknown) => e);
       expect((err as Error & { errorId: string }).errorId).toBe('RILL-R001');
-      // dict fields are sorted alphabetically in formatStructuralType
+      // dict fields are sorted alphabetically in formatStructure
       expect((err as Error).message).toContain(
         'dict(age: number, name: string)'
       );

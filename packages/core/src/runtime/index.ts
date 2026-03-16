@@ -74,36 +74,55 @@ export type {
   RillFieldDef,
   RillIterator,
   RillTuple,
-  RillType,
   RillTypeValue,
   RillValue,
   RillVector,
+  TypeStructure,
 } from './core/values.js';
 
-/** @deprecated Use RillType instead. Will be removed in the next major version. */
-export type { RillStructuralType } from './core/values.js';
+/** @deprecated Use TypeStructure instead. Will be removed in the next major version. */
+export type { RillType } from './core/values.js';
+
+export type {
+  TypeDefinition,
+  TypeProtocol,
+} from './core/type-registrations.js';
 
 export {
   anyTypeValue,
   commonType,
   createTuple,
   createVector,
-  formatStructuralType,
+  formatStructure,
   inferElementType,
-  inferStructuralType,
+  inferStructure,
   inferType,
-  isRillIterator,
+  isIterator,
   isTuple,
   isTypeValue,
   isVector,
   isReservedMethod,
   paramToFieldDef,
-  rillTypeToTypeValue,
+  structureToTypeValue,
   RESERVED_DICT_METHODS,
-  structuralTypeEquals,
-  structuralTypeMatches,
+  structureEquals,
+  structureMatches,
   toNative,
 } from './core/values.js';
+
+// Deprecated aliases — old names kept for one release
+/** @deprecated Use formatStructure instead. */
+export { formatStructuralType } from './core/values.js';
+/** @deprecated Use inferStructure instead. */
+export { inferStructuralType } from './core/values.js';
+/** @deprecated Use isIterator instead. */
+export { isRillIterator } from './core/values.js';
+/** @deprecated Use structureToTypeValue instead. */
+export { rillTypeToTypeValue } from './core/values.js';
+/** @deprecated Use structureEquals instead. */
+export { structuralTypeEquals } from './core/values.js';
+/** @deprecated Use structureMatches instead. */
+export { structuralTypeMatches } from './core/values.js';
 
 export { buildFieldDescriptor } from './core/field-descriptor.js';
 
@@ -154,7 +173,7 @@ export {
 // CONTEXT FACTORY
 // ============================================================
 
-export { buildTypeMethodDicts, createRuntimeContext } from './core/context.js';
+export { createRuntimeContext } from './core/context.js';
 
 // ============================================================
 // CALL STACK MANAGEMENT

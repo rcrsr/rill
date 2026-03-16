@@ -9,6 +9,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { RuntimeError } from '../../error-classes.js';
 import type { RillValue } from '../../runtime/core/values.js';
+import { deserializeValue } from '../../runtime/core/type-registrations.js';
 
 // ============================================================
 // TYPES
@@ -110,7 +111,7 @@ export async function createStore(config: StoreConfig): Promise<{
       // Load declared keys with defaults, validate existing values
       for (const [key, schemaEntry] of Object.entries(schema)) {
         if (key in parsed) {
-          const value = parsed[key] as RillValue;
+          const value = deserializeValue(parsed[key], schemaEntry.type);
           validateType(key, value, schemaEntry.type, storePath);
           data.set(key, value);
         } else {

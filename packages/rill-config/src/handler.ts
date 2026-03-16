@@ -52,7 +52,7 @@ export function introspectHandler(
 
     const entry: HandlerParam = {
       name: param.name,
-      type: param.type !== undefined ? param.type.type : 'any',
+      type: param.type !== undefined ? param.type.kind : 'any',
       required: param.defaultValue === undefined,
       ...(typeof paramDesc === 'string'
         ? { description: paramDesc }

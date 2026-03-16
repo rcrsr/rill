@@ -40,6 +40,7 @@
 | [String Methods](topic-strings.md) | String methods for text manipulation |
 | [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
 | [Host API](ref-host-api.md) | Complete TypeScript API exports |
+| [Host API Types](ref-host-api-types.md) | TypeStructure, TypeDefinition, TypeProtocol exports |
 | [Config Reference](ref-config.md) | rill.config.ts options and field definitions |
 | [Config API Reference](ref-config-api.md) | TypeScript API for config loading and extension registration |
 | [Grammar](ref-grammar.ebnf) | Formal EBNF grammar |

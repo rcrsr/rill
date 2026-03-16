@@ -910,11 +910,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (resolvedType === undefined && defaultValue !== undefined) {
           const defaultKind = typeof defaultValue;
           if (defaultKind === 'string') {
-            resolvedType = { type: 'string' };
+            resolvedType = { kind: 'string' };
           } else if (defaultKind === 'number') {
-            resolvedType = { type: 'number' };
+            resolvedType = { kind: 'number' };
           } else if (defaultKind === 'boolean') {
-            resolvedType = { type: 'bool' };
+            resolvedType = { kind: 'bool' };
           }
         }
 

@@ -55,6 +55,7 @@ import type {
   ExpressionNode,
   SpreadArgNode,
   BlockNode,
+  RillTypeName,
 } from '../../../../types.js';
 import { RillError, RuntimeError } from '../../../../types.js';
 import type {
@@ -76,7 +77,6 @@ import {
   pushCallFrame,
   popCallFrame,
   UNVALIDATED_METHOD_PARAMS,
-  UNVALIDATED_METHOD_RECEIVERS,
 } from '../../context.js';
 import type { RuntimeContext } from '../../types.js';
 import type { RillValue, RillTypeValue } from '../../values.js';
@@ -86,11 +86,11 @@ import {
   isTuple,
   isOrdered,
   paramToFieldDef,
-  inferStructuralType,
-  structuralTypeMatches,
-  formatStructuralType,
+  inferStructure,
+  structureMatches,
+  formatStructure,
   anyTypeValue,
-  rillTypeToTypeValue,
+  structureToTypeValue,
 } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -320,8 +320,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): void {
       if (param.type === undefined) return;
 
-      if (!structuralTypeMatches(value, param.type)) {
-        const expectedType = formatStructuralType(param.type);
+      if (!structureMatches(value, param.type)) {
+        const expectedType = formatStructure(param.type);
         const actualType = inferType(value);
         throw new RuntimeError(
           'RILL-R001',
@@ -844,13 +844,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // IR-3: .name on type values returns the typeName string (method path)
-      // IR-4: .signature on type values returns formatStructuralType(structure)
+      // IR-4: .signature on type values returns formatStructure(structure)
       if (isTypeValue(receiver)) {
         if (node.name === 'name') {
           return receiver.typeName;
         }
         if (node.name === 'signature') {
-          return formatStructuralType(receiver.structure);
+          return formatStructure(receiver.structure);
         }
       }
 
@@ -944,10 +944,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // RILL-R003: method exists on other types but not this receiver's type.
-      // Methods in UNVALIDATED_METHOD_RECEIVERS handle their own receiver validation
+      // Methods in unvalidatedMethodReceivers handle their own receiver validation
       // with specific error messages; skip generic RILL-R003 for them and let the
       // method body run its own check (they exist in at least one type dict).
-      if (!UNVALIDATED_METHOD_RECEIVERS.has(node.name)) {
+      if (!this.ctx.unvalidatedMethodReceivers.has(node.name)) {
         const supportedTypes: string[] = [];
         for (const [dictType, dict] of this.ctx.typeMethodDicts) {
           if (dict[node.name] !== undefined) {
@@ -963,7 +963,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
       } else {
-        // UNVALIDATED_METHOD_RECEIVERS: dispatch to the method in ANY type dict so the
+        // unvalidatedMethodReceivers: dispatch to the method in ANY type dict so the
         // method body can run its own custom receiver validation and error message.
         for (const [, dict] of this.ctx.typeMethodDicts) {
           const fallbackMethod = dict[node.name];
@@ -972,7 +972,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             isApplicationCallable(fallbackMethod)
           ) {
             try {
-              // UNVALIDATED_METHOD_RECEIVERS handle their own receiver validation.
+              // Unvalidated methods handle their own receiver validation.
               // Build named record with receiver so buildMethodEntry extracts it correctly;
               // the method body performs its own receiver type check with a custom error.
               const fbMethodArgs: Record<string, RillValue> = { receiver };
@@ -1080,8 +1080,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'type') {
         const typeValue: RillTypeValue = Object.freeze({
           __rill_type: true as const,
-          typeName: inferType(value),
-          structure: inferStructuralType(value),
+          typeName: inferType(value) as RillTypeName,
+          structure: inferStructure(value),
         });
         return typeValue;
       }
@@ -1117,16 +1117,16 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (key === 'input') {
         // Untyped host callables have params set to undefined at runtime (see callable() factory)
         if (value.params === undefined) {
-          return rillTypeToTypeValue({ type: 'ordered', fields: [] });
+          return structureToTypeValue({ kind: 'ordered', fields: [] });
         }
         const fields = value.params.map((param) =>
           paramToFieldDef(
             param.name,
-            param.type ?? { type: 'any' },
+            param.type ?? { kind: 'any' },
             param.defaultValue
           )
         );
-        return rillTypeToTypeValue({ type: 'ordered', fields });
+        return structureToTypeValue({ kind: 'ordered', fields });
       }
 
       // IR-3: ^output reads callable.returnType directly for all kinds
@@ -1359,7 +1359,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Add type field if param has type annotation
         if (param.type !== undefined) {
-          paramEntry['type'] = formatStructuralType(param.type);
+          paramEntry['type'] = formatStructure(param.type);
         }
 
         // Add __annotations field if param has parameter-level annotations

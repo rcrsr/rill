@@ -6,7 +6,8 @@
  */
 
 import { RuntimeError } from '../../types.js';
-import { BUILTIN_FUNCTIONS, BUILTIN_METHODS } from '../ext/builtins.js';
+import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
+import { BUILT_IN_TYPES } from './type-registrations.js';
 import type {
   RuntimeCallbacks,
   RuntimeContext,
@@ -19,7 +20,6 @@ import {
   callable,
   validateDefaultValueType,
   type ApplicationCallable,
-  type RillFunction,
   type RillParam,
 } from './callable.js';
 
@@ -33,73 +33,23 @@ const UNTYPED_BUILTINS = new Set(['log', 'chain']);
 // must not fire before the method body's own check.
 export const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
 
-// Built-in methods that perform their own receiver type checking with specific
-// error messages. Generic RILL-R003 must not fire before the method body runs.
-// Mirrors the old flat-structure convention of receiverTypes: [].
-export const UNVALIDATED_METHOD_RECEIVERS = new Set([
-  'head',
-  'tail',
-  'first',
-  'at',
-  'eq',
-  'ne',
-  'keys',
-  'values',
-  'entries',
-  'has',
-  'has_any',
-  'has_all',
-  'dimensions',
-  'model',
-  'similarity',
-  'dot',
-  'distance',
-  'norm',
-  'normalize',
-]);
-
 /**
- * Build a ReadonlyMap of frozen ApplicationCallable dicts from an array of
- * [typeName, methods] pairs. Accepts pairs (not a plain object) so the same
- * typeName can appear more than once — duplicate method names across entries
- * for the same type trigger an Error (EC-6).
- *
- * Re-exported from the public barrel index for host integration use.
+ * Derive the set of method names that handle their own receiver type checking.
+ * Collects names from methods where skipReceiverValidation is true.
+ * Methods without the flag default to standard RILL-R003 receiver validation.
  */
-export function buildTypeMethodDicts(
-  pairs: Array<[string, Record<string, RillFunction>]>
-): ReadonlyMap<string, Readonly<Record<string, RillValue>>> {
-  const registry = new Map<string, Set<string>>();
-  const result = new Map<string, Readonly<Record<string, RillValue>>>();
-
-  for (const [typeName, methods] of pairs) {
-    const seen = registry.get(typeName) ?? new Set<string>();
-    registry.set(typeName, seen);
-
-    const existing = result.get(typeName) ?? {};
-    const dict: Record<string, RillValue> = { ...existing };
-
-    for (const [name, fn] of Object.entries(methods)) {
-      if (seen.has(name)) {
-        throw new Error(`Duplicate method '${name}' on type '${typeName}'`);
+function deriveUnvalidatedMethodReceivers(
+  registrations: readonly import('./type-registrations.js').TypeDefinition[]
+): ReadonlySet<string> {
+  const bypass = new Set<string>();
+  for (const reg of registrations) {
+    for (const [name, method] of Object.entries(reg.methods)) {
+      if (method.skipReceiverValidation) {
+        bypass.add(name);
       }
-      seen.add(name);
-      const appCallable: import('./callable.js').ApplicationCallable = {
-        __type: 'callable',
-        kind: 'application',
-        params: fn.params as RillParam[],
-        returnType: fn.returnType,
-        annotations: fn.annotations ?? {},
-        isProperty: false,
-        fn: fn.fn,
-      };
-      dict[name] = appCallable;
     }
-
-    result.set(typeName, Object.freeze(dict));
   }
-
-  return result;
+  return Object.freeze(bypass);
 }
 
 // Module-level caches: parse signatures once at load time, not per context creation.
@@ -108,11 +58,6 @@ type BuiltinFnEntry = {
   appCallable: import('./callable.js').ApplicationCallable;
 };
 const BUILTIN_FN_CACHE = new Map<string, BuiltinFnEntry>();
-const BUILTIN_METHOD_PARAMS_CACHE = new Map<string, readonly RillParam[]>();
-const BUILTIN_METHOD_RECEIVER_TYPES_CACHE = new Map<
-  string,
-  readonly string[]
->();
 
 function initBuiltinCaches(): void {
   for (const [name, entry] of Object.entries(BUILTIN_FUNCTIONS)) {
@@ -127,25 +72,6 @@ function initBuiltinCaches(): void {
       returnType: entry.returnType,
     };
     BUILTIN_FN_CACHE.set(name, { appCallable: typedCallable });
-  }
-
-  for (const [typeName, methods] of Object.entries(BUILTIN_METHODS)) {
-    for (const [name, impl] of Object.entries(methods)) {
-      // Accumulate receiver types across all type groups for this method name.
-      // Skip methods that perform their own receiver type checking.
-      if (!UNVALIDATED_METHOD_RECEIVERS.has(name)) {
-        const existing = BUILTIN_METHOD_RECEIVER_TYPES_CACHE.get(name);
-        BUILTIN_METHOD_RECEIVER_TYPES_CACHE.set(
-          name,
-          existing !== undefined ? [...existing, typeName] : [typeName]
-        );
-      }
-      if (!UNVALIDATED_METHOD_PARAMS.has(name)) {
-        if (impl.params.length > 0) {
-          BUILTIN_METHOD_PARAMS_CACHE.set(name, impl.params as RillParam[]);
-        }
-      }
-    }
   }
 }
 
@@ -168,7 +94,7 @@ export function createRuntimeContext(
   const variables = new Map<string, RillValue>();
   const variableTypes = new Map<
     string,
-    import('../../types.js').RillTypeName | import('./values.js').RillType
+    import('../../types.js').RillTypeName | import('./values.js').TypeStructure
   >();
   const functions = new Map<
     string,
@@ -181,7 +107,10 @@ export function createRuntimeContext(
       // Bind callables in dicts to their containing dict
       const boundValue = bindDictCallables(value);
       variables.set(name, boundValue);
-      variableTypes.set(name, inferType(boundValue));
+      variableTypes.set(
+        name,
+        inferType(boundValue) as import('../../types.js').RillTypeName
+      );
     }
   }
 
@@ -272,13 +201,85 @@ export function createRuntimeContext(
       : []
   );
 
-  // Build typeMethodDicts fresh per context so duplicate detection (EC-6)
-  // uses isolated state and does not leak across context instances.
-  const typeMethodDicts = buildTypeMethodDicts(
-    Object.entries(BUILTIN_METHODS) as Array<
-      [string, Record<string, RillFunction>]
-    >
+  // EC-1: Validate no duplicate type names in registrations.
+  const seenTypeNames = new Set<string>();
+  for (const reg of BUILT_IN_TYPES) {
+    if (seenTypeNames.has(reg.name)) {
+      throw new Error(`Duplicate type registration '${reg.name}'`);
+    }
+    seenTypeNames.add(reg.name);
+  }
+
+  // EC-2: Validate every registration has protocol.format.
+  for (const reg of BUILT_IN_TYPES) {
+    if (!reg.protocol.format) {
+      throw new Error(`Type '${reg.name}' missing required format protocol`);
+    }
+  }
+
+  // Derive typeNames from registrations (replaces VALID_TYPE_NAMES in context).
+  const typeNames: readonly string[] = Object.freeze(
+    BUILT_IN_TYPES.map((r) => r.name)
   );
+
+  // Derive leafTypes from registrations where isLeaf === true, plus 'any'
+  // which has no registration but rejects type arguments (AC-4).
+  const leafTypes: ReadonlySet<string> = Object.freeze(
+    new Set([
+      ...BUILT_IN_TYPES.filter((r) => r.isLeaf).map((r) => r.name),
+      'any',
+    ])
+  );
+
+  // Derive method dicts from registration.methods (absorbs buildTypeMethodDicts
+  // logic). Validates EC-6: duplicate method on same type.
+  const methodRegistry = new Map<string, Set<string>>();
+  const typeMethodDicts = new Map<
+    string,
+    Readonly<Record<string, RillValue>>
+  >();
+
+  for (const reg of BUILT_IN_TYPES) {
+    const methods = reg.methods;
+    if (!methods || Object.keys(methods).length === 0) continue;
+
+    const seen = methodRegistry.get(reg.name) ?? new Set<string>();
+    methodRegistry.set(reg.name, seen);
+
+    const existing = typeMethodDicts.get(reg.name) ?? {};
+    const dict: Record<string, RillValue> = { ...existing };
+
+    for (const [name, fn] of Object.entries(methods)) {
+      if (seen.has(name)) {
+        throw new Error(`Duplicate method '${name}' on type '${reg.name}'`);
+      }
+      seen.add(name);
+      const appCallable: ApplicationCallable = {
+        __type: 'callable',
+        kind: 'application',
+        params: fn.params as RillParam[],
+        returnType: fn.returnType,
+        annotations: fn.annotations ?? {},
+        isProperty: false,
+        fn: fn.fn,
+      };
+      dict[name] = appCallable;
+    }
+
+    typeMethodDicts.set(reg.name, Object.freeze(dict));
+  }
+
+  // Derive bypass set from registrations: method names that handle their own
+  // receiver type checking. Generic RILL-R003 must not fire before the method body.
+  const unvalidatedMethodReceivers =
+    deriveUnvalidatedMethodReceivers(BUILT_IN_TYPES);
+
+  // BC-5: Freeze all derived collections after creation.
+  Object.freeze(typeNames);
+  Object.freeze(typeMethodDicts);
+
+  // Suppress unused-variable warning for typeNames (consumed in later phases).
+  void typeNames;
 
   return {
     parent: undefined,
@@ -286,6 +287,8 @@ export function createRuntimeContext(
     variableTypes,
     functions,
     typeMethodDicts,
+    leafTypes,
+    unvalidatedMethodReceivers,
     callbacks: { ...defaultCallbacks, ...options.callbacks },
     observability: options.observability ?? {},
     pipeValue: null,
@@ -318,10 +321,13 @@ export function createChildContext(
     variables: new Map<string, RillValue>(),
     variableTypes: new Map<
       string,
-      import('../../types.js').RillTypeName | import('./values.js').RillType
+      | import('../../types.js').RillTypeName
+      | import('./values.js').TypeStructure
     >(),
     functions: parent.functions,
     typeMethodDicts: parent.typeMethodDicts,
+    leafTypes: parent.leafTypes,
+    unvalidatedMethodReceivers: parent.unvalidatedMethodReceivers,
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,

@@ -15,7 +15,7 @@ import {
   type MountConfig,
 } from '../../src/ext/fs/index.js';
 import { RuntimeError } from '../../src/error-classes.js';
-import { rillTypeToTypeValue } from '../../src/index.js';
+import { structureToTypeValue } from '../../src/index.js';
 
 describe('fs extension', () => {
   let tempDir: string;
@@ -237,19 +237,19 @@ describe('fs extension', () => {
       expect(fsExt.read.params).toEqual([
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'path',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'File path relative to mount' },
         },
       ]);
       expect(fsExt.read.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'string' })
+        structureToTypeValue({ kind: 'string' })
       );
       expect(fsExt.read.annotations?.['description']).toBe(
         'Read file contents'
@@ -360,25 +360,25 @@ describe('fs extension', () => {
       expect(fsExt.write.params).toEqual([
         {
           name: 'mount',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Mount name' },
         },
         {
           name: 'path',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'File path relative to mount' },
         },
         {
           name: 'content',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Content to write' },
         },
       ]);
       expect(fsExt.write.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'string' })
+        structureToTypeValue({ kind: 'string' })
       );
     });
   });
@@ -468,7 +468,7 @@ describe('fs extension', () => {
 
       expect(fsExt.append.params).toHaveLength(3);
       expect(fsExt.append.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'string' })
+        structureToTypeValue({ kind: 'string' })
       );
     });
   });
@@ -559,7 +559,7 @@ describe('fs extension', () => {
       expect(fsExt.list.params).toHaveLength(2);
       expect(fsExt.list.params[1]?.defaultValue).toBe('');
       expect(fsExt.list.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'list' })
+        structureToTypeValue({ kind: 'list' })
       );
     });
   });
@@ -651,7 +651,7 @@ describe('fs extension', () => {
       expect(fsExt.find.params).toHaveLength(2);
       expect(fsExt.find.params[1]?.defaultValue).toBe('*');
       expect(fsExt.find.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'list' })
+        structureToTypeValue({ kind: 'list' })
       );
     });
   });
@@ -715,7 +715,7 @@ describe('fs extension', () => {
 
       expect(fsExt.exists.params).toHaveLength(2);
       expect(fsExt.exists.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'bool' })
+        structureToTypeValue({ kind: 'bool' })
       );
     });
   });
@@ -766,7 +766,7 @@ describe('fs extension', () => {
 
       expect(fsExt.remove.params).toHaveLength(2);
       expect(fsExt.remove.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'bool' })
+        structureToTypeValue({ kind: 'bool' })
       );
     });
   });
@@ -849,7 +849,7 @@ describe('fs extension', () => {
 
       expect(fsExt.stat.params).toHaveLength(2);
       expect(fsExt.stat.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'dict' })
+        structureToTypeValue({ kind: 'dict' })
       );
     });
   });
@@ -919,7 +919,7 @@ describe('fs extension', () => {
 
       expect(fsExt.mkdir.params).toHaveLength(2);
       expect(fsExt.mkdir.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'bool' })
+        structureToTypeValue({ kind: 'bool' })
       );
     });
   });
@@ -997,7 +997,7 @@ describe('fs extension', () => {
 
       expect(fsExt.copy.params).toHaveLength(3);
       expect(fsExt.copy.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'bool' })
+        structureToTypeValue({ kind: 'bool' })
       );
     });
   });
@@ -1054,7 +1054,7 @@ describe('fs extension', () => {
 
       expect(fsExt.move.params).toHaveLength(3);
       expect(fsExt.move.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'bool' })
+        structureToTypeValue({ kind: 'bool' })
       );
     });
   });
@@ -1114,7 +1114,7 @@ describe('fs extension', () => {
 
       expect(fsExt.mounts.params).toHaveLength(0);
       expect(fsExt.mounts.returnType).toEqual(
-        rillTypeToTypeValue({ type: 'list' })
+        structureToTypeValue({ kind: 'list' })
       );
     });
   });

@@ -44,7 +44,7 @@ describe('Rill Runtime: Pipe Targets', () => {
         params: [
           {
             name: 'name',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -134,7 +134,7 @@ describe('Rill Runtime: Pipe Targets', () => {
         params: [
           {
             name: 'x',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },

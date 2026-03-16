@@ -16,7 +16,7 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { type: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' } }],
       fn: async (args) => {
         return await callYourLLM(args[0]);
       },
@@ -58,7 +58,7 @@ Host functions must follow these rules to ensure correct script behavior:
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { type: 'list' } }],
+    params: [{ name: 'list', type: { kind: 'list' } }],
     fn: (args) => {
       const list = args[0] as unknown[];
       list.push('new');  // DON'T DO THIS
@@ -70,7 +70,7 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { type: 'list' } }],
+    params: [{ name: 'list', type: { kind: 'list' } }],
     fn: (args) => {
       const list = args[0] as unknown[];
       return [...list, 'new'];  // Create new array
@@ -88,7 +88,7 @@ import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    params: [{ name: 'input', type: { type: 'string' } }],
+    params: [{ name: 'input', type: { kind: 'string' } }],
     fn: (args) => {
       const frozen = deepFreeze(args[0]);
       return transform(frozen);  // Any mutation throws
@@ -121,15 +121,15 @@ const ctx = createRuntimeContext({
     // Sync function
     add: {
       params: [
-        { name: 'a', type: { type: 'number' } },
-        { name: 'b', type: { type: 'number' } },
+        { name: 'a', type: { kind: 'number' } },
+        { name: 'b', type: { kind: 'number' } },
       ],
       fn: (args) => args[0] + args[1],
     },
 
     // Async function
     fetch: {
-      params: [{ name: 'url', type: { type: 'string' } }],
+      params: [{ name: 'url', type: { kind: 'string' } }],
       fn: async (args, ctx, location) => {
         const response = await fetch(args[0]);
         return await response.text();
@@ -138,7 +138,7 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      params: [{ name: 'name', type: { type: 'string' } }],
+      params: [{ name: 'name', type: { kind: 'string' } }],
       fn: (args, ctx) => {
         return ctx.variables.get(args[0]) ?? null;
       },
@@ -146,7 +146,7 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      params: [{ name: 'value', type: { type: 'string' } }],
+      params: [{ name: 'value', type: { kind: 'string' } }],
       fn: (args, ctx, location) => {
         if (!args[0]) {
           throw new Error(`Validation failed at line ${location?.line}`);
@@ -168,36 +168,36 @@ const ctx = createRuntimeContext({
     // Namespaced functions use :: separator
     'math::add': {
       params: [
-        { name: 'a', type: { type: 'number' } },
-        { name: 'b', type: { type: 'number' } },
+        { name: 'a', type: { kind: 'number' } },
+        { name: 'b', type: { kind: 'number' } },
       ],
       fn: (args) => args[0] + args[1],
     },
     'math::multiply': {
       params: [
-        { name: 'a', type: { type: 'number' } },
-        { name: 'b', type: { type: 'number' } },
+        { name: 'a', type: { kind: 'number' } },
+        { name: 'b', type: { kind: 'number' } },
       ],
       fn: (args) => args[0] * args[1],
     },
     'str::upper': {
-      params: [{ name: 'text', type: { type: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' } }],
       fn: (args) => args[0].toUpperCase(),
     },
     'str::lower': {
-      params: [{ name: 'text', type: { type: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' } }],
       fn: (args) => args[0].toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
-      params: [{ name: 'path', type: { type: 'string' } }],
+      params: [{ name: 'path', type: { kind: 'string' } }],
       fn: async (args) => fs.readFile(args[0], 'utf-8'),
     },
     'io::file::write': {
       params: [
-        { name: 'path', type: { type: 'string' } },
-        { name: 'content', type: { type: 'string' } },
+        { name: 'path', type: { kind: 'string' } },
+        { name: 'content', type: { kind: 'string' } },
       ],
       fn: async (args) => fs.writeFile(args[0], args[1]),
     },
@@ -275,7 +275,7 @@ Read metadata in a host function:
 ```typescript
 functions: {
   trace: {
-    params: [{ name: 'msg', type: { type: 'string' } }],
+    params: [{ name: 'msg', type: { kind: 'string' } }],
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
       console.log(`[${correlationId}] ${args[0]}`);
@@ -300,8 +300,8 @@ const ctx = createRuntimeContext({
   functions: {
     repeat: {
       params: [
-        { name: 'str', type: { type: 'string' } },
-        { name: 'count', type: { type: 'number' }, defaultValue: 1 },
+        { name: 'str', type: { kind: 'string' } },
+        { name: 'count', type: { kind: 'number' }, defaultValue: 1 },
       ],
       fn: (args) => {
         // args[0] guaranteed to be string
@@ -322,21 +322,21 @@ repeat("hi")              # "hi" (uses default count)
 
 ### Supported Types
 
-The `type` field on `RillParam` is a `RillType` object — a structural type descriptor. Set it to `undefined` to accept any type without validation.
+The `type` field on `RillParam` is a `TypeStructure` object — a structural type descriptor. Set it to `undefined` to accept any type without validation.
 
 Common leaf types:
 
-| `RillType` value | Accepts |
-|------------------|---------|
-| `{ type: 'string' }` | String parameter |
-| `{ type: 'number' }` | Number parameter |
-| `{ type: 'bool' }` | Boolean parameter |
-| `{ type: 'list' }` | Any list |
-| `{ type: 'list', element: { type: 'string' } }` | List of strings |
-| `{ type: 'dict' }` | Any dict |
-| `{ type: 'any' }` or `undefined` | Any type (no validation) |
+| `TypeStructure` value | Accepts |
+|-----------------------|---------|
+| `{ kind: 'string' }` | String parameter |
+| `{ kind: 'number' }` | Number parameter |
+| `{ kind: 'bool' }` | Boolean parameter |
+| `{ kind: 'list' }` | Any list |
+| `{ kind: 'list', element: { kind: 'string' } }` | List of strings |
+| `{ kind: 'dict' }` | Any dict |
+| `{ kind: 'any' }` or `undefined` | Any type (no validation) |
 
-See [Type System](topic-type-system.md) for the full `RillType` discriminated union, including `closure`, `tuple`, `ordered`, and `union` variants.
+See [Type System](topic-type-system.md) for the full `TypeStructure` discriminated union, including `closure`, `tuple`, `ordered`, and `union` variants.
 
 ### Default Values
 
@@ -346,8 +346,8 @@ Parameters with default values are optional. The default applies when the argume
 functions: {
   greet: {
     params: [
-      { name: 'name', type: { type: 'string' } },
-      { name: 'greeting', type: { type: 'string' }, defaultValue: 'Hello' },
+      { name: 'name', type: { kind: 'string' } },
+      { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
     ],
     fn: (args) => `${args[1]}, ${args[0]}!`,
   },
@@ -372,10 +372,10 @@ functions: {
       {
         name: 'point',
         type: {
-          type: 'tuple',
+          kind: 'tuple',
           elements: [
-            { type: { type: 'number' } },
-            { type: { type: 'string' }, defaultValue: 'unnamed' },
+            { type: { kind: 'number' } },
+            { type: { kind: 'string' }, defaultValue: 'unnamed' },
           ],
         },
       },
@@ -437,12 +437,12 @@ interface RillFunction {
   readonly params: readonly RillParam[];
   readonly fn: CallableFn;
   readonly description?: string;       // Human-readable function description
-  readonly returnType?: RillType;      // undefined = any return type
+  readonly returnType?: TypeStructure;      // undefined = any return type
 }
 
 interface RillParam {
   readonly name: string;
-  readonly type: RillType | undefined;             // undefined = any type
+  readonly type: TypeStructure | undefined;             // undefined = any type
   readonly defaultValue: RillValue | undefined;    // undefined = required
   readonly annotations: Record<string, RillValue>; // {} when no annotations
 }
@@ -458,10 +458,10 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { type: 'string' }, annotations: { description: 'Person to greet' } },
+        { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
-      returnType: { type: 'string' },
+      returnType: { kind: 'string' },
       fn: (args) => `Hello, ${args[0]}!`,
     },
   },
@@ -861,7 +861,7 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      params: [{ name: 'input', type: { type: 'string' } }],
+      params: [{ name: 'input', type: { kind: 'string' } }],
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with AutoExceptionError
@@ -937,7 +937,7 @@ try {
 | `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
 | `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
 | `RUNTIME_ERROR_RAISED` | Error statement executed |
-| `RILL-R004` | `valueToJSON()` called on non-serializable type (closure, iterator, vector, type value, tuple, ordered) |
+| `RILL-R004` | `serializeValue()` called on non-serializable type (closure, iterator, vector, type value, tuple, ordered) |
 
 ## See Also
 

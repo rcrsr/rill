@@ -176,11 +176,6 @@ To add a new section:
 - ` ```rill ` — Executable code (tested)
 - ` ```text ` — Pseudo-code, syntax demos (skipped)
 
-**Function namespacing:**
-- `app::prompt()`, `app::fetch()` — Host-provided functions use `app::` prefix
-- `log`, `range`, `json` — Built-ins need no prefix
-- `$module.func()` — Module imports via `use:` frontmatter
-
 **Auto-skipped patterns:**
 - `# Error:` — Expected error demonstrations
 - `# ...` — Continuation markers

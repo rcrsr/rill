@@ -26,11 +26,20 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../values.js';
-import { inferType, isTruthy, deepEquals } from '../../values.js';
+import { inferType, isTruthy } from '../../values.js';
+import { BUILT_IN_TYPES } from '../../type-registrations.js';
 import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+
+/**
+ * Find the type registration for a value by type name.
+ * Returns undefined when no registration matches.
+ */
+function findRegistration(typeName: string) {
+  return BUILT_IN_TYPES.find((r) => r.name === typeName);
+}
 
 /**
  * ExpressionsMixin implementation.
@@ -189,8 +198,13 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate comparison between two values.
-     * Equality works on all types, ordering requires compatible types.
+     * Evaluate comparison between two values via protocol dispatch.
+     *
+     * - == / != dispatch to protocol.eq; absent eq raises RILL-R002.
+     * - Ordering ops dispatch to protocol.compare; absent compare raises RILL-R002.
+     *
+     * IR-5: Breaking change: bool ordering (e.g. true > false) raises RILL-R002
+     * because the bool registration has no protocol.compare.
      */
     protected evaluateBinaryComparison(
       left: RillValue,
@@ -198,39 +212,40 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       op: '==' | '!=' | '<' | '>' | '<=' | '>=',
       node: BinaryExprNode
     ): boolean {
-      switch (op) {
-        case '==':
-          return deepEquals(left, right);
-        case '!=':
-          return !deepEquals(left, right);
-        case '<':
-        case '>':
-        case '<=':
-        case '>=':
-          // Ordering comparisons require compatible types
-          if (typeof left === 'number' && typeof right === 'number') {
-            return op === '<'
-              ? left < right
-              : op === '>'
-                ? left > right
-                : op === '<='
-                  ? left <= right
-                  : left >= right;
-          }
-          if (typeof left === 'string' && typeof right === 'string') {
-            return op === '<'
-              ? left < right
-              : op === '>'
-                ? left > right
-                : op === '<='
-                  ? left <= right
-                  : left >= right;
-          }
+      const typeName = inferType(left);
+      const reg = findRegistration(typeName);
+
+      if (op === '==' || op === '!=') {
+        if (!reg || !reg.protocol.eq) {
           throw new RuntimeError(
             'RILL-R002',
-            `Cannot compare ${inferType(left)} with ${inferType(right)} using ${op}`,
+            `Cannot compare ${typeName} using ${op}`,
             node.span.start
           );
+        }
+        const eqResult = reg.protocol.eq(left, right);
+        return op === '==' ? eqResult : !eqResult;
+      }
+
+      // Ordering ops: <, >, <=, >=
+      const rightTypeName = inferType(right);
+      if (!reg || !reg.protocol.compare || typeName !== rightTypeName) {
+        throw new RuntimeError(
+          'RILL-R002',
+          `Cannot compare ${typeName} with ${rightTypeName} using ${op}`,
+          node.span.start
+        );
+      }
+      const cmp = reg.protocol.compare(left, right);
+      switch (op) {
+        case '<':
+          return cmp < 0;
+        case '>':
+          return cmp > 0;
+        case '<=':
+          return cmp <= 0;
+        case '>=':
+          return cmp >= 0;
       }
     }
 

@@ -23,18 +23,26 @@
 import type { BodyNode, SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
-import type { RillType, RillTypeValue, RillValue } from './values.js';
+import type {
+  TypeStructure,
+  RillTypeValue,
+  RillValue,
+  DictStructure,
+  TupleStructure,
+  OrderedStructure,
+} from './values.js';
+
 import {
   formatValue,
-  formatStructuralType,
+  formatStructure,
   inferType,
   isOrdered,
   createOrdered,
-  deepCopyRillValue,
+  copyValue,
   isTuple,
   paramToFieldDef,
-  structuralTypeEquals,
-  structuralTypeMatches,
+  structureEquals,
+  structureMatches,
   anyTypeValue,
   hasCollectionFields,
   emptyForType,
@@ -69,7 +77,7 @@ export type CallableFn = (
  */
 export interface RillParam {
   readonly name: string;
-  readonly type: RillType | undefined;
+  readonly type: TypeStructure | undefined;
   readonly defaultValue: RillValue | undefined;
   readonly annotations: Record<string, RillValue>;
 }
@@ -85,6 +93,8 @@ export interface RillFunction {
   readonly fn: CallableFn;
   readonly annotations?: Record<string, RillValue>;
   readonly returnType: RillTypeValue;
+  /** When true, RILL-R003 generic receiver validation is skipped for this method. */
+  readonly skipReceiverValidation?: boolean;
 }
 
 /** Common fields for all callable types */
@@ -251,13 +261,13 @@ export function callableEquals(
     const bp = b.params[i];
     if (ap === undefined || bp === undefined) return false;
     if (ap.name !== bp.name) return false;
-    // Compare type via structuralTypeEquals; absent type (any-typed) matches absent type
+    // Compare type via structureEquals; absent type (any-typed) matches absent type
     if (ap.type === undefined && bp.type !== undefined) return false;
     if (ap.type !== undefined && bp.type === undefined) return false;
     if (
       ap.type !== undefined &&
       bp.type !== undefined &&
-      !structuralTypeEquals(ap.type, bp.type)
+      !structureEquals(ap.type, bp.type)
     )
       return false;
     if (!valueEquals(ap.defaultValue ?? null, bp.defaultValue ?? null)) {
@@ -285,31 +295,33 @@ export function callableEquals(
 }
 
 /**
- * Build a RillType closure variant from a closure's parameter list.
+ * Build a TypeStructure closure variant from a closure's parameter list.
  *
  * Called at closure creation time to build the structural type for `$fn.^input`.
  * - Typed params use param.type directly when present
- * - Untyped params (type: undefined) map to { type: 'any' }
- * - Return type is always { type: 'any' }
+ * - Untyped params (type: undefined) map to { kind: 'any' }
+ * - Return type is always { kind: 'any' }
  *
  * No validation: parser already validates type names.
  *
  * @param params - Closure parameter definitions (RillParam[])
- * @returns Frozen RillType with closure variant
+ * @returns Frozen TypeStructure with closure variant
  */
-export function paramsToStructuralType(params: readonly RillParam[]): RillType {
+export function paramsToStructuralType(
+  params: readonly RillParam[]
+): TypeStructure {
   const closureParams = params.map((param) =>
     paramToFieldDef(
       param.name,
-      param.type ?? { type: 'any' },
+      param.type ?? { kind: 'any' },
       param.defaultValue
     )
   );
 
   return Object.freeze({
-    type: 'closure' as const,
+    kind: 'closure' as const,
     params: closureParams,
-    ret: { type: 'any' as const },
+    ret: { kind: 'any' as const },
   });
 }
 
@@ -332,9 +344,9 @@ export function validateDefaultValueType(
   // Skip validation when type is undefined (any-typed, all defaults valid)
   if (param.type === undefined) return;
 
-  if (!structuralTypeMatches(param.defaultValue, param.type)) {
+  if (!structureMatches(param.defaultValue, param.type)) {
     const actualType = inferType(param.defaultValue);
-    const expectedType = formatStructuralType(param.type);
+    const expectedType = formatStructure(param.type);
     throw new Error(
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
     );
@@ -362,13 +374,14 @@ export interface MarshalOptions {
  */
 export function hydrateFieldDefaults(
   value: RillValue,
-  type: RillType
+  type: TypeStructure
 ): RillValue {
-  if (type.type === 'dict' && type.fields && isDict(value)) {
+  if (type.kind === 'dict' && (type as DictStructure).fields && isDict(value)) {
+    const t = type as DictStructure;
     const dictValue = value as Record<string, RillValue>;
     // Seed with all input entries so extra keys survive (structural match allows extras)
     const result: Record<string, RillValue> = { ...dictValue };
-    for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
+    for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
       if (fieldName in dictValue) {
         result[fieldName] = hydrateFieldDefaults(
           dictValue[fieldName]!,
@@ -376,7 +389,7 @@ export function hydrateFieldDefaults(
         );
       } else if (fieldDef.defaultValue !== undefined) {
         result[fieldName] = hydrateFieldDefaults(
-          deepCopyRillValue(fieldDef.defaultValue),
+          copyValue(fieldDef.defaultValue),
           fieldDef.type
         );
       } else if (hasCollectionFields(fieldDef.type)) {
@@ -390,13 +403,18 @@ export function hydrateFieldDefaults(
     return result;
   }
 
-  if (type.type === 'ordered' && type.fields && isOrdered(value)) {
+  if (
+    type.kind === 'ordered' &&
+    (type as OrderedStructure).fields &&
+    isOrdered(value)
+  ) {
+    const t = type as OrderedStructure;
     const lookup = new Map<string, RillValue>(
       value.entries.map(([k, v]) => [k, v] as [string, RillValue])
     );
-    const fieldNames = new Set<string>(type.fields.map((f) => f.name ?? ''));
+    const fieldNames = new Set<string>(t.fields!.map((f) => f.name ?? ''));
     const resultEntries: [string, RillValue][] = [];
-    for (const field of type.fields) {
+    for (const field of t.fields!) {
       const name = field.name ?? '';
       if (lookup.has(name)) {
         resultEntries.push([
@@ -406,10 +424,7 @@ export function hydrateFieldDefaults(
       } else if (field.defaultValue !== undefined) {
         resultEntries.push([
           name,
-          hydrateFieldDefaults(
-            deepCopyRillValue(field.defaultValue),
-            field.type
-          ),
+          hydrateFieldDefaults(copyValue(field.defaultValue), field.type),
         ]);
       } else if (hasCollectionFields(field.type)) {
         resultEntries.push([
@@ -428,8 +443,12 @@ export function hydrateFieldDefaults(
     return createOrdered(resultEntries);
   }
 
-  if (type.type === 'tuple' && type.elements && isTuple(value)) {
-    const elements = type.elements;
+  if (
+    type.kind === 'tuple' &&
+    (type as TupleStructure).elements &&
+    isTuple(value)
+  ) {
+    const elements = (type as TupleStructure).elements!;
     const entries = value.entries;
     // All fields present: recurse into nested types for present positions
     if (entries.length >= elements.length) {
@@ -450,7 +469,7 @@ export function hydrateFieldDefaults(
         resultEntries.push(hydrateFieldDefaults(entries[i]!, el.type));
       } else if (el.defaultValue !== undefined) {
         resultEntries.push(
-          hydrateFieldDefaults(deepCopyRillValue(el.defaultValue), el.type)
+          hydrateFieldDefaults(copyValue(el.defaultValue), el.type)
         );
       } else if (hasCollectionFields(el.type)) {
         resultEntries.push(
@@ -548,8 +567,8 @@ export function marshalArgs(
 
     // Stage 3: Type check when param.type is defined
     if (param.type !== undefined) {
-      if (!structuralTypeMatches(value, param.type)) {
-        const expectedType = formatStructuralType(param.type);
+      if (!structureMatches(value, param.type)) {
+        const expectedType = formatStructure(param.type);
         const actualType = inferType(value);
         throw new RuntimeError(
           'RILL-R001',

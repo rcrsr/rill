@@ -218,7 +218,7 @@ describe('CoreMixin Error Contracts', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -307,13 +307,13 @@ describe('CoreMixin Error Contracts', () => {
             params: [
               {
                 name: 'a',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
               {
                 name: 'b',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },

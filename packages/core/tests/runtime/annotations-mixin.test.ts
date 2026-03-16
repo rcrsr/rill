@@ -160,7 +160,7 @@ describe('AnnotationsMixin', () => {
               params: [
                 {
                   name: 'msg',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },

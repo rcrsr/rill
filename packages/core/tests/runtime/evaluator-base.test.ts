@@ -221,7 +221,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
             params: [
               {
                 name: 'input',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },

@@ -1,18 +1,18 @@
 /**
  * Tests for optional parameter representation in closure structural types.
  *
- * Verifies that default values propagate from RillParam through RillType
- * and render in formatStructuralType output.
+ * Verifies that default values propagate from RillParam through TypeStructure
+ * and render in formatStructure output.
  */
 
 import {
   anyTypeValue,
-  formatStructuralType,
-  inferStructuralType,
-  rillTypeToTypeValue,
+  formatStructure,
+  inferStructure,
+  structureToTypeValue,
   type ApplicationCallable,
   type RillFieldDef,
-  type RillType,
+  type TypeStructure,
   type RillValue,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
@@ -20,87 +20,85 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 
 describe('Optional parameter structural types', () => {
-  describe('RillType carries default values', () => {
-    it('closure RillType stores default value in params RillFieldDef', () => {
-      const type: RillType = {
-        type: 'closure',
+  describe('TypeStructure carries default values', () => {
+    it('closure TypeStructure stores default value in params RillFieldDef', () => {
+      const type: TypeStructure = {
+        kind: 'closure',
         params: [
-          { name: 'name', type: { type: 'string' }, defaultValue: 'World' },
-          { name: 'count', type: { type: 'number' } },
+          { name: 'name', type: { kind: 'string' }, defaultValue: 'World' },
+          { name: 'count', type: { kind: 'number' } },
         ],
-        ret: { type: 'string' },
+        ret: { kind: 'string' },
       };
       expect(type.params![0]!.defaultValue).toBe('World');
       expect(type.params![1]!.defaultValue).toBeUndefined();
     });
   });
 
-  describe('formatStructuralType renders default values', () => {
+  describe('formatStructure renders default values', () => {
     it('renders string default value', () => {
-      const type: RillType = {
-        type: 'closure',
+      const type: TypeStructure = {
+        kind: 'closure',
         params: [
-          { name: 'name', type: { type: 'string' }, defaultValue: 'World' },
+          { name: 'name', type: { kind: 'string' }, defaultValue: 'World' },
         ],
-        ret: { type: 'string' },
+        ret: { kind: 'string' },
       };
-      expect(formatStructuralType(type)).toBe(
-        '|name: string = "World"| :string'
-      );
+      expect(formatStructure(type)).toBe('|name: string = "World"| :string');
     });
 
     it('renders number default value', () => {
-      const type: RillType = {
-        type: 'closure',
-        params: [{ name: 'count', type: { type: 'number' }, defaultValue: 42 }],
-        ret: { type: 'number' },
+      const type: TypeStructure = {
+        kind: 'closure',
+        params: [{ name: 'count', type: { kind: 'number' }, defaultValue: 42 }],
+        ret: { kind: 'number' },
       };
-      expect(formatStructuralType(type)).toBe('|count: number = 42| :number');
+      expect(formatStructure(type)).toBe('|count: number = 42| :number');
     });
 
     it('renders boolean default value', () => {
-      const type: RillType = {
-        type: 'closure',
-        params: [{ name: 'flag', type: { type: 'bool' }, defaultValue: false }],
-        ret: { type: 'bool' },
+      const type: TypeStructure = {
+        kind: 'closure',
+        params: [{ name: 'flag', type: { kind: 'bool' }, defaultValue: false }],
+        ret: { kind: 'bool' },
       };
-      expect(formatStructuralType(type)).toBe('|flag: bool = false| :bool');
+      expect(formatStructure(type)).toBe('|flag: bool = false| :bool');
     });
 
     it('renders mixed required and optional params', () => {
-      const type: RillType = {
-        type: 'closure',
+      const type: TypeStructure = {
+        kind: 'closure',
         params: [
-          { name: 'required', type: { type: 'number' } },
+          { name: 'required', type: { kind: 'number' } },
           {
             name: 'optional',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: 'default',
           },
         ],
-        ret: { type: 'any' },
+        ret: { kind: 'any' },
       };
-      expect(formatStructuralType(type)).toBe(
+      expect(formatStructure(type)).toBe(
         '|required: number, optional: string = "default"| :any'
       );
     });
 
     it('renders closure with no defaults unchanged', () => {
-      const type: RillType = {
-        type: 'closure',
-        params: [{ name: 'x', type: { type: 'number' } }],
-        ret: { type: 'number' },
+      const type: TypeStructure = {
+        kind: 'closure',
+        params: [{ name: 'x', type: { kind: 'number' } }],
+        ret: { kind: 'number' },
       };
-      expect(formatStructuralType(type)).toBe('|x: number| :number');
+      expect(formatStructure(type)).toBe('|x: number| :number');
     });
 
     it('renders unparameterized closure unchanged', () => {
-      const type: RillType = { type: 'closure' };
-      expect(formatStructuralType(type)).toBe('closure');
+      const type: TypeStructure = { kind: 'closure' };
+      expect(formatStructure(type)).toBe('closure');
     });
   });
 
-  describe('inferStructuralType preserves default values', () => {
+  describe('inferStructure preserves default values', () => {
     it('carries default value from ApplicationCallable params', () => {
       const fn: ApplicationCallable = {
         __type: 'callable',
@@ -110,13 +108,13 @@ describe('Optional parameter structural types', () => {
         params: [
           {
             name: 'greeting',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: 'Hello',
             annotations: {},
           },
           {
             name: 'count',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -125,12 +123,12 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = inferStructuralType(fn as unknown as RillValue);
-      expect(result.type).toBe('closure');
-      if (result.type === 'closure') {
+      const result = inferStructure(fn as unknown as RillValue);
+      expect(result.kind).toBe('closure');
+      if (result.kind === 'closure') {
         expect(result.params).toEqual([
-          { name: 'greeting', type: { type: 'string' }, defaultValue: 'Hello' },
-          { name: 'count', type: { type: 'number' } },
+          { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
+          { name: 'count', type: { kind: 'number' } },
         ]);
       }
     });
@@ -144,21 +142,21 @@ describe('Optional parameter structural types', () => {
         params: [
           {
             name: 'x',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
         ],
-        returnType: rillTypeToTypeValue({ type: 'number' }),
+        returnType: structureToTypeValue({ kind: 'number' }),
         annotations: {},
       };
 
-      const result = inferStructuralType(fn as unknown as RillValue);
-      expect(result.type).toBe('closure');
-      if (result.type === 'closure') {
+      const result = inferStructure(fn as unknown as RillValue);
+      expect(result.kind).toBe('closure');
+      if (result.kind === 'closure') {
         expect(result.params![0]).toEqual({
           name: 'x',
-          type: { type: 'number' },
+          type: { kind: 'number' },
         });
         expect(result.params![0]).not.toHaveProperty('defaultValue');
       }
@@ -175,12 +173,12 @@ describe('Optional parameter structural types', () => {
         params: [
           {
             name: 'name',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: 'World',
             annotations: {},
           },
         ],
-        returnType: rillTypeToTypeValue({ type: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
         annotations: {},
       };
 
@@ -195,7 +193,7 @@ describe('Optional parameter structural types', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields[0]).toEqual({
         name: 'name',
-        type: { type: 'string' },
+        type: { kind: 'string' },
         defaultValue: 'World',
       });
     });
@@ -209,7 +207,7 @@ describe('Optional parameter structural types', () => {
         params: [
           {
             name: 'x',
-            type: { type: 'number' },
+            type: { kind: 'number' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -229,138 +227,132 @@ describe('Optional parameter structural types', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields[0]).toEqual({
         name: 'x',
-        type: { type: 'number' },
+        type: { kind: 'number' },
       });
       expect(shape.structure.fields[0]).not.toHaveProperty('defaultValue');
     });
   });
 
-  describe('formatStructuralType dict branch with defaults', () => {
+  describe('formatStructure dict branch with defaults', () => {
     it('renders dict field with string default', () => {
-      const type: RillType = {
-        type: 'dict',
+      const type: TypeStructure = {
+        kind: 'dict',
         fields: {
-          a: { type: { type: 'string' }, defaultValue: 'Test' },
-          b: { type: { type: 'number' } },
+          a: { type: { kind: 'string' }, defaultValue: 'Test' },
+          b: { type: { kind: 'number' } },
         },
       };
-      expect(formatStructuralType(type)).toBe(
-        'dict(a: string = "Test", b: number)'
-      );
+      expect(formatStructure(type)).toBe('dict(a: string = "Test", b: number)');
     });
 
     it('renders dict with all fields having defaults', () => {
-      const type: RillType = {
-        type: 'dict',
+      const type: TypeStructure = {
+        kind: 'dict',
         fields: {
-          x: { type: { type: 'number' }, defaultValue: 0 },
-          y: { type: { type: 'bool' }, defaultValue: true },
+          x: { type: { kind: 'number' }, defaultValue: 0 },
+          y: { type: { kind: 'bool' }, defaultValue: true },
         },
       };
-      expect(formatStructuralType(type)).toBe(
-        'dict(x: number = 0, y: bool = true)'
-      );
+      expect(formatStructure(type)).toBe('dict(x: number = 0, y: bool = true)');
     });
 
     it('renders dict with no defaults unchanged', () => {
-      const type: RillType = {
-        type: 'dict',
+      const type: TypeStructure = {
+        kind: 'dict',
         fields: {
-          name: { type: { type: 'string' } },
-          count: { type: { type: 'number' } },
+          name: { type: { kind: 'string' } },
+          count: { type: { kind: 'number' } },
         },
       };
-      expect(formatStructuralType(type)).toBe(
-        'dict(count: number, name: string)'
-      );
+      expect(formatStructure(type)).toBe('dict(count: number, name: string)');
     });
   });
 
-  describe('formatStructuralType ordered branch with defaults', () => {
+  describe('formatStructure ordered branch with defaults', () => {
     it('renders ordered field with string default', () => {
-      const type: RillType = {
-        type: 'ordered',
+      const type: TypeStructure = {
+        kind: 'ordered',
         fields: [
-          { name: 'a', type: { type: 'string' }, defaultValue: 'Test' },
-          { name: 'b', type: { type: 'number' } },
+          { name: 'a', type: { kind: 'string' }, defaultValue: 'Test' },
+          { name: 'b', type: { kind: 'number' } },
         ],
       };
-      expect(formatStructuralType(type)).toBe(
+      expect(formatStructure(type)).toBe(
         'ordered(a: string = "Test", b: number)'
       );
     });
 
     it('renders ordered with number default', () => {
-      const type: RillType = {
-        type: 'ordered',
-        fields: [{ name: 'count', type: { type: 'number' }, defaultValue: 42 }],
+      const type: TypeStructure = {
+        kind: 'ordered',
+        fields: [{ name: 'count', type: { kind: 'number' }, defaultValue: 42 }],
       };
-      expect(formatStructuralType(type)).toBe('ordered(count: number = 42)');
+      expect(formatStructure(type)).toBe('ordered(count: number = 42)');
     });
 
     it('renders ordered with no defaults unchanged', () => {
-      const type: RillType = {
-        type: 'ordered',
+      const type: TypeStructure = {
+        kind: 'ordered',
         fields: [
-          { name: 'x', type: { type: 'number' } },
-          { name: 'y', type: { type: 'string' } },
+          { name: 'x', type: { kind: 'number' } },
+          { name: 'y', type: { kind: 'string' } },
         ],
       };
-      expect(formatStructuralType(type)).toBe('ordered(x: number, y: string)');
+      expect(formatStructure(type)).toBe('ordered(x: number, y: string)');
     });
 
     it('renders ordered format display with default value suffix [AC-9]', () => {
-      const type: RillType = {
-        type: 'ordered',
+      const type: TypeStructure = {
+        kind: 'ordered',
         fields: [
-          { name: 'host', type: { type: 'string' }, defaultValue: 'localhost' },
-          { name: 'port', type: { type: 'number' }, defaultValue: 8080 },
+          { name: 'host', type: { kind: 'string' }, defaultValue: 'localhost' },
+          { name: 'port', type: { kind: 'number' }, defaultValue: 8080 },
         ],
       };
-      expect(formatStructuralType(type)).toBe(
+      expect(formatStructure(type)).toBe(
         'ordered(host: string = "localhost", port: number = 8080)'
       );
     });
   });
 
-  describe('formatStructuralType tuple branch with defaults', () => {
+  describe('formatStructure tuple branch with defaults', () => {
     it('renders tuple element with number default', () => {
-      const type: RillType = {
-        type: 'tuple',
+      const type: TypeStructure = {
+        kind: 'tuple',
         elements: [
-          { type: { type: 'string' } },
-          { type: { type: 'number' }, defaultValue: 0 },
+          { type: { kind: 'string' } },
+          { type: { kind: 'number' }, defaultValue: 0 },
         ],
       };
-      expect(formatStructuralType(type)).toBe('tuple(string, number = 0)');
+      expect(formatStructure(type)).toBe('tuple(string, number = 0)');
     });
 
     it('renders tuple element with boolean default', () => {
-      const type: RillType = {
-        type: 'tuple',
-        elements: [{ type: { type: 'bool' }, defaultValue: false }],
+      const type: TypeStructure = {
+        kind: 'tuple',
+        elements: [{ type: { kind: 'bool' }, defaultValue: false }],
       };
-      expect(formatStructuralType(type)).toBe('tuple(bool = false)');
+      expect(formatStructure(type)).toBe('tuple(bool = false)');
     });
 
     it('renders tuple with no defaults unchanged', () => {
-      const type: RillType = {
-        type: 'tuple',
-        elements: [{ type: { type: 'string' } }, { type: { type: 'number' } }],
+      const type: TypeStructure = {
+        kind: 'tuple',
+        elements: [{ type: { kind: 'string' } }, { type: { kind: 'number' } }],
       };
-      expect(formatStructuralType(type)).toBe('tuple(string, number)');
+      expect(formatStructure(type)).toBe('tuple(string, number)');
     });
 
     it('renders tuple format display with default value suffix [AC-9]', () => {
-      const type: RillType = {
-        type: 'tuple',
+      const type: TypeStructure = {
+        kind: 'tuple',
         elements: [
-          { type: { type: 'string' } },
-          { type: { type: 'number' }, defaultValue: 42 },
-          { type: { type: 'bool' }, defaultValue: true },
+          { type: { kind: 'string' } },
+          { type: { kind: 'number' }, defaultValue: 42 },
+          { type: { kind: 'bool' }, defaultValue: true },
         ],
       };
-      expect(formatStructuralType(type)).toBe(
+      expect(formatStructure(type)).toBe(
         'tuple(string, number = 42, bool = true)'
       );
     });
@@ -382,7 +374,7 @@ describe('Optional parameter structural types', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields[0]).toEqual({
         name: 'name',
-        type: { type: 'string' },
+        type: { kind: 'string' },
         defaultValue: 'World',
       });
     });
@@ -402,7 +394,7 @@ describe('Optional parameter structural types', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields[0]).toEqual({
         name: 'count',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: 10,
       });
     });
@@ -422,12 +414,12 @@ describe('Optional parameter structural types', () => {
       expect(shape.typeName).toBe('ordered');
       expect(shape.structure.fields[0]).toEqual({
         name: 'x',
-        type: { type: 'number' },
+        type: { kind: 'number' },
       });
       expect(shape.structure.fields[0]).not.toHaveProperty('defaultValue');
       expect(shape.structure.fields[1]).toEqual({
         name: 'y',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: 0,
       });
     });

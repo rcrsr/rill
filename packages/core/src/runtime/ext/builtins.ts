@@ -21,11 +21,12 @@ import {
   isRillIterator,
   isVector,
   rillTypeToTypeValue,
-  valueToJSON,
+  serializeValue,
   type RillValue,
   type RillVector,
 } from '../core/values.js';
 import { invokeCallable } from '../core/eval/index.js';
+import { populateBuiltinMethods } from '../core/type-registrations.js';
 
 /** Internal type alias for built-in method implementations. */
 type RillMethod = (
@@ -102,7 +103,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'value',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
@@ -116,7 +117,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'message',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
@@ -137,16 +138,16 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'value',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
     ],
-    returnType: rillTypeToTypeValue({ type: 'string' }),
+    returnType: rillTypeToTypeValue({ kind: 'string' }),
     fn: (args, _ctx, location) => {
       const value = args['value'] ?? null;
       try {
-        const jsonValue = valueToJSON(value);
+        const jsonValue = serializeValue(value);
         return JSON.stringify(jsonValue);
       } catch (err) {
         if (err instanceof RuntimeError) throw err;
@@ -168,14 +169,14 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       {
         name: 'items',
         type: {
-          type: 'union',
-          members: [{ type: 'list' }, { type: 'dict' }, { type: 'string' }],
+          kind: 'union',
+          members: [{ kind: 'list' }, { kind: 'dict' }, { kind: 'string' }],
         },
         defaultValue: undefined,
         annotations: {},
       },
     ],
-    returnType: rillTypeToTypeValue({ type: 'list' }),
+    returnType: rillTypeToTypeValue({ kind: 'list' }),
     fn: (args) => {
       const input: RillValue = args['items'] ?? null;
       if (Array.isArray(input)) {
@@ -201,19 +202,19 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'start',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: undefined,
         annotations: {},
       },
       {
         name: 'stop',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: undefined,
         annotations: {},
       },
       {
         name: 'step',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: 1,
         annotations: {},
       },
@@ -260,13 +261,13 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'value',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
       {
         name: 'count',
-        type: { type: 'number' },
+        type: { kind: 'number' },
         defaultValue: undefined,
         annotations: {},
       },
@@ -314,13 +315,13 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     params: [
       {
         name: 'value',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
       {
         name: 'transform',
-        type: { type: 'any' },
+        type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
       },
@@ -380,23 +381,10 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 // BUILT-IN METHODS
 // ============================================================
 
-/** Factory for comparison methods (lt, gt, le, ge) */
-function createComparisonMethod(
-  compare: (a: number | string, b: number | string) => boolean
-): RillMethod {
-  return (receiver, args) => {
-    const arg = args[0];
-    if (typeof receiver === 'number' && typeof arg === 'number') {
-      return compare(receiver, arg);
-    }
-    return compare(formatValue(receiver), formatValue(arg ?? ''));
-  };
-}
-
 /** Receiver param prepended to every method's param list */
 const RECEIVER_PARAM = {
   name: 'receiver',
-  type: { type: 'any' } as const,
+  type: { kind: 'any' } as const,
   defaultValue: undefined,
   annotations: {},
 } as const;
@@ -413,7 +401,8 @@ const RECEIVER_PARAM = {
 function buildMethodEntry(
   name: string,
   signature: string,
-  method: RillMethod
+  method: RillMethod,
+  skipReceiverValidation?: boolean
 ): RillFunction {
   const parsed = parseSignatureRegistration(signature, name);
   const methodParams = parsed.params;
@@ -445,6 +434,7 @@ function buildMethodEntry(
       parsed.returnType !== undefined
         ? rillTypeToTypeValue(parsed.returnType)
         : anyTypeValue,
+    ...(skipReceiverValidation ? { skipReceiverValidation: true } : {}),
   };
 }
 
@@ -705,10 +695,37 @@ const mEq: RillMethod = (receiver, args) =>
 const mNe: RillMethod = (receiver, args) =>
   !deepEquals(receiver, args[0] ?? null);
 
-const mLt = createComparisonMethod((a, b) => a < b);
-const mGt = createComparisonMethod((a, b) => a > b);
-const mLe = createComparisonMethod((a, b) => a <= b);
-const mGe = createComparisonMethod((a, b) => a >= b);
+/** Less-than comparison (number or string) */
+const mLt: RillMethod = (receiver, args) => {
+  const arg = args[0];
+  if (typeof receiver === 'number' && typeof arg === 'number')
+    return receiver < arg;
+  return formatValue(receiver) < formatValue(arg ?? '');
+};
+
+/** Greater-than comparison (number or string) */
+const mGt: RillMethod = (receiver, args) => {
+  const arg = args[0];
+  if (typeof receiver === 'number' && typeof arg === 'number')
+    return receiver > arg;
+  return formatValue(receiver) > formatValue(arg ?? '');
+};
+
+/** Less-than-or-equal comparison (number or string) */
+const mLe: RillMethod = (receiver, args) => {
+  const arg = args[0];
+  if (typeof receiver === 'number' && typeof arg === 'number')
+    return receiver <= arg;
+  return formatValue(receiver) <= formatValue(arg ?? '');
+};
+
+/** Greater-than-or-equal comparison (number or string) */
+const mGe: RillMethod = (receiver, args) => {
+  const arg = args[0];
+  if (typeof receiver === 'number' && typeof arg === 'number')
+    return receiver >= arg;
+  return formatValue(receiver) >= formatValue(arg ?? '');
+};
 
 /** Get all keys of a dict as a list */
 const mKeys: RillMethod = (receiver) =>
@@ -1008,10 +1025,10 @@ const SIG_CMP = '|other: any|:bool';
 BUILTIN_METHODS.string = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
   trim: buildMethodEntry('trim', '||:string', mTrim),
-  head: buildMethodEntry('head', SIG_HEAD, mHead),
-  tail: buildMethodEntry('tail', SIG_TAIL, mTail),
-  first: buildMethodEntry('first', SIG_FIRST, mFirst),
-  at: buildMethodEntry('at', SIG_AT, mAt),
+  head: buildMethodEntry('head', SIG_HEAD, mHead, true),
+  tail: buildMethodEntry('tail', SIG_TAIL, mTail, true),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
+  at: buildMethodEntry('at', SIG_AT, mAt, true),
   split: buildMethodEntry('split', '|separator: string = "\\n"|:list', mSplit),
   lines: buildMethodEntry('lines', '||:list', mLines),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
@@ -1048,8 +1065,8 @@ BUILTIN_METHODS.string = Object.freeze({
     '|length: number, fill: string = " "|:string',
     mPadEnd
   ),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq),
-  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
   lt: buildMethodEntry('lt', SIG_CMP, mLt),
   gt: buildMethodEntry('gt', SIG_CMP, mGt),
   le: buildMethodEntry('le', SIG_CMP, mLe),
@@ -1058,34 +1075,44 @@ BUILTIN_METHODS.string = Object.freeze({
 
 BUILTIN_METHODS.list = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
-  head: buildMethodEntry('head', SIG_HEAD, mHead),
-  tail: buildMethodEntry('tail', SIG_TAIL, mTail),
-  first: buildMethodEntry('first', SIG_FIRST, mFirst),
-  at: buildMethodEntry('at', SIG_AT, mAt),
+  head: buildMethodEntry('head', SIG_HEAD, mHead, true),
+  tail: buildMethodEntry('tail', SIG_TAIL, mTail, true),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
+  at: buildMethodEntry('at', SIG_AT, mAt, true),
   join: buildMethodEntry('join', '|separator: string = ","|:string', mJoin),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq),
-  ne: buildMethodEntry('ne', SIG_NE, mNe),
-  has: buildMethodEntry('has', '|value: any|:bool', mHas),
-  has_any: buildMethodEntry('has_any', '|candidates: list|:bool', mHasAny),
-  has_all: buildMethodEntry('has_all', '|candidates: list|:bool', mHasAll),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  has: buildMethodEntry('has', '|value: any|:bool', mHas, true),
+  has_any: buildMethodEntry(
+    'has_any',
+    '|candidates: list|:bool',
+    mHasAny,
+    true
+  ),
+  has_all: buildMethodEntry(
+    'has_all',
+    '|candidates: list|:bool',
+    mHasAll,
+    true
+  ),
 });
 
 BUILTIN_METHODS.dict = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
-  first: buildMethodEntry('first', SIG_FIRST, mFirst),
+  first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq),
-  ne: buildMethodEntry('ne', SIG_NE, mNe),
-  keys: buildMethodEntry('keys', '||:list', mKeys),
-  values: buildMethodEntry('values', '||:list', mValues),
-  entries: buildMethodEntry('entries', '||:list', mEntries),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  keys: buildMethodEntry('keys', '||:list', mKeys, true),
+  values: buildMethodEntry('values', '||:list', mValues, true),
+  entries: buildMethodEntry('entries', '||:list', mEntries, true),
 });
 
 BUILTIN_METHODS.number = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq),
-  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
   lt: buildMethodEntry('lt', SIG_CMP, mLt),
   gt: buildMethodEntry('gt', SIG_CMP, mGt),
   le: buildMethodEntry('le', SIG_CMP, mLe),
@@ -1094,23 +1121,33 @@ BUILTIN_METHODS.number = Object.freeze({
 
 BUILTIN_METHODS.bool = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq),
-  ne: buildMethodEntry('ne', SIG_NE, mNe),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
 });
 
 // [ASSUMPTION] vector is a 6th group beyond the 5 specified basic types.
 // The 7 vector methods do not belong to string/list/dict/number/bool.
 // Adding this group ensures all 42 methods are accessible (AC-36).
 BUILTIN_METHODS.vector = Object.freeze({
-  dimensions: buildMethodEntry('dimensions', '||:number', mDimensions),
-  model: buildMethodEntry('model', '||:string', mModel),
+  dimensions: buildMethodEntry('dimensions', '||:number', mDimensions, true),
+  model: buildMethodEntry('model', '||:string', mModel, true),
   similarity: buildMethodEntry(
     'similarity',
     '|other: any|:number',
-    mSimilarity
+    mSimilarity,
+    true
   ),
-  dot: buildMethodEntry('dot', '|other: any|:number', mDot),
-  distance: buildMethodEntry('distance', '|other: any|:number', mDistance),
-  norm: buildMethodEntry('norm', '||:number', mNorm),
-  normalize: buildMethodEntry('normalize', '||:any', mNormalize),
+  dot: buildMethodEntry('dot', '|other: any|:number', mDot, true),
+  distance: buildMethodEntry(
+    'distance',
+    '|other: any|:number',
+    mDistance,
+    true
+  ),
+  norm: buildMethodEntry('norm', '||:number', mNorm, true),
+  normalize: buildMethodEntry('normalize', '||:any', mNormalize, true),
 });
+
+// Populate registration methods from BUILTIN_METHODS at module load time.
+// No circular dependency: type-registrations.ts does not import builtins.ts.
+populateBuiltinMethods(BUILTIN_METHODS);

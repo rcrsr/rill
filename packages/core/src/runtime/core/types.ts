@@ -7,7 +7,7 @@
 
 import type { RillTypeName } from '../../types.js';
 import type { CallableFn, RillFunction } from './callable.js';
-import type { RillType, RillValue } from './values.js';
+import type { TypeStructure, RillValue } from './values.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
 
@@ -131,7 +131,7 @@ export interface RuntimeContext {
   /** Named variables ($varname) - local to this scope */
   readonly variables: Map<string, RillValue>;
   /** Variable types - locked after first assignment (local to this scope) */
-  readonly variableTypes: Map<string, RillTypeName | RillType>;
+  readonly variableTypes: Map<string, RillTypeName | TypeStructure>;
   /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
   readonly functions: Map<
     string,
@@ -173,12 +173,24 @@ export interface RuntimeContext {
   /**
    * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
    * Keys: "string", "list", "dict", "number", "bool", "vector".
-   * Populated at context creation from BUILTIN_METHODS; propagated to child contexts.
+   * Populated at context creation from type registrations; propagated to child contexts.
    */
   readonly typeMethodDicts: ReadonlyMap<
     string,
     Readonly<Record<string, RillValue>>
   >;
+  /**
+   * Type names that reject type arguments in type constructors.
+   * Derived from BUILT_IN_TYPES registrations where isLeaf === true, plus 'any'.
+   * Used by type assertion/check evaluation to reject e.g. string(number).
+   */
+  readonly leafTypes: ReadonlySet<string>;
+  /**
+   * Method names that handle their own receiver type checking with specific
+   * error messages. Generic RILL-R003 must not fire before the method body runs.
+   * Derived from registration method dicts at context creation.
+   */
+  readonly unvalidatedMethodReceivers: ReadonlySet<string>;
   /** Scheme-to-resolver map, populated from RuntimeOptions.resolvers (empty Map when absent) */
   readonly resolvers: ReadonlyMap<string, SchemeResolver>;
   /** Per-scheme config data, populated from RuntimeOptions.configurations.resolvers (empty Map when absent) */

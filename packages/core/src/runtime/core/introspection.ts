@@ -7,7 +7,7 @@
 
 import type { RuntimeContext } from './types.js';
 import type { RillValue } from './values.js';
-import { formatStructuralType, formatValue } from './values.js';
+import { formatStructure, formatValue } from './values.js';
 import {
   isApplicationCallable,
   isRuntimeCallable,
@@ -81,7 +81,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         if (callable.params) {
           const params: ParamMetadata[] = callable.params.map((p) => ({
             name: p.name,
-            type: p.type !== undefined ? formatStructuralType(p.type) : 'any',
+            type: p.type !== undefined ? formatStructure(p.type) : 'any',
             description:
               typeof p.annotations['description'] === 'string'
                 ? p.annotations['description']
@@ -94,7 +94,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             description:
               (callable.annotations?.['description'] as string) ?? '',
             params,
-            returnType: formatStructuralType(callable.returnType.structure),
+            returnType: formatStructure(callable.returnType.structure),
           });
         } else {
           // ApplicationCallable without params (untyped)
@@ -137,7 +137,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         // Convert params to ParamMetadata using RillParam.type (IC-5)
         const params: ParamMetadata[] = value.params.map((p) => ({
           name: p.name,
-          type: p.type !== undefined ? formatStructuralType(p.type) : 'any',
+          type: p.type !== undefined ? formatStructure(p.type) : 'any',
           description:
             typeof p.annotations['description'] === 'string'
               ? p.annotations['description']
@@ -180,7 +180,7 @@ function serializeParam(p: RillParam): string {
   }
 
   // Name and type
-  const typeName = p.type !== undefined ? formatStructuralType(p.type) : 'any';
+  const typeName = p.type !== undefined ? formatStructure(p.type) : 'any';
   parts.push(`${p.name}: ${typeName}`);
 
   // Default value
@@ -256,7 +256,7 @@ export function generateManifest(ctx: RuntimeContext): string {
 
     const signature = serializeClosureSignature(
       callable.params,
-      formatStructuralType(callable.returnType.structure),
+      formatStructure(callable.returnType.structure),
       (callable.annotations?.['description'] as string) ?? undefined
     );
 

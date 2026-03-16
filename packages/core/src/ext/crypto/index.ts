@@ -154,32 +154,32 @@ export function createCryptoExtension(
       params: [
         {
           name: 'input',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Content to hash' },
         },
         {
           name: 'algorithm',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: defaultAlgorithm,
           annotations: { description: 'Hash algorithm' },
         },
       ],
       fn: hash,
       annotations: { description: 'Hash content, returns hex output' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: rillTypeToTypeValue({ kind: 'string' }),
     },
     hmac: {
       params: [
         {
           name: 'input',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: undefined,
           annotations: { description: 'Content to authenticate' },
         },
         {
           name: 'algorithm',
-          type: { type: 'string' },
+          type: { kind: 'string' },
           defaultValue: defaultAlgorithm,
           annotations: { description: 'Hash algorithm' },
         },
@@ -188,26 +188,26 @@ export function createCryptoExtension(
       annotations: {
         description: 'Generate HMAC signature, returns hex output',
       },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: rillTypeToTypeValue({ kind: 'string' }),
     },
     uuid: {
       params: [],
       fn: uuid,
       annotations: { description: 'Generate random UUID v4' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: rillTypeToTypeValue({ kind: 'string' }),
     },
     random: {
       params: [
         {
           name: 'bytes',
-          type: { type: 'number' },
+          type: { kind: 'number' },
           defaultValue: undefined,
           annotations: { description: 'Number of bytes' },
         },
       ],
       fn: random,
       annotations: { description: 'Generate random bytes as hex string' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: rillTypeToTypeValue({ kind: 'string' }),
     },
   };
 }

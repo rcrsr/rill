@@ -3,7 +3,7 @@
  * Produces rill source strings for extension and context module bindings.
  */
 
-import { formatStructuralType } from '@rcrsr/rill';
+import { formatStructure } from '@rcrsr/rill';
 import type { RillFunction, RillParam } from '@rcrsr/rill';
 import type { ContextFieldSchema, NestedExtConfig } from './types.js';
 
@@ -15,7 +15,7 @@ function mapParamType(param: RillParam): string {
   if (param.type === undefined) {
     return 'any';
   }
-  return formatStructuralType(param.type);
+  return formatStructure(param.type);
 }
 
 function formatDefaultLiteral(value: unknown): string {
@@ -83,7 +83,7 @@ function buildNestedDict(
 
     if (isLeafFunction(child)) {
       const paramStr = child.params.map(serializeParam).join(', ');
-      const returnSuffix = ` :${formatStructuralType(child.returnType.structure)}`;
+      const returnSuffix = ` :${formatStructure(child.returnType.structure)}`;
       entries.push(
         `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
       );

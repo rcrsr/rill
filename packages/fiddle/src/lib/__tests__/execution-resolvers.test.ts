@@ -345,7 +345,7 @@ describe('executeRill', () => {
         params: [
           {
             name: 'arg',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -387,7 +387,7 @@ describe('executeRill', () => {
         params: [
           {
             name: 'arg',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },

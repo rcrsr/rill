@@ -85,8 +85,8 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       const result = (await run('ordered(number)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('ordered');
-      expect(result.structure.type).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ type: 'number' });
+      expect(result.structure.kind).toBe('ordered');
+      expect(result.structure.valueType).toEqual({ kind: 'number' });
     });
   });
 
@@ -132,7 +132,7 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       const result = (await run('ordered(number)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('ordered');
-      expect(result.structure.valueType).toEqual({ type: 'number' });
+      expect(result.structure.valueType).toEqual({ kind: 'number' });
     });
 
     it('ordered(string, number) with 2+ positional args throws RILL-R004', async () => {
@@ -160,7 +160,7 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       const result = (await run('tuple(number)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('tuple');
-      expect(result.structure.valueType).toEqual({ type: 'number' });
+      expect(result.structure.valueType).toEqual({ kind: 'number' });
     });
   });
 

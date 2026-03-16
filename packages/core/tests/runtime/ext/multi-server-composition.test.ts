@@ -29,7 +29,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'options',
-              type: { type: 'dict' },
+              type: { kind: 'dict' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -58,7 +58,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'number',
-              type: { type: 'number' },
+              type: { kind: 'number' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -77,7 +77,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'options',
-              type: { type: 'dict' },
+              type: { kind: 'dict' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -106,7 +106,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'sql',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -127,7 +127,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'sql',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -186,7 +186,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'key',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -197,13 +197,13 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'key',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'value',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -217,7 +217,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'key',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -228,13 +228,13 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'key',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'value',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -290,7 +290,7 @@ describe('Multi-Server Composition', () => {
             params: [
               {
                 name: 'sql',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -387,7 +387,7 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'url',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -408,13 +408,13 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'table',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'data',
-              type: { type: 'dict' },
+              type: { kind: 'dict' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -433,13 +433,13 @@ describe('Multi-Server Composition', () => {
           params: [
             {
               name: 'key',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'value',
-              type: { type: 'any' },
+              type: { kind: 'any' },
               defaultValue: undefined,
               annotations: {},
             },

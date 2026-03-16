@@ -107,7 +107,7 @@ describe('buildResolvers', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },

@@ -29,7 +29,7 @@ import {
   anyTypeValue,
   createRuntimeContext,
   getFunctions,
-  rillTypeToTypeValue,
+  structureToTypeValue,
   RuntimeError,
 } from '@rcrsr/rill';
 
@@ -45,7 +45,7 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'msg',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -64,7 +64,7 @@ describe('Rill Runtime: Signature Registration', () => {
           params: [
             {
               name: 'msg',
-              type: { type: 'string' },
+              type: { kind: 'string' },
               defaultValue: undefined,
               annotations: {},
             },
@@ -94,7 +94,7 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'x',
-                  type: { type: 'number' },
+                  type: { kind: 'number' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -107,13 +107,13 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'y',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
               ],
               fn: (args) => args['y'],
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
         })
@@ -127,7 +127,7 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -139,13 +139,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'y',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => `${args['y']}!`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -157,7 +157,7 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -169,13 +169,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'y',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => `${args['y']}!`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -192,7 +192,7 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -215,7 +215,7 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'input',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: { description: 'The input string' },
                 },
@@ -239,13 +239,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'message',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => args['message'],
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -267,13 +267,13 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'message',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
               ],
               fn: (args) => args['message'],
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
         })
@@ -287,13 +287,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'message',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => args['message'],
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -309,14 +309,14 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
             annotations: { description: 'Greets the user' },
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -333,13 +333,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -358,13 +358,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'The name to greet' },
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -381,14 +381,14 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'The name' },
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
             annotations: { description: 'A greeter' },
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -408,13 +408,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -428,13 +428,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'factor',
-                type: { type: 'number' },
+                type: { kind: 'number' },
                 defaultValue: 2,
                 annotations: {},
               },
             ],
             fn: (args) => (args['factor'] as number) * 10,
-            returnType: rillTypeToTypeValue({ type: 'number' }),
+            returnType: structureToTypeValue({ kind: 'number' }),
           },
         },
       });
@@ -448,13 +448,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -468,13 +468,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'name',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'world',
                 annotations: {},
               },
             ],
             fn: (args) => `Hello ${args['name']}`,
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });
@@ -509,13 +509,13 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'first',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
                 {
                   name: 'second',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: {},
                 },
@@ -537,7 +537,7 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'x',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: {},
               },
@@ -568,13 +568,13 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'message',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: { description: 'The message' },
                 },
               ],
               fn: (args) => args['message'],
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
           requireDescriptions: true,
@@ -590,14 +590,14 @@ describe('Rill Runtime: Signature Registration', () => {
               params: [
                 {
                   name: 'message',
-                  type: { type: 'string' },
+                  type: { kind: 'string' },
                   defaultValue: undefined,
                   annotations: { description: 'The message' },
                 },
               ],
               fn: (args) => args['message'],
               annotations: { description: 'Echoes a message' },
-              returnType: rillTypeToTypeValue({ type: 'string' }),
+              returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
           requireDescriptions: true,
@@ -614,13 +614,13 @@ describe('Rill Runtime: Signature Registration', () => {
             params: [
               {
                 name: 'template',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: undefined,
                 annotations: { description: 'Template string' },
               },
               {
                 name: 'value',
-                type: { type: 'string' },
+                type: { kind: 'string' },
                 defaultValue: 'default',
                 annotations: { description: 'Value to insert' },
               },
@@ -628,7 +628,7 @@ describe('Rill Runtime: Signature Registration', () => {
             fn: (args) =>
               String(args['template']).replace('{}', String(args['value'])),
             annotations: { description: 'Format a template' },
-            returnType: rillTypeToTypeValue({ type: 'string' }),
+            returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
       });

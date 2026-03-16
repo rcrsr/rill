@@ -55,7 +55,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -75,7 +75,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' },
+            type: { kind: 'string' },
             defaultValue: undefined,
             annotations: {},
           },
@@ -225,7 +225,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' } as const,
+            type: { kind: 'string' } as const,
             defaultValue: undefined,
             annotations: { description: 'Test input' },
           },
@@ -247,7 +247,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' } as const,
+            type: { kind: 'string' } as const,
             defaultValue: undefined,
             annotations: {},
           },
@@ -268,7 +268,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { type: 'string' } as const,
+            type: { kind: 'string' } as const,
             defaultValue: undefined,
             annotations: {},
           },
@@ -289,7 +289,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'Test input' },
             },
@@ -312,7 +312,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'Test input' },
             },
@@ -336,7 +336,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'Test input' },
             },
@@ -360,7 +360,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'Test input' },
             },
@@ -384,7 +384,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -405,7 +405,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -427,7 +427,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -451,7 +451,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'myParam',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -475,7 +475,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'blankParam',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: '  \t  ' },
             },
@@ -499,7 +499,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'emptyParam',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: '' },
             },
@@ -523,19 +523,19 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'documented',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'First param' },
             },
             {
               name: 'undocumented',
-              type: { type: 'number' } as const,
+              type: { kind: 'number' } as const,
               defaultValue: undefined,
               annotations: {},
             },
             {
               name: 'alsoDocumented',
-              type: { type: 'bool' } as const,
+              type: { kind: 'bool' } as const,
               defaultValue: undefined,
               annotations: { description: 'Third param' },
             },
@@ -559,7 +559,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -581,7 +581,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'undocumented',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: {},
             },
@@ -604,7 +604,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'Valid param description' },
             },
@@ -628,7 +628,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: '\n\n' },
             },
@@ -652,7 +652,7 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'input',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: '  Valid description  ' },
             },
@@ -676,13 +676,13 @@ describe('Rill Runtime: Configuration', () => {
           params: [
             {
               name: 'param1',
-              type: { type: 'string' } as const,
+              type: { kind: 'string' } as const,
               defaultValue: undefined,
               annotations: { description: 'First parameter' },
             },
             {
               name: 'param2',
-              type: { type: 'number' } as const,
+              type: { kind: 'number' } as const,
               defaultValue: undefined,
               annotations: { description: 'Second parameter' },
             },

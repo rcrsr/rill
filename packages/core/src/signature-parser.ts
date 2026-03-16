@@ -29,26 +29,26 @@ import type { TypeRef } from './types.js';
 import type { RillParam } from './runtime/core/callable.js';
 import type {
   RillFieldDef,
-  RillType,
+  TypeStructure,
   RillValue,
 } from './runtime/core/values.js';
 
 // ============================================================
-// TypeRef → RillType static conversion
+// TypeRef → TypeStructure static conversion
 // ============================================================
 
 /**
- * Convert a static TypeRef to a RillType.
+ * Convert a static TypeRef to a TypeStructure.
  *
  * Only handles static refs (type names and unions). Dynamic refs ($var)
  * are not valid in registration-time signatures — they throw Error.
  *
  * @internal
  */
-function staticTypeRefToRillType(
+function staticTypeRefToTypeStructure(
   typeRef: TypeRef,
   functionName: string
-): RillType {
+): TypeStructure {
   if (typeRef.kind === 'dynamic') {
     throw new Error(
       `Invalid signature for function '${functionName}': dynamic type references ($variable) are not allowed in signatures`
@@ -57,9 +57,9 @@ function staticTypeRefToRillType(
 
   if (typeRef.kind === 'union') {
     return {
-      type: 'union',
+      kind: 'union',
       members: typeRef.members.map((m) =>
-        staticTypeRefToRillType(m, functionName)
+        staticTypeRefToTypeStructure(m, functionName)
       ),
     };
   }
@@ -68,7 +68,7 @@ function staticTypeRefToRillType(
   const { typeName, args } = typeRef;
 
   if (!args || args.length === 0) {
-    return { type: typeName } as RillType;
+    return { kind: typeName } as TypeStructure;
   }
 
   // Parameterized types
@@ -78,8 +78,8 @@ function staticTypeRefToRillType(
       args[0] !== undefined &&
       args[0].name === undefined
     ) {
-      const element = staticTypeRefToRillType(args[0].value, functionName);
-      return { type: 'list', element };
+      const element = staticTypeRefToTypeStructure(args[0].value, functionName);
+      return { kind: 'list', element };
     }
     throw new Error(
       `Invalid signature for function '${functionName}': list requires exactly one positional type argument`
@@ -95,20 +95,20 @@ function staticTypeRefToRillType(
         );
       }
       fields[arg.name] = {
-        type: staticTypeRefToRillType(arg.value, functionName),
+        type: staticTypeRefToTypeStructure(arg.value, functionName),
       };
     }
-    return { type: 'dict', fields };
+    return { kind: 'dict', fields };
   }
 
   if (typeName === 'tuple') {
     const elements: RillFieldDef[] = args.map(
       (arg): RillFieldDef => ({
         ...(arg.name !== undefined ? { name: arg.name } : {}),
-        type: staticTypeRefToRillType(arg.value, functionName),
+        type: staticTypeRefToTypeStructure(arg.value, functionName),
       })
     );
-    return { type: 'tuple', elements };
+    return { kind: 'tuple', elements };
   }
 
   throw new Error(
@@ -190,7 +190,7 @@ function parseSignatureAnnotations(
  */
 export interface ParsedSignature {
   readonly params: RillParam[];
-  readonly returnType: RillType | undefined;
+  readonly returnType: TypeStructure | undefined;
   readonly description: string | undefined;
 }
 
@@ -313,13 +313,13 @@ function parseSignatureBody(
   skipNewlines(state);
 
   // Step 3: Optional return type :type
-  let returnType: RillType | undefined = undefined;
+  let returnType: TypeStructure | undefined = undefined;
 
   if (check(state, TOKEN_TYPES.COLON)) {
     advance(state); // consume :
     skipNewlines(state);
     const typeRef = parseTypeRef(state);
-    returnType = staticTypeRefToRillType(typeRef, functionName);
+    returnType = staticTypeRefToTypeStructure(typeRef, functionName);
   }
 
   // Step 5: Verify no trailing tokens
@@ -375,14 +375,14 @@ function parseSignatureParam(
   const name = nameToken.value;
 
   // Optional type annotation : type
-  let type: RillType | undefined = undefined;
+  let type: TypeStructure | undefined = undefined;
 
   skipNewlines(state);
   if (check(state, TOKEN_TYPES.COLON)) {
     advance(state); // consume :
     skipNewlines(state);
     const typeRef = parseTypeRef(state, { allowTrailingPipe: true });
-    type = staticTypeRefToRillType(typeRef, functionName);
+    type = staticTypeRefToTypeStructure(typeRef, functionName);
   }
 
   // Optional default value = literal

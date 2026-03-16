@@ -7,7 +7,7 @@
 Create a simple extension with a factory function:
 
 ```typescript
-import { createRuntimeContext, hoistExtension, rillTypeToTypeValue } from '@rcrsr/rill';
+import { createRuntimeContext, hoistExtension, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionResult } from '@rcrsr/rill';
 
 function createGreetExtension(config: { prefix: string }): ExtensionResult {
@@ -16,7 +16,7 @@ function createGreetExtension(config: { prefix: string }): ExtensionResult {
       params: [{ name: 'name', type: 'string' }],
       fn: (args) => `${config.prefix} ${args[0]}!`,
       annotations: { description: 'Generate greeting' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: structureToTypeValue({ kind: 'string' }),
     },
   };
 }
@@ -34,7 +34,7 @@ Every extension exports a factory function returning `ExtensionResult`:
 
 ```typescript
 import type { ExtensionResult, RillFunction } from '@rcrsr/rill';
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 function createMyExtension(config: MyConfig): ExtensionResult {
   // Validate config eagerly (throw on invalid)
@@ -44,7 +44,7 @@ function createMyExtension(config: MyConfig): ExtensionResult {
       params: [{ name: 'name', type: 'string' }],
       fn: (args) => `Hello, ${args[0]}!`,
       annotations: { description: 'Generate greeting' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: structureToTypeValue({ kind: 'string' }),
     },
     dispose: () => {
       // Cleanup resources (connections, processes, etc.)
@@ -258,7 +258,7 @@ Extensions that hold in-memory state can implement `suspend()` and `restore()` o
 `suspend()` returns a JSON-serializable snapshot of extension state. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
 
 ```typescript
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 function createCounterExtension(): ExtensionResult {
   let count = 0;
@@ -268,7 +268,7 @@ function createCounterExtension(): ExtensionResult {
       params: [],
       fn: () => ++count,
       annotations: { description: 'Increment counter' },
-      returnType: rillTypeToTypeValue({ type: 'number' }),
+      returnType: structureToTypeValue({ kind: 'number' }),
     },
     suspend: () => ({ count }),
     restore: (state) => {
@@ -370,7 +370,7 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 Use rill's parameter type system for automatic validation:
 
 ```typescript
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 return {
   send: {
@@ -388,7 +388,7 @@ return {
       return await doSend(message);
     },
     annotations: { description: 'Send a message' },
-    returnType: rillTypeToTypeValue({ type: 'dict' }),
+    returnType: structureToTypeValue({ kind: 'dict' }),
   },
 };
 ```
@@ -425,7 +425,7 @@ fn: async (args, ctx) => {
 When spawning processes or opening connections, track them for `dispose()`:
 
 ```typescript
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 function createMyExtension(): ExtensionResult {
   const activeProcesses = new Set<() => void>();
@@ -447,7 +447,7 @@ function createMyExtension(): ExtensionResult {
         }
       },
       annotations: { description: 'Run command' },
-      returnType: rillTypeToTypeValue({ type: 'string' }),
+      returnType: structureToTypeValue({ kind: 'string' }),
     },
     dispose: () => {
       for (const cleanup of activeProcesses) {
@@ -522,10 +522,10 @@ v0.14.0 introduces a breaking change to the `RillFunction` interface. The `descr
 import type { RillFunction, RillFunctionSignature, RillMethodSignature } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'text', type: { type: 'string' } }],
+  params: [{ name: 'text', type: { kind: 'string' } }],
   fn: async (args) => process(args[0]),
   description: 'Process text input',
-  returnType: { type: 'string' },  // RillType shape — was optional
+  returnType: { kind: 'string' },  // TypeStructure shape — was optional
 };
 ```
 
@@ -533,13 +533,13 @@ const fn: RillFunction = {
 
 ```typescript
 import type { RillFunction } from '@rcrsr/rill';
-import { rillTypeToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'text', type: { type: 'string' } }],
+  params: [{ name: 'text', type: { kind: 'string' } }],
   fn: async (args) => process(args[0]),
   annotations: { description: 'Process text input' },
-  returnType: rillTypeToTypeValue({ type: 'string' }),  // RillTypeValue — now required
+  returnType: structureToTypeValue({ kind: 'string' }),  // RillTypeValue — now required
 };
 ```
 
@@ -567,9 +567,9 @@ TypeScript compile error if you keep the old field:
 { fn, params, description: 'My function' }
 ```
 
-**Step 2: Replace `returnType?: RillType` with `returnType: RillTypeValue` (required)**
+**Step 2: Replace `returnType?: TypeStructure` with `returnType: RillTypeValue` (required)**
 
-`returnType` is now required. The type changed from `RillType` to `RillTypeValue`. If you previously omitted `returnType` (it was optional), use `anyTypeValue` as the equivalent default:
+`returnType` is now required. The type changed from `TypeStructure` to `RillTypeValue`. If you previously omitted `returnType` (it was optional), use `anyTypeValue` as the equivalent default:
 
 ```typescript
 import { anyTypeValue } from '@rcrsr/rill';
@@ -581,11 +581,11 @@ import { anyTypeValue } from '@rcrsr/rill';
 { fn, params, returnType: anyTypeValue }
 ```
 
-TypeScript compile error if you pass the old `RillType` shape:
+TypeScript compile error if you pass the old `TypeStructure` shape:
 
 ```text
-// Error: Type '{ type: string }' is not assignable to type 'RillTypeValue'
-{ fn, params, returnType: { type: 'string' } as RillType }
+// Error: Type '{ kind: string }' is not assignable to type 'RillTypeValue'
+{ fn, params, returnType: { kind: 'string' } as TypeStructure }
 ```
 
 TypeScript compile error if you omit `returnType`:

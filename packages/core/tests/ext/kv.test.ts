@@ -66,7 +66,7 @@ describe('kv extension factory', () => {
         }),
         returnType: expect.objectContaining({
           __rill_type: true,
-          structure: { type: 'any' },
+          structure: { kind: 'any' },
         }),
       });
     });
