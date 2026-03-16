@@ -16,8 +16,8 @@
  * @internal
  */
 
-import type { TypeStructure } from './type-structures.js';
 import type {
+  TypeStructure,
   RillValue,
   RillFieldDef,
   RillTuple,

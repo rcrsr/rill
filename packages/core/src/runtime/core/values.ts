@@ -19,80 +19,27 @@ import {
   serializeValue as registrySerializeValue,
   copyValue as registryCopyValue,
 } from './type-registrations.js';
-import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
+import type {
+  RillFieldDef,
+  RillIterator,
+  RillOrdered,
+  RillTuple,
+  RillTypeValue,
+  RillValue,
+  RillVector,
+  TypeStructure,
+} from './type-structures.js';
 
-/**
- * Tuple type - represents positional unpacked arguments for closure invocation.
- * Created by the * (spread) operator from lists.
- * Entries are positional only.
- *
- * Note: In Rill, "tuple" refers to fixed-size argument packing (like function signatures),
- * while "list" refers to dynamic ordered collections ([1, 2, 3]).
- */
-export interface RillTuple {
-  readonly __rill_tuple: true;
-  readonly entries: RillValue[];
-}
-
-/**
- * Ordered type - represents named key-value pairs with preserved insertion order.
- * Created by the * (spread) operator from dicts.
- * Entries may carry an optional third element (default value) when representing
- * closure parameter reflection via `.^input`.
- */
-export interface RillOrdered {
-  readonly __rill_ordered: true;
-  readonly entries: [string, RillValue, RillValue?][];
-}
-
-/**
- * Vector type - represents dense numeric embeddings.
- * Immutable Float32Array with associated model name.
- */
-export interface RillVector {
-  readonly __rill_vector: true;
-  readonly data: Float32Array;
-  readonly model: string;
-}
-
-/**
- * Field definition - describes a single field in a structural type.
- * Used by dict, tuple, ordered, and closure type descriptors.
- * Default detection: `field.defaultValue !== undefined`.
- */
-export interface RillFieldDef {
-  name?: string;
-  type: TypeStructure;
-  defaultValue?: RillValue;
-}
-
-/**
- * Structural type descriptor - describes the shape of a value in the type system.
- * Discriminated by `.kind`. Used by RillTypeValue to carry type structure information at runtime.
- */
-export type TypeStructure =
-  | { kind: 'number' }
-  | { kind: 'string' }
-  | { kind: 'bool' }
-  | { kind: 'vector' }
-  | { kind: 'type' }
-  | { kind: 'any' }
-  | {
-      kind: 'dict';
-      fields?: Record<string, RillFieldDef>;
-      valueType?: TypeStructure;
-    }
-  | { kind: 'list'; element?: TypeStructure }
-  | {
-      kind: 'closure';
-      params?: RillFieldDef[];
-      ret?: TypeStructure;
-    }
-  | { kind: 'tuple'; elements?: RillFieldDef[]; valueType?: TypeStructure }
-  | { kind: 'ordered'; fields?: RillFieldDef[]; valueType?: TypeStructure }
-  | { kind: 'union'; members: TypeStructure[] }
-  | { kind: 'iterator' }
-  | { kind: string; data?: unknown };
+export type {
+  RillFieldDef,
+  RillIterator,
+  RillOrdered,
+  RillTuple,
+  RillTypeValue,
+  RillValue,
+  RillVector,
+  TypeStructure,
+};
 
 // Narrowed variant types for use after kind-discrimination.
 // The catch-all `{ kind: string; data?: unknown }` prevents TypeScript from
@@ -139,31 +86,6 @@ function normalizeStructure(ts: TypeStructure): TypeStructure {
 
 /** @deprecated Use TypeStructure instead. */
 export type RillType = TypeStructure;
-
-/**
- * Type value - represents a first-class type name at runtime.
- * Created when a type name expression (e.g. `string`, `number`) is evaluated.
- */
-export interface RillTypeValue {
-  readonly __rill_type: true;
-  readonly typeName: RillTypeName;
-  readonly structure: TypeStructure;
-}
-
-/** Any value that can flow through Rill */
-export type RillValue =
-  | string
-  | number
-  | boolean
-  | null
-  | RillValue[]
-  | { [key: string]: RillValue }
-  | CallableMarker
-  | RillTuple
-  | RillOrdered
-  | RillVector
-  | FieldDescriptorMarker
-  | RillTypeValue;
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -1057,19 +979,6 @@ export function emptyForType(type: TypeStructure): RillValue {
 /** Check if a key name is reserved */
 export function isReservedMethod(name: string): boolean {
   return (RESERVED_DICT_METHODS as readonly string[]).includes(name);
-}
-
-/**
- * Iterator type - represents a lazy sequence.
- * An iterator is a dict with:
- * - done: boolean - whether iteration is complete
- * - next: callable - function to get next iterator
- * - value: any (only required when not done) - current element
- */
-export interface RillIterator extends Record<string, RillValue> {
-  readonly done: boolean;
-  readonly next: CallableMarker;
-  readonly value?: RillValue;
 }
 
 /**
