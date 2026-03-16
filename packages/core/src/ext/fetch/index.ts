@@ -8,11 +8,11 @@
 
 import { RuntimeError } from '../../error-classes.js';
 import type {
-  ExtensionResult,
+  ExtensionFactoryResult,
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import { type RillFunction } from '../../runtime/core/callable.js';
+import { toCallable, type RillFunction } from '../../runtime/core/callable.js';
 import {
   rillTypeToTypeValue,
   type RillValue,
@@ -168,7 +168,7 @@ function processArguments(
  * All URLs constructed from config - scripts cannot create arbitrary URLs.
  *
  * @param config - Fetch configuration with endpoints
- * @returns ExtensionResult with endpoint functions and introspection
+ * @returns ExtensionFactoryResult with endpoint functions and introspection
  * @throws Error on invalid configuration
  *
  * @example
@@ -187,7 +187,9 @@ function processArguments(
  * });
  * ```
  */
-export function createFetchExtension(config: FetchConfig): ExtensionResult {
+export function createFetchExtension(
+  config: FetchConfig
+): ExtensionFactoryResult {
   // Apply defaults
   const timeout = config.timeout ?? 30000;
   const retries = config.retries ?? 0;
@@ -344,9 +346,15 @@ export function createFetchExtension(config: FetchConfig): ExtensionResult {
   // EXTENSION RESULT
   // ============================================================
 
-  const result: ExtensionResult = functions;
-  result.dispose = dispose;
-  return result;
+  const callableDict: Record<string, RillValue> = {};
+  for (const [name, def] of Object.entries(functions)) {
+    callableDict[name] = toCallable(def);
+  }
+
+  return {
+    value: callableDict,
+    dispose,
+  };
 }
 
 // ============================================================

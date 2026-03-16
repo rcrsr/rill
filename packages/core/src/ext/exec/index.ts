@@ -6,11 +6,11 @@
  */
 
 import type {
-  ExtensionResult,
+  ExtensionFactoryResult,
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
-import type { RillFunction } from '../../runtime/core/callable.js';
+import { toCallable, type RillFunction } from '../../runtime/core/callable.js';
 import {
   rillTypeToTypeValue,
   type RillValue,
@@ -56,7 +56,7 @@ export type { CommandConfig };
  * Returns dispose() function to abort in-flight processes.
  *
  * @param config - Command definitions and defaults
- * @returns ExtensionResult with command functions and dispose
+ * @returns ExtensionFactoryResult with command functions and dispose
  *
  * @example
  * ```typescript
@@ -71,7 +71,9 @@ export type { CommandConfig };
  * });
  * ```
  */
-export function createExecExtension(config: ExecConfig): ExtensionResult {
+export function createExecExtension(
+  config: ExecConfig
+): ExtensionFactoryResult {
   // Apply defaults
   const globalTimeout = config.timeout ?? 30000; // 30s
   const globalMaxOutputSize = config.maxOutputSize ?? 1048576; // 1MB
@@ -239,9 +241,15 @@ export function createExecExtension(config: ExecConfig): ExtensionResult {
   // EXTENSION RESULT
   // ============================================================
 
-  const result: ExtensionResult = functions;
-  result.dispose = dispose;
-  return result;
+  const callableDict: Record<string, RillValue> = {};
+  for (const [name, def] of Object.entries(functions)) {
+    callableDict[name] = toCallable(def);
+  }
+
+  return {
+    value: callableDict,
+    dispose,
+  };
 }
 
 // ============================================================

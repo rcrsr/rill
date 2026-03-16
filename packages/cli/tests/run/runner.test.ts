@@ -5,11 +5,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { runScript, buildModuleResolver } from '../../src/run/runner.js';
 import type { RunCliOptions } from '../../src/run/types.js';
-import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
+import type { RillConfigFile } from '@rcrsr/rill-config';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { RuntimeError, structureToTypeValue } from '@rcrsr/rill';
+import { RuntimeError, structureToTypeValue, toCallable } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 
 let _executeErrorOverride: Error | null = null;
 
@@ -44,7 +45,7 @@ async function runTempScript(
   source: string,
   optsOverrides: Partial<RunCliOptions> = {},
   config: RillConfigFile = makeConfig(),
-  extTree: NestedExtConfig = {},
+  extTree: Record<string, RillValue> = {},
   bindingsSrc: string = '[:]',
   disposes: Array<() => void | Promise<void>> = []
 ) {
@@ -167,22 +168,35 @@ describe('runScript', () => {
   });
 
   describe('ext drilling', () => {
-    function makeExtTree(): NestedExtConfig {
+    // Use a string leaf for the subtree drill test. Callable leaves generate
+    // return-type suffixes that the parser does not yet support, so the drill
+    // test uses a scalar value to verify subtree resolution independently.
+    function makeDrillTree(): Record<string, RillValue> {
       return {
         llm: {
           openai: {
-            message: {
+            message: 'placeholder',
+          },
+        },
+      };
+    }
+
+    function makeCallableTree(): Record<string, RillValue> {
+      return {
+        llm: {
+          openai: {
+            message: toCallable({
               fn: async () => true,
               params: [],
               returnType: structureToTypeValue({ kind: 'any' }),
-            },
+            }),
           },
         },
       };
     }
 
     it('resolves ext.llm.openai to a subtree source with full ext paths', () => {
-      const resolver = buildModuleResolver('[:]', {}, makeExtTree());
+      const resolver = buildModuleResolver('[:]', {}, makeDrillTree(), '/tmp');
       const resolution = resolver('ext.llm.openai');
       expect(resolution).toEqual(expect.objectContaining({ kind: 'source' }));
       const { text } = resolution as { kind: 'source'; text: string };
@@ -206,7 +220,7 @@ describe('runScript', () => {
         'use<module:ext.llm.openai.message> => $x\ntrue',
         {},
         makeConfig(),
-        makeExtTree(),
+        makeCallableTree(),
         '[:]'
       );
       expect(result.exitCode).toBe(1);

@@ -11,6 +11,7 @@ import {
   createRuntimeContext,
   extResolver,
   moduleResolver,
+  isApplicationCallable,
   toNative,
   isTuple,
   type RillValue,
@@ -24,8 +25,8 @@ import {
   formatRillError,
   formatRillErrorJson,
 } from '@rcrsr/rill';
-import { buildExtensionBindings, isLeafFunction } from '@rcrsr/rill-config';
-import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
+import { buildExtensionBindings } from '@rcrsr/rill-config';
+import type { RillConfigFile } from '@rcrsr/rill-config';
 import type { RunCliOptions } from './types.js';
 
 // ============================================================
@@ -36,48 +37,6 @@ export interface RunResult {
   readonly exitCode: number;
   readonly output?: string | undefined;
   readonly errorOutput?: string | undefined;
-}
-
-// ============================================================
-// TREE CONVERSION
-// ============================================================
-
-function convertTreeToRillValues(
-  tree: NestedExtConfig
-): Record<string, RillValue> {
-  const result: Record<string, RillValue> = {};
-
-  for (const [key, value] of Object.entries(tree)) {
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      'fn' in value &&
-      typeof (value as { fn: unknown }).fn === 'function' &&
-      'params' in value
-    ) {
-      const rillFn = value as {
-        fn: (...args: unknown[]) => unknown;
-        params: unknown;
-        returnType: unknown;
-        annotations?: Record<string, RillValue>;
-      };
-      result[key] = {
-        __type: 'callable' as const,
-        kind: 'application' as const,
-        isProperty: false,
-        fn: rillFn.fn,
-        params: rillFn.params,
-        returnType: rillFn.returnType,
-        annotations: rillFn.annotations ?? {},
-      } as unknown as RillValue;
-    } else {
-      result[key] = convertTreeToRillValues(
-        value as NestedExtConfig
-      ) as unknown as RillValue;
-    }
-  }
-
-  return result;
 }
 
 // ============================================================
@@ -93,7 +52,7 @@ function convertTreeToRillValues(
 export function buildModuleResolver(
   bindingsSource: string,
   modulesConfig: Record<string, string>,
-  extTree: NestedExtConfig,
+  extTree: Record<string, RillValue>,
   configDir: string
 ): SchemeResolver {
   const moduleConfig: Record<string, string> = {};
@@ -110,25 +69,22 @@ export function buildModuleResolver(
     if (resource.startsWith('ext.')) {
       const suffix = resource.slice('ext.'.length);
       const segments = suffix.split('.');
-      let node: NestedExtConfig | { fn: unknown; params: unknown } = extTree;
+      let node: Record<string, RillValue> = extTree;
       let fullyResolved = true;
       for (const segment of segments) {
-        const child = (node as NestedExtConfig)[segment];
+        const child = node[segment];
         if (child === undefined) {
           fullyResolved = false;
           break;
         }
-        if (isLeafFunction(child)) {
+        if (isApplicationCallable(child)) {
           fullyResolved = false;
           break;
         }
-        node = child as NestedExtConfig;
+        node = child as Record<string, RillValue>;
       }
       if (fullyResolved && node !== extTree) {
-        const subtreeSource = buildExtensionBindings(
-          node as NestedExtConfig,
-          suffix
-        );
+        const subtreeSource = buildExtensionBindings(node, suffix);
         return { kind: 'source', text: subtreeSource };
       }
     }
@@ -191,7 +147,7 @@ function formatOutput(
 export async function runScript(
   opts: RunCliOptions,
   config: RillConfigFile,
-  extTree: NestedExtConfig,
+  extTree: Record<string, RillValue>,
   bindingsSrc: string,
   disposes: Array<() => void | Promise<void>>
 ): Promise<RunResult> {
@@ -207,7 +163,6 @@ export async function runScript(
     return { exitCode: 1, errorOutput: message };
   }
 
-  const extConfig = convertTreeToRillValues(extTree);
   const modulesConfig = config.modules ?? {};
   const configDir = dirname(resolve(opts.config));
   const customModuleResolver = buildModuleResolver(
@@ -224,7 +179,7 @@ export async function runScript(
     },
     configurations: {
       resolvers: {
-        ext: extConfig,
+        ext: extTree,
       },
     },
     parseSource: parse,

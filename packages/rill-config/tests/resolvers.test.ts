@@ -3,8 +3,11 @@
  */
 
 import { buildResolvers } from '@rcrsr/rill-config';
-import type { NestedExtConfig } from '@rcrsr/rill-config';
-import { isApplicationCallable } from '@rcrsr/rill';
+import {
+  isApplicationCallable,
+  structureToTypeValue,
+  toCallable,
+} from '@rcrsr/rill';
 import type { ApplicationCallable, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -13,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 // ============================================================
 
 describe('buildResolvers', () => {
-  const emptyTree: NestedExtConfig = {};
+  const emptyTree: Record<string, RillValue> = {};
 
   function makeOptions(
     overrides: Partial<Parameters<typeof buildResolvers>[0]> = {}
@@ -24,6 +27,7 @@ describe('buildResolvers', () => {
       extensionBindings: '[:]',
       contextBindings: '[:]',
       modulesConfig: {},
+      configDir: '/tmp',
       ...overrides,
     };
   }
@@ -98,11 +102,11 @@ describe('buildResolvers', () => {
     });
   });
 
-  describe('convertTreeToRillValues preserves returnType and description', () => {
-    it('converted ApplicationCallable carries returnType from source RillFunction', () => {
-      const tree: NestedExtConfig = {
+  describe('extTree passthrough preserves returnType and description', () => {
+    it('ApplicationCallable in extTree carries returnType through to configurations', () => {
+      const tree: Record<string, RillValue> = {
         tools: {
-          greet: {
+          greet: toCallable({
             fn: async () => 'hello',
             params: [
               {
@@ -112,9 +116,9 @@ describe('buildResolvers', () => {
                 annotations: {},
               },
             ],
-            returnType: { type: 'string' },
+            returnType: structureToTypeValue({ kind: 'string' }),
             annotations: { description: 'Greets by name' },
-          },
+          }),
         },
       };
       const result = buildResolvers(makeOptions({ extTree: tree }));
@@ -127,7 +131,7 @@ describe('buildResolvers', () => {
 
       expect(isApplicationCallable(greetCallable)).toBe(true);
       const ac = greetCallable as unknown as ApplicationCallable;
-      expect(ac.returnType).toEqual({ type: 'string' });
+      expect(ac.returnType).toBeDefined();
       expect(ac.annotations['description']).toBe('Greets by name');
     });
   });

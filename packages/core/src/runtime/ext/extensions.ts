@@ -1,5 +1,6 @@
-import type { RillFunction } from '../core/callable.js';
+import type { ApplicationCallable } from '../core/callable.js';
 import type { ExtensionEvent, RuntimeCallbacks } from '../core/types.js';
+import type { RillValue } from '../core/values.js';
 
 /**
  * Minimal interface for extension event emission.
@@ -11,22 +12,14 @@ interface RuntimeContextLike {
 
 /**
  * Result object returned by extension factories.
- * Contains host function definitions with optional cleanup and session lifecycle hooks.
+ * Contains the mounted RillValue with optional lifecycle hooks.
+ * Lifecycle hooks live on the factory result, not on the value dict (DD-1).
  */
-export interface ExtensionResult {
-  [name: string]: RillFunction | ((...args: never[]) => unknown) | undefined;
+export interface ExtensionFactoryResult {
+  readonly value: RillValue;
   dispose?: () => void | Promise<void>;
   suspend?: () => unknown;
   restore?: (state: unknown) => void;
-}
-
-/**
- * Result object returned by hoistExtension.
- * Separates functions from dispose for safe createRuntimeContext usage.
- */
-export interface HoistedExtension {
-  functions: Record<string, RillFunction>;
-  dispose?: () => void | Promise<void>;
 }
 
 /**
@@ -35,7 +28,7 @@ export interface HoistedExtension {
  */
 export type ExtensionFactory<TConfig> = (
   config: TConfig
-) => ExtensionResult | Promise<ExtensionResult>;
+) => ExtensionFactoryResult | Promise<ExtensionFactoryResult>;
 
 /**
  * Descriptor for a single configuration field in an extension schema.
@@ -83,18 +76,17 @@ export interface ExtensionManifest {
  * - mounts(): List all configured mounts
  */
 export type KvExtensionContract = {
-  readonly get: RillFunction;
-  readonly get_or: RillFunction;
-  readonly set: RillFunction;
-  readonly merge: RillFunction;
-  readonly delete: RillFunction;
-  readonly keys: RillFunction;
-  readonly has: RillFunction;
-  readonly clear: RillFunction;
-  readonly getAll: RillFunction;
-  readonly schema: RillFunction;
-  readonly mounts: RillFunction;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
+  readonly get: ApplicationCallable;
+  readonly get_or: ApplicationCallable;
+  readonly set: ApplicationCallable;
+  readonly merge: ApplicationCallable;
+  readonly delete: ApplicationCallable;
+  readonly keys: ApplicationCallable;
+  readonly has: ApplicationCallable;
+  readonly clear: ApplicationCallable;
+  readonly getAll: ApplicationCallable;
+  readonly schema: ApplicationCallable;
+  readonly mounts: ApplicationCallable;
 };
 
 /**
@@ -116,19 +108,18 @@ export type KvExtensionContract = {
  * - mounts(): List all configured mounts
  */
 export type FsExtensionContract = {
-  readonly read: RillFunction;
-  readonly write: RillFunction;
-  readonly append: RillFunction;
-  readonly list: RillFunction;
-  readonly find: RillFunction;
-  readonly exists: RillFunction;
-  readonly remove: RillFunction;
-  readonly stat: RillFunction;
-  readonly mkdir: RillFunction;
-  readonly copy: RillFunction;
-  readonly move: RillFunction;
-  readonly mounts: RillFunction;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
+  readonly read: ApplicationCallable;
+  readonly write: ApplicationCallable;
+  readonly append: ApplicationCallable;
+  readonly list: ApplicationCallable;
+  readonly find: ApplicationCallable;
+  readonly exists: ApplicationCallable;
+  readonly remove: ApplicationCallable;
+  readonly stat: ApplicationCallable;
+  readonly mkdir: ApplicationCallable;
+  readonly copy: ApplicationCallable;
+  readonly move: ApplicationCallable;
+  readonly mounts: ApplicationCallable;
 };
 
 /**
@@ -144,13 +135,12 @@ export type FsExtensionContract = {
  * - generate(prompt, options): Structured output extraction
  */
 export type LlmExtensionContract = {
-  readonly message: RillFunction;
-  readonly messages: RillFunction;
-  readonly embed: RillFunction;
-  readonly embed_batch: RillFunction;
-  readonly tool_loop: RillFunction;
-  readonly generate: RillFunction;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
+  readonly message: ApplicationCallable;
+  readonly messages: ApplicationCallable;
+  readonly embed: ApplicationCallable;
+  readonly embed_batch: ApplicationCallable;
+  readonly tool_loop: ApplicationCallable;
+  readonly generate: ApplicationCallable;
 };
 
 /**
@@ -171,136 +161,18 @@ export type LlmExtensionContract = {
  * - describe(): Get collection metadata
  */
 export type VectorExtensionContract = {
-  readonly upsert: RillFunction;
-  readonly upsert_batch: RillFunction;
-  readonly search: RillFunction;
-  readonly get: RillFunction;
-  readonly delete: RillFunction;
-  readonly delete_batch: RillFunction;
-  readonly count: RillFunction;
-  readonly create_collection: RillFunction;
-  readonly delete_collection: RillFunction;
-  readonly list_collections: RillFunction;
-  readonly describe: RillFunction;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
+  readonly upsert: ApplicationCallable;
+  readonly upsert_batch: ApplicationCallable;
+  readonly search: ApplicationCallable;
+  readonly get: ApplicationCallable;
+  readonly delete: ApplicationCallable;
+  readonly delete_batch: ApplicationCallable;
+  readonly count: ApplicationCallable;
+  readonly create_collection: ApplicationCallable;
+  readonly delete_collection: ApplicationCallable;
+  readonly list_collections: ApplicationCallable;
+  readonly describe: ApplicationCallable;
 };
-
-/**
- * Prefix all function names in an extension with a namespace.
- *
- * @param namespace - Alphanumeric string with underscores/hyphens (e.g., "fs", "claude_code")
- * @param functions - Extension result with function definitions
- * @returns New ExtensionResult with prefixed function names (namespace::functionName)
- * @throws {RuntimeError} RUNTIME_TYPE_ERROR if namespace is invalid
- *
- * @example
- * ```typescript
- * const fs = createFsExtension();
- * const prefixed = prefixFunctions("fs", fs);
- * // { "fs::read": ..., "fs::write": ..., dispose: ... }
- * ```
- */
-export function prefixFunctions(
-  namespace: string,
-  functions: ExtensionResult
-): ExtensionResult {
-  // EC-7: Extension not object
-  if (
-    typeof functions !== 'object' ||
-    functions === null ||
-    Array.isArray(functions)
-  ) {
-    throw new TypeError('Extension must be an object');
-  }
-
-  // EC-6: Invalid namespace format
-  const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
-
-  if (!NAMESPACE_PATTERN.test(namespace)) {
-    throw new Error('Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/');
-  }
-
-  // Create new object with prefixed keys
-  const result: Record<string, RillFunction> = {};
-
-  for (const [name, definition] of Object.entries(functions)) {
-    // Skip lifecycle hooks during prefixing
-    if (name === 'dispose' || name === 'suspend' || name === 'restore')
-      continue;
-
-    result[`${namespace}::${name}`] = definition as RillFunction;
-  }
-
-  // Preserve lifecycle hooks if present
-  const resultWithHooks: ExtensionResult = result;
-  if (functions.dispose !== undefined) {
-    resultWithHooks.dispose = functions.dispose;
-  }
-  if (functions.suspend !== undefined) {
-    resultWithHooks.suspend = functions.suspend;
-  }
-  if (functions.restore !== undefined) {
-    resultWithHooks.restore = functions.restore;
-  }
-
-  return resultWithHooks;
-}
-
-/**
- * Separate dispose from functions for safe createRuntimeContext usage.
- * Wraps prefixFunctions and returns separated structure.
- *
- * @param namespace - String matching /^[a-zA-Z0-9_-]+$/
- * @param extension - Output from extension factory
- * @returns Separated functions and dispose handler
- * @throws {Error} If namespace is empty
- * @throws {Error} If namespace has invalid format
- * @throws {TypeError} If extension is null or undefined
- *
- * @example
- * ```typescript
- * const { functions, dispose } = hoistExtension('db', dbExtension);
- * const ctx = createRuntimeContext({ functions });
- * ```
- */
-export function hoistExtension(
-  namespace: string,
-  extension: ExtensionResult
-): HoistedExtension {
-  // EC-3: Null/undefined extension
-  if (extension === null || extension === undefined) {
-    throw new TypeError('Extension cannot be null or undefined');
-  }
-
-  // EC-2: Empty namespace
-  if (namespace === '') {
-    throw new Error('Namespace cannot be empty');
-  }
-
-  // EC-1: Invalid namespace format
-  const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
-  if (!NAMESPACE_PATTERN.test(namespace)) {
-    throw new Error('Invalid namespace format: must match /^[a-zA-Z0-9_-]+$/');
-  }
-
-  // Call prefixFunctions internally
-  const prefixed = prefixFunctions(namespace, extension);
-
-  // Extract dispose from result
-  const { dispose, ...functions } = prefixed;
-
-  // Return separated structure
-  const result: HoistedExtension = {
-    functions: functions as Record<string, RillFunction>,
-  };
-
-  // Only add dispose if it exists (exactOptionalPropertyTypes)
-  if (dispose !== undefined) {
-    result.dispose = dispose;
-  }
-
-  return result;
-}
 
 /**
  * Emit an extension event with auto-generated timestamp.

@@ -13,24 +13,34 @@ npm install @rcrsr/rill
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
+
+function createMyExtension(): ExtensionFactoryResult {
+  return {
+    value: {
+      prompt: toCallable({
+        params: [{ name: 'message', type: { kind: 'string' } }],
+        fn: async (args) => await callYourLLM(args.message),
+        annotations: { description: 'Call your LLM' },
+        returnType: { kind: 'string' },
+      }),
+    },
+  };
+}
+
+const ext = createMyExtension();
+const ctx = createRuntimeContext({
+  variables: { app: ext.value },
+});
 
 const script = `
-  prompt("Analyze this code for issues")
+  app.prompt("Analyze this code for issues")
     -> .contains("ERROR") ? error($) ! "Analysis complete"
 `;
 
-const ctx = createRuntimeContext({
-  functions: {
-    prompt: {
-      params: [{ name: 'message', type: 'string' }],
-      fn: async (args) => await callYourLLM(args[0]),
-    },
-  },
-});
-
 const result = await execute(parse(script), ctx);
-console.log(result.value);
+console.log(result.result);
 ```
 
 ## API
@@ -47,23 +57,29 @@ Source Text → parse() → AST → execute() → Result
 | `execute(ast, ctx)` | Execute an AST with a runtime context |
 | `createRuntimeContext(opts)` | Create a configured runtime context |
 | `callable(fn, isProperty?)` | Wrap a function as a rill-callable value |
-| `prefixFunctions(prefix, fns)` | Namespace host functions (e.g., `app::`) |
+| `toCallable(def)` | Convert a `RillFunction` to an `ApplicationCallable` |
+| `createTestContext(extensions)` | Wire extensions for testing without config infrastructure |
 
 ### Runtime Options
 
 ```typescript
+const ext = createMyExtension();
+
 const ctx = createRuntimeContext({
-  // Host functions available to scripts
-  functions: {
-    prompt: {
-      params: [{ name: 'text', type: 'string' }],
-      fn: async (args, ctx, location) => { /* ... */ },
-    },
+  // Extension values injected as variables (recommended)
+  variables: {
+    app: ext.value,
+    config: { greeting: 'hello' },
   },
 
-  // Variables injected into script scope
-  variables: {
-    config: { greeting: 'hello' },
+  // Legacy: direct function registration (still supported)
+  functions: {
+    prompt: {
+      params: [{ name: 'text', type: { kind: 'string' } }],
+      fn: async (args, ctx, location) => { /* ... */ },
+      annotations: {},
+      returnType: { kind: 'string' },
+    },
   },
 
   // Callbacks
@@ -159,7 +175,7 @@ import { createCryptoExtension } from '@rcrsr/rill/ext/crypto';
 | `@rcrsr/rill/ext/kv` | `createKvExtension(config)` | Key-value store with JSON persistence and schema validation |
 | `@rcrsr/rill/ext/crypto` | `createCryptoExtension(config)` | Cryptographic functions (hash, hmac, uuid, random) |
 
-Each factory returns an `ExtensionResult` with host function definitions ready to integrate into your runtime context.
+Each factory returns an `ExtensionFactoryResult` with a `value` dict of host functions and optional lifecycle hooks (`dispose`, `suspend`, `restore`) ready to integrate into your runtime context.
 
 > **Note:** These extensions require Node.js APIs and are not compatible with browser environments.
 

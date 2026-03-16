@@ -4,6 +4,58 @@
 
 ## Complete Example
 
+### Extension Factory Pattern (Recommended)
+
+```typescript
+import {
+  parse,
+  execute,
+  createRuntimeContext,
+  toCallable,
+  AbortError,
+  type ExtensionFactoryResult,
+} from '@rcrsr/rill';
+
+function createMyExtension(config: { model: string }): ExtensionFactoryResult {
+  return {
+    value: {
+      prompt: toCallable({
+        params: [{ name: 'text', type: { kind: 'string' } }],
+        fn: async (args) => await callLLM(args.text, config.model),
+        annotations: { description: 'Send a prompt to the LLM' },
+        returnType: { kind: 'string' },
+      }),
+    },
+  };
+}
+
+const ext = createMyExtension({ model: 'claude-3-5-sonnet' });
+const controller = new AbortController();
+
+const ctx = createRuntimeContext({
+  variables: { llm: ext.value },
+  callbacks: { onLog: (value) => console.log('[log]', value) },
+  timeout: 30000,
+  signal: controller.signal,
+});
+
+try {
+  const ast = parse('llm.prompt("Hello")');
+  const result = await execute(ast, ctx);
+  console.log('Result:', result.result);
+} catch (err) {
+  if (err instanceof AbortError) {
+    console.log('Cancelled');
+  } else {
+    throw err;
+  }
+} finally {
+  await ext.dispose?.();
+}
+```
+
+### Direct Registration (Legacy)
+
 ```typescript
 import {
   parse,
@@ -144,6 +196,12 @@ export type { HighlightCategory };
 // Error registry
 export { ERROR_REGISTRY };
 
+// Extension types
+export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
+
+// Extension utilities
+export { toCallable, createTestContext, emitExtensionEvent };
+
 // Extension contracts
 export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, VectorExtensionContract, SchemaEntry };
 ```
@@ -278,17 +336,17 @@ Contract type for key-value extension implementations. Backend authors use this 
 
 ```typescript
 type KvExtensionContract = {
-  readonly get: RillFunction;
-  readonly get_or: RillFunction;
-  readonly set: RillFunction;
-  readonly merge: RillFunction;
-  readonly delete: RillFunction;
-  readonly keys: RillFunction;
-  readonly has: RillFunction;
-  readonly clear: RillFunction;
-  readonly getAll: RillFunction;
-  readonly schema: RillFunction;
-  readonly mounts: RillFunction;
+  readonly get: ApplicationCallable;
+  readonly get_or: ApplicationCallable;
+  readonly set: ApplicationCallable;
+  readonly merge: ApplicationCallable;
+  readonly delete: ApplicationCallable;
+  readonly keys: ApplicationCallable;
+  readonly has: ApplicationCallable;
+  readonly clear: ApplicationCallable;
+  readonly getAll: ApplicationCallable;
+  readonly schema: ApplicationCallable;
+  readonly mounts: ApplicationCallable;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -325,18 +383,18 @@ Contract type for filesystem extension implementations. Backend authors use this
 
 ```typescript
 type FsExtensionContract = {
-  readonly read: RillFunction;
-  readonly write: RillFunction;
-  readonly append: RillFunction;
-  readonly list: RillFunction;
-  readonly find: RillFunction;
-  readonly exists: RillFunction;
-  readonly remove: RillFunction;
-  readonly stat: RillFunction;
-  readonly mkdir: RillFunction;
-  readonly copy: RillFunction;
-  readonly move: RillFunction;
-  readonly mounts: RillFunction;
+  readonly read: ApplicationCallable;
+  readonly write: ApplicationCallable;
+  readonly append: ApplicationCallable;
+  readonly list: ApplicationCallable;
+  readonly find: ApplicationCallable;
+  readonly exists: ApplicationCallable;
+  readonly remove: ApplicationCallable;
+  readonly stat: ApplicationCallable;
+  readonly mkdir: ApplicationCallable;
+  readonly copy: ApplicationCallable;
+  readonly move: ApplicationCallable;
+  readonly mounts: ApplicationCallable;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -406,12 +464,12 @@ Contract type for LLM extension implementations. Backend authors use this type t
 
 ```typescript
 type LlmExtensionContract = {
-  readonly message: RillFunction;
-  readonly messages: RillFunction;
-  readonly embed: RillFunction;
-  readonly embed_batch: RillFunction;
-  readonly tool_loop: RillFunction;
-  readonly generate: RillFunction;
+  readonly message: ApplicationCallable;
+  readonly messages: ApplicationCallable;
+  readonly embed: ApplicationCallable;
+  readonly embed_batch: ApplicationCallable;
+  readonly tool_loop: ApplicationCallable;
+  readonly generate: ApplicationCallable;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```
@@ -443,17 +501,17 @@ Contract type for vector database extension implementations. Backend authors use
 
 ```typescript
 type VectorExtensionContract = {
-  readonly upsert: RillFunction;
-  readonly upsert_batch: RillFunction;
-  readonly search: RillFunction;
-  readonly get: RillFunction;
-  readonly delete: RillFunction;
-  readonly delete_batch: RillFunction;
-  readonly count: RillFunction;
-  readonly create_collection: RillFunction;
-  readonly delete_collection: RillFunction;
-  readonly list_collections: RillFunction;
-  readonly describe: RillFunction;
+  readonly upsert: ApplicationCallable;
+  readonly upsert_batch: ApplicationCallable;
+  readonly search: ApplicationCallable;
+  readonly get: ApplicationCallable;
+  readonly delete: ApplicationCallable;
+  readonly delete_batch: ApplicationCallable;
+  readonly count: ApplicationCallable;
+  readonly create_collection: ApplicationCallable;
+  readonly delete_collection: ApplicationCallable;
+  readonly list_collections: ApplicationCallable;
+  readonly describe: ApplicationCallable;
   readonly dispose?: (() => void | Promise<void>) | undefined;
 };
 ```

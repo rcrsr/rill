@@ -7,7 +7,7 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import type { ExtensionResult, RillFunction } from '@rcrsr/rill';
+import type { ExtensionFactoryResult, RillValue } from '@rcrsr/rill';
 import {
   ConfigValidationError,
   ExtensionLoadError,
@@ -17,7 +17,6 @@ import { detectNamespaceCollisions } from './mounts.js';
 import type {
   ExtensionManifest,
   LoadedProject,
-  NestedExtConfig,
   ResolvedMount,
 } from './types.js';
 
@@ -49,61 +48,36 @@ function isModuleNotFoundError(err: unknown): boolean {
   );
 }
 
-function insertIntoTree(
-  tree: NestedExtConfig,
-  nsKey: string,
-  fns: Record<string, RillFunction>
+/**
+ * Mount a RillValue into the tree at a dot-path.
+ * Single-segment: tree[name] = value.
+ * Dot-path: creates intermediate dicts, places value at leaf (GAP-7).
+ */
+function mountValue(
+  tree: Record<string, RillValue>,
+  mountPath: string,
+  value: RillValue
 ): void {
-  const parts = nsKey.split('.');
+  const parts = mountPath.split('.');
 
-  let node: NestedExtConfig = tree;
+  if (parts.length === 1) {
+    tree[mountPath] = value;
+    return;
+  }
+
+  // Dot-path: create intermediate dict nodes
+  let node: Record<string, RillValue> = tree;
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
     const existing = node[part];
-    if (
-      existing === undefined ||
-      typeof (existing as RillFunction).fn === 'function'
-    ) {
-      node[part] = {};
+    if (existing === undefined || typeof existing !== 'object') {
+      const intermediate: Record<string, RillValue> = {};
+      node[part] = intermediate as unknown as RillValue;
     }
-    node = node[part] as NestedExtConfig;
+    node = node[part] as unknown as Record<string, RillValue>;
   }
 
-  const leaf = parts[parts.length - 1]!;
-  let leafNode = node[leaf];
-  if (
-    leafNode === undefined ||
-    typeof (leafNode as RillFunction).fn === 'function'
-  ) {
-    node[leaf] = {};
-    leafNode = node[leaf];
-  }
-  const leafDict = leafNode as NestedExtConfig;
-  for (const [fnName, fn] of Object.entries(fns)) {
-    leafDict[fnName] = fn;
-  }
-}
-
-function extractRillFunctions(
-  result: ExtensionResult
-): Record<string, RillFunction> {
-  const functions: Record<string, RillFunction> = {};
-  for (const [key, value] of Object.entries(result)) {
-    if (
-      key !== 'dispose' &&
-      key !== 'suspend' &&
-      key !== 'restore' &&
-      typeof value === 'object' &&
-      value !== null &&
-      'fn' in value &&
-      typeof (value as { fn: unknown }).fn === 'function' &&
-      'params' in value &&
-      Array.isArray((value as { params: unknown }).params)
-    ) {
-      functions[key] = value as RillFunction;
-    }
-  }
-  return functions;
+  node[parts[parts.length - 1]!] = value;
 }
 
 // ============================================================
@@ -192,7 +166,7 @@ export async function loadExtensions(
   }
 
   // ---- Step 5: Factory invocation ----
-  const tree: NestedExtConfig = {};
+  const tree: Record<string, RillValue> = {};
   const disposes: Array<() => void | Promise<void>> = [];
 
   for (const mount of mounts) {
@@ -208,9 +182,9 @@ export async function loadExtensions(
 
     type FactoryFn = (
       cfg: Record<string, unknown>
-    ) => ExtensionResult | Promise<ExtensionResult>;
+    ) => ExtensionFactoryResult | Promise<ExtensionFactoryResult>;
 
-    let result: ExtensionResult;
+    let result: ExtensionFactoryResult;
     try {
       result = await (factory as FactoryFn)(config[mount.mountPath] ?? {});
     } catch (err) {
@@ -218,12 +192,26 @@ export async function loadExtensions(
       throw new ExtensionLoadError(`Factory for ${pkg} threw: ${reason}`);
     }
 
+    // EC-5 / AC-13: Factory must return an object with a value property
+    if (!('value' in result)) {
+      throw new ExtensionLoadError(
+        `Factory for ${pkg} returned result without value property`
+      );
+    }
+
+    // EC-6 / AC-14: value must not be undefined
+    if (result.value === undefined) {
+      throw new ExtensionLoadError(
+        `Factory for ${pkg} returned undefined value`
+      );
+    }
+
     if (result.dispose !== undefined) {
       disposes.push(result.dispose);
     }
 
-    const functions = extractRillFunctions(result);
-    insertIntoTree(tree, mount.mountPath, functions);
+    // DD-2: Store value at mount path by reference
+    mountValue(tree, mount.mountPath, result.value);
   }
 
   return { extTree: tree, disposes, manifests };

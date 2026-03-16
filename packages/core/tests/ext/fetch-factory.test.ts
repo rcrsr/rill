@@ -100,7 +100,7 @@ function createMockContext() {
 
 describe('createFetchExtension', () => {
   describe('factory creation (IC-3)', () => {
-    it('creates ExtensionResult with endpoint functions', () => {
+    it('creates ExtensionFactoryResult with endpoint functions', () => {
       const config: FetchConfig = {
         baseUrl: 'https://api.example.com',
         endpoints: {
@@ -114,11 +114,13 @@ describe('createFetchExtension', () => {
 
       const extension = createFetchExtension(config);
 
-      expect(extension).toHaveProperty('getUser');
-      expect(extension).toHaveProperty('endpoints');
+      // Verify ExtensionFactoryResult shape
+      expect(extension).toHaveProperty('value');
       expect(extension).toHaveProperty('dispose');
-      expect(extension.getUser).toHaveProperty('params');
-      expect(extension.getUser).toHaveProperty('fn');
+      expect(extension.value).toHaveProperty('getUser');
+      expect(extension.value).toHaveProperty('endpoints');
+      expect(extension.value.getUser).toHaveProperty('params');
+      expect(extension.value.getUser).toHaveProperty('fn');
     });
 
     it('creates function for each endpoint in config', () => {
@@ -145,9 +147,9 @@ describe('createFetchExtension', () => {
 
       const extension = createFetchExtension(config);
 
-      expect(extension).toHaveProperty('getUser');
-      expect(extension).toHaveProperty('createPost');
-      expect(extension).toHaveProperty('deleteComment');
+      expect(extension.value).toHaveProperty('getUser');
+      expect(extension.value).toHaveProperty('createPost');
+      expect(extension.value).toHaveProperty('deleteComment');
     });
 
     it('applies default config values', () => {
@@ -191,7 +193,10 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = (await extension.endpoints.fn({}, ctx)) as RillValue[];
+      const result = (await extension.value.endpoints.fn(
+        {},
+        ctx
+      )) as RillValue[];
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
@@ -223,7 +228,10 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = (await extension.endpoints.fn({}, ctx)) as RillValue[];
+      const result = (await extension.value.endpoints.fn(
+        {},
+        ctx
+      )) as RillValue[];
 
       expect(result[0]).toEqual({
         name: 'getUser',
@@ -250,8 +258,10 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      await expect(extension.getUser.fn({}, ctx)).rejects.toThrow(RuntimeError);
-      await expect(extension.getUser.fn({}, ctx)).rejects.toThrow(
+      await expect(extension.value.getUser.fn({}, ctx)).rejects.toThrow(
+        RuntimeError
+      );
+      await expect(extension.value.getUser.fn({}, ctx)).rejects.toThrow(
         'parameter "id" is required'
       );
     });
@@ -275,10 +285,10 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       await expect(
-        extension.createUser.fn({ name: 'John' }, ctx)
+        extension.value.createUser.fn({ name: 'John' }, ctx)
       ).rejects.toThrow(RuntimeError);
       await expect(
-        extension.createUser.fn({ name: 'John' }, ctx)
+        extension.value.createUser.fn({ name: 'John' }, ctx)
       ).rejects.toThrow('parameter "email" is required');
     });
 
@@ -307,7 +317,9 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Should not throw - uses default value
-      await expect(extension.listUsers.fn({}, ctx)).resolves.toBeDefined();
+      await expect(
+        extension.value.listUsers.fn({}, ctx)
+      ).resolves.toBeDefined();
     });
 
     it('does not throw when parameter has required: false', async () => {
@@ -335,7 +347,9 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Should not throw - parameter is optional
-      await expect(extension.listUsers.fn({}, ctx)).resolves.toBeDefined();
+      await expect(
+        extension.value.listUsers.fn({}, ctx)
+      ).resolves.toBeDefined();
     });
   });
 
@@ -357,7 +371,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn({ id: '123' }, ctx);
+      const result = await extension.value.getUser.fn({ id: '123' }, ctx);
 
       expect(result).toEqual({ id: 123, name: 'John' });
       expect(fetchCallCount).toBe(1);
@@ -386,7 +400,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.createPost.fn(
+      const result = await extension.value.createPost.fn(
         { title: 'Test Post', body: 'Post content' },
         ctx
       );
@@ -413,7 +427,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn({ id: '123' }, ctx);
+      const result = await extension.value.getUser.fn({ id: '123' }, ctx);
 
       expect(result).toEqual({ id: 123, name: 'John' });
       expect(fetchCallCount).toBe(1);
@@ -442,7 +456,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.createPost.fn(
+      const result = await extension.value.createPost.fn(
         { title: 'Test', published: true },
         ctx
       );
@@ -530,9 +544,9 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
 
       // Only getUser endpoint is available
-      expect(extension).toHaveProperty('getUser');
-      expect(extension).not.toHaveProperty('getPost');
-      expect(extension).not.toHaveProperty('fetch');
+      expect(extension.value).toHaveProperty('getUser');
+      expect(extension.value).not.toHaveProperty('getPost');
+      expect(extension.value).not.toHaveProperty('fetch');
     });
 
     it('constructs URLs from baseUrl and path pattern only', async () => {
@@ -553,12 +567,12 @@ describe('createFetchExtension', () => {
       const ctx = createMockContext();
 
       // Can only call configured endpoint with configured path
-      await extension.getResource.fn({ id: '123' }, ctx);
+      await extension.value.getResource.fn({ id: '123' }, ctx);
 
       // No way to specify arbitrary URL
-      expect(extension).not.toHaveProperty('request');
-      expect(extension).not.toHaveProperty('get');
-      expect(extension).not.toHaveProperty('post');
+      expect(extension.value).not.toHaveProperty('request');
+      expect(extension.value).not.toHaveProperty('get');
+      expect(extension.value).not.toHaveProperty('post');
     });
   });
 
@@ -604,7 +618,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn({ id: '123' }, ctx);
+      const result = await extension.value.getUser.fn({ id: '123' }, ctx);
 
       // Should return just the body, not wrapped in response object
       expect(result).toEqual({ id: 123, name: 'Test' });
@@ -632,7 +646,7 @@ describe('createFetchExtension', () => {
       const extension = createFetchExtension(config);
       const ctx = createMockContext();
 
-      const result = await extension.getUser.fn({ id: '123' }, ctx);
+      const result = await extension.value.getUser.fn({ id: '123' }, ctx);
 
       // Should return full response with status, headers, body
       expect(result).toHaveProperty('status', 200);

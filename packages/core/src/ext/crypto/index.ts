@@ -8,10 +8,11 @@
 import crypto from 'node:crypto';
 import { RuntimeError } from '../../error-classes.js';
 import type {
-  ExtensionResult,
+  ExtensionFactoryResult,
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
+import { toCallable } from '../../runtime/core/callable.js';
 import {
   rillTypeToTypeValue,
   type RillValue,
@@ -44,7 +45,7 @@ export interface CryptoConfig {
  * Returns 4 functions: hash, hmac, uuid, random.
  *
  * @param config - Crypto configuration
- * @returns ExtensionResult with 4 crypto functions
+ * @returns ExtensionFactoryResult with 4 crypto functions
  *
  * @example
  * ```typescript
@@ -56,7 +57,7 @@ export interface CryptoConfig {
  */
 export function createCryptoExtension(
   config: CryptoConfig = {}
-): ExtensionResult {
+): ExtensionFactoryResult {
   const defaultAlgorithm = config.defaultAlgorithm ?? 'sha256';
   const hmacKey = config.hmacKey;
 
@@ -150,64 +151,66 @@ export function createCryptoExtension(
   // ============================================================
 
   return {
-    hash: {
-      params: [
-        {
-          name: 'input',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Content to hash' },
+    value: {
+      hash: toCallable({
+        params: [
+          {
+            name: 'input',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Content to hash' },
+          },
+          {
+            name: 'algorithm',
+            type: { kind: 'string' },
+            defaultValue: defaultAlgorithm,
+            annotations: { description: 'Hash algorithm' },
+          },
+        ],
+        fn: hash,
+        annotations: { description: 'Hash content, returns hex output' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      hmac: toCallable({
+        params: [
+          {
+            name: 'input',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Content to authenticate' },
+          },
+          {
+            name: 'algorithm',
+            type: { kind: 'string' },
+            defaultValue: defaultAlgorithm,
+            annotations: { description: 'Hash algorithm' },
+          },
+        ],
+        fn: hmac,
+        annotations: {
+          description: 'Generate HMAC signature, returns hex output',
         },
-        {
-          name: 'algorithm',
-          type: { kind: 'string' },
-          defaultValue: defaultAlgorithm,
-          annotations: { description: 'Hash algorithm' },
-        },
-      ],
-      fn: hash,
-      annotations: { description: 'Hash content, returns hex output' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    hmac: {
-      params: [
-        {
-          name: 'input',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Content to authenticate' },
-        },
-        {
-          name: 'algorithm',
-          type: { kind: 'string' },
-          defaultValue: defaultAlgorithm,
-          annotations: { description: 'Hash algorithm' },
-        },
-      ],
-      fn: hmac,
-      annotations: {
-        description: 'Generate HMAC signature, returns hex output',
-      },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    uuid: {
-      params: [],
-      fn: uuid,
-      annotations: { description: 'Generate random UUID v4' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    random: {
-      params: [
-        {
-          name: 'bytes',
-          type: { kind: 'number' },
-          defaultValue: undefined,
-          annotations: { description: 'Number of bytes' },
-        },
-      ],
-      fn: random,
-      annotations: { description: 'Generate random bytes as hex string' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      uuid: toCallable({
+        params: [],
+        fn: uuid,
+        annotations: { description: 'Generate random UUID v4' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      random: toCallable({
+        params: [
+          {
+            name: 'bytes',
+            type: { kind: 'number' },
+            defaultValue: undefined,
+            annotations: { description: 'Number of bytes' },
+          },
+        ],
+        fn: random,
+        annotations: { description: 'Generate random bytes as hex string' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
     },
   };
 }

@@ -9,10 +9,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { RuntimeError } from '../../error-classes.js';
 import type {
-  ExtensionResult,
+  ExtensionFactoryResult,
   ExtensionConfigSchema,
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
+import { toCallable } from '../../runtime/core/callable.js';
 import {
   rillTypeToTypeValue,
   type RillValue,
@@ -56,7 +57,7 @@ export const configSchema: ExtensionConfigSchema = {
  * Returns 12 functions: read, write, append, list, find, exists, remove, stat, mkdir, copy, move, mounts.
  *
  * @param config - Mount configuration and defaults
- * @returns ExtensionResult with 12 filesystem functions
+ * @returns ExtensionFactoryResult with 12 filesystem functions
  * @throws RuntimeError if mount initialization fails
  *
  * @example
@@ -68,7 +69,7 @@ export const configSchema: ExtensionConfigSchema = {
  * });
  * ```
  */
-export function createFsExtension(config: FsConfig): ExtensionResult {
+export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   // Apply defaults
   const maxFileSize = config.maxFileSize ?? 10485760; // 10MB
   const encoding = config.encoding ?? 'utf-8';
@@ -578,244 +579,246 @@ export function createFsExtension(config: FsConfig): ExtensionResult {
   // ============================================================
 
   return {
-    read: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-      ],
-      fn: read,
-      annotations: { description: 'Read file contents' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    write: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-        {
-          name: 'content',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Content to write' },
-        },
-      ],
-      fn: write,
-      annotations: { description: 'Write file, replacing if exists' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    append: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-        {
-          name: 'content',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Content to append' },
-        },
-      ],
-      fn: append,
-      annotations: { description: 'Append content to file' },
-      returnType: rillTypeToTypeValue({ kind: 'string' }),
-    },
-    list: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: '',
-          annotations: { description: 'Directory path relative to mount' },
-        },
-      ],
-      fn: list,
-      annotations: { description: 'List directory contents' },
-      returnType: rillTypeToTypeValue({ kind: 'list' }),
-    },
-    find: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'pattern',
-          type: { kind: 'string' },
-          defaultValue: '*',
-          annotations: { description: 'Glob pattern for filtering' },
-        },
-      ],
-      fn: find,
-      annotations: { description: 'Recursive file search' },
-      returnType: rillTypeToTypeValue({ kind: 'list' }),
-    },
-    exists: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-      ],
-      fn: exists,
-      annotations: { description: 'Check file existence' },
-      returnType: rillTypeToTypeValue({ kind: 'bool' }),
-    },
-    remove: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-      ],
-      fn: remove,
-      annotations: { description: 'Delete file' },
-      returnType: rillTypeToTypeValue({ kind: 'bool' }),
-    },
-    stat: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'File path relative to mount' },
-        },
-      ],
-      fn: stat,
-      annotations: { description: 'Get file metadata' },
-      returnType: rillTypeToTypeValue({ kind: 'dict' }),
-    },
-    mkdir: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'path',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Directory path relative to mount' },
-        },
-      ],
-      fn: mkdir,
-      annotations: { description: 'Create directory' },
-      returnType: rillTypeToTypeValue({ kind: 'bool' }),
-    },
-    copy: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'src',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Source file path' },
-        },
-        {
-          name: 'dest',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Destination file path' },
-        },
-      ],
-      fn: copy,
-      annotations: { description: 'Copy file within mount' },
-      returnType: rillTypeToTypeValue({ kind: 'bool' }),
-    },
-    move: {
-      params: [
-        {
-          name: 'mount',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Mount name' },
-        },
-        {
-          name: 'src',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Source file path' },
-        },
-        {
-          name: 'dest',
-          type: { kind: 'string' },
-          defaultValue: undefined,
-          annotations: { description: 'Destination file path' },
-        },
-      ],
-      fn: move,
-      annotations: { description: 'Move file within mount' },
-      returnType: rillTypeToTypeValue({ kind: 'bool' }),
-    },
-    mounts: {
-      params: [],
-      fn: mountsList,
-      annotations: { description: 'List configured mounts' },
-      returnType: rillTypeToTypeValue({ kind: 'list' }),
+    value: {
+      read: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+        ],
+        fn: read,
+        annotations: { description: 'Read file contents' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      write: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+          {
+            name: 'content',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Content to write' },
+          },
+        ],
+        fn: write,
+        annotations: { description: 'Write file, replacing if exists' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      append: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+          {
+            name: 'content',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Content to append' },
+          },
+        ],
+        fn: append,
+        annotations: { description: 'Append content to file' },
+        returnType: rillTypeToTypeValue({ kind: 'string' }),
+      }),
+      list: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: '',
+            annotations: { description: 'Directory path relative to mount' },
+          },
+        ],
+        fn: list,
+        annotations: { description: 'List directory contents' },
+        returnType: rillTypeToTypeValue({ kind: 'list' }),
+      }),
+      find: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'pattern',
+            type: { kind: 'string' },
+            defaultValue: '*',
+            annotations: { description: 'Glob pattern for filtering' },
+          },
+        ],
+        fn: find,
+        annotations: { description: 'Recursive file search' },
+        returnType: rillTypeToTypeValue({ kind: 'list' }),
+      }),
+      exists: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+        ],
+        fn: exists,
+        annotations: { description: 'Check file existence' },
+        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+      }),
+      remove: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+        ],
+        fn: remove,
+        annotations: { description: 'Delete file' },
+        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+      }),
+      stat: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'File path relative to mount' },
+          },
+        ],
+        fn: stat,
+        annotations: { description: 'Get file metadata' },
+        returnType: rillTypeToTypeValue({ kind: 'dict' }),
+      }),
+      mkdir: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'path',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Directory path relative to mount' },
+          },
+        ],
+        fn: mkdir,
+        annotations: { description: 'Create directory' },
+        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+      }),
+      copy: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'src',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Source file path' },
+          },
+          {
+            name: 'dest',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Destination file path' },
+          },
+        ],
+        fn: copy,
+        annotations: { description: 'Copy file within mount' },
+        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+      }),
+      move: toCallable({
+        params: [
+          {
+            name: 'mount',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Mount name' },
+          },
+          {
+            name: 'src',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Source file path' },
+          },
+          {
+            name: 'dest',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'Destination file path' },
+          },
+        ],
+        fn: move,
+        annotations: { description: 'Move file within mount' },
+        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+      }),
+      mounts: toCallable({
+        params: [],
+        fn: mountsList,
+        annotations: { description: 'List configured mounts' },
+        returnType: rillTypeToTypeValue({ kind: 'list' }),
+      }),
     },
   };
 }

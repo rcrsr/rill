@@ -195,6 +195,36 @@ export function callable(
   };
 }
 
+/**
+ * Convert a RillFunction to an ApplicationCallable.
+ *
+ * Validates the input and produces a callable value accepted by the loader.
+ * Pure function with no side effects.
+ *
+ * @param def - Host function definition to convert
+ * @returns ApplicationCallable with __type, kind, isProperty, and preserved annotations
+ */
+export function toCallable(def: RillFunction): ApplicationCallable {
+  if (def == null) {
+    throw new TypeError('RillFunction cannot be null or undefined');
+  }
+  if (typeof def.fn !== 'function') {
+    throw new TypeError('RillFunction.fn must be a function');
+  }
+  if (!Array.isArray(def.params)) {
+    throw new TypeError('RillFunction.params must be an array');
+  }
+  return {
+    __type: 'callable',
+    kind: 'application',
+    isProperty: false,
+    fn: def.fn,
+    params: def.params,
+    returnType: def.returnType,
+    annotations: def.annotations ?? {},
+  };
+}
+
 /** Type guard for dict (plain object, not array, not callable, not tuple) */
 export function isDict(value: RillValue): value is Record<string, RillValue> {
   return (

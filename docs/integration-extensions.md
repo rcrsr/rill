@@ -7,44 +7,50 @@
 Create a simple extension with a factory function:
 
 ```typescript
-import { createRuntimeContext, hoistExtension, structureToTypeValue } from '@rcrsr/rill';
-import type { ExtensionResult } from '@rcrsr/rill';
+import { toCallable, createRuntimeContext } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-function createGreetExtension(config: { prefix: string }): ExtensionResult {
+function createGreetExtension(config: { prefix: string }): ExtensionFactoryResult {
   return {
-    greet: {
-      params: [{ name: 'name', type: 'string' }],
-      fn: (args) => `${config.prefix} ${args[0]}!`,
-      annotations: { description: 'Generate greeting' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+    value: {
+      greet: toCallable({
+        params: [{ name: 'name', type: { kind: 'string' } }],
+        fn: async (args) => `${config.prefix} ${args.name}!`,
+        annotations: { description: 'Generate greeting' },
+        returnType: { kind: 'string' },
+      }),
     },
   };
 }
 
 const ext = createGreetExtension({ prefix: 'Hello' });
-const { functions, dispose } = hoistExtension('app', ext);
-const ctx = createRuntimeContext({ functions });
+const ctx = createRuntimeContext({
+  variables: { app: ext.value },
+});
 
-// Script: app::greet("World")
+// Script: app.greet("World")
 ```
 
 ## Extension Contract
 
-Every extension exports a factory function returning `ExtensionResult`:
+Every extension exports a factory function returning `ExtensionFactoryResult`:
 
 ```typescript
-import type { ExtensionResult, RillFunction } from '@rcrsr/rill';
-import { structureToTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-function createMyExtension(config: MyConfig): ExtensionResult {
+function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   // Validate config eagerly (throw on invalid)
-  // Return host function definitions + optional dispose
+  // Return value dict with callables and optional lifecycle hooks
   return {
-    greet: {
-      params: [{ name: 'name', type: 'string' }],
-      fn: (args) => `Hello, ${args[0]}!`,
-      annotations: { description: 'Generate greeting' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+    value: {
+      greet: toCallable({
+        params: [{ name: 'name', type: { kind: 'string' } }],
+        fn: async (args) => `Hello, ${args.name}!`,
+        annotations: { description: 'Generate greeting' },
+        returnType: { kind: 'string' },
+      }),
+      version: '1.0.0',  // scalar string leaf
     },
     dispose: () => {
       // Cleanup resources (connections, processes, etc.)
@@ -53,22 +59,25 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 }
 ```
 
-### ExtensionResult Type
+### ExtensionFactoryResult Type
 
 ```typescript
-type ExtensionResult = Record<string, RillFunction> & {
+interface ExtensionFactoryResult {
+  readonly value: RillValue;          // the extension's data and functions
   dispose?: () => void | Promise<void>;
   suspend?: () => unknown;
   restore?: (state: unknown) => void;
-};
+}
 ```
 
-Each key (except `dispose`, `suspend`, and `restore`) maps a function name to a `RillFunction`. The runtime registers these as callable host functions.
+`value` is the `RillValue` mounted into the script namespace. Callable leaves use `toCallable()`. Non-callable leaves (strings, numbers, dicts) mount as plain data.
+
+Lifecycle hooks (`dispose`, `suspend`, `restore`) live on the factory result object, not inside `value`.
 
 ### ExtensionFactory Type
 
 ```typescript
-type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionResult;
+type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionFactoryResult;
 ```
 
 Factory functions accept typed configuration and return an isolated extension instance.
@@ -105,7 +114,7 @@ interface ExtensionManifest {
 
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
-| `factory` | `ExtensionFactory<any>` | Yes | Called with config object; must return `ExtensionResult` |
+| `factory` | `ExtensionFactory<any>` | Yes | Called with config object; must return `ExtensionFactoryResult` |
 | `configSchema` | `ExtensionConfigSchema` | No | Maps field names to `ConfigFieldDescriptor` entries |
 | `version` | `string` | No | Semver string (e.g., `"1.2.0"`); informational only |
 
@@ -126,41 +135,11 @@ To publish a conforming manifest:
 3. The factory receives only the config object — it must not call rill runtime APIs during construction.
 4. Validation errors must throw synchronously from the factory, not during function execution.
 
-### Relationship to ExtensionResult and ExtensionFactory
+### Relationship to ExtensionFactoryResult and ExtensionFactory
 
-`ExtensionManifest` wraps the existing `ExtensionFactory` type. The `factory` field is the same function you write for manual integration. The manifest adds `configSchema` and `version` so that `rill-run` can mount the extension without host-side wiring code. The mount path in `rill-config.json` determines the namespace prefix scripts use to call extension functions.
+`ExtensionManifest` wraps the existing `ExtensionFactory` type. The `factory` field is the same function you write for manual integration. The manifest adds `configSchema` and `version` so that `rill-run` can mount the extension without host-side wiring code. The mount path in `rill-config.json` determines the namespace scripts use to access extension functions.
 
 See [rill-run Config](ref-config.md) for how `extensions.mounts` entries reference manifest packages.
-
-## Namespace Prefixing
-
-Use `prefixFunctions()` to add a namespace prefix to all functions in an extension:
-
-```typescript
-import { prefixFunctions } from '@rcrsr/rill';
-
-const ext = createMyExtension({ apiKey: 'sk-...' });
-const prefixed = prefixFunctions('ai', ext);
-// { "ai::greet": ..., dispose: ... }
-```
-
-Scripts call prefixed functions with `::` syntax:
-
-```rill
-ai::greet("World")    # "Hello, World!"
-```
-
-### Namespace Rules
-
-- Non-empty string
-- Alphanumeric characters, underscores, and hyphens only (`/^[a-zA-Z0-9_-]+$/`)
-- Invalid namespaces throw `RuntimeError` with code `RUNTIME_TYPE_ERROR`
-
-### Behavior
-
-- Prefixes every key except `dispose` with `namespace::`
-- Preserves the `dispose` method on the returned object
-- Returns a new `ExtensionResult` (does not mutate the original)
 
 ## Extension Events
 
@@ -205,26 +184,31 @@ const ctx = createRuntimeContext({
       console.log(`[${event.subsystem}] ${event.event}`, event);
     },
   },
-  functions,
+  variables: { myExt: ext.value },
 });
 ```
 
 ## Lifecycle Management
 
-Extensions that manage external resources (processes, connections, timers) must implement `dispose()`:
+Extensions that manage external resources (processes, connections, timers) must implement `dispose()`.
+
+`dispose`, `suspend`, and `restore` live on the `ExtensionFactoryResult` object — not inside the `value` dict:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-function createPooledExtension(config: PoolConfig): ExtensionResult {
+function createPooledExtension(config: PoolConfig): ExtensionFactoryResult {
   const pool = createConnectionPool(config);
 
   return {
-    query: {
-      params: [{ name: 'sql', type: 'string' }],
-      fn: async (args) => pool.query(args[0]),
-      annotations: { description: 'Execute SQL query' },
-      returnType: anyTypeValue,
+    value: {
+      query: toCallable({
+        params: [{ name: 'sql', type: { kind: 'string' } }],
+        fn: async (args) => pool.query(args.sql),
+        annotations: { description: 'Execute SQL query' },
+        returnType: { kind: 'any' },
+      }),
     },
     dispose: () => {
       pool.close();
@@ -234,13 +218,12 @@ function createPooledExtension(config: PoolConfig): ExtensionResult {
 
 // Usage
 const ext = createPooledExtension({ maxConnections: 10 });
-const { functions, dispose } = hoistExtension('db', ext);
-const ctx = createRuntimeContext({ functions });
+const ctx = createRuntimeContext({ variables: { db: ext.value } });
 
 try {
   const result = await execute(ast, ctx);
 } finally {
-  dispose?.();
+  await ext.dispose?.();
 }
 ```
 
@@ -253,30 +236,34 @@ try {
 
 ## State Persistence
 
-Extensions that hold in-memory state can implement `suspend()` and `restore()` on `ExtensionResult` to participate in host-managed state snapshots.
+Extensions that hold in-memory state implement `suspend()` and `restore()` on `ExtensionFactoryResult` to participate in host-managed state snapshots.
 
-`suspend()` returns a JSON-serializable snapshot of extension state. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
+`suspend()` returns a JSON-serializable snapshot. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
 
 ```typescript
-import { structureToTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-function createCounterExtension(): ExtensionResult {
-  let count = 0;
+function createCounterExtension(): ExtensionFactoryResult {
+  // Mutable shared reference — all callables close over this object
+  const state = { count: 0 };
 
   return {
-    increment: {
-      params: [],
-      fn: () => ++count,
-      annotations: { description: 'Increment counter' },
-      returnType: structureToTypeValue({ kind: 'number' }),
+    value: {
+      increment: toCallable({
+        params: [],
+        fn: () => ++state.count,
+        annotations: { description: 'Increment counter' },
+        returnType: { kind: 'number' },
+      }),
     },
-    suspend: () => ({ count }),
-    restore: (state) => {
-      const s = state as { count: number };
-      count = s.count;
+    suspend: () => ({ count: state.count }),
+    restore: (snapshot) => {
+      const s = snapshot as { count: number };
+      state.count = s.count;
     },
     dispose: () => {
-      count = 0;
+      state.count = 0;
     },
   };
 }
@@ -348,7 +335,9 @@ Key conventions:
 Throw errors synchronously in the factory — not during function execution:
 
 ```typescript
-function createMyExtension(config: MyConfig): ExtensionResult {
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
+
+function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   // Validate at creation time
   if (!config.apiKey) {
     throw new Error('apiKey is required');
@@ -361,7 +350,7 @@ function createMyExtension(config: MyConfig): ExtensionResult {
     throw new Error(`Binary not found: ${config.binaryPath}`);
   }
 
-  return { /* functions */ };
+  return { value: { /* callables */ } };
 }
 ```
 
@@ -370,25 +359,27 @@ function createMyExtension(config: MyConfig): ExtensionResult {
 Use rill's parameter type system for automatic validation:
 
 ```typescript
-import { structureToTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
 
 return {
-  send: {
-    params: [
-      { name: 'message', type: 'string' },
-      { name: 'options', type: 'dict', defaultValue: {} },
-    ],
-    fn: async (args) => {
-      const message = args[0] as string;
-      // Runtime guarantees message is a string
-      // Additional domain validation here
-      if (message.trim().length === 0) {
-        throw new RuntimeError('RILL-R004', 'message cannot be empty');
-      }
-      return await doSend(message);
-    },
-    annotations: { description: 'Send a message' },
-    returnType: structureToTypeValue({ kind: 'dict' }),
+  value: {
+    send: toCallable({
+      params: [
+        { name: 'message', type: { kind: 'string' } },
+        { name: 'options', type: { kind: 'dict' }, defaultValue: {} },
+      ],
+      fn: async (args) => {
+        const message = args.message as string;
+        // Runtime guarantees message is a string
+        // Additional domain validation here
+        if (message.trim().length === 0) {
+          throw new RuntimeError('RILL-R004', 'message cannot be empty');
+        }
+        return await doSend(message);
+      },
+      annotations: { description: 'Send a message' },
+      returnType: { kind: 'dict' },
+    }),
   },
 };
 ```
@@ -401,7 +392,7 @@ Emit events on success and failure for each operation:
 fn: async (args, ctx) => {
   const start = Date.now();
   try {
-    const result = await operation(args[0]);
+    const result = await operation(args.input);
     emitExtensionEvent(ctx, {
       event: 'my-ext:send',
       subsystem: 'extension:my-ext',
@@ -425,29 +416,32 @@ fn: async (args, ctx) => {
 When spawning processes or opening connections, track them for `dispose()`:
 
 ```typescript
-import { structureToTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-function createMyExtension(): ExtensionResult {
+function createMyExtension(): ExtensionFactoryResult {
   const activeProcesses = new Set<() => void>();
 
   return {
-    run: {
-      params: [{ name: 'cmd', type: 'string' }],
-      fn: async (args) => {
-        const proc = spawn(args[0]);
-        const cleanup = () => proc.kill();
-        activeProcesses.add(cleanup);
+    value: {
+      run: toCallable({
+        params: [{ name: 'cmd', type: { kind: 'string' } }],
+        fn: async (args) => {
+          const proc = spawn(args.cmd);
+          const cleanup = () => proc.kill();
+          activeProcesses.add(cleanup);
 
-        try {
-          const result = await proc.exitCode;
-          return result;
-        } finally {
-          activeProcesses.delete(cleanup);
-          cleanup();
-        }
-      },
-      annotations: { description: 'Run command' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+          try {
+            const result = await proc.exitCode;
+            return result;
+          } finally {
+            activeProcesses.delete(cleanup);
+            cleanup();
+          }
+        },
+        annotations: { description: 'Run command' },
+        returnType: { kind: 'string' },
+      }),
     },
     dispose: () => {
       for (const cleanup of activeProcesses) {
@@ -493,7 +487,7 @@ function mapSDKError(error: unknown, namespace: string): RuntimeError {
 // Use in host function implementation
 fn: async (args, ctx) => {
   try {
-    const result = await sdkClient.operation(args[0]);
+    const result = await sdkClient.operation(args.input);
     return result;
   } catch (error) {
     const rillError = mapSDKError(error, 'myext');
@@ -509,109 +503,154 @@ fn: async (args, ctx) => {
 
 **Examples:** The qdrant, pinecone, and chroma extensions in [rill-ext](https://github.com/rcrsr/rill-ext) show this pattern for vector database operations. Each maps SDK-specific errors (collection not found, dimension mismatch, authentication) to consistent `RuntimeError` messages with namespace prefixes.
 
+## Testing Extensions
 
-## Migration: RillFunction Interface Change
+Use `createTestContext` to wire extensions for testing without config infrastructure:
 
-v0.14.0 introduces a breaking change to the `RillFunction` interface. The `description` and `returnType` fields changed shape, and three registration types were removed.
+```typescript
+import { createTestContext, toCallable, execute, parse } from '@rcrsr/rill';
+
+const context = createTestContext({
+  myExt: {
+    value: {
+      greet: toCallable({
+        fn: (args) => `Hello, ${args.name}!`,
+        params: [{ name: 'name', type: { kind: 'string' } }],
+        returnType: { kind: 'string' },
+        annotations: {}
+      })
+    }
+  }
+});
+
+const result = await execute(parse('myExt.greet("World")'), context);
+// result.result === "Hello, World!"
+```
+
+---
+
+## Migration: ExtensionResult to ExtensionFactoryResult
+
+v0.17.0 introduces a breaking change to the extension factory return type. `ExtensionResult` is replaced by `ExtensionFactoryResult`. The `hoistExtension` and `prefixFunctions` utilities are removed. Sub-dict organization replaces the `namespace::fn` flat function pattern.
 
 ### Before and After
 
-**Before (v0.13.x):**
+**Before (v0.16.x):**
 
 ```typescript
-import type { RillFunction, RillFunctionSignature, RillMethodSignature } from '@rcrsr/rill';
+import type { ExtensionResult } from '@rcrsr/rill';
+import { hoistExtension, prefixFunctions } from '@rcrsr/rill';
 
-const fn: RillFunction = {
-  params: [{ name: 'text', type: { kind: 'string' } }],
-  fn: async (args) => process(args[0]),
-  description: 'Process text input',
-  returnType: { kind: 'string' },  // TypeStructure shape — was optional
-};
+function createMyExtension(config: MyConfig): ExtensionResult {
+  return {
+    greet: {
+      params: [{ name: 'name', type: { kind: 'string' } }],
+      fn: async (args) => `Hello, ${args.name}!`,
+      annotations: { description: 'Generate greeting' },
+      returnType: structureToTypeValue({ kind: 'string' }),
+    },
+    dispose: () => cleanup(),
+  };
+}
+
+const ext = createMyExtension(config);
+const { functions, dispose } = hoistExtension('app', ext);
+const ctx = createRuntimeContext({ functions });
+// Script: app::greet("World")
 ```
 
-**After (v0.14.0):**
+**After (v0.17.0):**
 
 ```typescript
-import type { RillFunction } from '@rcrsr/rill';
-import { structureToTypeValue } from '@rcrsr/rill';
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
-const fn: RillFunction = {
-  params: [{ name: 'text', type: { kind: 'string' } }],
-  fn: async (args) => process(args[0]),
-  annotations: { description: 'Process text input' },
-  returnType: structureToTypeValue({ kind: 'string' }),  // RillTypeValue — now required
-};
+function createMyExtension(config: MyConfig): ExtensionFactoryResult {
+  return {
+    value: {
+      greet: toCallable({
+        params: [{ name: 'name', type: { kind: 'string' } }],
+        fn: async (args) => `Hello, ${args.name}!`,
+        annotations: { description: 'Generate greeting' },
+        returnType: { kind: 'string' },
+      }),
+    },
+    dispose: () => cleanup(),
+  };
+}
+
+const ext = createMyExtension(config);
+const ctx = createRuntimeContext({ variables: { app: ext.value } });
+// Script: app.greet("World")
 ```
 
 ---
 
 ### Migration Steps
 
-**Step 1: Replace `description: string` with `annotations.description`**
-
-`description` is no longer a direct field on `RillFunction`. Move it into `annotations`:
+**Step 1: Replace `ExtensionResult` return type with `ExtensionFactoryResult`**
 
 ```typescript
 // Before
-{ fn, params, description: 'My function' }
+function createMyExt(config): ExtensionResult { ... }
 
 // After
-{ fn, params, annotations: { description: 'My function' } }
+function createMyExt(config): ExtensionFactoryResult { ... }
 ```
 
-TypeScript compile error if you keep the old field:
-
-```text
-// Error: Object literal may only specify known properties,
-// and 'description' does not exist in type 'RillFunction'
-{ fn, params, description: 'My function' }
-```
-
-**Step 2: Replace `returnType?: TypeStructure` with `returnType: RillTypeValue` (required)**
-
-`returnType` is now required. The type changed from `TypeStructure` to `RillTypeValue`. If you previously omitted `returnType` (it was optional), use `anyTypeValue` as the equivalent default:
+**Step 2: Wrap each `RillFunction` definition with `toCallable()`**
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
+// Before
+return {
+  greet: { params, fn, annotations, returnType },
+  dispose: () => cleanup(),
+};
 
-// Before — returnType omitted (was optional)
-{ fn, params }
-
-// After — returnType required; anyTypeValue = "no constraint"
-{ fn, params, returnType: anyTypeValue }
+// After
+return {
+  value: {
+    greet: toCallable({ params, fn, annotations, returnType }),
+  },
+  dispose: () => cleanup(),
+};
 ```
 
-TypeScript compile error if you pass the old `TypeStructure` shape:
+Move `dispose`, `suspend`, and `restore` to the outer result object. Remove them from inside the `value` dict.
 
-```text
-// Error: Type '{ kind: string }' is not assignable to type 'RillTypeValue'
-{ fn, params, returnType: { kind: 'string' } as TypeStructure }
-```
-
-TypeScript compile error if you omit `returnType`:
-
-```text
-// Error: Property 'returnType' is missing in type '...' but required in type 'RillFunction'
-{ fn, params, annotations: { description: 'text' } }
-```
-
-**Step 3: Remove any use of `RillFunctionSignature`, `RillMethodSignature`, `RillCallableSignature`**
-
-These types are removed in v0.14.0. Remove all imports and usages:
+**Step 3: Replace `hoistExtension` / `prefixFunctions` with `variables`**
 
 ```typescript
-// Before — remove these imports
-import type { RillFunctionSignature, RillMethodSignature, RillCallableSignature } from '@rcrsr/rill';
+// Before
+const { functions, dispose } = hoistExtension('app', ext);
+const ctx = createRuntimeContext({ functions });
+
+// After
+const ctx = createRuntimeContext({ variables: { app: ext.value } });
+await ext.dispose?.();
 ```
 
-TypeScript compile error if you import any removed type:
+**Step 4: Update script call syntax from `namespace::fn()` to `namespace.fn()`**
 
 ```text
-// Error: Module '@rcrsr/rill' has no exported member 'RillFunctionSignature'
-import type { RillFunctionSignature } from '@rcrsr/rill';
+// Before
+app::greet("World")
+
+// After
+app.greet("World")
 ```
 
-Replace any use of `RillFunctionSignature` with `RillFunction`.
+**Step 5: Update import statements**
+
+```typescript
+// Remove these imports
+import type { ExtensionResult } from '@rcrsr/rill';
+import { hoistExtension, prefixFunctions } from '@rcrsr/rill';
+
+// Add these imports
+import { toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
+```
 
 ---
 
@@ -621,10 +660,10 @@ Replace any use of `RillFunctionSignature` with `RillFunction`.
 
 ```typescript
 // Extension types
-export type { ExtensionResult, ExtensionFactory, ExtensionEvent, HoistedExtension, ExtensionManifest, ExtensionConfigSchema };
+export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
 
 // Extension utilities
-export { prefixFunctions, hoistExtension, emitExtensionEvent };
+export { toCallable, createTestContext, emitExtensionEvent };
 ```
 
 ## See Also

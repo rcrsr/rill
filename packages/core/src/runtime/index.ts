@@ -60,6 +60,7 @@ export {
   isDict,
   isRuntimeCallable,
   isScriptCallable,
+  toCallable,
 } from './core/callable.js';
 
 // ============================================================
@@ -142,10 +143,9 @@ export type {
   ConfigFieldDescriptor,
   ExtensionConfigSchema,
   ExtensionFactory,
+  ExtensionFactoryResult,
   ExtensionManifest,
-  ExtensionResult,
   FsExtensionContract,
-  HoistedExtension,
   KvExtensionContract,
   LlmExtensionContract,
   VectorExtensionContract,
@@ -153,11 +153,7 @@ export type {
 
 export type { SchemaEntry } from '../ext/kv/index.js';
 
-export {
-  prefixFunctions,
-  emitExtensionEvent,
-  hoistExtension,
-} from './ext/extensions.js';
+export { emitExtensionEvent } from './ext/extensions.js';
 
 // ============================================================
 // BUILT-IN RESOLVERS
@@ -174,6 +170,11 @@ export {
 // ============================================================
 
 export { createRuntimeContext } from './core/context.js';
+
+export {
+  createTestContext,
+  ExtensionBindingError,
+} from './ext/test-context.js';
 
 // ============================================================
 // CALL STACK MANAGEMENT
