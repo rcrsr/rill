@@ -16,7 +16,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010, RILL-P014)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R061)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -1122,6 +1122,248 @@ use:
 # Resolver returns { kind: "source", text: "..." } but host did not pass parseSource
 use<app:module-a>
 # Error: RILL-R061: parseSource not configured in RuntimeContext
+```
+
+---
+
+### rill-r064
+
+**Description:** Cannot convert string to number
+
+**Cause:** The string value is not a valid numeric representation or is empty/whitespace.
+
+**Resolution:** Ensure the string contains a valid number before converting. Use `as(number)` only on numeric strings.
+
+**Example:**
+
+```text
+# Non-numeric string conversion
+"hello" -> as(number)
+# Error: Cannot convert string "hello" to number
+```
+
+---
+
+### rill-r065
+
+**Description:** Cannot convert string to bool
+
+**Cause:** Only the strings "true" and "false" can convert to bool.
+
+**Resolution:** Use the exact strings "true" or "false" for bool conversion.
+
+**Example:**
+
+```text
+# Invalid bool string
+"yes" -> as(bool)
+# Error: Cannot convert string "yes" to bool
+```
+
+---
+
+### rill-r066
+
+**Description:** Cannot convert number to bool
+
+**Cause:** Only the numbers 0 and 1 can convert to bool. Other numeric values have no bool equivalent.
+
+**Resolution:** Use 0 (false) or 1 (true) for number-to-bool conversion.
+
+**Example:**
+
+```text
+# Non-binary number conversion
+42 -> as(bool)
+# Error: Cannot convert number 42 to bool
+```
+
+---
+
+### rill-r067
+
+**Description:** Value is not JSON-serializable
+
+**Cause:** The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.
+
+**Resolution:** Convert the value to a serializable type before JSON operations. Extract data from closures or iterators first.
+
+**Example:**
+
+```text
+# Closure in JSON context
+|x| $x + 1 -> as(string)
+# Error: Closures are not JSON-serializable
+```
+
+---
+
+### rill-r068
+
+**Description:** Type registration is frozen
+
+**Cause:** The type registration object was deep-frozen, preventing method assignment.
+
+**Resolution:** Ensure type registrations are not deep-frozen before calling `populateBuiltinMethods`.
+
+**Example:**
+
+```text
+# Object.freeze(registration) prevents method population
+# Error: Cannot populate methods on type 'string': registration is frozen
+```
+
+---
+
+### rill-r069
+
+**Description:** Function missing required description
+
+**Cause:** The `requireDescriptions` option is enabled but the function has no description.
+
+**Resolution:** Add a `description` field to the function definition, or disable `requireDescriptions`.
+
+**Example:**
+
+```text
+# registerFunction("greet", { fn: ... }) with requireDescriptions: true
+# Error: Function 'greet' requires description (requireDescriptions enabled)
+```
+
+---
+
+### rill-r070
+
+**Description:** Parameter missing required description
+
+**Cause:** The `requireDescriptions` option is enabled but a parameter has no description annotation.
+
+**Resolution:** Add a `description` annotation to each parameter, or disable `requireDescriptions`.
+
+**Example:**
+
+```text
+# param { name: "x", annotations: {} } with requireDescriptions: true
+# Error: Parameter 'x' of function 'greet' requires description (requireDescriptions enabled)
+```
+
+---
+
+### rill-r071
+
+**Description:** Duplicate type registration
+
+**Cause:** Two type registrations share the same name. Each type name must be unique.
+
+**Resolution:** Remove or rename the duplicate type registration.
+
+**Example:**
+
+```text
+# Two registrations both named "string"
+# Error: Duplicate type registration 'string'
+```
+
+---
+
+### rill-r072
+
+**Description:** Type missing format protocol
+
+**Cause:** Every type registration must include a `format` function in its protocol.
+
+**Resolution:** Add a `format` function to the type registration protocol.
+
+**Example:**
+
+```text
+# TypeRegistration { name: "custom", protocol: {} } missing format
+# Error: Type 'custom' missing required format protocol
+```
+
+---
+
+### rill-r073
+
+**Description:** Duplicate method on type
+
+**Cause:** A method with the same name is registered twice on the same type.
+
+**Resolution:** Remove the duplicate method registration or rename one of them.
+
+**Example:**
+
+```text
+# Type "string" has two methods both named "split"
+# Error: Duplicate method 'split' on type 'string'
+```
+
+---
+
+### rill-r074
+
+**Description:** Vector requires at least one dimension
+
+**Cause:** An empty `Float32Array` was passed to `createVector`. Vectors must have at least one element.
+
+**Resolution:** Provide a non-empty `Float32Array` when creating vectors.
+
+**Example:**
+
+```text
+# createVector(new Float32Array([]), "model") fails
+# Error: Vector data must have at least one dimension
+```
+
+---
+
+### rill-r075
+
+**Description:** Event missing event field
+
+**Cause:** The event object passed to `emitExtensionEvent` has no `event` field or the field is empty.
+
+**Resolution:** Include a non-empty string `event` field in the event object.
+
+**Example:**
+
+```text
+# emitExtensionEvent(ctx, { event: "" }) fails
+# Error: Event must include non-empty event field
+```
+
+---
+
+### rill-r076
+
+**Description:** Unknown module resource
+
+**Cause:** The module resolver received a resource identifier it does not recognize. The ext module resolver only handles the "ext" resource.
+
+**Resolution:** Use a valid module resource identifier.
+
+**Example:**
+
+```text
+use<module:unknown>
+# Error: Unknown module 'unknown'
+```
+
+---
+
+### rill-r077
+
+**Description:** Invalid parameter default value
+
+**Cause:** The default value type does not match the declared parameter type.
+
+**Resolution:** Ensure the `defaultValue` matches the parameter type in the function definition.
+
+**Example:**
+
+```text
+# param { name: "x", type: "number", defaultValue: "hello" }
+# Error: Invalid defaultValue for parameter 'x': expected number, got string
 ```
 
 ---

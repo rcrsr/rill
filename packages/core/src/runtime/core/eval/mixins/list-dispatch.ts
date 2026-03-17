@@ -20,8 +20,8 @@ import type {
   ListSpreadNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { inferElementType } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
+import { inferElementType } from '../../types/operations.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 

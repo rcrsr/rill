@@ -7,15 +7,16 @@
 
 import { RuntimeError } from '../../types.js';
 import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
-import { BUILT_IN_TYPES } from './type-registrations.js';
+import { BUILT_IN_TYPES } from './types/registrations.js';
 import type {
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
   SchemeResolver,
-} from './types.js';
-import { bindDictCallables } from './types.js';
-import { inferType, type RillValue } from './values.js';
+} from './types/runtime.js';
+import { bindDictCallables } from './types/runtime.js';
+import type { RillValue } from './types/structures.js';
+import { inferType } from './types/registrations.js';
 import {
   callable,
   validateDefaultValueType,
@@ -39,7 +40,7 @@ export const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
  * Methods without the flag default to standard RILL-R003 receiver validation.
  */
 function deriveUnvalidatedMethodReceivers(
-  registrations: readonly import('./type-registrations.js').TypeDefinition[]
+  registrations: readonly import('./types/registrations.js').TypeDefinition[]
 ): ReadonlySet<string> {
   const bypass = new Set<string>();
   for (const reg of registrations) {
@@ -140,7 +141,8 @@ export function createRuntimeContext(
           typeof description !== 'string' ||
           description.trim().length === 0
         ) {
-          throw new Error(
+          throw new RuntimeError(
+            'RILL-R069',
             `Function '${name}' requires description (requireDescriptions enabled)`
           );
         }
@@ -153,7 +155,8 @@ export function createRuntimeContext(
             typeof paramDesc !== 'string' ||
             paramDesc.trim().length === 0
           ) {
-            throw new Error(
+            throw new RuntimeError(
+              'RILL-R070',
               `Parameter '${param.name}' of function '${name}' requires description (requireDescriptions enabled)`
             );
           }
@@ -205,7 +208,10 @@ export function createRuntimeContext(
   const seenTypeNames = new Set<string>();
   for (const reg of BUILT_IN_TYPES) {
     if (seenTypeNames.has(reg.name)) {
-      throw new Error(`Duplicate type registration '${reg.name}'`);
+      throw new RuntimeError(
+        'RILL-R071',
+        `Duplicate type registration '${reg.name}'`
+      );
     }
     seenTypeNames.add(reg.name);
   }
@@ -213,7 +219,10 @@ export function createRuntimeContext(
   // EC-2: Validate every registration has protocol.format.
   for (const reg of BUILT_IN_TYPES) {
     if (!reg.protocol.format) {
-      throw new Error(`Type '${reg.name}' missing required format protocol`);
+      throw new RuntimeError(
+        'RILL-R072',
+        `Type '${reg.name}' missing required format protocol`
+      );
     }
   }
 
@@ -251,7 +260,10 @@ export function createRuntimeContext(
 
     for (const [name, fn] of Object.entries(methods)) {
       if (seen.has(name)) {
-        throw new Error(`Duplicate method '${name}' on type '${reg.name}'`);
+        throw new RuntimeError(
+          'RILL-R073',
+          `Duplicate method '${name}' on type '${reg.name}'`
+        );
       }
       seen.add(name);
       const appCallable: ApplicationCallable = {

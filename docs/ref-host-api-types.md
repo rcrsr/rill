@@ -360,3 +360,25 @@ const dateProtocol: TypeProtocol = {
 - [Host API Reference](ref-host-api.md) — Complete TypeScript API for embedding rill
 - [Host Integration](integration-host.md) — Embedding guide and runtime configuration
 - [Extensions](integration-extensions.md) — Reusable function packages
+
+---
+
+## Migration: 0.18.0 Renamed Exports
+
+v0.18.0 renames 7 exports in `@rcrsr/rill` to remove the `rill`-prefixed naming convention and align with the `TypeStructure` terminology introduced in v0.17.0. All old names are removed; update imports before upgrading.
+
+### Symbol Mapping Table
+
+| Old Name | New Name | Import Change |
+|----------|----------|---------------|
+| `RillType` | `TypeStructure` | `import type { TypeStructure } from '@rcrsr/rill'` |
+| `formatStructuralType` | `formatStructure` | `import { formatStructure } from '@rcrsr/rill'` |
+| `inferStructuralType` | `inferStructure` | `import { inferStructure } from '@rcrsr/rill'` |
+| `structuralTypeEquals` | `structureEquals` | `import { structureEquals } from '@rcrsr/rill'` |
+| `structuralTypeMatches` | `structureMatches` | `import { structureMatches } from '@rcrsr/rill'` |
+| `isRillIterator` | `isIterator` | `import { isIterator } from '@rcrsr/rill'` |
+| `rillTypeToTypeValue` | `structureToTypeValue` | `import { structureToTypeValue } from '@rcrsr/rill'` |
+
+### Codemod
+
+No automated codemod is available for this rename. Use find-and-replace across your codebase for each old name. The old names do not exist in v0.18.0 — TypeScript will report errors at every import site, making all affected locations visible before runtime.

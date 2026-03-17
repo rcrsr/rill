@@ -5,11 +5,11 @@
  * These types are the primary interface for host applications.
  */
 
-import type { RillTypeName } from '../../types.js';
-import type { CallableFn, RillFunction } from './callable.js';
-import type { TypeStructure, RillValue } from './values.js';
+import type { RillTypeName } from '../../../types.js';
+import type { CallableFn, RillFunction } from '../callable.js';
+import type { TypeStructure, RillValue } from './structures.js';
 
-export type { NativeArray, NativePlainObject, NativeValue } from './values.js';
+export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
 
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
@@ -135,7 +135,7 @@ export interface RuntimeContext {
   /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
   readonly functions: Map<
     string,
-    CallableFn | import('./callable.js').ApplicationCallable
+    CallableFn | import('../callable.js').ApplicationCallable
   >;
   /** I/O callbacks */
   readonly callbacks: RuntimeCallbacks;
@@ -167,7 +167,7 @@ export interface RuntimeContext {
    * Call stack for error context.
    * Managed by evaluator; pushed on function entry, popped on exit.
    */
-  readonly callStack: import('../../types.js').CallFrame[];
+  readonly callStack: import('../../../types.js').CallFrame[];
   /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
   readonly metadata?: Record<string, string> | undefined;
   /**
@@ -203,7 +203,7 @@ export interface RuntimeContext {
    * Omit if only `kind: 'value'` resolvers are used.
    */
   readonly parseSource?:
-    | ((text: string) => import('../../types.js').ScriptNode)
+    | ((text: string) => import('../../../types.js').ScriptNode)
     | undefined;
   /** Identifies the current source file for cross-module error reporting */
   readonly sourceId?: string | undefined;
@@ -243,7 +243,7 @@ export interface RuntimeOptions {
    * Parser function for executing resolver source results.
    * Required when resolvers may return `kind: 'source'` results.
    */
-  parseSource?: (text: string) => import('../../types.js').ScriptNode;
+  parseSource?: (text: string) => import('../../../types.js').ScriptNode;
 }
 
 /** Result of script execution */

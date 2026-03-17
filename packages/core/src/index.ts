@@ -106,23 +106,6 @@ export {
   type VersionInfo,
 } from './runtime/index.js';
 
-/** @deprecated Use TypeStructure instead. Will be removed in the next major version. */
-export type { RillType } from './runtime/index.js';
-
-// Deprecated aliases — old names kept for one release
-/** @deprecated Use formatStructure instead. */
-export { formatStructuralType } from './runtime/index.js';
-/** @deprecated Use inferStructure instead. */
-export { inferStructuralType } from './runtime/index.js';
-/** @deprecated Use isIterator instead. */
-export { isRillIterator } from './runtime/index.js';
-/** @deprecated Use structureToTypeValue instead. */
-export { rillTypeToTypeValue } from './runtime/index.js';
-/** @deprecated Use structureEquals instead. */
-export { structuralTypeEquals } from './runtime/index.js';
-/** @deprecated Use structureMatches instead. */
-export { structuralTypeMatches } from './runtime/index.js';
-
 // ============================================================
 // ERROR TAXONOMY
 // ============================================================

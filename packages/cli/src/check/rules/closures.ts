@@ -10,21 +10,15 @@ import type {
 } from '../types.js';
 import type {
   ASTNode,
-  BinaryExprNode,
-  BlockNode,
   ClosureNode,
-  ConditionalNode,
   GroupedExprNode,
-  InterpolationNode,
   PipeChainNode,
   PostfixExprNode,
-  StatementNode,
-  StringLiteralNode,
-  UnaryExprNode,
   VariableNode,
   EachExprNode,
 } from '@rcrsr/rill';
 import { extractContextLine } from './helpers.js';
+import { visitNode } from '../visitor.js';
 
 // ============================================================
 // CLOSURE_BARE_DOLLAR RULE
@@ -88,127 +82,20 @@ export const CLOSURE_BARE_DOLLAR: ValidationRule = {
 
 /**
  * Check if a node tree contains bare $ variable references.
- * Recursively walks the AST looking for VariableNode with isPipeVar=true.
+ * Uses visitNode for full AST traversal, detecting VariableNode with isPipeVar=true.
  */
 function containsBareReference(node: ASTNode): boolean {
-  if (node.type === 'Variable') {
-    const varNode = node as VariableNode;
-    // $ is represented as isPipeVar: true with name: null
-    if (varNode.isPipeVar) {
-      return true;
-    }
-  }
-
-  // Recursively check child nodes based on node type
-  switch (node.type) {
-    case 'Block': {
-      const blockNode = node as BlockNode;
-      for (const stmt of blockNode.statements) {
-        if (containsBareReference(stmt)) return true;
+  let found = false;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'Variable' && (n as VariableNode).isPipeVar) {
+        found = true;
       }
-      break;
-    }
-
-    case 'Statement': {
-      const stmtNode = node as StatementNode;
-      if (stmtNode.expression && containsBareReference(stmtNode.expression))
-        return true;
-      break;
-    }
-
-    case 'PipeChain': {
-      const pipeNode = node as PipeChainNode;
-      if (pipeNode.head && containsBareReference(pipeNode.head)) return true;
-      if (pipeNode.pipes) {
-        for (const pipe of pipeNode.pipes) {
-          if (containsBareReference(pipe)) return true;
-        }
-      }
-      break;
-    }
-
-    case 'PostfixExpr': {
-      const postfixNode = node as PostfixExprNode;
-      if (postfixNode.primary && containsBareReference(postfixNode.primary))
-        return true;
-      if (postfixNode.methods) {
-        for (const method of postfixNode.methods) {
-          if (containsBareReference(method)) return true;
-        }
-      }
-      break;
-    }
-
-    case 'BinaryExpr': {
-      const binaryNode = node as BinaryExprNode;
-      if (binaryNode.left && containsBareReference(binaryNode.left))
-        return true;
-      if (binaryNode.right && containsBareReference(binaryNode.right))
-        return true;
-      break;
-    }
-
-    case 'UnaryExpr': {
-      const unaryNode = node as UnaryExprNode;
-      if (unaryNode.operand && containsBareReference(unaryNode.operand))
-        return true;
-      break;
-    }
-
-    case 'GroupedExpr': {
-      const groupedNode = node as GroupedExprNode;
-      if (
-        groupedNode.expression &&
-        containsBareReference(groupedNode.expression)
-      )
-        return true;
-      break;
-    }
-
-    case 'StringLiteral': {
-      const stringNode = node as StringLiteralNode;
-      if (stringNode.parts) {
-        for (const part of stringNode.parts) {
-          if (typeof part === 'object' && containsBareReference(part))
-            return true;
-        }
-      }
-      break;
-    }
-
-    case 'Interpolation': {
-      const interpNode = node as InterpolationNode;
-      if (interpNode.expression && containsBareReference(interpNode.expression))
-        return true;
-      break;
-    }
-
-    case 'Conditional': {
-      const condNode = node as ConditionalNode;
-      if (condNode.condition && containsBareReference(condNode.condition))
-        return true;
-      if (condNode.thenBranch && containsBareReference(condNode.thenBranch))
-        return true;
-      if (condNode.elseBranch && containsBareReference(condNode.elseBranch))
-        return true;
-      break;
-    }
-
-    case 'MethodCall':
-    case 'HostCall':
-    case 'ClosureCall':
-    case 'Invoke': {
-      const callNode = node as { args: ASTNode[] };
-      if (callNode.args) {
-        for (const arg of callNode.args) {
-          if (containsBareReference(arg)) return true;
-        }
-      }
-      break;
-    }
-  }
-
-  return false;
+    },
+    exit() {},
+  });
+  return found;
 }
 
 // ============================================================
@@ -355,91 +242,60 @@ export const CLOSURE_LATE_BINDING: ValidationRule = {
 
 /**
  * Check if a node contains a closure creation (Closure node).
+ * Uses visitNode for full AST traversal.
  */
 function containsClosureCreation(node: ASTNode): boolean {
-  if (node.type === 'Closure') {
-    return true;
-  }
-
-  // Recursively check child nodes
-  switch (node.type) {
-    case 'Block': {
-      const blockNode = node as BlockNode;
-      for (const stmt of blockNode.statements) {
-        if (containsClosureCreation(stmt)) return true;
+  let found = false;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'Closure') {
+        found = true;
       }
-      break;
-    }
-
-    case 'Statement': {
-      const stmtNode = node as StatementNode;
-      if (stmtNode.expression && containsClosureCreation(stmtNode.expression))
-        return true;
-      break;
-    }
-
-    case 'PipeChain': {
-      const pipeNode = node as PipeChainNode;
-      if (pipeNode.head && containsClosureCreation(pipeNode.head)) return true;
-      if (pipeNode.pipes) {
-        for (const pipe of pipeNode.pipes) {
-          if (containsClosureCreation(pipe)) return true;
-        }
-      }
-      break;
-    }
-
-    case 'PostfixExpr': {
-      const postfixNode = node as PostfixExprNode;
-      if (postfixNode.primary && containsClosureCreation(postfixNode.primary))
-        return true;
-      break;
-    }
-  }
-
-  return false;
+    },
+    exit() {},
+  });
+  return found;
 }
 
 /**
- * Check if a Block node contains an explicit capture statement ($ => $name).
+ * Check if a Block node contains an explicit capture statement ($ => $name)
+ * at the top level (closureDepth === 0). Captures inside nested closures
+ * are scoped to that closure and do not fix late binding for the each body.
  */
 function containsExplicitCapture(node: ASTNode): boolean {
   if (node.type !== 'Block') {
     return false;
   }
 
-  const blockNode = node as BlockNode;
-  const statements = blockNode.statements;
-
-  // Look for capture of $ into a named variable
-  for (const stmt of statements) {
-    if (
-      stmt.type === 'Statement' &&
-      stmt.expression &&
-      stmt.expression.type === 'PipeChain'
-    ) {
-      const chain = stmt.expression;
-
-      // Check if any pipe is a Capture
-      if (chain.pipes && Array.isArray(chain.pipes)) {
-        for (const pipe of chain.pipes) {
-          if (pipe.type === 'Capture') {
-            // Check if the head is bare $
-            const head = chain.head;
-            if (head && head.type === 'PostfixExpr') {
-              const postfix = head as PostfixExprNode;
-              if (postfix.primary && postfix.primary.type === 'Variable') {
-                const varNode = postfix.primary as VariableNode;
-                if (varNode.isPipeVar) {
-                  return true;
-                }
-              }
-            }
-          }
+  let found = false;
+  let closureDepth = 0;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth++;
+        return;
+      }
+      if (closureDepth > 0) return;
+      if (n.type !== 'PipeChain') return;
+      const chain = n as PipeChainNode;
+      const head = chain.head;
+      if (!head || head.type !== 'PostfixExpr') return;
+      const postfix = head as PostfixExprNode;
+      if (!postfix.primary || postfix.primary.type !== 'Variable') return;
+      if (!(postfix.primary as VariableNode).isPipeVar) return;
+      for (const pipe of chain.pipes) {
+        if (pipe.type === 'Capture') {
+          found = true;
         }
       }
-    }
-  }
-
-  return false;
+    },
+    exit(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth--;
+      }
+    },
+  });
+  return found;
 }

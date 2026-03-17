@@ -23,30 +23,35 @@
 import type { BodyNode, SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
+import {
+  isCallable as _isCallableGuard,
+  isDict,
+  isOrdered,
+  isTuple,
+} from './types/guards.js';
 import type {
   TypeStructure,
   RillTypeValue,
   RillValue,
+} from './types/structures.js';
+import type {
   DictStructure,
   TupleStructure,
   OrderedStructure,
-} from './values.js';
-
+} from './types/operations.js';
+import { formatValue, inferType } from './types/registrations.js';
 import {
-  formatValue,
   formatStructure,
-  inferType,
-  isOrdered,
-  createOrdered,
-  copyValue,
-  isTuple,
   paramToFieldDef,
   structureEquals,
   structureMatches,
-  anyTypeValue,
-  hasCollectionFields,
+} from './types/operations.js';
+import {
+  createOrdered,
+  copyValue,
   emptyForType,
-} from './values.js';
+} from './types/constructors.js';
+import { anyTypeValue, hasCollectionFields } from './values.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -144,15 +149,10 @@ export type RillCallable =
   | RuntimeCallable
   | ApplicationCallable;
 
-/** Type guard for any callable */
-export function isCallable(value: RillValue): value is RillCallable {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__type' in value &&
-    value.__type === 'callable'
-  );
-}
+/** Type guard for any callable (delegates to types/guards.ts) */
+export const isCallable = _isCallableGuard as (
+  value: RillValue
+) => value is RillCallable;
 
 /** Type guard for script callable */
 export function isScriptCallable(value: RillValue): value is ScriptCallable {
@@ -228,16 +228,8 @@ export function toCallable(
   };
 }
 
-/** Type guard for dict (plain object, not array, not callable, not tuple) */
-export function isDict(value: RillValue): value is Record<string, RillValue> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    !isCallable(value) &&
-    !isTuple(value)
-  );
-}
+// isDict imported from ./types/guards.js and re-exported
+export { isDict };
 
 /** Format a callable for display */
 export function formatCallable(callable: RillCallable): string {
@@ -380,7 +372,8 @@ export function validateDefaultValueType(
   if (!structureMatches(param.defaultValue, param.type)) {
     const actualType = inferType(param.defaultValue);
     const expectedType = formatStructure(param.type);
-    throw new Error(
+    throw new RuntimeError(
+      'RILL-R077',
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
     );
   }

@@ -43,16 +43,11 @@ import type {
   PassNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillType, RillValue } from '../../values.js';
-import {
-  anyTypeValue,
-  deepEquals,
-  formatValue,
-  inferElementType,
-  isReservedMethod,
-  isTypeValue,
-  isVector,
-} from '../../values.js';
+import type { TypeStructure, RillValue } from '../../types/structures.js';
+import { deepEquals, formatValue } from '../../types/registrations.js';
+import { isTypeValue, isVector } from '../../types/guards.js';
+import { inferElementType } from '../../types/operations.js';
+import { anyTypeValue, isReservedMethod } from '../../values.js';
 import {
   isCallable,
   type ScriptCallable,
@@ -60,7 +55,7 @@ import {
 } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import type { RuntimeContext } from '../../types.js';
+import type { RuntimeContext } from '../../types/runtime.js';
 import { getVariable } from '../../context.js';
 
 /**
@@ -888,7 +883,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Resolve typeRef at closure-creation time (AC-12).
         // Dynamic refs ($var) are resolved against the current context now,
         // so the closure captures the concrete type, not the variable reference.
-        let resolvedType: RillType | undefined = undefined;
+        let resolvedType: TypeStructure | undefined = undefined;
         if (param.typeRef !== null) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const resolved = await (this as any).resolveTypeRef(

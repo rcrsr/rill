@@ -18,7 +18,7 @@
  */
 
 // ============================================================
-// PUBLIC TYPES
+// PUBLIC TYPES (from types/ barrel)
 // ============================================================
 
 export type {
@@ -26,10 +26,20 @@ export type {
   ErrorEvent,
   ExecutionResult,
   ExecutionStepper,
-  HostCallEvent,
+  ExtensionEvent,
   FunctionReturnEvent,
+  HostCallEvent,
+  NativeArray,
+  NativePlainObject,
+  NativeValue,
   ObservabilityCallbacks,
   ResolverResult,
+  RillFieldDef,
+  RillIterator,
+  RillTuple,
+  RillTypeValue,
+  RillValue,
+  RillVector,
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
@@ -37,7 +47,10 @@ export type {
   StepEndEvent,
   StepResult,
   StepStartEvent,
-} from './core/types.js';
+  TypeDefinition,
+  TypeProtocol,
+  TypeStructure,
+} from './core/types/index.js';
 
 // ============================================================
 // CALLABLE TYPES AND GUARDS
@@ -67,30 +80,10 @@ export {
 // VALUE TYPES AND UTILITIES
 // ============================================================
 
-export type {
-  NativeArray,
-  NativePlainObject,
-  NativeResult,
-  NativeValue,
-  RillFieldDef,
-  RillIterator,
-  RillTuple,
-  RillTypeValue,
-  RillValue,
-  RillVector,
-  TypeStructure,
-} from './core/values.js';
+export type { NativeResult } from './core/values.js';
 
-/** @deprecated Use TypeStructure instead. Will be removed in the next major version. */
-export type { RillType } from './core/values.js';
-
-export type {
-  TypeDefinition,
-  TypeProtocol,
-} from './core/type-registrations.js';
-
+// Extracted to types/ sub-modules (via barrel)
 export {
-  anyTypeValue,
   commonType,
   createTuple,
   createVector,
@@ -102,28 +95,19 @@ export {
   isTuple,
   isTypeValue,
   isVector,
-  isReservedMethod,
   paramToFieldDef,
-  structureToTypeValue,
-  RESERVED_DICT_METHODS,
   structureEquals,
   structureMatches,
+} from './core/types/index.js';
+
+// Remain in values.ts
+export {
+  anyTypeValue,
+  isReservedMethod,
+  RESERVED_DICT_METHODS,
+  structureToTypeValue,
   toNative,
 } from './core/values.js';
-
-// Deprecated aliases — old names kept for one release
-/** @deprecated Use formatStructure instead. */
-export { formatStructuralType } from './core/values.js';
-/** @deprecated Use inferStructure instead. */
-export { inferStructuralType } from './core/values.js';
-/** @deprecated Use isIterator instead. */
-export { isRillIterator } from './core/values.js';
-/** @deprecated Use structureToTypeValue instead. */
-export { rillTypeToTypeValue } from './core/values.js';
-/** @deprecated Use structureEquals instead. */
-export { structuralTypeEquals } from './core/values.js';
-/** @deprecated Use structureMatches instead. */
-export { structuralTypeMatches } from './core/values.js';
 
 export { buildFieldDescriptor } from './core/field-descriptor.js';
 
@@ -136,8 +120,6 @@ export { BreakSignal, ReturnSignal } from './core/signals.js';
 // ============================================================
 // EXTENSION API
 // ============================================================
-
-export type { ExtensionEvent } from './core/types.js';
 
 export type {
   ConfigFieldDescriptor,

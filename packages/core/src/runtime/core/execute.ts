@@ -23,8 +23,8 @@ import type {
   ExecutionStepper,
   RuntimeContext,
   StepResult,
-} from './types.js';
-import type { RillValue } from './values.js';
+} from './types/runtime.js';
+import type { RillValue } from './types/structures.js';
 
 /**
  * Execute a parsed Rill script.

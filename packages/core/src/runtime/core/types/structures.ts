@@ -10,7 +10,7 @@
  * coexistence during migration.
  */
 
-import type { RillTypeName } from '../../types.js';
+import type { RillTypeName } from '../../../types.js';
 import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 
 /**

@@ -1533,6 +1533,253 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
 
+  // Type conversion: string to number (RILL-R064)
+  {
+    errorId: 'RILL-R064',
+    category: 'runtime',
+    description: 'Cannot convert string to number',
+    messageTemplate: 'Cannot convert string "{value}" to number',
+    cause:
+      'The string value is not a valid numeric representation or is empty/whitespace.',
+    resolution:
+      'Ensure the string contains a valid number before converting. Use as(number) only on numeric strings.',
+    examples: [
+      {
+        description: 'Non-numeric string conversion',
+        code: '"hello" -> as(number)  # Error: not a valid number',
+      },
+    ],
+  },
+
+  // Type conversion: string to bool (RILL-R065)
+  {
+    errorId: 'RILL-R065',
+    category: 'runtime',
+    description: 'Cannot convert string to bool',
+    messageTemplate: 'Cannot convert string "{value}" to bool',
+    cause: 'Only the strings "true" and "false" can convert to bool.',
+    resolution: 'Use the exact strings "true" or "false" for bool conversion.',
+    examples: [
+      {
+        description: 'Invalid bool string',
+        code: '"yes" -> as(bool)  # Error: only "true"/"false" allowed',
+      },
+    ],
+  },
+
+  // Type conversion: number to bool (RILL-R066)
+  {
+    errorId: 'RILL-R066',
+    category: 'runtime',
+    description: 'Cannot convert number to bool',
+    messageTemplate: 'Cannot convert number {value} to bool',
+    cause:
+      'Only the numbers 0 and 1 can convert to bool. Other numeric values have no bool equivalent.',
+    resolution: 'Use 0 (false) or 1 (true) for number-to-bool conversion.',
+    examples: [
+      {
+        description: 'Non-binary number conversion',
+        code: '42 -> as(bool)  # Error: only 0 and 1 allowed',
+      },
+    ],
+  },
+
+  // JSON serialization: value not serializable (RILL-R067)
+  {
+    errorId: 'RILL-R067',
+    category: 'runtime',
+    description: 'Value is not JSON-serializable',
+    messageTemplate: '{typeName} are not JSON-serializable',
+    cause:
+      'The value type cannot be represented in JSON. Only strings, numbers, bools, lists, and dicts serialize.',
+    resolution:
+      'Convert the value to a serializable type before JSON operations. Extract data from closures or iterators first.',
+    examples: [
+      {
+        description: 'Closure in JSON context',
+        code: '|x| $x + 1 -> as(string)  # Error: closures not serializable',
+      },
+    ],
+  },
+
+  // Method registration: frozen type registration (RILL-R068)
+  {
+    errorId: 'RILL-R068',
+    category: 'runtime',
+    description: 'Type registration is frozen',
+    messageTemplate:
+      "Cannot populate methods on type '{typeName}': registration is frozen",
+    cause:
+      'The type registration object was deep-frozen, preventing method assignment.',
+    resolution:
+      'Ensure type registrations are not deep-frozen before calling populateBuiltinMethods.',
+    examples: [
+      {
+        description: 'Frozen registration object',
+        code: '# Object.freeze(registration) prevents method population',
+      },
+    ],
+  },
+
+  // Context validation: function missing description (RILL-R069)
+  {
+    errorId: 'RILL-R069',
+    category: 'runtime',
+    description: 'Function missing required description',
+    messageTemplate:
+      "Function '{name}' requires description (requireDescriptions enabled)",
+    cause:
+      'The requireDescriptions option is enabled but the function has no description.',
+    resolution:
+      'Add a description field to the function definition, or disable requireDescriptions.',
+    examples: [
+      {
+        description: 'Missing function description',
+        code: '# registerFunction("greet", { fn: ... }) with requireDescriptions: true',
+      },
+    ],
+  },
+
+  // Context validation: parameter missing description (RILL-R070)
+  {
+    errorId: 'RILL-R070',
+    category: 'runtime',
+    description: 'Parameter missing required description',
+    messageTemplate:
+      "Parameter '{paramName}' of function '{functionName}' requires description (requireDescriptions enabled)",
+    cause:
+      'The requireDescriptions option is enabled but a parameter has no description annotation.',
+    resolution:
+      'Add a description annotation to each parameter, or disable requireDescriptions.',
+    examples: [
+      {
+        description: 'Missing parameter description',
+        code: '# param { name: "x", annotations: {} } with requireDescriptions: true',
+      },
+    ],
+  },
+
+  // Context validation: duplicate type registration (RILL-R071)
+  {
+    errorId: 'RILL-R071',
+    category: 'runtime',
+    description: 'Duplicate type registration',
+    messageTemplate: "Duplicate type registration '{typeName}'",
+    cause:
+      'Two type registrations share the same name. Each type name must be unique.',
+    resolution: 'Remove or rename the duplicate type registration.',
+    examples: [
+      {
+        description: 'Duplicate type name',
+        code: '# Two registrations both named "string"',
+      },
+    ],
+  },
+
+  // Context validation: missing format protocol (RILL-R072)
+  {
+    errorId: 'RILL-R072',
+    category: 'runtime',
+    description: 'Type missing format protocol',
+    messageTemplate: "Type '{typeName}' missing required format protocol",
+    cause:
+      'Every type registration must include a format function in its protocol.',
+    resolution: 'Add a format function to the type registration protocol.',
+    examples: [
+      {
+        description: 'Missing format in protocol',
+        code: '# TypeRegistration { name: "custom", protocol: {} } missing format',
+      },
+    ],
+  },
+
+  // Context validation: duplicate method on type (RILL-R073)
+  {
+    errorId: 'RILL-R073',
+    category: 'runtime',
+    description: 'Duplicate method on type',
+    messageTemplate: "Duplicate method '{methodName}' on type '{typeName}'",
+    cause: 'A method with the same name is registered twice on the same type.',
+    resolution:
+      'Remove the duplicate method registration or rename one of them.',
+    examples: [
+      {
+        description: 'Method registered twice',
+        code: '# Type "string" has two methods both named "split"',
+      },
+    ],
+  },
+
+  // Value validation: empty vector (RILL-R074)
+  {
+    errorId: 'RILL-R074',
+    category: 'runtime',
+    description: 'Vector requires at least one dimension',
+    messageTemplate: 'Vector data must have at least one dimension',
+    cause:
+      'An empty Float32Array was passed to createVector. Vectors must have at least one element.',
+    resolution: 'Provide a non-empty Float32Array when creating vectors.',
+    examples: [
+      {
+        description: 'Zero-dimension vector',
+        code: '# createVector(new Float32Array([]), "model") fails',
+      },
+    ],
+  },
+
+  // Extension validation: missing event field (RILL-R075)
+  {
+    errorId: 'RILL-R075',
+    category: 'runtime',
+    description: 'Event missing event field',
+    messageTemplate: 'Event must include non-empty event field',
+    cause:
+      'The event object passed to emitExtensionEvent has no event field or the field is empty.',
+    resolution: 'Include a non-empty string event field in the event object.',
+    examples: [
+      {
+        description: 'Empty event field',
+        code: '# emitExtensionEvent(ctx, { event: "" }) fails',
+      },
+    ],
+  },
+
+  // Module resolution: unknown module (RILL-R076)
+  {
+    errorId: 'RILL-R076',
+    category: 'runtime',
+    description: 'Unknown module resource',
+    messageTemplate: "Unknown module '{resource}'",
+    cause:
+      'The module resolver received a resource identifier it does not recognize.',
+    resolution:
+      'Use a valid module resource. The ext module resolver only handles the "ext" resource.',
+    examples: [
+      {
+        description: 'Invalid module resource',
+        code: 'use<module:unknown>  # Error: unknown module',
+      },
+    ],
+  },
+
+  // Callable validation: invalid default value (RILL-R077)
+  {
+    errorId: 'RILL-R077',
+    category: 'runtime',
+    description: 'Invalid parameter default value',
+    messageTemplate:
+      "Invalid defaultValue for parameter '{paramName}': expected {expectedType}, got {actualType}",
+    cause: 'The default value type does not match the declared parameter type.',
+    resolution:
+      'Ensure the defaultValue matches the parameter type in the function definition.',
+    examples: [
+      {
+        description: 'Type mismatch in default',
+        code: '# param { name: "x", type: "number", defaultValue: "hello" }',
+      },
+    ],
+  },
+
   // Check Errors (RILL-C0xx)
   {
     errorId: 'RILL-C001',

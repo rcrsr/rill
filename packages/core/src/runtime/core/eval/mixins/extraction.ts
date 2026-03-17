@@ -23,8 +23,9 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { EvaluatorConstructor } from '../types.js';
-import type { RillValue } from '../../values.js';
-import { createOrdered, createTuple, inferElementType } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
+import { createOrdered, createTuple } from '../../types/constructors.js';
+import { inferElementType } from '../../types/operations.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorBase } from '../base.js';

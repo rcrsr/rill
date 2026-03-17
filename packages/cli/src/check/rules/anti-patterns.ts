@@ -25,6 +25,7 @@ import type {
   DoWhileLoopNode,
 } from '@rcrsr/rill';
 import { extractContextLine } from './helpers.js';
+import { visitNode } from '../visitor.js';
 
 // ============================================================
 // AVOID_REASSIGNMENT RULE
@@ -454,73 +455,30 @@ function isVariableInParentScope(
 }
 
 /**
- * Recursively find all Capture nodes in a loop body.
+ * Find all Capture nodes in a loop body, excluding closures.
+ * Uses visitNode for full AST traversal with closure depth tracking
+ * to skip captures inside nested closures (they have their own scope).
  */
 function findCapturesInBody(node: ASTNode): CaptureNode[] {
   const captures: CaptureNode[] = [];
-
-  function traverse(n: ASTNode): void {
-    if (n.type === 'Capture') {
-      captures.push(n as CaptureNode);
-      return;
-    }
-
-    // Traverse children based on node type
-    switch (n.type) {
-      case 'Block':
-        for (const stmt of n.statements) traverse(stmt);
-        break;
-      case 'Statement':
-        traverse(n.expression);
-        break;
-      case 'AnnotatedStatement':
-        traverse(n.statement);
-        break;
-      case 'PipeChain':
-        traverse(n.head);
-        for (const pipe of n.pipes) traverse(pipe as ASTNode);
-        if (n.terminator) traverse(n.terminator);
-        break;
-      case 'PostfixExpr':
-        traverse(n.primary);
-        for (const method of n.methods) traverse(method);
-        break;
-      case 'BinaryExpr':
-        traverse(n.left);
-        traverse(n.right);
-        break;
-      case 'UnaryExpr':
-        traverse(n.operand);
-        break;
-      case 'GroupedExpr':
-        traverse(n.expression);
-        break;
-      case 'Conditional':
-        if (n.input) traverse(n.input);
-        if (n.condition) traverse(n.condition);
-        traverse(n.thenBranch);
-        if (n.elseBranch) traverse(n.elseBranch);
-        break;
-      case 'Closure':
-        // Don't traverse into closures - they have their own scope
-        break;
-      // Nested loops - traverse their bodies too
-      case 'WhileLoop':
-        traverse(n.body);
-        break;
-      case 'DoWhileLoop':
-        traverse(n.body);
-        break;
-      case 'EachExpr':
-      case 'MapExpr':
-      case 'FilterExpr':
-      case 'FoldExpr':
-        traverse(n.body);
-        break;
-    }
-  }
-
-  traverse(node);
+  let closureDepth = 0;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth++;
+        return;
+      }
+      if (n.type === 'Capture' && closureDepth === 0) {
+        captures.push(n as CaptureNode);
+      }
+    },
+    exit(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth--;
+      }
+    },
+  });
   return captures;
 }
 

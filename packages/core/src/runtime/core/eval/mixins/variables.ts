@@ -40,13 +40,10 @@ import type {
   MethodCallNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { TypeStructure, RillValue } from '../../values.js';
-import {
-  formatStructure,
-  inferType,
-  isTypeValue,
-  structureMatches,
-} from '../../values.js';
+import type { TypeStructure, RillValue } from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
+import { isTypeValue } from '../../types/guards.js';
+import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';

@@ -1,6 +1,10 @@
 import type { ApplicationCallable } from '../core/callable.js';
-import type { ExtensionEvent, RuntimeCallbacks } from '../core/types.js';
-import type { RillValue } from '../core/values.js';
+import type {
+  ExtensionEvent,
+  RuntimeCallbacks,
+} from '../core/types/runtime.js';
+import type { RillValue } from '../core/types/structures.js';
+import { RuntimeError } from '../../types.js';
 
 /**
  * Minimal interface for extension event emission.
@@ -156,7 +160,10 @@ export function emitExtensionEvent(
     typeof event['event'] !== 'string' ||
     event['event'].trim() === ''
   ) {
-    throw new Error('Event must include non-empty event field');
+    throw new RuntimeError(
+      'RILL-R075',
+      'Event must include non-empty event field'
+    );
   }
 
   // IC-2: Guard for callbacks property (graceful degradation)

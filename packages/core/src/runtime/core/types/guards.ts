@@ -1,0 +1,99 @@
+/**
+ * Type Guards
+ *
+ * Centralized type guard functions for all Rill value types.
+ * Extracted from values.ts and callable.ts to break the circular
+ * dependency between those modules.
+ *
+ * Import constraints:
+ * - Imports ONLY from ./markers.js and ./structures.js
+ * - No imports from values.ts or callable.ts
+ */
+
+import type { CallableMarker } from './markers.js';
+import type {
+  RillIterator,
+  RillOrdered,
+  RillTuple,
+  RillTypeValue,
+  RillValue,
+  RillVector,
+} from './structures.js';
+
+/** Type guard for RillTuple (spread args) */
+export function isTuple(value: RillValue): value is RillTuple {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_tuple' in value &&
+    value.__rill_tuple === true
+  );
+}
+
+/** Type guard for RillVector */
+export function isVector(value: RillValue): value is RillVector {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_vector' in value &&
+    value.__rill_vector === true
+  );
+}
+
+/** Type guard for RillOrdered (named spread args) */
+export function isOrdered(value: RillValue): value is RillOrdered {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_ordered' in value &&
+    (value as RillOrdered).__rill_ordered === true
+  );
+}
+
+/** Type guard for RillTypeValue */
+export function isTypeValue(value: RillValue): value is RillTypeValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_type' in value &&
+    (value as RillTypeValue).__rill_type === true
+  );
+}
+
+/** Type guard for any callable */
+export function isCallable(value: RillValue): value is CallableMarker {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__type' in value &&
+    (value as CallableMarker).__type === 'callable'
+  );
+}
+
+/** Type guard for dict (plain object, not array, not callable, not tuple) */
+export function isDict(value: RillValue): value is Record<string, RillValue> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !isCallable(value) &&
+    !isTuple(value)
+  );
+}
+
+/**
+ * Type guard for Rill iterator (lazy sequence).
+ * An iterator is a dict with:
+ * - done: boolean - whether iteration is complete
+ * - next: callable - function to get next iterator
+ * - value: any (only required when not done) - current element
+ */
+export function isIterator(value: RillValue): value is RillIterator {
+  if (!isDict(value)) return false;
+  const dict = value as Record<string, RillValue>;
+  if (!('done' in dict && typeof dict['done'] === 'boolean')) return false;
+  if (!('next' in dict && isCallable(dict['next']))) return false;
+  // 'value' field only required when not done
+  if (!dict['done'] && !('value' in dict)) return false;
+  return true;
+}

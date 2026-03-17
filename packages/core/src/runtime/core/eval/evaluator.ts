@@ -115,7 +115,7 @@ import { TypesMixin } from './mixins/types.js';
 import { AnnotationsMixin } from './mixins/annotations.js';
 import { ConversionMixin } from './mixins/conversion.js';
 import { UseMixin } from './mixins/use.js';
-import type { RuntimeContext } from '../types.js';
+import type { RuntimeContext } from '../types/runtime.js';
 
 /**
  * Complete Evaluator class composed from all mixins.

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Standardized runtime error codes** — All runtime errors now use typed error codes (RILL-R064-R077) instead of raw exception messages
+
+### Removed
+
+- **`RillType`** — Use `TypeStructure` instead
+- **`formatStructuralType`** — Use `formatStructure` instead
+- **`inferStructuralType`** — Use `inferStructure` instead
+- **`structuralTypeEquals`** — Use `structureEquals` instead
+- **`structuralTypeMatches`** — Use `structureMatches` instead
+- **`isRillIterator`** — Use `isIterator` instead
+- **`rillTypeToTypeValue`** — Use `structureToTypeValue` instead
+
+See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renamed-exports) for the full symbol mapping table and update instructions.
+
 ## [0.17.0] - 2026-03-16
 
 ### Breaking Changes

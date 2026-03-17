@@ -30,8 +30,9 @@ import type {
   SourceLocation,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { inferType, isRillIterator, isVector } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
+import { isIterator, isVector } from '../../types/guards.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict, marshalArgs } from '../../callable.js';
@@ -95,7 +96,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return [...input];
       }
       // Check for iterator protocol BEFORE generic dict handling
-      if (isRillIterator(input)) {
+      if (isIterator(input)) {
         return this.expandIterator(input, node);
       }
       if (isDict(input)) {

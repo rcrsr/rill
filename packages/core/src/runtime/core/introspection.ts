@@ -5,9 +5,10 @@
  * These enable host applications to discover available functions and their signatures.
  */
 
-import type { RuntimeContext } from './types.js';
-import type { RillValue } from './values.js';
-import { formatStructure, formatValue } from './values.js';
+import type { RuntimeContext } from './types/runtime.js';
+import type { RillValue } from './types/structures.js';
+import { formatStructure } from './types/operations.js';
+import { formatValue } from './types/registrations.js';
 import {
   isApplicationCallable,
   isRuntimeCallable,
