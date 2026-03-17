@@ -63,15 +63,14 @@ const loaded = await loadExtensions(mounts, config.extensions);
 ```typescript
 import { buildExtensionBindings, buildContextBindings } from '@rcrsr/rill-config';
 
-const extBindings = buildExtensionBindings(extTree, manifests);
+const extBindings = buildExtensionBindings(extTree);
 const ctxBindings = buildContextBindings(config.context);
 ```
 
 | Export | Purpose |
 |--------|---------|
-| `buildExtensionBindings(tree, manifests)` | Generate `use:` bindings for extensions |
+| `buildExtensionBindings(extTree, basePath?)` | Generate `use:` bindings for extensions |
 | `buildContextBindings(context)` | Generate `use:` bindings for context vars |
-| `isLeafFunction(value)` | Check if a value is a terminal function node |
 
 ### Project Loading
 
@@ -120,6 +119,7 @@ All errors extend `ConfigError`:
 | `MountValidationError` | Invalid mount path or specifier |
 | `ExtensionLoadError` | Extension failed to load |
 | `ExtensionVersionError` | Extension version incompatible |
+| `ExtensionBindingError` | Extension binding generation failed |
 | `NamespaceCollisionError` | Two mounts from different packages conflict |
 | `ContextValidationError` | Context value fails schema check |
 | `BundleRestrictionError` | Prohibited field present during bundle |

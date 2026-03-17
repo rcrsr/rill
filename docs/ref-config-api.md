@@ -230,16 +230,18 @@ Loads all extension packages listed in `mounts` and applies per-extension config
 ### `buildExtensionBindings`
 
 ```typescript
-buildExtensionBindings(extTree: NestedExtConfig): string
+buildExtensionBindings(extTree: Record<string, RillValue>): string
 ```
 
-Generates rill source text that binds loaded extension functions into the script namespace.
+Generates rill source text that binds loaded extension values into the script namespace.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `extTree` | `NestedExtConfig` | Yes | Nested extension configuration tree |
+| `extTree` | `Record<string, RillValue>` | Yes | Map of mount path to mounted extension value |
 
 **Returns:** rill source string with extension bindings.
+
+**Throws:** `ExtensionBindingError` when a value cannot be bound (e.g., invalid mount path or incompatible value shape).
 
 ---
 
@@ -267,7 +269,7 @@ Generates rill source text that binds context values into the script namespace.
 
 ```typescript
 buildResolvers(options: {
-  extTree: NestedExtConfig;
+  extTree: Record<string, RillValue>;
   contextValues: Record<string, unknown>;
   extensionBindings: string;
   contextBindings: string;
@@ -279,7 +281,7 @@ Assembles the final resolver configuration for the rill runtime.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `options.extTree` | `NestedExtConfig` | Yes | Nested extension configuration tree |
+| `options.extTree` | `Record<string, RillValue>` | Yes | Map of mount path to mounted extension value |
 | `options.contextValues` | `Record<string, unknown>` | Yes | Validated context values |
 | `options.extensionBindings` | `string` | Yes | Generated extension binding source |
 | `options.contextBindings` | `string` | Yes | Generated context binding source |
@@ -429,7 +431,7 @@ Result of `loadExtensions`. Contains all loaded extension data.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `manifests` | `ReadonlyMap<string, ExtensionManifest>` | Yes | Map of mount path to loaded manifest |
-| `extTree` | `NestedExtConfig` | Yes | Nested extension configuration tree |
+| `extTree` | `Record<string, RillValue>` | Yes | Map of mount path to mounted extension value |
 
 ---
 
@@ -504,6 +506,7 @@ class ConfigError extends Error {
 | `ContextValidationError` | EC-12 | A required context value is missing, or a value has the wrong type | `message` |
 | `BundleRestrictionError` | EC-14 | Config contains fields prohibited in bundle mode | `message` |
 | `HandlerArgError` | EC-16 | Missing required param, type coercion failure, or unknown CLI flag | `message` |
+| `ExtensionBindingError` | EXTENSION_BINDING | Extension value cannot be bound — invalid mount path or incompatible value shape | `message`, `code` |
 
 ### Catching Typed Errors
 
@@ -513,6 +516,7 @@ import {
   ConfigError,
   ConfigNotFoundError,
   ConfigEnvError,
+  ExtensionBindingError,
 } from '@rcrsr/rill-config';
 
 try {
@@ -522,6 +526,8 @@ try {
     console.error('No config file found:', err.message);
   } else if (err instanceof ConfigEnvError) {
     console.error('Missing environment variables:', err.message);
+  } else if (err instanceof ExtensionBindingError) {
+    console.error('Extension binding failed:', err.message);
   } else if (err instanceof ConfigError) {
     console.error(`Config error [${err.code}]:`, err.message);
   } else {

@@ -1,15 +1,16 @@
 /**
  * Tests for use<ext:...> resolution with correct return types and annotations.
- * Verifies that convertTreeToRillValues preserves returnType and annotations
- * from extension RillFunctions, enabling accurate type introspection.
+ * Verifies that ApplicationCallable values in the extTree preserve returnType
+ * and annotations, enabling accurate type introspection.
  */
 
 import { describe, it, expect } from 'vitest';
 import { runScript } from '../../src/run/runner.js';
 import type { RunCliOptions } from '../../src/run/types.js';
-import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
+import type { RillConfigFile } from '@rcrsr/rill-config';
 import { buildExtensionBindings } from '@rcrsr/rill-config';
-import { structureToTypeValue } from '@rcrsr/rill';
+import { structureToTypeValue, toCallable } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -25,14 +26,10 @@ function makeOpts(scriptPath: string): RunCliOptions {
   };
 }
 
-function makeConfig(): RillConfigFile {
-  return { modules: {} };
-}
-
-function makeExtTree(): NestedExtConfig {
+function makeExtTree(): Record<string, RillValue> {
   return {
     tools: {
-      greet: {
+      greet: toCallable({
         fn: async (_args: unknown[]) => 'hello',
         params: [
           {
@@ -44,35 +41,44 @@ function makeExtTree(): NestedExtConfig {
         ],
         returnType: structureToTypeValue({ kind: 'string' }),
         annotations: { description: 'Greets a user by name' },
-      },
-      compute: {
+      }),
+      compute: toCallable({
         fn: async (_args: unknown[]) => 42,
         params: [],
         returnType: structureToTypeValue({ kind: 'number' }),
         annotations: {},
-      },
+      }),
     },
-  } as NestedExtConfig;
+  };
 }
 
+/**
+ * Write extension bindings to a temp directory and run a script
+ * with the bindings folder configured as a module alias.
+ */
 async function runTempScript(
   source: string,
-  extTree: NestedExtConfig = {},
-  bindingsSrc?: string
+  extTree: Record<string, RillValue> = {}
 ): Promise<{ exitCode: number; output?: string; errorOutput?: string }> {
-  const scriptPath = path.join(os.tmpdir(), `rill-ext-test-${Date.now()}.rill`);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-ext-test-'));
+  const scriptPath = path.join(tmpDir, 'script.rill');
+  const bindingsDir = path.join(tmpDir, 'bindings');
+
+  fs.mkdirSync(bindingsDir);
   fs.writeFileSync(scriptPath, source, 'utf-8');
-  const resolvedBindings = bindingsSrc ?? buildExtensionBindings(extTree);
+
+  // Write extension bindings to file so module:bindings.ext can resolve them
+  const bindingsSource = buildExtensionBindings(extTree);
+  fs.writeFileSync(path.join(bindingsDir, 'ext.rill'), bindingsSource, 'utf-8');
+
+  const config: RillConfigFile = {
+    modules: { bindings: bindingsDir },
+  };
+
   try {
-    return await runScript(
-      makeOpts(scriptPath),
-      makeConfig(),
-      extTree,
-      resolvedBindings,
-      []
-    );
+    return await runScript(makeOpts(scriptPath), config, extTree, []);
   } finally {
-    fs.unlinkSync(scriptPath);
+    fs.rmSync(tmpDir, { recursive: true });
   }
 }
 
@@ -160,18 +166,18 @@ describe('ext-resolution', () => {
   });
 
   describe('nested namespaces', () => {
-    const deepTree: NestedExtConfig = {
+    const deepTree: Record<string, RillValue> = {
       tools: {
         inner: {
-          fn: {
+          fn: toCallable({
             fn: async (_args: unknown[]) => 'deep',
             params: [],
             returnType: structureToTypeValue({ kind: 'string' }),
             annotations: { description: 'A deeply nested function' },
-          },
+          }),
         },
       },
-    } as NestedExtConfig;
+    };
 
     it('resolves a deeper nested function at tools.inner.fn', async () => {
       const result = await runTempScript(

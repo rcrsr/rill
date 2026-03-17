@@ -50,6 +50,10 @@ export class ExtensionVersionError extends ConfigError {
   readonly code = 'EXTENSION_VERSION' as const;
 }
 
+export class ExtensionBindingError extends ConfigError {
+  readonly code = 'EXTENSION_BINDING' as const;
+}
+
 export class NamespaceCollisionError extends ConfigError {
   readonly code = 'NAMESPACE_COLLISION' as const;
 }

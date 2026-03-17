@@ -104,7 +104,12 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
     null;
 
   if (check(this.state, TOKEN_TYPES.COLON)) {
-    if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
+    if (peek(this.state, 1).type === TOKEN_TYPES.OR) {
+      // Zero-param closure annotation: :||
+      advance(this.state); // consume :
+      advance(this.state); // consume || (OR token)
+      closureAnnotation = [];
+    } else if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
       // Closure annotation: :|param: type, ...|
       advance(this.state); // consume :
       advance(this.state); // consume opening |

@@ -238,10 +238,16 @@ describe('parseCliArgs', () => {
   });
 
   describe('--create-bindings flag', () => {
-    it('sets createBindings to true when --create-bindings is provided', () => {
+    it('sets createBindings to default dir when --create-bindings has no value', () => {
+      expect(parseCliArgs(['--create-bindings']).createBindings).toBe(
+        './bindings'
+      );
+    });
+
+    it('sets createBindings to custom dir when value provided', () => {
       expect(
-        parseCliArgs(['script.rill', '--create-bindings']).createBindings
-      ).toBe(true);
+        parseCliArgs(['--create-bindings', './custom']).createBindings
+      ).toBe('./custom');
     });
 
     it('does not exit with error when --create-bindings is set without a positional', () => {
@@ -250,13 +256,19 @@ describe('parseCliArgs', () => {
       });
 
       const opts = parseCliArgs(['--create-bindings']);
-      expect(opts.createBindings).toBe(true);
+      expect(opts.createBindings).toBe('./bindings');
       expect(opts.scriptPath).toBeUndefined();
       expect(exitSpy).not.toHaveBeenCalled();
     });
 
-    it('createBindings is false when --create-bindings flag is absent', () => {
-      expect(parseCliArgs(['script.rill']).createBindings).toBe(false);
+    it('createBindings is undefined when --create-bindings flag is absent', () => {
+      expect(parseCliArgs(['script.rill']).createBindings).toBeUndefined();
+    });
+
+    it('does not consume next flag as dir value', () => {
+      const opts = parseCliArgs(['--create-bindings', '--verbose']);
+      expect(opts.createBindings).toBe('./bindings');
+      expect(opts.verbose).toBe(true);
     });
   });
 });
@@ -373,7 +385,6 @@ describe('main() loadProject flow', () => {
         expect.anything(),
         project.config,
         project.extTree,
-        expect.anything(),
         expect.anything()
       );
     });

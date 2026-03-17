@@ -13,17 +13,20 @@ import { RuntimeError } from '../../src/error-classes.js';
 
 describe('crypto extension factory', () => {
   describe('factory creation', () => {
-    it('creates ExtensionResult with 4 functions (IC-9)', () => {
+    it('creates ExtensionFactoryResult with 4 functions (IC-9)', () => {
       const ext = createCryptoExtension();
 
-      // Verify all 4 functions exist
-      expect(ext).toHaveProperty('hash');
-      expect(ext).toHaveProperty('hmac');
-      expect(ext).toHaveProperty('uuid');
-      expect(ext).toHaveProperty('random');
+      // Verify ExtensionFactoryResult shape
+      expect(ext).toHaveProperty('value');
+
+      // Verify all 4 functions exist on value dict
+      expect(ext.value).toHaveProperty('hash');
+      expect(ext.value).toHaveProperty('hmac');
+      expect(ext.value).toHaveProperty('uuid');
+      expect(ext.value).toHaveProperty('random');
 
       // Verify function structure
-      expect(ext.hash).toMatchObject({
+      expect(ext.value.hash).toMatchObject({
         params: expect.any(Array),
         fn: expect.any(Function),
         annotations: expect.objectContaining({
@@ -65,7 +68,7 @@ describe('crypto extension factory', () => {
   describe('hash() function', () => {
     it('hashes content with default algorithm (IR-23)', async () => {
       const ext = createCryptoExtension({ defaultAlgorithm: 'sha256' });
-      const result = await ext.hash.fn({ input: 'hello world' });
+      const result = await ext.value.hash.fn({ input: 'hello world' });
 
       expect(typeof result).toBe('string');
       expect(result).toMatch(/^[0-9a-f]+$/); // Hex output
@@ -74,7 +77,7 @@ describe('crypto extension factory', () => {
 
     it('hashes content with explicit algorithm', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({
+      const result = await ext.value.hash.fn({
         input: 'hello world',
         algorithm: 'md5',
       });
@@ -86,19 +89,25 @@ describe('crypto extension factory', () => {
 
     it('produces consistent output for same input', async () => {
       const ext = createCryptoExtension();
-      const result1 = await ext.hash.fn({ input: 'test', algorithm: 'sha256' });
-      const result2 = await ext.hash.fn({ input: 'test', algorithm: 'sha256' });
+      const result1 = await ext.value.hash.fn({
+        input: 'test',
+        algorithm: 'sha256',
+      });
+      const result2 = await ext.value.hash.fn({
+        input: 'test',
+        algorithm: 'sha256',
+      });
 
       expect(result1).toBe(result2);
     });
 
     it('produces different output for different input', async () => {
       const ext = createCryptoExtension();
-      const result1 = await ext.hash.fn({
+      const result1 = await ext.value.hash.fn({
         input: 'input1',
         algorithm: 'sha256',
       });
-      const result2 = await ext.hash.fn({
+      const result2 = await ext.value.hash.fn({
         input: 'input2',
         algorithm: 'sha256',
       });
@@ -108,21 +117,30 @@ describe('crypto extension factory', () => {
 
     it('supports sha256 algorithm', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({ input: 'test', algorithm: 'sha256' });
+      const result = await ext.value.hash.fn({
+        input: 'test',
+        algorithm: 'sha256',
+      });
 
       expect(result).toMatch(/^[0-9a-f]{64}$/);
     });
 
     it('supports sha512 algorithm', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({ input: 'test', algorithm: 'sha512' });
+      const result = await ext.value.hash.fn({
+        input: 'test',
+        algorithm: 'sha512',
+      });
 
       expect(result).toMatch(/^[0-9a-f]{128}$/); // SHA512 produces 128 hex chars
     });
 
     it('supports md5 algorithm', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({ input: 'test', algorithm: 'md5' });
+      const result = await ext.value.hash.fn({
+        input: 'test',
+        algorithm: 'md5',
+      });
 
       expect(result).toMatch(/^[0-9a-f]{32}$/);
     });
@@ -131,16 +149,16 @@ describe('crypto extension factory', () => {
       const ext = createCryptoExtension();
 
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'invalid-algo' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'invalid-algo' })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'invalid-algo' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'invalid-algo' })
       ).rejects.toThrow('unsupported algorithm');
     });
 
     it('uses default algorithm when not specified', async () => {
       const ext = createCryptoExtension({ defaultAlgorithm: 'sha512' });
-      const result = await ext.hash.fn({ input: 'test' });
+      const result = await ext.value.hash.fn({ input: 'test' });
 
       // SHA512 produces 128 hex chars
       expect(result).toMatch(/^[0-9a-f]{128}$/);
@@ -153,7 +171,9 @@ describe('crypto extension factory', () => {
         hmacKey: 'secret-key',
         defaultAlgorithm: 'sha256',
       });
-      const result = await ext.hmac.fn({ input: 'message to authenticate' });
+      const result = await ext.value.hmac.fn({
+        input: 'message to authenticate',
+      });
 
       expect(typeof result).toBe('string');
       expect(result).toMatch(/^[0-9a-f]+$/); // Hex output
@@ -162,7 +182,7 @@ describe('crypto extension factory', () => {
 
     it('generates HMAC with explicit algorithm', async () => {
       const ext = createCryptoExtension({ hmacKey: 'secret' });
-      const result = await ext.hmac.fn({
+      const result = await ext.value.hmac.fn({
         input: 'message',
         algorithm: 'sha512',
       });
@@ -173,11 +193,11 @@ describe('crypto extension factory', () => {
 
     it('produces consistent output for same input and key', async () => {
       const ext = createCryptoExtension({ hmacKey: 'secret' });
-      const result1 = await ext.hmac.fn({
+      const result1 = await ext.value.hmac.fn({
         input: 'message',
         algorithm: 'sha256',
       });
-      const result2 = await ext.hmac.fn({
+      const result2 = await ext.value.hmac.fn({
         input: 'message',
         algorithm: 'sha256',
       });
@@ -187,11 +207,11 @@ describe('crypto extension factory', () => {
 
     it('produces different output for different messages', async () => {
       const ext = createCryptoExtension({ hmacKey: 'secret' });
-      const result1 = await ext.hmac.fn({
+      const result1 = await ext.value.hmac.fn({
         input: 'message1',
         algorithm: 'sha256',
       });
-      const result2 = await ext.hmac.fn({
+      const result2 = await ext.value.hmac.fn({
         input: 'message2',
         algorithm: 'sha256',
       });
@@ -202,10 +222,10 @@ describe('crypto extension factory', () => {
     it('throws when hmacKey not configured (EC-26)', async () => {
       const ext = createCryptoExtension(); // No hmacKey
 
-      await expect(ext.hmac.fn({ input: 'message' })).rejects.toThrow(
+      await expect(ext.value.hmac.fn({ input: 'message' })).rejects.toThrow(
         RuntimeError
       );
-      await expect(ext.hmac.fn({ input: 'message' })).rejects.toThrow(
+      await expect(ext.value.hmac.fn({ input: 'message' })).rejects.toThrow(
         'hmacKey required for hmac()'
       );
     });
@@ -214,10 +234,10 @@ describe('crypto extension factory', () => {
       const ext = createCryptoExtension({ hmacKey: 'secret' });
 
       await expect(
-        ext.hmac.fn({ input: 'message', algorithm: 'invalid-algo' })
+        ext.value.hmac.fn({ input: 'message', algorithm: 'invalid-algo' })
       ).rejects.toThrow(RuntimeError);
       await expect(
-        ext.hmac.fn({ input: 'message', algorithm: 'invalid-algo' })
+        ext.value.hmac.fn({ input: 'message', algorithm: 'invalid-algo' })
       ).rejects.toThrow('unsupported algorithm');
     });
 
@@ -226,7 +246,7 @@ describe('crypto extension factory', () => {
         hmacKey: 'secret',
         defaultAlgorithm: 'sha512',
       });
-      const result = await ext.hmac.fn({ input: 'message' });
+      const result = await ext.value.hmac.fn({ input: 'message' });
 
       // SHA512 produces 128 hex chars
       expect(result).toMatch(/^[0-9a-f]{128}$/);
@@ -236,7 +256,7 @@ describe('crypto extension factory', () => {
   describe('uuid() function', () => {
     it('generates random UUID v4 (IR-25)', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.uuid.fn({});
+      const result = await ext.value.uuid.fn({});
 
       expect(typeof result).toBe('string');
       // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
@@ -247,8 +267,8 @@ describe('crypto extension factory', () => {
 
     it('generates unique UUIDs', async () => {
       const ext = createCryptoExtension();
-      const result1 = await ext.uuid.fn({});
-      const result2 = await ext.uuid.fn({});
+      const result1 = await ext.value.uuid.fn({});
+      const result2 = await ext.value.uuid.fn({});
 
       expect(result1).not.toBe(result2);
     });
@@ -258,7 +278,7 @@ describe('crypto extension factory', () => {
 
       // Generate multiple UUIDs and verify all are valid v4
       for (let i = 0; i < 10; i++) {
-        const result = await ext.uuid.fn({});
+        const result = await ext.value.uuid.fn({});
         expect(result).toMatch(/^[0-9a-f-]{36}$/);
 
         // Verify version and variant bits
@@ -273,7 +293,7 @@ describe('crypto extension factory', () => {
   describe('random() function', () => {
     it('generates random bytes as hex string (IR-26)', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.random.fn({ bytes: 16 });
+      const result = await ext.value.random.fn({ bytes: 16 });
 
       expect(typeof result).toBe('string');
       expect(result).toMatch(/^[0-9a-f]+$/);
@@ -283,41 +303,41 @@ describe('crypto extension factory', () => {
     it('returns correct length for byte count', async () => {
       const ext = createCryptoExtension();
 
-      const result8 = await ext.random.fn({ bytes: 8 });
+      const result8 = await ext.value.random.fn({ bytes: 8 });
       expect(result8).toHaveLength(16); // 8 bytes = 16 hex chars
 
-      const result32 = await ext.random.fn({ bytes: 32 });
+      const result32 = await ext.value.random.fn({ bytes: 32 });
       expect(result32).toHaveLength(64); // 32 bytes = 64 hex chars
 
-      const result64 = await ext.random.fn({ bytes: 64 });
+      const result64 = await ext.value.random.fn({ bytes: 64 });
       expect(result64).toHaveLength(128); // 64 bytes = 128 hex chars
     });
 
     it('generates different values on each call', async () => {
       const ext = createCryptoExtension();
-      const result1 = await ext.random.fn({ bytes: 16 });
-      const result2 = await ext.random.fn({ bytes: 16 });
+      const result1 = await ext.value.random.fn({ bytes: 16 });
+      const result2 = await ext.value.random.fn({ bytes: 16 });
 
       expect(result1).not.toBe(result2);
     });
 
     it('handles small byte counts', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.random.fn({ bytes: 1 });
+      const result = await ext.value.random.fn({ bytes: 1 });
 
       expect(result).toMatch(/^[0-9a-f]{2}$/); // 1 byte = 2 hex chars
     });
 
     it('handles large byte counts', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.random.fn({ bytes: 256 });
+      const result = await ext.value.random.fn({ bytes: 256 });
 
       expect(result).toMatch(/^[0-9a-f]{512}$/); // 256 bytes = 512 hex chars
     });
 
     it('returns empty string for zero bytes', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.random.fn({ bytes: 0 });
+      const result = await ext.value.random.fn({ bytes: 0 });
 
       expect(result).toBe('');
     });
@@ -329,18 +349,18 @@ describe('crypto extension factory', () => {
 
       // Valid algorithms should work
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'sha256' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'sha256' })
       ).resolves.toBeDefined();
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'sha512' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'sha512' })
       ).resolves.toBeDefined();
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'md5' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'md5' })
       ).resolves.toBeDefined();
 
       // Invalid algorithm should throw
       await expect(
-        ext.hash.fn({ input: 'test', algorithm: 'invalid' })
+        ext.value.hash.fn({ input: 'test', algorithm: 'invalid' })
       ).rejects.toThrow(RuntimeError);
     });
 
@@ -349,15 +369,15 @@ describe('crypto extension factory', () => {
 
       // Valid algorithms should work
       await expect(
-        ext.hmac.fn({ input: 'test', algorithm: 'sha256' })
+        ext.value.hmac.fn({ input: 'test', algorithm: 'sha256' })
       ).resolves.toBeDefined();
       await expect(
-        ext.hmac.fn({ input: 'test', algorithm: 'sha512' })
+        ext.value.hmac.fn({ input: 'test', algorithm: 'sha512' })
       ).resolves.toBeDefined();
 
       // Invalid algorithm should throw
       await expect(
-        ext.hmac.fn({ input: 'test', algorithm: 'invalid' })
+        ext.value.hmac.fn({ input: 'test', algorithm: 'invalid' })
       ).rejects.toThrow(RuntimeError);
     });
   });
@@ -365,7 +385,10 @@ describe('crypto extension factory', () => {
   describe('edge cases', () => {
     it('hashes empty string', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({ input: '', algorithm: 'sha256' });
+      const result = await ext.value.hash.fn({
+        input: '',
+        algorithm: 'sha256',
+      });
 
       expect(result).toMatch(/^[0-9a-f]{64}$/);
       // SHA256 of empty string
@@ -376,14 +399,17 @@ describe('crypto extension factory', () => {
 
     it('generates HMAC for empty message', async () => {
       const ext = createCryptoExtension({ hmacKey: 'key' });
-      const result = await ext.hmac.fn({ input: '', algorithm: 'sha256' });
+      const result = await ext.value.hmac.fn({
+        input: '',
+        algorithm: 'sha256',
+      });
 
       expect(result).toMatch(/^[0-9a-f]{64}$/);
     });
 
     it('handles unicode in hash', async () => {
       const ext = createCryptoExtension();
-      const result = await ext.hash.fn({
+      const result = await ext.value.hash.fn({
         input: 'Hello 世界 🌍',
         algorithm: 'sha256',
       });
@@ -393,7 +419,7 @@ describe('crypto extension factory', () => {
 
     it('handles unicode in HMAC', async () => {
       const ext = createCryptoExtension({ hmacKey: 'key' });
-      const result = await ext.hmac.fn({
+      const result = await ext.value.hmac.fn({
         input: 'Hello 世界 🌍',
         algorithm: 'sha256',
       });

@@ -2,7 +2,6 @@
 // DATA MODEL TYPES
 // ============================================================
 export type {
-  NestedExtConfig,
   ExtensionManifest,
   RillConfigFile,
   ExtensionsBlock,
@@ -45,11 +44,7 @@ export { loadExtensions } from './loader.js';
 // ============================================================
 // BINDINGS
 // ============================================================
-export {
-  buildExtensionBindings,
-  buildContextBindings,
-  isLeafFunction,
-} from './bindings.js';
+export { buildExtensionBindings, buildContextBindings } from './bindings.js';
 
 // ============================================================
 // RESOLVERS
@@ -83,6 +78,7 @@ export {
   MountValidationError,
   ExtensionLoadError,
   ExtensionVersionError,
+  ExtensionBindingError,
   NamespaceCollisionError,
   ContextValidationError,
   BundleRestrictionError,

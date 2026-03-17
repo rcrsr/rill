@@ -46,7 +46,7 @@ Options:
   --format <mode>           Output format: human, json, compact (default: human)
   --verbose                 Show full error details (default: false)
   --max-stack-depth <n>     Error stack frame limit (default: 10)
-  --create-bindings         Write bindings source to config-defined file and exit
+  --create-bindings [dir]   Write bindings source to dir and exit (default: ./bindings)
   --explain <code>          Print error code documentation
   --help                    Print this help message and exit
   --version                 Print version and exit`.trimEnd();
@@ -60,11 +60,40 @@ const BASE_OPTIONS = {
   format: { type: 'string' as const },
   verbose: { type: 'boolean' as const },
   'max-stack-depth': { type: 'string' as const },
-  'create-bindings': { type: 'boolean' as const },
   help: { type: 'boolean' as const },
   version: { type: 'boolean' as const },
   explain: { type: 'string' as const },
 };
+
+// ============================================================
+// CREATE-BINDINGS EXTRACTION
+// ============================================================
+
+/**
+ * Extract --create-bindings [dir] from argv before parseArgs.
+ * Handles the optional dir argument that parseArgs cannot natively support.
+ * Returns the filtered argv (with --create-bindings removed) and the resolved dir.
+ */
+function extractCreateBindings(argv: string[]): {
+  filteredArgv: string[];
+  createBindings: string | undefined;
+} {
+  const idx = argv.indexOf('--create-bindings');
+  if (idx === -1) {
+    return { filteredArgv: argv, createBindings: undefined };
+  }
+  const next = argv[idx + 1];
+  if (next !== undefined && !next.startsWith('-')) {
+    return {
+      filteredArgv: [...argv.slice(0, idx), ...argv.slice(idx + 2)],
+      createBindings: next,
+    };
+  }
+  return {
+    filteredArgv: [...argv.slice(0, idx), ...argv.slice(idx + 1)],
+    createBindings: './bindings',
+  };
+}
 
 // ============================================================
 // PARSE ARGS
@@ -73,8 +102,10 @@ const BASE_OPTIONS = {
 export function parseCliArgs(
   argv: string[] = process.argv.slice(2)
 ): RunCliOptions & { rootDir?: string | undefined } {
+  const { filteredArgv, createBindings } = extractCreateBindings(argv);
+
   const { values, positionals } = parseArgs({
-    args: argv,
+    args: filteredArgv,
     options: BASE_OPTIONS,
     allowPositionals: true,
     strict: false,
@@ -111,7 +142,7 @@ export function parseCliArgs(
     verbose: values['verbose'] === true,
     maxStackDepth,
     explain: values['explain'] as string | undefined,
-    createBindings: values['create-bindings'] === true,
+    createBindings,
   };
 }
 
@@ -136,8 +167,10 @@ function extractHandlerArgs(
     };
   }
 
+  const { filteredArgv } = extractCreateBindings(argv);
+
   const { values } = parseArgs({
-    args: argv,
+    args: filteredArgv,
     options: handlerOptions,
     allowPositionals: true,
     strict: false,
@@ -212,20 +245,26 @@ export async function main(): Promise<void> {
   }
 
   // Create bindings and exit early if --create-bindings was set
-  if (opts.createBindings === true) {
-    const extBindingsPath = resolve(
-      process.cwd(),
-      project.config.extensions?.bindings ?? 'bindings/ext.rill'
+  if (opts.createBindings !== undefined) {
+    const bindingsDir = resolve(dirname(configPath), opts.createBindings);
+
+    mkdirSync(bindingsDir, { recursive: true });
+    writeFileSync(
+      resolve(bindingsDir, 'ext.rill'),
+      project.extensionBindings + '\n'
     );
-    mkdirSync(dirname(extBindingsPath), { recursive: true });
-    writeFileSync(extBindingsPath, project.extensionBindings + '\n');
     if (project.config.context !== undefined) {
-      const ctxBindingsPath = resolve(
-        process.cwd(),
-        project.config.context.bindings ?? 'bindings/context.rill'
+      writeFileSync(
+        resolve(bindingsDir, 'context.rill'),
+        project.contextBindings + '\n'
       );
-      mkdirSync(dirname(ctxBindingsPath), { recursive: true });
-      writeFileSync(ctxBindingsPath, project.contextBindings + '\n');
+    }
+    for (const dispose of project.disposes) {
+      try {
+        await dispose();
+      } catch {
+        // Ignore dispose errors during cleanup
+      }
     }
     process.exit(0);
   }
@@ -340,13 +379,9 @@ export async function main(): Promise<void> {
     scriptPath,
   };
 
-  const runResult = await runScript(
-    runOpts,
-    project.config,
-    project.extTree,
-    project.extensionBindings,
-    [...project.disposes]
-  );
+  const runResult = await runScript(runOpts, project.config, project.extTree, [
+    ...project.disposes,
+  ]);
 
   if (runResult.output !== undefined) {
     process.stdout.write(runResult.output + '\n');

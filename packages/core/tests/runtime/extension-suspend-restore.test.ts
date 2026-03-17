@@ -1,38 +1,40 @@
 /**
- * Rill Runtime Tests: ExtensionResult Suspend/Restore Type Contract
+ * Rill Runtime Tests: ExtensionFactoryResult Suspend/Restore Type Contract
  * Compile-time type tests for IR-13 and IR-14.
  *
  * Specification Mapping:
- * - IR-13: ExtensionResult.suspend?(): unknown
- * - IR-14: ExtensionResult.restore?(state: unknown): void
+ * - IR-13: ExtensionFactoryResult.suspend?(): unknown
+ * - IR-14: ExtensionFactoryResult.restore?(state: unknown): void
  *
  * These tests verify the TypeScript type shape only.
  * No suspend/restore logic is executed.
  *
  * Test Coverage:
- * - IR-13+14: Object with both suspend and restore satisfies ExtensionResult
- * - IR-13:    Object with only suspend satisfies ExtensionResult
- * - IR-14:    Object with only restore satisfies ExtensionResult
- * - IR-13,14: Object without suspend/restore (just dispose) satisfies ExtensionResult
- * - IR-13,14: Object with only function definitions satisfies ExtensionResult
+ * - IR-13+14: Object with both suspend and restore satisfies ExtensionFactoryResult
+ * - IR-13:    Object with only suspend satisfies ExtensionFactoryResult
+ * - IR-14:    Object with only restore satisfies ExtensionFactoryResult
+ * - IR-13,14: Object without suspend/restore (just dispose) satisfies ExtensionFactoryResult
+ * - IR-13,14: Object with only value satisfies ExtensionFactoryResult
  * - IR-13:    suspend() return type is unknown (not string, not void)
  * - IR-14:    restore(state) parameter type is unknown
  */
 
 import { describe, expectTypeOf, it } from 'vitest';
-import type { ExtensionResult } from '../../src/runtime/ext/extensions.js';
+import type { ExtensionFactoryResult } from '../../src/runtime/ext/extensions.js';
 
-describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
-  describe('IR-13+14: Object with suspend and restore satisfies ExtensionResult', () => {
+describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', () => {
+  describe('IR-13+14: Object with suspend and restore satisfies ExtensionFactoryResult', () => {
     it('accepts an extension with both suspend and restore', () => {
       const ext = {
-        greet: {
-          params: [{ name: 'name', type: 'string' as const }],
-          fn: (_args: unknown[]) => 'hello',
+        value: {
+          greet: {
+            params: [{ name: 'name', type: 'string' as const }],
+            fn: (_args: unknown[]) => 'hello',
+          },
         },
         suspend: () => ({ count: 42 }),
         restore: (_state: unknown) => {},
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       // Verify the shape compiles and fields are accessible
       expectTypeOf(ext.suspend).toBeFunction();
@@ -40,73 +42,83 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
     });
   });
 
-  describe('IR-13: Object with only suspend satisfies ExtensionResult', () => {
+  describe('IR-13: Object with only suspend satisfies ExtensionFactoryResult', () => {
     it('accepts an extension with suspend but no restore', () => {
       const ext = {
-        ping: {
-          params: [],
-          fn: (_args: unknown[]) => 'pong',
+        value: {
+          ping: {
+            params: [],
+            fn: (_args: unknown[]) => 'pong',
+          },
         },
         suspend: () => 'snapshot',
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       expectTypeOf(ext.suspend).toBeFunction();
     });
   });
 
-  describe('IR-14: Object with only restore satisfies ExtensionResult', () => {
+  describe('IR-14: Object with only restore satisfies ExtensionFactoryResult', () => {
     it('accepts an extension with restore but no suspend', () => {
       const ext = {
-        ping: {
-          params: [],
-          fn: (_args: unknown[]) => 'pong',
+        value: {
+          ping: {
+            params: [],
+            fn: (_args: unknown[]) => 'pong',
+          },
         },
         restore: (_state: unknown) => {},
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       expectTypeOf(ext.restore).toBeFunction();
     });
   });
 
-  describe('IR-13, IR-14: Object without suspend/restore still satisfies ExtensionResult', () => {
+  describe('IR-13, IR-14: Object without suspend/restore still satisfies ExtensionFactoryResult', () => {
     it('accepts an extension with only dispose (no suspend or restore)', () => {
       const ext = {
-        query: {
-          params: [{ name: 'sql', type: 'string' as const }],
-          fn: (_args: unknown[]) => [],
+        value: {
+          query: {
+            params: [{ name: 'sql', type: 'string' as const }],
+            fn: (_args: unknown[]) => [],
+          },
         },
         dispose: () => {},
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
-      // dispose is defined, suspend/restore are absent — type still satisfied
+      // dispose is defined, suspend/restore are absent -- type still satisfied
       expectTypeOf(ext.dispose).toBeFunction();
     });
 
-    it('accepts an extension with only function definitions', () => {
+    it('accepts an extension with only value', () => {
       const ext = {
-        add: {
-          params: [
-            { name: 'a', type: 'number' as const },
-            { name: 'b', type: 'number' as const },
-          ],
-          fn: (args: unknown[]) =>
-            (args['a'] as number) + (args['b'] as number),
+        value: {
+          add: {
+            params: [
+              { name: 'a', type: 'number' as const },
+              { name: 'b', type: 'number' as const },
+            ],
+            fn: (args: unknown[]) =>
+              (args['a'] as number) + (args['b'] as number),
+          },
         },
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
-      expectTypeOf(ext.add).toBeObject();
+      expectTypeOf(ext.value).toBeObject();
     });
   });
 
   describe('IR-13: suspend() return type is unknown', () => {
     it('suspend returns unknown, not a narrowed type', () => {
       const ext = {
-        work: {
-          params: [],
-          fn: (_args: unknown[]) => null,
+        value: {
+          work: {
+            params: [],
+            fn: (_args: unknown[]) => null,
+          },
         },
         suspend: (): unknown => ({ version: 1, data: [1, 2, 3] }),
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       // Return type of suspend() must be unknown
       const suspendFn: (() => unknown) | undefined = ext.suspend;
@@ -122,21 +134,21 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
       const suspendReturnsUndefined: () => unknown = () => undefined;
 
       const extA = {
-        op: { params: [], fn: (_args: unknown[]) => null },
+        value: { op: { params: [], fn: (_args: unknown[]) => null } },
         suspend: suspendReturnsString,
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       const extB = {
-        op: { params: [], fn: (_args: unknown[]) => null },
+        value: { op: { params: [], fn: (_args: unknown[]) => null } },
         suspend: suspendReturnsObject,
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       const extC = {
-        op: { params: [], fn: (_args: unknown[]) => null },
+        value: { op: { params: [], fn: (_args: unknown[]) => null } },
         suspend: suspendReturnsUndefined,
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
-      // All three satisfy ExtensionResult — compile-time proof
+      // All three satisfy ExtensionFactoryResult -- compile-time proof
       expectTypeOf(extA.suspend).toBeFunction();
       expectTypeOf(extB.suspend).toBeFunction();
       expectTypeOf(extC.suspend).toBeFunction();
@@ -146,12 +158,14 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
   describe('IR-14: restore(state) parameter type is unknown', () => {
     it('restore accepts unknown as its parameter', () => {
       const ext = {
-        work: {
-          params: [],
-          fn: (_args: unknown[]) => null,
+        value: {
+          work: {
+            params: [],
+            fn: (_args: unknown[]) => null,
+          },
         },
         restore: (_state: unknown): void => {},
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       // Parameter type of restore must be unknown
       const restoreFn: ((state: unknown) => void) | undefined = ext.restore;
@@ -161,9 +175,11 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
     it('restore implementation may narrow the unknown state internally', () => {
       // Narrowing inside the function body is valid; the declared param is unknown
       const ext = {
-        counter: {
-          params: [],
-          fn: (_args: unknown[]) => 0,
+        value: {
+          counter: {
+            params: [],
+            fn: (_args: unknown[]) => 0,
+          },
         },
         restore: (state: unknown): void => {
           if (typeof state === 'object' && state !== null && 'count' in state) {
@@ -171,7 +187,7 @@ describe('Rill Runtime: ExtensionResult Suspend/Restore Type Contract', () => {
             void (state as { count: number }).count;
           }
         },
-      } satisfies ExtensionResult;
+      } satisfies ExtensionFactoryResult;
 
       expectTypeOf(ext.restore!).parameter(0).toBeUnknown();
     });

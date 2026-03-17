@@ -19,7 +19,7 @@ Determine where to start based on what the user provides:
 | User provides | Start at | First action |
 |---------------|----------|--------------|
 | Goal statement ("build an agent that...") | Phase 1 (Explore) | Clarify requirements per §1.1 |
-| Pre-scaffolded project directory | Phase 4 (Execute) | Verify scaffolder was used: check `package.json` has `@rcrsr/rill` dependency and `src/host.ts` uses `hoistExtension` |
+| Pre-scaffolded project directory | Phase 4 (Execute) | Verify scaffolder was used: check `package.json` has `@rcrsr/rill` dependency and `src/host.ts` uses extension factories |
 | Only API keys or credentials | **Ask first** | Confirm whether Phases 1–3 already completed, or restart from Phase 1 |
 | Bug in existing agent | Phase 4, §4.5 | Read `src/agent.rill` and `src/host.ts`, diagnose, iterate |
 
@@ -121,11 +121,11 @@ Example:
 
 | Step | Extension Function | Purpose |
 |------|--------------------|---------|
-| Embed query | `anthropic::embed($query)` | Convert text to vector |
-| Search | `qdrant::search($vector, 5)` | Find similar documents |
-| Complete | `anthropic::message($prompt)` | Generate response |
-| Persist | `kv::set("last_query", $query)` | Remember last query |
-| Write output | `fs::write("output", "result.md", $response)` | Save to file |
+| Embed query | `anthropic.embed($query)` | Convert text to vector |
+| Search | `qdrant.search($vector, 5)` | Find similar documents |
+| Complete | `anthropic.message($prompt)` | Generate response |
+| Persist | `kv.set("last_query", $query)` | Remember last query |
+| Write output | `fs.write("output", "result.md", $response)` | Save to file |
 
 ### 2.3 Gather Configuration Values
 
@@ -180,26 +180,26 @@ Ask the user how the agent should deliver results:
 
 **Wrong — duplicated output:**
 
-```rill
-anthropic::message($prompt) => $result
+```text
+anthropic.message($prompt) => $result
 log($result.content)      # prints the content
 $result.content            # run.ts prints the same content again
 ```
 
 **Correct — log progress, return result:**
 
-```rill
+```text
 log("Fetching headlines...")
-newsapi::headlines() => $articles
+newsapi.headlines() => $articles
 log("Summarizing {$articles -> .len} articles...")
-anthropic::message("Summarize: {$articles}") => $result
+anthropic.message("Summarize: {$articles}") => $result
 $result.content            # only printed once by run.ts
 ```
 
 **Correct — structured JSON return, no log:**
 
-```rill
-newsapi::headlines() => $articles
+```text
+newsapi.headlines() => $articles
 $articles -> map { [title: $.title, source: $.source.name] }
 # returns list of dicts — run.ts prints as JSON
 ```
@@ -208,7 +208,7 @@ If the user has no preference, default to **JSON** output with no `log` calls.
 
 ### 2.5 Identify Custom Host Functions
 
-If the agent needs capabilities no extension provides, plan custom host functions using `prefixFunctions`. Keep these minimal — prefer extensions over custom code.
+If the agent needs capabilities no extension provides, plan custom host functions. Keep these minimal — prefer extensions over custom code.
 
 **STOP — Phase 2 gate.** Present the user with:
 
@@ -297,7 +297,7 @@ Run `rill-agent-bundle init` with the extensions selected in Phase 1:
 npx @rcrsr/rill-agent-bundle init my-agent --extensions anthropic,qdrant
 ```
 
-This generates a working project with all dependencies, imports, and runtime wiring. The generated `host.ts` already contains `hoistExtension` calls for every external extension passed via `--extensions`. The generated `run.ts` already handles parsing, execution, output formatting, and cleanup.
+This generates a working project with all dependencies, imports, and runtime wiring. The generated `host.ts` already contains factory calls for every external extension passed via `--extensions`. The generated `run.ts` already handles parsing, execution, output formatting, and cleanup.
 
 **Do not modify `run.ts`** unless you need custom callbacks. **Do not modify `package.json`** unless adding new npm dependencies.
 
@@ -325,8 +325,8 @@ import { createCryptoExtension } from '@rcrsr/rill/ext/crypto';
 **Add initialization calls alongside the existing ones:**
 
 ```typescript
-// These go next to the existing hoistExtension calls in the generated file
-const newsapi = hoistExtension('newsapi', createFetchExtension({
+// These go next to the existing factory calls in the generated file
+const newsapi = createFetchExtension({
   baseUrl: 'https://newsapi.org/v2',
   headers: { 'X-Api-Key': process.env.NEWSAPI_KEY || '' },
   endpoints: {
@@ -339,23 +339,23 @@ const newsapi = hoistExtension('newsapi', createFetchExtension({
       ],
     },
   },
-}));
+});
 
-const kv = hoistExtension('kv', createKvExtension({
+const kv = createKvExtension({
   store: './data/agent-state.json',
-}));
+});
 ```
 
-**Spread their functions into the existing `createHost()` return value:**
+**Add their values into the existing `createHost()` return value:**
 
 ```typescript
-// Edit the existing createHost() — add to the functions spread and dispose calls
+// Edit the existing createHost() — add to the variables map and dispose calls
 export function createHost() {
   return {
-    functions: {
-      ...anthropic.functions,   // ← already generated
-      ...newsapi.functions,     // ← add this
-      ...kv.functions,          // ← add this
+    variables: {
+      anthropic: anthropic.value,   // ← already generated
+      newsapi: newsapi.value,       // ← add this
+      kv: kv.value,                 // ← add this
     },
     dispose: async () => {
       await anthropic.dispose?.();  // ← already generated
@@ -367,31 +367,34 @@ export function createHost() {
 
 ### 4.3 Add Custom Host Functions (if needed)
 
-Only add custom host functions when no extension covers the requirement. Add them to the generated `host.ts`:
+Only add custom host functions when no extension covers the requirement. Add them to the generated `host.ts` using `toCallable`:
 
 ```typescript
-const appFunctions: Record<string, RillFunction> = {
-  greet: {
-    fn: async (args) => `Hello, ${args[0]}!`,
-    params: [{ name: 'name', type: 'string' }],
-    returnType: 'string',
-  },
+import { toCallable } from '@rcrsr/rill';
+
+const appValue = {
+  greet: toCallable({
+    fn: async (args) => `Hello, ${args.name}!`,
+    params: [{ name: 'name', type: { kind: 'string' } }],
+    returnType: { kind: 'string' },
+    annotations: {},
+  }),
 };
 
-// In createHost() functions spread:
-...prefixFunctions('app', appFunctions),
+// In createHost() variables map:
+// app: appValue,
 ```
 
 ### 4.4 Write and Review agent.rill
 
 Replace the generated `src/agent.rill` with your agent logic. Use the data flow designed in Phase 2 and the extension functions wired in `host.ts`. See the Syntax Quick Reference and Extension Function Reference sections below.
 
-The agent script calls extension functions using `namespace::function()` syntax. The namespace matches the first argument to `hoistExtension` in `host.ts`:
+The agent script calls extension functions using `namespace.function()` syntax. The namespace matches the variable key used in `host.ts`:
 
 ```text
-// If host.ts has: hoistExtension('newsapi', createFetchExtension({...}))
-// Then agent.rill calls: newsapi::top_headlines(...)
-newsapi::top_headlines([country: "us", pageSize: 5]) => $articles
+// If host.ts has: variables: { newsapi: createFetchExtension({...}).value }
+// Then agent.rill calls: newsapi.top_headlines(...)
+newsapi.top_headlines([country: "us", pageSize: 5]) => $articles
 ```
 
 **STOP — do not run `npm start` yet.** You must complete two steps before executing.
@@ -439,7 +442,7 @@ When the agent fails, follow this order:
 | "Undefined variable" after `??` or `=>` | Operator precedence | See Gotchas in Syntax Quick Reference |
 | "File not found" for `agent.rill` | Path error | Verify `src/agent.rill` exists; `run.ts` reads from `src/agent.rill` |
 | Type error on extension return value | Shape mismatch | Check return types in Extension Function Reference |
-| Extension function not found | Namespace mismatch | Verify `hoistExtension` namespace in `host.ts` matches `namespace::function()` in `agent.rill` |
+| Extension function not found | Namespace mismatch | Verify the variable key in `host.ts` variables map matches `namespace.function()` in `agent.rill` |
 
 4. **Do not hand-edit generated files as workarounds.** If `run.ts` or scaffolded `host.ts` structure seems wrong, report upstream rather than patching locally.
 5. **Do not move files** generated by the scaffolder. The directory structure in §3.1 is the source of truth.
@@ -513,14 +516,14 @@ $obj.greet
 # Result: "Hello, alice"
 ```
 
-**Extension functions** use `namespace::function()` syntax:
+**Extension functions** use `namespace.function()` syntax:
 
-```rill
-anthropic::message("Summarize: {$text}") => $summary
-$query -> anthropic::embed($) -> qdrant::search($, 5) => $results
-fs::read("input", "data.csv") => $csv
-kv::get("run_count") -> ($ + 1) -> kv::set("run_count", $)
-crypto::uuid() => $request_id
+```text
+anthropic.message("Summarize: {$text}") => $summary
+$query -> anthropic.embed($) -> qdrant.search($, 5) => $results
+fs.read("input", "data.csv") => $csv
+kv.get("run_count") -> ($ + 1) -> kv.set("run_count", $)
+crypto.uuid() => $request_id
 ```
 
 **Gotchas — operator precedence:**
@@ -569,16 +572,16 @@ All three share identical function signatures and return shapes.
 
 | Function | Returns | Shape |
 |----------|---------|-------|
-| `namespace::message(prompt)` | dict | `{ content, model, usage: { input, output }, stop_reason, id, messages }` |
-| `namespace::messages(messages)` | dict | Same shape — `messages` contains full conversation history |
-| `namespace::embed(text)` | vector | Float32Array vector for similarity search |
-| `namespace::embed_batch(texts)` | list | List of vectors |
-| `namespace::tool_loop(prompt, options)` | dict | Same shape + `turns`; `options.tools` is `dict<string, callable>` — keys are tool names, values are `ScriptCallable` or `ApplicationCallable` |
+| `namespace.message(prompt)` | dict | `{ content, model, usage: { input, output }, stop_reason, id, messages }` |
+| `namespace.messages(messages)` | dict | Same shape — `messages` contains full conversation history |
+| `namespace.embed(text)` | vector | Float32Array vector for similarity search |
+| `namespace.embed_batch(texts)` | list | List of vectors |
+| `namespace.tool_loop(prompt, options)` | dict | Same shape + `turns`; `options.tools` is `dict<string, callable>` — keys are tool names, values are `ScriptCallable` or `ApplicationCallable` |
 
 **Accessing LLM results:**
 
-```rill
-anthropic::message("Summarize: {$text}") => $result
+```text
+anthropic.message("Summarize: {$text}") => $result
 $result.content => $answer           # response text (string)
 $result.usage.input => $tokens_in    # input token count (number)
 $result.stop_reason => $reason       # "end_turn", "max_tokens", etc.
@@ -590,18 +593,18 @@ All three share identical function signatures and return shapes.
 
 | Function | Returns | Shape |
 |----------|---------|-------|
-| `namespace::search(vector, limit)` | list | `[{ id, score, metadata }, ...]` |
-| `namespace::upsert(id, vector, metadata)` | dict | `{ id, success: true }` |
-| `namespace::upsert_batch(items)` | dict | `{ succeeded }` or `{ succeeded, failed, error }` |
-| `namespace::get(id)` | dict | `{ id, vector, metadata }` |
-| `namespace::delete(id)` | dict | `{ id, deleted: true }` |
-| `namespace::count()` | number | Total vectors in collection |
-| `namespace::describe()` | dict | `{ name, count, dimensions, distance }` |
+| `namespace.search(vector, limit)` | list | `[{ id, score, metadata }, ...]` |
+| `namespace.upsert(id, vector, metadata)` | dict | `{ id, success: true }` |
+| `namespace.upsert_batch(items)` | dict | `{ succeeded }` or `{ succeeded, failed, error }` |
+| `namespace.get(id)` | dict | `{ id, vector, metadata }` |
+| `namespace.delete(id)` | dict | `{ id, deleted: true }` |
+| `namespace.count()` | number | Total vectors in collection |
+| `namespace.describe()` | dict | `{ name, count, dimensions, distance }` |
 
 **Iterating search results:**
 
-```rill
-$embedding -> qdrant::search($, 5) => $results
+```text
+$embedding -> qdrant.search($, 5) => $results
 $results -> each { log("{$.id}: {$.score}") }     # id and score on each hit
 $results -> map { $.metadata } => $all_metadata    # extract metadata dicts
 ```
@@ -610,18 +613,18 @@ $results -> map { $.metadata } => $all_metadata    # extract metadata dicts
 
 | Function | Returns | Shape |
 |----------|---------|-------|
-| `fs::read(mount, path)` | string | File contents |
-| `fs::write(mount, path, content)` | string | Bytes written |
-| `fs::append(mount, path, content)` | string | Bytes written |
-| `fs::list(mount, path?)` | list | `[{ name, type, size }, ...]` — type is `"file"` or `"directory"` |
-| `fs::find(mount, pattern?)` | list | `["path/to/file.txt", ...]` — relative paths |
-| `fs::exists(mount, path)` | bool | `true` or `false` |
-| `fs::remove(mount, path)` | bool | `true` if deleted, `false` if absent |
-| `fs::stat(mount, path)` | dict | `{ name, type, size, created, modified }` — timestamps are ISO 8601 |
-| `fs::mkdir(mount, path)` | bool | `true` if created, `false` if exists |
-| `fs::copy(mount, src, dest)` | bool | `true` on success |
-| `fs::move(mount, src, dest)` | bool | `true` on success |
-| `fs::mounts()` | list | `[{ name, mode, glob }, ...]` |
+| `fs.read(mount, path)` | string | File contents |
+| `fs.write(mount, path, content)` | string | Bytes written |
+| `fs.append(mount, path, content)` | string | Bytes written |
+| `fs.list(mount, path?)` | list | `[{ name, type, size }, ...]` — type is `"file"` or `"directory"` |
+| `fs.find(mount, pattern?)` | list | `["path/to/file.txt", ...]` — relative paths |
+| `fs.exists(mount, path)` | bool | `true` or `false` |
+| `fs.remove(mount, path)` | bool | `true` if deleted, `false` if absent |
+| `fs.stat(mount, path)` | dict | `{ name, type, size, created, modified }` — timestamps are ISO 8601 |
+| `fs.mkdir(mount, path)` | bool | `true` if created, `false` if exists |
+| `fs.copy(mount, src, dest)` | bool | `true` on success |
+| `fs.move(mount, src, dest)` | bool | `true` on success |
+| `fs.mounts()` | list | `[{ name, mode, glob }, ...]` |
 
 Mount modes: `read`, `write`, `read-write`. Path traversal outside mount boundary throws error.
 
@@ -636,17 +639,17 @@ Each endpoint in config becomes a callable function. Return shape depends on `re
 
 **Two calling conventions** — both work for every endpoint:
 
-```rill
+```text
 # Positional args — matched to params by declaration order
-api::get_users(10) => $users
-newsapi::top_headlines("us", 5) => $resp
+api.get_users(10) => $users
+newsapi.top_headlines("us", 5) => $resp
 
 # Dict/named args — matched to params by name
-api::get_users([limit: 10]) => $users
-newsapi::top_headlines([country: "us", pageSize: 5]) => $resp
+api.get_users([limit: 10]) => $users
+newsapi.top_headlines([country: "us", pageSize: 5]) => $resp
 
 # Introspection
-api::endpoints() => $list                    # [{ name, method, path, description }, ...]
+api.endpoints() => $list                    # [{ name, method, path, description }, ...]
 ```
 
 The runtime detects which convention you used: a single dict argument triggers named matching; anything else triggers positional matching. Both produce identical HTTP requests.
@@ -657,33 +660,33 @@ Supports retry with exponential backoff, `maxConcurrent` throttling, dynamic hea
 
 Each declared command returns a dict with `stdout`, `stderr`, and `exitCode`:
 
-```rill
-sh::git_status() => $result
+```text
+sh.git_status() => $result
 $result.stdout => $output              # string (empty if no output)
 $result.exitCode => $code              # number (0 = success)
-sh::commands() => $list                # [{ name, description }, ...]
+sh.commands() => $list                # [{ name, description }, ...]
 ```
 
-Uses `child_process.execFile()` — no shell injection. Arguments validated against allowlist/blocklist. Stdin support via second argument: `sh::jq((".",), $json_data)`.
+Uses `child_process.execFile()` — no shell injection. Arguments validated against allowlist/blocklist. Stdin support via second argument: `sh.jq((".",), $json_data)`.
 
 ### kv — Persistent State
 
 | Function | Returns | Shape |
 |----------|---------|-------|
-| `kv::get(key)` | varies | Stored value, or `""` (empty string) if key absent |
-| `kv::set(key, value)` | bool | `true` on success |
-| `kv::delete(key)` | bool | `true` if existed, `false` if absent |
-| `kv::has(key)` | bool | `true` or `false` |
-| `kv::keys()` | list | `["key1", "key2", ...]` |
-| `kv::getAll()` | dict | `{ key1: value1, key2: value2, ... }` |
-| `kv::clear()` | bool | `true` |
-| `kv::schema()` | list | `[{ key, type, description }, ...]` — empty list in open mode |
+| `kv.get(key)` | varies | Stored value, or `""` (empty string) if key absent |
+| `kv.set(key, value)` | bool | `true` on success |
+| `kv.delete(key)` | bool | `true` if existed, `false` if absent |
+| `kv.has(key)` | bool | `true` or `false` |
+| `kv.keys()` | list | `["key1", "key2", ...]` |
+| `kv.getAll()` | dict | `{ key1: value1, key2: value2, ... }` |
+| `kv.clear()` | bool | `true` |
+| `kv.schema()` | list | `[{ key, type, description }, ...]` — empty list in open mode |
 
-**Important:** `kv::get()` returns empty string `""` for missing keys, not an error. Check with `kv::has()` if you need to distinguish "empty" from "absent".
+**Important:** `kv.get()` returns empty string `""` for missing keys, not an error. Check with `kv.has()` if you need to distinguish "empty" from "absent".
 
-```rill
-kv::get("run_count") -> ($ + 1) -> kv::set("run_count", $)
-kv::keys() -> each { log($) }
+```text
+kv.get("run_count") -> ($ + 1) -> kv.set("run_count", $)
+kv.keys() -> each { log($) }
 ```
 
 ### crypto — Hashing and Identifiers
@@ -692,11 +695,11 @@ All functions return strings (hex-encoded where applicable).
 
 | Function | Returns | Example output |
 |----------|---------|----------------|
-| `crypto::hash(input)` | string | `"a7ffc6f8..."` (SHA-256 hex, 64 chars) |
-| `crypto::hash(input, "sha512")` | string | SHA-512 hex (128 chars) |
-| `crypto::hmac(input)` | string | HMAC hex (key configured in host.ts) |
-| `crypto::uuid()` | string | `"550e8400-e29b-41d4-a716-446655440000"` |
-| `crypto::random(32)` | string | 64-char hex string (2 hex chars per byte) |
+| `crypto.hash(input)` | string | `"a7ffc6f8..."` (SHA-256 hex, 64 chars) |
+| `crypto.hash(input, "sha512")` | string | SHA-512 hex (128 chars) |
+| `crypto.hmac(input)` | string | HMAC hex (key configured in host.ts) |
+| `crypto.uuid()` | string | `"550e8400-e29b-41d4-a716-446655440000"` |
+| `crypto.random(32)` | string | 64-char hex string (2 hex chars per byte) |
 
 ---
 
@@ -800,7 +803,7 @@ These patterns cause broken projects or runtime errors. Avoid them.
 |---------|---------------|------------------|
 | Writing `package.json` by hand | Missing internal dependencies like `@rcrsr/rill-ext-llm-shared` | Run `npx @rcrsr/rill-agent-bundle init` |
 | Writing `run.ts` by hand | Wrong imports, missing `parse`/`execute` pattern, no output formatting | Use the generated `run.ts` unmodified |
-| Writing `host.ts` from scratch | Missing `dotenv/config` import, wrong `hoistExtension` wiring | Edit the generated `host.ts` |
+| Writing `host.ts` from scratch | Missing `dotenv/config` import, wrong extension factory wiring | Edit the generated `host.ts` |
 | Using raw `fetch()` or `axios` for HTTP | Bypasses sandboxing, no retry/auth, wrong function signature | Use the `fetch` core extension with `createFetchExtension` |
 | Installing core extensions via npm | `fs`, `fetch`, `exec`, `kv`, `crypto` are sub-path exports of `@rcrsr/rill` | Import from `@rcrsr/rill/ext/<name>` — no extra install |
 | Skipping `--extensions` flag | Scaffolder requires either `--extensions` or `--preset` | Always pass external extensions to the scaffold command |
@@ -816,7 +819,7 @@ These patterns cause broken projects or runtime errors. Avoid them.
 | `$.?field ?? "default"` | `Cannot combine existence check (.?field) with default value operator (??)` | Use one: `$.field ?? "default"` or `$.?field` — not both |
 | `join(sep, $list)` or `$list -> join(sep)` | `Unknown function: join` | rill operations are methods, not functions: `$list -> .join(sep)` |
 | `$list -> .length` | `Unknown method: length` | Use `.len` — rill method names are abbreviated |
-| `$dict -> .keys` | `Unknown method: keys` | Use `.entries` for dict iteration, or `kv::keys()` for kv store |
+| `$dict -> .keys` | `Unknown method: keys` | Use `.entries` for dict iteration, or `kv.keys()` for kv store |
 | `log($result)` then `$result` as last line | Duplicated output — `log` prints once, `run.ts` prints the return value again | Use `log` for progress only; let the last expression be the sole output |
 | Skipping phases to "save time" | Syntax errors, wrong extensions, misconfigured APIs — costs more time than the phases save | Follow all 4 phases; each gate prevents a class of errors |
 

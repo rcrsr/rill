@@ -3,75 +3,141 @@
  * Produces rill source strings for extension and context module bindings.
  */
 
-import { formatStructure } from '@rcrsr/rill';
-import type { RillFunction, RillParam } from '@rcrsr/rill';
-import type { ContextFieldSchema, NestedExtConfig } from './types.js';
+import {
+  formatStructure,
+  isApplicationCallable,
+  isTuple,
+  isVector,
+  parse,
+} from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+import { ExtensionBindingError } from './errors.js';
+import type { ContextFieldSchema } from './types.js';
 
 // ============================================================
 // EXTENSION BINDINGS
 // ============================================================
 
+/**
+ * Strip field defaultValues from a TypeStructure recursively.
+ * Use-expression closure annotations only support `name: type` — no
+ * `= default` in type arg lists. This produces a parse-safe version.
+ */
+function stripAnnotationType(structure: TypeStructure): TypeStructure {
+  if (structure.kind === 'dict') {
+    const s = structure as {
+      kind: 'dict';
+      fields?: Record<string, { type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.fields !== undefined) {
+      const stripped: Record<string, { type: TypeStructure }> = {};
+      for (const [k, field] of Object.entries(s.fields)) {
+        stripped[k] = { type: stripAnnotationType(field.type) };
+      }
+      return { kind: 'dict', fields: stripped };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'dict', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'tuple') {
+    const s = structure as {
+      kind: 'tuple';
+      elements?: Array<{ type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.elements !== undefined) {
+      return {
+        kind: 'tuple',
+        elements: s.elements.map((el) => ({
+          type: stripAnnotationType(el.type),
+        })),
+      };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'tuple', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'ordered') {
+    const s = structure as {
+      kind: 'ordered';
+      fields?: Array<{ name?: string; type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.fields !== undefined) {
+      return {
+        kind: 'ordered',
+        fields: s.fields.map((f) => ({
+          name: f.name,
+          type: stripAnnotationType(f.type),
+        })),
+      };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'ordered', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'list') {
+    const s = structure as { kind: 'list'; element?: TypeStructure };
+    if (s.element !== undefined) {
+      return { kind: 'list', element: stripAnnotationType(s.element) };
+    }
+  }
+  if (structure.kind === 'union') {
+    const s = structure as { kind: 'union'; members: TypeStructure[] };
+    return {
+      kind: 'union',
+      members: s.members.map((m) => stripAnnotationType(m)),
+    };
+  }
+  if (structure.kind === 'closure') {
+    const s = structure as {
+      kind: 'closure';
+      params?: Array<{ name?: string; type: TypeStructure }>;
+      ret?: TypeStructure;
+    };
+    const result: {
+      kind: 'closure';
+      params?: Array<{ name?: string; type: TypeStructure }>;
+      ret?: TypeStructure;
+    } = { kind: 'closure' };
+    if (s.params !== undefined) {
+      result.params = s.params.map((p) => {
+        const stripped: { name?: string; type: TypeStructure } = {
+          type: stripAnnotationType(p.type),
+        };
+        if (p.name !== undefined) {
+          stripped.name = p.name;
+        }
+        return stripped;
+      });
+    }
+    if (s.ret !== undefined) {
+      result.ret = stripAnnotationType(s.ret);
+    }
+    return result;
+  }
+  return structure;
+}
+
 function mapParamType(param: RillParam): string {
   if (param.type === undefined) {
     return 'any';
   }
-  return formatStructure(param.type);
-}
-
-function formatDefaultLiteral(value: unknown): string {
-  if (typeof value === 'string') {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
-  if (typeof value === 'number') {
-    return String(value);
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
-  }
-  if (value === null) {
-    return 'null';
-  }
-  if (Array.isArray(value)) {
-    const items = value.map(formatDefaultLiteral).join(', ');
-    return `list[${items}]`;
-  }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-    if (entries.length === 0) {
-      return '[:]';
-    }
-    const pairs = entries
-      .map(([k, v]) => `${k}: ${formatDefaultLiteral(v)}`)
-      .join(', ');
-    return `[${pairs}]`;
-  }
-  return String(value);
+  return formatStructure(stripAnnotationType(param.type));
 }
 
 function serializeParam(param: RillParam): string {
-  const typeName = mapParamType(param);
-  if (param.defaultValue !== undefined) {
-    return `${param.name}: ${typeName} = ${formatDefaultLiteral(param.defaultValue)}`;
-  }
-  return `${param.name}: ${typeName}`;
-}
-
-export function isLeafFunction(
-  node: NestedExtConfig | RillFunction
-): node is RillFunction {
-  return (
-    typeof node === 'object' &&
-    node !== null &&
-    'fn' in node &&
-    typeof (node as RillFunction).fn === 'function' &&
-    'params' in node &&
-    Array.isArray((node as RillFunction).params)
-  );
+  // Use-expression closure annotations only support `name: type` — no defaults.
+  return `${param.name}: ${mapParamType(param)}`;
 }
 
 function buildNestedDict(
-  node: NestedExtConfig,
+  node: Record<string, RillValue>,
   path: string,
   indent: string
 ): string {
@@ -81,15 +147,34 @@ function buildNestedDict(
   for (const [key, child] of Object.entries(node)) {
     const childPath = path.length > 0 ? `${path}.${key}` : key;
 
-    if (isLeafFunction(child)) {
-      const paramStr = child.params.map(serializeParam).join(', ');
-      const returnSuffix = ` :${formatStructure(child.returnType.structure)}`;
-      entries.push(
-        `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
-      );
-    } else {
+    if (isApplicationCallable(child)) {
+      const params = child.params;
+      const returnSuffix = ` :${formatStructure(stripAnnotationType(child.returnType.structure))}`;
+      if (params === undefined || params.length === 0) {
+        entries.push(
+          `${childIndent}${key}: use<ext:${childPath}>:||${returnSuffix}`
+        );
+      } else {
+        const paramStr = params.map(serializeParam).join(', ');
+        entries.push(
+          `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
+        );
+      }
+    } else if (typeof child === 'string') {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:string`);
+    } else if (typeof child === 'number') {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:number`);
+    } else if (typeof child === 'boolean') {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:bool`);
+    } else if (Array.isArray(child)) {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:list`);
+    } else if (isTuple(child)) {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:tuple`);
+    } else if (isVector(child)) {
+      entries.push(`${childIndent}${key}: use<ext:${childPath}>:vector`);
+    } else if (typeof child === 'object' && child !== null) {
       const nested = buildNestedDict(
-        child as NestedExtConfig,
+        child as Record<string, RillValue>,
         childPath,
         childIndent
       );
@@ -107,13 +192,23 @@ function buildNestedDict(
 /**
  * Generate rill source for extension bindings.
  * Returns a rill dict literal suitable for use as module:ext source.
- * Pure function. No errors.
+ * Parse-validates the output before returning.
+ * Throws ExtensionBindingError if generated source fails to parse.
  */
 export function buildExtensionBindings(
-  extTree: NestedExtConfig,
+  extTree: Record<string, RillValue>,
   basePath?: string
 ): string {
-  return buildNestedDict(extTree, basePath ?? '', '');
+  const source = buildNestedDict(extTree, basePath ?? '', '');
+  try {
+    parse(source);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new ExtensionBindingError(
+      `Extension bindings failed to parse: ${message}`
+    );
+  }
+  return source;
 }
 
 // ============================================================

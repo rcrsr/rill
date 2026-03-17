@@ -12,11 +12,8 @@ import { resolveMounts } from './mounts.js';
 import { loadExtensions } from './loader.js';
 import { buildContextBindings, buildExtensionBindings } from './bindings.js';
 import { buildResolvers } from './resolvers.js';
-import type {
-  ContextFieldSchema,
-  NestedExtConfig,
-  ProjectResult,
-} from './types.js';
+import type { RillValue } from '@rcrsr/rill';
+import type { ContextFieldSchema, ProjectResult } from './types.js';
 
 // ============================================================
 // LOAD PROJECT
@@ -57,7 +54,7 @@ export async function loadProject(options: {
   }
 
   // Step 4: Load extensions
-  let extTree: NestedExtConfig = {};
+  let extTree: Record<string, RillValue> = {};
   let disposes: ReadonlyArray<() => void | Promise<void>> = [];
 
   if (config.extensions !== undefined) {
@@ -92,8 +89,6 @@ export async function loadProject(options: {
   const resolverConfig = buildResolvers({
     extTree,
     contextValues,
-    extensionBindings,
-    contextBindings,
     modulesConfig: config.modules ?? {},
     configDir: dirname(configPath),
   });

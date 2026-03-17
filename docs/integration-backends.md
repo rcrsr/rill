@@ -15,18 +15,16 @@ rill provides core extensions (`fs`, `kv`) with built-in JSON/filesystem backend
 
 ## API Contract Guarantee
 
-All `kv` backends implement `KvExtensionContract` interface. All `fs` backends implement `FsExtensionContract` interface. Scripts import no backend-specific types — the same script runs unchanged across JSON, SQLite, Redis, S3 backends.
+All `kv` backends implement `KvExtensionContract` interface. All `fs` backends implement `FsExtensionContract` interface. Contract properties use `ApplicationCallable` — not raw `RillFunction`. Scripts import no backend-specific types — the same script runs unchanged across JSON, SQLite, Redis, S3 backends.
 
-```rill
+```text
 # Works with ANY kv backend (JSON, SQLite, Redis)
-kv::set("user", "name", "Alice")
-kv::get("user", "name")
-# Result: "Alice"
+kv.set("user", "name", "Alice")
+kv.get("user", "name")   # => "Alice"
 
 # Works with ANY fs backend (local, S3)
-fs::write("data", "file.txt", "content")
-fs::read("data", "file.txt")
-# Result: "content"
+fs.write("data", "file.txt", "content")
+fs.read("data", "file.txt")   # => "content"
 ```
 
 ## Mount Configuration Examples
@@ -37,20 +35,20 @@ fs::read("data", "file.txt")
 import { createKvExtension } from '@rcrsr/rill/ext/kv';
 import { createFsExtension } from '@rcrsr/rill/ext/fs';
 
+const kv = createKvExtension({
+  mounts: {
+    user: { store: './data/user.json' },
+    cache: { store: './data/cache.json' }
+  }
+});
+const fs = createFsExtension({
+  mounts: {
+    data: { path: './data', mode: 'read-write' }
+  }
+});
+
 const ctx = createRuntimeContext({
-  functions: {
-    ...createKvExtension({
-      mounts: {
-        user: { store: './data/user.json' },
-        cache: { store: './data/cache.json' }
-      }
-    }).functions,
-    ...createFsExtension({
-      mounts: {
-        data: { path: './data', mode: 'read-write' }
-      }
-    }).functions,
-  },
+  variables: { kv: kv.value, fs: fs.value },
 });
 ```
 
@@ -60,32 +58,32 @@ const ctx = createRuntimeContext({
 import { createSqliteKvExtension } from '@rcrsr/rill-ext-kv-sqlite';
 import { createFsExtension } from '@rcrsr/rill/ext/fs';
 
+const kv = createSqliteKvExtension({
+  mounts: {
+    user: {
+      mode: 'read-write',
+      database: './data/app.db',
+      table: 'user_state',
+      schema: {
+        name: { type: 'string', default: '' },
+        count: { type: 'number', default: 0 }
+      }
+    },
+    cache: {
+      mode: 'read-write',
+      database: './data/cache.db',
+      table: 'cache_entries'
+    }
+  }
+});
+const fs = createFsExtension({
+  mounts: {
+    data: { path: './data', mode: 'read-write' }
+  }
+});
+
 const ctx = createRuntimeContext({
-  functions: {
-    ...createSqliteKvExtension({
-      mounts: {
-        user: {
-          mode: 'read-write',
-          database: './data/app.db',
-          table: 'user_state',
-          schema: {
-            name: { type: 'string', default: '' },
-            count: { type: 'number', default: 0 }
-          }
-        },
-        cache: {
-          mode: 'read-write',
-          database: './data/cache.db',
-          table: 'cache_entries'
-        }
-      }
-    }).functions,
-    ...createFsExtension({
-      mounts: {
-        data: { path: './data', mode: 'read-write' }
-      }
-    }).functions,
-  },
+  variables: { kv: kv.value, fs: fs.value },
 });
 ```
 
@@ -95,42 +93,42 @@ const ctx = createRuntimeContext({
 import { createRedisKvExtension } from '@rcrsr/rill-ext-kv-redis';
 import { createS3FsExtension } from '@rcrsr/rill-ext-fs-s3';
 
-const ctx = createRuntimeContext({
-  functions: {
-    ...createRedisKvExtension({
-      url: 'redis://localhost:6379',
-      mounts: {
-        user: {
-          mode: 'read-write',
-          prefix: 'app:user:',
-          schema: {
-            name: { type: 'string', default: '' },
-            count: { type: 'number', default: 0 }
-          }
-        },
-        cache: {
-          mode: 'read-write',
-          prefix: 'app:cache:',
-          ttl: 3600  // 1 hour expiry
-        }
-      },
-      writePolicy: 'immediate'
-    }).functions,
-    ...createS3FsExtension({
-      mounts: {
-        data: {
-          mode: 'read-write',
-          region: 'us-east-1',
-          bucket: 'my-app-data',
-          prefix: 'documents/',
-          credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-          }
-        }
+const kv = createRedisKvExtension({
+  url: 'redis://localhost:6379',
+  mounts: {
+    user: {
+      mode: 'read-write',
+      prefix: 'app:user:',
+      schema: {
+        name: { type: 'string', default: '' },
+        count: { type: 'number', default: 0 }
       }
-    }).functions,
+    },
+    cache: {
+      mode: 'read-write',
+      prefix: 'app:cache:',
+      ttl: 3600  // 1 hour expiry
+    }
   },
+  writePolicy: 'immediate'
+});
+const fs = createS3FsExtension({
+  mounts: {
+    data: {
+      mode: 'read-write',
+      region: 'us-east-1',
+      bucket: 'my-app-data',
+      prefix: 'documents/',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      }
+    }
+  }
+});
+
+const ctx = createRuntimeContext({
+  variables: { kv: kv.value, fs: fs.value },
 });
 ```
 
@@ -168,28 +166,26 @@ Scripts reference mount names and functions, never backend-specific configuratio
 
 ```typescript
 // Development backend (JSON)
+const devKv = createKvExtension({
+  mounts: { user: { store: './dev.json' } }
+});
 const devCtx = createRuntimeContext({
-  functions: {
-    ...createKvExtension({
-      mounts: { user: { store: './dev.json' } }
-    }).functions,
-  },
+  variables: { kv: devKv.value },
 });
 
 // Production backend (Redis)
+const prodKv = createRedisKvExtension({
+  url: process.env.REDIS_URL,
+  mounts: { user: { mode: 'read-write', prefix: 'prod:user:' } }
+});
 const prodCtx = createRuntimeContext({
-  functions: {
-    ...createRedisKvExtension({
-      url: process.env.REDIS_URL,
-      mounts: { user: { mode: 'read-write', prefix: 'prod:user:' } }
-    }).functions,
-  },
+  variables: { kv: prodKv.value },
 });
 
 // Same script works with both contexts
 const script = `
-  kv::set("user", "name", "Alice")
-  kv::get("user", "name")
+  kv.set("user", "name", "Alice")
+  kv.get("user", "name")
 `;
 
 const devResult = await execute(parse(script), devCtx);   // Uses JSON

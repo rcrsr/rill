@@ -11,49 +11,7 @@ import {
   type RillValue,
   type SchemeResolver,
 } from '@rcrsr/rill';
-import type { NestedExtConfig, ResolverConfig } from './types.js';
-
-// ============================================================
-// TREE CONVERSION
-// ============================================================
-
-function convertTreeToRillValues(
-  tree: NestedExtConfig
-): Record<string, RillValue> {
-  const result: Record<string, RillValue> = {};
-
-  for (const [key, value] of Object.entries(tree)) {
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      'fn' in value &&
-      typeof (value as { fn: unknown }).fn === 'function' &&
-      'params' in value
-    ) {
-      const rillFn = value as {
-        fn: (...args: unknown[]) => unknown;
-        params: unknown;
-        returnType: unknown;
-        annotations?: Record<string, RillValue>;
-      };
-      result[key] = {
-        __type: 'callable' as const,
-        kind: 'application' as const,
-        isProperty: false,
-        fn: rillFn.fn,
-        params: rillFn.params,
-        returnType: rillFn.returnType,
-        annotations: rillFn.annotations ?? {},
-      } as unknown as RillValue;
-    } else {
-      result[key] = convertTreeToRillValues(
-        value as NestedExtConfig
-      ) as unknown as RillValue;
-    }
-  }
-
-  return result;
-}
+import type { ResolverConfig } from './types.js';
 
 // ============================================================
 // BUILD RESOLVERS
@@ -61,45 +19,44 @@ function convertTreeToRillValues(
 
 /**
  * Assembles the resolver map for RuntimeOptions.
- * - `ext:` uses extResolver with the converted extension tree as config
+ * - `ext:` uses extResolver with the extension tree as config
  * - `context:` uses contextResolver with contextValues for dot-path lookup
- * - `module:` routes ext and context to generated bindings; others to moduleResolver
+ * - `module:` uses folder aliasing — each config key maps to a directory,
+ *   dot-paths resolve to files within: `module:alias.sub.path` → `{dir}/sub/path.rill`
  */
 export function buildResolvers(options: {
-  extTree: NestedExtConfig;
+  extTree: Record<string, RillValue>;
   contextValues: Record<string, unknown>;
-  extensionBindings: string;
-  contextBindings: string;
   modulesConfig: Record<string, string>;
   configDir: string;
 }): ResolverConfig {
-  const {
-    extTree,
-    contextValues,
-    extensionBindings,
-    contextBindings,
-    modulesConfig,
-    configDir,
-  } = options;
+  const { extTree, contextValues, modulesConfig, configDir } = options;
 
-  const extConfig = convertTreeToRillValues(extTree);
+  const extConfig = extTree;
 
-  // Build the module: resolver config, excluding reserved keys (ext, context)
-  const userModuleConfig: Record<string, string> = {};
+  // Build the module: resolver config, resolving all folder paths relative to configDir
+  const moduleDirs: Record<string, string> = {};
   for (const [id, value] of Object.entries(modulesConfig)) {
-    if (id !== 'ext' && id !== 'context') {
-      userModuleConfig[id] = resolve(configDir, value);
-    }
+    moduleDirs[id] = resolve(configDir, value);
   }
 
   const moduleSchemeResolver: SchemeResolver = (resource: string) => {
-    if (resource === 'ext') {
-      return { kind: 'source', text: extensionBindings };
+    const dotIndex = resource.indexOf('.');
+    const alias = dotIndex === -1 ? resource : resource.slice(0, dotIndex);
+
+    const dirPath = moduleDirs[alias];
+    if (dirPath === undefined) {
+      return moduleResolver(resource, {});
     }
-    if (resource === 'context') {
-      return { kind: 'source', text: contextBindings };
-    }
-    return moduleResolver(resource, userModuleConfig);
+
+    const subPath = dotIndex === -1 ? '' : resource.slice(dotIndex + 1);
+    const relPath =
+      subPath.length > 0
+        ? subPath.replaceAll('.', '/') + '.rill'
+        : 'index.rill';
+    const filePath = resolve(dirPath, relPath);
+
+    return moduleResolver(resource, { [resource]: filePath });
   };
 
   return {

@@ -140,6 +140,19 @@ function parseSingleType(
   state: ParserState,
   opts?: { parseLiteral?: () => LiteralNode }
 ): TypeRef {
+  // Zero-param closure type: || :returnType or bare ||
+  if (check(state, TOKEN_TYPES.OR)) {
+    advance(state); // consume || (OR token)
+    // Check for :returnType
+    if (check(state, TOKEN_TYPES.COLON)) {
+      advance(state); // consume :
+      const ret = parseSingleType(state, opts);
+      return { kind: 'static', typeName: 'closure', args: [{ value: ret }] };
+    }
+    // Bare || without :returnType — equivalent to 'closure'
+    return { kind: 'static', typeName: 'closure' };
+  }
+
   if (check(state, TOKEN_TYPES.DOLLAR)) {
     advance(state); // consume $
     const nameToken = expect(

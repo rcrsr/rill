@@ -1,7 +1,7 @@
 /**
  * Tests for loadExtensions
- * Covers: HP-7, HP-8, EC-7, EC-10, EC-11, BC-1
- * (AC-7, AC-8, AC-16, AC-20, AC-21, AC-23)
+ * Covers: HP-7, HP-8, EC-5, EC-6, EC-7, EC-10, EC-11, BC-1
+ * (AC-7, AC-8, AC-13, AC-14, AC-16, AC-20, AC-21, AC-23)
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -82,6 +82,23 @@ describe('loadExtensions', () => {
         '@nonexistent/rill-ext-named-loader-99999'
       );
     });
+
+    it('EC-8: error message uses "Cannot find packages: {list}" format', async () => {
+      const mounts = [makeMount('a', '@nonexistent/rill-ext-ec8-format-99999')];
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        'Cannot find packages: @nonexistent/rill-ext-ec8-format-99999'
+      );
+    });
+
+    it('EC-8: lists all missing packages in a single message', async () => {
+      const mounts = [
+        makeMount('a', '@nonexistent/rill-ext-ec8-a-99999'),
+        makeMount('b', '@nonexistent/rill-ext-ec8-b-99999'),
+      ];
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        'Cannot find packages: @nonexistent/rill-ext-ec8-a-99999, @nonexistent/rill-ext-ec8-b-99999'
+      );
+    });
   });
 
   describe('EC-7: no extensionManifest export throws ExtensionLoadError', () => {
@@ -124,6 +141,24 @@ describe('loadExtensions', () => {
       const mounts = [makeMount('pkg', '/fake/ext/factory-throws')];
       await expect(loadExtensions(mounts, {})).rejects.toThrow(
         ExtensionLoadError
+      );
+    });
+
+    it('EC-7: error message uses "Factory for {pkg} threw: {reason}" format', async () => {
+      vi.mock(
+        '/fake/ext/factory-throws-msg',
+        () => ({
+          extensionManifest: {
+            factory: () => {
+              throw new Error('connection refused');
+            },
+          },
+        }),
+        { virtual: true }
+      );
+      const mounts = [makeMount('pkg', '/fake/ext/factory-throws-msg')];
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        'Factory for /fake/ext/factory-throws-msg threw: connection refused'
       );
     });
   });
@@ -193,7 +228,7 @@ describe('loadExtensions', () => {
         () => ({
           extensionManifest: {
             version: '1.5.0',
-            factory: () => ({}),
+            factory: () => ({ value: 'ok' }),
           },
         }),
         { virtual: true }
@@ -244,6 +279,58 @@ describe('loadExtensions', () => {
   });
 
   // ============================================================
+  // EC-5: Factory returns result without value property
+  // ============================================================
+
+  describe('EC-5: factory result missing value property throws ExtensionLoadError', () => {
+    it('throws ExtensionLoadError when factory returns object without value property', async () => {
+      // AC-13: factory returns {} (no value property)
+      vi.mock(
+        '/fake/ext/no-value-prop',
+        () => ({
+          extensionManifest: {
+            factory: () => ({}),
+          },
+        }),
+        { virtual: true }
+      );
+      const mounts = [makeMount('nv', '/fake/ext/no-value-prop')];
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        ExtensionLoadError
+      );
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        'Factory for /fake/ext/no-value-prop returned result without value property'
+      );
+    });
+  });
+
+  // ============================================================
+  // EC-6: Factory returns undefined value
+  // ============================================================
+
+  describe('EC-6: factory result with undefined value throws ExtensionLoadError', () => {
+    it('throws ExtensionLoadError when factory returns { value: undefined }', async () => {
+      // AC-14: factory returns { value: undefined }
+      vi.mock(
+        '/fake/ext/undef-value',
+        () => ({
+          extensionManifest: {
+            factory: () => ({ value: undefined }),
+          },
+        }),
+        { virtual: true }
+      );
+      const mounts = [makeMount('uv', '/fake/ext/undef-value')];
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        ExtensionLoadError
+      );
+      await expect(loadExtensions(mounts, {})).rejects.toThrow(
+        'Factory for /fake/ext/undef-value returned undefined value'
+      );
+    });
+  });
+
+  // ============================================================
   // HP-8: Manifest validation and factory invocation
   // ============================================================
 
@@ -254,7 +341,7 @@ describe('loadExtensions', () => {
         () => ({
           extensionManifest: {
             factory: (_cfg: Record<string, unknown>) => ({
-              run: { fn: async () => 'ok', params: [] },
+              value: { run: { fn: async () => 'ok', params: [] } },
             }),
           },
         }),
@@ -273,6 +360,7 @@ describe('loadExtensions', () => {
         () => ({
           extensionManifest: {
             factory: () => ({
+              value: 'placeholder',
               dispose: () => undefined,
             }),
           },
@@ -297,7 +385,7 @@ describe('loadExtensions', () => {
         () => ({
           extensionManifest: {
             factory: (_cfg: Record<string, unknown>) => ({
-              fn1: { fn: async () => 'v', params: [] },
+              value: { fn1: { fn: async () => 'v', params: [] } },
             }),
           },
         }),

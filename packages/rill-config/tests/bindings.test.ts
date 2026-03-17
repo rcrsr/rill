@@ -5,9 +5,11 @@
 import {
   buildContextBindings,
   buildExtensionBindings,
+  ExtensionBindingError,
 } from '@rcrsr/rill-config';
-import type { ContextFieldSchema, NestedExtConfig } from '@rcrsr/rill-config';
-import { structureToTypeValue } from '@rcrsr/rill';
+import type { ContextFieldSchema } from '@rcrsr/rill-config';
+import { createTuple, structureToTypeValue, toCallable } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -20,10 +22,10 @@ describe('buildExtensionBindings', () => {
     expect(result).toBe('[:]');
   });
 
-  it('produces a use<ext:...> entry for a leaf function', () => {
-    const tree: NestedExtConfig = {
+  it('produces a use<ext:...> entry for a callable leaf', () => {
+    const tree: Record<string, RillValue> = {
       tools: {
-        run: {
+        run: toCallable({
           fn: async () => 'ok',
           params: [
             {
@@ -34,7 +36,7 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
@@ -42,28 +44,39 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('input: string');
   });
 
-  it('nests dicts for multi-segment mount paths', () => {
-    const tree: NestedExtConfig = {
+  it('nests dicts for multi-segment mount paths with string leaves', () => {
+    const tree: Record<string, RillValue> = {
       ns: {
-        sub: {
-          fn1: {
-            fn: async () => null,
-            params: [],
-            returnType: structureToTypeValue({ kind: 'any' }),
-          },
-        },
+        sub: { val: 'hello' } as Record<string, RillValue>,
       },
     };
     const result = buildExtensionBindings(tree);
     expect(result).toContain('ns');
     expect(result).toContain('sub');
-    expect(result).toContain('use<ext:ns.sub.fn1>');
+    expect(result).toContain('use<ext:ns.sub.val>:string');
+  });
+
+  it('emits :|| with return type for callable with empty params', () => {
+    const tree: Record<string, RillValue> = {
+      ns: {
+        sub: {
+          fn1: toCallable({
+            fn: async () => null,
+            params: [],
+            returnType: structureToTypeValue({ kind: 'any' }),
+          }),
+        },
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('use<ext:ns.sub.fn1>:||');
+    expect(result).toContain(':any');
   });
 
   it('omits param annotations from bindings output', () => {
-    const tree: NestedExtConfig = {
+    const tree: Record<string, RillValue> = {
       ext: {
-        greet: {
+        greet: toCallable({
           fn: async () => 'hi',
           params: [
             {
@@ -74,7 +87,7 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
@@ -82,10 +95,12 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('name: string');
   });
 
-  it('renders string default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  // Param defaultValues are runtime-only; the annotation format strips them.
+
+  it('strips string default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        greet: {
+        greet: toCallable({
           fn: async () => 'hi',
           params: [
             {
@@ -96,17 +111,18 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('name: string = "World"');
+    expect(result).toContain('name: string');
+    expect(result).not.toContain('= ');
   });
 
-  it('renders number default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  it('strips number default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        repeat: {
+        repeat: toCallable({
           fn: async () => null,
           params: [
             {
@@ -117,17 +133,18 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('count: number = 42');
+    expect(result).toContain('count: number');
+    expect(result).not.toContain('= 42');
   });
 
-  it('renders default value only for params that have one', () => {
-    const tree: NestedExtConfig = {
+  it('strips defaults from mixed default and no-default params', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        send: {
+        send: toCallable({
           fn: async () => null,
           params: [
             {
@@ -144,19 +161,19 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
     expect(result).toContain('message: string');
-    expect(result).not.toContain('message: string =');
-    expect(result).toContain('retries: number = 3');
+    expect(result).toContain('retries: number');
+    expect(result).not.toContain('= 3');
   });
 
-  it('renders boolean default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  it('strips boolean default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        toggle: {
+        toggle: toCallable({
           fn: async () => null,
           params: [
             {
@@ -167,17 +184,18 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('flag: bool = false');
+    expect(result).toContain('flag: bool');
+    expect(result).not.toContain('= false');
   });
 
   it('renders full structural type for dict params and return type', () => {
-    const tree: NestedExtConfig = {
+    const tree: Record<string, RillValue> = {
       tools: {
-        infer: {
+        infer: toCallable({
           fn: async () => ({ result: 'ok' }),
           params: [
             {
@@ -197,7 +215,7 @@ describe('buildExtensionBindings', () => {
             kind: 'dict',
             fields: { result: { type: { kind: 'string' } } },
           }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
@@ -205,10 +223,10 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('dict(result: string)');
   });
 
-  it('renders dict default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  it('strips dict default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        call: {
+        call: toCallable({
           fn: async () => null,
           params: [
             {
@@ -219,19 +237,18 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain(
-      'options: dict() = [model: "gpt-4", temperature: 0.7]'
-    );
+    expect(result).toContain('options:');
+    expect(result).not.toContain('= [');
   });
 
-  it('renders empty dict default value as [:]', () => {
-    const tree: NestedExtConfig = {
+  it('strips empty dict default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        call: {
+        call: toCallable({
           fn: async () => null,
           params: [
             {
@@ -242,59 +259,70 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('options: dict() = [:]');
+    expect(result).toContain('options:');
+    expect(result).not.toContain('= [:]');
   });
 
-  it('renders list default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  it('strips list default value from param annotation', () => {
+    const tree: Record<string, RillValue> = {
       ext: {
-        process: {
+        process: toCallable({
           fn: async () => null,
           params: [
             {
               name: 'items',
-              type: { kind: 'list', elementType: { kind: 'string' } },
+              type: { kind: 'list' },
               defaultValue: ['a', 'b'],
               annotations: {},
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('items: list = list["a", "b"]');
+    expect(result).toContain('items: list');
+    expect(result).not.toContain('= list[');
   });
 
-  it('renders nested dict default value in param binding', () => {
-    const tree: NestedExtConfig = {
+  it('strips dict field defaults from param type annotation', () => {
+    // dict(max_tokens: number = 0) strips to dict(max_tokens: number)
+    const tree: Record<string, RillValue> = {
       ext: {
-        configure: {
+        call: toCallable({
           fn: async () => null,
           params: [
             {
-              name: 'config',
-              type: { kind: 'dict', fields: {} },
-              defaultValue: { nested: { key: 'val' } },
+              name: 'opts',
+              type: {
+                kind: 'dict',
+                fields: {
+                  max_tokens: { type: { kind: 'number' }, defaultValue: 0 },
+                  system: { type: { kind: 'string' }, defaultValue: '' },
+                },
+              },
+              defaultValue: {},
               annotations: {},
             },
           ],
           returnType: structureToTypeValue({ kind: 'any' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('config: dict() = [nested: [key: "val"]]');
+    expect(result).toContain('dict(max_tokens: number, system: string)');
+    expect(result).not.toContain('= 0');
+    expect(result).not.toContain('= ""');
   });
 
   it('appends return type suffix after closing | when returnType is set', () => {
-    const tree: NestedExtConfig = {
+    const tree: Record<string, RillValue> = {
       tools: {
-        summarize: {
+        summarize: toCallable({
           fn: async () => 'summary',
           params: [
             {
@@ -305,11 +333,185 @@ describe('buildExtensionBindings', () => {
             },
           ],
           returnType: structureToTypeValue({ kind: 'string' }),
-        },
+        }),
       },
     };
     const result = buildExtensionBindings(tree);
     expect(result).toContain('| :string');
+  });
+
+  // ============================================================
+  // SCALAR LEAF BINDINGS (AC-7, AC-8)
+  // ============================================================
+
+  it('emits use<ext:name.version>:string for a string leaf', () => {
+    const tree: Record<string, RillValue> = {
+      name: { version: '1.0' } as Record<string, RillValue>,
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('version: use<ext:name.version>:string');
+  });
+
+  it('emits use<ext:...>:number for a number leaf', () => {
+    const tree: Record<string, RillValue> = {
+      config: { port: 8080 } as Record<string, RillValue>,
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('port: use<ext:config.port>:number');
+  });
+
+  it('emits use<ext:...>:bool for a boolean leaf', () => {
+    const tree: Record<string, RillValue> = {
+      config: { debug: true } as Record<string, RillValue>,
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('debug: use<ext:config.debug>:bool');
+  });
+
+  it('emits use<ext:...>:list for a list (array) leaf', () => {
+    const tree: Record<string, RillValue> = {
+      data: { items: ['a', 'b', 'c'] } as Record<string, RillValue>,
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('items: use<ext:data.items>:list');
+  });
+
+  it('emits use<ext:...>:tuple for a tuple leaf', () => {
+    const tree: Record<string, RillValue> = {
+      data: { pair: createTuple([1, 2]) } as Record<string, RillValue>,
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('pair: use<ext:data.pair>:tuple');
+  });
+
+  // ============================================================
+  // UNION AND CLOSURE TYPE STRIPPING
+  // ============================================================
+
+  it('strips defaults from union member types', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        process: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'input',
+              type: {
+                kind: 'union',
+                members: [
+                  {
+                    kind: 'dict',
+                    fields: {
+                      name: { type: { kind: 'string' }, defaultValue: 'anon' },
+                    },
+                  },
+                  { kind: 'string' },
+                ],
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('dict(name: string)|string');
+    expect(result).not.toContain('= ');
+  });
+
+  it('strips defaults from closure ret inside union param type', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        apply: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'input',
+              type: {
+                kind: 'union',
+                members: [
+                  {
+                    kind: 'closure',
+                    params: [],
+                    ret: {
+                      kind: 'dict',
+                      fields: {
+                        key: {
+                          type: { kind: 'string' },
+                          defaultValue: 'default',
+                        },
+                      },
+                    },
+                  },
+                  { kind: 'number' },
+                ],
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('|| :dict(key: string)|number');
+    expect(result).not.toContain('= ');
+  });
+
+  it('strips defaults from closure return type recursively', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        transform: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'fn',
+              type: {
+                kind: 'closure',
+                params: [],
+                ret: {
+                  kind: 'dict',
+                  fields: {
+                    status: { type: { kind: 'string' }, defaultValue: 'ok' },
+                  },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain(':dict(status: string)');
+    expect(result).not.toContain('= ');
+  });
+
+  // ============================================================
+  // PARSE VALIDATION ERROR (EC-4, AC-18)
+  // ============================================================
+
+  it('throws ExtensionBindingError when generated source fails to parse', () => {
+    // Symbol keys produce identifiers that are invalid rill syntax.
+    // Use an object with a key containing characters invalid for rill identifiers.
+    const tree: Record<string, RillValue> = {
+      'invalid key with spaces': 'value',
+    };
+    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+  });
+
+  it('includes parser error detail in ExtensionBindingError message', () => {
+    const tree: Record<string, RillValue> = {
+      'invalid key with spaces': 'value',
+    };
+    expect(() => buildExtensionBindings(tree)).toThrow(
+      /Extension bindings failed to parse:/
+    );
   });
 });
 

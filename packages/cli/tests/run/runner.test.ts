@@ -5,11 +5,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { runScript, buildModuleResolver } from '../../src/run/runner.js';
 import type { RunCliOptions } from '../../src/run/types.js';
-import type { NestedExtConfig, RillConfigFile } from '@rcrsr/rill-config';
+import type { RillConfigFile } from '@rcrsr/rill-config';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { RuntimeError, structureToTypeValue } from '@rcrsr/rill';
+import { RuntimeError } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 
 let _executeErrorOverride: Error | null = null;
 
@@ -44,8 +45,7 @@ async function runTempScript(
   source: string,
   optsOverrides: Partial<RunCliOptions> = {},
   config: RillConfigFile = makeConfig(),
-  extTree: NestedExtConfig = {},
-  bindingsSrc: string = '[:]',
+  extTree: Record<string, RillValue> = {},
   disposes: Array<() => void | Promise<void>> = []
 ) {
   const scriptPath = path.join(os.tmpdir(), `rill-test-${Date.now()}.rill`);
@@ -55,7 +55,6 @@ async function runTempScript(
       makeOpts({ scriptPath, ...optsOverrides }),
       config,
       extTree,
-      bindingsSrc,
       disposes
     );
   } finally {
@@ -116,7 +115,6 @@ describe('runScript', () => {
         makeOpts({ scriptPath: '/nonexistent/path/script.rill' }),
         makeConfig(),
         {},
-        '[:]',
         []
       );
       expect(result.exitCode).toBe(1);
@@ -157,91 +155,71 @@ describe('runScript', () => {
       const result = await runTempScript(
         'use<ext:unknown_extension_xyz> => $ext\n$ext',
         {},
-        makeConfig(),
-        {},
-        '[:]'
+        makeConfig()
       );
       expect(result.exitCode).toBe(1);
       expect(result.errorOutput).toContain('unknown_extension_xyz');
     });
   });
 
-  describe('ext drilling', () => {
-    function makeExtTree(): NestedExtConfig {
-      return {
-        llm: {
-          openai: {
-            message: {
-              fn: async () => true,
-              params: [],
-              returnType: structureToTypeValue({ kind: 'any' }),
-            },
-          },
-        },
-      };
-    }
-
-    it('resolves ext.llm.openai to a subtree source with full ext paths', () => {
-      const resolver = buildModuleResolver('[:]', {}, makeExtTree());
-      const resolution = resolver('ext.llm.openai');
-      expect(resolution).toEqual(expect.objectContaining({ kind: 'source' }));
-      const { text } = resolution as { kind: 'source'; text: string };
-      expect(text).toContain('message:');
-      expect(text).toContain('use<ext:llm.openai.message>');
-    });
-
-    it('returns exit 1 for unknown drill path ext.nonexistent', async () => {
-      const result = await runTempScript(
-        'use<module:ext.nonexistent> => $x\ntrue',
-        {},
-        makeConfig(),
-        {},
-        '[:]'
+  describe('module folder aliasing', () => {
+    it('resolves user-defined module folder via dot-path', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-runner-'));
+      fs.writeFileSync(
+        path.join(dir, 'helpers.rill'),
+        '"hello from helpers"',
+        'utf-8'
       );
-      expect(result.exitCode).toBe(1);
+      try {
+        const config = makeConfig({ modules: { utils: dir } });
+        const result = await runTempScript(
+          'use<module:utils.helpers> => $h\n$h',
+          {},
+          config
+        );
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toBe('hello from helpers');
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
     });
 
-    it('returns exit 1 when drilling to a leaf function', async () => {
+    it('returns exit 1 for unknown module alias', async () => {
       const result = await runTempScript(
-        'use<module:ext.llm.openai.message> => $x\ntrue',
+        'use<module:unknown> => $x\ntrue',
         {},
-        makeConfig(),
-        makeExtTree(),
-        '[:]'
+        makeConfig()
       );
       expect(result.exitCode).toBe(1);
     });
   });
 
-  describe('module scheme resolver', () => {
-    it('ignores user-defined modules.ext and uses generated bindings', async () => {
-      const config = makeConfig({ modules: { ext: '/some/user/path.rill' } });
-      const result = await runTempScript(
-        'use<module:ext> => $ext\ntrue',
-        {},
-        config,
-        {},
-        '[:]'
-      );
-      expect(result.exitCode).toBe(0);
+  describe('buildModuleResolver', () => {
+    it('resolves dot-path to file in aliased directory', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-runner-'));
+      fs.writeFileSync(path.join(dir, 'ext.rill'), '"ext content"');
+      try {
+        const resolver = buildModuleResolver({ bindings: dir }, '/tmp');
+        const resolution = await resolver('bindings.ext');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"ext content"' })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
     });
 
-    it('resolves user-defined module IDs via moduleResolver', async () => {
-      const utilPath = path.join(os.tmpdir(), `rill-utils-${Date.now()}.rill`);
-      fs.writeFileSync(utilPath, '"hello from utils"', 'utf-8');
+    it('resolves bare alias to index.rill', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-runner-'));
+      fs.writeFileSync(path.join(dir, 'index.rill'), '"index"');
       try {
-        const config = makeConfig({ modules: { utils: utilPath } });
-        const result = await runTempScript(
-          'use<module:utils> => $utils\n$utils',
-          {},
-          config,
-          {},
-          '[:]'
+        const resolver = buildModuleResolver({ lib: dir }, '/tmp');
+        const resolution = await resolver('lib');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"index"' })
         );
-        expect(result.exitCode).toBe(0);
-        expect(result.output).toBe('hello from utils');
       } finally {
-        fs.unlinkSync(utilPath);
+        fs.rmSync(dir, { recursive: true });
       }
     });
   });
@@ -250,19 +228,14 @@ describe('runScript', () => {
     it('calls all dispose callbacks after execution', async () => {
       const dispose1 = vi.fn().mockResolvedValue(undefined);
       const dispose2 = vi.fn().mockResolvedValue(undefined);
-      await runTempScript('true', {}, makeConfig(), {}, '[:]', [
-        dispose1,
-        dispose2,
-      ]);
+      await runTempScript('true', {}, makeConfig(), {}, [dispose1, dispose2]);
       expect(dispose1).toHaveBeenCalledOnce();
       expect(dispose2).toHaveBeenCalledOnce();
     });
 
     it('calls dispose callbacks even when script throws runtime error', async () => {
       const dispose = vi.fn().mockResolvedValue(undefined);
-      await runTempScript('$undefined_xyz', {}, makeConfig(), {}, '[:]', [
-        dispose,
-      ]);
+      await runTempScript('$undefined_xyz', {}, makeConfig(), {}, [dispose]);
       expect(dispose).toHaveBeenCalledOnce();
     });
   });

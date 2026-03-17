@@ -1,18 +1,6 @@
-import type {
-  ExtensionManifest,
-  RillFunction,
-  SchemeResolver,
-} from '@rcrsr/rill';
+import type { ExtensionManifest, RillValue, SchemeResolver } from '@rcrsr/rill';
 
 export type { ExtensionManifest };
-
-// ============================================================
-// EXTENSION TREE
-// ============================================================
-
-export type NestedExtConfig = {
-  [key: string]: NestedExtConfig | RillFunction;
-};
 
 // ============================================================
 // CONFIG FILE SHAPE
@@ -33,13 +21,11 @@ export interface RillConfigFile {
 export interface ExtensionsBlock {
   readonly mounts: Record<string, string>;
   readonly config?: Record<string, unknown>;
-  readonly bindings?: string;
 }
 
 export interface ContextBlock {
   readonly schema: Record<string, ContextFieldSchema>;
   readonly values: Record<string, unknown>;
-  readonly bindings?: string;
 }
 
 export interface ContextFieldSchema {
@@ -63,7 +49,7 @@ export interface ResolvedMount {
 }
 
 export interface LoadedProject {
-  readonly extTree: NestedExtConfig;
+  readonly extTree: Record<string, RillValue>;
   readonly disposes: ReadonlyArray<() => void | Promise<void>>;
   readonly manifests: ReadonlyMap<string, ExtensionManifest>;
 }
@@ -77,7 +63,7 @@ export interface ResolverConfig {
 
 export interface ProjectResult {
   readonly config: RillConfigFile;
-  readonly extTree: NestedExtConfig;
+  readonly extTree: Record<string, RillValue>;
   readonly disposes: ReadonlyArray<() => void | Promise<void>>;
   readonly resolverConfig: ResolverConfig;
   readonly hostOptions: HostBlock;
