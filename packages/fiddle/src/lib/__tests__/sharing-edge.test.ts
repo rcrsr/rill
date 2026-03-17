@@ -26,10 +26,10 @@ describe('sharing edge cases', () => {
   // ============================================================
 
   describe('decodeSource: empty result after decompress', () => {
-    it('returns null when decompressed result is empty string', async () => {
-      // Strategy: encode a valid string, then mock TextDecoder.decode to return ''
-      // so that decodeSource hits the empty-result guard at line 179.
-      const originalTextDecoder = globalThis.TextDecoder;
+    let originalTextDecoder: typeof globalThis.TextDecoder;
+
+    beforeEach(() => {
+      originalTextDecoder = globalThis.TextDecoder;
 
       class MockTextDecoder {
         decode(): string {
@@ -39,15 +39,21 @@ describe('sharing edge cases', () => {
 
       // @ts-expect-error — replacing constructor for test purposes
       globalThis.TextDecoder = MockTextDecoder;
+    });
 
+    afterEach(() => {
+      globalThis.TextDecoder = originalTextDecoder;
+    });
+
+    it('returns null when decompressed result is empty string', async () => {
+      // Strategy: encode a valid string, then mock TextDecoder.decode to return ''
+      // so that decodeSource hits the empty-result guard at line 179.
       const encoded = await encodeSource('hello world');
       expect(encoded).not.toBeNull();
 
       const result = await decodeSource(encoded!);
 
       expect(result).toBeNull();
-
-      globalThis.TextDecoder = originalTextDecoder;
     });
   });
 
@@ -155,16 +161,22 @@ describe('sharing edge cases', () => {
   // ============================================================
 
   describe('encodeSource: CompressionStream unavailable', () => {
-    it('returns null when CompressionStream is unavailable', async () => {
-      const original = globalThis.CompressionStream;
+    let originalCompressionStream: typeof globalThis.CompressionStream;
+
+    beforeEach(() => {
+      originalCompressionStream = globalThis.CompressionStream;
       // @ts-expect-error — deliberately removing CompressionStream to test guard
       globalThis.CompressionStream = undefined;
+    });
 
+    afterEach(() => {
+      globalThis.CompressionStream = originalCompressionStream;
+    });
+
+    it('returns null when CompressionStream is unavailable', async () => {
       const result = await encodeSource('test source');
 
       expect(result).toBeNull();
-
-      globalThis.CompressionStream = original;
     });
   });
 });

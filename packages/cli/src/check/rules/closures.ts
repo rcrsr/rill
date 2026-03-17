@@ -259,9 +259,9 @@ function containsClosureCreation(node: ASTNode): boolean {
 }
 
 /**
- * Check if a Block node contains an explicit capture statement ($ => $name).
- * Uses visitNode for full AST traversal, detecting PipeChain nodes whose
- * head is bare $ and whose pipes include a Capture.
+ * Check if a Block node contains an explicit capture statement ($ => $name)
+ * at the top level (closureDepth === 0). Captures inside nested closures
+ * are scoped to that closure and do not fix late binding for the each body.
  */
 function containsExplicitCapture(node: ASTNode): boolean {
   if (node.type !== 'Block') {
@@ -269,9 +269,15 @@ function containsExplicitCapture(node: ASTNode): boolean {
   }
 
   let found = false;
+  let closureDepth = 0;
   const ctx = {} as ValidationContext;
   visitNode(node, ctx, {
     enter(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth++;
+        return;
+      }
+      if (closureDepth > 0) return;
       if (n.type !== 'PipeChain') return;
       const chain = n as PipeChainNode;
       const head = chain.head;
@@ -285,7 +291,11 @@ function containsExplicitCapture(node: ASTNode): boolean {
         }
       }
     },
-    exit() {},
+    exit(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth--;
+      }
+    },
   });
   return found;
 }
