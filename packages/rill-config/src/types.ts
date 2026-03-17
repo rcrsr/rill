@@ -21,13 +21,11 @@ export interface RillConfigFile {
 export interface ExtensionsBlock {
   readonly mounts: Record<string, string>;
   readonly config?: Record<string, unknown>;
-  readonly bindings?: string;
 }
 
 export interface ContextBlock {
   readonly schema: Record<string, ContextFieldSchema>;
   readonly values: Record<string, unknown>;
-  readonly bindings?: string;
 }
 
 export interface ContextFieldSchema {

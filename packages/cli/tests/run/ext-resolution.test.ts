@@ -26,10 +26,6 @@ function makeOpts(scriptPath: string): RunCliOptions {
   };
 }
 
-function makeConfig(): RillConfigFile {
-  return { modules: {} };
-}
-
 function makeExtTree(): Record<string, RillValue> {
   return {
     tools: {
@@ -56,46 +52,33 @@ function makeExtTree(): Record<string, RillValue> {
   };
 }
 
-// Hand-crafted valid rill bindings for makeExtTree().
-// buildExtensionBindings generates return-type suffixes that the parser
-// does not yet support, so tests pass pre-built binding source instead.
-const MAIN_BINDINGS = [
-  '[\n',
-  '  tools: [\n',
-  '    greet: use<ext:tools.greet>:|name: string|,\n',
-  '    compute: use<ext:tools.compute>\n',
-  '  ]\n',
-  ']',
-].join('');
-
-const DEEP_BINDINGS = [
-  '[\n',
-  '  tools: [\n',
-  '    inner: [\n',
-  '      fn: use<ext:tools.inner.fn>\n',
-  '    ]\n',
-  '  ]\n',
-  ']',
-].join('');
-
+/**
+ * Write extension bindings to a temp directory and run a script
+ * with the bindings folder configured as a module alias.
+ */
 async function runTempScript(
   source: string,
-  extTree: Record<string, RillValue> = {},
-  bindingsSrc?: string
+  extTree: Record<string, RillValue> = {}
 ): Promise<{ exitCode: number; output?: string; errorOutput?: string }> {
-  const scriptPath = path.join(os.tmpdir(), `rill-ext-test-${Date.now()}.rill`);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-ext-test-'));
+  const scriptPath = path.join(tmpDir, 'script.rill');
+  const bindingsDir = path.join(tmpDir, 'bindings');
+
+  fs.mkdirSync(bindingsDir);
   fs.writeFileSync(scriptPath, source, 'utf-8');
-  const resolvedBindings = bindingsSrc ?? buildExtensionBindings(extTree);
+
+  // Write extension bindings to file so module:bindings.ext can resolve them
+  const bindingsSource = buildExtensionBindings(extTree);
+  fs.writeFileSync(path.join(bindingsDir, 'ext.rill'), bindingsSource, 'utf-8');
+
+  const config: RillConfigFile = {
+    modules: { bindings: bindingsDir },
+  };
+
   try {
-    return await runScript(
-      makeOpts(scriptPath),
-      makeConfig(),
-      extTree,
-      resolvedBindings,
-      []
-    );
+    return await runScript(makeOpts(scriptPath), config, extTree, []);
   } finally {
-    fs.unlinkSync(scriptPath);
+    fs.rmSync(tmpDir, { recursive: true });
   }
 }
 
@@ -104,8 +87,7 @@ describe('ext-resolution', () => {
     it('resolves use<ext:tools.greet> without error', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\ntrue',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
     });
@@ -113,8 +95,7 @@ describe('ext-resolution', () => {
     it('accesses ^type on greet without crashing', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\n$greet.^type',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
     });
@@ -122,8 +103,7 @@ describe('ext-resolution', () => {
     it('returns string type for greet function', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\n$greet.^type',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('string');
@@ -132,8 +112,7 @@ describe('ext-resolution', () => {
     it('returns number type for compute function', async () => {
       const result = await runTempScript(
         'use<ext:tools.compute> => $compute\n$compute.^type',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('number');
@@ -144,8 +123,7 @@ describe('ext-resolution', () => {
     it('accesses ^description on greet without error', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\n$greet.^description',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
     });
@@ -153,8 +131,7 @@ describe('ext-resolution', () => {
     it('returns correct description annotation for greet', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\n$greet.^description',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toBe('Greets a user by name');
@@ -163,8 +140,7 @@ describe('ext-resolution', () => {
     it('accesses ^description on compute without error', async () => {
       const result = await runTempScript(
         'use<ext:tools.compute> => $compute\n$compute.^description',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
     });
@@ -174,8 +150,7 @@ describe('ext-resolution', () => {
     it('calls greet and returns hello', async () => {
       const result = await runTempScript(
         'use<ext:tools.greet> => $greet\n$greet("world")',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toBe('hello');
@@ -184,8 +159,7 @@ describe('ext-resolution', () => {
     it('calls compute and exits 0 for numeric result', async () => {
       const result = await runTempScript(
         'use<ext:tools.compute> => $compute\n$compute()',
-        makeExtTree(),
-        MAIN_BINDINGS
+        makeExtTree()
       );
       expect(result.exitCode).toBe(0);
     });
@@ -208,8 +182,7 @@ describe('ext-resolution', () => {
     it('resolves a deeper nested function at tools.inner.fn', async () => {
       const result = await runTempScript(
         'use<ext:tools.inner.fn> => $deepFn\n$deepFn()',
-        deepTree,
-        DEEP_BINDINGS
+        deepTree
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toBe('deep');
@@ -218,8 +191,7 @@ describe('ext-resolution', () => {
     it('returns correct ^type for nested function', async () => {
       const result = await runTempScript(
         'use<ext:tools.inner.fn> => $deepFn\n$deepFn.^type',
-        deepTree,
-        DEEP_BINDINGS
+        deepTree
       );
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('string');

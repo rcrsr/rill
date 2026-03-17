@@ -89,8 +89,6 @@ export async function loadProject(options: {
   const resolverConfig = buildResolvers({
     extTree,
     contextValues,
-    extensionBindings,
-    contextBindings,
     modulesConfig: config.modules ?? {},
     configDir: dirname(configPath),
   });

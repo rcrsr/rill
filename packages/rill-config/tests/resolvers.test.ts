@@ -10,6 +10,9 @@ import {
 } from '@rcrsr/rill';
 import type { ApplicationCallable, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 // ============================================================
 // buildResolvers
@@ -24,8 +27,6 @@ describe('buildResolvers', () => {
     return {
       extTree: emptyTree,
       contextValues: {},
-      extensionBindings: '[:]',
-      contextBindings: '[:]',
       modulesConfig: {},
       configDir: '/tmp',
       ...overrides,
@@ -46,44 +47,104 @@ describe('buildResolvers', () => {
     });
   });
 
-  describe('module:ext returns extension bindings source', () => {
-    it('returns source text for module:ext', () => {
-      const extensionBindings = '[\n  run: use<ext:tools.run>:||\n]';
-      const result = buildResolvers(makeOptions({ extensionBindings }));
-      const moduleResolver = result.resolvers['module'];
-      expect(moduleResolver).toBeDefined();
-      const resolution = moduleResolver!('ext');
-      expect(resolution).toEqual({ kind: 'source', text: extensionBindings });
+  describe('module folder aliasing', () => {
+    it('resolves dot-path to file within aliased directory', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-resolvers-'));
+      fs.writeFileSync(path.join(dir, 'ext.rill'), '"extension bindings"');
+      try {
+        const result = buildResolvers(
+          makeOptions({ modulesConfig: { bindings: dir }, configDir: '/tmp' })
+        );
+        const moduleResolver = result.resolvers['module'];
+        const resolution = await moduleResolver!('bindings.ext');
+        expect(resolution).toEqual(
+          expect.objectContaining({
+            kind: 'source',
+            text: '"extension bindings"',
+          })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
     });
-  });
 
-  describe('module:context returns context bindings source', () => {
-    it('returns source text for module:context', () => {
-      const contextBindings = '[\n  apiUrl: "https://example.com"\n]';
-      const result = buildResolvers(makeOptions({ contextBindings }));
-      const moduleResolver = result.resolvers['module'];
-      expect(moduleResolver).toBeDefined();
-      const resolution = moduleResolver!('context');
-      expect(resolution).toEqual({ kind: 'source', text: contextBindings });
+    it('resolves nested dot-path to nested file path', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-resolvers-'));
+      fs.mkdirSync(path.join(dir, 'sub'));
+      fs.writeFileSync(path.join(dir, 'sub', 'deep.rill'), '"deep value"');
+      try {
+        const result = buildResolvers(
+          makeOptions({ modulesConfig: { lib: dir }, configDir: '/tmp' })
+        );
+        const moduleResolver = result.resolvers['module'];
+        const resolution = await moduleResolver!('lib.sub.deep');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"deep value"' })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
     });
-  });
 
-  describe('user module config', () => {
-    it('does not include ext or context keys from modulesConfig in user routes', () => {
-      // Reserved keys 'ext' and 'context' must not be forwarded to moduleResolver
-      const result = buildResolvers(
-        makeOptions({
-          modulesConfig: {
-            ext: './should-be-ignored.rill',
-            context: './also-ignored.rill',
-          },
-        })
+    it('resolves bare alias to index.rill', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-resolvers-'));
+      fs.writeFileSync(path.join(dir, 'index.rill'), '"index content"');
+      try {
+        const result = buildResolvers(
+          makeOptions({ modulesConfig: { utils: dir }, configDir: '/tmp' })
+        );
+        const moduleResolver = result.resolvers['module'];
+        const resolution = await moduleResolver!('utils');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"index content"' })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
+    });
+
+    it('throws RILL-R050 for unknown module alias', async () => {
+      const result = buildResolvers(makeOptions());
+      const moduleResolver = result.resolvers['module'];
+      await expect(moduleResolver!('unknown')).rejects.toThrow(
+        /not found in resolver config/
       );
-      // Module resolver should still return bindings for 'ext' and 'context'
-      const moduleResolver = result.resolvers['module'];
-      expect(moduleResolver).toBeDefined();
-      const extRes = moduleResolver!('ext');
-      expect(extRes).toHaveProperty('kind', 'source');
+    });
+
+    it('resolves module paths relative to configDir', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-resolvers-'));
+      const subDir = path.join(dir, 'modules');
+      fs.mkdirSync(subDir);
+      fs.writeFileSync(path.join(subDir, 'index.rill'), '"from modules"');
+      try {
+        const result = buildResolvers(
+          makeOptions({ modulesConfig: { lib: './modules' }, configDir: dir })
+        );
+        const moduleResolver = result.resolvers['module'];
+        const resolution = await moduleResolver!('lib');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"from modules"' })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
+    });
+
+    it('does not reserve ext or context as module names', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-resolvers-'));
+      fs.writeFileSync(path.join(dir, 'index.rill'), '"ext folder"');
+      try {
+        const result = buildResolvers(
+          makeOptions({ modulesConfig: { ext: dir }, configDir: '/tmp' })
+        );
+        const moduleResolver = result.resolvers['module'];
+        const resolution = await moduleResolver!('ext');
+        expect(resolution).toEqual(
+          expect.objectContaining({ kind: 'source', text: '"ext folder"' })
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true });
+      }
     });
   });
 

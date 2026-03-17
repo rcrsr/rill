@@ -11,7 +11,6 @@ import {
   createRuntimeContext,
   extResolver,
   moduleResolver,
-  isApplicationCallable,
   toNative,
   isTuple,
   type RillValue,
@@ -25,7 +24,6 @@ import {
   formatRillError,
   formatRillErrorJson,
 } from '@rcrsr/rill';
-import { buildExtensionBindings } from '@rcrsr/rill-config';
 import type { RillConfigFile } from '@rcrsr/rill-config';
 import type { RunCliOptions } from './types.js';
 
@@ -44,51 +42,37 @@ export interface RunResult {
 // ============================================================
 
 /**
- * Build a custom module scheme resolver.
- * - ID 'ext' → returns generated bindings source
- * - ID 'ext.*' → drills into extTree subtree and returns bindings for that node
- * - All other IDs → delegates to moduleResolver with the modules config
+ * Build a custom module scheme resolver using folder aliasing.
+ * Each config key maps to a directory. Dot-paths resolve to files within:
+ * - `module:alias.sub.path` → `{dir}/sub/path.rill`
+ * - `module:alias` → `{dir}/index.rill`
  */
 export function buildModuleResolver(
-  bindingsSource: string,
   modulesConfig: Record<string, string>,
-  extTree: Record<string, RillValue>,
   configDir: string
 ): SchemeResolver {
-  const moduleConfig: Record<string, string> = {};
+  const moduleDirs: Record<string, string> = {};
   for (const [id, value] of Object.entries(modulesConfig)) {
-    if (id !== 'ext') {
-      moduleConfig[id] = resolve(configDir, value);
-    }
+    moduleDirs[id] = resolve(configDir, value);
   }
 
   const resolver: SchemeResolver = (resource: string) => {
-    if (resource === 'ext') {
-      return { kind: 'source', text: bindingsSource };
+    const dotIndex = resource.indexOf('.');
+    const alias = dotIndex === -1 ? resource : resource.slice(0, dotIndex);
+
+    const dirPath = moduleDirs[alias];
+    if (dirPath === undefined) {
+      return moduleResolver(resource, {});
     }
-    if (resource.startsWith('ext.')) {
-      const suffix = resource.slice('ext.'.length);
-      const segments = suffix.split('.');
-      let node: Record<string, RillValue> = extTree;
-      let fullyResolved = true;
-      for (const segment of segments) {
-        const child = node[segment];
-        if (child === undefined) {
-          fullyResolved = false;
-          break;
-        }
-        if (isApplicationCallable(child)) {
-          fullyResolved = false;
-          break;
-        }
-        node = child as Record<string, RillValue>;
-      }
-      if (fullyResolved && node !== extTree) {
-        const subtreeSource = buildExtensionBindings(node, suffix);
-        return { kind: 'source', text: subtreeSource };
-      }
-    }
-    return moduleResolver(resource, moduleConfig);
+
+    const subPath = dotIndex === -1 ? '' : resource.slice(dotIndex + 1);
+    const relPath =
+      subPath.length > 0
+        ? subPath.replaceAll('.', '/') + '.rill'
+        : 'index.rill';
+    const filePath = resolve(dirPath, relPath);
+
+    return moduleResolver(resource, { [resource]: filePath });
   };
   return resolver;
 }
@@ -148,7 +132,6 @@ export async function runScript(
   opts: RunCliOptions,
   config: RillConfigFile,
   extTree: Record<string, RillValue>,
-  bindingsSrc: string,
   disposes: Array<() => void | Promise<void>>
 ): Promise<RunResult> {
   if (!opts.scriptPath) {
@@ -165,12 +148,7 @@ export async function runScript(
 
   const modulesConfig = config.modules ?? {};
   const configDir = dirname(resolve(opts.config));
-  const customModuleResolver = buildModuleResolver(
-    bindingsSrc,
-    modulesConfig,
-    extTree,
-    configDir
-  );
+  const customModuleResolver = buildModuleResolver(modulesConfig, configDir);
 
   const runtimeOptions: RuntimeOptions = {
     resolvers: {
@@ -236,7 +214,7 @@ export async function runScript(
               verbose: opts.verbose,
               maxStackDepth: opts.maxStackDepth,
               filePath: opts.scriptPath,
-              sources: { script: source, bindings: bindingsSrc },
+              sources: { script: source },
             });
       return { exitCode: 1, errorOutput: formatted };
     }
