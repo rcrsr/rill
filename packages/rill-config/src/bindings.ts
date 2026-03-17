@@ -4,15 +4,12 @@
  */
 
 import {
-  formatRillLiteral,
   formatStructure,
   isApplicationCallable,
   isTuple,
   isVector,
-  parse,
 } from '@rcrsr/rill';
 import type { RillParam, RillValue } from '@rcrsr/rill';
-import { ExtensionBindingError } from './errors.js';
 import type { ContextFieldSchema } from './types.js';
 
 // ============================================================
@@ -27,11 +24,7 @@ function mapParamType(param: RillParam): string {
 }
 
 function serializeParam(param: RillParam): string {
-  const base = `${param.name}: ${mapParamType(param)}`;
-  if (param.defaultValue !== undefined) {
-    return `${base} = ${formatRillLiteral(param.defaultValue)}`;
-  }
-  return base;
+  return `${param.name}: ${mapParamType(param)}`;
 }
 
 function buildNestedDict(
@@ -90,23 +83,12 @@ function buildNestedDict(
 /**
  * Generate rill source for extension bindings.
  * Returns a rill dict literal suitable for use as module:ext source.
- * Parse-validates the output before returning.
- * Throws ExtensionBindingError if generated source fails to parse.
  */
 export function buildExtensionBindings(
   extTree: Record<string, RillValue>,
   basePath?: string
 ): string {
-  const source = buildNestedDict(extTree, basePath ?? '', '');
-  try {
-    parse(source);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new ExtensionBindingError(
-      `Extension bindings failed to parse: ${message}`
-    );
-  }
-  return source;
+  return buildNestedDict(extTree, basePath ?? '', '');
 }
 
 // ============================================================

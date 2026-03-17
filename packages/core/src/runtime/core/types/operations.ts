@@ -16,6 +16,7 @@ import type { RillCallable } from '../callable.js';
 import {
   isCallable as _isCallableGuard,
   isDict,
+  isIterator,
   isOrdered,
   isTuple,
   isTypeValue,
@@ -197,6 +198,49 @@ export function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';
+
+  // List: bare bracket form [elem, ...]
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    return `[${value.map(formatRillLiteral).join(', ')}]`;
+  }
+
+  // Tuple: tuple[elem, ...]
+  if (isTuple(value)) {
+    return `tuple[${value.entries.map(formatRillLiteral).join(', ')}]`;
+  }
+
+  // Ordered: ordered[key: val, ...]
+  if (isOrdered(value)) {
+    const inner = value.entries
+      .map(([k, v]) => `${k}: ${formatRillLiteral(v)}`)
+      .join(', ');
+    return `ordered[${inner}]`;
+  }
+
+  // Non-literal compound types: fall through to display format
+  if (
+    isVector(value) ||
+    isIterator(value) ||
+    _isCallableGuard(value) ||
+    isTypeValue(value)
+  ) {
+    return registryFormatValue(value);
+  }
+
+  // Dict: bare bracket form [key: val, ...] or [:] for empty
+  if (typeof value === 'object' && value !== null) {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return '[:]';
+    const inner = keys
+      .map(
+        (k) =>
+          `${k}: ${formatRillLiteral((value as Record<string, RillValue>)[k]!)}`
+      )
+      .join(', ');
+    return `[${inner}]`;
+  }
+
   return registryFormatValue(value);
 }
 

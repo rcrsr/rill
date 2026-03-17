@@ -70,36 +70,48 @@ export async function loadProject(options: {
     disposes = loaded.disposes;
   }
 
-  // Step 5: Validate context
-  let contextSchema: Record<string, ContextFieldSchema> = {};
-  let contextValues: Record<string, unknown> = {};
+  // Steps 5-8 wrapped to ensure extension cleanup on failure
+  try {
+    // Step 5: Validate context
+    let contextSchema: Record<string, ContextFieldSchema> = {};
+    let contextValues: Record<string, unknown> = {};
 
-  if (config.context !== undefined) {
-    contextValues = validateContext(config.context);
-    contextSchema = config.context.schema;
+    if (config.context !== undefined) {
+      contextValues = validateContext(config.context);
+      contextSchema = config.context.schema;
+    }
+
+    // Step 6: Build extension bindings
+    const extensionBindings = buildExtensionBindings(extTree);
+
+    // Step 7: Build context bindings
+    const contextBindings = buildContextBindings(contextSchema, contextValues);
+
+    // Step 8: Build resolvers
+    const resolverConfig = buildResolvers({
+      extTree,
+      contextValues,
+      modulesConfig: config.modules ?? {},
+      configDir: dirname(configPath),
+    });
+
+    return {
+      config,
+      extTree,
+      disposes,
+      resolverConfig,
+      hostOptions: config.host ?? {},
+      extensionBindings,
+      contextBindings,
+    };
+  } catch (err) {
+    for (const dispose of disposes) {
+      try {
+        await dispose();
+      } catch {
+        // Ignore dispose errors during cleanup
+      }
+    }
+    throw err;
   }
-
-  // Step 6: Build extension bindings
-  const extensionBindings = buildExtensionBindings(extTree);
-
-  // Step 7: Build context bindings
-  const contextBindings = buildContextBindings(contextSchema, contextValues);
-
-  // Step 8: Build resolvers
-  const resolverConfig = buildResolvers({
-    extTree,
-    contextValues,
-    modulesConfig: config.modules ?? {},
-    configDir: dirname(configPath),
-  });
-
-  return {
-    config,
-    extTree,
-    disposes,
-    resolverConfig,
-    hostOptions: config.host ?? {},
-    extensionBindings,
-    contextBindings,
-  };
 }
