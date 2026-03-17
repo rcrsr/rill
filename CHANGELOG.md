@@ -9,31 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 
-- **`RillType` renamed to `TypeStructure`** — The core type discriminated union is now `TypeStructure`. All host code and extensions referencing `RillType` must update to `TypeStructure`
-- **Discriminator field `.type` renamed to `.kind`** — `TypeStructure` variants use `.kind` instead of `.type`. Pattern matches and property accesses on type objects must update
-- **`RillStructuralType` removed** — Was a deprecated alias for `RillType`. Use `TypeStructure` directly
-- **`inferStructuralType` renamed to `inferStructure`** — Function signature unchanged; only the name changed
-- **`rillTypeToTypeValue` renamed to `structureToTypeValue`** — Function signature unchanged; only the name changed
-- **`formatStructuralType` renamed to `formatStructure`** — Function signature unchanged; only the name changed
-- **`structuralTypeEquals` renamed to `structureEquals`** — Function signature unchanged; only the name changed
-- **`structuralTypeMatches` renamed to `structureMatches`** — Function signature unchanged; only the name changed
-- **`isRillIterator` renamed to `isIterator`** — Function signature unchanged; only the name changed
-- **`valueToJSON` renamed to `serializeValue`** — Function signature unchanged; only the name changed
-- **`deepCopyRillValue` renamed to `copyValue`** — Function signature unchanged; only the name changed
-- **`buildTypeMethodDicts` removed from public API** — Internal helper no longer exported. Host code must not call this function directly
-- **`VALID_TYPE_NAMES` removed from public API** — Internal constant no longer exported. Host code referencing this set must maintain its own copy
-- **`true > false` raises RILL-R002** — Boolean ordering via `>` now raises a runtime error instead of coercing through `formatValue`. Code relying on bool comparison ordering must be rewritten
+- **Core type API renamed** — `RillType` → `TypeStructure`, discriminator `.type` → `.kind`. 9 functions renamed: `inferStructure`, `structureToTypeValue`, `formatStructure`, `structureEquals`, `structureMatches`, `isIterator`, `serializeValue`, `copyValue`. `RillStructuralType` alias removed
+- **`buildTypeMethodDicts` and `VALID_TYPE_NAMES` removed from public API** — Internal helpers no longer exported
+- **`true > false` raises RILL-R002** — Boolean ordering now errors instead of coercing
+- **`LlmExtensionContract` and `VectorExtensionContract` removed** — Vendor-specific contracts removed from core exports. Extensions mount arbitrary value structures
+- **`bindings` field removed from config** — `ExtensionsBlock.bindings` and `ContextBlock.bindings` config fields removed
+- **`module:ext` and `module:context` no longer built-in** — Module resolver uses folder aliasing with no defaults. Configure `"modules": { "bindings": "./bindings" }` and use `use<module:bindings.ext>`
+- **`--create-bindings` takes optional `[dir]`** — Changed from boolean flag to optional string. Defaults to `./bindings` relative to config file directory
+- **`buildResolvers` signature changed** — `extensionBindings` and `contextBindings` parameters removed
+- **`runScript` and `buildModuleResolver` signatures changed** — `bindingsSrc` and `extTree` parameters removed from CLI runner functions
 
 ### Added
 
-- **`TypeDefinition` type export** — New type exported from `@rcrsr/rill` representing a named type definition for use in host applications
-- **`TypeProtocol` type export** — New type exported from `@rcrsr/rill` representing the protocol interface for type operations
-- **`TypeStructure` catch-all variant** — `TypeStructure` now includes a catch-all variant `{ kind: string; data?: unknown }` for forward compatibility with future type kinds
-- **`deserializeValue` function** — New function exported from `@rcrsr/rill` for typed deserialization of serialized rill values
+- **`TypeDefinition` and `TypeProtocol` type exports** — New types for host type definitions and operation registration
+- **`TypeStructure` catch-all variant** — `{ kind: string; data?: unknown }` for forward compatibility
+- **`deserializeValue` function** — Typed deserialization of serialized rill values
+- **Module folder aliasing** — `modules` config maps aliases to directories. `module:alias.sub.path` resolves to `{dir}/sub/path.rill`
 
 ### Changed
 
-- **Type dispatch via registration protocol** — Type operations now use a registration-based protocol system; host code extending type behavior must register operations via the TypeProtocol interface
+- **Type dispatch via registration protocol** — Type operations use a registration-based protocol system
+- **Extension factories mount arbitrary values** — Extensions mount dicts, scalars, and lists instead of only flat function maps
 
 ## [0.16.0] - 2026-03-14
 
