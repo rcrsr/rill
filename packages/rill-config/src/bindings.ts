@@ -10,7 +10,7 @@ import {
   isVector,
   parse,
 } from '@rcrsr/rill';
-import type { RillParam, RillValue } from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
 import { ExtensionBindingError } from './errors.js';
 import type { ContextFieldSchema } from './types.js';
 
@@ -18,50 +18,88 @@ import type { ContextFieldSchema } from './types.js';
 // EXTENSION BINDINGS
 // ============================================================
 
+/**
+ * Strip field defaultValues from a TypeStructure recursively.
+ * Use-expression closure annotations only support `name: type` — no
+ * `= default` in type arg lists. This produces a parse-safe version.
+ */
+function stripAnnotationType(structure: TypeStructure): TypeStructure {
+  if (structure.kind === 'dict') {
+    const s = structure as {
+      kind: 'dict';
+      fields?: Record<string, { type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.fields !== undefined) {
+      const stripped: Record<string, { type: TypeStructure }> = {};
+      for (const [k, field] of Object.entries(s.fields)) {
+        stripped[k] = { type: stripAnnotationType(field.type) };
+      }
+      return { kind: 'dict', fields: stripped };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'dict', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'tuple') {
+    const s = structure as {
+      kind: 'tuple';
+      elements?: Array<{ type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.elements !== undefined) {
+      return {
+        kind: 'tuple',
+        elements: s.elements.map((el) => ({
+          type: stripAnnotationType(el.type),
+        })),
+      };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'tuple', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'ordered') {
+    const s = structure as {
+      kind: 'ordered';
+      fields?: Array<{ name?: string; type: TypeStructure }>;
+      valueType?: TypeStructure;
+    };
+    if (s.fields !== undefined) {
+      return {
+        kind: 'ordered',
+        fields: s.fields.map((f) => ({
+          name: f.name,
+          type: stripAnnotationType(f.type),
+        })),
+      };
+    }
+    if (s.valueType !== undefined) {
+      return { kind: 'ordered', valueType: stripAnnotationType(s.valueType) };
+    }
+    return structure;
+  }
+  if (structure.kind === 'list') {
+    const s = structure as { kind: 'list'; element?: TypeStructure };
+    if (s.element !== undefined) {
+      return { kind: 'list', element: stripAnnotationType(s.element) };
+    }
+  }
+  return structure;
+}
+
 function mapParamType(param: RillParam): string {
   if (param.type === undefined) {
     return 'any';
   }
-  return formatStructure(param.type);
-}
-
-function formatDefaultLiteral(value: unknown): string {
-  if (typeof value === 'string') {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
-  if (typeof value === 'number') {
-    return String(value);
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
-  }
-  if (value === null) {
-    return 'null';
-  }
-  if (Array.isArray(value)) {
-    const items = value.map(formatDefaultLiteral).join(', ');
-    return `list[${items}]`;
-  }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-    if (entries.length === 0) {
-      return '[:]';
-    }
-    const pairs = entries
-      .map(([k, v]) => `${k}: ${formatDefaultLiteral(v)}`)
-      .join(', ');
-    return `[${pairs}]`;
-  }
-  return String(value);
+  return formatStructure(stripAnnotationType(param.type));
 }
 
 function serializeParam(param: RillParam): string {
-  const typeName = mapParamType(param);
-  if (param.defaultValue !== undefined) {
-    return `${param.name}: ${typeName} = ${formatDefaultLiteral(param.defaultValue)}`;
-  }
-  return `${param.name}: ${typeName}`;
+  // Use-expression closure annotations only support `name: type` — no defaults.
+  return `${param.name}: ${mapParamType(param)}`;
 }
 
 function buildNestedDict(
@@ -76,11 +114,18 @@ function buildNestedDict(
     const childPath = path.length > 0 ? `${path}.${key}` : key;
 
     if (isApplicationCallable(child)) {
-      const paramStr = child.params.map(serializeParam).join(', ');
-      const returnSuffix = ` :${formatStructure(child.returnType.structure)}`;
-      entries.push(
-        `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
-      );
+      const params = child.params;
+      const returnSuffix = ` :${formatStructure(stripAnnotationType(child.returnType.structure))}`;
+      if (params === undefined || params.length === 0) {
+        entries.push(
+          `${childIndent}${key}: use<ext:${childPath}>:||${returnSuffix}`
+        );
+      } else {
+        const paramStr = params.map(serializeParam).join(', ');
+        entries.push(
+          `${childIndent}${key}: use<ext:${childPath}>:|${paramStr}|${returnSuffix}`
+        );
+      }
     } else if (typeof child === 'string') {
       entries.push(`${childIndent}${key}: use<ext:${childPath}>:string`);
     } else if (typeof child === 'number') {

@@ -56,8 +56,7 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('use<ext:ns.sub.val>:string');
   });
 
-  it('throws ExtensionBindingError for callable with empty params', () => {
-    // Parser does not support empty closure annotations :||
+  it('emits :|| with return type for callable with empty params', () => {
     const tree: Record<string, RillValue> = {
       ns: {
         sub: {
@@ -69,7 +68,9 @@ describe('buildExtensionBindings', () => {
         },
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('use<ext:ns.sub.fn1>:||');
+    expect(result).toContain(':any');
   });
 
   it('omits param annotations from bindings output', () => {
@@ -94,11 +95,9 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('name: string');
   });
 
-  // Default values in closure annotations are not supported by the parser.
-  // buildExtensionBindings generates `= literal` syntax but parse validation
-  // rejects it. These tests document the current ExtensionBindingError behavior.
+  // Param defaultValues are runtime-only; the annotation format strips them.
 
-  it('throws ExtensionBindingError for string default value in param', () => {
+  it('strips string default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         greet: toCallable({
@@ -115,10 +114,12 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('name: string');
+    expect(result).not.toContain('= ');
   });
 
-  it('throws ExtensionBindingError for number default value in param', () => {
+  it('strips number default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         repeat: toCallable({
@@ -135,10 +136,12 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('count: number');
+    expect(result).not.toContain('= 42');
   });
 
-  it('throws ExtensionBindingError for mixed default and no-default params', () => {
+  it('strips defaults from mixed default and no-default params', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         send: toCallable({
@@ -161,10 +164,13 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('message: string');
+    expect(result).toContain('retries: number');
+    expect(result).not.toContain('= 3');
   });
 
-  it('throws ExtensionBindingError for boolean default value in param', () => {
+  it('strips boolean default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         toggle: toCallable({
@@ -181,7 +187,9 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('flag: bool');
+    expect(result).not.toContain('= false');
   });
 
   it('renders full structural type for dict params and return type', () => {
@@ -215,7 +223,7 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('dict(result: string)');
   });
 
-  it('throws ExtensionBindingError for dict default value in param', () => {
+  it('strips dict default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         call: toCallable({
@@ -232,10 +240,12 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('options:');
+    expect(result).not.toContain('= [');
   });
 
-  it('throws ExtensionBindingError for empty dict default value', () => {
+  it('strips empty dict default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         call: toCallable({
@@ -252,10 +262,12 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('options:');
+    expect(result).not.toContain('= [:]');
   });
 
-  it('throws ExtensionBindingError for list default value in param', () => {
+  it('strips list default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         process: toCallable({
@@ -263,7 +275,7 @@ describe('buildExtensionBindings', () => {
           params: [
             {
               name: 'items',
-              type: { kind: 'list', elementType: { kind: 'string' } },
+              type: { kind: 'list' },
               defaultValue: ['a', 'b'],
               annotations: {},
             },
@@ -272,19 +284,28 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('items: list');
+    expect(result).not.toContain('= list[');
   });
 
-  it('throws ExtensionBindingError for nested dict default value', () => {
+  it('strips dict field defaults from param type annotation', () => {
+    // dict(max_tokens: number = 0) strips to dict(max_tokens: number)
     const tree: Record<string, RillValue> = {
       ext: {
-        configure: toCallable({
+        call: toCallable({
           fn: async () => null,
           params: [
             {
-              name: 'config',
-              type: { kind: 'dict', fields: {} },
-              defaultValue: { nested: { key: 'val' } },
+              name: 'opts',
+              type: {
+                kind: 'dict',
+                fields: {
+                  max_tokens: { type: { kind: 'number' }, defaultValue: 0 },
+                  system: { type: { kind: 'string' }, defaultValue: '' },
+                },
+              },
+              defaultValue: {},
               annotations: {},
             },
           ],
@@ -292,7 +313,10 @@ describe('buildExtensionBindings', () => {
         }),
       },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('dict(max_tokens: number, system: string)');
+    expect(result).not.toContain('= 0');
+    expect(result).not.toContain('= ""');
   });
 
   it('appends return type suffix after closing | when returnType is set', () => {

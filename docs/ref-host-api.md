@@ -203,7 +203,7 @@ export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, Extensio
 export { toCallable, createTestContext, emitExtensionEvent };
 
 // Extension contracts
-export type { KvExtensionContract, FsExtensionContract, LlmExtensionContract, VectorExtensionContract, SchemaEntry };
+export type { KvExtensionContract, FsExtensionContract, SchemaEntry };
 ```
 
 ## NativeResult
@@ -456,90 +456,6 @@ const schema: Record<string, SchemaEntry> = {
   age: { type: 'number', default: 0, description: 'User age in years' },
   active: { type: 'bool', default: true },
 };
-```
-
-### LlmExtensionContract
-
-Contract type for LLM extension implementations. Backend authors use this type to verify compile-time compatibility.
-
-```typescript
-type LlmExtensionContract = {
-  readonly message: ApplicationCallable;
-  readonly messages: ApplicationCallable;
-  readonly embed: ApplicationCallable;
-  readonly embed_batch: ApplicationCallable;
-  readonly tool_loop: ApplicationCallable;
-  readonly generate: ApplicationCallable;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
-};
-```
-
-**Required Functions (6 total):**
-
-| Function | Signature | Returns | Description |
-|----------|-----------|---------|-------------|
-| `message` | `(text: string, options?: dict)` | `dict` | Send single message |
-| `messages` | `(messages: list, options?: dict)` | `dict` | Multi-turn conversation |
-| `embed` | `(text: string)` | `vector` | Generate embedding vector |
-| `embed_batch` | `(texts: list)` | `list` | Batch embeddings |
-| `tool_loop` | `(prompt: string, options?: dict)` | `dict` | Tool use orchestration; `options.tools` is `dict<string, ScriptCallable \| ApplicationCallable>` — keys are tool names, values are callables (`RuntimeCallable` is rejected) |
-| `generate` | `(prompt: string, options: dict)` | `dict` | Structured output extraction |
-
-**Usage:**
-
-```typescript
-import type { LlmExtensionContract } from '@rcrsr/rill';
-import { createMyLlmBackend } from './my-llm-backend';
-
-// Type-check backend implementation
-const backend: LlmExtensionContract = createMyLlmBackend({ /* config */ });
-```
-
-### VectorExtensionContract
-
-Contract type for vector database extension implementations. Backend authors use this type to verify compile-time compatibility.
-
-```typescript
-type VectorExtensionContract = {
-  readonly upsert: ApplicationCallable;
-  readonly upsert_batch: ApplicationCallable;
-  readonly search: ApplicationCallable;
-  readonly get: ApplicationCallable;
-  readonly delete: ApplicationCallable;
-  readonly delete_batch: ApplicationCallable;
-  readonly count: ApplicationCallable;
-  readonly create_collection: ApplicationCallable;
-  readonly delete_collection: ApplicationCallable;
-  readonly list_collections: ApplicationCallable;
-  readonly describe: ApplicationCallable;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
-};
-```
-
-**Required Functions (11 total):**
-
-| Function | Signature | Returns | Description |
-|----------|-----------|---------|-------------|
-| `upsert` | `(id: string, vector: vector, metadata?: dict)` | `dict` | Insert or update vector |
-| `upsert_batch` | `(items: list)` | `dict` | Batch insert/update |
-| `search` | `(vector: vector, options?: dict)` | `list` | Search k nearest neighbors |
-| `get` | `(id: string)` | `dict` | Fetch vector by ID |
-| `delete` | `(id: string)` | `dict` | Delete vector by ID |
-| `delete_batch` | `(ids: list)` | `dict` | Batch delete |
-| `count` | `()` | `number` | Count vectors in collection |
-| `create_collection` | `(name: string, options?: dict)` | `dict` | Create collection |
-| `delete_collection` | `(name: string)` | `dict` | Delete collection |
-| `list_collections` | `()` | `list` | List all collections |
-| `describe` | `()` | `dict` | Get collection metadata |
-
-**Usage:**
-
-```typescript
-import type { VectorExtensionContract } from '@rcrsr/rill';
-import { createMyVectorBackend } from './my-vector-backend';
-
-// Type-check backend implementation
-const backend: VectorExtensionContract = createMyVectorBackend({ /* config */ });
 ```
 
 ## RillParam

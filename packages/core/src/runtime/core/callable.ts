@@ -204,7 +204,10 @@ export function callable(
  * @param def - Host function definition to convert
  * @returns ApplicationCallable with __type, kind, isProperty, and preserved annotations
  */
-export function toCallable(def: RillFunction): ApplicationCallable {
+export function toCallable(
+  def: RillFunction,
+  isProperty = false
+): ApplicationCallable {
   if (def == null) {
     throw new TypeError('RillFunction cannot be null or undefined');
   }
@@ -217,7 +220,7 @@ export function toCallable(def: RillFunction): ApplicationCallable {
   return {
     __type: 'callable',
     kind: 'application',
-    isProperty: false,
+    isProperty,
     fn: def.fn,
     params: def.params,
     returnType: def.returnType,

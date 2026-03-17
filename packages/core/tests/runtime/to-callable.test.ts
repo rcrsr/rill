@@ -107,6 +107,18 @@ describe('toCallable', () => {
       expect(result.isProperty).toBe(false);
     });
 
+    it('sets isProperty to true when flag is passed', () => {
+      const validDef: RillFunction = {
+        fn: () => null,
+        params: [],
+        returnType: anyTypeValue,
+      };
+
+      const result = toCallable(validDef, true);
+
+      expect(result.isProperty).toBe(true);
+    });
+
     it('preserves fn reference from input definition', () => {
       const myFn = () => 42;
       const validDef: RillFunction = {

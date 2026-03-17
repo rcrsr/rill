@@ -147,8 +147,6 @@ export type {
   ExtensionManifest,
   FsExtensionContract,
   KvExtensionContract,
-  LlmExtensionContract,
-  VectorExtensionContract,
 } from './ext/extensions.js';
 
 export type { SchemaEntry } from '../ext/kv/index.js';
