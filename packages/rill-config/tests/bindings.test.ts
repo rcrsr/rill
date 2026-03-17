@@ -5,10 +5,15 @@
 import {
   buildContextBindings,
   buildExtensionBindings,
-  ExtensionBindingError,
 } from '@rcrsr/rill-config';
 import type { ContextFieldSchema } from '@rcrsr/rill-config';
-import { createTuple, structureToTypeValue, toCallable } from '@rcrsr/rill';
+import {
+  createTuple,
+  formatRillLiteral,
+  parse,
+  structureToTypeValue,
+  toCallable,
+} from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -95,9 +100,9 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('name: string');
   });
 
-  // Param defaultValues are runtime-only; the annotation format strips them.
+  // Param defaultValues are NOT emitted in the annotation format.
 
-  it('strips string default value from param annotation', () => {
+  it('omits string default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         greet: toCallable({
@@ -116,10 +121,10 @@ describe('buildExtensionBindings', () => {
     };
     const result = buildExtensionBindings(tree);
     expect(result).toContain('name: string');
-    expect(result).not.toContain('= ');
+    expect(result).not.toContain('= "World"');
   });
 
-  it('strips number default value from param annotation', () => {
+  it('omits number default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         repeat: toCallable({
@@ -141,7 +146,7 @@ describe('buildExtensionBindings', () => {
     expect(result).not.toContain('= 42');
   });
 
-  it('strips defaults from mixed default and no-default params', () => {
+  it('omits defaults alongside no-default params', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         send: toCallable({
@@ -165,12 +170,11 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('message: string');
-    expect(result).toContain('retries: number');
+    expect(result).toContain('message: string, retries: number');
     expect(result).not.toContain('= 3');
   });
 
-  it('strips boolean default value from param annotation', () => {
+  it('omits boolean default value from param annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         toggle: toCallable({
@@ -223,7 +227,7 @@ describe('buildExtensionBindings', () => {
     expect(result).toContain('dict(result: string)');
   });
 
-  it('strips dict default value from param annotation', () => {
+  it('omits dict param defaults from annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         call: toCallable({
@@ -241,11 +245,11 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('options:');
-    expect(result).not.toContain('= [');
+    expect(result).not.toContain('[model: "gpt-4"');
+    expect(result).toContain('options: dict()');
   });
 
-  it('strips empty dict default value from param annotation', () => {
+  it('omits empty dict param default from annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         call: toCallable({
@@ -263,11 +267,11 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('options:');
     expect(result).not.toContain('= [:]');
+    expect(result).toContain('options: dict()');
   });
 
-  it('strips list default value from param annotation', () => {
+  it('omits list param defaults from annotation', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         process: toCallable({
@@ -285,12 +289,12 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
+    expect(result).not.toContain('= ["a"');
     expect(result).toContain('items: list');
-    expect(result).not.toContain('= list[');
   });
 
-  it('strips dict field defaults from param type annotation', () => {
-    // dict(max_tokens: number = 0) strips to dict(max_tokens: number)
+  it('emits dict field defaults but omits param defaults', () => {
+    // dict(max_tokens: number = 0, system: string = "") with param default {}
     const tree: Record<string, RillValue> = {
       ext: {
         call: toCallable({
@@ -314,9 +318,10 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('dict(max_tokens: number, system: string)');
-    expect(result).not.toContain('= 0');
-    expect(result).not.toContain('= ""');
+    expect(result).toContain(
+      'opts: dict(max_tokens: number = 0, system: string = "")'
+    );
+    expect(result).not.toContain('= [:]');
   });
 
   it('appends return type suffix after closing | when returnType is set', () => {
@@ -385,10 +390,10 @@ describe('buildExtensionBindings', () => {
   });
 
   // ============================================================
-  // UNION AND CLOSURE TYPE STRIPPING
+  // UNION AND CLOSURE TYPE DEFAULT PRESERVATION
   // ============================================================
 
-  it('strips defaults from union member types', () => {
+  it('preserves defaults in union member types', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         process: toCallable({
@@ -417,11 +422,10 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('dict(name: string)|string');
-    expect(result).not.toContain('= ');
+    expect(result).toContain('dict(name: string = "anon")|string');
   });
 
-  it('strips defaults from closure ret inside union param type', () => {
+  it('preserves defaults in closure ret inside union param type', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         apply: toCallable({
@@ -457,11 +461,10 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain('|| :dict(key: string)|number');
-    expect(result).not.toContain('= ');
+    expect(result).toContain('|| :dict(key: string = "default")|number');
   });
 
-  it('strips defaults from closure return type recursively', () => {
+  it('preserves defaults in closure return type recursively', () => {
     const tree: Record<string, RillValue> = {
       ext: {
         transform: toCallable({
@@ -488,30 +491,121 @@ describe('buildExtensionBindings', () => {
       },
     };
     const result = buildExtensionBindings(tree);
-    expect(result).toContain(':dict(status: string)');
-    expect(result).not.toContain('= ');
+    expect(result).toContain(':dict(status: string = "ok")');
   });
 
   // ============================================================
-  // PARSE VALIDATION ERROR (EC-4, AC-18)
+  // DEFAULT PRESERVATION IN BINDINGS OUTPUT (AC-5, AC-6)
   // ============================================================
 
-  it('throws ExtensionBindingError when generated source fails to parse', () => {
-    // Symbol keys produce identifiers that are invalid rill syntax.
-    // Use an object with a key containing characters invalid for rill identifiers.
+  it('omits = literal from output for param with defaultValue', () => {
     const tree: Record<string, RillValue> = {
-      'invalid key with spaces': 'value',
+      tools: {
+        greet: toCallable({
+          fn: async () => 'hi',
+          params: [
+            {
+              name: 'greeting',
+              type: { kind: 'string' },
+              defaultValue: 'hello',
+              annotations: {},
+            },
+            {
+              name: 'count',
+              type: { kind: 'number' },
+              defaultValue: 5,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(ExtensionBindingError);
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('greeting: string');
+    expect(result).not.toContain('= "hello"');
+    expect(result).toContain('count: number');
+    expect(result).not.toContain('= 5');
   });
 
-  it('includes parser error detail in ExtensionBindingError message', () => {
+  it('generates parseable rill source for scalar defaults', () => {
     const tree: Record<string, RillValue> = {
-      'invalid key with spaces': 'value',
+      tools: {
+        run: toCallable({
+          fn: async () => 'ok',
+          params: [
+            {
+              name: 'label',
+              type: { kind: 'string' },
+              defaultValue: 'default',
+              annotations: {},
+            },
+            {
+              name: 'retries',
+              type: { kind: 'number' },
+              defaultValue: 3,
+              annotations: {},
+            },
+            {
+              name: 'verbose',
+              type: { kind: 'bool' },
+              defaultValue: true,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'string' }),
+        }),
+      },
     };
-    expect(() => buildExtensionBindings(tree)).toThrow(
-      /Extension bindings failed to parse:/
-    );
+    const result = buildExtensionBindings(tree);
+    // AC-6: generated output is valid rill syntax
+    expect(() => parse(result)).not.toThrow();
+  });
+
+  // ============================================================
+  // LITERAL ROUND-TRIP (AC-11)
+  // ============================================================
+
+  it('round-trips string literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral('hello world');
+    expect(literal).toBe('"hello world"');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips number literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral(42);
+    expect(literal).toBe('42');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips bool literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral(true);
+    expect(literal).toBe('true');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips list literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral(['a', 'b']);
+    expect(literal).toBe('["a", "b"]');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips dict literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral({ key: 'value' });
+    expect(literal).toBe('[key: "value"]');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips empty dict literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral({});
+    expect(literal).toBe('[:]');
+    expect(() => parse(literal)).not.toThrow();
+  });
+
+  it('round-trips tuple literal through formatRillLiteral and parse', () => {
+    const literal = formatRillLiteral(createTuple([1, 2]));
+    expect(literal).toContain('tuple[');
+    expect(() => parse(literal)).not.toThrow();
   });
 });
 

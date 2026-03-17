@@ -9,14 +9,12 @@
  * AC-43: structureEquals handles empty union (0 members)
  */
 
-import type {
-  FieldComparisonCallbacks,
-  TypeStructure,
-} from '../../src/runtime/core/types/operations.js';
 import {
   compareStructuredFields,
   structureEquals,
-} from '../../src/runtime/core/values.js';
+  type FieldComparisonCallbacks,
+  type TypeStructure,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 /** Test callbacks that return string labels identifying which callback fired */

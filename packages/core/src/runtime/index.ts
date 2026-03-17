@@ -27,6 +27,7 @@ export type {
   ExecutionResult,
   ExecutionStepper,
   ExtensionEvent,
+  FieldComparisonCallbacks,
   FunctionReturnEvent,
   HostCallEvent,
   NativeArray,
@@ -59,6 +60,7 @@ export type {
 export type {
   ApplicationCallable,
   CallableFn,
+  MarshalOptions,
   RillCallable,
   RillFunction,
   RillParam,
@@ -68,11 +70,13 @@ export type {
 
 export {
   callable,
+  hydrateFieldDefaults,
   isApplicationCallable,
   isCallable,
   isDict,
   isRuntimeCallable,
   isScriptCallable,
+  marshalArgs,
   toCallable,
 } from './core/callable.js';
 
@@ -84,10 +88,18 @@ export type { NativeResult } from './core/values.js';
 
 // Extracted to types/ sub-modules (via barrel)
 export {
+  BUILT_IN_TYPES,
   commonType,
+  compareStructuredFields,
+  copyValue,
+  createOrdered,
   createTuple,
   createVector,
+  deepEquals,
+  deserializeValue,
+  formatRillLiteral,
   formatStructure,
+  formatValue,
   inferElementType,
   inferStructure,
   inferType,
@@ -96,6 +108,7 @@ export {
   isTypeValue,
   isVector,
   paramToFieldDef,
+  serializeValue,
   structureEquals,
   structureMatches,
 } from './core/types/index.js';
@@ -103,7 +116,9 @@ export {
 // Remain in values.ts
 export {
   anyTypeValue,
+  isEmpty,
   isReservedMethod,
+  isTruthy,
   RESERVED_DICT_METHODS,
   structureToTypeValue,
   toNative,
@@ -175,6 +190,12 @@ export { createStepper, execute } from './core/execute.js';
 // ============================================================
 
 export { invokeCallable } from './core/eval/index.js';
+
+// ============================================================
+// BUILT-IN METHODS
+// ============================================================
+
+export { BUILTIN_METHODS } from './ext/builtins.js';
 
 // ============================================================
 // INTROSPECTION API

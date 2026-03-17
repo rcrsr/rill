@@ -411,6 +411,51 @@ $process(5)        # 10
 $process("hello")  # 5
 ```
 
+### Defaults in Type Expressions
+
+Closure parameters accept an optional `= literal` default in the annotation position:
+
+```text
+|name: type = literal| body
+```
+
+This default participates in structural type matching via `:?`. The rule is one-directional:
+
+| Value param has default | Type param has default | `:?` result |
+|------------------------|----------------------|-------------|
+| Yes | No | `true` (superset satisfies) |
+| No | Yes | `false` (missing contract) |
+| Yes | Yes | `true` if defaults are equal |
+| No | No | `true` |
+
+A closure with defaults satisfies a type annotation without defaults, because the value provides more than the annotation requires. A closure without defaults fails an annotation that requires defaults, because it cannot fulfil the contract.
+
+```rill
+# A closure type without defaults (the annotation contract)
+|x: string, y: number|{ $x } => $ref
+$ref.^type => $refType
+
+# A closure WITH defaults satisfies the annotation WITHOUT defaults
+|x: string = "a", y: number = 0|{ $x } => $fn
+$fn -> :?$refType
+# Result: true
+```
+
+The reverse fails: a closure without defaults does not satisfy an annotation that declares defaults.
+
+```text
+# A closure type WITH defaults (requires caller-omittable params)
+|x: string = "a", y: number = 0|{ $x } => $ref
+$ref.^type => $refType
+
+# A closure WITHOUT defaults fails the annotation WITH defaults
+|x: string, y: number|{ $x } => $fn
+$fn -> :?$refType
+# Result: false
+```
+
+See [Type System: Defaults in Type Expressions](#defaults-in-type-expressions) and [Host API Types](ref-host-api-types.md) for the `structureMatches` TypeScript API.
+
 ## Union Types
 
 A union type matches any one of two or more listed types. Use `T1|T2` syntax wherever a type annotation is accepted.

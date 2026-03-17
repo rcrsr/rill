@@ -174,6 +174,7 @@ Type constructors are primary expressions that produce structural type values. T
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
+| Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
 | Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
 
 When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:

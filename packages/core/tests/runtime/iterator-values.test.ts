@@ -7,8 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { callable } from '../../src/runtime/core/callable.js';
-import { formatValue, isIterator } from '../../src/runtime/core/values.js';
+import { callable, formatValue, isIterator } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Iterator value utilities', () => {

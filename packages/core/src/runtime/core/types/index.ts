@@ -68,6 +68,7 @@ export type {
 export {
   commonType,
   compareStructuredFields,
+  formatRillLiteral,
   formatStructure,
   inferElementType,
   inferStructure,

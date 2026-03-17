@@ -16,27 +16,17 @@
  * EC-4:  buildMethodEntry receiver missing → RILL-R044
  */
 
-import { RuntimeError } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
-
-// marshalArgs and MarshalOptions are internal to callable.ts and not exported
-// from the public API. Direct import is intentional for unit testing this
-// internal function — see Implementation Notes.
 import {
+  BUILTIN_METHODS,
+  createOrdered,
+  createTuple,
   hydrateFieldDefaults,
   marshalArgs,
+  RuntimeError,
   type MarshalOptions,
   type RillParam,
-} from '../../src/runtime/core/callable.js';
-
-// createOrdered and createTuple are internal to values.ts. Direct import is
-// intentional for constructing ordered/tuple values in field default hydration tests.
-import { createOrdered, createTuple } from '../../src/runtime/core/values.js';
-
-// BUILTIN_METHODS is internal to builtins.ts. Direct import is intentional
-// for testing the EC-4 error contract in buildMethodEntry.
-import { BUILTIN_METHODS } from '../../src/runtime/ext/builtins.js';
-
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 // ============================================================
@@ -645,6 +635,49 @@ describe('marshalArgs', () => {
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R001');
       }
+    });
+  });
+
+  describe('IC-3: closure params with defaultValue marshal correctly', () => {
+    it('marshals closure-style params where trailing defaults fill omitted args', () => {
+      // Simulates a closure |x: string, y: number = 5, z: bool = true| { ... }
+      // Called with only x supplied; y and z hydrate from defaults
+      const params = [
+        makeParam('x', { kind: 'string' }),
+        makeParam('y', { kind: 'number' }, 5),
+        makeParam('z', { kind: 'bool' }, true),
+      ];
+      const result = marshalArgs(['hello'], params, opts);
+      expect(result).toEqual({ x: 'hello', y: 5, z: true });
+    });
+
+    it('overrides defaultValue when caller supplies explicit arg', () => {
+      // Closure |a: number = 10, b: number = 20| called with both args
+      const params = [
+        makeParam('a', { kind: 'number' }, 10),
+        makeParam('b', { kind: 'number' }, 20),
+      ];
+      const result = marshalArgs([99, 42], params, opts);
+      expect(result).toEqual({ a: 99, b: 42 });
+    });
+
+    it('handles single defaulted param with no args supplied', () => {
+      // Closure |x: string = "fallback"| called with zero args
+      const params = [makeParam('x', { kind: 'string' }, 'fallback')];
+      const result = marshalArgs([], params, opts);
+      expect(result).toEqual({ x: 'fallback' });
+    });
+
+    it('handles mixed required and defaulted params with partial args', () => {
+      // Closure |a: number, b: string = "default", c: number = 0|
+      // Called with a and b supplied; c hydrates from default
+      const params = [
+        makeParam('a', { kind: 'number' }),
+        makeParam('b', { kind: 'string' }, 'default'),
+        makeParam('c', { kind: 'number' }, 0),
+      ];
+      const result = marshalArgs([7, 'custom'], params, opts);
+      expect(result).toEqual({ a: 7, b: 'custom', c: 0 });
     });
   });
 

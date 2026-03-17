@@ -16,6 +16,7 @@ import type { RillCallable } from '../callable.js';
 import {
   isCallable as _isCallableGuard,
   isDict,
+  isIterator,
   isOrdered,
   isTuple,
   isTypeValue,
@@ -189,7 +190,7 @@ function normalizeStructure(ts: TypeStructure): TypeStructure {
 }
 
 /** Format a RillValue as a rill literal for use in type signatures. */
-function formatRillLiteral(value: RillValue): string {
+export function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'string') {
     const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `"${escaped}"`;
@@ -197,6 +198,49 @@ function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';
+
+  // List: bare bracket form [elem, ...]
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    return `[${value.map(formatRillLiteral).join(', ')}]`;
+  }
+
+  // Tuple: tuple[elem, ...]
+  if (isTuple(value)) {
+    return `tuple[${value.entries.map(formatRillLiteral).join(', ')}]`;
+  }
+
+  // Ordered: ordered[key: val, ...]
+  if (isOrdered(value)) {
+    const inner = value.entries
+      .map(([k, v]) => `${k}: ${formatRillLiteral(v)}`)
+      .join(', ');
+    return `ordered[${inner}]`;
+  }
+
+  // Non-literal compound types: fall through to display format
+  if (
+    isVector(value) ||
+    isIterator(value) ||
+    _isCallableGuard(value) ||
+    isTypeValue(value)
+  ) {
+    return registryFormatValue(value);
+  }
+
+  // Dict: bare bracket form [key: val, ...] or [:] for empty
+  if (typeof value === 'object' && value !== null) {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return '[:]';
+    const inner = keys
+      .map(
+        (k) =>
+          `${k}: ${formatRillLiteral((value as Record<string, RillValue>)[k]!)}`
+      )
+      .join(', ');
+    return `[${inner}]`;
+  }
+
   return registryFormatValue(value);
 }
 
@@ -490,6 +534,16 @@ export function structureMatches(
       if (param.name !== field.name) return false;
       const paramType: TypeStructure = param.type ?? { kind: 'any' };
       if (!structureEquals(paramType, field.type)) return false;
+      // Directional default rules: value (superset) satisfies type (contract)
+      const valueHasDefault = param.defaultValue !== undefined;
+      const typeHasDefault = field.defaultValue !== undefined;
+      if (!valueHasDefault && typeHasDefault) return false;
+      if (valueHasDefault && typeHasDefault) {
+        if (!registryDeepEquals(param.defaultValue!, field.defaultValue!))
+          return false;
+      }
+      // value has default + type lacks → compatible (superset satisfies)
+      // neither has default → compatible
     }
     const retType: TypeStructure = value.returnType.structure;
     if (t.ret === undefined) return true;

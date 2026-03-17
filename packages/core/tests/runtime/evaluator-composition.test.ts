@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createRuntimeContext } from '../../src/runtime/core/context.js';
+import { createRuntimeContext } from '@rcrsr/rill';
 import {
   Evaluator,
   getEvaluator,
