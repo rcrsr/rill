@@ -111,6 +111,38 @@ describe('Rill Language: use<> Expressions', () => {
         // Existing :TypeName form must still parse correctly
         expect(() => parse('use<host:fn>:string')).not.toThrow();
       });
+
+      it('AC-1: use<host:fn>:|| :string parses return type without runtime effect', async () => {
+        const result = await run('use<host:fn>:|| :string', {
+          resolvers: { host: valueResolver('hello') },
+        });
+        expect(result).toBe('hello');
+      });
+
+      it('AC-1: use<host:fn>:|params| :returnType parses return type without runtime effect', async () => {
+        const result = await run('use<host:fn>:|x: string| :number', {
+          resolvers: { host: valueResolver(42) },
+        });
+        expect(result).toBe(42);
+      });
+
+      it('AC-1: closure annotation with dict field defaults and return type parses correctly', () => {
+        expect(() =>
+          parse(
+            'use<ext:fn>:|text: string, options: dict(max_tokens: number = 0, system: string = "")| :dict(content: string)'
+          )
+        ).not.toThrow();
+      });
+
+      it('AC-1: :returnType after :|params| is not applied as type assertion on closure value', async () => {
+        // The resolved value is a dict; the closure annotation return type must not
+        // incorrectly assert the closure-as-value against dict(...).
+        const result = await run(
+          'use<host:fn>:|text: string| :dict(content: string)',
+          { resolvers: { host: valueResolver({ content: 'hello' }) } }
+        );
+        expect(result).toEqual({ content: 'hello' });
+      });
     });
 
     describe('Variable form', () => {

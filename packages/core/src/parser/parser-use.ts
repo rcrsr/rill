@@ -118,6 +118,11 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
       advance(this.state); // consume :
       advance(this.state); // consume || (OR token)
       closureAnnotation = [];
+      // Optional return type after :||
+      if (check(this.state, TOKEN_TYPES.COLON)) {
+        advance(this.state); // consume :
+        typeRef = parseTypeRef(this.state, { parseLiteral });
+      }
     } else if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
       // Closure annotation: :|param: type, ...|
       advance(this.state); // consume :
@@ -162,6 +167,11 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
         }
       }
       advance(this.state); // consume closing |
+      // Optional return type after :|params|
+      if (check(this.state, TOKEN_TYPES.COLON)) {
+        advance(this.state); // consume :
+        typeRef = parseTypeRef(this.state, { parseLiteral });
+      }
     } else {
       advance(this.state); // consume :
       typeRef = parseTypeRef(this.state);
