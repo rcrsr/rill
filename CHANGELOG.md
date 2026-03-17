@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-03-16
+
 ### Breaking Changes
 
 - **Core type API renamed** — `RillType` → `TypeStructure`, discriminator `.type` → `.kind`. 9 functions renamed: `inferStructure`, `structureToTypeValue`, `formatStructure`, `structureEquals`, `structureMatches`, `isIterator`, `serializeValue`, `copyValue`. `RillStructuralType` alias removed
