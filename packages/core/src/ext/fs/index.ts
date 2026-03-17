@@ -14,10 +14,8 @@ import type {
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import { toCallable } from '../../runtime/core/callable.js';
-import {
-  rillTypeToTypeValue,
-  type RillValue,
-} from '../../runtime/core/values.js';
+import type { RillValue } from '../../runtime/core/types/structures.js';
+import { structureToTypeValue } from '../../runtime/core/values.js';
 import {
   type MountConfig,
   resolvePath,
@@ -597,7 +595,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: read,
         annotations: { description: 'Read file contents' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       write: toCallable({
         params: [
@@ -622,7 +620,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: write,
         annotations: { description: 'Write file, replacing if exists' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       append: toCallable({
         params: [
@@ -647,7 +645,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: append,
         annotations: { description: 'Append content to file' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       list: toCallable({
         params: [
@@ -666,7 +664,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: list,
         annotations: { description: 'List directory contents' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
       find: toCallable({
         params: [
@@ -685,7 +683,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: find,
         annotations: { description: 'Recursive file search' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
       exists: toCallable({
         params: [
@@ -704,7 +702,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: exists,
         annotations: { description: 'Check file existence' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       remove: toCallable({
         params: [
@@ -723,7 +721,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: remove,
         annotations: { description: 'Delete file' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       stat: toCallable({
         params: [
@@ -742,7 +740,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: stat,
         annotations: { description: 'Get file metadata' },
-        returnType: rillTypeToTypeValue({ kind: 'dict' }),
+        returnType: structureToTypeValue({ kind: 'dict' }),
       }),
       mkdir: toCallable({
         params: [
@@ -761,7 +759,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: mkdir,
         annotations: { description: 'Create directory' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       copy: toCallable({
         params: [
@@ -786,7 +784,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: copy,
         annotations: { description: 'Copy file within mount' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       move: toCallable({
         params: [
@@ -811,13 +809,13 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: move,
         annotations: { description: 'Move file within mount' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       mounts: toCallable({
         params: [],
         fn: mountsList,
         annotations: { description: 'List configured mounts' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
     },
   };

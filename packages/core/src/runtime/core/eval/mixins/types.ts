@@ -40,15 +40,15 @@ import type {
   RillTypeValue,
   TypeStructure,
   RillFieldDef,
-} from '../../values.js';
+} from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
+import { isTypeValue } from '../../types/guards.js';
 import {
-  inferType,
-  checkType,
-  isTypeValue,
   structureMatches,
   inferStructure,
   formatStructure,
-} from '../../values.js';
+} from '../../types/operations.js';
+import { checkType } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';

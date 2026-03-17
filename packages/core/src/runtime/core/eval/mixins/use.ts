@@ -24,7 +24,7 @@
 
 import type { UseExprNode } from '../../../../types.js';
 import { RillError, RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
 import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
 import type { EvaluatorConstructor } from '../types.js';

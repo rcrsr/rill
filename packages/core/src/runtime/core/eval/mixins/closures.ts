@@ -78,20 +78,17 @@ import {
   popCallFrame,
   UNVALIDATED_METHOD_PARAMS,
 } from '../../context.js';
-import type { RuntimeContext } from '../../types.js';
-import type { RillValue, RillTypeValue } from '../../values.js';
+import type { RuntimeContext } from '../../types/runtime.js';
+import type { RillValue, RillTypeValue } from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
+import { isTypeValue, isTuple, isOrdered } from '../../types/guards.js';
 import {
-  inferType,
-  isTypeValue,
-  isTuple,
-  isOrdered,
   paramToFieldDef,
   inferStructure,
   structureMatches,
   formatStructure,
-  anyTypeValue,
-  structureToTypeValue,
-} from '../../values.js';
+} from '../../types/operations.js';
+import { anyTypeValue, structureToTypeValue } from '../../values.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';

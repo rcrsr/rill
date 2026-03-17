@@ -17,8 +17,8 @@ import type {
   StatementNode,
 } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
-import type { RuntimeContext } from '../types.js';
-import type { RillValue, TypeStructure } from '../values.js';
+import type { RuntimeContext } from '../types/runtime.js';
+import type { RillValue, TypeStructure } from '../types/structures.js';
 import { getEvaluator } from './evaluator.js';
 
 /**

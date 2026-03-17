@@ -14,10 +14,10 @@ import {
   RuntimeError,
   TimeoutError,
 } from '../../../types.js';
-import type { RuntimeContext } from '../types.js';
+import type { RuntimeContext } from '../types/runtime.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
-import type { RillValue } from '../values.js';
+import type { RillValue } from '../types/structures.js';
 
 /**
  * Base class for the evaluator.
@@ -107,6 +107,8 @@ export class EvaluatorBase {
     _capture: CaptureNode | null,
     _value: RillValue
   ): Promise<{ name: string; value: RillValue } | undefined> {
+    // AC-13: Intentional raw throw - internal mixin guard, not user-reachable.
+    // This stub only runs if mixin composition is incomplete (programming error).
     throw new Error(
       'handleCapture requires full Evaluator composition with VariablesMixin'
     );

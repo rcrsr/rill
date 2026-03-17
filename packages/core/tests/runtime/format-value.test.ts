@@ -318,15 +318,15 @@ describe('serializeValue', () => {
     });
   });
 
-  describe('EC-8: closure throws plain Error', () => {
-    it('throws Error (not RuntimeError) for callable', () => {
+  describe('EC-8: closure throws RuntimeError (RILL-R067)', () => {
+    it('throws RuntimeError for callable', () => {
       const fn = callable(() => null);
       expect(() => serializeValue(fn)).toThrow(
         'closures are not JSON-serializable'
       );
     });
 
-    it('thrown error is plain Error, not RuntimeError', () => {
+    it('thrown error is RuntimeError with RILL-R067', () => {
       const fn = callable(() => null);
       let caught: unknown;
       try {
@@ -334,20 +334,20 @@ describe('serializeValue', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R067');
     });
   });
 
-  describe('EC-9: iterator throws plain Error', () => {
-    it('throws Error for iterator', () => {
+  describe('EC-9: iterator throws RuntimeError (RILL-R067)', () => {
+    it('throws RuntimeError for iterator', () => {
       const iterator = makeIterator();
       expect(() => serializeValue(iterator)).toThrow(
         'iterators are not JSON-serializable'
       );
     });
 
-    it('thrown error is plain Error, not RuntimeError', () => {
+    it('thrown error is RuntimeError with RILL-R067', () => {
       const iterator = makeIterator();
       let caught: unknown;
       try {
@@ -355,20 +355,20 @@ describe('serializeValue', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R067');
     });
   });
 
-  describe('EC-10: tuple throws plain Error', () => {
-    it('throws Error for tuple', () => {
+  describe('EC-10: tuple throws RuntimeError (RILL-R067)', () => {
+    it('throws RuntimeError for tuple', () => {
       const tuple = createTupleFromDict({ a: 1 });
       expect(() => serializeValue(tuple)).toThrow(
         'tuples are not JSON-serializable'
       );
     });
 
-    it('thrown error is plain Error, not RuntimeError', () => {
+    it('thrown error is RuntimeError with RILL-R067', () => {
       const tuple = createTupleFromDict({ a: 1 });
       let caught: unknown;
       try {
@@ -376,39 +376,39 @@ describe('serializeValue', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R067');
     });
   });
 
-  describe('EC-11: type value throws plain Error', () => {
-    it('throws Error for type value', () => {
+  describe('EC-11: type value throws RuntimeError (RILL-R067)', () => {
+    it('throws RuntimeError for type value', () => {
       expect(() => serializeValue(makeTypeValue('string'))).toThrow(
         'type values are not JSON-serializable'
       );
     });
 
-    it('thrown error is plain Error, not RuntimeError', () => {
+    it('thrown error is RuntimeError with RILL-R067', () => {
       let caught: unknown;
       try {
         serializeValue(makeTypeValue('number'));
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R067');
     });
   });
 
-  describe('EC-12: vector throws plain Error', () => {
-    it('throws Error for vector', () => {
+  describe('EC-12: vector throws RuntimeError (RILL-R067)', () => {
+    it('throws RuntimeError for vector', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
       expect(() => serializeValue(vec)).toThrow(
         'vectors are not JSON-serializable'
       );
     });
 
-    it('thrown error is plain Error, not RuntimeError', () => {
+    it('thrown error is RuntimeError with RILL-R067', () => {
       const vec = createVector(new Float32Array([1.0]), 'test-model');
       let caught: unknown;
       try {
@@ -416,8 +416,8 @@ describe('serializeValue', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect(caught).not.toBeInstanceOf(RuntimeError);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R067');
     });
   });
 });

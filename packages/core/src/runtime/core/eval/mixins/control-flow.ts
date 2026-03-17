@@ -34,8 +34,8 @@ import type {
   ErrorNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { inferType } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';

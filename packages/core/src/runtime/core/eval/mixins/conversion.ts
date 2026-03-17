@@ -38,23 +38,23 @@ import type {
   TypeStructure,
   RillFieldDef,
   RillTuple,
+} from '../../types/structures.js';
+import type {
   DictStructure,
   TupleStructure,
   OrderedStructure,
-} from '../../values.js';
+} from '../../types/operations.js';
+import { inferType } from '../../types/registrations.js';
+import { isTuple, isOrdered, isTypeValue } from '../../types/guards.js';
 import {
-  inferType,
-  isTuple,
-  isOrdered,
-  isTypeValue,
   createOrdered,
   createTuple,
-  deepCopyRillValue,
-  hasCollectionFields,
+  copyValue,
   emptyForType,
-} from '../../values.js';
+} from '../../types/constructors.js';
+import { hasCollectionFields } from '../../values.js';
 import { isDict } from '../../callable.js';
-import { BUILT_IN_TYPES } from '../../type-registrations.js';
+import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -220,9 +220,8 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       try {
         return converter(input);
       } catch (err) {
-        // Protocol converters throw plain Errors; wrap as RuntimeError
-        // with the appropriate error code.
-        if (err instanceof RuntimeError) throw err;
+        // Protocol converters throw RuntimeError (RILL-R064/R065/R066);
+        // wrap with evaluator-level error codes for user-facing messages.
 
         // String-to-number parse failures use RILL-R038 (EC-12)
         // Preserve the protocol's detailed message (includes unparseable value).
@@ -297,11 +296,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else if (field.defaultValue !== undefined) {
           entries.push([
             fieldName,
-            this.hydrateNested(
-              deepCopyRillValue(field.defaultValue),
-              field.type,
-              node
-            ),
+            this.hydrateNested(copyValue(field.defaultValue), field.type, node),
           ]);
         } else if (hasCollectionFields(field.type)) {
           entries.push([
@@ -386,7 +381,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             resolvedField.defaultValue !== undefined
           ) {
             result[fieldName] = this.hydrateNested(
-              deepCopyRillValue(resolvedField.defaultValue),
+              copyValue(resolvedField.defaultValue),
               resolvedField.type,
               node
             );
@@ -463,7 +458,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Missing trailing element with default: deep copy and hydrate
           result.push(
             this.hydrateNested(
-              deepCopyRillValue(element.defaultValue),
+              copyValue(element.defaultValue),
               element.type,
               node
             )
@@ -516,7 +511,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else {
             if (resolvedField.defaultValue !== undefined) {
               result[fieldName] = this.hydrateNested(
-                deepCopyRillValue(resolvedField.defaultValue),
+                copyValue(resolvedField.defaultValue),
                 resolvedField.type,
                 node
               );
@@ -567,7 +562,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             resultEntries.push([
               name,
               this.hydrateNested(
-                deepCopyRillValue(field.defaultValue),
+                copyValue(field.defaultValue),
                 field.type,
                 node
               ),
@@ -610,7 +605,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           } else if (element.defaultValue !== undefined) {
             resultEntries.push(
               this.hydrateNested(
-                deepCopyRillValue(element.defaultValue),
+                copyValue(element.defaultValue),
                 element.type,
                 node
               )

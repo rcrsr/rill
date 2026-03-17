@@ -10,7 +10,7 @@
 
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
-import type { RillFieldDef, TypeStructure } from './values.js';
+import type { RillFieldDef, TypeStructure } from './types/structures.js';
 
 /**
  * Field descriptor — carries field name and structural type when accessing a

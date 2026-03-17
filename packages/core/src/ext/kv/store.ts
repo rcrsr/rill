@@ -8,8 +8,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { RuntimeError } from '../../error-classes.js';
-import type { RillValue } from '../../runtime/core/values.js';
-import { deserializeValue } from '../../runtime/core/type-registrations.js';
+import type { RillValue } from '../../runtime/core/types/structures.js';
+import { deserializeValue } from '../../runtime/core/types/registrations.js';
 
 // ============================================================
 // TYPES

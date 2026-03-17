@@ -25,9 +25,10 @@ import type {
   ArithHead,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { inferType, isTruthy } from '../../values.js';
-import { BUILT_IN_TYPES } from '../../type-registrations.js';
+import type { RillValue } from '../../types/structures.js';
+import { inferType } from '../../types/registrations.js';
+import { isTruthy } from '../../values.js';
+import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';

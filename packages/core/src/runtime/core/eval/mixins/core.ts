@@ -31,8 +31,8 @@ import type {
   SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import type { RillValue } from '../../values.js';
-import { isTuple } from '../../values.js';
+import type { RillValue } from '../../types/structures.js';
+import { isTuple } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';

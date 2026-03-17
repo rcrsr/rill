@@ -6,7 +6,7 @@
  * need to catch and handle control flow.
  */
 
-import type { RillValue } from './values.js';
+import type { RillValue } from './types/structures.js';
 
 /** Signal thrown by `break` to exit loops */
 export class BreakSignal extends Error {

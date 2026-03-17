@@ -25,27 +25,24 @@ import type {
   RillVector,
   RillTypeValue,
   RillIterator,
-} from './values.js';
-import type { RillFunction } from './callable.js';
+} from './structures.js';
+import type { RillFunction } from '../callable.js';
 import {
   isTuple,
   isVector,
   isOrdered,
   isTypeValue,
   isIterator,
-  createTuple,
-  createOrdered,
-  createVector,
-  formatStructure,
-  structureEquals,
-} from './values.js';
+} from './guards.js';
+import { createTuple, createOrdered, createVector } from './constructors.js';
+import { formatStructure, structureEquals } from './operations.js';
 import {
   isCallable,
   isDict,
   isScriptCallable,
   callableEquals,
-} from './callable.js';
-import { RuntimeError } from '../../types.js';
+} from '../callable.js';
+import { RuntimeError } from '../../../types.js';
 
 // ============================================================
 // TYPE PROTOCOL INTERFACE
@@ -180,32 +177,48 @@ function eqBool(a: RillValue, b: RillValue): boolean {
   return a === b;
 }
 
-function eqTuple(a: RillValue, b: RillValue): boolean {
-  if (!isTuple(a) || !isTuple(b)) return false;
-  if (a.entries.length !== b.entries.length) return false;
-  for (let i = 0; i < a.entries.length; i++) {
-    const aVal = a.entries[i];
-    const bVal = b.entries[i];
-    if (aVal === undefined || bVal === undefined) {
-      if (aVal !== bVal) return false;
-    } else if (!deepEquals(aVal, bVal)) {
-      return false;
-    }
+/**
+ * Parameterized element-wise comparison for collections.
+ * Replaces duplicated loops in eqTuple, eqList, eqOrdered.
+ *
+ * AC-40: Zero-length collections return true.
+ * AC-19: eqTuple, eqList, eqOrdered delegate loop body here.
+ */
+function compareElements(
+  aEntries: readonly unknown[],
+  bEntries: readonly unknown[],
+  comparator: (a: unknown, b: unknown) => boolean
+): boolean {
+  if (aEntries.length !== bEntries.length) return false;
+  for (let i = 0; i < aEntries.length; i++) {
+    if (!comparator(aEntries[i], bEntries[i])) return false;
   }
   return true;
 }
 
+/** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
+function compareByDeepEquals(a: unknown, b: unknown): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  return deepEquals(a as RillValue, b as RillValue);
+}
+
+/** Entry comparator for ordered: keys by identity, values by deepEquals. */
+function compareOrderedEntry(a: unknown, b: unknown): boolean {
+  const aEntry = a as [string, RillValue] | undefined;
+  const bEntry = b as [string, RillValue] | undefined;
+  if (aEntry === undefined || bEntry === undefined) return false;
+  if (aEntry[0] !== bEntry[0]) return false;
+  return deepEquals(aEntry[1], bEntry[1]);
+}
+
+function eqTuple(a: RillValue, b: RillValue): boolean {
+  if (!isTuple(a) || !isTuple(b)) return false;
+  return compareElements(a.entries, b.entries, compareByDeepEquals);
+}
+
 function eqOrdered(a: RillValue, b: RillValue): boolean {
   if (!isOrdered(a) || !isOrdered(b)) return false;
-  if (a.entries.length !== b.entries.length) return false;
-  for (let i = 0; i < a.entries.length; i++) {
-    const aEntry = a.entries[i];
-    const bEntry = b.entries[i];
-    if (aEntry === undefined || bEntry === undefined) return false;
-    if (aEntry[0] !== bEntry[0]) return false;
-    if (!deepEquals(aEntry[1], bEntry[1])) return false;
-  }
-  return true;
+  return compareElements(a.entries, b.entries, compareOrderedEntry);
 }
 
 function eqVector(a: RillValue, b: RillValue): boolean {
@@ -240,17 +253,7 @@ function eqFieldDescriptor(a: RillValue, b: RillValue): boolean {
 
 function eqList(a: RillValue, b: RillValue): boolean {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const aElem = a[i];
-    const bElem = b[i];
-    if (aElem === undefined || bElem === undefined) {
-      if (aElem !== bElem) return false;
-    } else if (!deepEquals(aElem, bElem)) {
-      return false;
-    }
-  }
-  return true;
+  return compareElements(a, b, compareByDeepEquals);
 }
 
 function eqDict(a: RillValue, b: RillValue): boolean {
@@ -302,7 +305,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const str = v as string;
     const parsed = Number(str);
     if (isNaN(parsed) || str.trim() === '') {
-      throw new Error(`cannot convert string "${str}" to number`);
+      throw new RuntimeError(
+        'RILL-R064',
+        `cannot convert string "${str}" to number`
+      );
     }
     return parsed;
   },
@@ -310,7 +316,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const s = v as string;
     if (s === 'true') return true;
     if (s === 'false') return false;
-    throw new Error(`cannot convert string "${s}" to bool`);
+    throw new RuntimeError('RILL-R065', `cannot convert string "${s}" to bool`);
   },
 };
 
@@ -325,7 +331,7 @@ const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const n = v as number;
     if (n === 0) return false;
     if (n === 1) return true;
-    throw new Error(`cannot convert number ${n} to bool`);
+    throw new RuntimeError('RILL-R066', `cannot convert number ${n} to bool`);
   },
 };
 
@@ -442,12 +448,24 @@ function serializeListElement(v: RillValue): unknown {
   if (typeof v === 'number') return v;
   if (typeof v === 'boolean') return v;
   if (Array.isArray(v)) return v.map(serializeListElement);
-  if (isCallable(v)) throw new Error('closures are not JSON-serializable');
-  if (isTuple(v)) throw new Error('tuples are not JSON-serializable');
-  if (isOrdered(v)) throw new Error('ordered values are not JSON-serializable');
-  if (isVector(v)) throw new Error('vectors are not JSON-serializable');
-  if (isTypeValue(v)) throw new Error('type values are not JSON-serializable');
-  if (isIterator(v)) throw new Error('iterators are not JSON-serializable');
+  if (isCallable(v))
+    throw new RuntimeError('RILL-R067', 'closures are not JSON-serializable');
+  if (isTuple(v))
+    throw new RuntimeError('RILL-R067', 'tuples are not JSON-serializable');
+  if (isOrdered(v))
+    throw new RuntimeError(
+      'RILL-R067',
+      'ordered values are not JSON-serializable'
+    );
+  if (isVector(v))
+    throw new RuntimeError('RILL-R067', 'vectors are not JSON-serializable');
+  if (isTypeValue(v))
+    throw new RuntimeError(
+      'RILL-R067',
+      'type values are not JSON-serializable'
+    );
+  if (isIterator(v))
+    throw new RuntimeError('RILL-R067', 'iterators are not JSON-serializable');
   // Plain dict
   const dict = v as Record<string, RillValue>;
   const result: Record<string, unknown> = {};
@@ -468,7 +486,10 @@ function serializeDict(v: RillValue): unknown {
 
 function throwNotSerializable(typeName: string): (v: RillValue) => never {
   return (_v: RillValue): never => {
-    throw new Error(`${typeName}s are not JSON-serializable`);
+    throw new RuntimeError(
+      'RILL-R067',
+      `${typeName}s are not JSON-serializable`
+    );
   };
 }
 
@@ -490,7 +511,7 @@ function throwNotSerializable(typeName: string): (v: RillValue) => never {
  * BC-2: Vector identity checked before dict fallback.
  * EC-3: Iterator has no protocol.eq.
  * EC-4: Bool has no protocol.compare.
- * EC-8: Non-serializable types throw plain Error.
+ * EC-8: Non-serializable types throw RuntimeError (RILL-R067).
  */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
   // ---- Primitives ----
@@ -820,7 +841,8 @@ export function populateBuiltinMethods(
   for (const reg of BUILT_IN_TYPES) {
     if (METHOD_BEARING_TYPES.has(reg.name) && reg.name in builtinMethods) {
       if (Object.isFrozen(reg)) {
-        throw new Error(
+        throw new RuntimeError(
+          'RILL-R068',
           `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
         );
       }
@@ -841,8 +863,6 @@ export { createTuple, createOrdered, createVector };
 // ============================================================
 
 export { isTuple, isVector, isTypeValue, isOrdered, isIterator };
-/** @deprecated Use isIterator instead. */
-export const isRillIterator = isIterator;
 
 // ============================================================
 // RE-EXPORTED TYPES

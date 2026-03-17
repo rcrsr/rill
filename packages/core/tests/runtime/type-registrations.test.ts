@@ -48,7 +48,7 @@ import {
   isIterator,
   type TypeDefinition,
   type TypeProtocol,
-} from '../../src/runtime/core/type-registrations.js';
+} from '../../src/runtime/core/types/registrations.js';
 
 // Old implementations from values.ts for comparison
 import {
@@ -417,41 +417,41 @@ describe('type-registrations', () => {
     });
   });
 
-  // EC-8: serializeValue on non-serializable types throws plain Error
+  // EC-8: serializeValue on non-serializable types throws RuntimeError (RILL-R067)
   describe('EC-8: non-serializable type errors', () => {
-    it('throws plain Error for closure', () => {
+    it('throws RuntimeError for closure', () => {
       const closureValue = callable(() => 'test');
-      expect(() => serializeValue(closureValue)).toThrow(Error);
+      expect(() => serializeValue(closureValue)).toThrow(RuntimeError);
       expect(() => serializeValue(closureValue)).toThrow(
         'closures are not JSON-serializable'
       );
     });
 
-    it('closure error is plain Error, not RuntimeError', () => {
+    it('closure error is RuntimeError with RILL-R067', () => {
       const closureValue = callable(() => 'test');
       try {
         serializeValue(closureValue);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe('closures are not JSON-serializable');
       }
     });
 
-    it('throws plain Error for tuple', () => {
+    it('throws RuntimeError for tuple', () => {
       const tuple = createTuple([1, 2, 3]);
       try {
         serializeValue(tuple);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe('tuples are not JSON-serializable');
       }
     });
 
-    it('throws plain Error for ordered', () => {
+    it('throws RuntimeError for ordered', () => {
       const ordered = createOrdered([
         ['a', 1],
         ['b', 2],
@@ -460,48 +460,48 @@ describe('type-registrations', () => {
         serializeValue(ordered);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe(
           'ordered values are not JSON-serializable'
         );
       }
     });
 
-    it('throws plain Error for vector', () => {
+    it('throws RuntimeError for vector', () => {
       const vec = createVector(new Float32Array([0.1, 0.2]), 'test-model');
       try {
         serializeValue(vec);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe('vectors are not JSON-serializable');
       }
     });
 
-    it('throws plain Error for type value', () => {
+    it('throws RuntimeError for type value', () => {
       const typeVal = makeTypeValue('string');
       try {
         serializeValue(typeVal as RillValue);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe(
           'type values are not JSON-serializable'
         );
       }
     });
 
-    it('throws plain Error for iterator', () => {
+    it('throws RuntimeError for iterator', () => {
       const iter = makeIterator(false, 1);
       try {
         serializeValue(iter as RillValue);
         expect.unreachable('should have thrown');
       } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-        expect(e).not.toBeInstanceOf(RuntimeError);
+        expect(e).toBeInstanceOf(RuntimeError);
+        expect((e as RuntimeError).errorId).toBe('RILL-R067');
         expect((e as Error).message).toBe(
           'iterators are not JSON-serializable'
         );

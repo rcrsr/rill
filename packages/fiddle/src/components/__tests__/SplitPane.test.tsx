@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { SplitPane, type SplitPaneProps } from '../SplitPane.js';
 
 describe('SplitPane', () => {
@@ -287,6 +287,229 @@ describe('SplitPane', () => {
 
       expect(splitPaneContainer).toBeDefined();
       // Styles are applied via CSS class, not inline
+    });
+  });
+
+  // ============================================================
+  // Keyboard Navigation (ArrowLeft/Right/Up/Down)
+  // ============================================================
+
+  // In happy-dom, container clientWidth is 0, which is < the 768px breakpoint,
+  // so the component initializes in vertical mode. Vertical mode responds to
+  // ArrowUp (decrease) and ArrowDown (increase). Tests use these keys.
+  describe('keyboard navigation', () => {
+    it('ArrowUp decreases split ratio in vertical mode and calls onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      });
+
+      // onSplitChange called with ratio decreased by step (2)
+      expect(onSplitChange).toHaveBeenCalled();
+      const newRatio = onSplitChange.mock.calls[0]![0] as number;
+      expect(newRatio).toBe(48);
+    });
+
+    it('ArrowDown increases split ratio in vertical mode and calls onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.keyDown(divider, { key: 'ArrowDown' });
+      });
+
+      expect(onSplitChange).toHaveBeenCalled();
+      const newRatio = onSplitChange.mock.calls[0]![0] as number;
+      expect(newRatio).toBe(52);
+    });
+
+    it('non-arrow key does not call onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.keyDown(divider, { key: 'Tab' });
+      });
+
+      expect(onSplitChange).not.toHaveBeenCalled();
+    });
+
+    it('repeated ArrowUp presses clamp at minimum', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      // Press ArrowUp (decrease) enough times to reach minimum
+      act(() => {
+        for (let i = 0; i < 30; i++) {
+          fireEvent.keyDown(divider, { key: 'ArrowUp' });
+        }
+      });
+
+      // onSplitChange was called and final ratio is clamped to >= 0
+      expect(onSplitChange).toHaveBeenCalled();
+      const calls = onSplitChange.mock.calls;
+      const lastRatio = calls[calls.length - 1]![0] as number;
+      expect(lastRatio).toBeGreaterThanOrEqual(0);
+    });
+
+    it('repeated ArrowDown presses clamp at maximum', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      // Press ArrowDown (increase) enough times to reach maximum
+      act(() => {
+        for (let i = 0; i < 30; i++) {
+          fireEvent.keyDown(divider, { key: 'ArrowDown' });
+        }
+      });
+
+      expect(onSplitChange).toHaveBeenCalled();
+      const calls = onSplitChange.mock.calls;
+      const lastRatio = calls[calls.length - 1]![0] as number;
+      expect(lastRatio).toBeLessThanOrEqual(100);
+    });
+
+    it('keyboard navigation without onSplitChange does not throw', () => {
+      const { container } = render(
+        <SplitPane left={<div>L</div>} right={<div>R</div>} />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      expect(() => {
+        act(() => {
+          fireEvent.keyDown(divider, { key: 'ArrowUp' });
+          fireEvent.keyDown(divider, { key: 'ArrowDown' });
+        });
+      }).not.toThrow();
+    });
+
+    it('ArrowLeft and ArrowRight have no effect in vertical mode', () => {
+      // In happy-dom (vertical mode), horizontal keys do nothing
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.keyDown(divider, { key: 'ArrowLeft' });
+        fireEvent.keyDown(divider, { key: 'ArrowRight' });
+      });
+
+      // Horizontal keys have no effect in vertical mode
+      expect(onSplitChange).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
+  // Drag Handling (mouse events)
+  // ============================================================
+
+  describe('drag handling', () => {
+    it('mousedown on divider starts drag (adds dragging class)', () => {
+      const { container } = render(<SplitPane {...defaultProps} />);
+      const divider = container.querySelector(
+        '.split-pane-divider'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.mouseDown(divider, { clientX: 400, clientY: 0 });
+      });
+
+      expect(divider.classList.contains('dragging')).toBe(true);
+    });
+
+    it('mouseup after drag calls onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane {...defaultProps} onSplitChange={onSplitChange} />
+      );
+      const divider = container.querySelector(
+        '.split-pane-divider'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.mouseDown(divider, { clientX: 400, clientY: 0 });
+      });
+
+      act(() => {
+        fireEvent.mouseUp(document);
+      });
+
+      // onSplitChange invoked on drag end
+      expect(onSplitChange).toHaveBeenCalled();
+    });
+
+    it('mouseup removes dragging class', () => {
+      const { container } = render(<SplitPane {...defaultProps} />);
+      const divider = container.querySelector(
+        '.split-pane-divider'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.mouseDown(divider, { clientX: 400, clientY: 0 });
+      });
+
+      act(() => {
+        fireEvent.mouseUp(document);
+      });
+
+      expect(divider.classList.contains('dragging')).toBe(false);
     });
   });
 });

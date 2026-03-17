@@ -14,10 +14,8 @@ import { RuntimeError } from '../../error-classes.js';
 import { toCallable } from '../../runtime/core/callable.js';
 import { isDict } from '../../runtime/core/callable.js';
 import { createStore, type SchemaEntry } from './store.js';
-import {
-  rillTypeToTypeValue,
-  type RillValue,
-} from '../../runtime/core/values.js';
+import type { RillValue } from '../../runtime/core/types/structures.js';
+import { structureToTypeValue } from '../../runtime/core/values.js';
 
 // ============================================================
 // TYPES
@@ -425,7 +423,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: get,
         annotations: { description: 'Get value or schema default' },
-        returnType: rillTypeToTypeValue({ kind: 'any' }),
+        returnType: structureToTypeValue({ kind: 'any' }),
       }),
       get_or: toCallable({
         params: [
@@ -452,7 +450,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         annotations: {
           description: 'Get value or return fallback if key missing',
         },
-        returnType: rillTypeToTypeValue({ kind: 'any' }),
+        returnType: structureToTypeValue({ kind: 'any' }),
       }),
       set: toCallable({
         params: [
@@ -477,7 +475,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: set,
         annotations: { description: 'Set value with validation' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       merge: toCallable({
         params: [
@@ -504,7 +502,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         annotations: {
           description: 'Merge partial dict into existing dict value',
         },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       delete: toCallable({
         params: [
@@ -523,7 +521,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: deleteKey,
         annotations: { description: 'Delete key' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       keys: toCallable({
         params: [
@@ -536,7 +534,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: keys,
         annotations: { description: 'Get all keys in mount' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
       has: toCallable({
         params: [
@@ -555,7 +553,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: has,
         annotations: { description: 'Check key existence' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       clear: toCallable({
         params: [
@@ -568,7 +566,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: clear,
         annotations: { description: 'Clear all keys in mount' },
-        returnType: rillTypeToTypeValue({ kind: 'bool' }),
+        returnType: structureToTypeValue({ kind: 'bool' }),
       }),
       getAll: toCallable({
         params: [
@@ -581,7 +579,7 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: getAll,
         annotations: { description: 'Get all entries as dict' },
-        returnType: rillTypeToTypeValue({ kind: 'dict' }),
+        returnType: structureToTypeValue({ kind: 'dict' }),
       }),
       schema: toCallable({
         params: [
@@ -594,13 +592,13 @@ export function createKvExtension(config: KvConfig): ExtensionFactoryResult {
         ],
         fn: schema,
         annotations: { description: 'Get schema information' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
       mounts: toCallable({
         params: [],
         fn: mountsList,
         annotations: { description: 'Get list of mount metadata' },
-        returnType: rillTypeToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({ kind: 'list' }),
       }),
     },
     dispose,

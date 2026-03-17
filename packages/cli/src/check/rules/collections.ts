@@ -18,6 +18,7 @@ import type {
   BlockNode,
 } from '@rcrsr/rill';
 import { extractContextLine } from './helpers.js';
+import { visitNode } from '../visitor.js';
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -25,89 +26,20 @@ import { extractContextLine } from './helpers.js';
 
 /**
  * Check if an AST subtree contains a Break node.
- * Recursively traverses all node types.
+ * Uses visitNode for full AST traversal.
  */
 function containsBreak(node: ASTNode): boolean {
-  if (node.type === 'Break') {
-    return true;
-  }
-
-  // Recursively check children based on node type
-  switch (node.type) {
-    case 'Block':
-      return node.statements.some((stmt) => containsBreak(stmt));
-
-    case 'Statement':
-      return containsBreak(node.expression);
-
-    case 'AnnotatedStatement':
-      return containsBreak(node.statement);
-
-    case 'PipeChain':
-      if (containsBreak(node.head)) return true;
-      if (node.pipes.some((pipe) => containsBreak(pipe as ASTNode)))
-        return true;
-      if (node.terminator && node.terminator.type === 'Break') return true;
-      return false;
-
-    case 'PostfixExpr':
-      if (containsBreak(node.primary)) return true;
-      return node.methods.some((method) => containsBreak(method));
-
-    case 'BinaryExpr':
-      return containsBreak(node.left) || containsBreak(node.right);
-
-    case 'UnaryExpr':
-      return containsBreak(node.operand);
-
-    case 'GroupedExpr':
-      return containsBreak(node.expression);
-
-    case 'Conditional':
-      if (node.input && containsBreak(node.input)) return true;
-      if (node.condition && containsBreak(node.condition)) return true;
-      if (containsBreak(node.thenBranch)) return true;
-      if (node.elseBranch && containsBreak(node.elseBranch)) return true;
-      return false;
-
-    case 'WhileLoop':
-    case 'DoWhileLoop':
-      return containsBreak(node.body);
-
-    case 'Closure':
-      return containsBreak(node.body);
-
-    case 'EachExpr':
-    case 'MapExpr':
-    case 'FoldExpr':
-    case 'FilterExpr':
-      return containsBreak(node.body);
-
-    case 'HostCall':
-    case 'ClosureCall':
-    case 'MethodCall':
-    case 'Invoke':
-    case 'PipeInvoke':
-      return node.args.some((arg) => containsBreak(arg));
-
-    case 'StringLiteral':
-      return node.parts.some(
-        (part) => typeof part !== 'string' && containsBreak(part)
-      );
-
-    case 'TupleLiteral':
-      return node.elements.some((elem) => containsBreak(elem));
-
-    case 'Dict':
-      return node.entries.some((entry) => containsBreak(entry));
-
-    case 'DictEntry':
-      return containsBreak(node.value);
-
-    default:
-      // Leaf nodes and other types don't contain breaks
-      return false;
-  }
+  let found = false;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'Break') {
+        found = true;
+      }
+    },
+    exit() {},
+  });
+  return found;
 }
 
 /**

@@ -6,8 +6,8 @@
  */
 
 import { RuntimeError } from '../../error-classes.js';
-import type { ResolverResult, SchemeResolver } from './types.js';
-import type { RillValue } from './values.js';
+import type { ResolverResult, SchemeResolver } from './types/runtime.js';
+import type { RillValue } from './types/structures.js';
 
 // ============================================================
 // MODULE RESOLVER

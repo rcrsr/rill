@@ -13,10 +13,8 @@ import type {
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import { toCallable } from '../../runtime/core/callable.js';
-import {
-  rillTypeToTypeValue,
-  type RillValue,
-} from '../../runtime/core/values.js';
+import type { RillValue } from '../../runtime/core/types/structures.js';
+import { structureToTypeValue } from '../../runtime/core/values.js';
 
 // ============================================================
 // TYPES
@@ -169,7 +167,7 @@ export function createCryptoExtension(
         ],
         fn: hash,
         annotations: { description: 'Hash content, returns hex output' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       hmac: toCallable({
         params: [
@@ -190,13 +188,13 @@ export function createCryptoExtension(
         annotations: {
           description: 'Generate HMAC signature, returns hex output',
         },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       uuid: toCallable({
         params: [],
         fn: uuid,
         annotations: { description: 'Generate random UUID v4' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       random: toCallable({
         params: [
@@ -209,7 +207,7 @@ export function createCryptoExtension(
         ],
         fn: random,
         annotations: { description: 'Generate random bytes as hex string' },
-        returnType: rillTypeToTypeValue({ kind: 'string' }),
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
   };

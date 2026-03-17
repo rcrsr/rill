@@ -31,7 +31,7 @@ import type {
   RillFieldDef,
   TypeStructure,
   RillValue,
-} from './runtime/core/values.js';
+} from './runtime/core/types/structures.js';
 
 // ============================================================
 // TypeRef → TypeStructure static conversion

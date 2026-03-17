@@ -9,24 +9,20 @@
 
 import type { RillFunction } from '../core/callable.js';
 import { callable, isCallable, isDict } from '../core/callable.js';
-import type { RuntimeContext } from '../core/types.js';
+import type { RuntimeContext } from '../core/types/runtime.js';
 import { type SourceLocation, RuntimeError } from '../../types.js';
 import { parseSignatureRegistration } from '../../signature-parser.js';
+import type { RillValue, RillVector } from '../core/types/structures.js';
 import {
-  anyTypeValue,
   deepEquals,
   formatValue,
   inferType,
-  isEmpty,
-  isRillIterator,
-  isVector,
-  rillTypeToTypeValue,
   serializeValue,
-  type RillValue,
-  type RillVector,
-} from '../core/values.js';
+} from '../core/types/registrations.js';
+import { isIterator, isVector } from '../core/types/guards.js';
+import { anyTypeValue, isEmpty, structureToTypeValue } from '../core/values.js';
 import { invokeCallable } from '../core/eval/index.js';
-import { populateBuiltinMethods } from '../core/type-registrations.js';
+import { populateBuiltinMethods } from '../core/types/registrations.js';
 
 /** Internal type alias for built-in method implementations. */
 type RillMethod = (
@@ -143,14 +139,14 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         annotations: {},
       },
     ],
-    returnType: rillTypeToTypeValue({ kind: 'string' }),
+    returnType: structureToTypeValue({ kind: 'string' }),
     fn: (args, _ctx, location) => {
       const value = args['value'] ?? null;
       try {
         const jsonValue = serializeValue(value);
         return JSON.stringify(jsonValue);
       } catch (err) {
-        if (err instanceof RuntimeError) throw err;
+        // Wrap serialization errors (RILL-R067 from protocol) as RILL-R004
         if (err instanceof Error) {
           throw new RuntimeError('RILL-R004', err.message, location);
         }
@@ -176,7 +172,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         annotations: {},
       },
     ],
-    returnType: rillTypeToTypeValue({ kind: 'list' }),
+    returnType: structureToTypeValue({ kind: 'list' }),
     fn: (args) => {
       const input: RillValue = args['items'] ?? null;
       if (Array.isArray(input)) {
@@ -432,7 +428,7 @@ function buildMethodEntry(
         : {},
     returnType:
       parsed.returnType !== undefined
-        ? rillTypeToTypeValue(parsed.returnType)
+        ? structureToTypeValue(parsed.returnType)
         : anyTypeValue,
     ...(skipReceiverValidation ? { skipReceiverValidation: true } : {}),
   };
@@ -532,7 +528,7 @@ const mTail: RillMethod = (receiver, _args, _ctx, location) => {
 
 /** Get iterator at first position for any collection */
 const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
-  if (isRillIterator(receiver)) return receiver;
+  if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
   if (isDict(receiver))

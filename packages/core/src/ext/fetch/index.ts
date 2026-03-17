@@ -13,10 +13,8 @@ import type {
   ExtensionManifest,
 } from '../../runtime/ext/extensions.js';
 import { toCallable, type RillFunction } from '../../runtime/core/callable.js';
-import {
-  rillTypeToTypeValue,
-  type RillValue,
-} from '../../runtime/core/values.js';
+import type { RillValue } from '../../runtime/core/types/structures.js';
+import { structureToTypeValue } from '../../runtime/core/values.js';
 import {
   type FetchExtensionConfig,
   type InternalEndpointConfig,
@@ -282,8 +280,8 @@ export function createFetchExtension(
 
     const returnTypeValue =
       (endpointConfig.responseShape ?? defaultResponseShape) === 'full'
-        ? rillTypeToTypeValue({ kind: 'dict' })
-        : rillTypeToTypeValue({ kind: 'any' });
+        ? structureToTypeValue({ kind: 'dict' })
+        : structureToTypeValue({ kind: 'any' });
 
     const hostFunctionDef: RillFunction = {
       params: rillParams,
@@ -324,7 +322,7 @@ export function createFetchExtension(
     params: [],
     fn: endpoints,
     annotations: { description: 'List configured endpoints' },
-    returnType: rillTypeToTypeValue({ kind: 'list' }),
+    returnType: structureToTypeValue({ kind: 'list' }),
   };
 
   // ============================================================
