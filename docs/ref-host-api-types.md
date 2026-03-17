@@ -148,6 +148,15 @@ Checks if a value matches a structural type descriptor. Used by the `:?` runtime
 | `{ kind: 'any' }` | Matches all values |
 | Compound variant | Deep structural match against sub-fields |
 
+**Closure parameter default compatibility:**
+
+| Value param `defaultValue` | Type param `defaultValue` | Result |
+|---------------------------|--------------------------|--------|
+| Present | Absent | `true` (superset satisfies) |
+| Absent | Present | `false` (missing contract) |
+| Present | Present | `true` if values are deeply equal |
+| Absent | Absent | `true` |
+
 Pure function.
 
 ### `formatStructure`

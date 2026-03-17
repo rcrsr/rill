@@ -103,7 +103,9 @@ Parameter annotations appear in a specific order:
 1. Parameter annotations with `^()` (optional)
 2. Parameter name (required)
 3. Type annotation with `:` (optional)
-4. Default value with `=` (optional)
+4. Default value with `= literal` (optional)
+
+The `= literal` default also appears in type expressions used with `:?` and `:`. A closure whose params carry defaults satisfies a type annotation that omits those defaults. The reverse does not hold. See [Type System: Defaults in Type Expressions](topic-type-system.md#defaults-in-type-expressions) for the matching rules.
 
 ```rill
 |^(min: 0, max: 100) x: number|($x) => $validate

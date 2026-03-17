@@ -1032,6 +1032,7 @@ export interface UseExprNode extends BaseNode {
   readonly closureAnnotation: ReadonlyArray<{
     readonly name: string;
     readonly typeRef: TypeRef;
+    readonly defaultValue?: LiteralNode;
   }> | null;
 }
 

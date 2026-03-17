@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Closure parameter defaults** — Closure annotation parameters can now specify literal default values, allowing callers to omit arguments
+
 ### Changed
 
 - **Standardized runtime error codes** — All runtime errors now use typed error codes (RILL-R064-R077) instead of raw exception messages

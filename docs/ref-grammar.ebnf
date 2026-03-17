@@ -758,7 +758,7 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg
 
 closure-sig-lit  = "|" , param-type-list , "|" , ":" , expression ;
 param-type-list  = [ param-type-item , { "," , param-type-item } ] ;
-param-type-item  = identifier , ":" , expression ;
+param-type-item  = identifier , ":" , expression , [ "=" , literal ] ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)

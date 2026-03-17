@@ -189,7 +189,7 @@ function normalizeStructure(ts: TypeStructure): TypeStructure {
 }
 
 /** Format a RillValue as a rill literal for use in type signatures. */
-function formatRillLiteral(value: RillValue): string {
+export function formatRillLiteral(value: RillValue): string {
   if (typeof value === 'string') {
     const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `"${escaped}"`;
@@ -490,6 +490,16 @@ export function structureMatches(
       if (param.name !== field.name) return false;
       const paramType: TypeStructure = param.type ?? { kind: 'any' };
       if (!structureEquals(paramType, field.type)) return false;
+      // Directional default rules: value (superset) satisfies type (contract)
+      const valueHasDefault = param.defaultValue !== undefined;
+      const typeHasDefault = field.defaultValue !== undefined;
+      if (!valueHasDefault && typeHasDefault) return false;
+      if (valueHasDefault && typeHasDefault) {
+        if (!registryDeepEquals(param.defaultValue!, field.defaultValue!))
+          return false;
+      }
+      // value has default + type lacks → compatible (superset satisfies)
+      // neither has default → compatible
     }
     const retType: TypeStructure = value.returnType.structure;
     if (t.ret === undefined) return true;

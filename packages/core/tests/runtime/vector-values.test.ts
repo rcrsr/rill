@@ -11,7 +11,7 @@ import {
   inferType,
   isEmpty,
   isTruthy,
-} from '../../src/runtime/core/values.js';
+} from '@rcrsr/rill';
 
 describe('Vector value utilities', () => {
   describe('inferType', () => {

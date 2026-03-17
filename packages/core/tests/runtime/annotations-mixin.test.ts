@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { EvaluatorBase } from '../../src/runtime/core/eval/base.js';
 import { AnnotationsMixin } from '../../src/runtime/core/eval/mixins/annotations.js';
-import { createRuntimeContext } from '../../src/runtime/index.js';
+import { createRuntimeContext } from '@rcrsr/rill';
 import { RuntimeError } from '@rcrsr/rill';
 import type { StatementNode } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';

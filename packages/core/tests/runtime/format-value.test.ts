@@ -30,20 +30,17 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  callable,
+  createOrdered,
+  createVector,
   formatValue,
+  RuntimeError,
   serializeValue,
   toNative,
-  createVector,
-  createOrdered,
-} from '../../src/runtime/core/values.js';
-import type {
-  RillTuple,
-  RillTypeValue,
-  RillValue,
-} from '../../src/runtime/core/values.js';
-import { callable } from '../../src/runtime/core/callable.js';
-
-import { RuntimeError } from '@rcrsr/rill';
+  type RillTuple,
+  type RillTypeValue,
+  type RillValue,
+} from '@rcrsr/rill';
 import { run, runFull, createLogCollector } from '../helpers/runtime.js';
 
 // ============================================================

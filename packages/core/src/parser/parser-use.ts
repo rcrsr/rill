@@ -4,7 +4,12 @@
  */
 
 import { Parser } from './parser.js';
-import type { UseExprNode, UseIdentifier, TypeRef } from '../types.js';
+import type {
+  UseExprNode,
+  UseIdentifier,
+  TypeRef,
+  LiteralNode,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import { parseTypeRef } from './parser-types.js';
@@ -100,8 +105,12 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
   );
 
   let typeRef: TypeRef | null = null;
-  let closureAnnotation: Array<{ name: string; typeRef: TypeRef }> | null =
-    null;
+  let closureAnnotation: Array<{
+    name: string;
+    typeRef: TypeRef;
+    defaultValue?: LiteralNode;
+  }> | null = null;
+  const parseLiteral = () => this.parseLiteral();
 
   if (check(this.state, TOKEN_TYPES.COLON)) {
     if (peek(this.state, 1).type === TOKEN_TYPES.OR) {
@@ -127,11 +136,21 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
         );
         const paramTypeRef = parseTypeRef(this.state, {
           allowTrailingPipe: true,
+          parseLiteral,
         });
-        closureAnnotation.push({
+        const entry: {
+          name: string;
+          typeRef: TypeRef;
+          defaultValue?: LiteralNode;
+        } = {
           name: nameToken.value,
           typeRef: paramTypeRef,
-        });
+        };
+        if (check(this.state, TOKEN_TYPES.ASSIGN)) {
+          advance(this.state); // consume =
+          entry.defaultValue = parseLiteral();
+        }
+        closureAnnotation.push(entry);
         if (check(this.state, TOKEN_TYPES.COMMA)) {
           advance(this.state); // consume ,
         } else if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {

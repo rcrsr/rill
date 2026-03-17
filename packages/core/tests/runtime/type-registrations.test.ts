@@ -30,39 +30,35 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext } from '@rcrsr/rill';
-import { run } from '../helpers/runtime.js';
-
-// New dispatch functions from type-registrations
 import {
   BUILT_IN_TYPES,
-  inferType as newInferType,
-  formatValue as newFormatValue,
-  deepEquals as newDeepEquals,
-  serializeValue,
-  deserializeValue,
-  createTuple,
+  callable,
+  copyValue,
   createOrdered,
+  createRuntimeContext,
+  createTuple,
   createVector,
+  deepEquals as newDeepEquals,
+  deserializeValue,
+  formatValue as newFormatValue,
+  inferType as newInferType,
   isIterator,
+  RuntimeError,
+  serializeValue,
+  type RillTypeValue,
+  type RillValue,
   type TypeDefinition,
   type TypeProtocol,
-} from '../../src/runtime/core/types/registrations.js';
-import { copyValue } from '../../src/runtime/core/types/constructors.js';
+} from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
 
-// Old implementations from values.ts for comparison
+// Old implementations from values.ts for comparison.
+// These remain as internal imports because they verify parity between
+// the legacy values.ts functions and the new type-registrations dispatch.
 import {
   inferType as oldInferType,
   formatValue as oldFormatValue,
 } from '../../src/runtime/core/values.js';
-
-import type {
-  RillValue,
-  RillTypeValue,
-} from '../../src/runtime/core/values.js';
-
-import { callable } from '../../src/runtime/core/callable.js';
-import { RuntimeError } from '../../src/types.js';
 
 // ============================================================
 // Test Value Fixtures
