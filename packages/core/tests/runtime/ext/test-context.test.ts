@@ -300,7 +300,7 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
     );
   });
 
-  it('error has RILL-R053 errorId', async () => {
+  it('error is wrapped as RILL-R056 by the use<> resolver', async () => {
     const ctx = createTestContext({
       myext: {
         value: 'scalar' as RillValue,
@@ -333,7 +333,7 @@ describe('AC-16: traversal into list extension value throws RILL-R053', () => {
     );
   });
 
-  it('error has RILL-R053 errorId', async () => {
+  it('error is wrapped as RILL-R056 by the use<> resolver', async () => {
     const ctx = createTestContext({
       myext: {
         value: [1, 2, 3] as RillValue,
@@ -368,7 +368,7 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
     ).rejects.toThrow("Member 'nonexistent' not found in extension 'myext'");
   });
 
-  it('error has RILL-R053 errorId', async () => {
+  it('error is wrapped as RILL-R056 by the use<> resolver', async () => {
     const ctx = createTestContext({
       myext: {
         value: {

@@ -385,6 +385,114 @@ describe('buildExtensionBindings', () => {
   });
 
   // ============================================================
+  // UNION AND CLOSURE TYPE STRIPPING
+  // ============================================================
+
+  it('strips defaults from union member types', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        process: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'input',
+              type: {
+                kind: 'union',
+                members: [
+                  {
+                    kind: 'dict',
+                    fields: {
+                      name: { type: { kind: 'string' }, defaultValue: 'anon' },
+                    },
+                  },
+                  { kind: 'string' },
+                ],
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('dict(name: string)|string');
+    expect(result).not.toContain('= ');
+  });
+
+  it('strips defaults from closure ret inside union param type', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        apply: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'input',
+              type: {
+                kind: 'union',
+                members: [
+                  {
+                    kind: 'closure',
+                    params: [],
+                    ret: {
+                      kind: 'dict',
+                      fields: {
+                        key: {
+                          type: { kind: 'string' },
+                          defaultValue: 'default',
+                        },
+                      },
+                    },
+                  },
+                  { kind: 'number' },
+                ],
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain('|| :dict(key: string)|number');
+    expect(result).not.toContain('= ');
+  });
+
+  it('strips defaults from closure return type recursively', () => {
+    const tree: Record<string, RillValue> = {
+      ext: {
+        transform: toCallable({
+          fn: async () => null,
+          params: [
+            {
+              name: 'fn',
+              type: {
+                kind: 'closure',
+                params: [],
+                ret: {
+                  kind: 'dict',
+                  fields: {
+                    status: { type: { kind: 'string' }, defaultValue: 'ok' },
+                  },
+                },
+              },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: structureToTypeValue({ kind: 'any' }),
+        }),
+      },
+    };
+    const result = buildExtensionBindings(tree);
+    expect(result).toContain(':dict(status: string)');
+    expect(result).not.toContain('= ');
+  });
+
+  // ============================================================
   // PARSE VALIDATION ERROR (EC-4, AC-18)
   // ============================================================
 

@@ -7,7 +7,13 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import type { ExtensionFactoryResult, RillValue } from '@rcrsr/rill';
+import {
+  isApplicationCallable,
+  isTuple,
+  isVector,
+  type ExtensionFactoryResult,
+  type RillValue,
+} from '@rcrsr/rill';
 import {
   ConfigValidationError,
   ExtensionLoadError,
@@ -70,9 +76,21 @@ function mountValue(
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
     const existing = node[part];
-    if (existing === undefined || typeof existing !== 'object') {
+    if (existing === undefined) {
       const intermediate: Record<string, RillValue> = {};
       node[part] = intermediate as unknown as RillValue;
+    } else if (
+      typeof existing !== 'object' ||
+      existing === null ||
+      Array.isArray(existing) ||
+      isApplicationCallable(existing) ||
+      isTuple(existing) ||
+      isVector(existing)
+    ) {
+      const prefix = parts.slice(0, i + 1).join('.');
+      throw new ExtensionLoadError(
+        `Mount collision at "${prefix}": existing value is not a plain dict`
+      );
     }
     node = node[part] as unknown as Record<string, RillValue>;
   }

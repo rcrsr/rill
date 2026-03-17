@@ -87,6 +87,40 @@ function stripAnnotationType(structure: TypeStructure): TypeStructure {
       return { kind: 'list', element: stripAnnotationType(s.element) };
     }
   }
+  if (structure.kind === 'union') {
+    const s = structure as { kind: 'union'; members: TypeStructure[] };
+    return {
+      kind: 'union',
+      members: s.members.map((m) => stripAnnotationType(m)),
+    };
+  }
+  if (structure.kind === 'closure') {
+    const s = structure as {
+      kind: 'closure';
+      params?: Array<{ name?: string; type: TypeStructure }>;
+      ret?: TypeStructure;
+    };
+    const result: {
+      kind: 'closure';
+      params?: Array<{ name?: string; type: TypeStructure }>;
+      ret?: TypeStructure;
+    } = { kind: 'closure' };
+    if (s.params !== undefined) {
+      result.params = s.params.map((p) => {
+        const stripped: { name?: string; type: TypeStructure } = {
+          type: stripAnnotationType(p.type),
+        };
+        if (p.name !== undefined) {
+          stripped.name = p.name;
+        }
+        return stripped;
+      });
+    }
+    if (s.ret !== undefined) {
+      result.ret = stripAnnotationType(s.ret);
+    }
+    return result;
+  }
   return structure;
 }
 

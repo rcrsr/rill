@@ -40,41 +40,12 @@ export class ExtensionBindingError extends Error {
 
 /**
  * Format a RillParam as a rill source parameter declaration.
- * Produces `name: type` or `name: type = default` syntax.
+ * Produces `name: type` syntax matching the parser's closure annotation grammar.
  */
 function formatParam(param: RillParam): string {
   const typeName =
     param.type !== undefined ? formatStructure(param.type) : 'any';
-  if (param.defaultValue !== undefined) {
-    return `${param.name}: ${typeName} = ${formatDefaultLiteral(param.defaultValue)}`;
-  }
   return `${param.name}: ${typeName}`;
-}
-
-/**
- * Format a RillValue as a rill literal for default value rendering.
- */
-function formatDefaultLiteral(value: RillValue): string {
-  if (typeof value === 'string') {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
-  if (typeof value === 'number') return String(value);
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (value === null) return 'null';
-  if (Array.isArray(value)) {
-    const items = value.map(formatDefaultLiteral).join(', ');
-    return `list[${items}]`;
-  }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-    if (entries.length === 0) return '[:]';
-    const pairs = entries
-      .map(([k, v]) => `${k}: ${formatDefaultLiteral(v as RillValue)}`)
-      .join(', ');
-    return `[${pairs}]`;
-  }
-  return String(value);
 }
 
 /**
