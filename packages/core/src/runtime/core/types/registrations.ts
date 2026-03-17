@@ -7,8 +7,8 @@
  * convertTo, serialize), and a methods record populated from BUILTIN_METHODS.
  *
  * Dispatch functions (inferType, formatValue, deepEquals, serializeValue,
- * deserializeValue, copyValue) iterate registrations and delegate to
- * per-type protocol implementations.
+ * deserializeValue) iterate registrations and delegate to per-type
+ * protocol implementations.
  *
  * Registration order:
  *   primitives -> discriminator-based -> structural -> list -> dict fallback
@@ -775,34 +775,6 @@ export function deserializeValue(data: unknown, typeName: string): RillValue {
     }
   }
   throw new RuntimeError('RILL-R004', `Cannot deserialize as ${typeName}`);
-}
-
-/**
- * Copy a Rill value.
- * Reads immutable flag from registration.
- * Immutable types return same reference.
- * Mutable types (list, dict, iterator) recurse.
- *
- * IR-9: Renamed from deepCopyRillValue.
- */
-export function copyValue(value: RillValue): RillValue {
-  if (value === null || typeof value !== 'object') return value;
-  for (const reg of BUILT_IN_TYPES) {
-    if (reg.identity(value)) {
-      if (reg.immutable) return value;
-      break;
-    }
-  }
-  // Mutable: list or dict, recurse
-  if (Array.isArray(value)) {
-    return value.map(copyValue);
-  }
-  const dict = value as Record<string, RillValue>;
-  const copy: Record<string, RillValue> = {};
-  for (const [k, v] of Object.entries(dict)) {
-    copy[k] = copyValue(v);
-  }
-  return copy;
 }
 
 // ============================================================

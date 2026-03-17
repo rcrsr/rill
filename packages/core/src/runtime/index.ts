@@ -82,24 +82,23 @@ export {
 
 export type { NativeResult } from './core/values.js';
 
-// Extracted to types/ sub-modules
-export { inferType } from './core/types/registrations.js';
+// Extracted to types/ sub-modules (via barrel)
 export {
   commonType,
+  createTuple,
+  createVector,
   formatStructure,
   inferElementType,
   inferStructure,
-  paramToFieldDef,
-  structureEquals,
-  structureMatches,
-} from './core/types/operations.js';
-export { createTuple, createVector } from './core/types/constructors.js';
-export {
+  inferType,
   isIterator,
   isTuple,
   isTypeValue,
   isVector,
-} from './core/types/guards.js';
+  paramToFieldDef,
+  structureEquals,
+  structureMatches,
+} from './core/types/index.js';
 
 // Remain in values.ts
 export {

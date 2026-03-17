@@ -41,7 +41,6 @@ import {
   deepEquals as newDeepEquals,
   serializeValue,
   deserializeValue,
-  copyValue,
   createTuple,
   createOrdered,
   createVector,
@@ -49,6 +48,7 @@ import {
   type TypeDefinition,
   type TypeProtocol,
 } from '../../src/runtime/core/types/registrations.js';
+import { copyValue } from '../../src/runtime/core/types/constructors.js';
 
 // Old implementations from values.ts for comparison
 import {

@@ -5,7 +5,7 @@
  * vectors) and collection utilities (emptyForType, copyValue).
  *
  * Import constraints:
- * - Imports ONLY from ./structures.js and ./registrations.js
+ * - Imports from ./structures.js and ./guards.js
  * - No imports from values.ts or callable.ts
  */
 
@@ -16,7 +16,14 @@ import type {
   RillVector,
   TypeStructure,
 } from './structures.js';
-import { copyValue as registryCopyValue } from './registrations.js';
+import {
+  isCallable,
+  isIterator,
+  isOrdered,
+  isTuple,
+  isTypeValue,
+  isVector,
+} from './guards.js';
 import { RuntimeError } from '../../../types.js';
 
 /**
@@ -60,5 +67,36 @@ export function emptyForType(type: TypeStructure): RillValue {
   return {};
 }
 
-/** Copy a RillValue. Delegates to type-registrations. */
-export const copyValue: (value: RillValue) => RillValue = registryCopyValue;
+/**
+ * Copy a RillValue.
+ * Primitives and immutable compound values return the same reference.
+ * Mutable values (list, dict) copy recursively.
+ * Iterators return the same reference (not meaningfully copyable).
+ */
+export function copyValue(value: RillValue): RillValue {
+  if (value === null || typeof value !== 'object') return value;
+  // Immutable compound types
+  if (
+    isTuple(value) ||
+    isOrdered(value) ||
+    isVector(value) ||
+    isTypeValue(value) ||
+    isCallable(value)
+  )
+    return value;
+  // field_descriptor: immutable (no guard exported from guards.ts)
+  if (
+    '__rill_field_descriptor' in (value as Record<string, unknown>) &&
+    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
+  )
+    return value;
+  // Mutable list (Array but not tuple/ordered — those were checked above)
+  if (Array.isArray(value)) return (value as RillValue[]).map(copyValue);
+  // Iterator: mutable but opaque — return same reference
+  if (isIterator(value)) return value;
+  // Mutable dict
+  const dict = value as Record<string, RillValue>;
+  const copy: Record<string, RillValue> = {};
+  for (const [k, v] of Object.entries(dict)) copy[k] = copyValue(v);
+  return copy;
+}
