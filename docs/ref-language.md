@@ -71,7 +71,7 @@ See [Control Flow](topic-control-flow.md) for detailed documentation. Script-lev
 | `-> filter { cond }` | Parallel filter, matching elements |
 | `-> fold(init) { body }` | Sequential reduction, final result |
 
-See [Collections](topic-collections.md) for detailed documentation.
+See [Collections](topic-collections.md) for detailed documentation. All four operators (`each`, `map`, `filter`, `fold`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
 
 ### Types
 
@@ -86,11 +86,12 @@ See [Collections](topic-collections.md) for detailed documentation.
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
+| Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `stream`, `any`, `type`
 
-Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime.
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
 **Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. See [Type System](topic-type-system.md) for union type documentation.
 

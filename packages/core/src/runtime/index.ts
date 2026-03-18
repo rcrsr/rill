@@ -37,6 +37,7 @@ export type {
   ResolverResult,
   RillFieldDef,
   RillIterator,
+  RillStream,
   RillTuple,
   RillTypeValue,
   RillValue,
@@ -93,6 +94,7 @@ export {
   compareStructuredFields,
   copyValue,
   createOrdered,
+  createRillStream,
   createTuple,
   createVector,
   deepEquals,
@@ -104,6 +106,8 @@ export {
   inferStructure,
   inferType,
   isIterator,
+  isRillStream,
+  isStream,
   isTuple,
   isTypeValue,
   isVector,
@@ -130,7 +134,7 @@ export { buildFieldDescriptor } from './core/field-descriptor.js';
 // CONTROL FLOW SIGNALS
 // ============================================================
 
-export { BreakSignal, ReturnSignal } from './core/signals.js';
+export { BreakSignal, ReturnSignal, YieldSignal } from './core/signals.js';
 
 // ============================================================
 // EXTENSION API

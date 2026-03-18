@@ -32,7 +32,8 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isIterator, isVector } from '../../types/guards.js';
+import { isIterator, isStream, isVector } from '../../types/guards.js';
+import type { RillStream } from '../../types/structures.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict, marshalArgs } from '../../callable.js';
@@ -50,7 +51,7 @@ const DEFAULT_MAX_ITERATIONS = 10000;
  * CollectionsMixin implementation.
  *
  * Evaluates collection operators: each, map, fold, filter.
- * Handles iteration over lists, strings, dicts, and iterators.
+ * Handles iteration over lists, strings, dicts, iterators, and streams.
  *
  * Depends on:
  * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
@@ -70,11 +71,12 @@ const DEFAULT_MAX_ITERATIONS = 10000;
  * - getIterableElements(input) -> Promise<RillValue[]> (helper)
  * - evaluateIteratorBody(body, element, accumulator) -> Promise<RillValue> (helper)
  * - expandIterator(iterator, limit?) -> Promise<RillValue[]> (helper)
+ * - expandStream(stream, node, limit?) -> Promise<RillValue[]> (helper)
  */
 function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class CollectionsEvaluator extends Base {
     /**
-     * Get elements from an iterable value (list, string, dict, or iterator).
+     * Get elements from an iterable value (list, string, dict, iterator, or stream).
      * Throws RuntimeError if value is not iterable.
      */
     protected async getIterableElements(
@@ -85,7 +87,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (isVector(input)) {
         throw new RuntimeError(
           'RILL-R003',
-          'Collection operators require list, string, dict, or iterator, got vector',
+          'Collection operators require list, string, dict, iterator, or stream, got vector',
           node.span.start
         );
       }
@@ -94,6 +96,10 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       if (typeof input === 'string') {
         return [...input];
+      }
+      // Check for stream BEFORE iterator (streams satisfy iterator shape)
+      if (isStream(input)) {
+        return this.expandStream(input, node);
       }
       // Check for iterator protocol BEFORE generic dict handling
       if (isIterator(input)) {
@@ -109,7 +115,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       throw new RuntimeError(
         'RILL-R002',
-        `Collection operators require list, string, dict, or iterator, got ${inferType(input)}`,
+        `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`,
         node.span.start
       );
     }
@@ -165,6 +171,108 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         throw new RuntimeError(
           'RILL-R010',
           `Iterator expansion exceeded ${limit} iterations`,
+          node.span.start,
+          { limit, iterations: count }
+        );
+      }
+
+      return elements;
+    }
+
+    /**
+     * Expand a stream to a list of chunk values.
+     * Consumes async chunks by repeatedly calling the stream's next callable.
+     * Respects iteration limits to prevent unbounded expansion.
+     *
+     * On BreakSignal, calls the stream's dispose callable (if present)
+     * before re-throwing (NFR-STREAM-2).
+     */
+    protected async expandStream(
+      stream: RillStream,
+      node: { span: { start: SourceLocation } },
+      limit: number = DEFAULT_MAX_ITERATIONS
+    ): Promise<RillValue[]> {
+      const elements: RillValue[] = [];
+      let current: RillStream = stream;
+      let count = 0;
+      let expectedType: string | undefined;
+
+      try {
+        while (!current.done && count < limit) {
+          this.checkAborted();
+          const val = current['value'];
+          if (val !== undefined) {
+            const actualType = inferType(val);
+            if (expectedType === undefined) {
+              expectedType = actualType;
+            } else if (actualType !== expectedType) {
+              throw new RuntimeError(
+                'RILL-R004',
+                `Stream chunk type mismatch: expected ${expectedType}, got ${actualType}`,
+                node.span.start
+              );
+            }
+            elements.push(val);
+          }
+          count++;
+
+          // Invoke next() to advance the stream
+          const nextClosure = current['next'];
+          if (nextClosure === undefined || !isCallable(nextClosure)) {
+            throw new RuntimeError(
+              'RILL-R002',
+              'Stream .next must be a closure',
+              node.span.start
+            );
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const nextStep = await (this as any).invokeCallable(
+            nextClosure,
+            [],
+            this.ctx,
+            node.span.start
+          );
+          if (typeof nextStep !== 'object' || nextStep === null) {
+            throw new RuntimeError(
+              'RILL-R002',
+              'Stream .next must return a stream step',
+              node.span.start
+            );
+          }
+          current = nextStep as RillStream;
+        }
+      } catch (e) {
+        if (e instanceof BreakSignal) {
+          // Dispose stream resources before re-throwing (IR-14)
+          // Access __rill_stream_dispose on the original stream object
+          // (step objects don't carry dispose; it lives on the root stream)
+          const disposeFn = (
+            stream as unknown as Record<string, (() => void) | undefined>
+          )['__rill_stream_dispose'];
+          if (typeof disposeFn === 'function') {
+            try {
+              disposeFn();
+            } catch (disposeErr) {
+              // Propagate dispose errors as RILL-R002 (EC-15)
+              if (disposeErr instanceof RuntimeError) throw disposeErr;
+              throw new RuntimeError(
+                'RILL-R002',
+                disposeErr instanceof Error
+                  ? disposeErr.message
+                  : String(disposeErr),
+                node.span.start
+              );
+            }
+          }
+          throw e;
+        }
+        throw e;
+      }
+
+      if (count >= limit) {
+        throw new RuntimeError(
+          'RILL-R010',
+          `Stream expansion exceeded ${limit} iterations`,
           node.span.start,
           { limit, iterations: count }
         );

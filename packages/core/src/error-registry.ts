@@ -311,6 +311,25 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
+    errorId: 'RILL-P006',
+    category: 'parse',
+    description: 'Invalid syntax in context',
+    messageTemplate: '{message}',
+    cause:
+      'A syntactic construct was used in a context where it is not allowed.',
+    resolution: 'Check that the construct is used in the correct context.',
+    examples: [
+      {
+        description: 'Spread in unsupported position',
+        code: '$x.method(...$args)  # spread not supported in method calls',
+      },
+      {
+        description: 'yield outside stream closure',
+        code: '|x| yield  # yield requires :stream() return type',
+      },
+    ],
+  },
+  {
     errorId: 'RILL-P007',
     category: 'parse',
     description: 'Keyword and bracket not adjacent',

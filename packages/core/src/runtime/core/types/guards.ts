@@ -14,6 +14,7 @@ import type { CallableMarker } from './markers.js';
 import type {
   RillIterator,
   RillOrdered,
+  RillStream,
   RillTuple,
   RillTypeValue,
   RillValue,
@@ -80,6 +81,24 @@ export function isDict(value: RillValue): value is Record<string, RillValue> {
     !isTuple(value)
   );
 }
+
+/**
+ * Type guard for RillStream (async lazy sequence with resolution).
+ * A stream has the __rill_stream discriminator set to true.
+ * Must precede isIterator in dispatch order because streams
+ * satisfy the iterator structural shape.
+ */
+export function isStream(value: RillValue): value is RillStream {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_stream' in value &&
+    (value as RillStream).__rill_stream === true
+  );
+}
+
+/** Public API alias for isStream */
+export const isRillStream: (value: RillValue) => value is RillStream = isStream;
 
 /**
  * Type guard for Rill iterator (lazy sequence).

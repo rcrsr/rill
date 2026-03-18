@@ -28,4 +28,5 @@ export const VALID_TYPE_NAMES = [
   'any',
   'type',
   'iterator',
+  'stream',
 ] as const;

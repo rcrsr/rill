@@ -161,6 +161,16 @@ export interface ReturnNode extends BaseNode {
 }
 
 /**
+ * Yield: emit value from a stream closure.
+ * Used as chain terminator: $x -> yield
+ * Or bare: yield (implicit $ -> yield)
+ * Only valid inside a closure with :stream(T):R return type annotation.
+ */
+export interface YieldNode extends BaseNode {
+  readonly type: 'Yield';
+}
+
+/**
  * Pass: pass through pipe value unchanged.
  * Used as chain terminator: $x -> pass
  * Or bare: pass (implicit $ -> pass)
@@ -196,8 +206,8 @@ export interface ErrorNode extends BaseNode {
 
 export type ExpressionNode = PipeChainNode;
 
-/** Chain terminator: capture, break, or return */
-export type ChainTerminator = CaptureNode | BreakNode | ReturnNode;
+/** Chain terminator: capture, break, return, or yield */
+export type ChainTerminator = CaptureNode | BreakNode | ReturnNode | YieldNode;
 
 export interface PipeChainNode extends BaseNode {
   readonly type: 'PipeChain';
@@ -370,7 +380,7 @@ export interface DictEntryNode extends BaseNode {
  */
 export interface TypeConstructorNode extends BaseNode {
   readonly type: 'TypeConstructor';
-  readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered';
+  readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered' | 'stream';
   readonly args: FieldArg[];
 }
 
@@ -1062,6 +1072,7 @@ export type ASTNode =
   | CaptureNode
   | BreakNode
   | ReturnNode
+  | YieldNode
   | PassNode
   | AssertNode
   | PipeChainNode

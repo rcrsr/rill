@@ -791,6 +791,97 @@ anthropic::tool_loop(
 $loop_result.content
 ```
 
+## Stream Examples
+
+Stream host functions are unavailable in the test harness, so all stream examples use `text` fences.
+See [Types](topic-types.md) for stream type documentation and [Collections](topic-collections.md) for operator behavior.
+
+### Stream Consumption with `each` (Token Processing)
+
+Consume a host-provided token stream one chunk at a time:
+
+```text
+# Process each token from an LLM stream
+app::llm_stream("Explain rill in 3 sentences") => $tokens
+
+$tokens -> each {
+  $ -> log
+}
+# logs each token string as it arrives
+```
+
+Each iteration body receives one chunk as `$`. The host disposes the stream when all chunks are consumed.
+
+### Stream Resolution with `$s()`
+
+Iterate chunks and then read the resolution value:
+
+```text
+# Consume chunks, then get the final token usage
+app::llm_stream("Summarize this document") => $s
+
+$s -> each { $ -> log }
+
+# Resolution value is available after the stream closes
+$s()
+# Returns the resolution value (e.g., token count or finish reason)
+```
+
+`$s()` is safe to call after the stream closes. The resolution is cached and returns the same value on every call.
+
+### Stream with `fold` (Accumulation)
+
+Accumulate all chunks into a single string:
+
+```text
+# Fold all tokens into a complete response string
+app::llm_stream("Write a haiku") => $s
+
+$s -> fold("") { $@ ++ $ } => $full_response
+
+"Complete response: {$full_response}" -> log
+```
+
+`fold` reduces every chunk using `$@` as the accumulator. The initial value is the empty string `""`.
+
+### Parallel Resolution with `map { $() }`
+
+Resolve multiple streams in parallel using `map`:
+
+```text
+# Create streams from a list of prompts
+["Summarize A", "Summarize B", "Summarize C"] -> map {
+  app::llm_stream($)
+} => $streams
+
+# Consume all streams in parallel, collecting resolution values
+$streams -> map { $() }
+# Returns list of resolution values, one per stream
+```
+
+`map` runs each `$()` concurrently. Results preserve input order despite parallel execution.
+
+### Script Stream Production with `:stream(T):R`
+
+Define a stream closure that emits chunks from a script:
+
+```text
+# Stream closure: emit processed lines, resolve with line count
+|input: string| {
+  $input -> .split("\n") -> each {
+    $ -> .trim -> .empty -> !$ ? { $ -> yield }
+  }
+  return $input -> .split("\n") -> .len
+}:stream(string):number => $line_stream
+
+$line_stream("line one\nline two\nline three") => $s
+$s -> each { $ -> log }
+$s()
+# Returns 3 (total line count)
+```
+
+`yield` emits the piped value as a chunk. `return` sets the resolution value and closes the stream.
+
 ## See Also
 
 - [Guide](guide-getting-started.md) — Getting started tutorial

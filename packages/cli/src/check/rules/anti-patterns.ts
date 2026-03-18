@@ -12,6 +12,8 @@ import type {
   ASTNode,
   BinaryExprNode,
   CaptureNode,
+  ClosureCallNode,
+  ClosureNode,
   ConditionalNode,
   GroupedExprNode,
   EachExprNode,
@@ -20,7 +22,10 @@ import type {
   FoldExprNode,
   PipeChainNode,
   PostfixExprNode,
+  ScriptNode,
+  TypeConstructorNode,
   UnaryExprNode,
+  VariableNode,
   WhileLoopNode,
   DoWhileLoopNode,
 } from '@rcrsr/rill';
@@ -540,4 +545,248 @@ function getParenNestingDepth(node: ASTNode): number {
 
   traverse(node, 0);
   return maxDepth;
+}
+
+// ============================================================
+// STREAM_PRE_ITERATION RULE
+// ============================================================
+
+/** Collection operator node types that consume a stream via iteration */
+const ITERATION_NODE_TYPES = new Set([
+  'EachExpr',
+  'MapExpr',
+  'FilterExpr',
+  'FoldExpr',
+]);
+
+/**
+ * Warns when a stream variable is invoked before any iteration consumes it.
+ * Invoking a stream closure ($s()) before iterating ($s -> each { ... })
+ * consumes chunks internally, leaving no data for iteration.
+ *
+ * Detection:
+ * - Tracks variables captured from stream closures (returnTypeTarget = stream)
+ *   or captured with explicit :stream type annotation
+ * - Records first invocation (ClosureCall) and first iteration (each/map/filter/fold)
+ * - Warns when invocation precedes iteration in source order
+ *
+ * No warning if:
+ * - Iteration appears before invocation
+ * - Variable is only iterated (never invoked before iteration)
+ * - Variable is only invoked (no iteration to conflict)
+ *
+ * References:
+ * - IR-15: Lint Warning for Pre-Iteration Invocation
+ */
+export const STREAM_PRE_ITERATION: ValidationRule = {
+  code: 'STREAM_PRE_ITERATION',
+  category: 'anti-patterns',
+  severity: 'warning',
+  nodeTypes: ['Script'],
+
+  validate(node: ASTNode, context: ValidationContext): Diagnostic[] {
+    const scriptNode = node as ScriptNode;
+    const diagnostics: Diagnostic[] = [];
+
+    // Phase 1: Collect stream variable names from capture sites
+    const streamVars = new Set<string>();
+    collectStreamVariables(scriptNode, streamVars);
+
+    if (streamVars.size === 0) {
+      return diagnostics;
+    }
+
+    // Phase 2: Find first invocation and first iteration for each stream variable
+    const firstInvocation = new Map<string, ClosureCallNode>();
+    const firstIteration = new Map<string, ASTNode>();
+    collectStreamUsages(
+      scriptNode,
+      streamVars,
+      firstInvocation,
+      firstIteration
+    );
+
+    // Phase 3: Emit warning for each variable invoked before iteration
+    for (const varName of streamVars) {
+      const invocation = firstInvocation.get(varName);
+      const iteration = firstIteration.get(varName);
+
+      if (!invocation) {
+        continue;
+      }
+
+      // Warn if invoked and no iteration exists, or invocation precedes iteration
+      const invokedBeforeIteration =
+        !iteration ||
+        invocation.span.start.line < iteration.span.start.line ||
+        (invocation.span.start.line === iteration.span.start.line &&
+          invocation.span.start.column < iteration.span.start.column);
+
+      if (invokedBeforeIteration) {
+        diagnostics.push({
+          location: invocation.span.start,
+          severity: 'warning',
+          code: 'STREAM_PRE_ITERATION',
+          message: `Stream invoked before iteration; chunks consumed internally. '$${varName}' at line ${invocation.span.start.line}`,
+          context: extractContextLine(
+            invocation.span.start.line,
+            context.source
+          ),
+          fix: null,
+        });
+      }
+    }
+
+    return diagnostics;
+  },
+};
+
+/**
+ * Collect variable names captured from stream closures or with :stream type.
+ * Traverses AST to find PipeChains containing a Capture in their pipes where:
+ * - The capture has typeRef with typeName 'stream'
+ * - The PipeChain head is a stream-returning closure
+ *
+ * Note: Capture nodes appear in PipeChain.pipes (not .terminator).
+ * Only Break/Return/Yield use the terminator slot.
+ */
+function collectStreamVariables(node: ASTNode, streamVars: Set<string>): void {
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type !== 'PipeChain') return;
+
+      const chain = n as PipeChainNode;
+
+      // Find the last Capture in the pipes array
+      const capture = findTrailingCapture(chain);
+      if (!capture) return;
+
+      const varName = capture.name;
+
+      // Check 1: Capture with explicit :stream type annotation
+      if (
+        capture.typeRef &&
+        capture.typeRef.kind === 'static' &&
+        capture.typeRef.typeName === 'stream'
+      ) {
+        streamVars.add(varName);
+        return;
+      }
+
+      // Check 2: Head is a closure with stream return type
+      if (isStreamClosure(chain)) {
+        streamVars.add(varName);
+      }
+    },
+    exit() {},
+  });
+}
+
+/**
+ * Find the trailing Capture node in a PipeChain's pipes array.
+ * Returns null if the last pipe element is not a Capture.
+ */
+function findTrailingCapture(chain: PipeChainNode): CaptureNode | null {
+  const lastPipe = chain.pipes[chain.pipes.length - 1];
+  if (lastPipe && lastPipe.type === 'Capture') {
+    return lastPipe as CaptureNode;
+  }
+  return null;
+}
+
+/**
+ * Check if a PipeChain's head (or piped result) is a stream-returning closure.
+ * Detects closures with returnTypeTarget of stream type.
+ */
+function isStreamClosure(chain: PipeChainNode): boolean {
+  const head = chain.head;
+  if (head.type !== 'PostfixExpr') return false;
+
+  const postfix = head as PostfixExprNode;
+  if (postfix.primary.type !== 'Closure') return false;
+
+  const closure = postfix.primary as ClosureNode;
+  const returnType = closure.returnTypeTarget;
+  if (!returnType) return false;
+
+  // TypeConstructorNode: :stream(), :stream(number), :stream(number):string
+  if ('type' in returnType && returnType.type === 'TypeConstructor') {
+    return (returnType as TypeConstructorNode).constructorName === 'stream';
+  }
+
+  // TypeRef: :stream (simple form)
+  if ('kind' in returnType && returnType.kind === 'static') {
+    return returnType.typeName === 'stream';
+  }
+
+  return false;
+}
+
+/**
+ * Collect first invocation and first iteration sites for stream variables.
+ * Traverses AST in source order, recording only the first occurrence of each.
+ */
+function collectStreamUsages(
+  node: ASTNode,
+  streamVars: Set<string>,
+  firstInvocation: Map<string, ClosureCallNode>,
+  firstIteration: Map<string, ASTNode>
+): void {
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      // Detect invocation: $s() as ClosureCall
+      if (n.type === 'ClosureCall') {
+        const call = n as ClosureCallNode;
+        if (
+          streamVars.has(call.name) &&
+          call.accessChain.length === 0 &&
+          !firstInvocation.has(call.name)
+        ) {
+          firstInvocation.set(call.name, call);
+        }
+        return;
+      }
+
+      // Detect iteration: $s -> each/map/filter/fold
+      if (n.type === 'PipeChain') {
+        const chain = n as PipeChainNode;
+        const varName = getPipeHeadVariableName(chain);
+        if (
+          varName !== null &&
+          streamVars.has(varName) &&
+          !firstIteration.has(varName)
+        ) {
+          // Check if any pipe target is an iteration operator
+          for (const pipe of chain.pipes) {
+            if (ITERATION_NODE_TYPES.has(pipe.type)) {
+              firstIteration.set(varName, pipe);
+              break;
+            }
+          }
+        }
+      }
+    },
+    exit() {},
+  });
+}
+
+/**
+ * Extract the variable name from a PipeChain head if it's a simple variable reference.
+ * Returns null for complex heads (binary expressions, host calls, etc.).
+ */
+function getPipeHeadVariableName(chain: PipeChainNode): string | null {
+  const head = chain.head;
+  if (head.type !== 'PostfixExpr') return null;
+
+  const postfix = head as PostfixExprNode;
+  if (postfix.primary.type !== 'Variable') return null;
+  if (postfix.methods.length > 0) return null;
+
+  const variable = postfix.primary as VariableNode;
+  if (variable.isPipeVar || variable.name === null) return null;
+  if (variable.accessChain.length > 0) return null;
+
+  return variable.name;
 }

@@ -11,6 +11,7 @@
 
 import type {
   RillOrdered,
+  RillStream,
   RillTuple,
   RillValue,
   RillVector,
@@ -20,10 +21,12 @@ import {
   isCallable,
   isIterator,
   isOrdered,
+  isStream,
   isTuple,
   isTypeValue,
   isVector,
 } from './guards.js';
+import { callable } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
 
 /**
@@ -68,6 +71,162 @@ export function emptyForType(type: TypeStructure): RillValue {
 }
 
 /**
+ * Create a RillStream from an AsyncIterable of chunks and a resolve function.
+ *
+ * The stream is a linked-list of steps. Each `.next` call advances to the
+ * next chunk. Once exhausted, `done` becomes true and re-iteration throws
+ * RILL-R002. The `resolve` function is called after chunk exhaustion (or on
+ * direct invocation) and caches its result for idempotent access.
+ *
+ * @throws {RuntimeError} RILL-R003 if chunks is not an AsyncIterable
+ * @throws {RuntimeError} RILL-R003 if resolve is not a function
+ */
+export function createRillStream(options: {
+  chunks: AsyncIterable<RillValue>;
+  resolve: () => Promise<RillValue>;
+  dispose?: (() => void) | undefined;
+  chunkType?: TypeStructure | undefined;
+  retType?: TypeStructure | undefined;
+}): RillStream {
+  const { chunks, resolve, dispose, chunkType, retType } = options;
+
+  // Validate chunks is AsyncIterable
+  if (
+    chunks === null ||
+    chunks === undefined ||
+    typeof (chunks as AsyncIterable<RillValue>)[Symbol.asyncIterator] !==
+      'function'
+  ) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'createRillStream requires AsyncIterable chunks'
+    );
+  }
+
+  // Validate resolve is a function
+  if (typeof resolve !== 'function') {
+    throw new RuntimeError(
+      'RILL-R003',
+      'createRillStream requires resolve function'
+    );
+  }
+
+  const iterator = chunks[Symbol.asyncIterator]();
+  let exhausted = false;
+  let disposed = false;
+  let cachedResolution: { value: RillValue } | undefined;
+
+  /** Idempotent resolve wrapper that caches the resolution value. */
+  async function resolveOnce(): Promise<RillValue> {
+    if (cachedResolution !== undefined) return cachedResolution.value;
+    const value = await resolve();
+    cachedResolution = { value };
+    return value;
+  }
+
+  /** Build a stream step from an iterator result. */
+  function makeStep(
+    iterResult: IteratorResult<RillValue, undefined>
+  ): RillStream {
+    if (iterResult.done) {
+      exhausted = true;
+      if (!disposed && dispose) {
+        disposed = true;
+        dispose();
+      }
+      const doneStep: RillStream = {
+        __rill_stream: true,
+        done: true,
+        next: callable(() => {
+          throw new RuntimeError(
+            'RILL-R002',
+            'Stream already consumed; cannot re-iterate'
+          );
+        }),
+      };
+      return doneStep;
+    }
+    let stale = false;
+    const step: RillStream = {
+      __rill_stream: true,
+      done: false,
+      value: iterResult.value,
+      next: callable(async () => {
+        if (stale) {
+          throw new RuntimeError(
+            'RILL-R002',
+            'Stream already consumed; cannot re-iterate'
+          );
+        }
+        if (exhausted) {
+          throw new RuntimeError(
+            'RILL-R002',
+            'Stream already consumed; cannot re-iterate'
+          );
+        }
+        stale = true;
+        const next = await iterator.next();
+        return makeStep(next);
+      }),
+    };
+    return step;
+  }
+
+  // Build initial step: eagerly fetch the first chunk
+  // The stream object itself is a "pending" step that advances on first .next call
+  let initialized = false;
+  const stream: RillStream = {
+    __rill_stream: true,
+    done: false,
+    next: callable(async () => {
+      if (initialized) {
+        throw new RuntimeError(
+          'RILL-R002',
+          'Stream already consumed; cannot re-iterate'
+        );
+      }
+      initialized = true;
+      const first = await iterator.next();
+      return makeStep(first);
+    }),
+  };
+
+  // Attach resolve as a hidden property for runtime access
+  Object.defineProperty(stream, '__rill_stream_resolve', {
+    value: resolveOnce,
+    enumerable: false,
+  });
+
+  if (dispose) {
+    Object.defineProperty(stream, '__rill_stream_dispose', {
+      value: () => {
+        if (!disposed) {
+          disposed = true;
+          dispose();
+        }
+      },
+      enumerable: false,
+    });
+  }
+
+  if (chunkType) {
+    Object.defineProperty(stream, '__rill_stream_chunk_type', {
+      value: chunkType,
+      enumerable: false,
+    });
+  }
+
+  if (retType) {
+    Object.defineProperty(stream, '__rill_stream_ret_type', {
+      value: retType,
+      enumerable: false,
+    });
+  }
+
+  return stream;
+}
+
+/**
  * Copy a RillValue.
  * Primitives and immutable compound values return the same reference.
  * Mutable values (list, dict) copy recursively.
@@ -94,6 +253,8 @@ export function copyValue(value: RillValue): RillValue {
   if (Array.isArray(value)) return (value as RillValue[]).map(copyValue);
   // Iterator: mutable but opaque — return same reference
   if (isIterator(value)) return value;
+  // Stream: immutable — return same reference
+  if (isStream(value)) return value;
   // Mutable dict
   const dict = value as Record<string, RillValue>;
   const copy: Record<string, RillValue> = {};

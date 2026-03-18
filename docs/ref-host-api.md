@@ -157,6 +157,10 @@ export type { TypeStructure };
 export type { TypeDefinition, TypeProtocol };
 export type { RillTypeValue };
 
+// Stream helpers
+export { createRillStream, isRillStream };
+export type { RillStream };
+
 // Value types
 export type { RillValue };
 
@@ -235,6 +239,7 @@ type NativeValue =
 | `vector` | `{ model: string, dimensions: number }` |
 | `type` | `{ name: string, signature: string }` |
 | `iterator` | `{ done: boolean }` |
+| `stream` | `{ done: boolean }` |
 
 See [Host Integration](integration-host.md) for conversion examples and migration guidance.
 
@@ -498,7 +503,7 @@ type CallableFn = (
 | `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
 | `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
 
-**Returns:** `RillValue` or `Promise<RillValue>`.
+**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details.
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]` — their internal type cast is unchanged.
 
@@ -548,6 +553,107 @@ const fn: RillFunction = {
 ```
 
 Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list, dict, ordered, or closure types.
+
+---
+
+## Stream Helpers
+
+`RillStream` is a valid `RillValue`. A host function returns a stream to deliver incremental results to rill scripts.
+
+---
+
+### createRillStream
+
+```typescript
+createRillStream(options: {
+  chunks: AsyncIterable<RillValue>;
+  resolve: () => Promise<RillValue>;
+  dispose?: () => void;
+  chunkType?: TypeStructure;
+  retType?: TypeStructure;
+}): RillStream
+```
+
+Builds a `RillStream` from an `AsyncIterable` of chunk values and a resolution callback.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `chunks` | `AsyncIterable<RillValue>` | Async source of chunk values. Each yielded value is one stream step |
+| `resolve` | `() => Promise<RillValue>` | Called once when all chunks are consumed. Returns the final resolved value |
+| `dispose` | `() => void` | Optional cleanup function. Called when the stream is exhausted |
+| `chunkType` | `TypeStructure` | Optional structural type descriptor for chunk values |
+| `retType` | `TypeStructure` | Optional structural type descriptor for the resolved return value |
+
+```typescript
+import { createRillStream } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
+
+const fn: RillFunction = {
+  params: [{ name: 'prompt', type: { kind: 'string' } }],
+  fn: async (args) => {
+    async function* generateChunks(): AsyncIterable<RillValue> {
+      for await (const token of streamLLM(args.prompt as string)) {
+        yield token as RillValue;
+      }
+    }
+    return createRillStream({
+      chunks: generateChunks(),
+      resolve: async () => 'done' as RillValue,
+    });
+  },
+  returnType: structureToTypeValue({ kind: 'stream', chunk: { kind: 'string' }, ret: { kind: 'string' } }),
+};
+```
+
+---
+
+### isRillStream
+
+```typescript
+isRillStream(value: RillValue): value is RillStream
+```
+
+Returns `true` when `value` is a `RillStream`. Use this to detect stream results from `execute()`.
+
+```typescript
+import { isRillStream } from '@rcrsr/rill';
+import type { RillStream } from '@rcrsr/rill';
+```
+
+---
+
+### execute() Stream Result Path
+
+When a rill script returns a stream, `execute()` returns a `RillStream` inside `result.result`. Use `isRillStream` to detect it, then consume chunks by calling `step.next.fn`.
+
+```typescript
+import { parse, execute, createRuntimeContext, isRillStream } from '@rcrsr/rill';
+import type { RillStream } from '@rcrsr/rill';
+
+const ast = parse('app::stream_fn("prompt text")');
+const ctx = createRuntimeContext({ /* ... */ });
+const result = await execute(ast, ctx);
+
+if (isRillStream(result.result)) {
+  let step = result.result as RillStream;
+
+  // Advance through chunks; initial stream object has no value — call next first
+  step = (await step.next.fn({}, ctx)) as RillStream;
+  while (!step.done) {
+    console.log('chunk:', step.value);
+    step = (await step.next.fn({}, ctx)) as RillStream;
+  }
+
+  // Invoke the resolution callback via the hidden resolve property
+  const resolveFn = (step as unknown as Record<string, () => Promise<unknown>>)[
+    '__rill_stream_resolve'
+  ];
+  const finalValue = resolveFn ? await resolveFn() : undefined;
+  console.log('resolved:', finalValue);
+}
+```
+
+`step.done` is `false` while chunks remain. The initial stream object has no value — call `step.next.fn({}, ctx)` to get the first step. When `step.done` is `true`, all chunks are consumed. The resolution callback is stored as `__rill_stream_resolve` on the initial stream object.
 
 ---
 

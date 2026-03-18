@@ -121,7 +121,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         this.ctx.pipeValue = value; // OK: flows within chain
       }
 
-      // Handle chain terminator (capture, break, return)
+      // Handle chain terminator (capture, break, return, yield)
       if (chain.terminator) {
         if (chain.terminator.type === 'Break') {
           // Restore parent's $ before throwing (cleanup)
@@ -132,6 +132,19 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Restore parent's $ before throwing (cleanup)
           this.ctx.pipeValue = savedPipeValue;
           throw new ReturnSignal(value);
+        }
+        if (chain.terminator.type === 'Yield') {
+          // Restore parent's $ before throwing (cleanup)
+          this.ctx.pipeValue = savedPipeValue;
+          // Delegate to evaluateYield for chunk type validation + YieldSignal.
+          // When inside a stream closure body, evaluateYield pushes to the
+          // channel and blocks until the consumer pulls (returns Promise<void>).
+          // When outside, it throws YieldSignal synchronously.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this as any).evaluateYield(value, chain.terminator.span.start);
+          // After yield resumes (stream channel case), restore pipe value
+          // and return the yielded value as the chain result
+          return value;
         }
         // Capture
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -36,6 +36,9 @@ export class Parser {
   /** Parser state including tokens, position, and error collection */
   state: ParserState;
 
+  /** Tracks closure nesting depth for yield validation */
+  closureDepth = 0;
+
   constructor(
     tokens: Token[],
     options?: { recoveryMode?: boolean; source?: string }

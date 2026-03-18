@@ -18,6 +18,7 @@ import {
   isDict,
   isIterator,
   isOrdered,
+  isStream,
   isTuple,
   isTypeValue,
   isVector,
@@ -222,6 +223,7 @@ export function formatRillLiteral(value: RillValue): string {
   if (
     isVector(value) ||
     isIterator(value) ||
+    isStream(value) ||
     _isCallableGuard(value) ||
     isTypeValue(value)
   ) {
@@ -342,6 +344,33 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
         return false;
     }
     return true;
+  }
+
+  if (a.kind === 'stream' && b.kind === 'stream') {
+    const aStream = a as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    const bStream = b as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    const chunkEq =
+      aStream.chunk === undefined && bStream.chunk === undefined
+        ? true
+        : aStream.chunk !== undefined && bStream.chunk !== undefined
+          ? structureEquals(aStream.chunk, bStream.chunk)
+          : false;
+    if (!chunkEq) return false;
+    const retEq =
+      aStream.ret === undefined && bStream.ret === undefined
+        ? true
+        : aStream.ret !== undefined && bStream.ret !== undefined
+          ? structureEquals(aStream.ret, bStream.ret)
+          : false;
+    return retEq;
   }
 
   if (a.kind === 'closure' && b.kind === 'closure') {
@@ -493,7 +522,7 @@ export function structureMatches(
 
   // Delegate dict/tuple/ordered to compareStructuredFields
   if (type.kind === 'dict') {
-    if (!isDict(value)) return false;
+    if (!isDict(value) || isStream(value)) return false;
     return compareStructuredFields(
       type,
       type,
@@ -520,6 +549,28 @@ export function structureMatches(
       createMatchesCallbacks(value),
       false
     );
+  }
+
+  if (type.kind === 'stream') {
+    if (!isStream(value)) return false;
+    const t = type as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    if (t.chunk === undefined && t.ret === undefined) return true;
+    const raw = value as unknown as Record<string, TypeStructure | undefined>;
+    if (t.chunk !== undefined) {
+      const valueChunk = raw['__rill_stream_chunk_type'];
+      if (valueChunk !== undefined && !structureEquals(valueChunk, t.chunk))
+        return false;
+    }
+    if (t.ret !== undefined) {
+      const valueRet = raw['__rill_stream_ret_type'];
+      if (valueRet !== undefined && !structureEquals(valueRet, t.ret))
+        return false;
+    }
+    return true;
   }
 
   if (type.kind === 'closure') {
@@ -634,6 +685,18 @@ export function formatStructure(type: TypeStructure): string {
     return `${type.kind}(${inner})`;
   }
 
+  if (type.kind === 'stream') {
+    const t = type as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    if (t.chunk === undefined && t.ret === undefined) return 'stream';
+    const chunkStr = t.chunk !== undefined ? formatStructure(t.chunk) : 'any';
+    const retStr = t.ret !== undefined ? `:${formatStructure(t.ret)}` : '';
+    return `stream(${chunkStr})${retStr}`;
+  }
+
   if (type.kind === 'closure') {
     const t = type as ClosureStructure;
     if (t.params === undefined) return 'closure';
@@ -735,6 +798,21 @@ export function inferStructure(value: RillValue): TypeStructure {
   }
   if (isVector(value)) {
     return { kind: 'vector' };
+  }
+  if (isStream(value)) {
+    const raw = value as unknown as Record<string, TypeStructure | undefined>;
+    const chunk = raw['__rill_stream_chunk_type'];
+    const ret = raw['__rill_stream_ret_type'];
+    const result: {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    } = {
+      kind: 'stream',
+    };
+    if (chunk !== undefined) result.chunk = chunk;
+    if (ret !== undefined) result.ret = ret;
+    return result;
   }
   if (isCallable(value)) {
     const params = (value.params ?? []).map((p) =>

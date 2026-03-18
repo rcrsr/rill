@@ -37,6 +37,7 @@ export type NodeType =
   | 'DictEntry'
   | 'Break'
   | 'Return'
+  | 'Yield'
   | 'Pass'
   | 'Assert'
   | 'BinaryExpr'

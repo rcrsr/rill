@@ -23,6 +23,7 @@ import type {
   SourceLocation,
   StringLiteralNode,
   TupleLiteralNode,
+  TypeConstructorNode,
   TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
@@ -37,7 +38,7 @@ import {
   makeSpan,
 } from './state.js';
 import { isDictStart, isNegativeNumber, VALID_TYPE_NAMES } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseTypeRef, parseFieldArgList } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -566,21 +567,158 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
 // ============================================================
 
 /**
+ * Parse a stream type constructor: stream(T):R
+ *
+ * Grammar: "stream" "(" [type-ref] ")" [":" type-ref]
+ *
+ * Chunk type goes in args[0], resolution type in args[1].
+ * stream() → 0 args, stream(T) → 1 arg, stream(T):R → 2 args.
+ *
+ * @internal
+ */
+function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
+  const start = current(parser.state).span.start;
+  advance(parser.state); // consume 'stream'
+
+  if (!check(parser.state, TOKEN_TYPES.LPAREN)) {
+    throw new ParseError(
+      'RILL-P006',
+      'Expected type name in stream constructor',
+      current(parser.state).span.start
+    );
+  }
+
+  advance(parser.state); // consume '('
+
+  const args = parseFieldArgList(parser.state);
+
+  const rparen = expect(
+    parser.state,
+    TOKEN_TYPES.RPAREN,
+    'Expected )',
+    'RILL-P005'
+  );
+
+  // Check for resolution type: stream(T):R
+  if (check(parser.state, TOKEN_TYPES.COLON)) {
+    advance(parser.state); // consume ':'
+    skipNewlines(parser.state);
+
+    // Guard: resolution type must start with a valid type name
+    if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
+      throw new ParseError(
+        'RILL-P006',
+        "Expected type name after ':' in stream type",
+        current(parser.state).span.start
+      );
+    }
+
+    // Parse the resolution type reference
+    const resolutionType = parseTypeRef(parser.state);
+
+    // Ensure positional alignment: args[0] = chunk, args[1] = ret.
+    // When parens are empty (no chunk type), insert an 'any' placeholder
+    // so the runtime correctly maps arg positions.
+    if (args.length === 0) {
+      args.push({ value: { kind: 'static', typeName: 'any' } });
+    }
+    args.push({ value: resolutionType });
+
+    return {
+      type: 'TypeConstructor',
+      constructorName: 'stream',
+      args,
+      span: makeSpan(start, current(parser.state).span.end),
+    };
+  }
+
+  return {
+    type: 'TypeConstructor',
+    constructorName: 'stream',
+    args,
+    span: makeSpan(start, rparen.span.end),
+  };
+}
+
+/**
+ * Check whether a closure body contains any yield terminators at the
+ * immediate level (not inside nested closures). Returns true if at
+ * least one yield is found.
+ * @internal
+ */
+function bodyContainsYield(body: BodyNode): boolean {
+  if (body.type === 'PipeChain') {
+    if (body.terminator?.type === 'Yield') return true;
+    return false;
+  }
+  if (body.type === 'Block') {
+    for (const stmt of body.statements) {
+      const expr =
+        stmt.type === 'AnnotatedStatement'
+          ? stmt.statement.expression
+          : stmt.expression;
+      if (expr.terminator?.type === 'Yield') return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Validate that yield nodes in a closure body are only present when
+ * the closure has a stream return type. Throws RILL-P006 if yield
+ * appears without :stream(T):R annotation.
+ * @internal
+ */
+function validateYieldInClosure(
+  body: BodyNode,
+  returnTypeTarget: TypeRef | TypeConstructorNode | undefined,
+  closureStart: { line: number; column: number; offset: number }
+): void {
+  if (!bodyContainsYield(body)) return;
+
+  const isStream =
+    returnTypeTarget !== undefined &&
+    'type' in returnTypeTarget &&
+    returnTypeTarget.type === 'TypeConstructor' &&
+    returnTypeTarget.constructorName === 'stream';
+
+  if (!isStream) {
+    throw new ParseError(
+      'RILL-P006',
+      "'yield' is only valid inside a stream closure",
+      closureStart
+    );
+  }
+}
+
+/**
  * Parse the optional postfix `:type-target` after a closure body.
  *
  * Grammar: [ ":" , type-target ]
- * type-target = shape(...) | type-ref
+ * type-target = "stream" "(" [type-ref] ")" [":" type-ref] | type-ref
  *
- * Returns the parsed TypeRef or ShapeLiteralNode, or undefined if absent.
+ * Returns the parsed TypeRef, TypeConstructorNode, or undefined if absent.
  * Follows the same disambiguation logic as parsePostfixTypeOperation.
+ * Extended for stream(T):R return type pattern.
  */
-function parseClosureReturnTypeTarget(parser: Parser): TypeRef | undefined {
+function parseClosureReturnTypeTarget(
+  parser: Parser
+): TypeRef | TypeConstructorNode | undefined {
   skipNewlines(parser.state);
   if (!check(parser.state, TOKEN_TYPES.COLON)) {
     return undefined;
   }
   advance(parser.state); // consume ':'
   skipNewlines(parser.state);
+
+  // Stream type constructor: stream(T):R
+  if (
+    check(parser.state, TOKEN_TYPES.IDENTIFIER) &&
+    current(parser.state).value === 'stream'
+  ) {
+    return parseStreamTypeConstructor(parser);
+  }
 
   // Default: plain type name or dynamic type reference
   return parseTypeRef(parser.state);
@@ -592,8 +730,11 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   if (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
     skipNewlines(this.state);
+    this.closureDepth++;
     const body = this.parseBody(true);
+    this.closureDepth--;
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
+    validateYieldInClosure(body, returnTypeTarget, start);
     return {
       type: 'Closure',
       params: [],
@@ -648,8 +789,11 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     const typeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
     expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
     skipNewlines(this.state);
+    this.closureDepth++;
     const body = this.parseBody(true);
+    this.closureDepth--;
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
+    validateYieldInClosure(body, returnTypeTarget, start);
     const param: ClosureParamNode = {
       type: 'ClosureParam',
       name: '$',
@@ -682,8 +826,11 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
   skipNewlines(this.state);
 
+  this.closureDepth++;
   const body = this.parseBody(true);
+  this.closureDepth--;
   const returnTypeTarget = parseClosureReturnTypeTarget(this);
+  validateYieldInClosure(body, returnTypeTarget, start);
 
   return {
     type: 'Closure',
@@ -711,7 +858,8 @@ Parser.prototype.parseBody = function (
 
   if (
     check(this.state, TOKEN_TYPES.BREAK) ||
-    check(this.state, TOKEN_TYPES.RETURN)
+    check(this.state, TOKEN_TYPES.RETURN) ||
+    check(this.state, TOKEN_TYPES.YIELD)
   ) {
     return this.parsePipeChain();
   }

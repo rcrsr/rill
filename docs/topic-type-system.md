@@ -46,6 +46,7 @@ $lt.^type.name
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
 | `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
+| `stream(T):R` | `stream(string):number` | Stream type with chunk type T and resolution type R |
 
 ### Default Values in Type Constructors
 
@@ -229,11 +230,38 @@ The string representation of structural types follows this format:
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
+| Stream | `"stream(string):number"` (chunk type and resolution type) |
+| Bare stream (no constraints) | `"stream"` |
 | Bare list (no element type) | `"list"` |
 | Bare dict (no fields) | `"dict"` |
 | Bare tuple (no elements) | `"tuple"` |
 | Bare ordered (no fields) | `"ordered"` |
 | Bare closure (no params) | `"closure"` |
+
+### Stream Reflection
+
+Streams expose two annotation properties: `^chunk` and `^output`. Both return a `RillTypeValue`.
+
+| Property | Returns | Description |
+|----------|---------|-------------|
+| `^chunk` | `RillTypeValue` | Chunk type; `any` when unconstrained |
+| `^output` | `RillTypeValue` | Resolution type; `any` when unconstrained |
+
+```text
+# Accessing ^chunk and ^output on a stream value (requires host-provided stream)
+app::make_stream() => $s
+$s.^chunk    # returns any (unconstrained stream)
+$s.^output   # returns any (unconstrained stream)
+```
+
+```text
+# Typed stream: ^chunk and ^output reflect declared types
+app::make_typed_stream() => $s   # chunk: string, output: number
+$s.^chunk    # returns string type
+$s.^output   # returns number type
+```
+
+Structural subtyping applies to both chunk and resolution types. A `stream(string):number` satisfies `:stream(any):any` and `:stream`.
 
 ## Type Assertions
 
@@ -337,7 +365,7 @@ Type checks work in conditionals:
 $val -> :?list ? process() ! skip()   # branch on type
 ```
 
-**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `any`, `type`
+**Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `stream`, `any`, `type`
 
 Parameterized forms accept a type argument list: `list(string)`, `dict(a: number, b: string)`, `tuple(number, string)`. The runtime deep-validates element types on match.
 
@@ -382,6 +410,42 @@ $x -> .model
 [1, 2] => $x:list(number)
 $x[0]
 # Result: 1
+```
+
+### Stream Assertions
+
+`:stream` asserts the value is a stream. `:stream(T)` additionally validates the chunk type. `:stream(T):R` validates both the chunk type and the resolution type. `:?stream` returns a boolean.
+
+```text
+# :stream — assert value is a stream (requires host-provided stream)
+app::make_stream() => $s
+$s -> :stream
+```
+
+```text
+# :stream(T) — assert stream with specific chunk type
+app::make_stream() => $s
+$s -> :stream(string)
+```
+
+```text
+# :stream(T):R — assert stream with chunk and resolution types
+app::make_stream() => $s
+$s -> :stream(string):number
+```
+
+```text
+# :?stream — check type without halting
+app::make_stream() => $s
+$s -> :?stream
+# Result: true
+```
+
+Attempting to convert a non-stream value to a stream with `:>stream` halts execution — there is no conversion path to the stream type [EC-20]:
+
+```text
+# Error: RILL-R002: Cannot convert string to stream
+"hello" -> :>stream
 ```
 
 ### In Pipe Chains

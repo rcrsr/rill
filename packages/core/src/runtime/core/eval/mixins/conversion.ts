@@ -195,6 +195,15 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return input;
       }
 
+      // IR-11: :>stream is not supported — stream type cannot be a conversion target
+      if (targetType === 'stream') {
+        throw new RuntimeError(
+          'RILL-R003',
+          'Type conversion not supported for stream type',
+          this.getNodeLocation(node)
+        );
+      }
+
       // dict -> :>ordered without structural sig is always RILL-R037 (EC-11)
       if (sourceType === 'dict' && targetType === 'ordered') {
         throw new RuntimeError(

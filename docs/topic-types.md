@@ -555,6 +555,73 @@ $v1 == $v2
 $vec -> each { $ * 2 }
 ```
 
+## Streams
+
+A stream is a collection type that produces values over time. Unlike lists, streams emit chunks one at a time and carry a separate resolution value returned when the stream closes.
+
+The type signature `stream(T):R` names both parts: `T` is the chunk type, and `R` is the resolution type.
+
+```text
+stream(string):number   # chunks are strings, resolution is a number
+stream(number)          # chunks are numbers, resolution is unconstrained
+stream()                # unconstrained chunk and resolution types
+```
+
+### Chunk Type
+
+The chunk type `T` in `stream(T):R` constrains each emitted value. Inside a stream closure, `yield` emits the current pipe value as a chunk.
+
+```text
+|x| {
+  $x -> .upper -> yield
+  $x -> .lower -> yield
+} :stream(string)
+```
+
+`yield` appears as the terminator in a pipe chain. Use `$x -> yield` to emit a specific value, or bare `yield` to emit the current pipe value (`$`).
+
+The `yield` keyword is only valid inside a closure annotated with `:stream(T):R`. Using `yield` without that annotation is a parse error.
+
+### Resolution Type
+
+The resolution type `R` in `stream(T):R` constrains the value the stream returns when it closes. Call the stream variable as a function (`$s()`) to get the resolution value.
+
+```text
+make_stream() => $s
+$s()   # returns the resolution value
+```
+
+The resolution is produced by the stream's final expression or an explicit `return` statement in the stream closure body. Host-provided streams supply the resolution from the underlying async producer.
+
+A zero-chunk stream resolves immediately. Calling `$s()` returns the resolution value without consuming any chunks.
+
+### Single-Use Constraint
+
+A stream can be iterated only once. Passing a stream to a collection operator (`each`, `map`, `filter`, `fold`) consumes all its chunks. After that, the stream is done and produces no further chunks.
+
+```text
+make_stream() => $s
+$s -> each { $ }   # consumes the stream
+$s -> map { $ }    # Error: stream already consumed
+```
+
+Calling `$s()` after consuming the stream still returns the resolution value. The resolution is cached after the stream closes. `$s()` also works on any `.next()` step, including stale steps that can no longer advance. Only `.next()` fails on stale steps.
+
+### Stream as Collection
+
+All four collection operators work on streams. They consume chunks as the stream emits them and collect results when the stream closes.
+
+```text
+make_stream() => $s
+$s -> map { $ * 2 }           # transforms each chunk, returns list
+$s -> filter { $ > 0 }        # keeps matching chunks, returns list
+$s -> fold(0) { $@ + $ }      # reduces all chunks to a single value
+```
+
+See [Collections](topic-collections.md) for full operator documentation including stream behavior.
+
+For stream closure syntax and the `:stream(T):R` annotation on closures, see [Closures](topic-closures.md).
+
 ## See Also
 
 | Document | Description |

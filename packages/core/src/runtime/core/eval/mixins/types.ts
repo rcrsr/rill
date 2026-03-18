@@ -48,7 +48,7 @@ import {
   inferStructure,
   formatStructure,
 } from '../../types/operations.js';
-import { checkType } from '../../values.js';
+import { checkType, structureToTypeValue } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -347,6 +347,30 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
 
+        // Stream type: extract chunk/ret from args if present
+        if (typeName === 'stream') {
+          const streamStructure: {
+            kind: 'stream';
+            chunk?: TypeStructure;
+            ret?: TypeStructure;
+          } = { kind: 'stream' };
+          if (args.length > 0 && args[0] !== undefined) {
+            const chunkResolved = await this.resolveTypeRef(
+              args[0].value,
+              getVariableFn
+            );
+            streamStructure.chunk = chunkResolved.structure;
+          }
+          if (args.length > 1 && args[1] !== undefined) {
+            const retResolved = await this.resolveTypeRef(
+              args[1].value,
+              getVariableFn
+            );
+            streamStructure.ret = retResolved.structure;
+          }
+          return structureToTypeValue(streamStructure);
+        }
+
         // Delegate to buildCollectionType with recursive resolveTypeRef
         return this.buildCollectionType(
           typeName as 'list' | 'dict' | 'tuple' | 'ordered',
@@ -554,6 +578,30 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillTypeValue> {
       const name = node.constructorName;
       const location = node.span.start;
+
+      // Stream type constructor: extract chunk type (arg 0) and ret type (arg 1)
+      if (name === 'stream') {
+        const streamStructure: {
+          kind: 'stream';
+          chunk?: TypeStructure;
+          ret?: TypeStructure;
+        } = { kind: 'stream' };
+        if (node.args.length > 0 && node.args[0] !== undefined) {
+          const chunkResolved = await this.resolveTypeRef(
+            node.args[0].value,
+            (varName) => getVariable(this.ctx, varName)
+          );
+          streamStructure.chunk = chunkResolved.structure;
+        }
+        if (node.args.length > 1 && node.args[1] !== undefined) {
+          const retResolved = await this.resolveTypeRef(
+            node.args[1].value,
+            (varName) => getVariable(this.ctx, varName)
+          );
+          streamStructure.ret = retResolved.structure;
+        }
+        return structureToTypeValue(streamStructure);
+      }
 
       return this.buildCollectionType(
         name,

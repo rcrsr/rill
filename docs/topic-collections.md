@@ -221,6 +221,26 @@ Use `break` to exit `each` early. Returns partial results collected before the b
 # Result: []
 ```
 
+### Streams with each
+
+`each` consumes stream chunks sequentially. Each chunk is one iteration. Returns a `list` of body results.
+
+```text
+# Stream: each chunk is one call
+app::lines("file.txt") -> each { $ -> .upper }
+# Returns list of uppercased lines
+```
+
+An empty stream returns `[]` without executing the body.
+
+`each(init)` carries the `$@` accumulator across chunks. Returns the list of per-chunk results (not the final accumulator).
+
+```text
+# Accumulator persists across stream chunks
+app::stream_numbers() -> each(0) { $@ + $ }
+# Returns running totals across all chunks
+```
+
 ---
 
 ## map — Parallel Iteration
@@ -274,6 +294,18 @@ Use `map` when:
 [] -> map { $ * 2 }
 # Result: []
 ```
+
+### Streams with map
+
+`map` transforms each stream chunk and returns a `list` (not a stream). All chunks are consumed before the result is available.
+
+```text
+# Each stream chunk is transformed; result is a list
+app::stream_numbers() -> map { $ * 2 }
+# Returns list[...] — not a stream
+```
+
+An empty stream returns `[]`.
 
 ---
 
@@ -365,6 +397,18 @@ Filters characters in a string.
 [1, 2, 3] -> filter { $ > 10 }
 # Result: []
 ```
+
+### Streams with filter
+
+`filter` tests each stream chunk and returns a `list` (not a stream). Chunks that pass the predicate are included; others are dropped.
+
+```text
+# Each stream chunk is tested; result is a list
+app::stream_numbers() -> filter { $ > 0 }
+# Returns list[...] of matching chunks — not a stream
+```
+
+An empty stream returns `[]`.
 
 ---
 
@@ -473,6 +517,18 @@ Define closures for common reductions.
 # Result: 100
 ```
 
+### Streams with fold
+
+`fold` reduces stream chunks with the accumulator, returning a single value. The accumulator `$@` carries state across every chunk.
+
+```text
+# Reduce all stream chunks to a single value
+app::stream_numbers() -> fold(0) { $@ + $ }
+# Returns the sum of all chunks
+```
+
+An empty stream returns the initial value without executing the body.
+
 ---
 
 ## Comparison: each vs fold
@@ -512,6 +568,56 @@ Use `fold` when you only need the final result:
 # Final balance
 [100, -50, 200, -75] -> fold(0) { $@ + $ }
 # Result: 175
+```
+
+---
+
+## Stream Iteration
+
+Streams produce chunks over time. Collection operators consume all chunks before returning. All stream examples use `text` fences because stream host functions are unavailable in the test harness.
+
+### break in Stream Operators
+
+`break` stops iteration immediately. The host cleanup function (`dispose`) runs to release stream resources.
+
+```text
+# Stop after the first matching chunk; host disposes the stream
+app::log_stream() -> each {
+  ($ -> .contains("ERROR")) ? break
+  $
+}
+```
+
+### ^(limit: N) on Streams
+
+The `^(limit: N)` operator stops iteration after N chunks and calls host cleanup.
+
+```text
+# Process at most 100 chunks; host disposes the stream
+app::events() ^(limit: 100) -> each { $ }
+```
+
+Use `^(limit: N)` when you want a fixed-size sample from an unbounded stream.
+
+### Iteration Ceiling
+
+Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R010 and halts execution. Use `^(limit: N)` to consume at most N chunks and stay within bounds.
+
+```text
+# Error: exceeds iteration ceiling
+app::infinite_stream() -> each { $ }
+# RILL-R010: halts on the 10,001st chunk
+```
+
+### Re-iteration Halt
+
+A consumed stream cannot be re-iterated. Passing a consumed stream to a second operator halts execution with an error.
+
+```text
+# Error: stream already consumed
+app::stream_numbers() => $s
+$s -> each { $ }
+$s -> each { $ }   # Halts: stream is consumed
 ```
 
 ---

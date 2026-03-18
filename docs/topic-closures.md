@@ -63,6 +63,9 @@ The last row shows the key difference: `( )` requires `$` to already be defined,
 |type| { body }
 |type| { body }:returnType    # with return type annotation
 
+# Stream closure (yields chunks, returns resolution value)
+|type| { body }:stream(T):R   # chunk type T, resolution type R
+
 # With named parameters
 |x| { body }
 |x|body          # shorthand
@@ -133,7 +136,7 @@ Anonymous typed closures compose naturally in pipe chains:
 
 ### Reserved Type Keywords
 
-All 11 reserved type keywords are valid as the anonymous typed closure parameter:
+All 12 reserved type keywords are valid as the anonymous typed closure parameter:
 
 | Keyword | Accepts |
 |---------|---------|
@@ -148,6 +151,7 @@ All 11 reserved type keywords are valid as the anonymous typed closure parameter
 | `vector` | Vector values |
 | `any` | All value types |
 | `type` | Type values (e.g., `number`, `string` as values) |
+| `stream` | Stream values (use in return annotation: `:stream(T):R`) |
 
 A non-keyword identifier in the same position (e.g., `|x|{ body }`) parses as a named parameter, not an anonymous typed closure.
 
@@ -357,6 +361,96 @@ $six                   # 6
 ```
 
 Use `( )` when you want the result now. Use `{ }` when you want reusable logic.
+
+---
+
+## Stream Closures
+
+A stream closure emits a sequence of chunks and then resolves with a final value. Declare a stream closure by appending `:stream(T):R` as the return type annotation, where `T` is the chunk type and `R` is the resolution type.
+
+### Annotation Syntax
+
+```text
+# Stream closure: emits string chunks, resolves to number
+|string| { body }:stream(string):number
+
+# Unconstrained chunk and resolution types
+{ body }:stream()
+```
+
+The annotation `:stream(T):R` on a closure body changes invocation semantics. Calling the closure returns a stream value, not the body result directly.
+
+### `yield` and `return`
+
+Inside a stream closure body, two keywords control output:
+
+| Keyword | Effect |
+|---------|--------|
+| `yield` | Emits the current pipe value as a chunk |
+| `return` | Sets the stream's resolution value and closes the stream |
+
+```text
+# Stream closure emitting three string chunks and resolving with a count
+|| {
+  "first" -> yield
+  "second" -> yield
+  "third" -> yield
+  return 3
+}:stream(string):number => $producer
+
+$producer() => $s       # calling the closure returns a stream
+$s -> each { $ }        # ["first", "second", "third"]
+$s()                    # 3 (resolution value)
+```
+
+`yield` is the inverse of `$@` (the fold accumulator). `$@` consumes values from outside into a closure; `yield` produces values outward from a closure body.
+
+### `yield` Scoping Rules
+
+`yield` is lexically scoped to the stream closure body. It is valid inside inline blocks and collection operators within that body. It is not valid inside a stored closure defined within the stream body.
+
+```text
+# Valid: yield inside inline collection operator block
+|| {
+  [1, 2, 3] -> each { $ -> yield }
+  return 3
+}:stream(number):number
+
+# Invalid: yield inside a stored closure
+|| {
+  { $ -> yield } => $fn   # Error: yield not valid in stored closure
+  $fn(1)
+}:stream(number):number
+```
+
+### Calling a Stream Closure
+
+Calling a stream closure returns a stream value, not the body result. The stream then accepts collection operators and the resolution call.
+
+```text
+$producer() => $s       # $s is a stream, not the body's return value
+$s -> map { $ }         # consume chunks with map
+$s()                    # get resolution value after stream closes
+```
+
+### `yield` as Inverse of `$@`
+
+`$@` pulls a value inward (the fold accumulator). `yield` pushes a value outward (emitting a chunk). This symmetry makes stream closures composable with fold:
+
+```text
+# fold accumulates inward with $@
+[1, 2, 3] -> fold(0) { $@ + $ }    # 6
+
+# stream closure emits outward with yield
+|| {
+  1 -> yield
+  2 -> yield
+  3 -> yield
+  return 0
+}:stream(number):number
+```
+
+For stream type signatures and chunk semantics, see [Types](topic-types.md). For how collection operators consume streams, see [Collections](topic-collections.md).
 
 ---
 
