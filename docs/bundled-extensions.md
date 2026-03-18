@@ -39,21 +39,23 @@ interface MountConfig {
 }
 ```
 
+**Path convention:** All path parameters start with `/` and include the mount name (e.g., `"/workspace/my/file.txt"` where `workspace` is the mount name).
+
 **Functions (12 total):**
 
 | Function | Parameters | Returns | Description |
 |----------|-----------|---------|-------------|
-| `read` | mount, path | string | Read file contents |
-| `write` | mount, path, content | string | Write file (bytes written) |
-| `append` | mount, path, content | string | Append to file (bytes written) |
-| `list` | mount, path? | list | Directory contents |
-| `find` | mount, pattern? | list | Recursive file search with glob |
-| `exists` | mount, path | bool | Check file existence |
-| `remove` | mount, path | bool | Delete file |
-| `stat` | mount, path | dict | File metadata (name, type, size, timestamps) |
-| `mkdir` | mount, path | bool | Create directory |
-| `copy` | mount, src, dest | bool | Copy file within mount |
-| `move` | mount, src, dest | bool | Move file within mount |
+| `read` | path | string | Read file contents |
+| `write` | path, content | string | Write file (bytes written) |
+| `append` | path, content | string | Append to file (bytes written) |
+| `list` | path | list | Directory contents |
+| `find` | path, pattern? | list | Recursive file search with glob |
+| `exists` | path | bool | Check file existence |
+| `remove` | path | bool | Delete file |
+| `stat` | path | dict | File metadata (name, type, size, timestamps) |
+| `mkdir` | path | bool | Create directory |
+| `copy` | src, dest | bool | Copy file within mount |
+| `move` | src, dest | bool | Move file within mount |
 | `mounts` | — | list | List configured mounts |
 
 **Namespace convention:** `fs`

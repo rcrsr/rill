@@ -23,8 +23,8 @@ kv.set("user", "name", "Alice")
 kv.get("user", "name")   # => "Alice"
 
 # Works with ANY fs backend (local, S3)
-fs.write("data", "file.txt", "content")
-fs.read("data", "file.txt")   # => "content"
+fs.write("/data/file.txt", "content")
+fs.read("/data/file.txt")   # => "content"
 ```
 
 ## Mount Configuration Examples
