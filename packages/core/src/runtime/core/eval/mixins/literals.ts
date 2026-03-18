@@ -934,15 +934,26 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const isProperty = rillParams.length === 0;
 
       // Evaluate returnTypeTarget at closure creation time (IR-4).
+      // TypeConstructorNode → resolve via evaluateTypeConstructor() (e.g., stream(T):R).
       // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
       // Absent → returnType defaults to anyTypeValue (omission implies :any, AC-17, AC-18, AC-19).
       let returnType = anyTypeValue;
       if (node.returnTypeTarget !== undefined) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        returnType = await (this as any).resolveTypeRef(
-          node.returnTypeTarget,
-          (name: string) => getVariable(this.ctx, name)
-        );
+        if (
+          'type' in node.returnTypeTarget &&
+          node.returnTypeTarget.type === 'TypeConstructor'
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          returnType = await (this as any).evaluateTypeConstructor(
+            node.returnTypeTarget
+          );
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          returnType = await (this as any).resolveTypeRef(
+            node.returnTypeTarget,
+            (name: string) => getVariable(this.ctx, name)
+          );
+        }
       }
 
       return {

@@ -19,6 +19,7 @@ import {
   isDict,
   isIterator,
   isOrdered,
+  isStream,
   isTuple,
   isTypeValue,
   isVector,
@@ -74,6 +75,7 @@ export {
   isDict,
   isIterator,
   isOrdered,
+  isStream,
   isTuple,
   isTypeValue,
   isVector,
@@ -219,6 +221,22 @@ function toNativeValue(value: RillValue): NativeValue {
       name: value.typeName,
       signature: formatStructure(value.structure),
     };
+  }
+
+  if (isStream(value)) {
+    const descriptor: NativePlainObject = {
+      __type: 'stream',
+      done: value.done,
+    };
+    const chunkType = (value as unknown as Record<string, unknown>)[
+      '__rill_stream_chunk_type'
+    ] as TypeStructure | undefined;
+    const retType = (value as unknown as Record<string, unknown>)[
+      '__rill_stream_ret_type'
+    ] as TypeStructure | undefined;
+    descriptor['chunkType'] = chunkType ? formatStructure(chunkType) : null;
+    descriptor['resolutionType'] = retType ? formatStructure(retType) : null;
+    return descriptor;
   }
 
   if (isIterator(value)) {

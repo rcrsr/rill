@@ -79,16 +79,28 @@ import {
   UNVALIDATED_METHOD_PARAMS,
 } from '../../context.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import type { RillValue, RillTypeValue } from '../../types/structures.js';
+import type {
+  RillValue,
+  RillTypeValue,
+  RillStream,
+  TypeStructure,
+} from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isTuple, isOrdered } from '../../types/guards.js';
+import {
+  isTypeValue,
+  isTuple,
+  isOrdered,
+  isStream,
+} from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
   structureMatches,
   formatStructure,
 } from '../../types/operations.js';
+import { createRillStream } from '../../types/constructors.js';
 import { anyTypeValue, structureToTypeValue } from '../../values.js';
+import { YieldSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
@@ -139,8 +151,211 @@ interface BoundArgs {
  * - validateParamType(param, value, location) -> void (helper)
  * - bindArgsToParams(argNodes, callable, callLocation) -> Promise<BoundArgs> (helper)
  */
+/**
+ * Rendezvous channel for stream closure body ↔ async generator communication.
+ * The body pushes yielded values; the generator pulls them one at a time.
+ * Backpressure: push() blocks until the consumer calls pull().
+ *
+ * @internal
+ */
+interface StreamChannel {
+  /** Push a yielded chunk value. Blocks until consumer pulls. */
+  push(value: RillValue): Promise<void>;
+  /** Pull the next chunk. Returns done:true when body completes. */
+  pull(): Promise<
+    { value: RillValue; done: false } | { value?: undefined; done: true }
+  >;
+  /** Signal body completion with a resolution value. */
+  close(resolution: RillValue): void;
+  /** Signal body failure with an error. */
+  error(err: unknown): void;
+}
+
+/**
+ * Create a rendezvous channel for stream chunk handoff.
+ *
+ * Producer (body) calls push() which blocks until consumer calls pull().
+ * Consumer (async generator) calls pull() which blocks until producer pushes.
+ * close() and error() signal body termination.
+ *
+ * @internal
+ */
+function createStreamChannel(): StreamChannel {
+  // Pending chunk waiting for consumer
+  let pendingChunk:
+    | {
+        value: RillValue;
+        resume: () => void;
+      }
+    | undefined;
+
+  // Consumer waiting for a chunk
+  let pendingPull:
+    | {
+        resolve: (
+          result:
+            | { value: RillValue; done: false }
+            | { value?: undefined; done: true }
+        ) => void;
+        reject: (err: unknown) => void;
+      }
+    | undefined;
+
+  // Terminal state
+  let closed = false;
+  let closedResolution: RillValue | undefined;
+  let closedError: unknown | undefined;
+
+  return {
+    async push(value: RillValue): Promise<void> {
+      if (closed) return;
+
+      // If consumer is already waiting, deliver immediately
+      if (pendingPull) {
+        const pull = pendingPull;
+        pendingPull = undefined;
+        pull.resolve({ value, done: false });
+        return;
+      }
+
+      // Otherwise, wait for consumer to pull
+      return new Promise<void>((resolve) => {
+        pendingChunk = { value, resume: resolve };
+      });
+    },
+
+    async pull() {
+      // If there's a pending chunk from the producer, consume it
+      if (pendingChunk) {
+        const chunk = pendingChunk;
+        pendingChunk = undefined;
+        chunk.resume(); // unblock producer
+        return { value: chunk.value, done: false as const };
+      }
+
+      // If body already completed, return done
+      if (closed) {
+        if (closedError !== undefined) throw closedError;
+        return { done: true as const };
+      }
+
+      // Wait for producer to push
+      return new Promise<
+        { value: RillValue; done: false } | { value?: undefined; done: true }
+      >((resolve, reject) => {
+        pendingPull = { resolve, reject };
+      });
+    },
+
+    close(_resolution: RillValue): void {
+      closed = true;
+      closedResolution = _resolution;
+      // Wake up waiting consumer
+      if (pendingPull) {
+        const pull = pendingPull;
+        pendingPull = undefined;
+        pull.resolve({ done: true });
+      }
+    },
+
+    error(err: unknown): void {
+      closed = true;
+      closedError = err;
+      // Wake up waiting consumer with error
+      if (pendingPull) {
+        const pull = pendingPull;
+        pendingPull = undefined;
+        pull.reject(err);
+      }
+    },
+
+    /** Access cached resolution value after close(). */
+    get resolution(): RillValue {
+      return closedResolution ?? null;
+    },
+  } as StreamChannel & { readonly resolution: RillValue };
+}
+
 function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ClosuresEvaluator extends Base {
+    /**
+     * Active stream channel for the current stream closure body execution.
+     * Set during stream closure body execution; null otherwise.
+     * Used by evaluateYield to push chunks to the async generator.
+     */
+    private activeStreamChannel:
+      | (StreamChannel & { readonly resolution: RillValue })
+      | null = null;
+
+    /**
+     * Expected chunk type for the active stream closure.
+     * Set during stream closure body execution; null otherwise.
+     * Used by evaluateYield for chunk type validation (FR-STREAM-10).
+     */
+    private activeStreamChunkType: TypeStructure | null = null;
+
+    /**
+     * Stack of active stream lists for IR-14 scope exit cleanup.
+     * Each entry represents a scope boundary. Streams are tracked in
+     * creation order; disposed in reverse order on scope exit.
+     */
+    private streamScopeStack: RillStream[][] = [];
+
+    /**
+     * Track a stream in the current scope for cleanup on scope exit (IR-14).
+     * Streams with dispose functions get cleaned up when their scope exits.
+     */
+    protected trackStream(stream: RillStream): void {
+      const current = this.streamScopeStack[this.streamScopeStack.length - 1];
+      if (current) {
+        current.push(stream);
+      }
+    }
+
+    /**
+     * Dispose a list of unconsumed streams in reverse creation order (IR-14).
+     * Propagates dispose errors as RILL-R002 — does not swallow.
+     */
+    private async disposeStreams(streams: RillStream[]): Promise<void> {
+      for (let i = streams.length - 1; i >= 0; i--) {
+        const stream = streams[i]!;
+        // Only dispose streams that are not fully consumed
+        if (stream.done) continue;
+        const disposeFn = (
+          stream as unknown as Record<string, (() => void) | undefined>
+        )['__rill_stream_dispose'];
+        if (typeof disposeFn === 'function') {
+          try {
+            disposeFn();
+          } catch (err) {
+            // Propagate dispose errors — do not swallow (IR-14)
+            if (err instanceof RuntimeError) throw err;
+            throw new RuntimeError(
+              'RILL-R002',
+              err instanceof Error ? err.message : String(err)
+            );
+          }
+        }
+      }
+    }
+
+    /**
+     * Wrap evaluateBlock to add scope exit cleanup for streams (IR-14).
+     * Pushes a scope boundary, runs the block, then disposes unconsumed streams.
+     */
+    protected async evaluateBlock(node: BlockNode): Promise<RillValue> {
+      this.streamScopeStack.push([]);
+      try {
+        // Call the ControlFlowMixin's evaluateBlock via prototype chain
+        return await Object.getPrototypeOf(
+          ClosuresEvaluator.prototype
+        ).evaluateBlock.call(this, node);
+      } finally {
+        const streams = this.streamScopeStack.pop()!;
+        await this.disposeStreams(streams);
+      }
+    }
+
     /**
      * Evaluate argument expressions while preserving the current pipeValue.
      * Used by all callable invocations to prepare arguments.
@@ -189,16 +404,28 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       try {
+        let result: RillValue;
         if (callable.kind === 'script') {
-          return await this.invokeScriptCallable(callable, args, callLocation);
+          result = await this.invokeScriptCallable(
+            callable,
+            args,
+            callLocation
+          );
         } else {
-          return await this.invokeFnCallable(
+          result = await this.invokeFnCallable(
             callable,
             args,
             callLocation,
             functionName
           );
         }
+
+        // IR-14: Track returned streams for scope exit cleanup
+        if (isStream(result)) {
+          this.trackStream(result as RillStream);
+        }
+
+        return result;
       } catch (error) {
         // Snapshot call stack onto error before finally pops the frame.
         // First snapshot wins — nested calls capture the deepest stack.
@@ -330,10 +557,68 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
+     * Evaluate yield: validate chunk type and throw YieldSignal (IR-6).
+     *
+     * When inside a stream closure body (activeStreamChannel is set),
+     * pushes the value to the stream channel instead of throwing.
+     * When no stream channel is active, throws YieldSignal directly
+     * (for nested evaluation contexts that catch it).
+     *
+     * Validates pipe value against declared chunk type at emission (FR-STREAM-10).
+     * Throws RILL-R004 if chunk type does not match declared type.
+     */
+    protected evaluateYield(
+      value: RillValue,
+      location?: SourceLocation
+    ): never | Promise<void> {
+      // Validate chunk type if constrained
+      if (this.activeStreamChunkType !== null) {
+        if (!structureMatches(value, this.activeStreamChunkType)) {
+          const expected = formatStructure(this.activeStreamChunkType);
+          const actual = inferType(value);
+          throw new RuntimeError(
+            'RILL-R004',
+            `Yielded value type mismatch: expected ${expected}, got ${actual}`,
+            location,
+            { expected, actual }
+          );
+        }
+      }
+
+      // Push to stream channel if inside a stream closure body
+      if (this.activeStreamChannel) {
+        return this.activeStreamChannel.push(value);
+      }
+
+      // Fallback: throw YieldSignal (caught by stream body wrapper)
+      throw new YieldSignal(value);
+    }
+
+    /**
      * Invoke script callable with positional arguments.
      * Handles parameter binding, default values, and type checking.
+     *
+     * Stream closures (returnType.structure.kind === 'stream') are detected
+     * and dispatched to invokeStreamClosure for lazy body execution (IR-13).
      */
     protected async invokeScriptCallable(
+      callable: ScriptCallable,
+      args: RillValue[],
+      callLocation?: SourceLocation
+    ): Promise<RillValue> {
+      // IR-13: Stream closure detection — dispatch to stream-specific invocation
+      if (callable.returnType.structure.kind === 'stream') {
+        return this.invokeStreamClosure(callable, args, callLocation);
+      }
+
+      return this.invokeRegularScriptCallable(callable, args, callLocation);
+    }
+
+    /**
+     * Invoke a regular (non-stream) script callable.
+     * Extracted from invokeScriptCallable for clarity after stream dispatch.
+     */
+    private async invokeRegularScriptCallable(
       callable: ScriptCallable,
       args: RillValue[],
       callLocation?: SourceLocation
@@ -409,6 +694,189 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } finally {
         this.ctx = savedCtx;
       }
+    }
+
+    /**
+     * Invoke a stream closure: produces a RillStream instead of body result (IR-13).
+     *
+     * Sets up a rendezvous channel between the closure body and an async generator.
+     * The body executes lazily as chunks are consumed:
+     * - yield in body → pushes chunk to channel → consumer yields to iterator
+     * - return in body → sets resolution value
+     * - Body end without return → resolution is null
+     *
+     * Each call produces a new, independent stream instance (idempotency).
+     *
+     * Error contracts:
+     * - Chunk type mismatch at yield → RILL-R004 (validated by evaluateYield)
+     * - Resolution type mismatch → RILL-R004
+     */
+    private async invokeStreamClosure(
+      callable: ScriptCallable,
+      args: RillValue[],
+      callLocation?: SourceLocation
+    ): Promise<RillValue> {
+      const callableCtx = this.createCallableContext(callable);
+
+      // Marshal positional args to named record (IC-1).
+      const record = marshalArgs(args, callable.params, {
+        functionName: '<anonymous>',
+        location: callLocation,
+      });
+
+      // Bind each named value into the callable context.
+      for (const [name, value] of Object.entries(record)) {
+        callableCtx.variables.set(name, value);
+      }
+
+      // IR-4: Block closure pipe sync
+      if (callable.params[0]?.name === '$') {
+        callableCtx.pipeValue = record['$']!;
+      }
+
+      // Extract chunk and ret types from the stream structure
+      const streamStructure = callable.returnType.structure as {
+        kind: 'stream';
+        chunk?: TypeStructure;
+        ret?: TypeStructure;
+      };
+
+      // Create channel and async generator for lazy body execution
+      const channel = createStreamChannel() as StreamChannel & {
+        readonly resolution: RillValue;
+      };
+
+      // Start body execution asynchronously.
+      // Arrow function captures `this` from invokeStreamClosure scope.
+      // The body runs concurrently with consumption, blocking at each yield
+      // until the consumer pulls the next chunk.
+      const bodyPromise = (async () => {
+        const savedCtx = this.ctx;
+        const savedChannel = this.activeStreamChannel;
+        const savedChunkType = this.activeStreamChunkType;
+        this.ctx = callableCtx;
+        this.activeStreamChannel = channel;
+        this.activeStreamChunkType = streamStructure.chunk ?? null;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await (this as any).evaluateBodyExpression(
+            callable.body
+          );
+          // Validate resolution type if declared
+          if (streamStructure.ret !== undefined) {
+            if (!structureMatches(result, streamStructure.ret)) {
+              const expected = formatStructure(streamStructure.ret);
+              const actual = inferType(result);
+              throw new RuntimeError(
+                'RILL-R004',
+                `Stream resolution type mismatch: expected ${expected}, got ${actual}`,
+                callLocation,
+                { expected, actual }
+              );
+            }
+          }
+          channel.close(result);
+        } catch (error) {
+          if (error instanceof ReturnSignal) {
+            // return in stream body sets resolution value
+            const result = error.value;
+            if (streamStructure.ret !== undefined) {
+              if (!structureMatches(result, streamStructure.ret)) {
+                const expected = formatStructure(streamStructure.ret);
+                const actual = inferType(result);
+                channel.error(
+                  new RuntimeError(
+                    'RILL-R004',
+                    `Stream resolution type mismatch: expected ${expected}, got ${actual}`,
+                    callLocation,
+                    { expected, actual }
+                  )
+                );
+                return;
+              }
+            }
+            channel.close(result);
+          } else {
+            channel.error(error);
+          }
+        } finally {
+          this.ctx = savedCtx;
+          this.activeStreamChannel = savedChannel;
+          this.activeStreamChunkType = savedChunkType;
+        }
+      })();
+
+      // Create async generator that pulls from the channel
+      async function* generateChunks(): AsyncGenerator<RillValue> {
+        try {
+          while (true) {
+            const result = await channel.pull();
+            if (result.done) return;
+            yield result.value;
+          }
+        } finally {
+          // Ensure body promise settles to prevent unhandled rejections
+          await bodyPromise.catch(() => {});
+        }
+      }
+
+      // Build the RillStream (IR-13)
+      const stream = createRillStream({
+        chunks: generateChunks(),
+        resolve: async () => {
+          // Wait for body to complete
+          await bodyPromise.catch(() => {});
+          return channel.resolution;
+        },
+        chunkType: streamStructure.chunk,
+        retType: streamStructure.ret,
+      });
+
+      return stream;
+    }
+
+    /**
+     * Invoke a stream as a function (IR-12).
+     * Drains remaining chunks internally, calls resolve, caches result.
+     * Subsequent calls return the cached value (idempotent).
+     *
+     * Drain is necessary for stream closures where the body blocks at
+     * yield until the consumer pulls. Without draining, resolve() would
+     * hang because the body never completes.
+     */
+    private async invokeStream(stream: RillStream): Promise<RillValue> {
+      const resolveFn = (
+        stream as unknown as Record<
+          string,
+          (() => Promise<RillValue>) | undefined
+        >
+      )['__rill_stream_resolve'];
+      if (typeof resolveFn !== 'function') {
+        throw new RuntimeError('RILL-R002', 'Stream has no resolve function');
+      }
+
+      // Drain remaining chunks by walking the stream's linked list (AC-4).
+      // This unblocks the body (which may be waiting at a yield/push).
+      let current: RillStream = stream;
+      while (!current.done) {
+        const nextCallable = current['next'];
+        if (!nextCallable || !isCallable(nextCallable)) break;
+        try {
+          const next = await this.invokeCallable(nextCallable, []);
+          if (
+            typeof next !== 'object' ||
+            next === null ||
+            !isStream(next as RillValue)
+          )
+            break;
+          current = next as unknown as RillStream;
+        } catch {
+          // Drain errors are expected when stream is already consumed
+          break;
+        }
+      }
+
+      return resolveFn();
     }
 
     /**
@@ -648,6 +1116,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             this.getNodeLocation(node)
           );
         }
+      }
+
+      // IR-12: Stream invocation — $s() returns the resolution value
+      if (isStream(value)) {
+        return this.invokeStream(value as RillStream);
       }
 
       if (!isCallable(value)) {
@@ -1027,6 +1500,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: InvokeNode,
       receiver: RillValue
     ): Promise<RillValue> {
+      // IR-12: Stream invocation — $s() returns the resolution value
+      if (isStream(receiver)) {
+        return this.invokeStream(receiver as RillStream);
+      }
+
       if (!isCallable(receiver)) {
         throw new RuntimeError(
           'RILL-R002',
@@ -1090,6 +1568,30 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           `Annotation access not supported on type values`,
           location,
           { annotationKey: key }
+        );
+      }
+
+      // IR-11: Stream reflection — ^chunk and ^output on stream values
+      if (isStream(value)) {
+        if (key === 'chunk') {
+          const chunkType = (
+            value as unknown as Record<string, TypeStructure | undefined>
+          )['__rill_stream_chunk_type'];
+          if (chunkType === undefined) return anyTypeValue;
+          return structureToTypeValue(chunkType);
+        }
+        if (key === 'output') {
+          const retType = (
+            value as unknown as Record<string, TypeStructure | undefined>
+          )['__rill_stream_ret_type'];
+          if (retType === undefined) return anyTypeValue;
+          return structureToTypeValue(retType);
+        }
+        throw new RuntimeError(
+          'RILL-R003',
+          `annotation not found: ^${key}`,
+          location,
+          { actualType: 'stream' }
         );
       }
 

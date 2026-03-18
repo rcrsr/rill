@@ -32,11 +32,11 @@ Parser.prototype.parseTypeConstructor = function (
   this: Parser,
   constructorName: string
 ): TypeConstructorNode {
-  const validNames = ['list', 'dict', 'tuple', 'ordered'] as const;
+  const validNames = ['list', 'dict', 'tuple', 'ordered', 'stream'] as const;
   if (!validNames.includes(constructorName as (typeof validNames)[number])) {
     throw new ParseError(
       'RILL-P001',
-      `Expected type constructor name (list, dict, tuple, ordered), got: ${constructorName}`,
+      `Expected type constructor name (list, dict, tuple, ordered, stream), got: ${constructorName}`,
       current(this.state).span.start
     );
   }

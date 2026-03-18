@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P005, RILL-P007 - RILL-P010, RILL-P014)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P010, RILL-P014)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
@@ -247,6 +247,28 @@ func($a, $b
 
 ---
 
+### rill-p006
+
+**Description:** `yield` outside stream closure
+
+**Cause:** A `yield` expression appears outside a stream closure body. `yield` is only valid as a statement inside the body of a stream closure.
+
+**Resolution:** Move the `yield` expression inside a stream closure, or replace it with a regular pipe expression if streaming is not intended.
+
+**Example:**
+
+```text
+# yield used at top level (outside any closure)
+yield 42
+# Error: RILL-P006: yield is only valid inside a stream closure
+
+# yield used inside a regular closure (not a stream closure)
+|x| { yield $x }
+# Error: RILL-P006: yield is only valid inside a stream closure
+```
+
+---
+
 ### rill-p007
 
 **Description:** Whitespace between keyword and bracket in literal
@@ -376,13 +398,16 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r002
 
-**Description:** Operator type mismatch or list element type mismatch
+**Description:** Operator type mismatch, list element type mismatch, stream already consumed, or stale step access
 
-**Cause:** Binary operator applied to incompatible types. rill does not perform implicit type coercion. Also raised when list elements have incompatible top-level types.
+**Cause:** Four conditions raise RILL-R002:
 
-Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
+1. **Operator type mismatch** — Binary operator applied to incompatible types. rill does not perform implicit type coercion.
+2. **List element type mismatch** — List elements have incompatible top-level types. Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
+3. **Stream already consumed** — A stream value is iterated a second time after all chunks have been yielded. Streams are single-pass; iteration cannot restart.
+4. **Stale step access** — `.next()` is called on a stream step that is no longer current. Each call to `.next()` on a stream produces a new step; holding a reference to an old step and calling `.next()` on it raises this error.
 
-**Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. For lists, ensure all elements share the same top-level type.
+**Resolution:** For type mismatches: ensure both operands are compatible types and convert values explicitly if needed. For lists: ensure all elements share the same top-level type. For streams: iterate a stream only once; do not store and re-use intermediate step references.
 
 **Example:**
 
@@ -405,6 +430,12 @@ list[list[1], "hello"]
 
 # Error: RILL-R002 (bool vs number mismatch)
 list[true, 1]
+
+# Re-iterating a consumed stream
+# Error: RILL-R002: Stream already consumed; cannot re-iterate
+
+# Calling .next() on a stale step reference
+# Error: RILL-R002: Stale step; this step is no longer current
 ```
 
 Elements that share the same compound type infer the bare type without error:
@@ -418,13 +449,16 @@ list[list[1,2], list["a","b"]]
 
 ### rill-r003
 
-**Description:** Method receiver type mismatch
+**Description:** Method receiver type mismatch or type conversion not supported for stream
 
-**Cause:** Method called on value of wrong type. String methods require strings, list methods require lists, etc.
+**Cause:** Two conditions raise RILL-R003:
+
+1. **Method receiver type mismatch** — Method called on value of wrong type. String methods require strings, list methods require lists, etc.
+2. **`:>stream` conversion not supported** — The `:>` type conversion operator does not support converting any value to the `stream` type. Streams are created only by stream closures; they cannot be produced by conversion.
 
 **Exclusion:** `RILL-R003` is not triggered by `.^description`, `.^input`, or `.^output` on any callable kind. Annotation reflection operators work on all callable kinds (script, application, runtime) without raising this error.
 
-**Resolution:** Call method on correct type, or convert value before calling. Check method documentation for receiver type.
+**Resolution:** For method receiver errors: call method on correct type, or convert value before calling. For stream conversion: use a stream closure with `yield` to produce a stream instead of `:>stream`.
 
 **Example:**
 
@@ -434,21 +468,27 @@ list[list[1,2], list["a","b"]]
 
 # List method on string
 "hello" -> .first()  # first() is list method
+
+# Type conversion to stream (not supported)
+[1, 2, 3] -> :>stream
+# Error: RILL-R003: Type conversion not supported: cannot convert list to stream
 ```
 
 ---
 
 ### rill-r004
 
-**Description:** Type conversion failure, return type assertion failure, or uniform type assertion failure
+**Description:** Type conversion failure, return type assertion failure, uniform type assertion failure, stream chunk type mismatch, or stream resolution type mismatch
 
-**Cause:** Three distinct causes raise RILL-R004:
+**Cause:** Five distinct causes raise RILL-R004:
 
 1. **Type conversion failure** — Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
 2. **Return type assertion failure** — Closure return type annotation (`:type` after `}`) does not match the actual return value type.
 3. **Uniform type assertion failure** — Value does not match the uniform value type constraint in `dict(T)`, `ordered(T)`, or `tuple(T)`.
+4. **Stream chunk type mismatch** — A `yield` expression produces a chunk whose type does not match the declared chunk type of the stream closure (e.g., `stream(number)` closure yields a string).
+5. **Stream resolution type mismatch** — The final resolved value of a stream closure does not match the declared resolution type.
 
-**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type. For uniform type assertions: ensure all values in the collection match the declared uniform type T.
+**Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type. For uniform type assertions: ensure all values in the collection match the declared uniform type T. For stream chunk type mismatch: ensure every `yield` expression produces a value of the declared chunk type. For stream resolution type mismatch: ensure the final expression in the stream closure matches the declared resolution type.
 
 **Example:**
 
@@ -466,6 +506,12 @@ json({ "hi" })
 # Uniform type assertion failure
 {name: "a", run: "b"} -> :>dict(closure)
 # Error: RILL-R004: Type assertion failed: expected dict(closure), got dict(name: string, run: string)
+
+# Stream chunk type mismatch (declared number, yielded string)
+# Error: RILL-R004: Stream chunk type mismatch: expected number, got string
+
+# Stream resolution type mismatch
+# Error: RILL-R004: Stream resolution type mismatch: expected string, got number
 ```
 
 ---
@@ -587,11 +633,14 @@ string.^label  # Error: RILL-R008: Annotation access not supported on type value
 
 ### rill-r010
 
-**Description:** Iteration limit exceeded
+**Description:** Iteration limit exceeded or stream expansion limit exceeded
 
-**Cause:** Loop or collection operation exceeded configured iteration limit (prevents infinite loops).
+**Cause:** Two conditions raise RILL-R010:
 
-**Resolution:** Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions.
+1. **Iteration limit exceeded** — A loop or collection operation exceeded the configured iteration limit (prevents infinite loops).
+2. **Stream expansion limit exceeded** — A stream closure yielded more chunks than the configured stream iteration ceiling. This prevents unbounded streaming.
+
+**Resolution:** Reduce data size, adjust the iteration limit via RuntimeOptions, or check for infinite loop and infinite yield conditions. For streams: ensure the stream closure yields a bounded number of chunks, or increase the stream iteration limit in RuntimeOptions.
 
 **Example:**
 
@@ -601,6 +650,9 @@ string.^label  # Error: RILL-R008: Annotation access not supported on type value
 
 # Large collection with default limit
 range(0, 1000000) -> each |x| $x  # May exceed default limit
+
+# Stream that yields without bound
+# Error: RILL-R010: Stream expansion exceeded {limit} iterations
 ```
 
 ---

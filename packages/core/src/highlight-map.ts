@@ -47,6 +47,7 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['FILTER', 'keyword'],
     ['BREAK', 'keyword'],
     ['RETURN', 'keyword'],
+    ['YIELD', 'keyword'],
     ['PASS', 'keyword'],
     ['ASSERT', 'keyword'],
     ['ERROR', 'keyword'],

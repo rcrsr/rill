@@ -30,7 +30,7 @@ export interface RillFieldDef {
  * Structural type descriptor - describes the shape of a value in the type system.
  * Discriminated by `.kind` (not `.type`).
  *
- * Includes all 12 built-in variants plus a catch-all for types without
+ * Includes all 13 built-in variants plus a catch-all for types without
  * parameterized structure (e.g. iterator).
  */
 export type TypeStructure =
@@ -63,6 +63,7 @@ export type TypeStructure =
     }
   | { kind: 'union'; members: TypeStructure[] }
   | { kind: 'iterator' }
+  | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
   | { kind: string; data?: unknown };
 
 /**
@@ -122,6 +123,21 @@ export interface RillIterator extends Record<string, RillValue> {
   readonly value?: RillValue;
 }
 
+/**
+ * Stream type - represents an async lazy sequence with resolution.
+ * A stream is a dict with:
+ * - __rill_stream: true - discriminator for stream detection
+ * - done: boolean - whether all chunks have been consumed
+ * - next: callable - function to advance to the next stream step
+ * - value?: any - current chunk value (present when done is false)
+ */
+export interface RillStream extends Record<string, RillValue> {
+  readonly __rill_stream: true;
+  readonly done: boolean;
+  readonly next: CallableMarker;
+  readonly value?: RillValue;
+}
+
 /** Any value that can flow through Rill */
 export type RillValue =
   | string
@@ -135,4 +151,5 @@ export type RillValue =
   | RillOrdered
   | RillVector
   | FieldDescriptorMarker
-  | RillTypeValue;
+  | RillTypeValue
+  | RillStream;

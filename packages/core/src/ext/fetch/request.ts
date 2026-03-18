@@ -360,10 +360,10 @@ export async function executeRequest(
 
         try {
           // Execute fetch request
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const response = await fetch(url, {
             ...options,
             signal: controller.signal,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           clearTimeout(timeoutId);

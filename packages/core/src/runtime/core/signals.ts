@@ -23,3 +23,11 @@ export class ReturnSignal extends Error {
     this.name = 'ReturnSignal';
   }
 }
+
+/** Signal thrown when a stream yields a chunk value */
+export class YieldSignal extends Error {
+  constructor(public readonly value: RillValue) {
+    super('yield');
+    this.name = 'YieldSignal';
+  }
+}

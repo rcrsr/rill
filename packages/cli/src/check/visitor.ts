@@ -335,6 +335,7 @@ export function visitNode(
     case 'Break':
     case 'Return':
     case 'Pass':
+    case 'Yield':
       // Leaf nodes - no children
       break;
 

@@ -193,6 +193,26 @@ $it.done ? "empty" ! $it.value
 
 ---
 
+## Streams vs Iterators
+
+Streams and iterators share the same protocol fields but differ in source, statefulness, and invocation.
+
+| Property | Iterator | Stream |
+|----------|----------|--------|
+| Source | Synchronous | Asynchronous |
+| Statefulness | Stateless, re-iterable | Stateful, single-use |
+| Protocol | `done`, `value`, `next` | `done`, `value`, `next` (shared) |
+| Stale access | N/A (immutable) | Halts with error |
+| Operators | `each`, `map`, `filter`, `fold` | Same four operators |
+| Invocation | Not callable | `$s()` returns resolution value |
+| Production | Built-in functions | Host helper or `:stream(T):R` closure |
+
+Iterators are value types: calling `.next()` returns a new iterator and the original is unchanged. Streams are stateful: each chunk consumed advances the stream permanently.
+
+See [Types](topic-types.md) for stream type signatures and chunk semantics. See [Collections](topic-collections.md) for how `each`, `map`, `filter`, and `fold` behave on streams.
+
+---
+
 ## Custom Iterators
 
 Create custom iterators by implementing the protocol:

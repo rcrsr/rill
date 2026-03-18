@@ -25,9 +25,11 @@ import type {
   RillVector,
   RillTypeValue,
   RillIterator,
+  RillStream,
 } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import {
+  isStream,
   isTuple,
   isVector,
   isOrdered,
@@ -146,6 +148,10 @@ function formatFieldDescriptor(_v: RillValue): string {
 
 function formatIterator(_v: RillValue): string {
   return 'type(iterator)';
+}
+
+function formatStream(_v: RillValue): string {
+  return 'type(stream)';
 }
 
 function formatList(v: RillValue): string {
@@ -420,6 +426,14 @@ const iteratorConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (_v: RillValue): RillValue => 'type(iterator)',
 };
 
+/**
+ * Stream convertTo targets.
+ * - stream -> string: format
+ */
+const streamConvertTo: Record<string, (v: RillValue) => RillValue> = {
+  string: (_v: RillValue): RillValue => 'type(stream)',
+};
+
 // ============================================================
 // PROTOCOL IMPLEMENTATIONS: SERIALIZE
 // ============================================================
@@ -466,6 +480,8 @@ function serializeListElement(v: RillValue): unknown {
     );
   if (isIterator(v))
     throw new RuntimeError('RILL-R067', 'iterators are not JSON-serializable');
+  if (isStream(v))
+    throw new RuntimeError('RILL-R067', 'streams are not JSON-serializable');
   // Plain dict
   const dict = v as Record<string, RillValue>;
   const result: Record<string, unknown> = {};
@@ -498,16 +514,16 @@ function throwNotSerializable(typeName: string): (v: RillValue) => never {
 // ============================================================
 
 /**
- * All 12 built-in type registrations.
+ * All 13 built-in type registrations.
  *
  * Registration order:
  * 1. Primitives: string, number, bool
  * 2. Discriminator-based: tuple, ordered, vector, type, closure, field_descriptor
- * 3. Structural: iterator
+ * 3. Structural: iterator, stream
  * 4. list
  * 5. dict (fallback, must be last)
  *
- * AC-1: 12 registrations, one per type.
+ * AC-1: 13 registrations, one per type.
  * BC-2: Vector identity checked before dict fallback.
  * EC-3: Iterator has no protocol.eq.
  * EC-4: Bool has no protocol.compare.
@@ -639,6 +655,32 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
   },
 
   // ---- Structural ----
+  // Stream must precede iterator: streams satisfy the iterator shape
+  // (done + next + value) but have the __rill_stream discriminator.
+  {
+    name: 'stream',
+    identity: (v: RillValue): boolean => isStream(v),
+    isLeaf: false,
+    immutable: true,
+    methods: {},
+    protocol: {
+      format: formatStream,
+      convertTo: streamConvertTo,
+      serialize: throwNotSerializable('stream'),
+      structure: (v: RillValue): TypeStructure => {
+        const s = v as unknown as RillStream;
+        const result: {
+          kind: 'stream';
+          chunk?: TypeStructure;
+          ret?: TypeStructure;
+        } = { kind: 'stream' };
+        // Stream chunk/ret types are not inferrable from the value itself;
+        // return bare stream structure descriptor.
+        void s;
+        return result;
+      },
+    },
+  },
   {
     // EC-3: iterator has no protocol.eq (equality raises RILL-R002)
     name: 'iterator',
@@ -834,7 +876,7 @@ export { createTuple, createOrdered, createVector };
 // RE-EXPORTED GUARD FUNCTIONS
 // ============================================================
 
-export { isTuple, isVector, isTypeValue, isOrdered, isIterator };
+export { isStream, isTuple, isVector, isTypeValue, isOrdered, isIterator };
 
 // ============================================================
 // RE-EXPORTED TYPES
@@ -848,5 +890,6 @@ export type {
   RillVector,
   RillTypeValue,
   RillIterator,
+  RillStream,
   RillFieldDef,
 };

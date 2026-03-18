@@ -265,6 +265,97 @@ Insert `:type` assertions at pipe boundaries to catch unexpected types early.
 # Result: [2, 4, 6]
 ```
 
+## Stream Pitfalls
+
+### Re-Iterating a Consumed Stream
+
+A stream can be iterated only once. Passing it to a second collection operator halts execution.
+
+```text
+app::llm_stream("hello") => $s
+$s -> each { $ }
+$s -> map { $ }
+# Error: RILL-R002: Stream already consumed; cannot re-iterate
+```
+
+**Fix:** Consume the stream once and store results in a variable if you need the data again.
+
+```text
+app::llm_stream("hello") => $s
+$s -> fold("") { $@ ++ $ } => $full_text
+$full_text -> log
+$full_text -> .len -> log
+```
+
+### `yield` Outside a Stream Closure
+
+`yield` is a keyword scoped to stream closure bodies. Using it outside that context is a parse error.
+
+```text
+"hello" -> yield
+# Error: RILL-P: yield is not valid outside a stream closure body
+```
+
+`yield` is also invalid inside a stored closure defined within a stream body.
+
+```text
+|| {
+  { $ -> yield } => $fn
+  $fn(1)
+}:stream(number):number
+# Error: yield is not valid in stored closure
+```
+
+**Fix:** Use `yield` only as a terminator in a pipe chain inside the stream closure body directly.
+
+```text
+|| {
+  "first" -> yield
+  "second" -> yield
+  return 2
+}:stream(string):number => $producer
+```
+
+### Calling `$s()` Before Consuming the Stream
+
+Calling `$s()` on a stream that has not been fully iterated triggers internal consumption. All chunks are consumed before the resolution value is returned. This prevents separate chunk processing afterward.
+
+```text
+app::llm_stream("hello") => $s
+$s()    # forces internal consumption of all chunks
+$s -> each { $ -> log }
+# Error: RILL-R002: Stream already consumed; cannot re-iterate
+```
+
+**Fix:** Iterate chunks first, then call `$s()` for the resolution value.
+
+```text
+app::llm_stream("hello") => $s
+$s -> each { $ -> log }
+$s()    # safe: stream is closed, resolution is cached
+```
+
+### Stale Step Access with `.next()`
+
+Manual stream iteration with `.next()` creates new step objects. Holding a reference to an old step and calling `.next()` on it halts execution.
+
+```text
+app::llm_stream("hello") => $s
+$s.next() => $step1
+$step1.next() => $step2
+$step1.next()
+# Error: RILL-R002: Stale step; this step is no longer current
+```
+
+**Fix:** Always reassign the step variable when advancing. Use `each` for automatic iteration instead.
+
+```text
+app::llm_stream("hello") => $s
+$s -> each { $ -> log }
+```
+
+`$s()` remains valid on stale steps. Only `.next()` fails when called on a non-current step.
+
 ## See Also
 
 | Document | Description |

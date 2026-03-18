@@ -87,6 +87,7 @@ export const TOKEN_TYPES = {
   // Keywords
   BREAK: 'BREAK',
   RETURN: 'RETURN',
+  YIELD: 'YIELD',
   PASS: 'PASS',
   ASSERT: 'ASSERT',
   ERROR: 'ERROR',

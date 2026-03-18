@@ -29,8 +29,8 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` operators |
-| [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
+| [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` operators and stream iteration |
+| [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison |
 
 ## Reference
 

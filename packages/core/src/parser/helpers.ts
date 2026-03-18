@@ -37,6 +37,7 @@ export function isIdentifierOrKeyword(token: { type: string }): boolean {
     token.type === TOKEN_TYPES.FALSE ||
     token.type === TOKEN_TYPES.BREAK ||
     token.type === TOKEN_TYPES.RETURN ||
+    token.type === TOKEN_TYPES.YIELD ||
     token.type === TOKEN_TYPES.ASSERT ||
     token.type === TOKEN_TYPES.ERROR ||
     token.type === TOKEN_TYPES.EACH ||

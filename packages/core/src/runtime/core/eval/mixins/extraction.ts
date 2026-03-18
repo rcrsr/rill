@@ -130,7 +130,6 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           // Note: setVariable and resolveTypeRef will be available from VariablesMixin
           // and TypesMixin which are applied before ExtractionMixin in the composition order
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dictResolved =
             elem.typeRef !== null
               ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,7 +190,6 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           // Note: setVariable and resolveTypeRef will be available from VariablesMixin
           // and TypesMixin which are applied before ExtractionMixin in the composition order
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const listResolved =
             elem.typeRef !== null
               ? // eslint-disable-next-line @typescript-eslint/no-explicit-any

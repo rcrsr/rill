@@ -663,6 +663,65 @@ The rill script references `vectordb` by name; the host binds it to any compatib
 
 ---
 
+## Stream Patterns
+
+Stream host functions are unavailable in the test harness, so all stream examples use `text` fences.
+See [Types](topic-types.md) and [Collections](topic-collections.md) for stream documentation.
+
+### Token Accumulation with fold
+
+Accumulate all streaming tokens into a single string before processing:
+
+```text
+app::llm_stream("Write a summary") => $s
+
+$s -> fold("") { $@ ++ $ } => $full_response
+
+"Summary: {$full_response}" -> log
+```
+
+`fold` consumes every chunk and concatenates it into `$@`. The result is available only after the stream closes.
+
+### Budget-Aware Iteration with break
+
+Track token count across chunks and stop when a budget is reached:
+
+```text
+app::llm_stream("Generate a long document") => $s
+
+$s -> each(0) {
+  $ -> .len => $chunk_len
+  ($@ + $chunk_len) => $running_total
+  ($running_total > 500) ? break
+  $ -> log
+  $running_total
+}
+```
+
+`each(init)` carries `$@` across chunks. When the budget exceeds 500 characters, `break` stops iteration and the host disposes the stream.
+
+### Multi-Source Orchestration
+
+Consume multiple streams sequentially with `each`, or in parallel with `map`:
+
+```text
+# Sequential: one stream at a time
+["Summarize A", "Summarize B"] -> each {
+  app::llm_stream($) => $s
+  $s -> fold("") { $@ ++ $ }
+} => $sequential_results
+
+# Parallel: all streams concurrently, results in order
+["Summarize A", "Summarize B"] -> map {
+  app::llm_stream($) => $s
+  $s -> fold("") { $@ ++ $ }
+} => $parallel_results
+```
+
+Use `each` when order matters or streams depend on prior results. Use `map` when sources are independent and concurrency helps.
+
+---
+
 ## See Also
 
 - [Examples](guide-examples.md) — Language feature demonstrations

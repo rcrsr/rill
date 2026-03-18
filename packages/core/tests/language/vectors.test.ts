@@ -217,7 +217,7 @@ describe('Rill Runtime: Vector Type', () => {
           variables: { v: vec },
         })
       ).rejects.toThrow(
-        'Collection operators require list, string, dict, or iterator, got vector'
+        'Collection operators require list, string, dict, iterator, or stream, got vector'
       );
     });
 
@@ -228,7 +228,7 @@ describe('Rill Runtime: Vector Type', () => {
           variables: { v: vec },
         })
       ).rejects.toThrow(
-        'Collection operators require list, string, dict, or iterator, got vector'
+        'Collection operators require list, string, dict, iterator, or stream, got vector'
       );
     });
 
@@ -239,7 +239,7 @@ describe('Rill Runtime: Vector Type', () => {
           variables: { v: vec },
         })
       ).rejects.toThrow(
-        'Collection operators require list, string, dict, or iterator, got vector'
+        'Collection operators require list, string, dict, iterator, or stream, got vector'
       );
     });
 
@@ -250,7 +250,7 @@ describe('Rill Runtime: Vector Type', () => {
           variables: { v: vec },
         })
       ).rejects.toThrow(
-        'Collection operators require list, string, dict, or iterator, got vector'
+        'Collection operators require list, string, dict, iterator, or stream, got vector'
       );
     });
   });

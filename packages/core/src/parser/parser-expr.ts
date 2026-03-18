@@ -284,6 +284,25 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     };
   }
 
+  // Handle bare yield: "yield" ≡ "$ -> yield"
+  if (check(this.state, TOKEN_TYPES.YIELD)) {
+    if (this.closureDepth === 0) {
+      throw new ParseError(
+        'RILL-P006',
+        "'yield' is only valid inside a stream closure",
+        current(this.state).span.start
+      );
+    }
+    const token = advance(this.state);
+    return {
+      type: 'PipeChain',
+      head: this.implicitPipeVar(token.span),
+      pipes: [],
+      terminator: { type: 'Yield', span: token.span },
+      span: token.span,
+    };
+  }
+
   // Parse expression head with full precedence chain
   let head = this.parseLogicalOr();
 
@@ -370,6 +389,20 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     if (check(this.state, TOKEN_TYPES.RETURN)) {
       const token = advance(this.state);
       terminator = { type: 'Return', span: token.span };
+      break;
+    }
+
+    // Check for yield terminator: -> yield
+    if (check(this.state, TOKEN_TYPES.YIELD)) {
+      if (this.closureDepth === 0) {
+        throw new ParseError(
+          'RILL-P006',
+          "'yield' is only valid inside a stream closure",
+          current(this.state).span.start
+        );
+      }
+      const token = advance(this.state);
+      terminator = { type: 'Yield', span: token.span };
       break;
     }
 
@@ -840,8 +873,14 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseMethodCall(null);
   }
 
-  // Type constructor: list(...), dict(...), tuple(...), ordered(...)
-  const TYPE_CONSTRUCTORS = ['list', 'dict', 'tuple', 'ordered'] as const;
+  // Type constructor: list(...), dict(...), tuple(...), ordered(...), stream(...)
+  const TYPE_CONSTRUCTORS = [
+    'list',
+    'dict',
+    'tuple',
+    'ordered',
+    'stream',
+  ] as const;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
     TYPE_CONSTRUCTORS.includes(
@@ -890,6 +929,15 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   // Common constructs
   const common = this.parseCommonConstruct();
   if (common) return common;
+
+  // Yield keyword in expression position (not valid as identifier)
+  if (check(this.state, TOKEN_TYPES.YIELD)) {
+    throw new ParseError(
+      'RILL-P001',
+      "Unexpected keyword 'yield'",
+      current(this.state).span.start
+    );
+  }
 
   // Detect heredoc syntax (removed feature)
   const token = current(this.state);
@@ -1470,12 +1518,18 @@ Parser.prototype.parseConvert = function (this: Parser): ConvertNode {
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
   expect(this.state, TOKEN_TYPES.GT, 'Expected >');
 
-  // Structural convert: :>ordered(field: type, ...)
-  const TYPE_CONSTRUCTORS = ['list', 'dict', 'tuple', 'ordered'] as const;
+  // Structural convert: :>ordered(field: type, ...), :>stream(T), etc.
+  const TYPE_CONSTRUCTORS_CONVERT = [
+    'list',
+    'dict',
+    'tuple',
+    'ordered',
+    'stream',
+  ] as const;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    TYPE_CONSTRUCTORS.includes(
-      current(this.state).value as (typeof TYPE_CONSTRUCTORS)[number]
+    TYPE_CONSTRUCTORS_CONVERT.includes(
+      current(this.state).value as (typeof TYPE_CONSTRUCTORS_CONVERT)[number]
     ) &&
     this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
   ) {
