@@ -406,19 +406,21 @@ type FsExtensionContract = {
 
 **Required Functions (12 total):**
 
+All path parameters start with `/` and include the mount name (e.g., `"/workspace/file.txt"` where `workspace` is the mount name).
+
 | Function | Signature | Returns | Description |
 |----------|-----------|---------|-------------|
-| `read` | `(mount: string, path: string)` | `string` | Read file content |
-| `write` | `(mount: string, path: string, content: string)` | `string` | Write file content |
-| `append` | `(mount: string, path: string, content: string)` | `string` | Append to file |
-| `list` | `(mount: string, path?: string)` | `RillValue[]` | List directory entries |
-| `find` | `(mount: string, pattern?: string)` | `RillValue[]` | Find files by pattern |
-| `exists` | `(mount: string, path: string)` | `boolean` | Check file/directory existence |
-| `remove` | `(mount: string, path: string)` | `boolean` | Delete file/directory |
-| `stat` | `(mount: string, path: string)` | `Record<string, RillValue>` | Get file metadata |
-| `mkdir` | `(mount: string, path: string)` | `boolean` | Create directory |
-| `copy` | `(mount: string, src: string, dest: string)` | `boolean` | Copy file/directory |
-| `move` | `(mount: string, src: string, dest: string)` | `boolean` | Move file/directory |
+| `read` | `(path: string)` | `string` | Read file content |
+| `write` | `(path: string, content: string)` | `string` | Write file content |
+| `append` | `(path: string, content: string)` | `string` | Append to file |
+| `list` | `(path: string)` | `RillValue[]` | List directory entries |
+| `find` | `(path: string, pattern?: string)` | `RillValue[]` | Find files by pattern |
+| `exists` | `(path: string)` | `boolean` | Check file/directory existence |
+| `remove` | `(path: string)` | `boolean` | Delete file/directory |
+| `stat` | `(path: string)` | `Record<string, RillValue>` | Get file metadata |
+| `mkdir` | `(path: string)` | `boolean` | Create directory |
+| `copy` | `(src: string, dest: string)` | `boolean` | Copy file/directory |
+| `move` | `(src: string, dest: string)` | `boolean` | Move file/directory |
 | `mounts` | `()` | `RillValue[]` | List all configured mounts |
 
 **Usage:**

@@ -125,7 +125,7 @@ Example:
 | Search | `qdrant.search($vector, 5)` | Find similar documents |
 | Complete | `anthropic.message($prompt)` | Generate response |
 | Persist | `kv.set("last_query", $query)` | Remember last query |
-| Write output | `fs.write("output", "result.md", $response)` | Save to file |
+| Write output | `fs.write("/output/result.md", $response)` | Save to file |
 
 ### 2.3 Gather Configuration Values
 
@@ -521,7 +521,7 @@ $obj.greet
 ```text
 anthropic.message("Summarize: {$text}") => $summary
 $query -> anthropic.embed($) -> qdrant.search($, 5) => $results
-fs.read("input", "data.csv") => $csv
+fs.read("/input/data.csv") => $csv
 kv.get("run_count") -> ($ + 1) -> kv.set("run_count", $)
 crypto.uuid() => $request_id
 ```
@@ -611,19 +611,21 @@ $results -> map { $.metadata } => $all_metadata    # extract metadata dicts
 
 ### fs — Sandboxed File I/O
 
+All path parameters start with `/` and include the mount name (e.g., `"/mount/file.txt"` where `mount` is the configured mount name).
+
 | Function | Returns | Shape |
 |----------|---------|-------|
-| `fs.read(mount, path)` | string | File contents |
-| `fs.write(mount, path, content)` | string | Bytes written |
-| `fs.append(mount, path, content)` | string | Bytes written |
-| `fs.list(mount, path?)` | list | `[{ name, type, size }, ...]` — type is `"file"` or `"directory"` |
-| `fs.find(mount, pattern?)` | list | `["path/to/file.txt", ...]` — relative paths |
-| `fs.exists(mount, path)` | bool | `true` or `false` |
-| `fs.remove(mount, path)` | bool | `true` if deleted, `false` if absent |
-| `fs.stat(mount, path)` | dict | `{ name, type, size, created, modified }` — timestamps are ISO 8601 |
-| `fs.mkdir(mount, path)` | bool | `true` if created, `false` if exists |
-| `fs.copy(mount, src, dest)` | bool | `true` on success |
-| `fs.move(mount, src, dest)` | bool | `true` on success |
+| `fs.read(path)` | string | File contents |
+| `fs.write(path, content)` | string | Bytes written |
+| `fs.append(path, content)` | string | Bytes written |
+| `fs.list(path)` | list | `[{ name, type, size }, ...]` — type is `"file"` or `"directory"` |
+| `fs.find(path, pattern?)` | list | `["path/to/file.txt", ...]` — relative paths |
+| `fs.exists(path)` | bool | `true` or `false` |
+| `fs.remove(path)` | bool | `true` if deleted, `false` if absent |
+| `fs.stat(path)` | dict | `{ name, type, size, created, modified }` — timestamps are ISO 8601 |
+| `fs.mkdir(path)` | bool | `true` if created, `false` if exists |
+| `fs.copy(src, dest)` | bool | `true` on success |
+| `fs.move(src, dest)` | bool | `true` on success |
 | `fs.mounts()` | list | `[{ name, mode, glob }, ...]` |
 
 Mount modes: `read`, `write`, `read-write`. Path traversal outside mount boundary throws error.

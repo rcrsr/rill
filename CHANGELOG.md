@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **fs extension: mount-prefixed paths** — All fs functions use a single `/mount/path` argument instead of separate `mount` and `path` parameters. Paths start with `/` followed by the mount name (e.g., `fs.read("/workspace/file.txt")`)
+- **fs extension: typed return values** — `stat` returns `dict{name, type, size, created, modified}`, `list` returns `list[dict{name, type, size}]`, `find` returns `list[string]`
 - **Standardized runtime error codes** — All runtime errors now use typed error codes (RILL-R064-R077) instead of raw exception messages
 
 ### Removed

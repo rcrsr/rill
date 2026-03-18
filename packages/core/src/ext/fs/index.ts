@@ -21,6 +21,7 @@ import {
   resolvePath,
   matchesGlob,
   initializeMount,
+  parseMountPath,
 } from './sandbox.js';
 
 // ============================================================
@@ -123,8 +124,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   ): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     // EC-5: Catch file not found from resolvePath
     let resolvedPath: string;
@@ -158,8 +161,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const write = async (args: Record<string, RillValue>): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
     const content = args['content'] as string;
 
     const resolvedPath = await resolvePath(
@@ -188,8 +193,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const append = async (args: Record<string, RillValue>): Promise<string> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
     const content = args['content'] as string;
 
     const resolvedPath = await resolvePath(
@@ -236,8 +243,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   ): Promise<RillValue[]> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const dirPath = (args['path'] as string | undefined) ?? '';
+    const { mountName, relativePath: dirPath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     const resolvedPath = await resolvePath(mountName, dirPath, mounts, 'read');
 
@@ -267,7 +276,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   ): Promise<RillValue[]> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
+    const { mountName, relativePath: searchBase } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
     const pattern = (args['pattern'] as string | undefined) ?? '*';
 
     const mount = mounts[mountName];
@@ -280,7 +292,13 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       );
     }
 
-    const basePath = mount.resolvedPath;
+    let basePath: string;
+    if (searchBase) {
+      // Validate searchBase through sandbox resolver to prevent path traversal
+      basePath = await resolvePath(mountName, searchBase, mounts, 'read');
+    } else {
+      basePath = mount.resolvedPath;
+    }
     const results: string[] = [];
 
     // Recursive directory traversal
@@ -294,7 +312,7 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
           await traverse(fullPath);
         } else if (matchesGlob(entry.name, pattern)) {
           // Return path relative to mount base
-          const relativePath = path.relative(basePath, fullPath);
+          const relativePath = path.relative(mount.resolvedPath!, fullPath);
           results.push(relativePath);
         }
       }
@@ -311,8 +329,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const exists = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     try {
       await resolvePath(mountName, filePath, mounts, 'read');
@@ -333,8 +353,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const remove = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     // Catch file not found from resolvePath
     let resolvedPath: string;
@@ -370,8 +392,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   ): Promise<Record<string, RillValue>> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const filePath = args['path'] as string;
+    const { mountName, relativePath: filePath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     // Catch file not found from resolvePath
     let resolvedPath: string;
@@ -409,8 +433,10 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const mkdir = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const dirPath = args['path'] as string;
+    const { mountName, relativePath: dirPath } = parseMountPath(
+      args['path'] as string,
+      mounts
+    );
 
     const mount = mounts[mountName];
     if (!mount || !mount.resolvedPath) {
@@ -478,9 +504,25 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const copy = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const srcPath = args['src'] as string;
-    const destPath = args['dest'] as string;
+    const { mountName: srcMountName, relativePath: srcPath } = parseMountPath(
+      args['src'] as string,
+      mounts
+    );
+    const { mountName: destMountName, relativePath: destPath } = parseMountPath(
+      args['dest'] as string,
+      mounts
+    );
+    const mountName = srcMountName;
+
+    // Verify same mount
+    if (srcMountName !== destMountName) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `copy requires same mount for src and dest`,
+        undefined,
+        { src: args['src'], dest: args['dest'] }
+      );
+    }
 
     const resolvedSrc = await resolvePath(mountName, srcPath, mounts, 'read');
     const resolvedDest = await resolvePath(
@@ -521,9 +563,25 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
   const move = async (args: Record<string, RillValue>): Promise<boolean> => {
     await ensureInitialized();
 
-    const mountName = args['mount'] as string;
-    const srcPath = args['src'] as string;
-    const destPath = args['dest'] as string;
+    const { mountName: srcMountName, relativePath: srcPath } = parseMountPath(
+      args['src'] as string,
+      mounts
+    );
+    const { mountName: destMountName, relativePath: destPath } = parseMountPath(
+      args['dest'] as string,
+      mounts
+    );
+    const mountName = srcMountName;
+
+    // Verify same mount
+    if (srcMountName !== destMountName) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `move requires same mount for src and dest`,
+        undefined,
+        { src: args['src'], dest: args['dest'] }
+      );
+    }
 
     const resolvedSrc = await resolvePath(mountName, srcPath, mounts, 'read');
     const resolvedDest = await resolvePath(
@@ -581,16 +639,12 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       read: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
         ],
         fn: read,
@@ -600,16 +654,12 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       write: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
           {
             name: 'content',
@@ -625,16 +675,12 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       append: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
           {
             name: 'content',
@@ -650,29 +696,39 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       list: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
-            defaultValue: '',
-            annotations: { description: 'Directory path relative to mount' },
+            defaultValue: undefined,
+            annotations: {
+              description:
+                'Mount-prefixed directory path (e.g. "/mount/subdir")',
+            },
           },
         ],
         fn: list,
         annotations: { description: 'List directory contents' },
-        returnType: structureToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({
+          kind: 'list',
+          element: {
+            kind: 'dict',
+            fields: {
+              name: { type: { kind: 'string' } },
+              type: { type: { kind: 'string' } },
+              size: { type: { kind: 'number' } },
+            },
+          },
+        }),
       }),
       find: toCallable({
         params: [
           {
-            name: 'mount',
+            name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Mount name' },
+            annotations: {
+              description:
+                'Mount-prefixed base path (e.g. "/mount" or "/mount/subdir")',
+            },
           },
           {
             name: 'pattern',
@@ -683,21 +739,20 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
         ],
         fn: find,
         annotations: { description: 'Recursive file search' },
-        returnType: structureToTypeValue({ kind: 'list' }),
+        returnType: structureToTypeValue({
+          kind: 'list',
+          element: { kind: 'string' },
+        }),
       }),
       exists: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
         ],
         fn: exists,
@@ -707,16 +762,12 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       remove: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
         ],
         fn: remove,
@@ -726,35 +777,37 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       stat: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'File path relative to mount' },
+            annotations: {
+              description: 'Mount-prefixed file path (e.g. "/mount/file.txt")',
+            },
           },
         ],
         fn: stat,
         annotations: { description: 'Get file metadata' },
-        returnType: structureToTypeValue({ kind: 'dict' }),
+        returnType: structureToTypeValue({
+          kind: 'dict',
+          fields: {
+            name: { type: { kind: 'string' } },
+            type: { type: { kind: 'string' } },
+            size: { type: { kind: 'number' } },
+            created: { type: { kind: 'string' } },
+            modified: { type: { kind: 'string' } },
+          },
+        }),
       }),
       mkdir: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'path',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Directory path relative to mount' },
+            annotations: {
+              description:
+                'Mount-prefixed directory path (e.g. "/mount/subdir")',
+            },
           },
         ],
         fn: mkdir,
@@ -764,22 +817,16 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       copy: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'src',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Source file path' },
+            annotations: { description: 'Mount-prefixed source path' },
           },
           {
             name: 'dest',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Destination file path' },
+            annotations: { description: 'Mount-prefixed destination path' },
           },
         ],
         fn: copy,
@@ -789,22 +836,16 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       move: toCallable({
         params: [
           {
-            name: 'mount',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: { description: 'Mount name' },
-          },
-          {
             name: 'src',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Source file path' },
+            annotations: { description: 'Mount-prefixed source path' },
           },
           {
             name: 'dest',
             type: { kind: 'string' },
             defaultValue: undefined,
-            annotations: { description: 'Destination file path' },
+            annotations: { description: 'Mount-prefixed destination path' },
           },
         ],
         fn: move,

@@ -309,3 +309,48 @@ export async function initializeMount(mount: MountConfig): Promise<void> {
     throw error;
   }
 }
+
+// ============================================================
+// MOUNT PATH PARSING
+// ============================================================
+
+/**
+ * Parses a mount-prefixed path into mount name and relative path.
+ *
+ * Uses longest-first prefix matching to support mount names containing slashes.
+ * Strips a leading `/` before matching.
+ * Example: "/workspace/my/file.txt" → { mountName: "workspace", relativePath: "my/file.txt" }
+ * Example: "/the/mount/file.txt" → { mountName: "the/mount", relativePath: "file.txt" }
+ * Example: "/workspace" → { mountName: "workspace", relativePath: "" }
+ *
+ * @param fullPath - Path with leading `/` and mount prefix
+ * @param mounts - Mount configuration map
+ * @returns Parsed mount name and relative path
+ * @throws RuntimeError - If no mount matches the path prefix
+ */
+export function parseMountPath(
+  fullPath: string,
+  mounts: Record<string, MountConfig>
+): { mountName: string; relativePath: string } {
+  const normalized = fullPath.startsWith('/') ? fullPath.slice(1) : fullPath;
+  const sortedNames = Object.keys(mounts).sort((a, b) => b.length - a.length);
+
+  for (const mountName of sortedNames) {
+    if (normalized === mountName) {
+      return { mountName, relativePath: '' };
+    }
+    if (normalized.startsWith(mountName + '/')) {
+      return {
+        mountName,
+        relativePath: normalized.slice(mountName.length + 1),
+      };
+    }
+  }
+
+  throw new RuntimeError(
+    'RILL-R017',
+    `no mount matches path "${fullPath}"`,
+    undefined,
+    { path: fullPath }
+  );
+}
