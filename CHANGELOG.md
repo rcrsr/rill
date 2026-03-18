@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-03-17
+
 ### Added
 
 - **Stream collection type** — Streams enable lazy, producer-based collections that yield values on demand. Supports standard collection operators (`each`, `map`, `filter`, `fold`) and full type reflection
