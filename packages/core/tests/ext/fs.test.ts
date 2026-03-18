@@ -513,7 +513,7 @@ describe('fs extension', () => {
       });
     });
 
-    it('uses empty string as default path', async () => {
+    it('lists mount root when path has no subdirectory', async () => {
       const fsExt = createFsExtension({
         mounts: {
           workspace: { path: testMount, mode: 'read' },

@@ -292,9 +292,13 @@ export function createFsExtension(config: FsConfig): ExtensionFactoryResult {
       );
     }
 
-    const basePath = searchBase
-      ? path.join(mount.resolvedPath, searchBase)
-      : mount.resolvedPath;
+    let basePath: string;
+    if (searchBase) {
+      // Validate searchBase through sandbox resolver to prevent path traversal
+      basePath = await resolvePath(mountName, searchBase, mounts, 'read');
+    } else {
+      basePath = mount.resolvedPath;
+    }
     const results: string[] = [];
 
     // Recursive directory traversal
