@@ -601,3 +601,174 @@ describe('structureMatches stream', () => {
     expect(structureMatches(stream, { kind: 'string' })).toBe(false);
   });
 });
+
+// ============================================================
+// structureMatches TYPED STREAM (with embedded type metadata)
+// ============================================================
+
+describe('structureMatches typed stream', () => {
+  function makeTypedStream(
+    chunkType?: TypeStructure,
+    retType?: TypeStructure
+  ): RillStream {
+    const stream: RillStream = {
+      __rill_stream: true,
+      done: false,
+      value: 'x',
+      next: callable(() => null),
+    };
+    if (chunkType !== undefined) {
+      Object.defineProperty(stream, '__rill_stream_chunk_type', {
+        value: chunkType,
+        enumerable: false,
+      });
+    }
+    if (retType !== undefined) {
+      Object.defineProperty(stream, '__rill_stream_ret_type', {
+        value: retType,
+        enumerable: false,
+      });
+    }
+    return stream;
+  }
+
+  it('typed stream with matching chunk type passes chunk assertion', () => {
+    const stream = makeTypedStream({ kind: 'string' });
+    expect(
+      structureMatches(stream, { kind: 'stream', chunk: { kind: 'string' } })
+    ).toBe(true);
+  });
+
+  it('typed stream with mismatching chunk type fails chunk assertion', () => {
+    const stream = makeTypedStream({ kind: 'string' });
+    expect(
+      structureMatches(stream, { kind: 'stream', chunk: { kind: 'number' } })
+    ).toBe(false);
+  });
+
+  it('typed stream with matching ret type passes ret assertion', () => {
+    const stream = makeTypedStream(undefined, { kind: 'dict' });
+    expect(
+      structureMatches(stream, { kind: 'stream', ret: { kind: 'dict' } })
+    ).toBe(true);
+  });
+
+  it('typed stream with mismatching ret type fails ret assertion', () => {
+    const stream = makeTypedStream(undefined, { kind: 'dict' });
+    expect(
+      structureMatches(stream, { kind: 'stream', ret: { kind: 'string' } })
+    ).toBe(false);
+  });
+
+  it('typed stream with both matching chunk and ret passes both assertion', () => {
+    const stream = makeTypedStream({ kind: 'string' }, { kind: 'dict' });
+    expect(
+      structureMatches(stream, {
+        kind: 'stream',
+        chunk: { kind: 'string' },
+        ret: { kind: 'dict' },
+      })
+    ).toBe(true);
+  });
+
+  it('typed stream with chunk mismatch fails even when ret matches', () => {
+    const stream = makeTypedStream({ kind: 'number' }, { kind: 'dict' });
+    expect(
+      structureMatches(stream, {
+        kind: 'stream',
+        chunk: { kind: 'string' },
+        ret: { kind: 'dict' },
+      })
+    ).toBe(false);
+  });
+
+  it('typed stream with ret mismatch fails even when chunk matches', () => {
+    const stream = makeTypedStream({ kind: 'string' }, { kind: 'number' });
+    expect(
+      structureMatches(stream, {
+        kind: 'stream',
+        chunk: { kind: 'string' },
+        ret: { kind: 'dict' },
+      })
+    ).toBe(false);
+  });
+
+  it('typed stream passes bare stream assertion', () => {
+    const stream = makeTypedStream({ kind: 'string' }, { kind: 'dict' });
+    expect(structureMatches(stream, { kind: 'stream' })).toBe(true);
+  });
+
+  it('untyped stream still passes parameterized assertions', () => {
+    const stream = makeTypedStream();
+    expect(
+      structureMatches(stream, {
+        kind: 'stream',
+        chunk: { kind: 'string' },
+        ret: { kind: 'dict' },
+      })
+    ).toBe(true);
+  });
+});
+
+// ============================================================
+// inferStructure TYPED STREAM
+// ============================================================
+
+describe('inferStructure typed stream', () => {
+  function makeTypedStream(
+    chunkType?: TypeStructure,
+    retType?: TypeStructure
+  ): RillStream {
+    const stream: RillStream = {
+      __rill_stream: true,
+      done: false,
+      value: 'x',
+      next: callable(() => null),
+    };
+    if (chunkType !== undefined) {
+      Object.defineProperty(stream, '__rill_stream_chunk_type', {
+        value: chunkType,
+        enumerable: false,
+      });
+    }
+    if (retType !== undefined) {
+      Object.defineProperty(stream, '__rill_stream_ret_type', {
+        value: retType,
+        enumerable: false,
+      });
+    }
+    return stream;
+  }
+
+  it('returns structure with chunk and ret for typed stream', () => {
+    const stream = makeTypedStream({ kind: 'string' }, { kind: 'dict' });
+    const structure = inferStructure(stream);
+    expect(structure.kind).toBe('stream');
+    const s = structure as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    expect(s.chunk).toEqual({ kind: 'string' });
+    expect(s.ret).toEqual({ kind: 'dict' });
+  });
+
+  it('returns bare { kind: stream } for untyped stream', () => {
+    const stream = makeTypedStream();
+    const structure = inferStructure(stream);
+    expect(structure).toEqual({ kind: 'stream' });
+  });
+
+  it('returns { kind: stream, chunk } for chunk-only typed stream', () => {
+    const stream = makeTypedStream({ kind: 'number' });
+    const structure = inferStructure(stream);
+    expect(structure.kind).toBe('stream');
+    const s = structure as {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    };
+    expect(s.chunk).toEqual({ kind: 'number' });
+    expect(s.ret).toBeUndefined();
+  });
+});

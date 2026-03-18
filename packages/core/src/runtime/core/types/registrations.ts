@@ -668,15 +668,16 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
       convertTo: streamConvertTo,
       serialize: throwNotSerializable('stream'),
       structure: (v: RillValue): TypeStructure => {
-        const s = v as unknown as RillStream;
+        const raw = v as unknown as Record<string, TypeStructure | undefined>;
+        const chunk = raw['__rill_stream_chunk_type'];
+        const ret = raw['__rill_stream_ret_type'];
         const result: {
           kind: 'stream';
           chunk?: TypeStructure;
           ret?: TypeStructure;
         } = { kind: 'stream' };
-        // Stream chunk/ret types are not inferrable from the value itself;
-        // return bare stream structure descriptor.
-        void s;
+        if (chunk !== undefined) result.chunk = chunk;
+        if (ret !== undefined) result.ret = ret;
         return result;
       },
     },

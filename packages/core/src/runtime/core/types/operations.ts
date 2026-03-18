@@ -559,9 +559,17 @@ export function structureMatches(
       ret?: TypeStructure;
     };
     if (t.chunk === undefined && t.ret === undefined) return true;
-    // Stream chunk/ret matching requires type metadata not available on value;
-    // bare stream guard passes, parameterized matching defers to runtime.
-    if (t.chunk !== undefined || t.ret !== undefined) return true;
+    const raw = value as unknown as Record<string, TypeStructure | undefined>;
+    if (t.chunk !== undefined) {
+      const valueChunk = raw['__rill_stream_chunk_type'];
+      if (valueChunk !== undefined && !structureEquals(valueChunk, t.chunk))
+        return false;
+    }
+    if (t.ret !== undefined) {
+      const valueRet = raw['__rill_stream_ret_type'];
+      if (valueRet !== undefined && !structureEquals(valueRet, t.ret))
+        return false;
+    }
     return true;
   }
 
@@ -792,7 +800,19 @@ export function inferStructure(value: RillValue): TypeStructure {
     return { kind: 'vector' };
   }
   if (isStream(value)) {
-    return { kind: 'stream' };
+    const raw = value as unknown as Record<string, TypeStructure | undefined>;
+    const chunk = raw['__rill_stream_chunk_type'];
+    const ret = raw['__rill_stream_ret_type'];
+    const result: {
+      kind: 'stream';
+      chunk?: TypeStructure;
+      ret?: TypeStructure;
+    } = {
+      kind: 'stream',
+    };
+    if (chunk !== undefined) result.chunk = chunk;
+    if (ret !== undefined) result.ret = ret;
+    return result;
   }
   if (isCallable(value)) {
     const params = (value.params ?? []).map((p) =>
