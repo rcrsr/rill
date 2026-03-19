@@ -123,7 +123,7 @@ describe('formatValue', () => {
     });
 
     it('formats list with string elements', () => {
-      expect(formatValue(['a', 'b'])).toBe('list[a, b]');
+      expect(formatValue(['a', 'b'])).toBe('list["a", "b"]');
     });
 
     it('formats list with boolean elements', () => {
@@ -145,7 +145,7 @@ describe('formatValue', () => {
     });
 
     it('formats dict with string values', () => {
-      expect(formatValue({ name: 'Alice' })).toBe('dict[name: Alice]');
+      expect(formatValue({ name: 'Alice' })).toBe('dict[name: "Alice"]');
     });
   });
 
@@ -170,7 +170,7 @@ describe('formatValue', () => {
         __rill_tuple: true as const,
         entries: ['x' as RillValue, 'y' as RillValue],
       };
-      expect(formatValue(posTuple)).toBe('tuple[x, y]');
+      expect(formatValue(posTuple)).toBe('tuple["x", "y"]');
     });
   });
 
