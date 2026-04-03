@@ -10,6 +10,7 @@ import type {
 } from '../types.js';
 import type {
   ASTNode,
+  ClosureNode,
   EachExprNode,
   MapExprNode,
   FoldExprNode,
@@ -34,6 +35,24 @@ function containsBreak(node: ASTNode): boolean {
   visitNode(node, ctx, {
     enter(n: ASTNode) {
       if (n.type === 'Break') {
+        found = true;
+      }
+    },
+    exit() {},
+  });
+  return found;
+}
+
+/**
+ * Check if an AST subtree contains side-effecting operations.
+ * Detects HostCall (log, host functions) and ClosureCall ($fn(), $obj.method()).
+ */
+function containsSideEffects(node: ASTNode): boolean {
+  let found = false;
+  const ctx = {} as ValidationContext;
+  visitNode(node, ctx, {
+    enter(n: ASTNode) {
+      if (n.type === 'HostCall' || n.type === 'ClosureCall') {
         found = true;
       }
     },
@@ -210,9 +229,14 @@ export const PREFER_MAP: ValidationRule = {
       }
     }
 
-    // Simple heuristic: if body is pure (no side effects), suggest map
-    // For now, suggest map for simple transformations
-    // Full implementation would check for host calls, logging, etc.
+    // Check for side effects: host calls (log, etc.) and closure calls ($fn())
+    const innerBody =
+      eachExpr.body.type === 'Closure'
+        ? (eachExpr.body as ClosureNode).body
+        : eachExpr.body;
+    if (containsSideEffects(innerBody)) {
+      return [];
+    }
 
     return [
       {
@@ -222,7 +246,7 @@ export const PREFER_MAP: ValidationRule = {
         message:
           "Consider using 'map' instead of 'each' for pure transformations (no side effects)",
         context: extractContextLine(node.span.start.line, context.source),
-        fix: null, // Could generate fix by replacing 'each' with 'map'
+        fix: null,
       },
     ];
   },

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Container string quoting** — String values nested in dict, list, tuple, and ordered containers display with quotes for unambiguous output
 - **Landing page extension links** — Vendor extension chips link to the rill-ext repository
 - **rill-check: SPACING_BRACES false positive on closures with return type annotations** — Closure nodes with `:type` annotations extend `span.end` past `}`. The rule now uses `body.span.end` for closures to find the actual brace position
+- **rill-check: CLOSURE_LATE_BINDING false positive on named parameter each loops** — The rule counted the body closure itself as a nested closure creation. Now unwraps `|param| { ... }` to check only the inner block
+- **rill-check: PREFER_MAP false positive on each loops with side effects** — The rule suggested `map` for all `each` without accumulators. Now detects host calls (`log`) and closure calls (`$fn()`) as side effects
 
 ## [0.18.0] - 2026-03-17
 
