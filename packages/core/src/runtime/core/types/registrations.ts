@@ -37,7 +37,11 @@ import {
   isIterator,
 } from './guards.js';
 import { createTuple, createOrdered, createVector } from './constructors.js';
-import { formatStructure, structureEquals } from './operations.js';
+import {
+  formatRillLiteral,
+  formatStructure,
+  structureEquals,
+} from './operations.js';
 import {
   isCallable,
   isDict,
@@ -111,10 +115,7 @@ function formatString(v: RillValue): string {
 
 /** Quote strings when nested inside containers for unambiguous display. */
 function formatNested(v: RillValue): string {
-  if (typeof v === 'string') {
-    const escaped = (v as string).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
+  if (typeof v === 'string') return formatRillLiteral(v);
   return formatValue(v);
 }
 

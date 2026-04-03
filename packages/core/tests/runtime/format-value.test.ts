@@ -236,6 +236,14 @@ describe('formatValue', () => {
       const ord = createOrdered([]);
       expect(formatValue(ord)).toBe('ordered[]');
     });
+
+    it('formats ordered value with string entries', () => {
+      const ord = createOrdered([
+        ['name', 'Alice'],
+        ['role', 'admin'],
+      ]);
+      expect(formatValue(ord)).toBe('ordered[name: "Alice", role: "admin"]');
+    });
   });
 });
 
