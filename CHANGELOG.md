@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Container string quoting** — String values nested in dict, list, tuple, and ordered containers now display with quotes for unambiguous output
+- **Landing page vendor links** — Vendor extension chips link to rill-ext repo instead of removed local pages
+
+### Changed
+
+- **`&&` and `||` line-start continuations** — Logical operators can now start a continuation line, matching `->`, `=>`, `?`, `!`, `.`, `.?`
+- **`enumerate()` docs corrected** — LLM reference now documents the actual return type `list[dict[index, value]]` instead of `tuple[index, value]`
+
+### Added
+
+- **LLM reference: line continuation rules** — New section documenting line-start vs trailing-only operators
+- **Extension discovery index** — `llms-ext-index.txt` lists all 16 extensions with deep links to docs
+
 ## [0.18.0] - 2026-03-17
 
 ### Added

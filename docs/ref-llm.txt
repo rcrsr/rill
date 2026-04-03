@@ -555,11 +555,11 @@ enumerate example:
 
 Line-start continuations (can begin a new line):
 
-    ->  =>  ?  !  .  .?
+    ->  =>  ?  !  .  .?  &&  ||
 
 Trailing continuations (must end the previous line, not start the next):
 
-    +  -  *  /  %  ==  !=  <  >  <=  >=  &&  ||
+    +  -  *  /  %  ==  !=  <  >  <=  >=
 
 Open delimiters (`(`, `[`, `{`, `|`, `||`) also continue across newlines until closed.
 
@@ -574,11 +574,11 @@ Examples:
       ? "yes"
       ! "no"
 
-    # Valid: && trails the previous line
+    # Valid: && can trail the previous line
     $.?name&string &&
       !$.name -> .empty
 
-    # INVALID: && cannot start a line (RILL-P001)
+    # Valid: && can also start a continuation line
     $.?name&string
       && !$.name -> .empty
 

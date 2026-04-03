@@ -57,6 +57,29 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
   });
 
+  describe('G1b: Line-start && and || continue expression', () => {
+    it('|| at line-start continues expression', async () => {
+      const result = await run(`false\n|| true`);
+      expect(result).toBe(true);
+    });
+
+    it('&& at line-start continues expression', async () => {
+      const result = await run(`true\n&& false`);
+      expect(result).toBe(false);
+    });
+
+    it('chained && at line-start across multiple lines', async () => {
+      const result = await run(`true\n&& true\n&& true`);
+      expect(result).toBe(true);
+    });
+
+    it('mixed && and || at line-start with correct precedence', async () => {
+      // && binds tighter than ||, so: false || (true && true) => true
+      const result = await run(`false\n|| true\n&& true`);
+      expect(result).toBe(true);
+    });
+  });
+
   describe('G2: Closure structure with newlines around | delimiters', () => {
     it('newline after opening | and closing | parses and executes', async () => {
       const result = await run(

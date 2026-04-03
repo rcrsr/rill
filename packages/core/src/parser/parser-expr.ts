@@ -1312,7 +1312,7 @@ Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
   const start = current(this.state).span.start;
   let left = this.parseLogicalAnd();
 
-  while (check(this.state, TOKEN_TYPES.OR)) {
+  while (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
     skipNewlines(this.state);
     const right = this.parseLogicalAnd();
@@ -1332,7 +1332,7 @@ Parser.prototype.parseLogicalAnd = function (this: Parser): ArithHead {
   const start = current(this.state).span.start;
   let left = this.parseComparison();
 
-  while (check(this.state, TOKEN_TYPES.AND)) {
+  while (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.AND)) {
     advance(this.state);
     skipNewlines(this.state);
     const right = this.parseComparison();

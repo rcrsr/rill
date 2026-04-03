@@ -791,7 +791,7 @@ A newline after any of these continues the current statement:
 | Annotation | `^` |
 | Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` |
 
-A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
+A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, `.?`, `&&`, and `||`:
 
 ```rill
 "hello"
@@ -806,7 +806,12 @@ A subset of continuation tokens also work as **line-start continuations** — pl
   ! "no"
 ```
 
-Arithmetic, logical, and comparison operators work as **trailing continuations** only — place the operator at the end of the line, not the beginning:
+```rill
+$.?name&string
+  && !$.name -> .empty
+```
+
+Arithmetic and comparison operators work as **trailing continuations** only — place the operator at the end of the line, not the beginning:
 
 ```rill
 1 +
