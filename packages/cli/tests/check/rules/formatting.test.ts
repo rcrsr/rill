@@ -319,6 +319,13 @@ describe('SPACING_BRACES', () => {
     const source = '{"value: {$var}"}';
     expect(hasViolations(source, config)).toBe(true);
   });
+
+  it('accepts multi-line closure with return type annotation', () => {
+    const source = `|| {
+  1
+}:number`;
+    expect(hasViolations(source, config)).toBe(false);
+  });
 });
 
 // ============================================================

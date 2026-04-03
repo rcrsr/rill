@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config: resolve locally installed extensions** — `resolveSpecifier` now uses `createRequire` from `node:module` to resolve bare npm specifiers from the project directory. Global rill-cli installations can find extension packages in the project's `node_modules/`
 - **Container string quoting** — String values nested in dict, list, tuple, and ordered containers display with quotes for unambiguous output
 - **Landing page extension links** — Vendor extension chips link to the rill-ext repository
+- **rill-check: SPACING_BRACES false positive on closures with return type annotations** — Closure nodes with `:type` annotations extend `span.end` past `}`. The rule now uses `body.span.end` for closures to find the actual brace position
 
 ## [0.18.0] - 2026-03-17
 
