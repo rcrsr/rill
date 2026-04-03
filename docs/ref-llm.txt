@@ -518,7 +518,7 @@ replace vs replace_all:
 | `identity(val)` | returns input unchanged |
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator) |
-| `enumerate(coll)` | lists: `dict[index, value]`; dicts: `dict[index, key, value]` |
+| `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
 | `chain($fn)` | apply single closure; chain(val, list[$f, $g]) applies in sequence |
 
 enumerate example:
@@ -560,6 +560,8 @@ Line-start continuations (can begin a new line):
 Trailing continuations (must end the previous line, not start the next):
 
     +  -  *  /  %  ==  !=  <  >  <=  >=  &&  ||
+
+Open delimiters (`(`, `[`, `{`, `|`, `||`) also continue across newlines until closed.
 
 Examples:
 
