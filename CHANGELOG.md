@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-04-03
+
 ### Fixed
 
 - **Config: resolve locally installed extensions** — `resolveSpecifier` now uses `createRequire` from `node:module` to resolve bare npm specifiers from the project directory. Global rill-cli installations can find extension packages in the project's `node_modules/`
