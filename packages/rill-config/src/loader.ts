@@ -5,7 +5,7 @@
  */
 
 import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
 import {
@@ -41,7 +41,7 @@ export function resolveSpecifier(specifier: string): string {
   if (specifier.startsWith('./') || specifier.startsWith('../')) {
     return pathToFileURL(resolve(process.cwd(), specifier)).href;
   }
-  if (specifier.startsWith('/') || specifier.startsWith('file://')) {
+  if (isAbsolute(specifier) || specifier.startsWith('file://')) {
     return specifier;
   }
   // Bare specifiers: resolve from project directory, not from this file's location
