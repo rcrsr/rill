@@ -4,6 +4,7 @@
  * and builds the nested extension config tree.
  */
 
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
@@ -33,13 +34,21 @@ import type {
 /**
  * Resolve a package specifier for dynamic import.
  * Relative paths are resolved against CWD and converted to file URLs.
- * Bare specifiers (npm package names) are returned as-is.
+ * Bare specifiers resolve from the project directory via createRequire.
+ * @internal
  */
-function resolveSpecifier(specifier: string): string {
+export function resolveSpecifier(specifier: string): string {
   if (specifier.startsWith('./') || specifier.startsWith('../')) {
     return pathToFileURL(resolve(process.cwd(), specifier)).href;
   }
-  return specifier;
+  if (specifier.startsWith('/') || specifier.startsWith('file://')) {
+    return specifier;
+  }
+  // Bare specifiers: resolve from project directory, not from this file's location
+  const projectRequire = createRequire(
+    pathToFileURL(resolve(process.cwd(), 'package.json')).href
+  );
+  return pathToFileURL(projectRequire.resolve(specifier)).href;
 }
 
 function isModuleNotFoundError(err: unknown): boolean {
