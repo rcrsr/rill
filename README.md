@@ -285,7 +285,7 @@ See [docs/index.md](docs/index.md) for full navigation.
 | [Reference](docs/ref-language.md) | Language specification |
 | [Examples](docs/guide-examples.md) | Workflow patterns |
 | [Host Integration](docs/integration-host.md) | Embedding API |
-| [Bundled Extensions](docs/bundled-extensions.md) | LLM provider extensions |
+| [Bundled Extensions](docs/bundled-extensions.md) | Core extensions (fs, fetch, exec, kv, crypto) |
 | [Developing Extensions](docs/integration-extensions.md) | Writing custom extensions |
 | [Design Principles](docs/topic-design-principles.md) | Why rill works the way it does |
 

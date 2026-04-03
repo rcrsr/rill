@@ -37,7 +37,11 @@ import {
   isIterator,
 } from './guards.js';
 import { createTuple, createOrdered, createVector } from './constructors.js';
-import { formatStructure, structureEquals } from './operations.js';
+import {
+  formatRillLiteral,
+  formatStructure,
+  structureEquals,
+} from './operations.js';
 import {
   isCallable,
   isDict,
@@ -109,6 +113,12 @@ function formatString(v: RillValue): string {
   return v as string;
 }
 
+/** Quote strings when nested inside containers for unambiguous display. */
+function formatNested(v: RillValue): string {
+  if (typeof v === 'string') return formatRillLiteral(v);
+  return formatValue(v);
+}
+
 function formatNumber(v: RillValue): string {
   return String(v as number);
 }
@@ -119,12 +129,12 @@ function formatBool(v: RillValue): string {
 
 function formatTuple(v: RillValue): string {
   const t = v as unknown as RillTuple;
-  return `tuple[${t.entries.map(formatValue).join(', ')}]`;
+  return `tuple[${t.entries.map(formatNested).join(', ')}]`;
 }
 
 function formatOrdered(v: RillValue): string {
   const o = v as unknown as RillOrdered;
-  const parts = o.entries.map(([k, val]) => `${k}: ${formatValue(val)}`);
+  const parts = o.entries.map(([k, val]) => `${k}: ${formatNested(val)}`);
   return `ordered[${parts.join(', ')}]`;
 }
 
@@ -156,13 +166,13 @@ function formatStream(_v: RillValue): string {
 
 function formatList(v: RillValue): string {
   const arr = v as RillValue[];
-  return `list[${arr.map(formatValue).join(', ')}]`;
+  return `list[${arr.map(formatNested).join(', ')}]`;
 }
 
 function formatDict(v: RillValue): string {
   const dict = v as Record<string, RillValue>;
   const parts = Object.entries(dict).map(
-    ([k, val]) => `${k}: ${formatValue(val)}`
+    ([k, val]) => `${k}: ${formatNested(val)}`
   );
   return `dict[${parts.join(', ')}]`;
 }
