@@ -28,7 +28,7 @@ import {
 } from '@rcrsr/rill-config';
 import { CLI_VERSION } from './cli-shared.js';
 import { explainError } from './cli-explain.js';
-import { runScript } from './run/runner.js';
+import { formatOutput, runScript } from './run/runner.js';
 import type { RunCliOptions } from './run/types.js';
 
 // ============================================================
@@ -357,10 +357,15 @@ export async function main(): Promise<void> {
       }
     }
 
-    if (typeof handlerResult === 'string' && handlerResult.length > 0) {
-      process.stdout.write(handlerResult + '\n');
+    if (
+      handlerResult !== false &&
+      handlerResult !== '' &&
+      handlerResult !== undefined
+    ) {
+      const output = formatOutput(handlerResult, opts.format);
+      process.stdout.write(output + '\n');
     }
-    process.exit(0);
+    process.exit(handlerResult === false || handlerResult === '' ? 1 : 0);
   }
 
   // Module mode: main field in config is required

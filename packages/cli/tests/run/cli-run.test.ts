@@ -37,9 +37,13 @@ vi.mock('@rcrsr/rill-config', async (importActual) => {
   };
 });
 
-vi.mock('../../src/run/runner.js', () => ({
-  runScript: mocks.runScript,
-}));
+vi.mock('../../src/run/runner.js', async (importActual) => {
+  const actual = await importActual<typeof import('../../src/run/runner.js')>();
+  return {
+    ...actual,
+    runScript: mocks.runScript,
+  };
+});
 
 vi.mock('@rcrsr/rill', async (importActual) => {
   const actual = await importActual<typeof import('@rcrsr/rill')>();
@@ -543,6 +547,35 @@ describe('main() loadProject flow', () => {
         unknown,
       ];
       expect(rawArgs['target']).toBe('prod');
+    });
+
+    it('outputs dict handler result as JSON', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [],
+      });
+      mocks.marshalCliArgs.mockReturnValue({});
+      mocks.invokeCallable.mockResolvedValue({ count: 3, status: 'ok' });
+
+      await runMain([]);
+
+      expect(stdoutChunks.join('')).toContain('"count": 3');
+      expect(stdoutChunks.join('')).toContain('"status": "ok"');
+    });
+
+    it('outputs number handler result', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [],
+      });
+      mocks.marshalCliArgs.mockReturnValue({});
+      mocks.invokeCallable.mockResolvedValue(42);
+
+      await runMain([]);
+
+      expect(stdoutChunks.join('')).toContain('42');
     });
   });
 
