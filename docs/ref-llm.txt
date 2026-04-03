@@ -465,13 +465,18 @@ Use in closure params to validate input structure:
 | `.starts_with(s)` | prefix check |
 | `.ends_with(s)` | suffix check |
 | `.index_of(s)` | first match position (-1 if none) |
-| `.replace(p, r)` | replace first regex match |
+| `.replace(p, r)` | replace first regex match only |
 | `.replace_all(p, r)` | replace all regex matches |
 | `.match(regex)` | first match info (dict with matched, index, groups) |
 | `.is_match(regex)` | boolean regex check |
 | `.repeat(n)` | repeat n times |
 | `.pad_start(n, f)` | pad start |
 | `.pad_end(n, f)` | pad end |
+
+replace vs replace_all:
+
+    "a.b.c" -> .replace("\\.", "-")        # "a-b.c" (first match only)
+    "a.b.c" -> .replace_all("\\.", "-")    # "a-b-c" (all matches)
 
 ### List Methods
 
@@ -513,8 +518,15 @@ Use in closure params to validate input structure:
 | `identity(val)` | returns input unchanged |
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator) |
-| `enumerate(coll)` | lists: `tuple[index, value]`; dicts: `tuple[index, key, value]` |
+| `enumerate(coll)` | lists: `dict[index, value]`; dicts: `dict[index, key, value]` |
 | `chain($fn)` | apply single closure; chain(val, list[$f, $g]) applies in sequence |
+
+enumerate example:
+
+    list["a", "b"] -> enumerate -> each {
+      "{$.index}: {$.value}"
+    }
+    # list["0: a", "1: b"]
 
 ## Style
 
@@ -538,6 +550,35 @@ Use in closure params to validate input structure:
     Continuations: indent 2 spaces        $data
                                             -> .filter { $.active }
                                             -> map { $.name }
+
+### Line Continuations
+
+Line-start continuations (can begin a new line):
+
+    ->  =>  ?  !  .  .?
+
+Trailing continuations (must end the previous line, not start the next):
+
+    +  -  *  /  %  ==  !=  <  >  <=  >=  &&  ||
+
+Examples:
+
+    # Valid: -> and ? start continuation lines
+    $items
+      -> filter { $.active }
+      -> map { $.name }
+
+    condition
+      ? "yes"
+      ! "no"
+
+    # Valid: && trails the previous line
+    $.?name&string &&
+      !$.name -> .empty
+
+    # INVALID: && cannot start a line (RILL-P001)
+    $.?name&string
+      && !$.name -> .empty
 
 ## Extended Reference
 
