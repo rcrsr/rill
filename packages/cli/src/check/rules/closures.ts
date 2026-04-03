@@ -211,12 +211,18 @@ export const CLOSURE_LATE_BINDING: ValidationRule = {
     const eachNode = node as EachExprNode;
     const body = eachNode.body;
 
+    // For named parameter closures (|entry| { ... }), the body itself is a
+    // Closure. Look inside the inner block for nested closure creations,
+    // not the body closure itself.
+    const innerBody =
+      body.type === 'Closure' ? (body as ClosureNode).body : body;
+
     // Check if body contains a closure creation
-    const hasClosureCreation = containsClosureCreation(body);
+    const hasClosureCreation = containsClosureCreation(innerBody);
 
     if (hasClosureCreation) {
       // Check if there's an explicit capture before the closure
-      const hasExplicitCapture = containsExplicitCapture(body);
+      const hasExplicitCapture = containsExplicitCapture(innerBody);
 
       if (!hasExplicitCapture) {
         return [

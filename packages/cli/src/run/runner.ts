@@ -107,7 +107,7 @@ function mapResultToRunResult(
   return { exitCode: 0, output: formatted };
 }
 
-function formatOutput(
+export function formatOutput(
   value: RillValue,
   format: RunCliOptions['format']
 ): string {

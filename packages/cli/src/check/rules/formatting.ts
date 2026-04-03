@@ -183,7 +183,6 @@ export const SPACING_BRACES: ValidationRule = {
     const lines = context.source.split('\n');
 
     const openLine = lines[span.start.line - 1] ?? '';
-    const closeLine = lines[span.end.line - 1] ?? '';
 
     // Check for opening brace without space after
     // Only examine the opening line (from the { onward)
@@ -201,12 +200,18 @@ export const SPACING_BRACES: ValidationRule = {
     }
 
     // Check for closing brace without space before
-    // span.end.column is 1-indexed and points AFTER the }, so:
-    // - } is at 0-index: span.end.column - 2
-    // - Character before } is at 0-index: span.end.column - 3
-    const charBeforeClose = closeLine[span.end.column - 3];
+    // For Closure nodes with return type annotations, span.end extends past }
+    // to include the type annotation. Use body.span.end to find the actual }.
+    const closeSpan =
+      node.type === 'Closure' ? (node as ClosureNode).body.span : span;
+    const closeEnd = closeSpan.end;
+    const closeLineActual = lines[closeEnd.line - 1] ?? '';
+    // closeEnd.column is 1-indexed and points AFTER the }, so:
+    // - } is at 0-index: closeEnd.column - 2
+    // - Character before } is at 0-index: closeEnd.column - 3
+    const charBeforeClose = closeLineActual[closeEnd.column - 3];
     const isCloseOnOwnLine = /^\s*$/.test(
-      closeLine.substring(0, span.end.column - 2)
+      closeLineActual.substring(0, closeEnd.column - 2)
     );
     if (charBeforeClose && !/\s/.test(charBeforeClose) && !isCloseOnOwnLine) {
       diagnostics.push({

@@ -170,6 +170,20 @@ describe('PREFER_MAP', () => {
     const severities = getSeverities(source, rule);
     expect(severities[0]).toBe('info');
   });
+
+  it('allows each with host call (side effect)', () => {
+    const source = `
+      list[1, 2, 3] -> each { log($) }
+    `;
+    expect(hasViolations(source, rule)).toBe(false);
+  });
+
+  it('allows each with closure call (side effect)', () => {
+    const source = `
+      list[1, 2, 3] -> each |x| { $fn($x) }
+    `;
+    expect(hasViolations(source, rule)).toBe(false);
+  });
 });
 
 // ============================================================

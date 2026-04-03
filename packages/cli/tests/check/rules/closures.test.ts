@@ -182,4 +182,14 @@ describe('CLOSURE_LATE_BINDING', () => {
     expect(diagnostics[0]?.code).toBe('CLOSURE_LATE_BINDING');
     expect(diagnostics[0]?.severity).toBe('warning');
   });
+
+  it('accepts each with named parameter and no nested closures', () => {
+    const source = `list[1, 2, 3] -> each |x| { $x * 2 }`;
+    expect(hasViolations(source, config)).toBe(false);
+  });
+
+  it('warns on nested closure inside named parameter each', () => {
+    const source = `list[1, 2, 3] -> each |x| { || { $x } }`;
+    expect(hasViolations(source, config)).toBe(true);
+  });
 });
