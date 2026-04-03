@@ -1,0 +1,104 @@
+# rill Extensions Index
+
+> Discovery index for all rill extensions. Each entry lists the npm package, a summary, and a deep link to full documentation. Extensions are configured in `rill-config.json` under `extensions.mounts`.
+
+## How extensions load
+
+```json
+{
+  "extensions": {
+    "mounts": { "<namespace>": "<npm-package>" },
+    "config": { "<namespace>": { ... } }
+  }
+}
+```
+
+```rill
+use<ext:namespace> => $ext
+$ext.function_name(args)
+```
+
+## Bundled Extensions (shipped with @rcrsr/rill)
+
+Bundled extensions import from `@rcrsr/rill/ext/<name>` in TypeScript host code. They do not require `rill-config.json` mounts.
+
+| Extension | Import | Functions | Summary |
+|-----------|--------|-----------|---------|
+| fs | `@rcrsr/rill/ext/fs` | 12 | Sandboxed local filesystem with mount-based permissions |
+| fetch | `@rcrsr/rill/ext/fetch` | per-endpoint | HTTP client with endpoint allowlisting (no arbitrary URLs) |
+| exec | `@rcrsr/rill/ext/exec` | per-command | Sandboxed command execution with allowlist/blocklist |
+| kv | `@rcrsr/rill/ext/kv` | 11 | JSON-backed key-value store with optional schema |
+| crypto | `@rcrsr/rill/ext/crypto` | 4 | Hashing (SHA-256), HMAC, UUID, random bytes |
+
+Documentation: https://raw.githubusercontent.com/rcrsr/rill/main/docs/bundled-extensions.md
+
+## Vendor Extensions (from @rcrsr/rill-ext)
+
+Vendor extensions install as separate npm packages and load via `rill-config.json` mounts. Extensions in the same category share identical function signatures, so scripts swap providers by changing the mount package.
+
+### LLM (3 interchangeable packages, 6 shared functions)
+
+Single-prompt, multi-turn conversation, embeddings, tool loops, structured output.
+
+| Package | Provider | Docs |
+|---------|----------|------|
+| `@rcrsr/rill-ext-anthropic` | Claude and Anthropic-style APIs | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/llm-anthropic/docs/extension-llm-anthropic.md |
+| `@rcrsr/rill-ext-openai` | GPT and OpenAI-style APIs | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/llm-openai/docs/extension-llm-openai.md |
+| `@rcrsr/rill-ext-gemini` | Google (Gemini) | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/llm-gemini/docs/extension-llm-gemini.md |
+
+Functions: `message`, `messages`, `embed`, `embed_batch`, `tool_loop`, `generate`
+
+Note: Anthropic does not support embeddings. Use OpenAI or Gemini for `embed`/`embed_batch`.
+
+### Key-Value Store (2 interchangeable packages, 11 shared functions)
+
+Persistent key-value storage with optional schema validation and named mounts.
+
+| Package | Backend | Docs |
+|---------|---------|------|
+| `@rcrsr/rill-ext-kv-sqlite` | SQLite (single-server persistence) | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/kv-sqlite/docs/extension-kv-sqlite.md |
+| `@rcrsr/rill-ext-kv-redis` | Redis (distributed, TTL support) | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/kv-redis/docs/extension-kv-redis.md |
+
+Functions: `get`, `get_or`, `set`, `merge`, `delete`, `keys`, `has`, `clear`, `getAll`, `schema`, `mounts`
+
+### Filesystem (1 package, 12 functions)
+
+S3-compatible object storage. Works with AWS S3, Cloudflare R2, MinIO.
+
+| Package | Backend | Docs |
+|---------|---------|------|
+| `@rcrsr/rill-ext-fs-s3` | S3-compatible services | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/fs-s3/docs/extension-fs-s3.md |
+
+Functions: `read`, `write`, `append`, `list`, `find`, `exists`, `remove`, `stat`, `mkdir`, `copy`, `move`, `mounts`
+
+### Vector Database (3 interchangeable packages, 11 shared functions)
+
+Vector storage and similarity search for embeddings.
+
+| Package | Backend | Docs |
+|---------|---------|------|
+| `@rcrsr/rill-ext-qdrant` | Qdrant | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/vectordb-qdrant/docs/extension-vectordb-qdrant.md |
+| `@rcrsr/rill-ext-pinecone` | Pinecone | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/vectordb-pinecone/docs/extension-vectordb-pinecone.md |
+| `@rcrsr/rill-ext-chroma` | ChromaDB | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/vectordb-chroma/docs/extension-vectordb-chroma.md |
+
+Functions: `upsert`, `upsert_batch`, `search`, `get`, `delete`, `delete_batch`, `count`, `create_collection`, `delete_collection`, `list_collections`, `describe`
+
+### MCP — Model Context Protocol (1 package)
+
+Connects rill scripts to MCP servers via stdio or HTTP transport. Auto-generates callable functions from server metadata. MCP tools pass directly to LLM `tool_loop`.
+
+| Package | Transport | Docs |
+|---------|-----------|------|
+| `@rcrsr/rill-ext-mcp` | stdio, HTTP | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/mcp/docs/extension-mcp.md |
+
+Returns three capability dicts: `.tools`, `.resources`, `.prompts`
+
+### Claude Code (1 package, 3 functions)
+
+Spawns the Claude Code CLI as a subprocess. Requires `claude` binary in `$PATH`.
+
+| Package | Requires | Docs |
+|---------|----------|------|
+| `@rcrsr/rill-ext-claude-code` | `claude` CLI, `node-pty` | https://raw.githubusercontent.com/rcrsr/rill-ext/main/packages/ext/claude-code/docs/extension-claude-code.md |
+
+Functions: `prompt`, `skill`, `command`
