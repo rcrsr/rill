@@ -163,6 +163,31 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   });
 
   // ============================================================
+  // FR-DFIELD-4: Malformed field annotations in type constructors
+  // ============================================================
+
+  describe('Malformed field annotations in dict type declarations', () => {
+    it('throws parse error when annotation ^() appears after closing paren', async () => {
+      // Annotation must precede a field; dangling annotation at end of arg list
+      await expect(run('dict(name: string, ^("label"))')).rejects.toThrow(
+        'Expected field after annotation'
+      );
+    });
+
+    it('throws parse error when annotation has unclosed paren', async () => {
+      // Missing closing paren inside ^(
+      await expect(run('dict(^("label" name: string)')).rejects.toThrow();
+    });
+
+    it('throws RILL-R002 when annotation spread receives non-dict value', async () => {
+      // Spread requires dict; number triggers RILL-R002
+      await expect(
+        run('42 => $n\ndict(^(...$n) name: string)')
+      ).rejects.toHaveProperty('errorId', 'RILL-R002');
+    });
+  });
+
+  // ============================================================
   // Type Inference Cascade Error Contracts (AC-11, AC-12, AC-13)
   // ============================================================
 

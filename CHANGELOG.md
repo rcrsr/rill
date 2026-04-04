@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dict field annotations** — Type constructor fields in dict, ordered, and tuple declarations support inline `^()` annotations for field-level metadata without external mappings
+
+
+## [0.18.2] - 2026-04-04
+
+### Added
+
 - **Datetime and duration types** — `datetime` and `duration` types enable time-aware programming with constructors, arithmetic, comparison operators, and properties. `now()` returns current UTC time. Set `nowMs` in context for deterministic testing, and `timezone` for local-time properties
 
 ### Fixed

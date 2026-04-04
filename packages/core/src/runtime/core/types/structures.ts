@@ -24,6 +24,7 @@ export interface RillFieldDef {
   name?: string | undefined;
   type: TypeStructure;
   defaultValue?: RillValue | undefined;
+  annotations?: Record<string, RillValue>;
 }
 
 /**

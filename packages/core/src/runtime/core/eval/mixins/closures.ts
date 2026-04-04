@@ -1635,7 +1635,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           paramToFieldDef(
             param.name,
             param.type ?? { kind: 'any' },
-            param.defaultValue
+            param.defaultValue,
+            param.annotations
           )
         );
         return structureToTypeValue({ kind: 'ordered', fields });

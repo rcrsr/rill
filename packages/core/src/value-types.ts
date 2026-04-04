@@ -1,4 +1,4 @@
-import type { LiteralNode } from './ast-nodes.js';
+import type { AnnotationArg, LiteralNode } from './ast-nodes.js';
 import { VALID_TYPE_NAMES } from './constants.js';
 
 /** Rill type names for type annotations */
@@ -16,6 +16,7 @@ export interface FieldArg {
   name?: string;
   value: TypeRef;
   defaultValue?: LiteralNode;
+  annotations?: AnnotationArg[];
 }
 
 /**

@@ -707,6 +707,69 @@ describe('marshalArgs', () => {
       expect(tuple.entries).toEqual([42, 'hello']);
     });
   });
+
+  // ============================================================
+  // FR-DFIELD-2: RillFieldDef consumers handle optional annotations
+  // ============================================================
+
+  describe('RillFieldDef with optional annotations in marshalArgs', () => {
+    it('marshals dict param whose fields carry annotations', () => {
+      const params: RillParam[] = [
+        {
+          name: 'opts',
+          type: {
+            kind: 'dict',
+            fields: {
+              a: {
+                type: { kind: 'string' },
+                defaultValue: 'hi',
+                annotations: { description: 'greeting' },
+              },
+              b: { type: { kind: 'number' } },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // Annotations on RillFieldDef do not affect marshal behavior
+      const result = marshalArgs([{ b: 42 }], params, opts);
+      expect(result).toEqual({ opts: { a: 'hi', b: 42 } });
+    });
+
+    it('marshals dict param whose fields omit annotations', () => {
+      const params: RillParam[] = [
+        {
+          name: 'cfg',
+          type: {
+            kind: 'dict',
+            fields: {
+              x: { type: { kind: 'number' }, defaultValue: 10 },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      // No annotations property on field — should still hydrate defaults
+      const result = marshalArgs([{}], params, opts);
+      expect(result).toEqual({ cfg: { x: 10 } });
+    });
+
+    it('marshals param with annotations on the param itself', () => {
+      const params: RillParam[] = [
+        {
+          name: 'x',
+          type: { kind: 'number' },
+          defaultValue: 5,
+          annotations: { description: 'count' },
+        },
+      ];
+      // Param-level annotations do not affect marshaling
+      const result = marshalArgs([], params, opts);
+      expect(result).toEqual({ x: 5 });
+    });
+  });
 });
 
 // ============================================================

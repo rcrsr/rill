@@ -632,6 +632,25 @@ function typeRefArgListEquals(
     if (aArg.name !== bArg.name) return false;
     if (!typeRefEquals(aArg.value, bArg.value)) return false;
     if (!literalNodeEquals(aArg.defaultValue, bArg.defaultValue)) return false;
+    if (!fieldAnnotationsEquals(aArg.annotations, bArg.annotations))
+      return false;
+  }
+  return true;
+}
+
+/**
+ * Compare two optional FieldArg annotation arrays for structural equality.
+ * Both-absent returns true. Mismatched presence returns false.
+ */
+function fieldAnnotationsEquals(
+  a: AnnotationArg[] | undefined,
+  b: AnnotationArg[] | undefined
+): boolean {
+  const aAnns = a ?? [];
+  const bAnns = b ?? [];
+  if (aAnns.length !== bAnns.length) return false;
+  for (let i = 0; i < aAnns.length; i++) {
+    if (!annotationArgEquals(aAnns[i]!, bAnns[i]!)) return false;
   }
   return true;
 }

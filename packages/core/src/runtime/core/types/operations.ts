@@ -731,10 +731,13 @@ export function formatStructure(type: TypeStructure): string {
 export function paramToFieldDef(
   name: string,
   type: TypeStructure,
-  defaultValue: RillValue | undefined
+  defaultValue: RillValue | undefined,
+  annotations?: Record<string, RillValue>
 ): RillFieldDef {
   const field: RillFieldDef = { name, type };
   if (defaultValue !== undefined) field.defaultValue = defaultValue;
+  if (annotations && Object.keys(annotations).length > 0)
+    field.annotations = annotations;
   return field;
 }
 
@@ -820,7 +823,12 @@ export function inferStructure(value: RillValue): TypeStructure {
   }
   if (isCallable(value)) {
     const params = (value.params ?? []).map((p) =>
-      paramToFieldDef(p.name, p.type ?? { kind: 'any' }, p.defaultValue)
+      paramToFieldDef(
+        p.name,
+        p.type ?? { kind: 'any' },
+        p.defaultValue,
+        p.annotations
+      )
     );
     const ret: TypeStructure = value.returnType.structure;
     return { kind: 'closure', params, ret };

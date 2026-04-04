@@ -339,7 +339,8 @@ export function paramsToStructuralType(
     paramToFieldDef(
       param.name,
       param.type ?? { kind: 'any' },
-      param.defaultValue
+      param.defaultValue,
+      param.annotations
     )
   );
 

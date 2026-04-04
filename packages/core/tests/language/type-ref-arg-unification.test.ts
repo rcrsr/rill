@@ -318,6 +318,61 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   });
 
   // ============================================================
+  // FR-DFIELD-1: Field annotations in type-ref arg unification
+  // ============================================================
+
+  describe('Field annotations in type-ref unification', () => {
+    it('dict type with annotated field equals same annotated type', async () => {
+      const result = await run(
+        'dict(^("label") a: number) == dict(^("label") a: number)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('dict types with different annotations are structurally equal', async () => {
+      // Annotations are metadata; structural equality ignores them
+      const result = await run(
+        'dict(^("x") a: number) == dict(^("y") a: number)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('annotated dict field preserves annotation through :> conversion', async () => {
+      const result = (await run('dict(^("label") a: number) => $t\n$t')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.structure.fields.a.annotations).toEqual({
+        description: 'label',
+      });
+    });
+
+    it('ordered type with annotated fields evaluates correctly', async () => {
+      const result = (await run(
+        'ordered(^("first") a: string, ^("second") b: number)'
+      )) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.structure.fields).toHaveLength(2);
+      expect(result.structure.fields[0].annotations).toEqual({
+        description: 'first',
+      });
+      expect(result.structure.fields[1].annotations).toEqual({
+        description: 'second',
+      });
+    });
+
+    it('tuple type with annotated elements evaluates correctly', async () => {
+      const result = (await run('tuple(^("x") number, ^("y") string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.structure.elements).toHaveLength(2);
+      expect(result.structure.elements[0].annotations).toEqual({
+        description: 'x',
+      });
+      expect(result.structure.elements[1].annotations).toEqual({
+        description: 'y',
+      });
+    });
+  });
+
+  // ============================================================
   // ERROR CONTRACT TESTS
   // ============================================================
 

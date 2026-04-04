@@ -184,6 +184,18 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               }
               fieldDef.defaultValue = defaultVal;
             }
+            // IR-2: Evaluate per-field annotations
+            if (arg.annotations) {
+              if (arg.annotations.length > 0) {
+                const annots: Record<string, RillValue> =
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  await (this as any).evaluateAnnotations(arg.annotations);
+                fieldDef.annotations = annots;
+              } else {
+                // Empty ^() — attach empty annotations record
+                fieldDef.annotations = {};
+              }
+            }
             fields[arg.name!] = fieldDef;
           }
           const structure: TypeStructure = { kind: 'dict', fields };
@@ -213,6 +225,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               );
             }
             fieldDef.defaultValue = defaultVal;
+          }
+          // IR-2: Evaluate per-field annotations
+          if (arg.annotations) {
+            if (arg.annotations.length > 0) {
+              const annots: Record<string, RillValue> =
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (this as any).evaluateAnnotations(arg.annotations);
+              fieldDef.annotations = annots;
+            } else {
+              fieldDef.annotations = {};
+            }
           }
           orderedFields.push(fieldDef);
         }
@@ -277,6 +300,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
           fieldDef.defaultValue = defaultVal;
+        }
+        // IR-2: Evaluate per-field annotations
+        if (arg.annotations) {
+          if (arg.annotations.length > 0) {
+            const annots: Record<string, RillValue> =
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await (this as any).evaluateAnnotations(arg.annotations);
+            fieldDef.annotations = annots;
+          } else {
+            fieldDef.annotations = {};
+          }
         }
         elements.push(fieldDef);
       }
