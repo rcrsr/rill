@@ -85,7 +85,7 @@ See [Collections](topic-collections.md) for detailed documentation. All four ope
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
-| Duration | `duration(...)` | `duration(days: 1, hours: 2)` | Duration value |
+| Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` | Duration value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |

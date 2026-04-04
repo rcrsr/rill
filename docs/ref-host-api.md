@@ -274,7 +274,7 @@ const ctx = createRuntimeContext({
 });
 
 // Scripts using now() return 2024-06-15T12:00:00Z
-// Scripts using .local_year return year in UTC-5 (2024)
+// Scripts using .local_date return date in UTC-5 (2024-06-15)
 ```
 
 ---

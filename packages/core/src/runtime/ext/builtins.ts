@@ -456,12 +456,22 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   now: {
     params: [],
     returnType: structureToTypeValue({ kind: 'datetime' }),
-    fn: (_args, ctx) => {
-      const ms =
-        (ctx as RuntimeContext).nowMs !== undefined
-          ? (ctx as RuntimeContext).nowMs!
-          : Date.now();
-      return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+    fn: (_args, ctx, location) => {
+      const nowMs = (ctx as RuntimeContext).nowMs;
+      if (nowMs !== undefined) {
+        if (!Number.isFinite(nowMs) || !Number.isInteger(nowMs)) {
+          throw new RuntimeError(
+            'RILL-R004',
+            `now() requires ctx.nowMs to be a finite integer: ${nowMs}`,
+            location
+          );
+        }
+        return { __rill_datetime: true, unix: nowMs } as unknown as RillValue;
+      }
+      return {
+        __rill_datetime: true,
+        unix: Date.now(),
+      } as unknown as RillValue;
     },
   },
 
@@ -673,7 +683,7 @@ function constructDatetime(
   // Form 3: Unix milliseconds
   if (hasUnix) {
     const unix = args['unix'];
-    if (typeof unix !== 'number') {
+    if (typeof unix !== 'number' || !Number.isFinite(unix)) {
       throw new RuntimeError(
         'RILL-R004',
         `Invalid datetime component unix: ${formatValue(unix ?? null)}`,
@@ -752,10 +762,10 @@ function validateDurationParam(
   value: RillValue,
   location?: SourceLocation
 ): number {
-  if (typeof value !== 'number') {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new RuntimeError(
       'RILL-R004',
-      `duration ${name} must be a number: ${formatValue(value)}`,
+      `duration ${name} must be a finite number: ${formatValue(value)}`,
       location
     );
   }
@@ -882,9 +892,9 @@ function applyOffset(
 function formatOffsetSuffix(offsetHours: number): string {
   if (offsetHours === 0) return 'Z';
   const sign = offsetHours >= 0 ? '+' : '-';
-  const absHours = Math.abs(offsetHours);
-  const h = Math.floor(absHours);
-  const m = Math.round((absHours - h) * 60);
+  const totalMinutes = Math.round(Math.abs(offsetHours) * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   return `${sign}${padNum(h, 2)}:${padNum(m, 2)}`;
 }
 
@@ -997,30 +1007,47 @@ const mDtTime: RillMethod = (receiver, args) => {
   return formatTime(dt.unix, offset);
 };
 
+/** Validate and return the timezone offset from ctx, defaulting to 0 */
+function getTimezoneOffset(
+  ctx: RuntimeContext,
+  location?: SourceLocation
+): number {
+  const tz = ctx.timezone;
+  if (tz === undefined) return 0;
+  if (!Number.isFinite(tz)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid timezone offset: ${tz}`,
+      location
+    );
+  }
+  return tz;
+}
+
 /** .local_iso property - ISO 8601 with host timezone offset */
-const mDtLocalIso: RillMethod = (receiver, _args, ctx) => {
+const mDtLocalIso: RillMethod = (receiver, _args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
-  const offset = ctx.timezone ?? 0;
+  const offset = getTimezoneOffset(ctx, location);
   return formatIso(dt.unix, offset);
 };
 
 /** .local_date property - "YYYY-MM-DD" at host timezone */
-const mDtLocalDate: RillMethod = (receiver, _args, ctx) => {
+const mDtLocalDate: RillMethod = (receiver, _args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
-  const offset = ctx.timezone ?? 0;
+  const offset = getTimezoneOffset(ctx, location);
   return formatDate(dt.unix, offset);
 };
 
 /** .local_time property - "HH:MM:SS" at host timezone */
-const mDtLocalTime: RillMethod = (receiver, _args, ctx) => {
+const mDtLocalTime: RillMethod = (receiver, _args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
-  const offset = ctx.timezone ?? 0;
+  const offset = getTimezoneOffset(ctx, location);
   return formatTime(dt.unix, offset);
 };
 
 /** .local_offset property - host timezone offset in hours */
-const mDtLocalOffset: RillMethod = (_receiver, _args, ctx) => {
-  return ctx.timezone ?? 0;
+const mDtLocalOffset: RillMethod = (_receiver, _args, ctx, location) => {
+  return getTimezoneOffset(ctx, location);
 };
 
 /** .add(dur) - add a duration to a datetime */

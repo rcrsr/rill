@@ -7,7 +7,7 @@
  * Tests use positional args as a workaround until parser support lands.
  */
 
-import { isDuration, toNative } from '@rcrsr/rill';
+import { isDuration, toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -402,8 +402,30 @@ describe('Rill Language: Duration Type', () => {
     it('halts on non-number parameter [EC-4]', async () => {
       // duration(hours: "two") - positional equivalent
       await expect(run('duration(0, 0, 0, "two")')).rejects.toThrow(
-        'duration hours must be a number: two'
+        'duration hours must be a finite number: two'
       );
+    });
+
+    it('halts on NaN duration parameter', async () => {
+      const getNaN: RillFunction = {
+        params: [],
+        returnType: { kind: 'number' },
+        fn: () => NaN,
+      };
+      await expect(
+        run('duration(0, 0, getNaN())', { functions: { getNaN } })
+      ).rejects.toThrow('duration days must be a finite number');
+    });
+
+    it('halts on Infinity duration parameter', async () => {
+      const getInf: RillFunction = {
+        params: [],
+        returnType: { kind: 'number' },
+        fn: () => Infinity,
+      };
+      await expect(
+        run('duration(0, 0, 0, getInf())', { functions: { getInf } })
+      ).rejects.toThrow('duration hours must be a finite number');
     });
   });
 

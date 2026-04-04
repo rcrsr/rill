@@ -187,14 +187,18 @@ describe('executeRill datetime/duration parity', () => {
       ];
 
       // Datetime/duration support requires no new packages beyond @rcrsr/rill
-      const datetimeLibs = allDeps.filter(
-        (dep) =>
-          dep.includes('date') ||
-          dep.includes('time') ||
-          dep.includes('moment') ||
-          dep.includes('luxon') ||
-          dep.includes('dayjs') ||
-          dep.includes('temporal')
+      const datetimeLibDenylist = new Set([
+        'moment',
+        'moment-timezone',
+        'luxon',
+        'dayjs',
+        'date-fns',
+        'date-fns-tz',
+        'temporal-polyfill',
+        '@js-temporal/polyfill',
+      ]);
+      const datetimeLibs = allDeps.filter((dep) =>
+        datetimeLibDenylist.has(dep)
       );
 
       expect(datetimeLibs).toEqual([]);

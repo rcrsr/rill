@@ -4,7 +4,7 @@
  * arithmetic, comparison, serialization, and error conditions.
  */
 
-import { toNative } from '@rcrsr/rill';
+import { toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -120,6 +120,24 @@ describe('Rill Language: Datetime Type', () => {
       );
       expect(result).toBe(true);
     });
+
+    it('halts when nowMs is NaN', async () => {
+      await expect(run('now()', { nowMs: NaN })).rejects.toThrow(
+        'now() requires ctx.nowMs to be a finite integer'
+      );
+    });
+
+    it('halts when nowMs is Infinity', async () => {
+      await expect(run('now()', { nowMs: Infinity })).rejects.toThrow(
+        'now() requires ctx.nowMs to be a finite integer'
+      );
+    });
+
+    it('halts when nowMs is a float', async () => {
+      await expect(run('now()', { nowMs: 1710316800000.5 })).rejects.toThrow(
+        'now() requires ctx.nowMs to be a finite integer'
+      );
+    });
   });
 
   // ============================================================
@@ -187,6 +205,34 @@ describe('Rill Language: Datetime Type', () => {
         timezone: 5.5,
       });
       expect(result).toBe(5.5);
+    });
+
+    it('.local_iso halts when timezone is NaN', async () => {
+      await expect(
+        run(`datetime("${REF_ISO}") -> .local_iso`, { timezone: NaN })
+      ).rejects.toThrow('Invalid timezone offset');
+    });
+
+    it('.local_date halts when timezone is Infinity', async () => {
+      await expect(
+        run(`datetime("${REF_ISO}") -> .local_date`, {
+          timezone: Infinity,
+        })
+      ).rejects.toThrow('Invalid timezone offset');
+    });
+
+    it('.local_time halts when timezone is -Infinity', async () => {
+      await expect(
+        run(`datetime("${REF_ISO}") -> .local_time`, {
+          timezone: -Infinity,
+        })
+      ).rejects.toThrow('Invalid timezone offset');
+    });
+
+    it('.local_offset halts when timezone is NaN', async () => {
+      await expect(
+        run(`datetime("${REF_ISO}") -> .local_offset`, { timezone: NaN })
+      ).rejects.toThrow('Invalid timezone offset');
     });
   });
 
@@ -356,6 +402,28 @@ describe('Rill Language: Datetime Type', () => {
       await expect(
         run(`datetime("${REF_ISO}") -> .diff("str")`)
       ).rejects.toThrow('datetime.diff() requires a datetime argument');
+    });
+
+    it('datetime(unix: NaN) halts RILL-R004', async () => {
+      const getNaN: RillFunction = {
+        params: [],
+        returnType: { kind: 'number' },
+        fn: () => NaN,
+      };
+      await expect(
+        run('datetime(...dict[unix: getNaN()])', { functions: { getNaN } })
+      ).rejects.toThrow('Invalid datetime component unix');
+    });
+
+    it('datetime(unix: Infinity) halts RILL-R004', async () => {
+      const getInf: RillFunction = {
+        params: [],
+        returnType: { kind: 'number' },
+        fn: () => Infinity,
+      };
+      await expect(
+        run('datetime(...dict[unix: getInf()])', { functions: { getInf } })
+      ).rejects.toThrow('Invalid datetime component unix');
     });
 
     it('error messages match spec patterns [EC-1, EC-3]', async () => {

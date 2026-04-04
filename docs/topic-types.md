@@ -16,7 +16,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
 | Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")` |
-| Duration | `duration(...)` | `duration(days: 1, hours: 2)` |
+| Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 | Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
@@ -568,17 +568,17 @@ Three forms construct a datetime value:
 | Form | Example | Notes |
 |------|---------|-------|
 | ISO 8601 string | `datetime("2024-01-15T10:30:00Z")` | Accepts date-only and datetime with offset |
-| Named components | `datetime(year: 2024, month: 1, day: 15)` | UTC; `hour`, `minute`, `second`, `ms` default to 0 |
-| Unix milliseconds | `datetime(unix: 1705312200000)` | UTC ms since epoch |
+| Named components | `datetime(...dict[year: 2024, month: 1, day: 15])` | UTC; `hour`, `minute`, `second`, `ms` default to 0 |
+| Unix milliseconds | `datetime(...dict[unix: 1705312200000])` | UTC ms since epoch |
 
 ```text
 datetime("2024-01-15T10:30:00Z") -> .iso()
 # Result: "2024-01-15T10:30:00Z"
 
-datetime(year: 2024, month: 1, day: 15) -> .iso()
+datetime(...dict[year: 2024, month: 1, day: 15]) -> .iso()
 # Result: "2024-01-15T00:00:00Z"
 
-datetime(unix: 0) -> .iso()
+datetime(...dict[unix: 0]) -> .iso()
 # Result: "1970-01-01T00:00:00Z"
 ```
 
@@ -666,7 +666,7 @@ $gap -> .display
 
 ```text
 # Add one month (calendar duration)
-now() -> .add(duration(months: 1)) -> .iso()
+now() -> .add(duration(...dict[months: 1])) -> .iso()
 ```
 
 ```rill
@@ -743,21 +743,21 @@ Two families of units construct duration values:
 
 | Form | Example | Notes |
 |------|---------|-------|
-| Fixed units | `duration(days: 1, hours: 2)` | Collapses to ms; exact arithmetic |
-| Calendar units | `duration(months: 3, years: 1)` | Collapses years to months; variable-length |
-| Raw milliseconds | `duration(ms: 86400000)` | Direct ms count |
+| Fixed units | `duration(...dict[days: 1, hours: 2])` | Collapses to ms; exact arithmetic |
+| Calendar units | `duration(...dict[months: 3, years: 1])` | Collapses years to months; variable-length |
+| Raw milliseconds | `duration(...dict[ms: 86400000])` | Direct ms count |
 
 ```text
-duration(days: 1, hours: 2) -> .display
+duration(...dict[days: 1, hours: 2]) -> .display
 # Result: "1d2h"
 
-duration(months: 3) -> .months
+duration(...dict[months: 3]) -> .months
 # Result: 3
 
-duration(years: 1) -> .months
+duration(...dict[years: 1]) -> .months
 # Result: 12
 
-duration(ms: 5000) -> .display
+duration(...dict[ms: 5000]) -> .display
 # Result: "5s"
 ```
 
@@ -776,13 +776,13 @@ Fixed-unit durations decompose their `ms` field using remainder arithmetic:
 | `.total_ms` | number | Raw ms field; halts on calendar durations |
 
 ```text
-duration(hours: 25) -> .days
+duration(...dict[hours: 25]) -> .days
 # Result: 1
 
-duration(hours: 25) -> .hours
+duration(...dict[hours: 25]) -> .hours
 # Result: 1
 
-duration(hours: 25) -> .total_ms
+duration(...dict[hours: 25]) -> .total_ms
 # Result: 90000000
 ```
 
@@ -790,7 +790,7 @@ Requesting `.total_ms` on a calendar duration halts execution:
 
 ```text
 # Error: total_ms is not defined for calendar durations
-duration(months: 1) -> .total_ms
+duration(...dict[months: 1]) -> .total_ms
 ```
 
 ### Display
@@ -798,10 +798,10 @@ duration(months: 1) -> .total_ms
 `.display` formats a duration as a compact string, omitting zero components. Zero duration displays as `"0ms"`.
 
 ```text
-duration(days: 1, hours: 2, minutes: 30) -> .display
+duration(...dict[days: 1, hours: 2, minutes: 30]) -> .display
 # Result: "1d2h30m"
 
-duration(years: 1, months: 3) -> .display
+duration(...dict[years: 1, months: 3]) -> .display
 # Result: "1y3mo"
 ```
 
@@ -820,13 +820,13 @@ $t -> .diff($t) -> .empty -> .display
 | `.multiply(n)` | number | duration | Multiplies both fields by `n`; halts if `n` is negative |
 
 ```text
-duration(hours: 1) -> .add(duration(hours: 1)) -> .display
+duration(...dict[hours: 1]) -> .add(duration(...dict[hours: 1])) -> .display
 # Result: "2h"
 
-duration(hours: 2) -> .subtract(duration(hours: 1)) -> .display
+duration(...dict[hours: 2]) -> .subtract(duration(...dict[hours: 1])) -> .display
 # Result: "1h"
 
-duration(hours: 1) -> .multiply(3) -> .display
+duration(...dict[hours: 1]) -> .multiply(3) -> .display
 # Result: "3h"
 ```
 
@@ -835,21 +835,21 @@ duration(hours: 1) -> .multiply(3) -> .display
 Equality compares both `months` and `ms` fields. Two durations are equal only when both fields match.
 
 ```text
-duration(hours: 48) == duration(days: 2)
+duration(...dict[hours: 48]) == duration(...dict[days: 2])
 # Result: true
 
-duration(months: 1) == duration(months: 1)
+duration(...dict[months: 1]) == duration(...dict[months: 1])
 # Result: true
 ```
 
 Ordering compares the `ms` field only, and only when both durations have equal `months` fields. Comparing durations with different `months` halts:
 
 ```text
-duration(hours: 1) < duration(hours: 2)
+duration(...dict[hours: 1]) < duration(...dict[hours: 2])
 # Result: true
 
 # Error: Cannot order durations with different calendar components
-duration(months: 1) < duration(hours: 24)
+duration(...dict[months: 1]) < duration(...dict[hours: 24])
 ```
 
 ### JSON
@@ -857,10 +857,10 @@ duration(months: 1) < duration(hours: 24)
 Fixed durations serialize as a number (raw ms). Calendar durations serialize as `{"months": N, "ms": M}`.
 
 ```text
-json(duration(hours: 1))
+json(duration(...dict[hours: 1]))
 # Result: "3600000"
 
-json(duration(months: 1))
+json(duration(...dict[months: 1]))
 # Result: "{\"months\":1,\"ms\":0}"
 ```
 
@@ -869,7 +869,7 @@ json(duration(months: 1))
 Interpolating a duration produces its `.display` string.
 
 ```text
-"Gap: {duration(days: 3)}"
+"Gap: {duration(...dict[days: 3])}"
 # Result: "Gap: 3d"
 ```
 

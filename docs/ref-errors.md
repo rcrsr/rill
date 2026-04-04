@@ -16,7 +16,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P010, RILL-P014)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077, RILL-R080 - RILL-R088)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -1420,7 +1420,7 @@ use<module:unknown>
 
 ---
 
-### rill-r080
+### rill-r004 — datetime construction: no arguments
 
 **Description:** Invalid datetime construction — no arguments
 
@@ -1437,7 +1437,7 @@ datetime()
 
 ---
 
-### rill-r081
+### rill-r004 — datetime construction: out-of-range component
 
 **Description:** Invalid datetime construction — out-of-range component
 
@@ -1448,13 +1448,13 @@ datetime()
 **Example:**
 
 ```text
-datetime(year: 2024, month: 13, day: 1)
+datetime(...dict[year: 2024, month: 13, day: 1])
 # Error: RILL-R004: Invalid datetime component month: 13
 ```
 
 ---
 
-### rill-r082
+### rill-r004 — datetime construction: non-ISO 8601 string
 
 **Description:** Invalid datetime construction — non-ISO 8601 string
 
@@ -1471,24 +1471,24 @@ datetime("June 15, 2024")
 
 ---
 
-### rill-r083
+### rill-r004 — duration construction: negative unit value
 
 **Description:** Invalid duration construction — negative unit value
 
 **Cause:** A duration unit was given a negative value. Duration units must be non-negative integers.
 
-**Resolution:** Use only non-negative values for duration units (`years`, `months`, `weeks`, `days`, `hours`, `minutes`, `seconds`, `ms`).
+**Resolution:** Use only non-negative values for duration units (`years`, `months`, `days`, `hours`, `minutes`, `seconds`, `ms`).
 
 **Example:**
 
 ```text
-duration(hours: -3)
+duration(...dict[hours: -3])
 # Error: RILL-R004: duration hours must be non-negative: -3
 ```
 
 ---
 
-### rill-r084
+### rill-r003 — datetime arithmetic: `.add()` requires a duration
 
 **Description:** Type mismatch in datetime arithmetic — `.add()` requires a duration
 
@@ -1505,7 +1505,7 @@ datetime("2024-06-15") -> .add(7)
 
 ---
 
-### rill-r085
+### rill-r002 — duration ordering: different calendar components
 
 **Description:** Incomparable duration ordering — different calendar components
 
@@ -1516,13 +1516,13 @@ datetime("2024-06-15") -> .add(7)
 **Example:**
 
 ```text
-duration(months: 1) < duration(days: 31)
+duration(...dict[months: 1]) < duration(...dict[days: 31])
 # Error: RILL-R002: Cannot order durations with different calendar components
 ```
 
 ---
 
-### rill-r086
+### rill-r003 — duration arithmetic: negative result from `.subtract()`
 
 **Description:** Negative duration result from `.subtract()`
 
@@ -1533,13 +1533,13 @@ duration(months: 1) < duration(days: 31)
 **Example:**
 
 ```text
-duration(hours: 1) -> .subtract(duration(hours: 2))
+duration(...dict[hours: 1]) -> .subtract(duration(...dict[hours: 2]))
 # Error: RILL-R003: duration.subtract() would produce negative result
 ```
 
 ---
 
-### rill-r087
+### rill-r003 — duration property: `.total_ms` on calendar durations
 
 **Description:** `.total_ms` not defined for calendar durations
 
@@ -1550,13 +1550,13 @@ duration(hours: 1) -> .subtract(duration(hours: 2))
 **Example:**
 
 ```text
-duration(months: 2) -> .total_ms
+duration(...dict[months: 2]) -> .total_ms
 # Error: RILL-R003: total_ms is not defined for calendar durations
 ```
 
 ---
 
-### rill-r088
+### rill-r002 — collection operator: scalar datetime or duration
 
 **Description:** Collection operator on scalar datetime or duration
 
@@ -1568,7 +1568,7 @@ duration(months: 2) -> .total_ms
 
 ```text
 datetime("2024-06-15") -> each |d| $d
-# Error: RILL-R003: each requires an iterable value
+# Error: RILL-R002: each requires an iterable value
 ```
 
 ---
