@@ -139,8 +139,8 @@ if [[ -f "$bundled_src" ]]; then
   body="$(tail -n +4 "$bundled_src" | sed '1{/^$/d;}')"
   cat > "$ext_index" << BEOF
 ---
-title: "Bundled Extensions"
-description: "Pre-built extensions shipped with rill"
+title: "Extensions"
+description: "Extension repositories and packages for rill"
 weight: 5
 sidebar:
   open: true

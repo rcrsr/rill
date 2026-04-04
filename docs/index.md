@@ -61,7 +61,7 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Bundled Extensions](bundled-extensions.md) | Pre-built extensions shipped with rill |
+| [Extensions](bundled-extensions.md) | Extension repositories and packages |
 
 ## Style
 
@@ -83,9 +83,9 @@
 8. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
 9. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)
 10. **Configure a project:** See [Config Reference](ref-config.md) and [Config API Reference](ref-config-api.md)
-11. **Extend rill:** See [Extensions](integration-extensions.md) and [Bundled Extensions](bundled-extensions.md)
+11. **Extend rill:** See [Extensions](integration-extensions.md) and [Extension Packages](bundled-extensions.md)
 12. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
-13. **Vendor extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
+13. **Extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
 
 ## Changelog
 

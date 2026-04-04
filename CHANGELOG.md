@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dict field annotations** — Type constructor fields in dict, ordered, and tuple declarations support inline `^()` annotations for field-level metadata without external mappings
 
+### Removed
+
+- **Bundled extensions** — `fs`, `fetch`, `exec`, `kv`, and `crypto` extensions removed from `@rcrsr/rill` sub-path exports. Install from [rill-ext](https://github.com/rcrsr/rill-ext) packages instead
+
 
 ## [0.18.2] - 2026-04-04
 

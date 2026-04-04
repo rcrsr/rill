@@ -32,8 +32,8 @@ fs.read("/data/file.txt")   # => "content"
 ### Development: JSON-backed kv
 
 ```typescript
-import { createKvExtension } from '@rcrsr/rill/ext/kv';
-import { createFsExtension } from '@rcrsr/rill/ext/fs';
+import { createKvExtension } from '@rcrsr/rill-ext-kv';
+import { createFsExtension } from '@rcrsr/rill-ext-fs';
 
 const kv = createKvExtension({
   mounts: {
@@ -56,7 +56,7 @@ const ctx = createRuntimeContext({
 
 ```typescript
 import { createSqliteKvExtension } from '@rcrsr/rill-ext-kv-sqlite';
-import { createFsExtension } from '@rcrsr/rill/ext/fs';
+import { createFsExtension } from '@rcrsr/rill-ext-fs';
 
 const kv = createSqliteKvExtension({
   mounts: {

@@ -111,7 +111,6 @@ export {
   type RuntimeCallbacks,
   type RuntimeContext,
   type RuntimeOptions,
-  type SchemaEntry,
   type SchemeResolver,
   type ScriptCallable,
   serializeValue,
