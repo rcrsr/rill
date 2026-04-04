@@ -577,6 +577,40 @@ describe('main() loadProject flow', () => {
 
       expect(stdoutChunks.join('')).toContain('42');
     });
+
+    it('passes handler args positionally in param order to invokeCallable', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [
+          { name: 'repo', type: 'string', required: true },
+          { name: 'tag', type: 'string', required: true },
+        ],
+      });
+      mocks.marshalCliArgs.mockReturnValue({ repo: 'test', tag: 'v1.0' });
+
+      await runMain(['--repo', 'test', '--tag', 'v1.0']);
+
+      const args = mocks.invokeCallable.mock.calls[0]?.[1] as unknown[];
+      expect(args).toEqual(['test', 'v1.0']);
+    });
+
+    it('passes undefined for omitted optional params so defaults hydrate', async () => {
+      mocks.loadProject.mockResolvedValue(makeHandlerProject());
+      mocks.introspectHandler.mockReturnValue({
+        description: undefined,
+        params: [
+          { name: 'repo', type: 'string', required: true },
+          { name: 'format', type: 'string', required: false },
+        ],
+      });
+      mocks.marshalCliArgs.mockReturnValue({ repo: 'test' });
+
+      await runMain(['--repo', 'test']);
+
+      const args = mocks.invokeCallable.mock.calls[0]?.[1] as unknown[];
+      expect(args).toEqual(['test', undefined]);
+    });
   });
 
   describe('--config flag', () => {
