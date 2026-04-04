@@ -86,14 +86,24 @@ export const CLOSURE_BARE_DOLLAR: ValidationRule = {
  */
 function containsBareReference(node: ASTNode): boolean {
   let found = false;
+  let closureDepth = 0;
   const ctx = {} as ValidationContext;
   visitNode(node, ctx, {
     enter(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth++;
+        return;
+      }
+      if (closureDepth > 0) return;
       if (n.type === 'Variable' && (n as VariableNode).isPipeVar) {
         found = true;
       }
     },
-    exit() {},
+    exit(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth--;
+      }
+    },
   });
   return found;
 }
