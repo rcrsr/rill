@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **rill-run: handler mode drops positional args** — Handler mode set args as pipeValue but passed empty positional args to `invokeCallable`. Closures with explicit params nullify pipeValue, causing RILL-R044. Args now map to positional params in order, preserving optional param defaults
 - **rill-check: CLOSURE_BARE_DOLLAR false positive on nested pipe scopes** — The rule flagged `$` references inside `filter`, `map`, `each` blocks and nested closures within stored closures. Now tracks scope depth across all pipe-rebinding node types
 
 ## [0.18.1] - 2026-04-03
