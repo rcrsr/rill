@@ -94,6 +94,30 @@ describe('CLOSURE_BARE_DOLLAR', () => {
     expect(diagnostics[0]?.code).toBe('CLOSURE_BARE_DOLLAR');
     expect(diagnostics[0]?.severity).toBe('warning');
   });
+
+  it('allows bare $ inside nested closures within stored closure', () => {
+    const source = `
+      || {
+        [1, 2, 3] -> filter { $ > 0 }
+      } => $fn
+      true
+    `;
+    const messages = getDiagnostics(source, config);
+    expect(messages.length).toBe(0);
+  });
+
+  it('allows pipe references in deeply nested callbacks within stored closure', () => {
+    const source = `
+      || {
+        [1, 2, 3]
+          -> filter { $ > 0 }
+          -> each { $.value }
+      } => $process
+      true
+    `;
+    const messages = getDiagnostics(source, config);
+    expect(messages.length).toBe(0);
+  });
 });
 
 // ============================================================

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **rill-check: CLOSURE_BARE_DOLLAR false positive on nested pipe scopes** — The rule flagged `$` references inside `filter`, `map`, `each` blocks and nested closures within stored closures. Now tracks scope depth across all pipe-rebinding node types
+
 ## [0.18.1] - 2026-04-03
 
 ### Fixed
