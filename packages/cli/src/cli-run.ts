@@ -342,11 +342,13 @@ export async function main(): Promise<void> {
 
     // Map handler args to positional args in param order so marshalArgs
     // can bind them to the closure's declared parameters.
+    // Omitted optional params stay undefined so closure defaults hydrate.
     // pipeValue is kept for zero-param closures that access $ directly.
     const positionalArgs = introspection.params.map(
       (p) =>
-        (handlerArgs[p.name] ??
-          null) as unknown as import('@rcrsr/rill').RillValue
+        (Object.prototype.hasOwnProperty.call(handlerArgs, p.name)
+          ? handlerArgs[p.name]
+          : undefined) as unknown as import('@rcrsr/rill').RillValue
     );
 
     let handlerResult: import('@rcrsr/rill').RillValue;
