@@ -946,10 +946,20 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const args = await this.evaluateArgs(node.args);
 
-      // Add pipe value to empty args list.
-      // Empty params means "untyped" (callable() factory), not zero-param typed.
-      // No typed zero-param host functions currently exist, so always pass pipe value.
-      if (args.length === 0 && this.ctx.pipeValue !== null) {
+      // Add pipe value to empty args list for untyped callables.
+      // Typed zero-param callables (params is a real empty array) must NOT receive
+      // injected pipeValue — they declare zero parameters and marshalArgs enforces it.
+      // Untyped callables (callable() factory) have params === undefined (cast).
+      const isTypedZeroParam =
+        typeof fn !== 'function' &&
+        isApplicationCallable(fn) &&
+        fn.params !== undefined &&
+        fn.params.length === 0;
+      if (
+        args.length === 0 &&
+        this.ctx.pipeValue !== null &&
+        !isTypedZeroParam
+      ) {
         args.push(this.ctx.pipeValue);
       }
 
@@ -1049,10 +1059,13 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return appCallable as RillValue;
       }
 
-      // Pipe/branch context: pipe value present → invoke with it as implicit argument
-      // Empty params means "untyped" (callable() factory), not zero-param typed.
-      // No zero-param host functions currently exist, so always pass the pipe value.
-      const args: RillValue[] = [this.ctx.pipeValue];
+      // Pipe/branch context: pipe value present.
+      // Typed zero-param callables (params is a real empty array) must be invoked
+      // with no arguments — injecting pipeValue would cause RILL-R045.
+      // Untyped callables (callable() factory) have params === undefined (cast).
+      const isTypedZeroParam =
+        appCallable.params !== undefined && appCallable.params.length === 0;
+      const args: RillValue[] = isTypedZeroParam ? [] : [this.ctx.pipeValue];
       return this.invokeCallable(
         appCallable,
         args,

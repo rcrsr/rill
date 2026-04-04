@@ -258,6 +258,15 @@ describe('rill-exec', () => {
       expect(result.result).not.toBeNull();
       expect(typeof result.result).toBe('object');
     });
+
+    // BUG-1: typed zero-param functions must not receive injected pipeValue
+    it('calls now() without RILL-R045 when pipeValue is set', async () => {
+      const script = await writeScript('now.rill', 'now()');
+      const result = await executeScript(script, []);
+      const value = result.result as Record<string, unknown>;
+      expect(value.__rill_datetime).toBe(true);
+      expect(typeof value.unix).toBe('number');
+    });
   });
 
   describe('formatError', () => {
