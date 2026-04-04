@@ -201,4 +201,29 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       await expect(run('dict(42)')).rejects.toThrow('Expected type name');
     });
   });
+
+  // ============================================================
+  // FR-DFIELD-1: Unannotated uniform paths unchanged by annotations feature
+  // ============================================================
+
+  describe('Unannotated uniform paths unchanged by annotations feature', () => {
+    it('dict(string) uniform type has no annotations on valueType', async () => {
+      const result = (await run('dict(string)')) as any;
+      expect(result.__rill_type).toBe(true);
+      expect(result.structure.kind).toBe('dict');
+      expect(result.structure.valueType).toEqual({ kind: 'string' });
+      // Uniform types have no per-field annotations
+      expect(result.structure.fields).toBeUndefined();
+    });
+
+    it('tuple(number) uniform assertion passes without annotations', async () => {
+      const result = await run('tuple[1, 2] -> :>tuple(number)');
+      expect(result).toEqual({ __rill_tuple: true, entries: [1, 2] });
+    });
+
+    it('ordered(number) uniform assertion passes without annotations', async () => {
+      const result = await run('ordered[a: 1, b: 2] -> :>ordered(number)');
+      expect(result).toHaveProperty('entries');
+    });
+  });
 });

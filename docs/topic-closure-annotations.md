@@ -388,6 +388,134 @@ All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ER
 
 ---
 
+## Dict, Ordered, and Tuple Field Annotations
+
+The `^()` syntax works on fields inside `dict`, `ordered`, and `tuple` type constructors. It attaches metadata to individual fields, using the same rules as closure parameter annotations.
+
+### Syntax
+
+Place `^(...)` before the field name inside the type constructor:
+
+```text
+dict(^(annotations) fieldName: type, ...)
+ordered(^(annotations) fieldName: type, ...)
+tuple(^(annotations) type, ...)
+```
+
+### Dict Field Annotations
+
+```rill
+dict(^("Full name") name: string, ^("User age") age: number) => $t
+$t
+```
+
+The bare string shorthand expands to `description: value`. Access annotations from the host via `TypeStructure`:
+
+```rill
+dict(^(description: "status", enum: "active,inactive") status: string) => $t
+$t
+```
+
+### Ordered Field Annotations
+
+```rill
+ordered(^("First") a: string, ^("Second") b: number) => $t
+$t
+```
+
+`ordered` fields carry annotations at each index in `structure.fields[index].annotations`.
+
+### Tuple Field Annotations
+
+Tuple fields are positional. Annotations attach at indices 0, 1, 2, and so on:
+
+```rill
+tuple(^("x") number, ^("y") number) => $t
+$t
+```
+
+The host reads annotations via `structure.elements[index].annotations`.
+
+### Multi-Key Annotations
+
+Use explicit key-value pairs for multiple keys on one field:
+
+```rill
+dict(^(description: "score", min: 0, max: 100) score: number) => $t
+$t
+```
+
+Mix the description shorthand with explicit keys in the same block:
+
+```rill
+dict(^("score", min: 0, max: 100) score: number) => $t
+$t
+```
+
+### Multiple Annotation Blocks
+
+Multiple `^()` blocks before the same field merge into one map:
+
+```rill
+dict(^("label") ^(enum: "a,b") name: string) => $t
+$t
+```
+
+### Dynamic Annotation Values
+
+Annotation values are expressions. Variables and arithmetic resolve at evaluation time:
+
+```rill
+"User score" => $label
+100 => $max
+
+dict(^(description: $label, max: $max) score: number) => $t
+$t
+```
+
+### Empty Annotations
+
+`^()` with no arguments produces an empty annotations record. This differs from an unannotated field, which has no `annotations` property at all:
+
+```rill
+dict(^() flagged: string, age: number) => $t
+$t
+```
+
+In TypeScript, `fields.flagged.annotations` equals `{}` while `fields.age.annotations` is `undefined`.
+
+### Restriction: `list` Does Not Support Field Annotations
+
+`list` takes a single element type, not a named field. Using `^()` inside `list` is a parse error:
+
+```text
+list(^("label") string)   # Error: RILL-P001
+```
+
+### Contrast with Closure Parameter Annotations
+
+| Context | Syntax | Host API path |
+|---------|--------|---------------|
+| Closure parameter | `\|^("label") x: string\|` | `TypeStructure.params[index].annotations` |
+| `dict` field | `dict(^("label") x: string)` | `TypeStructure.fields["x"].annotations` |
+| `ordered` field | `ordered(^("label") x: string)` | `TypeStructure.fields[index].annotations` |
+| `tuple` element | `tuple(^("x") number)` | `TypeStructure.elements[index].annotations` |
+
+All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks merge, and values are full expressions.
+
+### Closure `.^input` Forwards Annotations
+
+When a closure carries parameter annotations, `.^input` reflects those annotations in its `ordered` structure. Each field in `.^input.structure.fields` carries the same `annotations` record as the original parameter:
+
+```rill
+|^("label") x: string|{ $x } => $fn
+$fn.^input
+```
+
+The returned `ordered` type has `structure.fields[0].annotations` equal to `{ description: "label" }`.
+
+---
+
 ## See Also
 
 | Document | Description |

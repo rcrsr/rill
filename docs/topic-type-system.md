@@ -687,6 +687,30 @@ $vec.^type == vector
 # Result: true
 ```
 
+### Annotated Type Fields via `.^type`
+
+When a dict, ordered, or tuple type carries field annotations, `.^type` exposes those annotations on each field's type structure. Use this to reflect schema metadata at runtime.
+
+```rill
+dict(^("A person's name") name: string, ^("Age in years") age: number) => $schema
+$schema.^type.name
+# Result: "dict"
+```
+
+The `fields` entries in the resulting type structure carry `annotations` records. For example, `fields["name"].annotations` equals `{description: "A person's name"}`.
+
+Multi-key annotations appear on the same record:
+
+```rill
+dict(^(description: "Status", enum: "active,inactive") status: string) => $d
+$d.^type.name
+# Result: "dict"
+```
+
+Fields without annotations have no `annotations` property on their `RillFieldDef`. Host code reads annotations via `TypeStructure.fields[fieldName].annotations`.
+
+See [Closure Annotations](topic-closure-annotations.md) for full field annotation syntax, ordered and tuple annotation paths, and TypeScript access patterns.
+
 ### Type Name Expressions
 
 All type names are valid expressions that produce type values:

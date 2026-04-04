@@ -11,6 +11,7 @@ interface RillFieldDef {
   name?: string;
   type: TypeStructure;
   defaultValue?: RillValue;
+  annotations?: Record<string, RillValue>;
 }
 ```
 
@@ -19,6 +20,7 @@ interface RillFieldDef {
 | `name` | `string` | No | Field name. Present for dict, ordered, and closure params. Absent for positional tuple elements |
 | `type` | `TypeStructure` | Yes | Structural type of this field or element |
 | `defaultValue` | `RillValue` | No | Default value when the field is omitted. `undefined` = field is required. Detect presence with `field.defaultValue !== undefined` |
+| `annotations` | `Record<string, RillValue>` | No | Evaluated annotation values keyed by annotation name. Property is absent when no annotations are declared |
 
 See [TypeStructure](#typestructure) for field access patterns per collection type.
 
@@ -35,12 +37,12 @@ type TypeStructure =
   | { kind: 'bool' }
   | { kind: 'datetime' }
   | { kind: 'duration' }
-  | { kind: 'list'; elementType: TypeStructure }
-  | { kind: 'dict'; valueType: TypeStructure }
-  | { kind: 'tuple'; fields: RillFieldDef[] }
-  | { kind: 'ordered'; fields: RillFieldDef[] }
+  | { kind: 'list'; element?: TypeStructure }
+  | { kind: 'dict'; fields?: Record<string, RillFieldDef>; valueType?: TypeStructure }
+  | { kind: 'tuple'; elements?: RillFieldDef[]; valueType?: TypeStructure }
+  | { kind: 'ordered'; fields?: RillFieldDef[] }
   | { kind: 'vector'; dimensions: number }
-  | { kind: 'closure' }
+  | { kind: 'closure'; params?: RillFieldDef[]; ret?: TypeStructure }
   | { kind: 'type'; typeName: string }
   | { kind: 'union'; types: TypeStructure[] }
   | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
@@ -48,7 +50,7 @@ type TypeStructure =
   | { kind: string; data?: unknown }; // catch-all for types without parameterized structure
 ```
 
-The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `datetime`, `duration`, `closure`, `any`) carry no sub-fields. Compound variants carry their structural sub-fields.
+The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `datetime`, `duration`, `any`) carry no sub-fields. Compound variants carry their structural sub-fields.
 
 ### Field Constraints
 
@@ -56,15 +58,45 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 |---------|-------|------|-----------|
 | `datetime` | — | — | Leaf variant. No sub-fields |
 | `duration` | — | — | Leaf variant. No sub-fields |
-| `list` | `elementType` | `TypeStructure` | Element type for all list members |
-| `dict` | `valueType` | `TypeStructure` | Value type for all dict values |
-| `tuple` | `fields` | `RillFieldDef[]` | Ordered positional fields. Index access: `type.fields[i]` |
-| `ordered` | `fields` | `RillFieldDef[]` | Named ordered fields. Index access: `type.fields[i]` |
+| `list` | `element` | `TypeStructure \| undefined` | Element type for all list members. Absent when element type is unknown |
+| `dict` | `fields` | `Record<string, RillFieldDef> \| undefined` | Named fields with individual types and optional annotations. Present for structural dicts |
+| `dict` | `valueType` | `TypeStructure \| undefined` | Value type for all dict values. Present for uniform dicts. No per-field annotations |
+| `tuple` | `elements` | `RillFieldDef[] \| undefined` | Ordered positional fields. Index access: `type.elements[i]` |
+| `ordered` | `fields` | `RillFieldDef[] \| undefined` | Named ordered fields. Index access: `type.fields[i]`. Present for structural ordered types |
+| `ordered` | `valueType` | `TypeStructure \| undefined` | Value type for all ordered values. Present for uniform ordered types |
 | `vector` | `dimensions` | `number` | Embedding dimension count |
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `types` | `TypeStructure[]` | Non-empty array of member types |
+| `closure` | `params` | `RillFieldDef[] \| undefined` | Parameter definitions. Absent when closure is untyped |
+| `closure` | `ret` | `TypeStructure \| undefined` | Return type. Absent when return type is unspecified |
 | `stream` | `chunk` | `TypeStructure \| undefined` | Optional structural type of each chunk value |
 | `stream` | `ret` | `TypeStructure \| undefined` | Optional structural type of the resolved return value |
+
+### Annotation Access Patterns
+
+Host applications read field annotations through the `annotations` property on `RillFieldDef`. The property is optional: absent when no annotations are declared. When present, it is a plain object, never `null`.
+
+| Container | TypeStructure path | Type |
+|-----------|-------------------|------|
+| `dict` (structural) | `type.fields[fieldName].annotations` | `Record<string, RillValue> \| undefined` |
+| `ordered` | `type.fields[index].annotations` | `Record<string, RillValue> \| undefined` |
+| `tuple` | `type.elements[index].annotations` | `Record<string, RillValue> \| undefined` |
+| `closure` | `type.params[index].annotations` | `Record<string, RillValue> \| undefined` |
+
+Uniform dicts (`dict(string)`) carry no `fields` record and have no per-field annotations.
+
+```typescript
+// Reading annotations from a structural dict field
+function getFieldDescription(
+  type: TypeStructure & { kind: 'dict'; fields: Record<string, RillFieldDef> },
+  fieldName: string
+): string | undefined {
+  const field = type.fields[fieldName];
+  if (!field?.annotations) return undefined;
+  const desc = field.annotations['description'];
+  return typeof desc === 'string' ? desc : undefined;
+}
+```
 
 ### Host Interop Shapes (`toNativeValue`)
 
@@ -189,10 +221,10 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'string' }` | `"string"` |
 | `{ kind: 'bool' }` | `"bool"` |
 | `{ kind: 'any' }` | `"any"` |
-| `{ kind: 'list', elementType: { kind: 'number' } }` | `"list(number)"` |
+| `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
-| `{ kind: 'closure' }` | `"closure"` |
-| `{ kind: 'tuple', fields: [{ name: 'x', type: { kind: 'number' } }] }` | `"tuple(x: number)"` |
+| `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
+| `{ kind: 'tuple', elements: [{ name: 'x', type: { kind: 'number' } }] }` | `"tuple(x: number)"` |
 
 ### `buildFieldDescriptor`
 

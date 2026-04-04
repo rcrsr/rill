@@ -176,6 +176,9 @@ Type constructors are primary expressions that produce structural type values. T
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
 | Ordered type | `ordered(k: T [= literal], ...)` | `ordered(a: number, b: string = "x")` |
+| Dict field with annotation | `dict(^(...) k: T, ...)` | `dict(^("label") name: string)` |
+| Ordered field with annotation | `ordered(^(...) k: T, ...)` | `ordered(^("x") x: number, ^("y") y: number)` |
+| Tuple field with annotation | `tuple(^(...) T, ...)` | `tuple(^("x") number, ^("y") number)` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 | Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
 | Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
@@ -599,6 +602,42 @@ true
 ```
 
 See [Closures](topic-closures.md) for parameter annotation examples and patterns.
+
+### Field Annotations in Type Constructors
+
+`dict`, `ordered`, and `tuple` type constructors support `^()` annotations on individual fields. The `list()` constructor does NOT support field annotations.
+
+**Syntax:** `^(key: value)` appears before the field name (named) or field type (positional).
+
+```text
+dict(^("label") name: string)
+ordered(^("label") name: string)
+tuple(^("x") number, ^("y") number)
+dict(^(description: "d", enum: "a,b") f: string)
+```
+
+**Annotation placement rules:**
+
+| Container | Field kind | Annotation position |
+|-----------|-----------|---------------------|
+| `dict()` | Named (`k: T`) | Before field name |
+| `ordered()` | Named (`k: T`) | Before field name |
+| `tuple()` | Positional (`T`) | Before field type |
+| `list()` | N/A | Not supported (RILL-P001) |
+
+**Merge behavior:** Multiple `^()` blocks on one field merge into one annotation map.
+
+**Error contracts:**
+
+| Condition | Error |
+|-----------|-------|
+| Invalid syntax inside `^()` | RILL-P014 |
+| `^()` with no following field | RILL-P014 |
+| Missing `,` or `)` after annotated field | RILL-P014 |
+| Unclosed `^(` | RILL-P005 |
+| `^()` on `list()` field | RILL-P001 |
+
+See [Closure Annotations](topic-closure-annotations.md) for the shared `^()` syntax and reflection patterns.
 
 ---
 

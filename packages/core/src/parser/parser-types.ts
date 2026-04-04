@@ -9,6 +9,7 @@ import {
   type TypeRef,
   type FieldArg,
   type LiteralNode,
+  type AnnotationArg,
   TOKEN_TYPES,
   ParseError,
 } from '../types.js';
@@ -50,7 +51,11 @@ import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
  */
 export function parseTypeRef(
   state: ParserState,
-  opts?: { allowTrailingPipe?: boolean; parseLiteral?: () => LiteralNode }
+  opts?: {
+    allowTrailingPipe?: boolean;
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
 ): TypeRef {
   const first = parseSingleType(state, opts);
 
@@ -138,7 +143,10 @@ export function parseTypeRef(
  */
 function parseSingleType(
   state: ParserState,
-  opts?: { parseLiteral?: () => LiteralNode }
+  opts?: {
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
 ): TypeRef {
   // Zero-param closure type: || :returnType or bare ||
   if (check(state, TOKEN_TYPES.OR)) {
@@ -172,10 +180,7 @@ function parseSingleType(
 
   advance(state); // consume "("
 
-  const args = parseFieldArgList(
-    state,
-    opts?.parseLiteral ? { parseLiteral: opts.parseLiteral } : undefined
-  );
+  const args = parseFieldArgList(state, buildTypeRefOpts(opts));
   advance(state); // consume ")"
 
   return { kind: 'static', typeName, args };
@@ -208,9 +213,33 @@ function parseSingleType(
  *
  * @internal
  */
+
+/** Forward parseLiteral and parseAnnotations from field-arg opts to parseTypeRef opts. */
+function buildTypeRefOpts(opts?: {
+  parseLiteral?: () => LiteralNode;
+  parseAnnotations?: () => AnnotationArg[];
+}):
+  | {
+      parseLiteral?: () => LiteralNode;
+      parseAnnotations?: () => AnnotationArg[];
+    }
+  | undefined {
+  if (!opts?.parseLiteral && !opts?.parseAnnotations) return undefined;
+  const result: {
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  } = {};
+  if (opts.parseLiteral) result.parseLiteral = opts.parseLiteral;
+  if (opts.parseAnnotations) result.parseAnnotations = opts.parseAnnotations;
+  return result;
+}
+
 export function parseFieldArgList(
   state: ParserState,
-  opts?: { parseLiteral?: () => LiteralNode }
+  opts?: {
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
 ): FieldArg[] {
   const args: FieldArg[] = [];
 
@@ -218,6 +247,31 @@ export function parseFieldArgList(
 
   // Parse arg list: allow empty "()" and trailing commas
   while (!check(state, TOKEN_TYPES.RPAREN)) {
+    // Parse optional field annotations: ^(annots) — multiple blocks merge
+    let annotations: AnnotationArg[] | undefined;
+    while (opts?.parseAnnotations && check(state, TOKEN_TYPES.CARET)) {
+      advance(state); // consume ^
+      expect(state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+      const block = opts.parseAnnotations();
+      expect(state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+      skipNewlines(state);
+
+      if (!annotations) {
+        annotations = block;
+      } else {
+        annotations = annotations.concat(block);
+      }
+
+      // Guard: annotation must be followed by a field
+      if (check(state, TOKEN_TYPES.RPAREN)) {
+        throw new ParseError(
+          'RILL-P014',
+          'Expected field after annotation',
+          current(state).span.start
+        );
+      }
+    }
+
     // Check for named arg: identifier ":" type-ref
     // Lookahead: current is IDENTIFIER and next is COLON
     const tok = current(state);
@@ -229,11 +283,12 @@ export function parseFieldArgList(
       advance(state); // consume identifier
       advance(state); // consume ":"
       skipNewlines(state);
-      const typeRefOpts = opts?.parseLiteral
-        ? { parseLiteral: opts.parseLiteral }
-        : undefined;
+      const typeRefOpts = buildTypeRefOpts(opts);
       const value = parseTypeRef(state, typeRefOpts);
       const arg: FieldArg = { name, value };
+      if (annotations) {
+        arg.annotations = annotations;
+      }
       if (opts?.parseLiteral && check(state, TOKEN_TYPES.ASSIGN)) {
         advance(state); // consume =
         skipNewlines(state);
@@ -242,11 +297,12 @@ export function parseFieldArgList(
       args.push(arg);
     } else {
       // Positional arg: type-ref
-      const typeRefOpts = opts?.parseLiteral
-        ? { parseLiteral: opts.parseLiteral }
-        : undefined;
+      const typeRefOpts = buildTypeRefOpts(opts);
       const value = parseTypeRef(state, typeRefOpts);
       const arg: FieldArg = { value };
+      if (annotations) {
+        arg.annotations = annotations;
+      }
       if (opts?.parseLiteral && check(state, TOKEN_TYPES.ASSIGN)) {
         advance(state); // consume =
         skipNewlines(state);

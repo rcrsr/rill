@@ -80,6 +80,48 @@ describe('buildFieldDescriptor', () => {
     });
   });
 
+  describe('FR-DFIELD-2: annotated fields in field descriptor', () => {
+    it('returns fieldType with annotations when field carries annotations', () => {
+      const structType = makeStructuralDictType({
+        name: {
+          type: STRING_TYPE,
+          annotations: { description: 'User name' },
+        },
+      });
+      const descriptor = buildFieldDescriptor(structType, 'name', LOC);
+      expect(descriptor.fieldName).toBe('name');
+      expect(descriptor.fieldType).toEqual({
+        type: STRING_TYPE,
+        annotations: { description: 'User name' },
+      });
+    });
+
+    it('returns fieldType without annotations when field has none', () => {
+      const structType = makeStructuralDictType({
+        count: { type: NUMBER_TYPE },
+      });
+      const descriptor = buildFieldDescriptor(structType, 'count', LOC);
+      expect(descriptor.fieldType).toEqual({ type: NUMBER_TYPE });
+      expect(descriptor.fieldType.annotations).toBeUndefined();
+    });
+
+    it('selects correct annotated field from multiple fields', () => {
+      const structType = makeStructuralDictType({
+        name: {
+          type: STRING_TYPE,
+          annotations: { description: 'label' },
+        },
+        count: { type: NUMBER_TYPE },
+      });
+      const nameDesc = buildFieldDescriptor(structType, 'name', LOC);
+      const countDesc = buildFieldDescriptor(structType, 'count', LOC);
+      expect(nameDesc.fieldType.annotations).toEqual({
+        description: 'label',
+      });
+      expect(countDesc.fieldType.annotations).toBeUndefined();
+    });
+  });
+
   describe('EC-1: throws RILL-R003 when fieldName absent', () => {
     it('throws RuntimeError for unknown field name', () => {
       const structType = makeStructuralDictType({

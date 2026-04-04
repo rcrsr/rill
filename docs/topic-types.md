@@ -341,6 +341,14 @@ dict[] -> :>dict(number)
 # Result: dict[]
 ```
 
+### Field Annotations
+
+Dict type constructors support `^()` inline field annotations. Annotations attach metadata to individual fields and appear on the type structure when you call `.^type`. See [Closure Annotations](topic-closure-annotations.md) for the full `^()` syntax and TypeScript access patterns.
+
+```text
+dict(^("A person's name") name: string, ^("Age in years") age: number)
+```
+
 ## Ordered
 
 `ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
@@ -373,6 +381,14 @@ ordered[x: 1, y: 2] -> :>ordered(number)
 ```
 
 An empty ordered container passes — no values to violate the constraint.
+
+### Field Annotations
+
+`ordered` type constructors support `^()` inline field annotations. Annotations attach at each index in the type structure. See [Closure Annotations](topic-closure-annotations.md) for syntax and TypeScript access patterns.
+
+```text
+ordered(^("X coordinate") x: number, ^("Y coordinate") y: number)
+```
 
 ## Tuples
 
@@ -463,6 +479,14 @@ tuple[1, 2, 3] -> :>tuple(number)
 An empty tuple passes — no values to violate the constraint.
 
 **Breaking change:** The single-positional-argument form `tuple(T)` now defines a uniform value type, not a 1-element structural tuple. Use `tuple(T1, T2)` (two or more positional args) for structural tuples with specific element types.
+
+### Field Annotations
+
+Tuple type constructors support `^()` inline annotations on positional elements. Annotations attach at each index in the type structure. See [Closure Annotations](topic-closure-annotations.md) for syntax and TypeScript access patterns.
+
+```text
+tuple(^("X coordinate") number, ^("Y coordinate") number)
+```
 
 ## Vectors
 

@@ -712,12 +712,24 @@ type-target   = type-ref ;
    Default values (= literal) are context-dependent:
    - Type constructors: always supported
    - Closure param annotations: supported (defaults fill missing fields)
-   - Assertion/check position: defaults allow trailing field omission *)
+   - Assertion/check position: defaults allow trailing field omission
+
+   Field annotations (optional ^(...) prefix):
+   - dict, ordered, and tuple type constructors support ^() annotations per field
+   - list() does NOT support field annotations (parse error at ^ token)
+   - Multiple ^() blocks on one field merge into one annotation map
+   - Invalid syntax inside ^() produces RILL-P014
+   - ^() with no following field produces RILL-P014
+
+   Examples:
+   dict(^("label") name: string)                       -- named field with annotation
+   tuple(^("x") number, ^("y") number)                 -- positional fields with annotations
+   dict(^(description: "d", enum: "a,b") f: string)    -- multi-key annotation *)
 
 field-arg-list   = field-arg , { "," , field-arg } , [ "," ] ;
 
-field-arg        = identifier , ":" , type-ref , [ "=" , literal ]   (* named: key: type [= default] *)
-                 | type-ref , [ "=" , literal ] ;                     (* positional: type [= default] *)
+field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , literal ]   (* named: ^() key: type [= default] *)
+                 | [ annotation ] , type-ref , [ "=" , literal ] ;                     (* positional: ^() type [= default] *)
 
 (* ============================================================ *)
 (* TYPE CONSTRUCTORS                                            *)
@@ -743,6 +755,13 @@ field-arg        = identifier , ":" , type-ref , [ "=" , literal ]   (* named: k
    tuple(number, string = "")              -- second position defaults to ""
    ordered(x: number, y: number = 0)      -- y defaults to 0
    dict(a: number, b: dict(c: number = 5)) -- nested default synthesis
+
+   Field annotations attach metadata to individual fields (dict, ordered, tuple only):
+   dict(^("label") name: string)                    -- named field with description shorthand
+   ordered(^("x") x: number, ^("y") y: number)     -- each field annotated
+   tuple(^("x") number, ^("y") number)              -- positional fields annotated
+   dict(^(description: "d", enum: "a,b") f: string) -- multi-key annotation
+   list() does NOT support field annotations.
 
    These values are used with ^type for structural type inspection. *)
 

@@ -6,7 +6,12 @@
  */
 
 import { Parser } from './parser.js';
-import type { TypeConstructorNode, FieldArg } from '../types.js';
+import type {
+  TypeConstructorNode,
+  FieldArg,
+  LiteralNode,
+  AnnotationArg,
+} from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { advance, expect, current, makeSpan } from './state.js';
 import { parseFieldArgList } from './parser-types.js';
@@ -48,9 +53,14 @@ Parser.prototype.parseTypeConstructor = function (
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
 
   const parseLiteral = () => this.parseLiteral();
-  const args: FieldArg[] = parseFieldArgList(this.state, {
-    parseLiteral,
-  });
+  const opts: {
+    parseLiteral: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  } = { parseLiteral };
+  if (constructorName !== 'list') {
+    opts.parseAnnotations = () => this.parseAnnotationArgs();
+  }
+  const args: FieldArg[] = parseFieldArgList(this.state, opts);
 
   const rparen = expect(
     this.state,

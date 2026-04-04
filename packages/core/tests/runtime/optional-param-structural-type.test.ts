@@ -424,4 +424,81 @@ describe('Optional parameter structural types', () => {
       });
     });
   });
+
+  // ============================================================
+  // FR-DFIELD-2: Structural types with annotated fields
+  // ============================================================
+
+  describe('structural types with annotated fields', () => {
+    it('TypeStructure carries annotations in closure params RillFieldDef', () => {
+      const type: TypeStructure = {
+        kind: 'closure',
+        params: [
+          {
+            name: 'name',
+            type: { kind: 'string' },
+            annotations: { description: 'User name' },
+          },
+          { name: 'count', type: { kind: 'number' } },
+        ],
+        ret: { kind: 'string' },
+      };
+      expect(type.params![0]!.annotations).toEqual({
+        description: 'User name',
+      });
+      expect(type.params![1]!.annotations).toBeUndefined();
+    });
+
+    it('inferStructure preserves annotations from ApplicationCallable params', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable',
+        kind: 'application',
+        isProperty: false,
+        fn: () => null,
+        params: [
+          {
+            name: 'x',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: { description: 'test param' },
+          },
+        ],
+        returnType: anyTypeValue,
+        annotations: {},
+      };
+
+      const result = inferStructure(fn as unknown as RillValue);
+      expect(result.kind).toBe('closure');
+      if (result.kind === 'closure') {
+        expect(result.params![0]!.annotations).toEqual({
+          description: 'test param',
+        });
+      }
+    });
+
+    it('inferStructure omits annotations when param has empty annotations', () => {
+      const fn: ApplicationCallable = {
+        __type: 'callable',
+        kind: 'application',
+        isProperty: false,
+        fn: () => null,
+        params: [
+          {
+            name: 'x',
+            type: { kind: 'number' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        returnType: anyTypeValue,
+        annotations: {},
+      };
+
+      const result = inferStructure(fn as unknown as RillValue);
+      expect(result.kind).toBe('closure');
+      if (result.kind === 'closure') {
+        expect(result.params![0]!.annotations).toBeUndefined();
+      }
+    });
+  });
 });
