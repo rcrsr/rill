@@ -12,6 +12,8 @@
 // ============================================================
 
 export type {
+  RillDatetime,
+  RillDuration,
   RillFieldDef,
   RillIterator,
   RillOrdered,
@@ -35,7 +37,9 @@ export type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 
 export {
   isCallable,
+  isDatetime,
   isDict,
+  isDuration,
   isIterator,
   isOrdered,
   isRillStream,

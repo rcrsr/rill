@@ -12,6 +12,8 @@
 
 import type { CallableMarker } from './markers.js';
 import type {
+  RillDatetime,
+  RillDuration,
   RillIterator,
   RillOrdered,
   RillStream,
@@ -38,6 +40,26 @@ export function isVector(value: RillValue): value is RillVector {
     value !== null &&
     '__rill_vector' in value &&
     value.__rill_vector === true
+  );
+}
+
+/** Type guard for RillDatetime */
+export function isDatetime(value: RillValue): value is RillDatetime {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_datetime' in value &&
+    (value as RillDatetime).__rill_datetime === true
+  );
+}
+
+/** Type guard for RillDuration */
+export function isDuration(value: RillValue): value is RillDuration {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_duration' in value &&
+    (value as RillDuration).__rill_duration === true
   );
 }
 

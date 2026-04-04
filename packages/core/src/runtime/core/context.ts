@@ -316,6 +316,8 @@ export function createRuntimeContext(
     resolverConfigs,
     resolvingSchemes: new Set(),
     parseSource: options.parseSource,
+    timezone: options.timezone,
+    nowMs: options.nowMs,
   };
 }
 

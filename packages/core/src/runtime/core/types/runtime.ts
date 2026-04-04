@@ -209,6 +209,10 @@ export interface RuntimeContext {
   readonly sourceId?: string | undefined;
   /** Source text of the current file for cross-module error snippets */
   readonly sourceText?: string | undefined;
+  /** Timezone offset in hours from UTC (undefined = UTC = 0) */
+  readonly timezone?: number | undefined;
+  /** Fixed millisecond timestamp for deterministic Date.now() (undefined = live Date.now()) */
+  readonly nowMs?: number | undefined;
 }
 
 /** Options for creating a runtime context */
@@ -244,6 +248,10 @@ export interface RuntimeOptions {
    * Required when resolvers may return `kind: 'source'` results.
    */
   parseSource?: (text: string) => import('../../../types.js').ScriptNode;
+  /** Timezone offset in hours from UTC (undefined = UTC = 0) */
+  timezone?: number;
+  /** Fixed millisecond timestamp for deterministic Date.now() (undefined = live Date.now()) */
+  nowMs?: number;
 }
 
 /** Result of script execution */

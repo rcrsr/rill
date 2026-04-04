@@ -240,8 +240,42 @@ type NativeValue =
 | `type` | `{ name: string, signature: string }` |
 | `iterator` | `{ done: boolean }` |
 | `stream` | `{ done: boolean }` |
+| `datetime` | `{ unix: number, iso: string }` |
+| `duration` | `{ months: number, ms: number }` |
 
 See [Host Integration](integration-host.md) for conversion examples and migration guidance.
+
+---
+
+## createRuntimeContext
+
+`createRuntimeContext(options: RuntimeOptions): RuntimeContext` builds the execution context passed to `execute()`. See [Host Integration](integration-host.md) for the full `RuntimeOptions` field reference.
+
+### Datetime Fields
+
+Two fields control datetime behavior in scripts.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `timezone` | `number` | `0` (UTC) | Numeric hour offset for `.local_*` properties on `datetime` values |
+| `nowMs` | `number` | `undefined` | Fixed unix millisecond timestamp for deterministic `now()` calls |
+
+`timezone` accepts numeric offsets only (e.g., `-5` for UTC-5, `5.5` for UTC+5:30). IANA timezone name resolution (e.g., `"America/New_York"`) requires `datetime-extension`.
+
+`nowMs` pins `now()` to a fixed timestamp. Scripts that call `now()` without `nowMs` return the wall-clock time at execution.
+
+```typescript
+import { createRuntimeContext } from '@rcrsr/rill';
+
+// Fixed timestamp for deterministic test execution
+const ctx = createRuntimeContext({
+  timezone: -5,
+  nowMs: new Date('2024-06-15T12:00:00Z').getTime(),
+});
+
+// Scripts using now() return 2024-06-15T12:00:00Z
+// Scripts using .local_date return date in UTC-5 (2024-06-15)
+```
 
 ---
 

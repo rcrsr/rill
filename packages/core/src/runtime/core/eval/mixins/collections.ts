@@ -32,7 +32,13 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isIterator, isStream, isVector } from '../../types/guards.js';
+import {
+  isDatetime,
+  isDuration,
+  isIterator,
+  isStream,
+  isVector,
+} from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
@@ -88,6 +94,14 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         throw new RuntimeError(
           'RILL-R003',
           'Collection operators require list, string, dict, iterator, or stream, got vector',
+          node.span.start
+        );
+      }
+      // Datetime/Duration guard: these are plain objects but not iterable
+      if (isDatetime(input) || isDuration(input)) {
+        throw new RuntimeError(
+          'RILL-R002',
+          `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`,
           node.span.start
         );
       }

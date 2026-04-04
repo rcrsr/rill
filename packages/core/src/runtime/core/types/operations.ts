@@ -15,7 +15,9 @@ import { RuntimeError } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import {
   isCallable as _isCallableGuard,
+  isDatetime,
   isDict,
+  isDuration,
   isIterator,
   isOrdered,
   isStream,
@@ -662,7 +664,9 @@ export function formatStructure(type: TypeStructure): string {
     type.kind === 'string' ||
     type.kind === 'bool' ||
     type.kind === 'vector' ||
-    type.kind === 'type'
+    type.kind === 'type' ||
+    type.kind === 'datetime' ||
+    type.kind === 'duration'
   ) {
     return type.kind;
   }
@@ -820,6 +824,12 @@ export function inferStructure(value: RillValue): TypeStructure {
     );
     const ret: TypeStructure = value.returnType.structure;
     return { kind: 'closure', params, ret };
+  }
+  if (isDatetime(value)) {
+    return { kind: 'datetime' };
+  }
+  if (isDuration(value)) {
+    return { kind: 'duration' };
   }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;

@@ -33,6 +33,8 @@ type TypeStructure =
   | { kind: 'number' }
   | { kind: 'string' }
   | { kind: 'bool' }
+  | { kind: 'datetime' }
+  | { kind: 'duration' }
   | { kind: 'list'; elementType: TypeStructure }
   | { kind: 'dict'; valueType: TypeStructure }
   | { kind: 'tuple'; fields: RillFieldDef[] }
@@ -46,12 +48,14 @@ type TypeStructure =
   | { kind: string; data?: unknown }; // catch-all for types without parameterized structure
 ```
 
-The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `closure`, `any`) carry no sub-fields. Compound variants carry their structural sub-fields.
+The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`, `datetime`, `duration`, `closure`, `any`) carry no sub-fields. Compound variants carry their structural sub-fields.
 
 ### Field Constraints
 
 | Variant | Field | Type | Semantics |
 |---------|-------|------|-----------|
+| `datetime` | — | — | Leaf variant. No sub-fields |
+| `duration` | — | — | Leaf variant. No sub-fields |
 | `list` | `elementType` | `TypeStructure` | Element type for all list members |
 | `dict` | `valueType` | `TypeStructure` | Value type for all dict values |
 | `tuple` | `fields` | `RillFieldDef[]` | Ordered positional fields. Index access: `type.fields[i]` |
@@ -61,6 +65,15 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `union` | `types` | `TypeStructure[]` | Non-empty array of member types |
 | `stream` | `chunk` | `TypeStructure \| undefined` | Optional structural type of each chunk value |
 | `stream` | `ret` | `TypeStructure \| undefined` | Optional structural type of the resolved return value |
+
+### Host Interop Shapes (`toNativeValue`)
+
+`toNativeValue()` converts opaque rill types to plain JavaScript objects. Datetime and duration produce these shapes:
+
+| Type | Native Shape | Fields |
+|------|-------------|--------|
+| `datetime` | `{ unix: number, iso: string }` | `unix`: UTC ms since epoch. `iso`: ISO 8601 string |
+| `duration` | `{ months: number, ms: number }` | `months`: calendar month count. `ms`: fixed milliseconds |
 
 ### Exports
 

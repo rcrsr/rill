@@ -14,6 +14,7 @@ import {
   isScriptCallable,
   parse,
   structureToTypeValue,
+  toNative,
   type ApplicationCallable,
   type RillFunction,
   type RillValue,
@@ -1247,5 +1248,78 @@ describe('AC-16: Untyped callable (params undefined) skips marshaling, works as 
 
     expect(result).toBe('piped');
     expect(capturedPipe).toBe('piped');
+  });
+
+  describe('Datetime Host Interop', () => {
+    it('toNativeValue produces {unix, iso} shape for datetime (AC-B7)', async () => {
+      const result = await run('datetime("2026-03-13T08:00:00Z")');
+      const native = toNative(result);
+      expect(native.rillTypeName).toBe('datetime');
+      const value = native.value as { unix: number; iso: string };
+      expect(value).toHaveProperty('unix');
+      expect(value).toHaveProperty('iso');
+      expect(typeof value.unix).toBe('number');
+      expect(typeof value.iso).toBe('string');
+      expect(value.unix).toBe(Date.parse('2026-03-13T08:00:00Z'));
+      expect(value.iso).toBe('2026-03-13T08:00:00.000Z');
+    });
+
+    it('now() with RuntimeContext.nowMs returns deterministic unix (AC-7)', async () => {
+      const fixedMs = 1710316800000;
+      const result = await run('now().unix', { nowMs: fixedMs });
+      expect(result).toBe(fixedMs);
+    });
+
+    it('now() with nowMs produces correct toNative shape', async () => {
+      const fixedMs = 1710316800000;
+      const result = await run('now()', { nowMs: fixedMs });
+      const native = toNative(result);
+      const value = native.value as { unix: number; iso: string };
+      expect(value.unix).toBe(fixedMs);
+      expect(value.iso).toBe(new Date(fixedMs).toISOString());
+    });
+
+    it('timezone offset affects .local_iso property (AC-21)', async () => {
+      const result = await run('datetime("2026-03-13T08:00:00Z").local_iso', {
+        timezone: 1,
+      });
+      expect(typeof result).toBe('string');
+      expect(result as string).toContain('+01:00');
+      expect(result as string).toContain('2026-03-13T09:00:00');
+    });
+
+    it('timezone 0 produces Z suffix in .local_iso', async () => {
+      const result = await run('datetime("2026-03-13T08:00:00Z").local_iso', {
+        timezone: 0,
+      });
+      expect(typeof result).toBe('string');
+      expect(result as string).toContain('Z');
+    });
+  });
+
+  describe('Duration Host Interop', () => {
+    it('toNativeValue produces {months, ms} shape for duration (AC-B8)', async () => {
+      // duration(years, months, days, hours, minutes, seconds, ms)
+      // 1 day, 2 hours = 0 months, (1*86400000 + 2*3600000) ms
+      const result = await run('duration(0, 0, 1, 2)');
+      const native = toNative(result);
+      expect(native.rillTypeName).toBe('duration');
+      const value = native.value as { months: number; ms: number };
+      expect(value).toHaveProperty('months');
+      expect(value).toHaveProperty('ms');
+      expect(typeof value.months).toBe('number');
+      expect(typeof value.ms).toBe('number');
+      expect(value.months).toBe(0);
+      expect(value.ms).toBe(1 * 86400000 + 2 * 3600000);
+    });
+
+    it('duration with months produces correct native months field', async () => {
+      // duration(1, 6) = 1 year, 6 months = 18 months total, 0 ms
+      const result = await run('duration(1, 6)');
+      const native = toNative(result);
+      const value = native.value as { months: number; ms: number };
+      expect(value.months).toBe(18);
+      expect(value.ms).toBe(0);
+    });
   });
 });

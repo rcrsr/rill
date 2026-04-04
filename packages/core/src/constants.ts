@@ -29,4 +29,6 @@ export const VALID_TYPE_NAMES = [
   'type',
   'iterator',
   'stream',
+  'datetime',
+  'duration',
 ] as const;
