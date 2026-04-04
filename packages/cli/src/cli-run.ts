@@ -340,9 +340,18 @@ export async function main(): Promise<void> {
 
     ctx.pipeValue = handlerArgs as unknown as import('@rcrsr/rill').RillValue;
 
+    // Map handler args to positional args in param order so marshalArgs
+    // can bind them to the closure's declared parameters.
+    // pipeValue is kept for zero-param closures that access $ directly.
+    const positionalArgs = introspection.params.map(
+      (p) =>
+        (handlerArgs[p.name] ??
+          null) as unknown as import('@rcrsr/rill').RillValue
+    );
+
     let handlerResult: import('@rcrsr/rill').RillValue;
     try {
-      handlerResult = await invokeCallable(handlerValue, [], ctx);
+      handlerResult = await invokeCallable(handlerValue, positionalArgs, ctx);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       process.stderr.write(message + '\n');
