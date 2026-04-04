@@ -98,7 +98,7 @@ describe('CLOSURE_BARE_DOLLAR', () => {
   it('allows bare $ inside nested closures within stored closure', () => {
     const source = `
       || {
-        [1, 2, 3] -> filter |x| { $x -> .len }
+        [1, 2, 3] -> filter { $ > 0 }
       } => $fn
       true
     `;
@@ -109,13 +109,9 @@ describe('CLOSURE_BARE_DOLLAR', () => {
   it('allows pipe references in deeply nested callbacks within stored closure', () => {
     const source = `
       || {
-        use<ext:rss> => $rss
-        $rss.fetch_all()
-          -> filter |item| { $item.title -> !.empty }
-          -> each |entry| {
-            $entry.value => $v
-            $v
-          }
+        [1, 2, 3]
+          -> filter { $ > 0 }
+          -> each { $.value }
       } => $process
       true
     `;
