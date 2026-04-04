@@ -2,7 +2,7 @@
  * Type Registration Definitions
  *
  * Defines the TypeDefinition interface, TypeProtocol interface, and
- * BUILT_IN_TYPES registration array. Each of the 12 built-in types
+ * BUILT_IN_TYPES registration array. Each of the 15 built-in types
  * carries identity predicates, protocol functions (format, eq, compare,
  * convertTo, serialize), and a methods record populated from BUILTIN_METHODS.
  *
@@ -26,6 +26,8 @@ import type {
   RillTypeValue,
   RillIterator,
   RillStream,
+  RillDatetime,
+  RillDuration,
 } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import {
@@ -35,6 +37,8 @@ import {
   isOrdered,
   isTypeValue,
   isIterator,
+  isDatetime,
+  isDuration,
 } from './guards.js';
 import { createTuple, createOrdered, createVector } from './constructors.js';
 import {
@@ -73,7 +77,7 @@ export interface TypeProtocol {
 // ============================================================
 
 /**
- * A single type registration record. Each of the 12 built-in types
+ * A single type registration record. Each of the 15 built-in types
  * has exactly one TypeDefinition in the BUILT_IN_TYPES array.
  */
 export interface TypeDefinition {
@@ -162,6 +166,48 @@ function formatIterator(_v: RillValue): string {
 
 function formatStream(_v: RillValue): string {
   return 'type(stream)';
+}
+
+function formatDatetime(v: RillValue): string {
+  const dt = v as unknown as RillDatetime;
+  return new Date(dt.unix).toISOString();
+}
+
+/**
+ * Format a duration as a compact display string.
+ * Omits zero components. Zero duration = "0ms".
+ *
+ * Calendar decomposition: years = floor(months / 12), remaining months.
+ * Clock decomposition: days, hours, minutes, seconds, ms from the ms field.
+ */
+function formatDuration(v: RillValue): string {
+  const dur = v as unknown as RillDuration;
+  const parts: string[] = [];
+
+  // Calendar components
+  const years = Math.floor(dur.months / 12);
+  const remainingMonths = dur.months % 12;
+  if (years > 0) parts.push(`${years}y`);
+  if (remainingMonths > 0) parts.push(`${remainingMonths}mo`);
+
+  // Clock components: decompose ms field
+  let remainder = dur.ms;
+  const days = Math.floor(remainder / 86400000);
+  remainder -= days * 86400000;
+  const hours = Math.floor(remainder / 3600000);
+  remainder -= hours * 3600000;
+  const minutes = Math.floor(remainder / 60000);
+  remainder -= minutes * 60000;
+  const seconds = Math.floor(remainder / 1000);
+  remainder -= seconds * 1000;
+
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0) parts.push(`${seconds}s`);
+  if (remainder > 0) parts.push(`${remainder}ms`);
+
+  return parts.length === 0 ? '0ms' : parts.join('');
 }
 
 function formatList(v: RillValue): string {
@@ -267,6 +313,16 @@ function eqFieldDescriptor(a: RillValue, b: RillValue): boolean {
   return a === b;
 }
 
+function eqDatetime(a: RillValue, b: RillValue): boolean {
+  if (!isDatetime(a) || !isDatetime(b)) return false;
+  return a.unix === b.unix;
+}
+
+function eqDuration(a: RillValue, b: RillValue): boolean {
+  if (!isDuration(a) || !isDuration(b)) return false;
+  return a.months === b.months && a.ms === b.ms;
+}
+
 function eqList(a: RillValue, b: RillValue): boolean {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
   return compareElements(a, b, compareByDeepEquals);
@@ -305,6 +361,30 @@ function compareString(a: RillValue, b: RillValue): number {
 
 function compareNumber(a: RillValue, b: RillValue): number {
   return (a as number) - (b as number);
+}
+
+function compareDatetime(a: RillValue, b: RillValue): number {
+  const da = (a as unknown as RillDatetime).unix;
+  const db = (b as unknown as RillDatetime).unix;
+  return da - db;
+}
+
+/**
+ * Three-way comparison for durations.
+ * Only defined when both durations have equal months fields.
+ * When months differ, ordering is ambiguous (month length varies),
+ * so we halt with RILL-R002.
+ */
+function compareDuration(a: RillValue, b: RillValue): number {
+  const da = a as unknown as RillDuration;
+  const db = b as unknown as RillDuration;
+  if (da.months !== db.months) {
+    throw new RuntimeError(
+      'RILL-R002',
+      'Cannot order durations with different calendar components'
+    );
+  }
+  return da.ms - db.ms;
 }
 
 // ============================================================
@@ -510,6 +590,80 @@ function serializeDict(v: RillValue): unknown {
   return result;
 }
 
+/** Serialize datetime as ISO 8601 string with milliseconds. */
+function serializeDatetime(v: RillValue): unknown {
+  const dt = v as unknown as RillDatetime;
+  return new Date(dt.unix).toISOString();
+}
+
+/**
+ * Serialize duration.
+ * Fixed durations (months=0): ms number.
+ * Calendar durations (months>0): {months, ms} object.
+ */
+function serializeDuration(v: RillValue): unknown {
+  const dur = v as unknown as RillDuration;
+  if (dur.months === 0) return dur.ms;
+  return { months: dur.months, ms: dur.ms };
+}
+
+/**
+ * Deserialize ISO 8601 string to RillDatetime.
+ * Accepts a string, parses via Date constructor.
+ */
+function deserializeDatetime(data: unknown): RillValue {
+  if (typeof data !== 'string') {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Cannot deserialize ${typeof data} as datetime, expected ISO 8601 string`
+    );
+  }
+  const ms = Date.parse(data);
+  if (isNaN(ms)) {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Cannot deserialize invalid ISO 8601 string as datetime: ${data}`
+    );
+  }
+  return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+}
+
+/**
+ * Deserialize duration from number (ms) or {months, ms} object.
+ */
+function deserializeDuration(data: unknown): RillValue {
+  if (typeof data === 'number') {
+    return {
+      __rill_duration: true,
+      months: 0,
+      ms: data,
+    } as unknown as RillValue;
+  }
+  if (
+    typeof data === 'object' &&
+    data !== null &&
+    'months' in data &&
+    'ms' in data
+  ) {
+    const obj = data as { months: unknown; ms: unknown };
+    if (typeof obj.months !== 'number' || typeof obj.ms !== 'number') {
+      throw new RuntimeError(
+        'RILL-R004',
+        'Cannot deserialize duration: months and ms must be numbers'
+      );
+    }
+    return {
+      __rill_duration: true,
+      months: obj.months,
+      ms: obj.ms,
+    } as unknown as RillValue;
+  }
+  throw new RuntimeError(
+    'RILL-R004',
+    `Cannot deserialize ${typeof data} as duration, expected number or {months, ms}`
+  );
+}
+
 function throwNotSerializable(typeName: string): (v: RillValue) => never {
   return (_v: RillValue): never => {
     throw new RuntimeError(
@@ -524,19 +678,20 @@ function throwNotSerializable(typeName: string): (v: RillValue) => never {
 // ============================================================
 
 /**
- * All 13 built-in type registrations.
+ * All 15 built-in type registrations.
  *
  * Registration order:
  * 1. Primitives: string, number, bool
- * 2. Discriminator-based: tuple, ordered, vector, type, closure, field_descriptor
+ * 2. Discriminator-based: tuple, ordered, vector, datetime, duration, type, closure, field_descriptor
  * 3. Structural: iterator, stream
  * 4. list
  * 5. dict (fallback, must be last)
  *
- * AC-1: 13 registrations, one per type.
+ * AC-1: 15 registrations, one per type.
  * BC-2: Vector identity checked before dict fallback.
  * EC-3: Iterator has no protocol.eq.
  * EC-4: Bool has no protocol.compare.
+ * EC-5: Cross-type datetime/duration comparisons raise RILL-R002.
  * EC-8: Non-serializable types throw RuntimeError (RILL-R067).
  */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
@@ -623,6 +778,34 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
       eq: eqVector,
       convertTo: vectorConvertTo,
       serialize: throwNotSerializable('vector'),
+    },
+  },
+  {
+    name: 'datetime',
+    identity: (v: RillValue): boolean => isDatetime(v),
+    isLeaf: true,
+    immutable: true,
+    methods: {},
+    protocol: {
+      format: formatDatetime,
+      eq: eqDatetime,
+      compare: compareDatetime,
+      serialize: serializeDatetime,
+      deserialize: deserializeDatetime,
+    },
+  },
+  {
+    name: 'duration',
+    identity: (v: RillValue): boolean => isDuration(v),
+    isLeaf: true,
+    immutable: true,
+    methods: {},
+    protocol: {
+      format: formatDuration,
+      eq: eqDuration,
+      compare: compareDuration,
+      serialize: serializeDuration,
+      deserialize: deserializeDuration,
     },
   },
   {
@@ -842,14 +1025,16 @@ const METHOD_BEARING_TYPES = new Set([
   'list',
   'dict',
   'vector',
+  'datetime',
+  'duration',
 ]);
 
 /**
  * Populate registration `methods` fields from BUILTIN_METHODS.
  *
  * Called after builtins.ts finishes initialization to avoid circular
- * dependency at module load time. The 6 method-bearing types (string,
- * number, bool, list, dict, vector) receive their methods records;
+ * dependency at module load time. The 8 method-bearing types (string,
+ * number, bool, list, dict, vector, datetime, duration) receive their methods records;
  * other types keep `methods: {}`.
  *
  * AC-3: Consolidates method data into registrations.

@@ -101,6 +101,26 @@ export interface RillVector {
 }
 
 /**
+ * Datetime type - represents a UTC instant in time.
+ * Stored as integer milliseconds since Unix epoch (1970-01-01T00:00:00Z).
+ */
+export interface RillDatetime {
+  readonly __rill_datetime: true;
+  readonly unix: number;
+}
+
+/**
+ * Duration type - represents a calendar-aware time span.
+ * Split into months (calendar) and ms (clock) components,
+ * both non-negative integers.
+ */
+export interface RillDuration {
+  readonly __rill_duration: true;
+  readonly months: number;
+  readonly ms: number;
+}
+
+/**
  * Type value - represents a first-class type name at runtime.
  * Created when a type name expression (e.g. `string`, `number`) is evaluated.
  */
@@ -150,6 +170,8 @@ export type RillValue =
   | RillTuple
   | RillOrdered
   | RillVector
+  | RillDatetime
+  | RillDuration
   | FieldDescriptorMarker
   | RillTypeValue
   | RillStream;

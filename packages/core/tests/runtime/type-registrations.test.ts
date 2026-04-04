@@ -170,16 +170,16 @@ const sharedTestValues = testValues.filter(
 // ============================================================
 
 describe('type-registrations', () => {
-  // AC-1: BUILT_IN_TYPES has exactly 13 entries, each with unique name
+  // AC-1: BUILT_IN_TYPES has exactly 15 entries, each with unique name
   describe('AC-1: BUILT_IN_TYPES registry', () => {
-    it('has exactly 13 entries', () => {
-      expect(BUILT_IN_TYPES).toHaveLength(13);
+    it('has exactly 15 entries', () => {
+      expect(BUILT_IN_TYPES).toHaveLength(15);
     });
 
     it('has unique names for all entries', () => {
       const names = BUILT_IN_TYPES.map((t) => t.name);
       const uniqueNames = new Set(names);
-      expect(uniqueNames.size).toBe(13);
+      expect(uniqueNames.size).toBe(15);
     });
   });
 

@@ -662,7 +662,9 @@ export function formatStructure(type: TypeStructure): string {
     type.kind === 'string' ||
     type.kind === 'bool' ||
     type.kind === 'vector' ||
-    type.kind === 'type'
+    type.kind === 'type' ||
+    type.kind === 'datetime' ||
+    type.kind === 'duration'
   ) {
     return type.kind;
   }

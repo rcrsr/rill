@@ -84,12 +84,14 @@ See [Collections](topic-collections.md) for detailed documentation. All four ope
 | Dict | `[k: v]` or `dict[k: v]` (canonical) | `dict[output: "text"]`, `dict[$key: 1]` | Dict value |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` | Ordered value |
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
+| Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
+| Duration | `duration(...)` | `duration(days: 1, hours: 2)` | Duration value |
 | Vector | host-provided | `app::embed("text")` | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `stream`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `any`, `type`
 
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
@@ -368,6 +370,9 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
 | `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |
+| `datetime` | `input\|year, month, day, ...\|unix` | `datetime` | Construct datetime from ISO string, named components, or unix ms |
+| `duration` | `years?, months?, days?, hours?, minutes?, seconds?, ms?` | `duration` | Construct duration from named unit parameters |
+| `now` | (none) | `datetime` | Current UTC instant |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 

@@ -16,7 +16,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P010, RILL-P014)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R016, RILL-R036 - RILL-R045, RILL-R050 - RILL-R077, RILL-R080 - RILL-R088)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 - [Config Errors (RILL-CFG001 - RILL-CFG018)](#config-errors)
 
@@ -1416,6 +1416,159 @@ use<module:unknown>
 ```text
 # param { name: "x", type: "number", defaultValue: "hello" }
 # Error: Invalid defaultValue for parameter 'x': expected number, got string
+```
+
+---
+
+### rill-r080
+
+**Description:** Invalid datetime construction — no arguments
+
+**Cause:** `datetime()` was called with no arguments. The constructor requires at least one argument: either an ISO 8601 string, a unix millisecond timestamp, or named date/time components.
+
+**Resolution:** Pass an ISO 8601 string, a unix ms number, or named keyword arguments (`year`, `month`, `day`, `hour`, `minute`, `second`, `ms`).
+
+**Example:**
+
+```text
+datetime()
+# Error: RILL-R004: datetime() requires arguments
+```
+
+---
+
+### rill-r081
+
+**Description:** Invalid datetime construction — out-of-range component
+
+**Cause:** A named date or time component falls outside its valid range (e.g., month 13, hour 25, second 60).
+
+**Resolution:** Use values within valid ranges: `month` 1-12, `day` 1-28..31, `hour` 0-23, `minute` 0-59, `second` 0-59, `ms` 0-999.
+
+**Example:**
+
+```text
+datetime(year: 2024, month: 13, day: 1)
+# Error: RILL-R004: Invalid datetime component month: 13
+```
+
+---
+
+### rill-r082
+
+**Description:** Invalid datetime construction — non-ISO 8601 string
+
+**Cause:** The string passed to `datetime()` does not conform to ISO 8601 format.
+
+**Resolution:** Use a valid ISO 8601 string such as `"2024-06-15"`, `"2024-06-15T10:30:00Z"`, or `"2024-06-15T10:30:00+02:00"`.
+
+**Example:**
+
+```text
+datetime("June 15, 2024")
+# Error: RILL-R004: Invalid ISO 8601 string: June 15, 2024
+```
+
+---
+
+### rill-r083
+
+**Description:** Invalid duration construction — negative unit value
+
+**Cause:** A duration unit was given a negative value. Duration units must be non-negative integers.
+
+**Resolution:** Use only non-negative values for duration units (`years`, `months`, `weeks`, `days`, `hours`, `minutes`, `seconds`, `ms`).
+
+**Example:**
+
+```text
+duration(hours: -3)
+# Error: RILL-R004: duration hours must be non-negative: -3
+```
+
+---
+
+### rill-r084
+
+**Description:** Type mismatch in datetime arithmetic — `.add()` requires a duration
+
+**Cause:** `.add()` was called on a `datetime` value with an argument that is not a `duration`.
+
+**Resolution:** Pass a `duration` value to `.add()`. Construct durations with the `duration()` constructor.
+
+**Example:**
+
+```text
+datetime("2024-06-15") -> .add(7)
+# Error: RILL-R003: datetime.add() requires a duration argument
+```
+
+---
+
+### rill-r085
+
+**Description:** Incomparable duration ordering — different calendar components
+
+**Cause:** The `<`, `>`, `<=`, or `>=` operators were applied to two `duration` values where one or both have a non-zero `months` field. Calendar durations (those with months) have variable length and cannot be ordered against fixed-time durations.
+
+**Resolution:** Compare durations only when both have `months: 0`. Use `.total_ms` for fixed-time duration comparisons.
+
+**Example:**
+
+```text
+duration(months: 1) < duration(days: 31)
+# Error: RILL-R002: Cannot order durations with different calendar components
+```
+
+---
+
+### rill-r086
+
+**Description:** Negative duration result from `.subtract()`
+
+**Cause:** `.subtract()` was called on a `duration` and the result would be negative. Durations cannot be negative.
+
+**Resolution:** Ensure the subtracted duration is less than or equal to the base duration before calling `.subtract()`. Check `.total_ms` for fixed-time durations.
+
+**Example:**
+
+```text
+duration(hours: 1) -> .subtract(duration(hours: 2))
+# Error: RILL-R003: duration.subtract() would produce negative result
+```
+
+---
+
+### rill-r087
+
+**Description:** `.total_ms` not defined for calendar durations
+
+**Cause:** `.total_ms` was accessed on a `duration` that has a non-zero `months` field. Calendar months have variable length in milliseconds and cannot be converted to a fixed millisecond count.
+
+**Resolution:** Use `.total_ms` only on fixed-time durations (those with `months: 0`). For calendar durations, access `.months` and `.ms` fields separately.
+
+**Example:**
+
+```text
+duration(months: 2) -> .total_ms
+# Error: RILL-R003: total_ms is not defined for calendar durations
+```
+
+---
+
+### rill-r088
+
+**Description:** Collection operator on scalar datetime or duration
+
+**Cause:** `each`, `map`, `filter`, or `fold` was applied to a `datetime` or `duration` value. These are scalar types and do not implement the iterator protocol.
+
+**Resolution:** Collection operators require a list, iterator, or stream. Extract components from datetime/duration using their methods before applying collection operators.
+
+**Example:**
+
+```text
+datetime("2024-06-15") -> each |d| $d
+# Error: RILL-R003: each requires an iterable value
 ```
 
 ---

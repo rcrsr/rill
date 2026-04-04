@@ -12,14 +12,24 @@ import { callable, isCallable, isDict } from '../core/callable.js';
 import type { RuntimeContext } from '../core/types/runtime.js';
 import { type SourceLocation, RuntimeError } from '../../types.js';
 import { parseSignatureRegistration } from '../../signature-parser.js';
-import type { RillValue, RillVector } from '../core/types/structures.js';
+import type {
+  RillDatetime,
+  RillDuration,
+  RillValue,
+  RillVector,
+} from '../core/types/structures.js';
 import {
   deepEquals,
   formatValue,
   inferType,
   serializeValue,
 } from '../core/types/registrations.js';
-import { isIterator, isVector } from '../core/types/guards.js';
+import {
+  isDatetime,
+  isDuration,
+  isIterator,
+  isVector,
+} from '../core/types/guards.js';
 import { anyTypeValue, isEmpty, structureToTypeValue } from '../core/values.js';
 import { invokeCallable } from '../core/eval/index.js';
 import { populateBuiltinMethods } from '../core/types/registrations.js';
@@ -371,6 +381,934 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       );
     },
   },
+
+  /**
+   * Construct a datetime value from ISO 8601 string, named components, or unix ms.
+   * Validates all inputs; halts on invalid.
+   */
+  datetime: {
+    params: [
+      {
+        name: 'input',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+      {
+        name: 'year',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+      {
+        name: 'month',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+      {
+        name: 'day',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+      {
+        name: 'hour',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'minute',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'second',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'ms',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'unix',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+    ],
+    returnType: structureToTypeValue({ kind: 'datetime' }),
+    fn: (args, _ctx, location) => {
+      return constructDatetime(args, location);
+    },
+  },
+
+  /**
+   * Return current UTC instant.
+   * Reads ctx.nowMs when set; otherwise uses Date.now().
+   */
+  now: {
+    params: [],
+    returnType: structureToTypeValue({ kind: 'datetime' }),
+    fn: (_args, ctx) => {
+      const ms =
+        (ctx as RuntimeContext).nowMs !== undefined
+          ? (ctx as RuntimeContext).nowMs!
+          : Date.now();
+      return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+    },
+  },
+
+  /**
+   * Construct a duration value from named unit parameters.
+   * All values must be non-negative integers; negative values halt.
+   * Fixed units collapse to single ms field; calendar units collapse to months.
+   */
+  duration: {
+    params: [
+      {
+        name: 'years',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'months',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'days',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'hours',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'minutes',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'seconds',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+      {
+        name: 'ms',
+        type: { kind: 'any' },
+        defaultValue: 0,
+        annotations: {},
+      },
+    ],
+    returnType: structureToTypeValue({ kind: 'duration' }),
+    fn: (args, _ctx, location) => {
+      return constructDuration(args, location);
+    },
+  },
+};
+
+// ============================================================
+// DATETIME CONSTRUCTION HELPERS
+// ============================================================
+
+/** ISO 8601 regex: YYYY-MM-DDTHH:MM:SS[.mmm][Z|+HH:MM|-HH:MM] */
+const ISO_8601_RE =
+  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+
+/** Valid datetime named component keys */
+const DATETIME_COMPONENT_KEYS = new Set([
+  'year',
+  'month',
+  'day',
+  'hour',
+  'minute',
+  'second',
+  'ms',
+]);
+
+/** Days in each month (non-leap year). Index 0 unused. */
+const DAYS_IN_MONTH = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function maxDayInMonth(year: number, month: number): number {
+  if (month === 2 && isLeapYear(year)) return 29;
+  return DAYS_IN_MONTH[month]!;
+}
+
+function validateComponent(
+  name: string,
+  value: number,
+  min: number,
+  max: number,
+  location?: SourceLocation
+): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid datetime component ${name}: ${value}`,
+      location
+    );
+  }
+}
+
+/**
+ * Construct a RillDatetime from parsed args.
+ * Handles ISO string, named components, and unix ms forms.
+ */
+function constructDatetime(
+  args: Record<string, RillValue>,
+  location?: SourceLocation
+): RillValue {
+  const input = args['input'] ?? null;
+  const hasUnix = args['unix'] !== undefined && args['unix'] !== null;
+  const hasYear = args['year'] !== undefined && args['year'] !== null;
+  const hasInput = input !== null;
+
+  // Count active forms
+  const formCount =
+    (hasInput && typeof input === 'string' ? 1 : 0) +
+    (hasYear ? 1 : 0) +
+    (hasUnix ? 1 : 0);
+
+  // No arguments provided
+  if (!hasInput && !hasYear && !hasUnix) {
+    // Check if any optional time components were passed without year/month/day
+    const hasTimeOnly =
+      (args['hour'] !== undefined &&
+        args['hour'] !== null &&
+        args['hour'] !== 0) ||
+      (args['minute'] !== undefined &&
+        args['minute'] !== null &&
+        args['minute'] !== 0) ||
+      (args['second'] !== undefined &&
+        args['second'] !== null &&
+        args['second'] !== 0) ||
+      (args['ms'] !== undefined && args['ms'] !== null && args['ms'] !== 0);
+    if (hasTimeOnly) {
+      throw new RuntimeError(
+        'RILL-R004',
+        'datetime() accepts string, named components, or unix',
+        location
+      );
+    }
+    throw new RuntimeError(
+      'RILL-R004',
+      'datetime() requires arguments',
+      location
+    );
+  }
+
+  // Mixed forms
+  if (formCount > 1) {
+    throw new RuntimeError(
+      'RILL-R004',
+      'datetime() accepts string, named components, or unix',
+      location
+    );
+  }
+
+  // Check for unknown parameters
+  for (const key of Object.keys(args)) {
+    if (
+      key !== 'input' &&
+      key !== 'unix' &&
+      !DATETIME_COMPONENT_KEYS.has(key)
+    ) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Unknown datetime parameter: ${key}`,
+        location
+      );
+    }
+  }
+
+  // Form 1: ISO 8601 string
+  if (hasInput && typeof input === 'string') {
+    // Reject non-ISO formats
+    if (!ISO_8601_RE.test(input)) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Invalid ISO 8601 string: ${input}`,
+        location
+      );
+    }
+    const ms = Date.parse(input);
+    if (Number.isNaN(ms)) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Invalid ISO 8601 string: ${input}`,
+        location
+      );
+    }
+    return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+  }
+
+  // Form 1 non-string: halt
+  if (hasInput) {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid ISO 8601 string: ${formatValue(input)}`,
+      location
+    );
+  }
+
+  // Form 3: Unix milliseconds
+  if (hasUnix) {
+    const unix = args['unix'];
+    if (typeof unix !== 'number') {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Invalid datetime component unix: ${formatValue(unix ?? null)}`,
+        location
+      );
+    }
+    return { __rill_datetime: true, unix } as unknown as RillValue;
+  }
+
+  // Form 2: Named components
+  const year = args['year'] as number;
+  const month = args['month'];
+  const day = args['day'];
+
+  if (typeof year !== 'number') {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid datetime component year: ${formatValue(year)}`,
+      location
+    );
+  }
+  if (month === undefined || month === null || typeof month !== 'number') {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid datetime component month: ${formatValue(month ?? null)}`,
+      location
+    );
+  }
+  if (day === undefined || day === null || typeof day !== 'number') {
+    throw new RuntimeError(
+      'RILL-R004',
+      `Invalid datetime component day: ${formatValue(day ?? null)}`,
+      location
+    );
+  }
+
+  validateComponent('year', year, -271821, 275760, location);
+  validateComponent('month', month, 1, 12, location);
+  validateComponent('day', day, 1, maxDayInMonth(year, month), location);
+
+  const hour = typeof args['hour'] === 'number' ? args['hour'] : 0;
+  const minute = typeof args['minute'] === 'number' ? args['minute'] : 0;
+  const second = typeof args['second'] === 'number' ? args['second'] : 0;
+  const ms = typeof args['ms'] === 'number' ? args['ms'] : 0;
+
+  validateComponent('hour', hour, 0, 23, location);
+  validateComponent('minute', minute, 0, 59, location);
+  validateComponent('second', second, 0, 59, location);
+  validateComponent('ms', ms, 0, 999, location);
+
+  const unix = Date.UTC(year, month - 1, day, hour, minute, second, ms);
+  return { __rill_datetime: true, unix } as unknown as RillValue;
+}
+
+// ============================================================
+// DURATION CONSTRUCTION HELPERS
+// ============================================================
+
+/** Valid duration named parameter keys */
+const DURATION_PARAM_KEYS = new Set([
+  'years',
+  'months',
+  'days',
+  'hours',
+  'minutes',
+  'seconds',
+  'ms',
+]);
+
+/**
+ * Validate a duration parameter: must be a non-negative integer.
+ * Throws RILL-R004 on non-number or negative value.
+ */
+function validateDurationParam(
+  name: string,
+  value: RillValue,
+  location?: SourceLocation
+): number {
+  if (typeof value !== 'number') {
+    throw new RuntimeError(
+      'RILL-R004',
+      `duration ${name} must be a number: ${formatValue(value)}`,
+      location
+    );
+  }
+  if (value < 0) {
+    throw new RuntimeError(
+      'RILL-R004',
+      `duration ${name} must be non-negative: ${value}`,
+      location
+    );
+  }
+  return value;
+}
+
+/**
+ * Construct a RillDuration from parsed args.
+ * Collapses calendar units to months field and fixed units to ms field.
+ */
+function constructDuration(
+  args: Record<string, RillValue>,
+  location?: SourceLocation
+): RillValue {
+  // Check for unknown parameters
+  for (const key of Object.keys(args)) {
+    if (!DURATION_PARAM_KEYS.has(key)) {
+      throw new RuntimeError(
+        'RILL-R004',
+        `Unknown duration parameter: ${key}`,
+        location
+      );
+    }
+  }
+
+  const years =
+    args['years'] !== undefined && args['years'] !== null && args['years'] !== 0
+      ? validateDurationParam('years', args['years'], location)
+      : 0;
+  const months =
+    args['months'] !== undefined &&
+    args['months'] !== null &&
+    args['months'] !== 0
+      ? validateDurationParam('months', args['months'], location)
+      : 0;
+  const days =
+    args['days'] !== undefined && args['days'] !== null && args['days'] !== 0
+      ? validateDurationParam('days', args['days'], location)
+      : 0;
+  const hours =
+    args['hours'] !== undefined && args['hours'] !== null && args['hours'] !== 0
+      ? validateDurationParam('hours', args['hours'], location)
+      : 0;
+  const minutes =
+    args['minutes'] !== undefined &&
+    args['minutes'] !== null &&
+    args['minutes'] !== 0
+      ? validateDurationParam('minutes', args['minutes'], location)
+      : 0;
+  const seconds =
+    args['seconds'] !== undefined &&
+    args['seconds'] !== null &&
+    args['seconds'] !== 0
+      ? validateDurationParam('seconds', args['seconds'], location)
+      : 0;
+  const ms =
+    args['ms'] !== undefined && args['ms'] !== null && args['ms'] !== 0
+      ? validateDurationParam('ms', args['ms'], location)
+      : 0;
+
+  // Collapse calendar units to months field
+  const totalMonths = years * 12 + months;
+
+  // Collapse fixed units to ms field
+  const totalMs =
+    days * 86_400_000 +
+    hours * 3_600_000 +
+    minutes * 60_000 +
+    seconds * 1_000 +
+    ms;
+
+  return {
+    __rill_duration: true,
+    months: totalMonths,
+    ms: totalMs,
+  } as unknown as RillValue;
+}
+
+// ============================================================
+// DATETIME FORMATTING HELPERS
+// ============================================================
+
+/** Pad a number to the given width with leading zeros */
+function padNum(n: number, width: number): string {
+  return String(n).padStart(width, '0');
+}
+
+/**
+ * Apply an offset in hours to a UTC ms timestamp and return a Date-like
+ * breakdown. The offset may be fractional (e.g. 5.5 for +05:30).
+ */
+function applyOffset(
+  utcMs: number,
+  offsetHours: number
+): {
+  y: number;
+  mo: number;
+  d: number;
+  h: number;
+  mi: number;
+  s: number;
+  ms: number;
+} {
+  const shifted = new Date(utcMs + offsetHours * 3_600_000);
+  return {
+    y: shifted.getUTCFullYear(),
+    mo: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+    h: shifted.getUTCHours(),
+    mi: shifted.getUTCMinutes(),
+    s: shifted.getUTCSeconds(),
+    ms: shifted.getUTCMilliseconds(),
+  };
+}
+
+/** Format timezone offset string like "+05:30" or "Z" */
+function formatOffsetSuffix(offsetHours: number): string {
+  if (offsetHours === 0) return 'Z';
+  const sign = offsetHours >= 0 ? '+' : '-';
+  const absHours = Math.abs(offsetHours);
+  const h = Math.floor(absHours);
+  const m = Math.round((absHours - h) * 60);
+  return `${sign}${padNum(h, 2)}:${padNum(m, 2)}`;
+}
+
+/** Format as full ISO 8601 string with timezone indicator */
+function formatIso(utcMs: number, offsetHours: number): string {
+  const p = applyOffset(utcMs, offsetHours);
+  const suffix = formatOffsetSuffix(offsetHours);
+  return (
+    `${padNum(p.y, 4)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}` +
+    `T${padNum(p.h, 2)}:${padNum(p.mi, 2)}:${padNum(p.s, 2)}` +
+    (p.ms > 0 ? `.${padNum(p.ms, 3)}` : '') +
+    suffix
+  );
+}
+
+/** Format as "YYYY-MM-DD" */
+function formatDate(utcMs: number, offsetHours: number): string {
+  const p = applyOffset(utcMs, offsetHours);
+  return `${padNum(p.y, 4)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}`;
+}
+
+/** Format as "HH:MM:SS" */
+function formatTime(utcMs: number, offsetHours: number): string {
+  const p = applyOffset(utcMs, offsetHours);
+  return `${padNum(p.h, 2)}:${padNum(p.mi, 2)}:${padNum(p.s, 2)}`;
+}
+
+// ============================================================
+// DATETIME METHOD BODIES
+// ============================================================
+
+/** .year property - UTC year */
+const mDtYear: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCFullYear();
+};
+
+/** .month property - UTC month (1-12) */
+const mDtMonth: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCMonth() + 1;
+};
+
+/** .day property - UTC day of month (1-31) */
+const mDtDay: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCDate();
+};
+
+/** .hour property - UTC hour (0-23) */
+const mDtHour: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCHours();
+};
+
+/** .minute property - UTC minute (0-59) */
+const mDtMinute: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCMinutes();
+};
+
+/** .second property - UTC second (0-59) */
+const mDtSecond: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCSeconds();
+};
+
+/** .ms property - UTC millisecond (0-999) */
+const mDtMs: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return new Date(dt.unix).getUTCMilliseconds();
+};
+
+/** .unix property - raw UTC ms since epoch */
+const mDtUnix: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  return dt.unix;
+};
+
+/** .weekday property - 1 (Monday) through 7 (Sunday) */
+const mDtWeekday: RillMethod = (receiver) => {
+  const dt = receiver as unknown as RillDatetime;
+  const jsDay = new Date(dt.unix).getUTCDay(); // 0=Sun, 6=Sat
+  return jsDay === 0 ? 7 : jsDay; // Convert to 1=Mon, 7=Sun
+};
+
+/** .empty property - returns datetime(unix: 0) */
+const mDtEmpty: RillMethod = () => {
+  return { __rill_datetime: true, unix: 0 } as unknown as RillValue;
+};
+
+/** .iso(offset?) - full ISO 8601 with timezone indicator */
+const mDtIso: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = typeof args[0] === 'number' ? args[0] : 0;
+  return formatIso(dt.unix, offset);
+};
+
+/** .date(offset?) - "YYYY-MM-DD" portion */
+const mDtDate: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = typeof args[0] === 'number' ? args[0] : 0;
+  return formatDate(dt.unix, offset);
+};
+
+/** .time(offset?) - "HH:MM:SS" portion */
+const mDtTime: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = typeof args[0] === 'number' ? args[0] : 0;
+  return formatTime(dt.unix, offset);
+};
+
+/** .local_iso property - ISO 8601 with host timezone offset */
+const mDtLocalIso: RillMethod = (receiver, _args, ctx) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = ctx.timezone ?? 0;
+  return formatIso(dt.unix, offset);
+};
+
+/** .local_date property - "YYYY-MM-DD" at host timezone */
+const mDtLocalDate: RillMethod = (receiver, _args, ctx) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = ctx.timezone ?? 0;
+  return formatDate(dt.unix, offset);
+};
+
+/** .local_time property - "HH:MM:SS" at host timezone */
+const mDtLocalTime: RillMethod = (receiver, _args, ctx) => {
+  const dt = receiver as unknown as RillDatetime;
+  const offset = ctx.timezone ?? 0;
+  return formatTime(dt.unix, offset);
+};
+
+/** .local_offset property - host timezone offset in hours */
+const mDtLocalOffset: RillMethod = (_receiver, _args, ctx) => {
+  return ctx.timezone ?? 0;
+};
+
+/** .add(dur) - add a duration to a datetime */
+const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
+  const dt = receiver as unknown as RillDatetime;
+  const dur = args[0] ?? null;
+  if (!isDuration(dur)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'datetime.add() requires a duration argument',
+      location
+    );
+  }
+  const d = dur as unknown as RillDuration;
+  let resultMs = dt.unix;
+
+  // Apply calendar months first (PostgreSQL order)
+  if (d.months !== 0) {
+    const date = new Date(resultMs);
+    let targetMonth = date.getUTCMonth() + d.months;
+    let targetYear = date.getUTCFullYear();
+
+    // Normalize month overflow
+    targetYear += Math.floor(targetMonth / 12);
+    targetMonth = targetMonth % 12;
+    if (targetMonth < 0) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+
+    // Clamp day to last valid day of target month
+    const maxDay = maxDayInMonth(targetYear, targetMonth + 1);
+    const clampedDay = Math.min(date.getUTCDate(), maxDay);
+
+    resultMs = Date.UTC(
+      targetYear,
+      targetMonth,
+      clampedDay,
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds(),
+      date.getUTCMilliseconds()
+    );
+  }
+
+  // Then apply milliseconds
+  resultMs += d.ms;
+
+  return { __rill_datetime: true, unix: resultMs } as unknown as RillValue;
+};
+
+/** .diff(other) - absolute difference between two datetimes as duration */
+const mDtDiff: RillMethod = (receiver, args, _ctx, location) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'datetime.diff() requires a datetime argument',
+      location
+    );
+  }
+  const otherDt = other as unknown as RillDatetime;
+  const diffMs = Math.abs(dt.unix - otherDt.unix);
+  // Always non-negative, months = 0
+  return {
+    __rill_duration: true,
+    months: 0,
+    ms: diffMs,
+  } as unknown as RillValue;
+};
+
+/** .eq(other) - datetime equality */
+const mDtEq: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return false;
+  return dt.unix === (other as unknown as RillDatetime).unix;
+};
+
+/** .ne(other) - datetime inequality */
+const mDtNe: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return true;
+  return dt.unix !== (other as unknown as RillDatetime).unix;
+};
+
+/** .lt(other) - datetime less-than */
+const mDtLt: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return false;
+  return dt.unix < (other as unknown as RillDatetime).unix;
+};
+
+/** .gt(other) - datetime greater-than */
+const mDtGt: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return false;
+  return dt.unix > (other as unknown as RillDatetime).unix;
+};
+
+/** .le(other) - datetime less-than-or-equal */
+const mDtLe: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return false;
+  return dt.unix <= (other as unknown as RillDatetime).unix;
+};
+
+/** .ge(other) - datetime greater-than-or-equal */
+const mDtGe: RillMethod = (receiver, args) => {
+  const dt = receiver as unknown as RillDatetime;
+  const other = args[0] ?? null;
+  if (!isDatetime(other)) return false;
+  return dt.unix >= (other as unknown as RillDatetime).unix;
+};
+
+// ============================================================
+// DURATION METHOD BODIES
+// ============================================================
+
+/** .months property - calendar month count */
+const mDurMonths: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  return dur.months;
+};
+
+/** .days property - floor(ms / 86400000) */
+const mDurDays: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  return Math.floor(dur.ms / 86_400_000);
+};
+
+/** .hours property - remainder after days */
+const mDurHours: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  const afterDays = dur.ms % 86_400_000;
+  return Math.floor(afterDays / 3_600_000);
+};
+
+/** .minutes property - remainder after hours */
+const mDurMinutes: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  const afterHours = dur.ms % 3_600_000;
+  return Math.floor(afterHours / 60_000);
+};
+
+/** .seconds property - remainder after minutes */
+const mDurSeconds: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  const afterMinutes = dur.ms % 60_000;
+  return Math.floor(afterMinutes / 1_000);
+};
+
+/** .ms property - remainder after seconds */
+const mDurMs: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  return dur.ms % 1_000;
+};
+
+/** .total_ms property - raw ms; halts when months > 0 */
+const mDurTotalMs: RillMethod = (receiver, _args, _ctx, location) => {
+  const dur = receiver as unknown as RillDuration;
+  if (dur.months > 0) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'total_ms is not defined for calendar durations',
+      location
+    );
+  }
+  return dur.ms;
+};
+
+/** .display property - compact format omitting zero components */
+const mDurDisplay: RillMethod = (receiver) => {
+  const dur = receiver as unknown as RillDuration;
+  const parts: string[] = [];
+
+  // Calendar portion
+  const years = Math.floor(dur.months / 12);
+  const remainingMonths = dur.months % 12;
+  if (years > 0) parts.push(`${years}y`);
+  if (remainingMonths > 0) parts.push(`${remainingMonths}mo`);
+
+  // Clock portion (largest-first decomposition)
+  let remaining = dur.ms;
+  const days = Math.floor(remaining / 86_400_000);
+  remaining = remaining % 86_400_000;
+  const hours = Math.floor(remaining / 3_600_000);
+  remaining = remaining % 3_600_000;
+  const minutes = Math.floor(remaining / 60_000);
+  remaining = remaining % 60_000;
+  const seconds = Math.floor(remaining / 1_000);
+  const ms = remaining % 1_000;
+
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0) parts.push(`${seconds}s`);
+  if (ms > 0) parts.push(`${ms}ms`);
+
+  // Zero duration displays as "0ms"
+  if (parts.length === 0) return '0ms';
+  return parts.join('');
+};
+
+/** .empty property - returns duration(ms: 0) */
+const mDurEmpty: RillMethod = () => {
+  return {
+    __rill_duration: true,
+    months: 0,
+    ms: 0,
+  } as unknown as RillValue;
+};
+
+/** .add(other) - sum months fields, sum ms fields */
+const mDurAdd: RillMethod = (receiver, args, _ctx, location) => {
+  const dur = receiver as unknown as RillDuration;
+  const other = args[0] ?? null;
+  if (!isDuration(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'duration.add() requires a duration argument',
+      location
+    );
+  }
+  const otherDur = other as unknown as RillDuration;
+  return {
+    __rill_duration: true,
+    months: dur.months + otherDur.months,
+    ms: dur.ms + otherDur.ms,
+  } as unknown as RillValue;
+};
+
+/** .subtract(other) - halt if result would be negative in either field */
+const mDurSubtract: RillMethod = (receiver, args, _ctx, location) => {
+  const dur = receiver as unknown as RillDuration;
+  const other = args[0] ?? null;
+  if (!isDuration(other)) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'duration.subtract() requires a duration argument',
+      location
+    );
+  }
+  const otherDur = other as unknown as RillDuration;
+  const resultMonths = dur.months - otherDur.months;
+  const resultMs = dur.ms - otherDur.ms;
+  if (resultMonths < 0 || resultMs < 0) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'duration.subtract() would produce negative result',
+      location
+    );
+  }
+  return {
+    __rill_duration: true,
+    months: resultMonths,
+    ms: resultMs,
+  } as unknown as RillValue;
+};
+
+/** .multiply(n) - months and ms each multiplied independently */
+const mDurMultiply: RillMethod = (receiver, args, _ctx, location) => {
+  const dur = receiver as unknown as RillDuration;
+  const n = args[0] ?? null;
+  if (typeof n !== 'number') {
+    throw new RuntimeError(
+      'RILL-R003',
+      'duration.multiply() requires a number argument',
+      location
+    );
+  }
+  if (n < 0) {
+    throw new RuntimeError(
+      'RILL-R003',
+      'duration.multiply() requires non-negative number',
+      location
+    );
+  }
+  return {
+    __rill_duration: true,
+    months: dur.months * n,
+    ms: dur.ms * n,
+  } as unknown as RillValue;
 };
 
 // ============================================================
@@ -441,6 +1379,8 @@ export const BUILTIN_METHODS: {
   number: Record<string, RillFunction>;
   bool: Record<string, RillFunction>;
   vector: Record<string, RillFunction>;
+  datetime: Record<string, RillFunction>;
+  duration: Record<string, RillFunction>;
 } = {
   string: null as unknown as Record<string, RillFunction>,
   list: null as unknown as Record<string, RillFunction>,
@@ -448,6 +1388,8 @@ export const BUILTIN_METHODS: {
   number: null as unknown as Record<string, RillFunction>,
   bool: null as unknown as Record<string, RillFunction>,
   vector: null as unknown as Record<string, RillFunction>,
+  datetime: null as unknown as Record<string, RillFunction>,
+  duration: null as unknown as Record<string, RillFunction>,
 };
 // ============================================================
 // METHOD BODIES
@@ -1142,6 +2084,82 @@ BUILTIN_METHODS.vector = Object.freeze({
   ),
   norm: buildMethodEntry('norm', '||:number', mNorm, true),
   normalize: buildMethodEntry('normalize', '||:any', mNormalize, true),
+});
+
+// Datetime methods: properties, string formatters, local properties, arithmetic.
+// All property-style methods (year, month, day, etc.) use skipReceiverValidation
+// because the receiver is always a RillDatetime discriminated by __rill_datetime.
+BUILTIN_METHODS.datetime = Object.freeze({
+  // Component properties (IR-4)
+  year: buildMethodEntry('year', '||:number', mDtYear, true),
+  month: buildMethodEntry('month', '||:number', mDtMonth, true),
+  day: buildMethodEntry('day', '||:number', mDtDay, true),
+  hour: buildMethodEntry('hour', '||:number', mDtHour, true),
+  minute: buildMethodEntry('minute', '||:number', mDtMinute, true),
+  second: buildMethodEntry('second', '||:number', mDtSecond, true),
+  ms: buildMethodEntry('ms', '||:number', mDtMs, true),
+  unix: buildMethodEntry('unix', '||:number', mDtUnix, true),
+  weekday: buildMethodEntry('weekday', '||:number', mDtWeekday, true),
+  empty: buildMethodEntry('empty', '||:datetime', mDtEmpty, true),
+
+  // String formatting methods (IR-5)
+  iso: buildMethodEntry('iso', '|offset: number = 0|:string', mDtIso, true),
+  date: buildMethodEntry('date', '|offset: number = 0|:string', mDtDate, true),
+  time: buildMethodEntry('time', '|offset: number = 0|:string', mDtTime, true),
+
+  // Local properties (IR-6)
+  local_iso: buildMethodEntry('local_iso', '||:string', mDtLocalIso, true),
+  local_date: buildMethodEntry('local_date', '||:string', mDtLocalDate, true),
+  local_time: buildMethodEntry('local_time', '||:string', mDtLocalTime, true),
+  local_offset: buildMethodEntry(
+    'local_offset',
+    '||:number',
+    mDtLocalOffset,
+    true
+  ),
+
+  // Arithmetic methods (IR-7)
+  add: buildMethodEntry('add', '|dur: any|:datetime', mDtAdd, true),
+  diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
+
+  // Comparison methods
+  eq: buildMethodEntry('eq', SIG_EQ, mDtEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mDtNe, true),
+  lt: buildMethodEntry('lt', SIG_CMP, mDtLt, true),
+  gt: buildMethodEntry('gt', SIG_CMP, mDtGt, true),
+  le: buildMethodEntry('le', SIG_CMP, mDtLe, true),
+  ge: buildMethodEntry('ge', SIG_CMP, mDtGe, true),
+});
+
+// Duration methods: properties, display, arithmetic.
+// All use skipReceiverValidation because the receiver is a RillDuration
+// discriminated by __rill_duration.
+BUILTIN_METHODS.duration = Object.freeze({
+  // Decomposition properties (IR-8)
+  months: buildMethodEntry('months', '||:number', mDurMonths, true),
+  days: buildMethodEntry('days', '||:number', mDurDays, true),
+  hours: buildMethodEntry('hours', '||:number', mDurHours, true),
+  minutes: buildMethodEntry('minutes', '||:number', mDurMinutes, true),
+  seconds: buildMethodEntry('seconds', '||:number', mDurSeconds, true),
+  ms: buildMethodEntry('ms', '||:number', mDurMs, true),
+  total_ms: buildMethodEntry('total_ms', '||:number', mDurTotalMs, true),
+  display: buildMethodEntry('display', '||:string', mDurDisplay, true),
+  empty: buildMethodEntry('empty', '||:duration', mDurEmpty, true),
+
+  // Arithmetic methods (IR-9)
+  add: buildMethodEntry('add', '|other: any|:duration', mDurAdd, true),
+  subtract: buildMethodEntry(
+    'subtract',
+    '|other: any|:duration',
+    mDurSubtract,
+    true
+  ),
+  multiply: buildMethodEntry(
+    'multiply',
+    '|n: any|:duration',
+    mDurMultiply,
+    true
+  ),
 });
 
 // Populate registration methods from BUILTIN_METHODS at module load time.

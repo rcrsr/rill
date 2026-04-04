@@ -16,7 +16,9 @@ import { VALID_TYPE_NAMES } from '../../constants.js';
 import type { RillCallable } from './callable.js';
 import {
   isCallable as _isCallableGuard,
+  isDatetime,
   isDict,
+  isDuration,
   isIterator,
   isOrdered,
   isStream,
@@ -214,6 +216,14 @@ function toNativeValue(value: RillValue): NativeValue {
 
   if (isVector(value)) {
     return { model: value.model, dimensions: value.data.length };
+  }
+
+  if (isDatetime(value)) {
+    return { unix: value.unix, iso: new Date(value.unix).toISOString() };
+  }
+
+  if (isDuration(value)) {
+    return { months: value.months, ms: value.ms };
   }
 
   if (isTypeValue(value)) {

@@ -15,6 +15,8 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Dict | `[k: v]` or `dict[k: v]` | `dict[output: "text", code: 0]` |
 | Ordered | `ordered[k: v]` | `ordered[a: 1, b: "hello"]` |
 | Tuple | `tuple[...]` (positional) | `tuple[1, 2]` |
+| Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")` |
+| Duration | `duration(...)` | `duration(days: 1, hours: 2)` |
 | Vector | host-provided | `vector(voyage-3, 1024d)` |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` |
 | Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
@@ -26,7 +28,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
 - **No truthiness**: Conditions require actual booleans, not "truthy" values
 
-The type keywords (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`) are reserved in the `|...|` closure position for anonymous typed parsing. See [Closures](topic-closures.md) for full documentation of anonymous typed closures.
+The type keywords (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `datetime`, `duration`, `any`, `type`) are reserved in the `|...|` closure position for anonymous typed parsing. See [Closures](topic-closures.md) for full documentation of anonymous typed closures.
 
 ## Strings
 
@@ -554,6 +556,350 @@ $v1 == $v2
 # Error: Collection operators require list, string, dict, or iterator, got vector
 $vec -> each { $ * 2 }
 ```
+
+## Datetime
+
+A datetime represents an instant in time stored as UTC milliseconds since the Unix epoch. It is an opaque scalar type — values are immutable and compared by their Unix timestamp.
+
+### Construction
+
+Three forms construct a datetime value:
+
+| Form | Example | Notes |
+|------|---------|-------|
+| ISO 8601 string | `datetime("2024-01-15T10:30:00Z")` | Accepts date-only and datetime with offset |
+| Named components | `datetime(year: 2024, month: 1, day: 15)` | UTC; `hour`, `minute`, `second`, `ms` default to 0 |
+| Unix milliseconds | `datetime(unix: 1705312200000)` | UTC ms since epoch |
+
+```text
+datetime("2024-01-15T10:30:00Z") -> .iso()
+# Result: "2024-01-15T10:30:00Z"
+
+datetime(year: 2024, month: 1, day: 15) -> .iso()
+# Result: "2024-01-15T00:00:00Z"
+
+datetime(unix: 0) -> .iso()
+# Result: "1970-01-01T00:00:00Z"
+```
+
+### `now()`
+
+`now()` returns the current UTC instant as a datetime.
+
+```rill
+now() -> .iso()
+```
+
+The test harness does not fix the clock, so `# Result:` is omitted. Pass `nowMs` in `RuntimeContext` to pin the instant in deterministic scripts.
+
+### Properties
+
+UTC component properties decompose the stored timestamp:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.year` | number | UTC year (e.g. 2024) |
+| `.month` | number | UTC month, 1–12 |
+| `.day` | number | UTC day, 1–31 |
+| `.hour` | number | UTC hour, 0–23 |
+| `.minute` | number | UTC minute, 0–59 |
+| `.second` | number | UTC second, 0–59 |
+| `.ms` | number | UTC millisecond, 0–999 |
+| `.unix` | number | Raw UTC ms since epoch |
+| `.weekday` | number | ISO weekday: 1 (Monday) – 7 (Sunday) |
+
+```rill
+now() => $t
+$t -> .year
+$t -> .month
+$t -> .weekday
+```
+
+### String Output Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.iso(offset?)` | string | Full ISO 8601 with timezone indicator (default UTC) |
+| `.date(offset?)` | string | `YYYY-MM-DD` portion |
+| `.time(offset?)` | string | `HH:MM:SS` portion |
+
+`offset` is hours east of UTC. Pass `2` for `+02:00`, `-5` for `-05:00`, `5.5` for `+05:30`.
+
+```rill
+now() => $t
+$t -> .iso(0)
+$t -> .iso(2)
+$t -> .date(0)
+$t -> .time(0)
+```
+
+### Local Properties
+
+These properties apply the `timezone` offset from `RuntimeContext` automatically:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.local_iso` | string | ISO 8601 at host timezone |
+| `.local_date` | string | `YYYY-MM-DD` at host timezone |
+| `.local_time` | string | `HH:MM:SS` at host timezone |
+| `.local_offset` | number | Host timezone offset in hours |
+
+```rill
+now() => $t
+$t -> .local_iso
+$t -> .local_offset
+```
+
+### Arithmetic
+
+| Method | Argument | Returns | Description |
+|--------|----------|---------|-------------|
+| `.add(dur)` | duration | datetime | Adds duration to datetime; months applied first, then ms |
+| `.diff(other)` | datetime | duration | Absolute difference as a fixed-ms duration |
+
+```rill
+now() => $t1
+$t1 -> .diff($t1) => $gap
+$gap -> .display
+# Result: "0ms"
+```
+
+```text
+# Add one month (calendar duration)
+now() -> .add(duration(months: 1)) -> .iso()
+```
+
+```rill
+datetime("2024-03-01T00:00:00Z") -> .diff(datetime("2024-01-01T00:00:00Z")) -> .display
+# Result: "60d"
+```
+
+### Comparison
+
+Datetimes support equality (`==`, `!=`) and ordering (`<`, `>`, `<=`, `>=`). Comparison uses the Unix timestamp directly.
+
+```rill
+now() == now()
+# Result: true
+
+now() <= now()
+# Result: true
+```
+
+### JSON
+
+`json()` serializes a datetime as an ISO 8601 string with milliseconds. `deserializeValue` accepts an ISO 8601 string to reconstruct the datetime.
+
+```text
+json(datetime("2024-01-15T10:30:00Z"))
+# Result: "\"2024-01-15T10:30:00.000Z\""
+```
+
+### String Interpolation
+
+Interpolating a datetime produces its UTC ISO 8601 string (same as `.iso()`).
+
+```rill
+now() => $t
+"Event at {$t}"
+```
+
+### Empty Value
+
+`.empty` returns `datetime(unix: 0)` — the Unix epoch.
+
+```rill
+now() -> .empty -> .iso()
+# Result: "1970-01-01T00:00:00Z"
+
+now() -> .empty -> .unix
+# Result: 0
+```
+
+### Behavioral Notes
+
+- **Immutable**: Datetime values cannot be modified after creation
+- **Scalar**: A single UTC timestamp; no timezone or locale stored on the value
+- **String coercion permitted**: Datetimes can appear in string interpolation; they format as ISO UTC
+- **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on datetimes
+
+### Extension Boundary
+
+The core datetime type stores UTC timestamps and formats with numeric offsets only. IANA timezone names (e.g. `"America/New_York"`) require the `datetime-extension` package, which is not part of core rill.
+
+### Leap-Second Note
+
+rill uses POSIX time (Unix milliseconds). POSIX time does not model leap seconds. A timestamp represents continuous SI seconds since 1970-01-01T00:00:00Z with no leap-second gaps or repeats.
+
+---
+
+## Duration
+
+A duration represents a span of time. It stores two fields independently: `months` for calendar units and `ms` for fixed units. These fields never mix in arithmetic.
+
+### Construction
+
+Two families of units construct duration values:
+
+| Form | Example | Notes |
+|------|---------|-------|
+| Fixed units | `duration(days: 1, hours: 2)` | Collapses to ms; exact arithmetic |
+| Calendar units | `duration(months: 3, years: 1)` | Collapses years to months; variable-length |
+| Raw milliseconds | `duration(ms: 86400000)` | Direct ms count |
+
+```text
+duration(days: 1, hours: 2) -> .display
+# Result: "1d2h"
+
+duration(months: 3) -> .months
+# Result: 3
+
+duration(years: 1) -> .months
+# Result: 12
+
+duration(ms: 5000) -> .display
+# Result: "5s"
+```
+
+### Properties
+
+Fixed-unit durations decompose their `ms` field using remainder arithmetic:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.days` | number | `floor(ms / 86400000)` |
+| `.hours` | number | Remainder hours after days |
+| `.minutes` | number | Remainder minutes after hours |
+| `.seconds` | number | Remainder seconds after minutes |
+| `.ms` | number | Remainder milliseconds after seconds |
+| `.months` | number | Calendar months count |
+| `.total_ms` | number | Raw ms field; halts on calendar durations |
+
+```text
+duration(hours: 25) -> .days
+# Result: 1
+
+duration(hours: 25) -> .hours
+# Result: 1
+
+duration(hours: 25) -> .total_ms
+# Result: 90000000
+```
+
+Requesting `.total_ms` on a calendar duration halts execution:
+
+```text
+# Error: total_ms is not defined for calendar durations
+duration(months: 1) -> .total_ms
+```
+
+### Display
+
+`.display` formats a duration as a compact string, omitting zero components. Zero duration displays as `"0ms"`.
+
+```text
+duration(days: 1, hours: 2, minutes: 30) -> .display
+# Result: "1d2h30m"
+
+duration(years: 1, months: 3) -> .display
+# Result: "1y3mo"
+```
+
+```rill
+now() => $t
+$t -> .diff($t) -> .empty -> .display
+# Result: "0ms"
+```
+
+### Arithmetic
+
+| Method | Argument | Returns | Description |
+|--------|----------|---------|-------------|
+| `.add(other)` | duration | duration | Sums `months` and `ms` fields independently |
+| `.subtract(other)` | duration | duration | Subtracts fields; halts if result would be negative |
+| `.multiply(n)` | number | duration | Multiplies both fields by `n`; halts if `n` is negative |
+
+```text
+duration(hours: 1) -> .add(duration(hours: 1)) -> .display
+# Result: "2h"
+
+duration(hours: 2) -> .subtract(duration(hours: 1)) -> .display
+# Result: "1h"
+
+duration(hours: 1) -> .multiply(3) -> .display
+# Result: "3h"
+```
+
+### Comparison
+
+Equality compares both `months` and `ms` fields. Two durations are equal only when both fields match.
+
+```text
+duration(hours: 48) == duration(days: 2)
+# Result: true
+
+duration(months: 1) == duration(months: 1)
+# Result: true
+```
+
+Ordering compares the `ms` field only, and only when both durations have equal `months` fields. Comparing durations with different `months` halts:
+
+```text
+duration(hours: 1) < duration(hours: 2)
+# Result: true
+
+# Error: Cannot order durations with different calendar components
+duration(months: 1) < duration(hours: 24)
+```
+
+### JSON
+
+Fixed durations serialize as a number (raw ms). Calendar durations serialize as `{"months": N, "ms": M}`.
+
+```text
+json(duration(hours: 1))
+# Result: "3600000"
+
+json(duration(months: 1))
+# Result: "{\"months\":1,\"ms\":0}"
+```
+
+### String Interpolation
+
+Interpolating a duration produces its `.display` string.
+
+```text
+"Gap: {duration(days: 3)}"
+# Result: "Gap: 3d"
+```
+
+```rill
+now() => $t
+$t -> .diff($t) => $gap
+"Gap: {$gap}"
+# Result: "Gap: 0ms"
+```
+
+### Empty Value
+
+`.empty` returns `duration(ms: 0)`.
+
+```rill
+now() => $t
+$t -> .diff($t) -> .empty -> .display
+# Result: "0ms"
+```
+
+### Behavioral Notes
+
+- **Immutable**: Duration values cannot be modified after creation
+- **Scalar**: Stored as two independent fields; no normalization between fields
+- **No negatives**: Duration values are always non-negative; subtraction halts on negative results
+- **String coercion permitted**: Durations can appear in string interpolation; they format via `.display`
+
+### Extension Boundary
+
+Core duration arithmetic is fixed-field only. Fractional months, business-day arithmetic, and calendar-aware duration normalization require the `datetime-extension` package.
 
 ## Streams
 
