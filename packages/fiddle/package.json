@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-fiddle",
-  "version": "0.18.0",
+  "version": "0.18.2",
   "private": true,
   "type": "module",
   "scripts": {
