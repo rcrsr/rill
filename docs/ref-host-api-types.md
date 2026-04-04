@@ -62,7 +62,8 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `dict` | `fields` | `Record<string, RillFieldDef> \| undefined` | Named fields with individual types and optional annotations. Present for structural dicts |
 | `dict` | `valueType` | `TypeStructure \| undefined` | Value type for all dict values. Present for uniform dicts. No per-field annotations |
 | `tuple` | `elements` | `RillFieldDef[] \| undefined` | Ordered positional fields. Index access: `type.elements[i]` |
-| `ordered` | `fields` | `RillFieldDef[]` | Named ordered fields. Index access: `type.fields[i]` |
+| `ordered` | `fields` | `RillFieldDef[] \| undefined` | Named ordered fields. Index access: `type.fields[i]`. Present for structural ordered types |
+| `ordered` | `valueType` | `TypeStructure \| undefined` | Value type for all ordered values. Present for uniform ordered types |
 | `vector` | `dimensions` | `number` | Embedding dimension count |
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `types` | `TypeStructure[]` | Non-empty array of member types |
@@ -73,7 +74,7 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 
 ### Annotation Access Patterns
 
-Host applications read field annotations through the `annotations` property on `RillFieldDef`. The property is absent when no annotations are declared. Never `null` or `undefined`.
+Host applications read field annotations through the `annotations` property on `RillFieldDef`. The property is optional: absent when no annotations are declared. When present, it is a plain object, never `null`.
 
 | Container | TypeStructure path | Type |
 |-----------|-------------------|------|

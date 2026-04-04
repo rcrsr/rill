@@ -716,7 +716,7 @@ type-target   = type-ref ;
 
    Field annotations (optional ^(...) prefix):
    - dict, ordered, and tuple type constructors support ^() annotations per field
-   - list() does NOT support field annotations (RILL-P014 if attempted)
+   - list() does NOT support field annotations (parse error at ^ token)
    - Multiple ^() blocks on one field merge into one annotation map
    - Invalid syntax inside ^() produces RILL-P014
    - ^() with no following field produces RILL-P014

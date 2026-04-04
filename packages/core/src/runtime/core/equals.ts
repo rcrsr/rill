@@ -640,7 +640,7 @@ function typeRefArgListEquals(
 
 /**
  * Compare two optional FieldArg annotation arrays for structural equality.
- * Both-absent returns true. Mismatched presence returns false.
+ * Both-absent and both-empty are equivalent (both return true).
  */
 function fieldAnnotationsEquals(
   a: AnnotationArg[] | undefined,
