@@ -208,6 +208,11 @@ export { toCallable, createTestContext, emitExtensionEvent };
 
 ```
 
+> **Migration note:** `KvExtensionContract` and `FsExtensionContract` types moved to
+> [`@rcrsr/rill-ext-kv`](https://github.com/rcrsr/rill-ext) and
+> [`@rcrsr/rill-ext-fs`](https://github.com/rcrsr/rill-ext) in the
+> [rill-ext](https://github.com/rcrsr/rill-ext) repository.
+
 ## NativeResult
 
 `toNative(value: RillValue): NativeResult` converts any rill value to a host-consumable structure.
