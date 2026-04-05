@@ -114,7 +114,9 @@ export function isClosureCallWithAccess(state: ParserState): boolean {
   let offset = 2;
   while (peek(state, offset).type === TOKEN_TYPES.DOT) {
     offset++; // skip .
-    if (peek(state, offset).type !== TOKEN_TYPES.IDENTIFIER) return false;
+    const t = peek(state, offset).type;
+    if (t !== TOKEN_TYPES.IDENTIFIER && t !== TOKEN_TYPES.METHOD_NAME)
+      return false;
     offset++; // skip identifier
   }
 
@@ -134,13 +136,15 @@ export function canStartPipeInvoke(state: ParserState): boolean {
 }
 
 /**
- * Check for method call: .identifier
+ * Check for method call: .identifier or .METHOD_NAME
  * @internal
  */
 export function isMethodCall(state: ParserState): boolean {
+  const nextType = peek(state, 1).type;
   return (
     check(state, TOKEN_TYPES.DOT) &&
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER
+    (nextType === TOKEN_TYPES.IDENTIFIER ||
+      nextType === TOKEN_TYPES.METHOD_NAME)
   );
 }
 
@@ -234,8 +238,10 @@ export function isDictStart(state: ParserState): boolean {
  * @internal
  */
 export function isMethodCallWithArgs(state: ParserState): boolean {
+  const nextType = peek(state, 1).type;
   return (
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
+    (nextType === TOKEN_TYPES.IDENTIFIER ||
+      nextType === TOKEN_TYPES.METHOD_NAME) &&
     peek(state, 2).type === TOKEN_TYPES.LPAREN
   );
 }

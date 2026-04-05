@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-line string highlighting** — Triple-quoted `"""` strings highlight correctly across line boundaries in the fiddle editor
+- **Type name highlighting** — Built-in type names (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`, `iterator`, `stream`, `datetime`, `duration`) render as purple (#a78bfa) instead of variable blue
+- **String interpolation sub-highlighting** — Expressions inside `{...}` within strings get syntax-colored tokens (variables, operators, numbers) instead of flat green
+- **Method name highlighting** — Identifiers after `.` and `.?` render as purple (#a78bfa) via new `METHOD_NAME` token type and `functionName` highlight category
+
 ## [0.18.4] - 2026-04-05
 
 ### Removed

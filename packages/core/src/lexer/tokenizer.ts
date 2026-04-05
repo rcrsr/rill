@@ -185,6 +185,22 @@ export function tokenize(
     tokens.push(token);
   } while (token.type !== TOKEN_TYPES.EOF);
 
+  // Post-process: IDENTIFIER after DOT/DOT_QUESTION → METHOD_NAME
+  for (let i = 1; i < tokens.length; i++) {
+    const prev = tokens[i - 1]!;
+    const curr = tokens[i]!;
+    if (
+      curr.type === TOKEN_TYPES.IDENTIFIER &&
+      (prev.type === TOKEN_TYPES.DOT || prev.type === TOKEN_TYPES.DOT_QUESTION)
+    ) {
+      tokens[i] = {
+        type: TOKEN_TYPES.METHOD_NAME,
+        value: curr.value,
+        span: curr.span,
+      };
+    }
+  }
+
   // Filter out COMMENT tokens unless includeComments is true
   if (options?.includeComments !== true) {
     return tokens.filter((t) => t.type !== TOKEN_TYPES.COMMENT);

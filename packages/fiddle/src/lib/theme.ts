@@ -29,6 +29,8 @@ import { tags } from '@lezer/highlight';
  *   Comments  → text-dim    #555568  (italic)
  *   Variables → neon-blue   #60a5fa
  *   Functions → neon-purple #a78bfa
+ *   Methods   → neon-purple #a78bfa
+ *   Types     → neon-purple #a78bfa
  *   Punctuation → text-secondary #8888a0
  *   Brackets  → text-primary #e8e8f0
  *   Meta      → text-dim    #555568
@@ -61,6 +63,8 @@ const COLORS = {
   punctuation: '#8888a0', // text-secondary
   bracket: '#e8e8f0', // text-primary
   meta: '#555568', // text-dim
+  typeName: '#a78bfa', // neon-purple
+  functionName: '#a78bfa', // neon-purple
   red: '#f87171', // neon-red
 
   // Editor chrome
@@ -96,6 +100,8 @@ export function createThemeExtension(_darkMode: boolean): Extension {
     { tag: tags.punctuation, color: COLORS.punctuation },
     { tag: tags.bracket, color: COLORS.bracket },
     { tag: tags.meta, color: COLORS.meta },
+    { tag: tags.typeName, color: COLORS.typeName },
+    { tag: tags.function(tags.variableName), color: COLORS.functionName },
   ]);
 
   // Create editor chrome theme

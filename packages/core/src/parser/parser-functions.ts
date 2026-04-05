@@ -217,7 +217,8 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
   const accessChain: string[] = [];
   while (
     check(this.state, TOKEN_TYPES.DOT) &&
-    peek(this.state, 1).type === TOKEN_TYPES.IDENTIFIER
+    (peek(this.state, 1).type === TOKEN_TYPES.IDENTIFIER ||
+      peek(this.state, 1).type === TOKEN_TYPES.METHOD_NAME)
   ) {
     advance(this.state); // consume .
     accessChain.push(advance(this.state).value); // consume identifier
@@ -270,11 +271,11 @@ Parser.prototype.parseMethodCall = function (
 ): MethodCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected method name'
-  );
+  if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
+    const token = current(this.state);
+    throw new ParseError('RILL-P001', 'Expected method name', token.span.start);
+  }
+  const nameToken = advance(this.state);
 
   let args: ExpressionNode[] = [];
   let endLoc = current(this.state).span.end;
