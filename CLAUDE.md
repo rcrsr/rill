@@ -5,11 +5,10 @@ rill uses pnpm workspaces with the following package organization:
 | Package | NPM Name | Purpose |
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
-| `packages/cli` | `@rcrsr/rill-cli` | CLI tools (`rill-exec`, `rill-eval`, `rill-check`) |
 | `packages/fiddle` | `@rcrsr/rill-fiddle` (private) | Browser-based rill playground |
 | `packages/web` | `@rcrsr/rill-web` (private) | Documentation website |
 
-Extensions live in [rcrsr/rill-ext](https://github.com/rcrsr/rill-ext). Agent framework lives in [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent).
+Extensions live in [rcrsr/rill-ext](https://github.com/rcrsr/rill-ext). Agent framework lives in [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent). CLI tools live in [rcrsr/rill-cli](https://github.com/rcrsr/rill-cli). Config library lives in [rcrsr/rill-config](https://github.com/rcrsr/rill-config).
 
 ## Commands
 
@@ -32,7 +31,7 @@ Run from repository root for a single package:
 
 ```bash
 pnpm --filter @rcrsr/rill build        # Build core package only
-pnpm --filter @rcrsr/rill-cli test     # Test CLI package only
+pnpm --filter @rcrsr/rill test         # Test core package only
 ```
 
 Or navigate to a package directory and run directly:
@@ -46,20 +45,6 @@ pnpm lint           # Check lint errors
 pnpm check          # Complete validation (build, test, lint)
 ```
 
-## Running rill CLI Tools
-
-Use wrapper scripts in `scripts/` to run CLI tools without a global install. Build the CLI package first.
-
-```bash
-pnpm --filter @rcrsr/rill-cli build   # Required before first use
-
-./scripts/rill-eval.sh '1 + 2'        # Evaluate a rill expression
-./scripts/rill-exec.sh script.rill    # Execute a rill script file
-./scripts/rill-check.sh script.rill   # Type-check a rill script (no execution)
-```
-
-Do **not** use `npx`, `pnpm exec`, or call `node packages/cli/dist/cli-*.js` directly. The wrapper scripts resolve paths correctly from any working directory.
-
 ## Test Organization
 
 | Directory | Purpose | Policy |
@@ -71,18 +56,15 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Versioning
 
-Packages evolve independently within a shared minor version. The minor version (`0.13.x`) guarantees cross-package compatibility.
+Only `@rcrsr/rill` (packages/core) is published from this monorepo. Private packages (fiddle, web) track the same version but are not published.
 
 | Scope | Rule |
 |-------|------|
 | Root `package.json` | Increments patch on every release |
-| Each package | Increments patch only when that package changes |
-| Minor version | Shared across all packages; bump = breaking change |
+| `packages/core` | Increments patch when core changes |
 
-Example: root `0.13.3`, `@rcrsr/rill` stays `0.13.2`, `@rcrsr/rill-cli` bumps to `0.13.3`.
-
-- `pnpm sync-versions` — Syncs major.minor from root to all packages, preserves each package's patch
-- `pnpm check-versions` — Verifies all packages share the same major.minor as root
+- `pnpm sync-versions` — Syncs major.minor from root to packages/core
+- `pnpm check-versions` — Verifies packages/core shares root major.minor
 - CHANGELOG entries use the root version
 
 ## Release Process
@@ -92,16 +74,16 @@ rill uses a manual release process via `scripts/release.sh`. The script:
 1. Verifies clean working directory and main branch
 2. Builds all packages (`pnpm run -r build`)
 3. Runs all tests (`pnpm run -r test`)
-4. Creates a git tag (`v0.13.x`) from root version
-5. Pushes tag to trigger CI (CI publishes all packages; npm skips already-published versions)
+4. Creates a git tag (`v0.18.x`) from root version
+5. Pushes tag to trigger CI (CI publishes `@rcrsr/rill`)
 
 ### Release Checklist
 
 Before running `./scripts/release.sh`:
 
 - [ ] Bump patch in root `package.json`
-- [ ] Bump patch in each changed package's `package.json`
-- [ ] Run `pnpm check-versions` to verify minor alignment
+- [ ] Bump patch in `packages/core/package.json`
+- [ ] Run `pnpm check-versions` to verify alignment
 - [ ] Update CHANGELOG.md with release notes under root version
 - [ ] Commit version changes: `git commit -m "chore: release vx.y.z"`
 - [ ] Ensure working directory is clean

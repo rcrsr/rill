@@ -15,7 +15,7 @@ rill extensions (`fs`, `kv`) from [rill-ext](https://github.com/rcrsr/rill-ext) 
 
 ## API Contract Guarantee
 
-All `kv` backends implement `KvExtensionContract` interface. All `fs` backends implement `FsExtensionContract` interface. Contract properties use `ApplicationCallable` — not raw `RillFunction`. Scripts import no backend-specific types — the same script runs unchanged across JSON, SQLite, Redis, S3 backends.
+All `kv` backends implement `KvExtensionContract` from `@rcrsr/rill-ext-kv`. All `fs` backends implement `FsExtensionContract` from `@rcrsr/rill-ext-fs`. Contract properties use `ApplicationCallable` from `@rcrsr/rill`. Scripts import no backend-specific types — the same script runs unchanged across JSON, SQLite, Redis, S3 backends.
 
 ```text
 # Works with ANY kv backend (JSON, SQLite, Redis)

@@ -41,8 +41,8 @@
 | [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
 | [Host API](ref-host-api.md) | Complete TypeScript API exports |
 | [Host API Types](ref-host-api-types.md) | TypeStructure, TypeDefinition, TypeProtocol exports |
-| [Config Reference](ref-config.md) | rill.config.ts options and field definitions |
-| [Config API Reference](ref-config-api.md) | TypeScript API for config loading and extension registration |
+| [Config Reference](ref-config.md) | rill.config.ts options (now in [rill-config](https://github.com/rcrsr/rill-config)) |
+| [Config API Reference](ref-config-api.md) | Config TypeScript API (now in [rill-config](https://github.com/rcrsr/rill-config)) |
 | [Grammar](ref-grammar.ebnf) | Formal EBNF grammar |
 
 ## Integration
@@ -54,7 +54,7 @@
 | [Developing Extensions](integration-extensions.md) | Writing reusable host function packages |
 | [Backend Selection](integration-backends.md) | Choosing and swapping storage backends |
 | [Modules](integration-modules.md) | Convention for host-provided module systems |
-| [CLI Tools](integration-cli.md) | rill-exec, rill-eval, rill-check commands |
+| [CLI Tools](integration-cli.md) | rill-exec, rill-eval, rill-check (now in [rill-cli](https://github.com/rcrsr/rill-cli)) |
 | [Creating Rill Apps](guide-make.md) | Bootstrap new rill projects |
 
 ## Extensions

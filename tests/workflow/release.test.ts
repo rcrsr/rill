@@ -129,9 +129,6 @@ describe('Release Workflow', () => {
 
       expect(publishStep).toBeDefined();
       expect(publishStep.run).toContain('packages/core');
-      expect(publishStep.run).toContain('packages/cli');
-      expect(publishStep.run).toContain('packages/compose');
-      expect(publishStep.run).toContain('packages/ext/');
     });
 
     it('does not set env on publish step (OIDC provides credentials)', () => {

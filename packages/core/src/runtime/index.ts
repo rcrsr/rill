@@ -150,8 +150,6 @@ export type {
   ExtensionFactory,
   ExtensionFactoryResult,
   ExtensionManifest,
-  FsExtensionContract,
-  KvExtensionContract,
 } from './ext/extensions.js';
 
 export { emitExtensionEvent } from './ext/extensions.js';
