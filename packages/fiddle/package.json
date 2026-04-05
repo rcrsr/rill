@@ -14,26 +14,26 @@
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@codemirror/commands": "^6.10.2",
-    "@codemirror/language": "^6.12.2",
-    "@codemirror/state": "^6.5.4",
-    "@codemirror/view": "^6.39.16",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.41.0",
     "@lezer/highlight": "^1.2.3",
     "@rcrsr/rill": "workspace:^",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.4",
-    "happy-dom": "^20.8.3",
-    "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.1",
-    "vitest": "^4.0.18",
-    "@vitest/coverage-v8": "^4.0.18"
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.2",
+    "happy-dom": "^20.8.9",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   }
 }

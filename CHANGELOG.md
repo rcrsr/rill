@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.4] - 2026-04-05
+
 ### Removed
 
 - **CLI and config packages** — `@rcrsr/rill-cli` and `@rcrsr/rill-config` moved to [rill-cli](https://github.com/rcrsr/rill-cli) and [rill-config](https://github.com/rcrsr/rill-config)
 - **Extension contract types** — `KvExtensionContract` and `FsExtensionContract` removed from `@rcrsr/rill`. Import from `@rcrsr/rill-ext-kv` and `@rcrsr/rill-ext-fs` instead
+
+### Changed
+
+- **TypeScript 6** — Upgraded from 5.9.3 to 6.0.2. Added explicit `"types": ["node"]` to `tsconfig.base.json` (TS6 no longer auto-includes `@types/*` packages)
+- **Vite 8** — Upgraded from 7.3.1 to 8.0.3. Converted `manualChunks` from object to function syntax for Rolldown compatibility
+- **@vitejs/plugin-react 6** — Upgraded from 5.1.4 to 6.0.1
+- **vitest 4.1** — Upgraded from 4.0.18 to 4.1.2 (with matching @vitest/coverage-v8)
+- **eslint 10.2** — Upgraded from 10.0.2 to 10.2.0 (with @typescript-eslint 8.58.0)
+- **CodeMirror packages** — @codemirror/state 6.6.0, @codemirror/view 6.41.0, commands 6.10.3, language 6.12.3
+- **Tailwind CSS 4.2.2** — Upgraded tailwindcss and @tailwindcss/vite from 4.2.1
+- **Patch updates** — @types/node 25.5.2, happy-dom 20.8.9, yaml 2.8.3
 
 ## [0.18.3] - 2026-04-04
 
