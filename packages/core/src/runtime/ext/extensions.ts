@@ -1,4 +1,3 @@
-import type { ApplicationCallable } from '../core/callable.js';
 import type {
   ExtensionEvent,
   RuntimeCallbacks,
@@ -61,70 +60,6 @@ export interface ExtensionManifest {
   readonly configSchema?: ExtensionConfigSchema | undefined;
   readonly version?: string | undefined;
 }
-
-/**
- * Contract type for kv extension implementations.
- * Enforces exact function structure for compile-time verification.
- *
- * Backend implementations must provide all 11 functions:
- * - get(mount, key): Retrieve value or null
- * - get_or(mount, key, fallback): Retrieve value with fallback
- * - set(mount, key, value): Store value
- * - merge(mount, key, partial): Merge dict properties
- * - delete(mount, key): Remove key
- * - keys(mount): List all keys
- * - has(mount, key): Check key existence
- * - clear(mount): Remove all keys
- * - getAll(mount): Retrieve all key-value pairs
- * - schema(mount): Get mount schema metadata
- * - mounts(): List all configured mounts
- */
-export type KvExtensionContract = {
-  readonly get: ApplicationCallable;
-  readonly get_or: ApplicationCallable;
-  readonly set: ApplicationCallable;
-  readonly merge: ApplicationCallable;
-  readonly delete: ApplicationCallable;
-  readonly keys: ApplicationCallable;
-  readonly has: ApplicationCallable;
-  readonly clear: ApplicationCallable;
-  readonly getAll: ApplicationCallable;
-  readonly schema: ApplicationCallable;
-  readonly mounts: ApplicationCallable;
-};
-
-/**
- * Contract type for fs extension implementations.
- * Enforces exact function structure for compile-time verification.
- *
- * Backend implementations must provide all 12 functions:
- * - read(mount, path): Read file content
- * - write(mount, path, content): Write file content
- * - append(mount, path, content): Append to file
- * - list(mount, path?): List directory entries
- * - find(mount, pattern?): Find files by pattern
- * - exists(mount, path): Check file/directory existence
- * - remove(mount, path): Delete file/directory
- * - stat(mount, path): Get file metadata
- * - mkdir(mount, path): Create directory
- * - copy(mount, src, dest): Copy file/directory
- * - move(mount, src, dest): Move file/directory
- * - mounts(): List all configured mounts
- */
-export type FsExtensionContract = {
-  readonly read: ApplicationCallable;
-  readonly write: ApplicationCallable;
-  readonly append: ApplicationCallable;
-  readonly list: ApplicationCallable;
-  readonly find: ApplicationCallable;
-  readonly exists: ApplicationCallable;
-  readonly remove: ApplicationCallable;
-  readonly stat: ApplicationCallable;
-  readonly mkdir: ApplicationCallable;
-  readonly copy: ApplicationCallable;
-  readonly move: ApplicationCallable;
-  readonly mounts: ApplicationCallable;
-};
 
 /**
  * Emit an extension event with auto-generated timestamp.

@@ -206,8 +206,6 @@ export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, Extensio
 // Extension utilities
 export { toCallable, createTestContext, emitExtensionEvent };
 
-// Extension contracts
-export type { KvExtensionContract, FsExtensionContract };
 ```
 
 ## NativeResult
@@ -366,106 +364,6 @@ console.log(entry?.helpUrl);      // "https://rill.run/docs/reference/errors/#ri
 Note: `RILL-P006` (deprecated capture arrow syntax) was removed. `RILL-P007` through `RILL-P010` cover explicit-literal-syntax violations.
 
 See [Error Reference](ref-errors.md) for full error descriptions and resolution strategies.
-
-## Extension Contracts
-
-### KvExtensionContract
-
-Contract type for key-value extension implementations. Backend authors use this type to verify compile-time compatibility.
-
-```typescript
-type KvExtensionContract = {
-  readonly get: ApplicationCallable;
-  readonly get_or: ApplicationCallable;
-  readonly set: ApplicationCallable;
-  readonly merge: ApplicationCallable;
-  readonly delete: ApplicationCallable;
-  readonly keys: ApplicationCallable;
-  readonly has: ApplicationCallable;
-  readonly clear: ApplicationCallable;
-  readonly getAll: ApplicationCallable;
-  readonly schema: ApplicationCallable;
-  readonly mounts: ApplicationCallable;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
-};
-```
-
-**Required Functions (11 total):**
-
-| Function | Signature | Returns | Description |
-|----------|-----------|---------|-------------|
-| `get` | `(mount: string, key: string)` | `RillValue` | Retrieve value or schema default |
-| `get_or` | `(mount: string, key: string, fallback: RillValue)` | `RillValue` | Retrieve value with fallback |
-| `set` | `(mount: string, key: string, value: RillValue)` | `boolean` | Store value with validation |
-| `merge` | `(mount: string, key: string, partial: Record<string, RillValue>)` | `boolean` | Merge dict properties |
-| `delete` | `(mount: string, key: string)` | `boolean` | Remove key |
-| `keys` | `(mount: string)` | `string[]` | List all keys in mount |
-| `has` | `(mount: string, key: string)` | `boolean` | Check key existence |
-| `clear` | `(mount: string)` | `boolean` | Remove all keys |
-| `getAll` | `(mount: string)` | `Record<string, RillValue>` | Retrieve all key-value pairs |
-| `schema` | `(mount: string)` | `RillValue[]` | Get mount schema metadata |
-| `mounts` | `()` | `RillValue[]` | List all configured mounts |
-
-**Usage:**
-
-```typescript
-import type { KvExtensionContract } from '@rcrsr/rill';
-import { createMyKvBackend } from './my-kv-backend';
-
-// Type-check backend implementation
-const backend: KvExtensionContract = createMyKvBackend({ /* config */ });
-```
-
-### FsExtensionContract
-
-Contract type for filesystem extension implementations. Backend authors use this type to verify compile-time compatibility.
-
-```typescript
-type FsExtensionContract = {
-  readonly read: ApplicationCallable;
-  readonly write: ApplicationCallable;
-  readonly append: ApplicationCallable;
-  readonly list: ApplicationCallable;
-  readonly find: ApplicationCallable;
-  readonly exists: ApplicationCallable;
-  readonly remove: ApplicationCallable;
-  readonly stat: ApplicationCallable;
-  readonly mkdir: ApplicationCallable;
-  readonly copy: ApplicationCallable;
-  readonly move: ApplicationCallable;
-  readonly mounts: ApplicationCallable;
-  readonly dispose?: (() => void | Promise<void>) | undefined;
-};
-```
-
-**Required Functions (12 total):**
-
-All path parameters start with `/` and include the mount name (e.g., `"/workspace/file.txt"` where `workspace` is the mount name).
-
-| Function | Signature | Returns | Description |
-|----------|-----------|---------|-------------|
-| `read` | `(path: string)` | `string` | Read file content |
-| `write` | `(path: string, content: string)` | `string` | Write file content |
-| `append` | `(path: string, content: string)` | `string` | Append to file |
-| `list` | `(path: string)` | `RillValue[]` | List directory entries |
-| `find` | `(path: string, pattern?: string)` | `RillValue[]` | Find files by pattern |
-| `exists` | `(path: string)` | `boolean` | Check file/directory existence |
-| `remove` | `(path: string)` | `boolean` | Delete file/directory |
-| `stat` | `(path: string)` | `Record<string, RillValue>` | Get file metadata |
-| `mkdir` | `(path: string)` | `boolean` | Create directory |
-| `copy` | `(src: string, dest: string)` | `boolean` | Copy file/directory |
-| `move` | `(src: string, dest: string)` | `boolean` | Move file/directory |
-| `mounts` | `()` | `RillValue[]` | List all configured mounts |
-
-**Usage:**
-
-```typescript
-import type { FsExtensionContract } from '@rcrsr/rill';
-import { createMyFsBackend } from './my-fs-backend';
-
-// Type-check backend implementation
-const backend: FsExtensionContract = createMyFsBackend({ /* config */ });
-```
 
 ## RillParam
 
