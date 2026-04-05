@@ -30,18 +30,4 @@ export default defineWorkspace([
       },
     },
   },
-  {
-    extends: './tsconfig.base.json',
-    test: {
-      name: 'cli',
-      globals: true,
-      environment: 'node',
-      include: ['packages/cli/tests/**/*.test.ts'],
-      coverage: {
-        provider: 'v8',
-        reporter: ['text', 'html', 'lcov'],
-        include: ['packages/cli/src/**/*.ts'],
-      },
-    },
-  },
 ]);

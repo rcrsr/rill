@@ -1,6 +1,4 @@
 packages:
   - 'packages/core'
-  - 'packages/cli'
-  - 'packages/rill-config'
   - 'packages/fiddle'
   - 'packages/web'

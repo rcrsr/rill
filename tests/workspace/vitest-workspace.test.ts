@@ -46,20 +46,6 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
         "include: ['packages/core/tests/**/*.test.ts']"
       );
     });
-
-    it('defines cli package project', () => {
-      const content = readFileSync(VITEST_WORKSPACE_FILE, 'utf-8');
-      expect(content).toContain("name: 'cli'");
-      expect(content).toContain("include: ['packages/cli/tests/**/*.test.ts']");
-    });
-
-    it('defines extension packages project', () => {
-      const content = readFileSync(VITEST_WORKSPACE_FILE, 'utf-8');
-      expect(content).toContain("name: 'ext'");
-      expect(content).toContain(
-        "include: ['packages/ext/*/tests/**/*.test.ts']"
-      );
-    });
   });
 
   describe('shared globals configuration', () => {
@@ -68,7 +54,7 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
       // Count occurrences of 'globals: true'
       const matches = content.match(/globals:\s*true/g);
       expect(matches).toBeTruthy();
-      expect(matches!.length).toBeGreaterThanOrEqual(4); // At least 4 projects
+      expect(matches!.length).toBeGreaterThanOrEqual(2); // At least 2 projects
     });
 
     it('sets node environment for all projects', () => {
@@ -76,7 +62,7 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
       // Count occurrences of 'environment: 'node''
       const matches = content.match(/environment:\s*['"]node['"]/g);
       expect(matches).toBeTruthy();
-      expect(matches!.length).toBeGreaterThanOrEqual(4); // At least 4 projects
+      expect(matches!.length).toBeGreaterThanOrEqual(2); // At least 2 projects
     });
   });
 
@@ -85,7 +71,7 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
       const content = readFileSync(VITEST_WORKSPACE_FILE, 'utf-8');
       const matches = content.match(/provider:\s*['"]v8['"]/g);
       expect(matches).toBeTruthy();
-      expect(matches!.length).toBeGreaterThanOrEqual(4);
+      expect(matches!.length).toBeGreaterThanOrEqual(2);
     });
 
     it('configures coverage reporters for all projects', () => {
@@ -100,16 +86,10 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
 
       // Each package should have its own name and include pattern
       expect(content).toContain("name: 'core'");
-      expect(content).toContain("name: 'cli'");
-      expect(content).toContain("name: 'ext'");
 
       // Each package should have distinct include paths
       expect(content).toContain(
         "include: ['packages/core/tests/**/*.test.ts']"
-      );
-      expect(content).toContain("include: ['packages/cli/tests/**/*.test.ts']");
-      expect(content).toContain(
-        "include: ['packages/ext/*/tests/**/*.test.ts']"
       );
     });
 
@@ -118,8 +98,6 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
 
       // Each package should have its own coverage include path
       expect(content).toContain("include: ['packages/core/src/**/*.ts']");
-      expect(content).toContain("include: ['packages/cli/src/**/*.ts']");
-      expect(content).toContain("include: ['packages/ext/*/src/**/*.ts']");
     });
   });
 
@@ -130,7 +108,7 @@ describe('Vitest Workspace Configuration (IC-4)', () => {
         /extends:\s*['"]\.\/tsconfig\.base\.json['"]/g
       );
       expect(matches).toBeTruthy();
-      expect(matches!.length).toBeGreaterThanOrEqual(3); // core, cli, ext packages
+      expect(matches!.length).toBeGreaterThanOrEqual(1); // core package
     });
   });
 });

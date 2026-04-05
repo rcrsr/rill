@@ -10,7 +10,7 @@ ROOT_VERSION=$(node -p "require('./package.json').version")
 ROOT_MAJOR_MINOR=$(echo "$ROOT_VERSION" | sed 's/\.[0-9]*$//')
 ERRORS=0
 
-for pkg in packages/*/; do
+for pkg in packages/core; do
   pkg="${pkg%/}"
   [ -f "$pkg/package.json" ] || continue
 

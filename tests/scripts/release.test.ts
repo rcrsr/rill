@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const SCRIPT_PATH = path.join(process.cwd(), 'scripts/release.sh');
-const PACKAGES = ['packages/core', 'packages/cli', 'packages/ext/claude-code'];
+const PACKAGES = ['packages/core'];
 
 describe('Release Script', () => {
   describe('IC-14: Script exists and is executable', () => {
@@ -147,16 +147,13 @@ describe('Release Script', () => {
     it('script includes all workspace packages', () => {
       const content = fs.readFileSync(SCRIPT_PATH, 'utf-8');
 
-      // Package directories in discovery loop (names resolved dynamically)
+      // Only core is published from this monorepo
       expect(content).toContain('packages/core');
-      expect(content).toContain('packages/cli');
-      expect(content).toContain('packages/compose');
-      expect(content).toContain('packages/ext/');
     });
   });
 
   describe('Version consistency', () => {
-    it('lockstep packages share the same version', () => {
+    it('core version matches root major.minor', () => {
       const readVersion = (dir: string) =>
         JSON.parse(
           fs.readFileSync(
@@ -165,9 +162,11 @@ describe('Release Script', () => {
           )
         ).version;
 
+      const rootVersion = readVersion('.');
       const coreVersion = readVersion('packages/core');
-      expect(readVersion('packages/cli')).toBe(coreVersion);
-      expect(readVersion('packages/fiddle')).toBe(coreVersion);
+      const rootMajorMinor = rootVersion.replace(/\.\d+$/, '');
+      const coreMajorMinor = coreVersion.replace(/\.\d+$/, '');
+      expect(coreMajorMinor).toBe(rootMajorMinor);
     });
   });
 

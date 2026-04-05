@@ -145,6 +145,8 @@ See [Bundled Extensions](docs/bundled-extensions.md) for core extension docs and
 |------------|-------------|
 | [rill-ext](https://github.com/rcrsr/rill-ext) | Vendor extensions — LLM providers, vector databases, storage backends, MCP |
 | [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework — harness, bundle, proxy, build, run CLIs |
+| [rill-cli](https://github.com/rcrsr/rill-cli) | CLI tools — rill-exec, rill-eval, rill-check, rill-run |
+| [rill-config](https://github.com/rcrsr/rill-config) | Config library — project resolution, extension mounting |
 
 ## Language Overview
 

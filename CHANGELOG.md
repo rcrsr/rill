@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **CLI and config packages** — `@rcrsr/rill-cli` and `@rcrsr/rill-config` moved to [rill-cli](https://github.com/rcrsr/rill-cli) and [rill-config](https://github.com/rcrsr/rill-config)
 - **Extension contract types** — `KvExtensionContract` and `FsExtensionContract` removed from `@rcrsr/rill`. Import from `@rcrsr/rill-ext-kv` and `@rcrsr/rill-ext-fs` instead
 
 ## [0.18.3] - 2026-04-04
