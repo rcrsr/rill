@@ -15,6 +15,7 @@ import {
   tokenize,
   TOKEN_HIGHLIGHT_MAP,
   TOKEN_TYPES,
+  type HighlightCategory,
   type Token,
   type SourceLocation,
 } from '@rcrsr/rill';
@@ -25,23 +26,24 @@ import {
 
 /**
  * Maps HighlightCategory to @lezer/highlight Tag.
- * Typed as ReadonlyMap<string, Tag> to accommodate 'typeName' and 'functionName'
- * which are not part of the HighlightCategory union exported by core.
+ * Typed with 'typeName' extension since typeName is detected by value in
+ * getTokenTag() and is not part of the HighlightCategory union exported by core.
  */
-const CATEGORY_TAG_MAP: ReadonlyMap<string, Tag> = new Map([
-  ['keyword', tags.keyword],
-  ['operator', tags.operator],
-  ['string', tags.string],
-  ['number', tags.number],
-  ['bool', tags.bool],
-  ['comment', tags.comment],
-  ['variableName', tags.variableName],
-  ['functionName', tags.function(tags.variableName)],
-  ['typeName', tags.typeName],
-  ['punctuation', tags.punctuation],
-  ['bracket', tags.bracket],
-  ['meta', tags.meta],
-]);
+const CATEGORY_TAG_MAP: ReadonlyMap<HighlightCategory | 'typeName', Tag> =
+  new Map<HighlightCategory | 'typeName', Tag>([
+    ['keyword', tags.keyword],
+    ['operator', tags.operator],
+    ['string', tags.string],
+    ['number', tags.number],
+    ['bool', tags.bool],
+    ['comment', tags.comment],
+    ['variableName', tags.variableName],
+    ['functionName', tags.function(tags.variableName)],
+    ['typeName', tags.typeName],
+    ['punctuation', tags.punctuation],
+    ['bracket', tags.bracket],
+    ['meta', tags.meta],
+  ]);
 
 // ============================================================
 // STREAM PARSER STATE
