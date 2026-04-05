@@ -151,7 +151,7 @@ try {
 | `isScriptCallable(value)` | Check if value is a script-defined closure |
 | `isApplicationCallable(value)` | Check if value is a host-provided callable |
 
-## Bundled Extensions
+## Extensions
 
 Extensions (fs, fetch, exec, kv, crypto) live in the [rill-ext](https://github.com/rcrsr/rill-ext) repository. The core package provides the extension framework (types, contracts, lifecycle hooks) but ships no extension implementations.
 

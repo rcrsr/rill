@@ -2,14 +2,14 @@
 
 *Choosing and swapping storage backends*
 
-rill provides core extensions (`fs`, `kv`) with built-in JSON/filesystem backends and separate packages for alternative storage backends. Scripts use the same API regardless of backend — hosts swap backends without changing script code.
+rill extensions (`fs`, `kv`) from [rill-ext](https://github.com/rcrsr/rill-ext) provide JSON/filesystem backends. Separate packages offer alternative storage backends. Scripts use the same API regardless of backend — hosts swap backends without changing script code.
 
 ## Backend Selection Strategy
 
 | Deployment | fs Backend | kv Backend | Rationale |
 |------------|------------|------------|-----------|
-| Development | JSON (core) | JSON (core) | Zero configuration, file-based persistence |
-| Single-server | Local files (core) | SQLite (`@rcrsr/rill-ext-kv-sqlite`) | Drop-in database file, concurrent safe |
+| Development | JSON (`@rcrsr/rill-ext-fs`) | JSON (`@rcrsr/rill-ext-kv`) | Zero configuration, file-based persistence |
+| Single-server | Local files (`@rcrsr/rill-ext-fs`) | SQLite (`@rcrsr/rill-ext-kv-sqlite`) | Drop-in database file, concurrent safe |
 | Multi-server | S3 (`@rcrsr/rill-ext-fs-s3`) | Redis (`@rcrsr/rill-ext-kv-redis`) | Shared state, distributed access |
 | Cloud/serverless | S3 (`@rcrsr/rill-ext-fs-s3`) | Redis (`@rcrsr/rill-ext-kv-redis`) | Cross-server access, managed services |
 
