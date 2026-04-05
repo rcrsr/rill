@@ -193,6 +193,7 @@ describe('rillHighlighter', () => {
         ],
         tokenIndex: 0,
         lineComplete: false,
+        inTripleQuoteString: false,
       };
 
       const copy = highlighter.copyState(state);
@@ -304,6 +305,58 @@ describe('token highlighting', () => {
 
     it('highlights variable with $ as variableName', () => {
       const tags = tokenizeLine('$x');
+      expect(tags).toContain('variableName');
+    });
+  });
+
+  describe('typeName highlighting', () => {
+    it('highlights "string" as typeName not variableName', () => {
+      const tags = tokenizeLine('string');
+      expect(tags).toContain('typeName');
+      expect(tags).not.toContain('variableName');
+    });
+
+    it('highlights "number" as typeName', () => {
+      const tags = tokenizeLine('number');
+      expect(tags).toContain('typeName');
+    });
+
+    it('highlights "bool" as typeName', () => {
+      const tags = tokenizeLine('bool');
+      expect(tags).toContain('typeName');
+    });
+
+    it('highlights non-type identifier "foo" as variableName not typeName', () => {
+      const tags = tokenizeLine('foo');
+      expect(tags).toContain('variableName');
+      expect(tags).not.toContain('typeName');
+    });
+
+    it('highlights type annotation ":string" on variable declaration line as typeName', () => {
+      const tags = tokenizeLine('$x: string');
+      expect(tags).toContain('typeName');
+    });
+  });
+
+  describe('functionName highlighting', () => {
+    it('highlights method name after dot as functionName', () => {
+      const tags = tokenizeLine('$x.len()');
+      expect(tags).toContain('functionName');
+    });
+
+    it('highlights property name after dot as functionName', () => {
+      const tags = tokenizeLine('$x.name');
+      expect(tags).toContain('functionName');
+    });
+
+    it('highlights method name after optional chaining as functionName', () => {
+      const tags = tokenizeLine('$x.?upper()');
+      expect(tags).toContain('functionName');
+    });
+
+    it('does not highlight standalone function call as functionName', () => {
+      const tags = tokenizeLine('foo()');
+      expect(tags).not.toContain('functionName');
       expect(tags).toContain('variableName');
     });
   });
@@ -421,6 +474,159 @@ describe('error handling', () => {
 });
 
 // ============================================================
+// STRING INTERPOLATION TESTS
+// ============================================================
+
+describe('string interpolation sub-highlighting', () => {
+  describe('containsInterpolation detection', () => {
+    it('produces bracket tags for a string with a simple interpolation', () => {
+      // "value: {$x}" should contain 'bracket' for { and }
+      const tags = tokenizeLine('"value: {$x}"');
+      expect(tags).toContain('bracket');
+    });
+
+    it('produces variableName tag for the interpolated variable', () => {
+      const tags = tokenizeLine('"value: {$x}"');
+      expect(tags).toContain('variableName');
+    });
+
+    it('still produces string tag for the literal parts', () => {
+      const tags = tokenizeLine('"value: {$x}"');
+      expect(tags).toContain('string');
+    });
+
+    it('plain string without interpolation renders only as string', () => {
+      const tags = tokenizeLine('"hello world"');
+      expect(tags).not.toContain('bracket');
+      expect(tags).toContain('string');
+    });
+  });
+
+  describe('tag sequence ordering', () => {
+    it('emits string → bracket → variableName → bracket → string for "a{$x}b"', () => {
+      const tags = tokenizeLine('"a{$x}b"');
+      const filtered = tags.filter((t) => t !== null);
+      // Verify the sequence contains the expected pattern in order
+      const strIdx = filtered.indexOf('string');
+      const lbraceIdx = filtered.indexOf('bracket');
+      const varIdx = filtered.indexOf('variableName');
+      // string content before brace, then bracket, then variable
+      expect(strIdx).toBeLessThan(lbraceIdx);
+      expect(lbraceIdx).toBeLessThan(varIdx);
+    });
+
+    it('emits bracket tags flanking the expression in "{$x}"', () => {
+      const tags = tokenizeLine('"{$x}"');
+      const filtered = tags.filter((t) => t !== null);
+      const firstBracket = filtered.indexOf('bracket');
+      const lastBracket = filtered.lastIndexOf('bracket');
+      // There must be two bracket tags (open and close)
+      expect(firstBracket).not.toBe(-1);
+      expect(lastBracket).toBeGreaterThan(firstBracket);
+    });
+  });
+
+  describe('escape handling', () => {
+    it('skips \\\\ escape so the char after it is not treated as interpolation start', () => {
+      // "\\\\" is a valid rill escape (backslash); the char after the escape is not {
+      // so no interpolation is detected — whole string is rendered as string
+      const tags = tokenizeLine('"\\\\value"');
+      expect(tags).not.toContain('bracket');
+      expect(tags).toContain('string');
+    });
+
+    it('correctly finds interpolation after a \\\\ escape sequence', () => {
+      // "\\\\{$x}" — backslash escape followed by a real interpolation
+      const tags = tokenizeLine('"\\\\{$x}"');
+      expect(tags).toContain('bracket');
+      expect(tags).toContain('variableName');
+    });
+  });
+
+  describe('arithmetic expression inside interpolation', () => {
+    it('highlights number inside {1 + 2} as number', () => {
+      const tags = tokenizeLine('"{1 + 2}"');
+      expect(tags).toContain('number');
+      expect(tags).toContain('operator');
+    });
+  });
+
+  describe('no matching closing brace', () => {
+    it('does not throw when { has no closing } on the line', () => {
+      expect(() => tokenizeLine('"unclosed {$x"')).not.toThrow();
+    });
+
+    it('still returns string tag when { has no closing }', () => {
+      const tags = tokenizeLine('"unclosed {$x"');
+      expect(tags).toContain('string');
+    });
+  });
+
+  describe('multiple interpolations', () => {
+    it('produces brackets for both interpolations in "{$a} and {$b}"', () => {
+      const tags = tokenizeLine('"{$a} and {$b}"');
+      const bracketCount = tags.filter((t) => t === 'bracket').length;
+      // 2 open braces + 2 close braces = 4
+      expect(bracketCount).toBe(4);
+    });
+  });
+
+  describe('triple-quote single-line string', () => {
+    it('highlights interpolation inside single-line triple-quote string', () => {
+      const tags = tokenizeLine('"""hello {$x}"""');
+      expect(tags).toContain('bracket');
+      expect(tags).toContain('variableName');
+      expect(tags).toContain('string');
+    });
+
+    it('treats {{ as escaped in triple-quote string — no bracket emitted', () => {
+      const tags = tokenizeLine('"""{{not interpolated}}"""');
+      expect(tags).not.toContain('bracket');
+      expect(tags).toContain('string');
+    });
+  });
+
+  describe('multi-line triple-quote with interpolation', () => {
+    function processLine(
+      state: RillHighlightState,
+      line: string
+    ): Array<string | null> {
+      const stream = new MockStringStream(line) as unknown as StringStream;
+      const result: Array<string | null> = [];
+      while (!stream.eol()) {
+        result.push(highlighter.token(stream, state));
+      }
+      return result;
+    }
+
+    it('highlights {$x} on a continuation line inside triple-quote string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+      const contentTags = processLine(state, 'value: {$x}');
+      expect(contentTags).toContain('bracket');
+      expect(contentTags).toContain('variableName');
+    });
+
+    it('still highlights plain continuation lines as string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+      const contentTags = processLine(state, 'no interpolation here');
+      expect(contentTags).toContain('string');
+      expect(contentTags).not.toContain('bracket');
+    });
+
+    it('highlights closing """ line as string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+      processLine(state, '{$x}');
+      const closeTags = processLine(state, '"""');
+      expect(closeTags).toContain('string');
+      expect(state.inTripleQuoteString).toBe(false);
+    });
+  });
+});
+
+// ============================================================
 // INTEGRATION TESTS
 // ============================================================
 
@@ -469,6 +675,75 @@ describe('integration', () => {
         highlighter.token(stream2, state);
       }
       expect(state.lineNumber).toBe(3);
+    });
+  });
+
+  describe('multi-line triple-quote strings', () => {
+    // Helper: process one line through the shared state and return all tags
+    function processLine(
+      state: RillHighlightState,
+      line: string
+    ): Array<string | null> {
+      const stream = new MockStringStream(line) as unknown as StringStream;
+      const tags: Array<string | null> = [];
+      while (!stream.eol()) {
+        const tag = highlighter.token(stream, state);
+        tags.push(tag);
+      }
+      return tags;
+    }
+
+    it('highlights all three lines as "string" for an open/content/close sequence', () => {
+      const state = highlighter.startState(2);
+      const openTags = processLine(state, '"""');
+      const contentTags = processLine(state, 'hello world');
+      const closeTags = processLine(state, '"""');
+
+      expect(openTags).toContain('string');
+      expect(contentTags).toContain('string');
+      expect(closeTags).toContain('string');
+    });
+
+    it('sets inTripleQuoteString to true after processing the opening """', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+
+      expect(state.inTripleQuoteString).toBe(true);
+    });
+
+    it('clears inTripleQuoteString to false after processing the closing """', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+      processLine(state, 'content');
+      processLine(state, '"""');
+
+      expect(state.inTripleQuoteString).toBe(false);
+    });
+
+    it('does not set inTripleQuoteString for a single-line triple-quote string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""hello"""');
+
+      expect(state.inTripleQuoteString).toBe(false);
+    });
+
+    it('tokenizes normally after a closed multi-line triple-quote string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+      processLine(state, 'hello');
+      processLine(state, '"""');
+      const afterTags = processLine(state, '42');
+
+      expect(afterTags).toContain('number');
+    });
+
+    it('copyState preserves inTripleQuoteString when inside a multi-line string', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""');
+
+      const copy = highlighter.copyState(state);
+
+      expect(copy.inTripleQuoteString).toBe(true);
     });
   });
 });

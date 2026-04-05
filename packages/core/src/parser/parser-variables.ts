@@ -227,7 +227,7 @@ Parser.prototype.parseFieldAccessElement = function (
     return { kind: 'block', block };
   }
 
-  if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+  if (check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
     return { kind: 'literal', field: advance(this.state).value };
   }
 

@@ -36,6 +36,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
         'bool',
         'comment',
         'variableName',
+        'functionName',
         'punctuation',
         'bracket',
         'meta',
@@ -49,7 +50,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       }
     });
 
-    it('all mapped categories are one of the 10 valid HighlightCategory values', () => {
+    it('all mapped categories are one of the 11 valid HighlightCategory values', () => {
       // IC-3: Verify categories match the HighlightCategory type
       const validCategories = new Set<HighlightCategory>([
         'keyword',
@@ -59,6 +60,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
         'bool',
         'comment',
         'variableName',
+        'functionName',
         'punctuation',
         'bracket',
         'meta',
@@ -74,6 +76,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
             category === 'bool' ||
             category === 'comment' ||
             category === 'variableName' ||
+            category === 'functionName' ||
             category === 'punctuation' ||
             category === 'bracket' ||
             category === 'meta'
@@ -82,8 +85,8 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
     });
   });
 
-  describe('IC-3: All 10 HighlightCategory values are represented', () => {
-    it('all 10 HighlightCategory values appear in the map', () => {
+  describe('IC-3: All 11 HighlightCategory values are represented', () => {
+    it('all 11 HighlightCategory values appear in the map', () => {
       // IC-3: All highlight categories should be used
       const categorySet = new Set<HighlightCategory>();
 
@@ -91,7 +94,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
         categorySet.add(category);
       }
 
-      // All 10 categories must be present
+      // All 11 categories must be present
       expect(categorySet.has('keyword')).toBe(true);
       expect(categorySet.has('operator')).toBe(true);
       expect(categorySet.has('string')).toBe(true);
@@ -99,12 +102,13 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       expect(categorySet.has('bool')).toBe(true);
       expect(categorySet.has('comment')).toBe(true);
       expect(categorySet.has('variableName')).toBe(true);
+      expect(categorySet.has('functionName')).toBe(true);
       expect(categorySet.has('punctuation')).toBe(true);
       expect(categorySet.has('bracket')).toBe(true);
       expect(categorySet.has('meta')).toBe(true);
 
-      // Exactly 10 categories
-      expect(categorySet.size).toBe(10);
+      // Exactly 11 categories
+      expect(categorySet.size).toBe(11);
     });
 
     it('returns at least one token for each HighlightCategory', () => {
@@ -122,6 +126,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       expect(categoryCounts.get('bool')!).toBeGreaterThan(0);
       expect(categoryCounts.get('comment')!).toBeGreaterThan(0);
       expect(categoryCounts.get('variableName')!).toBeGreaterThan(0);
+      expect(categoryCounts.get('functionName')!).toBeGreaterThan(0);
       expect(categoryCounts.get('punctuation')!).toBeGreaterThan(0);
       expect(categoryCounts.get('bracket')!).toBeGreaterThan(0);
       expect(categoryCounts.get('meta')!).toBeGreaterThan(0);
@@ -401,6 +406,10 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       expect(TOKEN_HIGHLIGHT_MAP.get('RBRACE')).toBe('bracket');
       expect(TOKEN_HIGHLIGHT_MAP.get('LBRACKET')).toBe('bracket');
       expect(TOKEN_HIGHLIGHT_MAP.get('RBRACKET')).toBe('bracket');
+    });
+
+    it('maps method name token correctly', () => {
+      expect(TOKEN_HIGHLIGHT_MAP.get('METHOD_NAME')).toBe('functionName');
     });
 
     it('maps comment token correctly', () => {

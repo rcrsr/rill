@@ -12,6 +12,7 @@ export type HighlightCategory =
   | 'bool'
   | 'comment'
   | 'variableName'
+  | 'functionName'
   | 'punctuation'
   | 'bracket'
   | 'meta';
@@ -57,6 +58,9 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['PIPE_VAR', 'variableName'],
     ['IDENTIFIER', 'variableName'],
     ['UNDERSCORE', 'variableName'],
+
+    // Method names (identifiers after dot)
+    ['METHOD_NAME', 'functionName'],
 
     // Operators
     ['ARROW', 'operator'],

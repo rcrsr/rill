@@ -13,6 +13,7 @@ export const TOKEN_TYPES = {
 
   // Identifiers
   IDENTIFIER: 'IDENTIFIER',
+  METHOD_NAME: 'METHOD_NAME', // foo in $x.foo
 
   // Variables
   DOLLAR: 'DOLLAR', // $

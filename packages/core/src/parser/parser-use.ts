@@ -86,12 +86,15 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
 
     while (check(this.state, TOKEN_TYPES.DOT)) {
       advance(this.state); // consume DOT
-      const segToken = expect(
-        this.state,
-        TOKEN_TYPES.IDENTIFIER,
-        'Expected identifier after . in use<>'
-      );
-      segments.push(segToken.value);
+      if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
+        const token = current(this.state);
+        throw new ParseError(
+          'RILL-P001',
+          'Expected identifier after . in use<>',
+          token.span.start
+        );
+      }
+      segments.push(advance(this.state).value);
     }
 
     identifier = { kind: 'static', scheme, segments };
