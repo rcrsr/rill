@@ -21,11 +21,11 @@ rill-exec script.rill [args...]
 rill-exec -                        # read from stdin
 ```
 
-Positional arguments pass to the script as `$ARGS`:
+Positional arguments pass to the script as `$` (pipe value):
 
 ```bash
 rill-exec greet.rill alice bob
-# Inside script: $ARGS == ["alice", "bob"]
+# Inside script: $ == ["alice", "bob"]
 ```
 
 Read from stdin with `-`:
@@ -93,7 +93,21 @@ rill-check --fix script.rill       # auto-fix
 
 Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warning).
 
-**Lint rules:** 30 rules across 8 categories (naming, anti-patterns, strings, types, flow, loops, collections, formatting). Run `rill-check --help` for the full list.
+**Lint rules:** 34 rules across 9 categories (naming, anti-patterns, strings, types, flow, loops, collections, conditionals, formatting). Run `rill-check --help` for the full list.
+
+### rill-run
+
+Config-driven execution. Loads extensions and settings from `rill-config.json`, then runs a script or named handler.
+
+```bash
+rill-run [--config <path>] [args...]
+```
+
+**Module mode:** When `main` points to a script file, `rill-run` executes it. Positional arguments forward as `$`.
+
+**Handler mode:** When `main` names a handler (e.g., `"script.rill:processOrder"`), parameters come from `--param_name value` flags. Run `rill-run --help` to print the parameter list.
+
+See [CLI Reference](https://github.com/rcrsr/rill/blob/main/docs/integration-cli.md) and [Config Reference](https://github.com/rcrsr/rill/blob/main/docs/ref-config.md) for details.
 
 ## Documentation
 

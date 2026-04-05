@@ -32,9 +32,9 @@ echo 'log("hello")' | rill-exec -
 
 ### Module Loading
 
-The `module` scheme (`use<module:...>`) is not yet wired in the CLI. Scripts that use `use<module:name>` will fail at runtime with error RILL-R054 (unregistered scheme). Module loading is planned for a future release.
+`rill-exec` does not support the `module` scheme. Scripts that use `use<module:name>` require `rill-run` with a `rill-config.json` that declares module paths.
 
-See [Modules](integration-modules.md) for the full module system documentation.
+See [rill-run](#rill-run) for config-driven execution and [Modules](integration-modules.md) for the module system.
 
 ### Exit Codes
 
@@ -148,8 +148,11 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `AVOID_REASSIGNMENT` | anti-patterns | warning | Avoid reassigning captured variables |
 | `COMPLEX_CONDITION` | anti-patterns | info | Condition expression is complex |
 | `LOOP_OUTER_CAPTURE` | anti-patterns | warning | Loop body captures to outer variable |
+| `STREAM_PRE_ITERATION` | anti-patterns | warning | Stream method called before iteration starts |
+| `USE_DYNAMIC_IDENTIFIER` | anti-patterns | warning | Dynamic identifier in `use` expression |
 | `USE_EMPTY_METHOD` | strings | warning | Use `.empty` instead of `.len == 0` |
 | `UNNECESSARY_ASSERTION` | types | info | Type assertion on a literal value |
+| `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |
