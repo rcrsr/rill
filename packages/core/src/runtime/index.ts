@@ -154,8 +154,6 @@ export type {
   KvExtensionContract,
 } from './ext/extensions.js';
 
-export type { SchemaEntry } from '../ext/kv/index.js';
-
 export { emitExtensionEvent } from './ext/extensions.js';
 
 // ============================================================

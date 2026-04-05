@@ -207,7 +207,7 @@ export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, Extensio
 export { toCallable, createTestContext, emitExtensionEvent };
 
 // Extension contracts
-export type { KvExtensionContract, FsExtensionContract, SchemaEntry };
+export type { KvExtensionContract, FsExtensionContract };
 ```
 
 ## NativeResult
@@ -465,38 +465,6 @@ import { createMyFsBackend } from './my-fs-backend';
 
 // Type-check backend implementation
 const backend: FsExtensionContract = createMyFsBackend({ /* config */ });
-```
-
-### SchemaEntry
-
-Type for key-value store schema definitions. Used in `KvExtensionContract` backends to define type constraints and defaults.
-
-```typescript
-export interface SchemaEntry {
-  type: 'string' | 'number' | 'bool' | 'list' | 'dict';
-  default: RillValue;
-  description?: string;
-}
-```
-
-**Fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | `'string' \| 'number' \| 'bool' \| 'list' \| 'dict'` | Yes | Value type constraint |
-| `default` | `RillValue` | Yes | Default value if key missing |
-| `description` | `string` | No | Human-readable description |
-
-**Usage:**
-
-```typescript
-import type { SchemaEntry } from '@rcrsr/rill';
-
-const schema: Record<string, SchemaEntry> = {
-  name: { type: 'string', default: '', description: 'User name' },
-  age: { type: 'number', default: 0, description: 'User age in years' },
-  active: { type: 'bool', default: true },
-};
 ```
 
 ## RillParam

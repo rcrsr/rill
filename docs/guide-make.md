@@ -59,15 +59,15 @@ rill agents compose capabilities from extensions. Two categories exist:
 | pinecone | `@rcrsr/rill-ext-pinecone` | `pinecone` | Pinecone vector database |
 | chroma | `@rcrsr/rill-ext-chroma` | `chroma` | ChromaDB vector database |
 
-**Core extensions** — bundled with `@rcrsr/rill`, no extra install:
+**Core extensions** — install from [rill-ext](https://github.com/rcrsr/rill-ext):
 
-| Extension | Import Path | Namespace | Purpose |
-|-----------|-------------|-----------|---------|
-| fs | `@rcrsr/rill/ext/fs` | `fs` | Sandboxed file I/O with mount points |
-| fetch | `@rcrsr/rill/ext/fetch` | (custom) | Pre-configured HTTP endpoints |
-| exec | `@rcrsr/rill/ext/exec` | (custom) | Sandboxed command execution |
-| kv | `@rcrsr/rill/ext/kv` | `kv` | Persistent key-value state across runs |
-| crypto | `@rcrsr/rill/ext/crypto` | `crypto` | Hashing, HMAC, UUID generation |
+| Extension | Package | Namespace | Purpose |
+|-----------|---------|-----------|---------|
+| fs | `@rcrsr/rill-ext-fs` | `fs` | Sandboxed file I/O with mount points |
+| fetch | `@rcrsr/rill-ext-fetch` | (custom) | Pre-configured HTTP endpoints |
+| exec | `@rcrsr/rill-ext-exec` | (custom) | Sandboxed command execution |
+| kv | `@rcrsr/rill-ext-kv` | `kv` | Persistent key-value state across runs |
+| crypto | `@rcrsr/rill-ext-crypto` | `crypto` | Hashing, HMAC, UUID generation |
 
 ### 1.3 Match Extensions to Requirements
 
@@ -309,17 +309,23 @@ cd my-agent && npm install
 
 ### 4.2 Add Core Extensions to host.ts
 
-The scaffolder wires external extensions (anthropic, openai, gemini, qdrant, etc.) automatically. Core extensions (fs, fetch, exec, kv, crypto) ship with `@rcrsr/rill` and require no extra `npm install`, but you must add them to the generated `host.ts` manually.
+The scaffolder wires external extensions (anthropic, openai, gemini, qdrant, etc.) automatically. Core extensions (fs, fetch, exec, kv, crypto) live in [rill-ext](https://github.com/rcrsr/rill-ext) and require separate install.
+
+**Install the extensions you need:**
+
+```bash
+npm install @rcrsr/rill-ext-fs @rcrsr/rill-ext-fetch @rcrsr/rill-ext-exec @rcrsr/rill-ext-kv @rcrsr/rill-ext-crypto
+```
 
 **Open the scaffolded `src/host.ts` and add imports for each core extension you need:**
 
 ```typescript
 // Add these imports below the existing ones in the generated host.ts
-import { createFsExtension } from '@rcrsr/rill/ext/fs';
-import { createFetchExtension } from '@rcrsr/rill/ext/fetch';
-import { createExecExtension } from '@rcrsr/rill/ext/exec';
-import { createKvExtension } from '@rcrsr/rill/ext/kv';
-import { createCryptoExtension } from '@rcrsr/rill/ext/crypto';
+import { createFsExtension } from '@rcrsr/rill-ext-fs';
+import { createFetchExtension } from '@rcrsr/rill-ext-fetch';
+import { createExecExtension } from '@rcrsr/rill-ext-exec';
+import { createKvExtension } from '@rcrsr/rill-ext-kv';
+import { createCryptoExtension } from '@rcrsr/rill-ext-crypto';
 ```
 
 **Add initialization calls alongside the existing ones:**
@@ -807,7 +813,7 @@ These patterns cause broken projects or runtime errors. Avoid them.
 | Writing `run.ts` by hand | Wrong imports, missing `parse`/`execute` pattern, no output formatting | Use the generated `run.ts` unmodified |
 | Writing `host.ts` from scratch | Missing `dotenv/config` import, wrong extension factory wiring | Edit the generated `host.ts` |
 | Using raw `fetch()` or `axios` for HTTP | Bypasses sandboxing, no retry/auth, wrong function signature | Use the `fetch` core extension with `createFetchExtension` |
-| Installing core extensions via npm | `fs`, `fetch`, `exec`, `kv`, `crypto` are sub-path exports of `@rcrsr/rill` | Import from `@rcrsr/rill/ext/<name>` — no extra install |
+| Looking for core extensions in `@rcrsr/rill` | `fs`, `fetch`, `exec`, `kv`, `crypto` moved to [rill-ext](https://github.com/rcrsr/rill-ext) | Install from `@rcrsr/rill-ext-<name>` |
 | Skipping `--extensions` flag | Scaffolder requires either `--extensions` or `--preset` | Always pass external extensions to the scaffold command |
 
 **rill language syntax mistakes:**
