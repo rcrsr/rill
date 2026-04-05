@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-04-04
+
 ### Added
 
 - **Dict field annotations** — Type constructor fields in dict, ordered, and tuple declarations support inline `^()` annotations for field-level metadata without external mappings
