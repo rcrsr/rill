@@ -4,6 +4,13 @@ Command-line tools for running and validating [rill](https://rill.run) scripts.
 
 > **Experimental.** Breaking changes will occur before stabilization.
 
+| Tool | Purpose |
+|------|---------|
+| `rill-exec` | Execute a rill script file with positional arguments |
+| `rill-eval` | Evaluate a single rill expression (no file context) |
+| `rill-check` | Static analysis and lint validation |
+| `rill-run` | Config-driven execution with extensions and modules |
+
 ## Install
 
 ```bash

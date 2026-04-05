@@ -2,6 +2,13 @@
 
 *Four command-line tools for running, evaluating, checking, and config-driven execution*
 
+| Tool | Purpose |
+|------|---------|
+| [`rill-exec`](#rill-exec) | Execute a rill script file with positional arguments |
+| [`rill-eval`](#rill-eval) | Evaluate a single rill expression (no file context) |
+| [`rill-check`](#rill-check) | Static analysis and lint validation with 34 rules |
+| [`rill-run`](#rill-run) | Config-driven execution with extensions and modules |
+
 ## rill-exec
 
 Execute a rill script file with arguments.
