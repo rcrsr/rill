@@ -1,6 +1,6 @@
 {
   "name": "rill-lang",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "description": "Scripting designed for machine-generated code",
   "private": true,
   "packageManager": "pnpm@10.29.2",
@@ -46,15 +46,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.3.5",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "eslint": "^10.0.2",
+    "@types/node": "^25.5.2",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.2.0",
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "yaml": "^2.8.2"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2",
+    "yaml": "^2.8.3"
   }
 }

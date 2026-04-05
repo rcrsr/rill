@@ -14,15 +14,13 @@ export default defineConfig({
     target: 'es2020',
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          codemirror: [
-            '@codemirror/commands',
-            '@codemirror/language',
-            '@codemirror/state',
-            '@codemirror/view',
-            '@lezer/highlight',
-          ],
+        manualChunks(id) {
+          if (id.includes('react-dom') || id.includes('react/')) {
+            return 'react';
+          }
+          if (id.includes('@codemirror/') || id.includes('@lezer/')) {
+            return 'codemirror';
+          }
         },
       },
     },
