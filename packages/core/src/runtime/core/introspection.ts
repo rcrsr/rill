@@ -17,6 +17,20 @@ import {
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
+import type {
+  AnnotationArg,
+  CaptureNode,
+  ClosureNode,
+  ClosureParamNode,
+  LiteralNode,
+  NamedArgNode,
+  PipeChainNode,
+  PostfixExprNode,
+  ScriptNode,
+  StatementNode,
+  StringLiteralNode,
+} from '../../types.js';
+import type { TypeRef } from '../../value-types.js';
 
 /**
  * Metadata describing a function's signature and documentation.
@@ -348,4 +362,204 @@ export function getDocumentationCoverage(
  */
 export function getLanguageReference(): string {
   return LANGUAGE_REFERENCE;
+}
+
+// ============================================================
+// STATIC HANDLER INTROSPECTION
+// ============================================================
+
+/**
+ * Static metadata for a single closure parameter, extracted from the AST.
+ * No script execution required.
+ */
+export interface HandlerParamStatic {
+  /** Parameter name */
+  readonly name: string;
+  /** Type annotation string, or 'any' when absent */
+  readonly type: string;
+  /** True when no default value expression exists */
+  readonly required: boolean;
+  /** Description from parameter annotation, when present */
+  readonly description?: string;
+  /** Literal default value (undefined for non-literal or complex expressions) */
+  readonly defaultValue?: unknown;
+}
+
+/**
+ * Static metadata for a handler closure, extracted from the AST.
+ * No script execution required.
+ */
+export interface HandlerMetadataStatic {
+  /** Description from annotation on the closure statement */
+  readonly description?: string;
+  /** Parameter metadata in declaration order */
+  readonly params: ReadonlyArray<HandlerParamStatic>;
+}
+
+/** Convert a TypeRef to a human-readable type string. */
+function typeRefToString(ref: TypeRef | null): string {
+  if (ref === null) return 'any';
+  switch (ref.kind) {
+    case 'static':
+      return ref.typeName;
+    case 'dynamic':
+      return 'any';
+    case 'union':
+      return ref.members.map(typeRefToString).join(' | ');
+  }
+}
+
+/** Extract a primitive value from a literal AST node. Returns undefined for complex literals. */
+function extractLiteralValue(node: LiteralNode): unknown {
+  switch (node.type) {
+    case 'NumberLiteral':
+      return node.value;
+    case 'BoolLiteral':
+      return node.value;
+    case 'StringLiteral': {
+      const strNode = node as StringLiteralNode;
+      // Skip strings with interpolations
+      if (strNode.parts.some((p) => typeof p !== 'string')) return undefined;
+      return strNode.parts.join('');
+    }
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Extract a description string from an annotation array.
+ * Finds a NamedArgNode with name 'description' whose value is a plain string literal.
+ */
+function extractDescription(
+  annotations: AnnotationArg[] | undefined
+): string | undefined {
+  if (!annotations) return undefined;
+  for (const arg of annotations) {
+    if (arg.type !== 'NamedArg') continue;
+    const named = arg as NamedArgNode;
+    if (named.name !== 'description') continue;
+
+    // Navigate: value → PipeChainNode.head → PostfixExprNode.primary → StringLiteralNode
+    const chain = named.value as PipeChainNode;
+    if (chain.type !== 'PipeChain') return undefined;
+
+    const head = chain.head as PostfixExprNode;
+    if (head.type !== 'PostfixExpr') return undefined;
+
+    const primary = head.primary;
+    if (primary.type !== 'StringLiteral') return undefined;
+
+    const strNode = primary as StringLiteralNode;
+    if (strNode.parts.some((p) => typeof p !== 'string')) return undefined;
+    return strNode.parts.join('');
+  }
+  return undefined;
+}
+
+/** Find the ClosureNode within a PipeChainNode (head or pipes). */
+function findClosureInChain(chain: PipeChainNode): ClosureNode | null {
+  // Check head: PostfixExprNode with primary being a ClosureNode
+  if (chain.head.type === 'PostfixExpr') {
+    const postfix = chain.head as PostfixExprNode;
+    if (postfix.primary.type === 'Closure') {
+      return postfix.primary as unknown as ClosureNode;
+    }
+  }
+
+  // Check pipes for a ClosureNode
+  for (const pipe of chain.pipes) {
+    if (pipe.type === 'Closure') {
+      return pipe as unknown as ClosureNode;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract static handler metadata from a parsed AST without executing the script.
+ *
+ * Walks statements to find a pipe chain with a capture to `handlerName`.
+ * Captures appear as CaptureNode entries in the pipes array (not terminator).
+ * Extracts the ClosureNode and reads parameter types, defaults, and descriptions
+ * from AST nodes directly.
+ *
+ * @param ast - Parsed script AST
+ * @param handlerName - Capture variable name (e.g., 'run' for `=> $run`)
+ * @returns Handler metadata, or null when no matching handler found
+ */
+export function introspectHandlerFromAST(
+  ast: ScriptNode,
+  handlerName: string
+): HandlerMetadataStatic | null {
+  for (const stmt of ast.statements) {
+    if (stmt.type === 'RecoveryError') continue;
+
+    // Unwrap AnnotatedStatementNode to get the inner statement and annotations
+    let innerStatement: StatementNode;
+    let closureAnnotations: AnnotationArg[] | undefined;
+
+    if (stmt.type === 'AnnotatedStatement') {
+      closureAnnotations = stmt.annotations;
+      innerStatement = stmt.statement;
+    } else {
+      innerStatement = stmt;
+    }
+
+    const chain = innerStatement.expression;
+
+    // Check for matching capture in pipes or terminator
+    const hasMatchingCapture =
+      chain.pipes.some(
+        (p) => p.type === 'Capture' && (p as CaptureNode).name === handlerName
+      ) ||
+      (chain.terminator?.type === 'Capture' &&
+        (chain.terminator as CaptureNode).name === handlerName);
+
+    if (!hasMatchingCapture) {
+      continue;
+    }
+
+    // Find the closure in this chain
+    const closure = findClosureInChain(chain);
+    if (!closure) continue;
+
+    // Extract parameter metadata
+    const params: HandlerParamStatic[] = closure.params.map(
+      (param: ClosureParamNode) => {
+        const result: HandlerParamStatic = {
+          name: param.name,
+          type: typeRefToString(param.typeRef),
+          required: param.defaultValue === null,
+        };
+
+        const desc = extractDescription(param.annotations);
+        if (desc !== undefined) {
+          (result as { description: string }).description = desc;
+        }
+
+        if (param.defaultValue !== null) {
+          const val = extractLiteralValue(param.defaultValue);
+          if (val !== undefined) {
+            (result as { defaultValue: unknown }).defaultValue = val;
+          }
+        }
+
+        return result;
+      }
+    );
+
+    // Extract closure-level description from AnnotatedStatementNode
+    const description = extractDescription(closureAnnotations);
+
+    const metadata: HandlerMetadataStatic = { params };
+    if (description !== undefined) {
+      (metadata as { description: string }).description = description;
+    }
+
+    return metadata;
+  }
+
+  return null;
 }

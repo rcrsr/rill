@@ -208,6 +208,8 @@ export { BUILTIN_METHODS } from './ext/builtins.js';
 export type {
   DocumentationCoverageResult,
   FunctionMetadata,
+  HandlerMetadataStatic,
+  HandlerParamStatic,
   ParamMetadata,
 } from './core/introspection.js';
 
@@ -216,6 +218,7 @@ export {
   getDocumentationCoverage,
   getFunctions,
   getLanguageReference,
+  introspectHandlerFromAST,
 } from './core/introspection.js';
 
 export type { VersionInfo } from '../generated/version-data.js';

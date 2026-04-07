@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Static handler introspection** — `introspectHandlerFromAST()` extracts handler parameter metadata (names, types, defaults, descriptions) from a parsed AST without executing the script
 - **Multi-line string highlighting** — Triple-quoted `"""` strings highlight correctly across line boundaries in the fiddle editor
 - **Type name highlighting** — Built-in type names (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`, `iterator`, `stream`, `datetime`, `duration`) render as purple (#a78bfa) instead of variable blue
 - **String interpolation sub-highlighting** — Expressions inside `{...}` within strings get syntax-colored tokens (variables, operators, numbers) instead of flat green
