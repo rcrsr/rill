@@ -60,6 +60,7 @@ interface RuntimeContextLike {
   readonly variables: Map<string, RillValue>;
   pipeValue: RillValue;
   readonly metadata?: Record<string, string> | undefined;
+  readonly hostContext: Record<string, unknown>;
 }
 
 /**

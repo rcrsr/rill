@@ -116,6 +116,7 @@ export function assertType(
       'field_descriptor',
     ]),
     unvalidatedMethodReceivers: new Set(),
+    hostContext: {},
   };
 
   const evaluator = getEvaluator(minimalContext);
