@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-04-06
+
 ### Added
 
 - **Static handler introspection** — `introspectHandlerFromAST()` extracts handler parameter metadata (names, types, defaults, descriptions) from a parsed AST without executing the script
