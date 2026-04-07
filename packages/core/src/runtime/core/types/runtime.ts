@@ -170,6 +170,8 @@ export interface RuntimeContext {
   readonly callStack: import('../../../types.js').CallFrame[];
   /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
   readonly metadata?: Record<string, string> | undefined;
+  /** Arbitrary host-provided values accessible by extensions at call time */
+  readonly hostContext: Record<string, unknown>;
   /**
    * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
    * Keys: "string", "list", "dict", "number", "bool", "vector".
@@ -237,6 +239,8 @@ export interface RuntimeOptions {
   maxCallStackDepth?: number;
   /** Arbitrary string metadata passed through to the runtime context */
   metadata?: Record<string, string>;
+  /** Arbitrary host-provided values accessible by extensions at call time */
+  hostContext?: Record<string, unknown>;
   /** Scheme-to-resolver map; keys are scheme names (e.g. `"env"`, `"qdrant"`) */
   resolvers?: Record<string, SchemeResolver>;
   /** Per-scheme configuration data passed as the second argument to each resolver */
