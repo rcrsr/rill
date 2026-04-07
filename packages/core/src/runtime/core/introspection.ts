@@ -429,32 +429,37 @@ function extractLiteralValue(node: LiteralNode): unknown {
 
 /**
  * Extract a description string from an annotation array.
- * Finds a NamedArgNode with name 'description' whose value is a plain string literal.
+ * Prefers a NamedArgNode with name 'description', and falls back to 'doc',
+ * when the value is a plain string literal.
  */
 function extractDescription(
   annotations: AnnotationArg[] | undefined
 ): string | undefined {
   if (!annotations) return undefined;
+  let docFallback: string | undefined;
   for (const arg of annotations) {
     if (arg.type !== 'NamedArg') continue;
     const named = arg as NamedArgNode;
-    if (named.name !== 'description') continue;
+    if (named.name !== 'description' && named.name !== 'doc') continue;
 
     // Navigate: value → PipeChainNode.head → PostfixExprNode.primary → StringLiteralNode
     const chain = named.value as PipeChainNode;
-    if (chain.type !== 'PipeChain') return undefined;
+    if (chain.type !== 'PipeChain') continue;
 
     const head = chain.head as PostfixExprNode;
-    if (head.type !== 'PostfixExpr') return undefined;
+    if (head.type !== 'PostfixExpr') continue;
 
     const primary = head.primary;
-    if (primary.type !== 'StringLiteral') return undefined;
+    if (primary.type !== 'StringLiteral') continue;
 
     const strNode = primary as StringLiteralNode;
-    if (strNode.parts.some((p) => typeof p !== 'string')) return undefined;
-    return strNode.parts.join('');
+    if (strNode.parts.some((p) => typeof p !== 'string')) continue;
+
+    const value = strNode.parts.join('');
+    if (named.name === 'description') return value;
+    docFallback = value;
   }
-  return undefined;
+  return docFallback;
 }
 
 /** Find the ClosureNode within a PipeChainNode (head or pipes). */
@@ -481,7 +486,8 @@ function findClosureInChain(chain: PipeChainNode): ClosureNode | null {
  * Extract static handler metadata from a parsed AST without executing the script.
  *
  * Walks statements to find a pipe chain with a capture to `handlerName`.
- * Captures appear as CaptureNode entries in the pipes array (not terminator).
+ * Captures may appear as CaptureNode entries in either the pipes array or the
+ * terminator.
  * Extracts the ClosureNode and reads parameter types, defaults, and descriptions
  * from AST nodes directly.
  *
@@ -528,37 +534,26 @@ export function introspectHandlerFromAST(
     // Extract parameter metadata
     const params: HandlerParamStatic[] = closure.params.map(
       (param: ClosureParamNode) => {
-        const result: HandlerParamStatic = {
+        const desc = extractDescription(param.annotations);
+        const val =
+          param.defaultValue !== null
+            ? extractLiteralValue(param.defaultValue)
+            : undefined;
+
+        return {
           name: param.name,
           type: typeRefToString(param.typeRef),
           required: param.defaultValue === null,
+          ...(desc !== undefined && { description: desc }),
+          ...(val !== undefined && { defaultValue: val }),
         };
-
-        const desc = extractDescription(param.annotations);
-        if (desc !== undefined) {
-          (result as { description: string }).description = desc;
-        }
-
-        if (param.defaultValue !== null) {
-          const val = extractLiteralValue(param.defaultValue);
-          if (val !== undefined) {
-            (result as { defaultValue: unknown }).defaultValue = val;
-          }
-        }
-
-        return result;
       }
     );
 
     // Extract closure-level description from AnnotatedStatementNode
     const description = extractDescription(closureAnnotations);
 
-    const metadata: HandlerMetadataStatic = { params };
-    if (description !== undefined) {
-      (metadata as { description: string }).description = description;
-    }
-
-    return metadata;
+    return description !== undefined ? { params, description } : { params };
   }
 
   return null;
