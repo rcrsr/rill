@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Host context bag** — `hostContext: Record<string, unknown>` on `RuntimeOptions` and `RuntimeContext` allows hosts to pass arbitrary values (functions, objects) to extensions at call time
 
+### Fixed
+
+- **Datetime and duration parameter matching** — `structureMatches` now handles `{ kind: 'datetime' }` and `{ kind: 'duration' }` type descriptors. Previously both fell through to `return false`, causing host-declared datetime/duration params (e.g. in `@rcrsr/rill-ext-datetime`) to always fail with the paradoxical "expects datetime, got datetime" error
+
 ## [0.18.5] - 2026-04-06
 
 ### Added

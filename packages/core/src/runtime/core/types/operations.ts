@@ -608,6 +608,9 @@ export function structureMatches(
     return t.members.some((member) => structureMatches(value, member));
   }
 
+  if (type.kind === 'datetime') return isDatetime(value);
+  if (type.kind === 'duration') return isDuration(value);
+
   return false;
 }
 
