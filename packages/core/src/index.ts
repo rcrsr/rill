@@ -4,7 +4,13 @@
  */
 
 export { LexerError, tokenize, type TokenizeOptions } from './lexer/index.js';
-export { parse, parseWithRecovery } from './parser/index.js';
+export {
+  parse,
+  parseWithRecovery,
+  parseTypeRef,
+  createParserState,
+  type ParserState,
+} from './parser/index.js';
 export type { ParseResult, RecoveryErrorNode, ErrorNode } from './types.js';
 export {
   anyTypeValue,
