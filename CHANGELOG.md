@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.6] - 2026-04-17
+
 ### Added
 
 - **Host context bag** — `hostContext: Record<string, unknown>` on `RuntimeOptions` and `RuntimeContext` allows hosts to pass arbitrary values (functions, objects) to extensions at call time
