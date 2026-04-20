@@ -18,7 +18,7 @@ import {
   atomName,
   okAtom,
   resolveAtom,
-  type RillCode,
+  type RillAtom,
 } from './atom-registry.js';
 import { appendFrame, type TraceFrame } from './trace.js';
 
@@ -33,7 +33,7 @@ import { appendFrame, type TraceFrame } from './trace.js';
  * carry a populated clone. No field is ever `null` or `undefined`.
  */
 export interface RillStatus {
-  readonly code: RillCode;
+  readonly code: RillAtom;
   readonly message: string;
   readonly provider: string;
   readonly raw: Readonly<Record<string, RillValue>>;

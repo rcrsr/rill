@@ -31,5 +31,5 @@ export const VALID_TYPE_NAMES = [
   'stream',
   'datetime',
   'duration',
-  'code',
+  'atom',
 ] as const;

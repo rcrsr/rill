@@ -209,7 +209,7 @@ export { toCallable, createTestContext, emitExtensionEvent };
 
 // Error registry (atom registration)
 export { registerCoreAtom };
-export type { RillCode, RillStatus, InvalidMeta, TraceFrame };
+export type { RillAtom, RillStatus, InvalidMeta, TraceFrame };
 export { formatHalt };
 
 ```
@@ -768,6 +768,8 @@ type ExtensionFactory<TConfig> = (
 | `registerErrorCode` | `(name: string, kind: string) => void` | Register a domain atom (e.g. `"PAYMENT_FAILED"`, `"domain"`). Available as `#NAME` in scripts. |
 | `signal` | `AbortSignal` | Fires when the runtime disposes. Use to cancel long-running factory setup. |
 
+> **Note:** The function name `registerErrorCode` is intentionally unchanged per TD-NOD-5. `code` here is an English noun meaning "error code", not a reference to the atom primitive type. The `ExtensionFactoryCtx` method returns `void`; the underlying registry creates a `RillAtom` accessible at runtime as `#NAME` and via the standalone `registerErrorCode` export from `@rcrsr/rill`.
+
 ```typescript
 async function createPaymentExtension(
   config: PaymentConfig,
@@ -803,7 +805,7 @@ Three helpers on `RuntimeContext` support error-aware extension functions.
 invalidate(error: unknown, meta: InvalidateMeta): RillValue
 ```
 
-Wraps a JavaScript error as an invalid rill value. Returns a `:code`-tagged invalid value the script can test with `.?` and `.!`.
+Wraps a JavaScript error as an invalid rill value. Returns a `:atom`-tagged invalid value the script can test with `.?` and `.!`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

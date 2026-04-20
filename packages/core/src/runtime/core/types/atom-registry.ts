@@ -1,9 +1,9 @@
 /**
  * Atom registry for interned error-code identifiers.
  *
- * RillCode is an opaque, identity-compared atom authored in scripts as
+ * RillAtom is an opaque, identity-compared atom authored in scripts as
  * `#NAME`. The registry maps a normalized uppercase name to a single
- * frozen RillCode instance; every resolution of that name returns the
+ * frozen RillAtom instance; every resolution of that name returns the
  * same reference. Unknown names resolve to the pre-registered `#R001`
  * fallback instead of throwing.
  *
@@ -35,7 +35,7 @@ const MAX_ATOM_NAME_LENGTH = 64;
  * uppercase form without the `#` sigil. `kind` is a free-form
  * classification tag supplied at registration time.
  */
-export interface RillCode {
+export interface RillAtom {
   readonly __rill_atom: true;
   readonly name: string;
   readonly kind: string;
@@ -45,13 +45,13 @@ export interface RillCode {
 // REGISTRY STATE
 // ============================================================
 
-const registry = new Map<string, RillCode>();
+const registry = new Map<string, RillAtom>();
 
 /**
  * Internal constructor. Not exported: raw construction outside the
  * registry is forbidden.
  */
-function makeAtom(name: string, kind: string): RillCode {
+function makeAtom(name: string, kind: string): RillAtom {
   return Object.freeze({
     __rill_atom: true as const,
     name,
@@ -93,7 +93,7 @@ function validateAtomName(name: string): void {
  * @throws Error when `name` fails the uppercase regex or exceeds 64 chars (EC-2).
  * @throws Error when `name` was previously registered with a different kind (EC-1).
  */
-export function registerErrorCode(name: string, kind: string): RillCode {
+export function registerErrorCode(name: string, kind: string): RillAtom {
   validateAtomName(name);
   return registerAtomInternal(name, kind);
 }
@@ -105,7 +105,7 @@ export function registerErrorCode(name: string, kind: string): RillCode {
  * `#ok` in scripts) can be pre-registered despite its lowercase form.
  * All other atoms still flow through `validateAtomName`.
  */
-function registerAtomInternal(name: string, kind: string): RillCode {
+function registerAtomInternal(name: string, kind: string): RillAtom {
   const existing = registry.get(name);
   if (existing !== undefined) {
     if (existing.kind !== kind) {
@@ -124,9 +124,9 @@ function registerAtomInternal(name: string, kind: string): RillCode {
  * Resolves a name to its interned atom, or `#R001` when unregistered.
  *
  * Never throws (EC-3). Used by parse/link-time atom resolution and by
- * the `:code(name)` conversion.
+ * the `:atom(name)` conversion.
  */
-export function resolveAtom(name: string): RillCode {
+export function resolveAtom(name: string): RillAtom {
   const found = registry.get(name);
   if (found !== undefined) return found;
   // EC-3: unregistered -> fallback. `#R001` is pre-registered below
@@ -144,10 +144,10 @@ export function resolveAtom(name: string): RillCode {
 /**
  * Returns the bare name of an atom (no `#` sigil).
  *
- * Backs the `-> name` conversion on `:code` values.
+ * Backs the `-> name` conversion on `:atom` values.
  */
-export function atomName(code: RillCode): string {
-  return code.name;
+export function atomName(atom: RillAtom): string {
+  return atom.name;
 }
 
 // ============================================================
@@ -205,7 +205,7 @@ for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {
  * Used by status.ts to build the frozen empty-status singleton without
  * a runtime `resolveAtom` call on every access.
  */
-export function okAtom(): RillCode {
+export function okAtom(): RillAtom {
   const ok = registry.get('ok');
   if (ok === undefined) {
     throw new Error(

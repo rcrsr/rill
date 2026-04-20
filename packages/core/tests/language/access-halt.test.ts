@@ -126,7 +126,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
         $x.!code
       `;
       const result = (await runRecovered(src)) as { atom: unknown };
-      // `.!code` materialises the status atom as a `:code` value; the
+      // `.!code` materialises the status atom as a `:atom` value; the
       // atom identity matches the registry.
       expect(result.atom).toBe(resolveAtom('R001'));
     });

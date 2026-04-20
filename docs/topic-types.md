@@ -980,9 +980,9 @@ See [Collections](topic-collections.md) for full operator documentation includin
 
 For stream closure syntax and the `:stream(T):R` annotation on closures, see [Closures](topic-closures.md).
 
-## Atom (`:code`)
+## Atom (`:atom`)
 
-`:code` is the 16th primitive type. It carries a named error identity via `#NAME` literals. See [Error Handling: Error Atoms](topic-error-handling.md#error-atoms-code) for full syntax, conversions, pre-registered atoms, and extension registration.
+`:atom` is the 16th primitive type. It carries a named error identity via `#NAME` literals. See [Error Handling: Error Atoms](topic-error-handling.md#error-atoms-atom) for full syntax, conversions, pre-registered atoms, and extension registration.
 
 ---
 

@@ -178,7 +178,7 @@ const sharedTestValues = testValues.filter(
 
 describe('type-registrations', () => {
   // AC-1: BUILT_IN_TYPES has exactly 16 entries, each with unique name.
-  // Task 1.2 added the `:code` primitive as the 16th type.
+  // Task 1.2 added the `:atom` primitive as the 16th type.
   describe('AC-1: BUILT_IN_TYPES registry', () => {
     it('has exactly 16 entries', () => {
       expect(BUILT_IN_TYPES).toHaveLength(16);

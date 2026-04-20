@@ -22,8 +22,8 @@
  * status-object allocation would push the total well past the gate.
  *
  * Why not `.!code` directly?
- * - `.!code` returns a newly-constructed RillCode wrapper on every call
- *   (see `evaluateStatusProbe`): `{ __rill_code: true, atom: ... }`.
+ * - `.!code` returns a newly-constructed RillAtom wrapper on every call
+ *   (see `evaluateStatusProbe`): `{ __rill_atom: true, atom: ... }`.
  *   That wrapper is an unavoidable return-value allocation, not a
  *   status-sidecar allocation, so measuring it here would miss the
  *   AC-N3 invariant. Phase 3 will fold the code wrapper into a per-atom

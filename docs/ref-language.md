@@ -94,9 +94,9 @@ See [Collections](topic-collections.md) for detailed documentation. All four ope
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
-| Atom | `#NAME` | `#TIMEOUT`, `#NOT_FOUND` | `:code` value |
+| Atom | `#NAME` | `#TIMEOUT`, `#NOT_FOUND` | `:atom` value |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `code`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
 
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
@@ -108,14 +108,14 @@ See [Types](topic-types.md) for detailed documentation.
 
 ### Atom Literals
 
-Atom literals use `#NAME` syntax. They produce a `:code` value identifying a named error condition.
+Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named error condition.
 
 | Form | Example | Produces |
 |------|---------|----------|
-| `#NAME` | `#TIMEOUT` | `:code` value |
+| `#NAME` | `#TIMEOUT` | `:atom` value |
 | `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
 
-`-> :code(name)` converts a `:code` value to its string name. `name -> :code` converts a string name to a `:code` value. See [Types](topic-types.md) for `:code` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
+`#TIMEOUT -> :>string` converts a `:atom` value to its string name. `"TIMEOUT" -> :>atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
 
 ### Functions
 

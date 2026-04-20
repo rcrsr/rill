@@ -12,7 +12,7 @@
 
 import type { CallableMarker } from './markers.js';
 import type {
-  RillCodeValue,
+  RillAtomValue,
   RillDatetime,
   RillDuration,
   RillIterator,
@@ -25,17 +25,17 @@ import type {
 } from './structures.js';
 
 /**
- * Type guard for RillCodeValue (`:code` primitive).
+ * Type guard for RillAtomValue (`:atom` primitive).
  *
- * A `:code` value carries an interned atom from the atom registry.
+ * A `:atom` value carries an interned atom from the atom registry.
  * Compared by atom identity via `deepEquals`.
  */
-export function isCode(value: RillValue): value is RillCodeValue {
+export function isAtom(value: unknown): value is RillAtomValue {
   return (
     typeof value === 'object' &&
     value !== null &&
-    '__rill_code' in value &&
-    (value as RillCodeValue).__rill_code === true
+    '__rill_atom' in value &&
+    (value as RillAtomValue).__rill_atom === true
   );
 }
 

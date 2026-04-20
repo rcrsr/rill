@@ -12,7 +12,7 @@
 // ============================================================
 
 export type {
-  RillCodeValue,
+  RillAtomValue,
   RillDatetime,
   RillDuration,
   RillFieldDef,
@@ -40,8 +40,8 @@ export type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 export {
   emptyStatus,
   getStatus,
+  isAtom,
   isCallable,
-  isCode,
   isDatetime,
   isDict,
   isDuration,
@@ -63,8 +63,8 @@ export {
 export type { InvalidateMeta } from './status.js';
 export { formatHalt } from './status.js';
 export { RuntimeHaltSignal } from './halt.js';
-export type { RillCode } from './atom-registry.js';
-export { atomName, resolveAtom } from './atom-registry.js';
+export type { RillAtom } from './atom-registry.js';
+export { atomName, registerErrorCode, resolveAtom } from './atom-registry.js';
 export type { TraceFrame, TraceKind } from './trace.js';
 export { createTraceFrame, TRACE_KINDS } from './trace.js';
 

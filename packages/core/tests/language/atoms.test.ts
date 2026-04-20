@@ -1,11 +1,11 @@
 /**
- * Rill Language Tests: Atom literals and `:code` primitive
+ * Rill Language Tests: Atom literals and `:atom` primitive
  *
  * Covers (Phase 1):
  * - FR-ERR-2/3: Atom literals `#NAME` parse into AtomLiteralNode.
  * - AC-3: Atoms with the same name share identity across references.
  * - EC-12: Parse-time malformed atoms produce a RecoveryErrorNode.
- * - EC-13: Unregistered well-formed name via `:code` deserialize path
+ * - EC-13: Unregistered well-formed name via `:atom` deserialize path
  *   returns an atom whose identity equals the pre-registered `#R001`
  *   fallback (registry behavior, `resolveAtom`).
  *
@@ -17,17 +17,15 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  atomName,
   createRuntimeContext,
   deserializeValue,
   execute,
+  isAtom,
   parse,
-} from '@rcrsr/rill';
-import {
-  atomName,
   resolveAtom,
-} from '../../src/runtime/core/types/atom-registry.js';
-import { isCode } from '../../src/runtime/core/types/guards.js';
-import type { RillCodeValue } from '../../src/runtime/core/types/structures.js';
+  type RillAtomValue,
+} from '@rcrsr/rill';
 
 /**
  * Unwraps a script's first statement and returns the head primary of its
@@ -141,28 +139,98 @@ describe('Atom registry (AC-3, EC-3, EC-13)', () => {
   });
 });
 
-describe(':code primitive via deserialize (EC-13)', () => {
-  it('deserializing a registered atom name yields a :code value with identity-equal atom', () => {
-    const code = deserializeValue('TIMEOUT', 'code') as RillCodeValue;
-    expect(isCode(code)).toBe(true);
+describe(':atom primitive via deserialize (EC-13)', () => {
+  it('deserializing a registered atom name yields a :atom value with identity-equal atom', () => {
+    const code = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
+    expect(isAtom(code)).toBe(true);
     expect(code.atom).toBe(resolveAtom('TIMEOUT'));
     expect(atomName(code.atom)).toBe('TIMEOUT');
   });
 
-  it('EC-13: deserializing an unregistered name yields a :code whose atom is #R001', () => {
+  it('EC-13: deserializing an unregistered name yields a :atom whose atom is #R001', () => {
     const code = deserializeValue(
       'DEFINITELY_NOT_REGISTERED',
-      'code'
-    ) as RillCodeValue;
-    expect(isCode(code)).toBe(true);
+      'atom'
+    ) as RillAtomValue;
+    expect(isAtom(code)).toBe(true);
     expect(code.atom).toBe(resolveAtom('R001'));
   });
 
-  it(':code atoms compare by identity across independent deserializations', () => {
-    const a = deserializeValue('TIMEOUT', 'code') as RillCodeValue;
-    const b = deserializeValue('TIMEOUT', 'code') as RillCodeValue;
-    // The RillCodeValue wrappers may differ, but the interned atom is shared.
+  it(':atom values compare by identity across independent deserializations', () => {
+    const a = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
+    const b = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
+    // The RillAtomValue wrappers may differ, but the interned atom is shared.
     expect(a.atom).toBe(b.atom);
+  });
+});
+
+describe(':>atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
+  it('AC-8: `"TIMEOUT" -> :>atom` converts the string to the registered TIMEOUT atom', async () => {
+    // AC-8 happy path: a well-formed, pre-registered atom name piped through
+    // `:>atom` returns a `:atom` value whose interned atom is identity-equal
+    // to the registry entry for `#TIMEOUT`. TIMEOUT is pre-registered during
+    // atom-registry bootstrap, so no extra registration is required here.
+    const ast = parse('"TIMEOUT" -> :>atom');
+    const ctx = createRuntimeContext({});
+    const { result } = await execute(ast, ctx);
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
+    expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
+  });
+
+  it('AC-9: unregistered well-formed name via `:>atom` falls back to #R001', async () => {
+    // AC-9: a syntactically valid but unregistered atom name collapses to
+    // the `#R001` fallback through the registry (EC-3 contract). Identity
+    // equality with `resolveAtom("R001")` holds because atoms intern.
+    const ast = parse('"DEFINITELY_NOT_REGISTERED_XYZ" -> :>atom');
+    const ctx = createRuntimeContext({});
+    const { result } = await execute(ast, ctx);
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  });
+
+  it('AC-37: empty string through `:>atom` falls back to #R001', async () => {
+    // AC-37: empty string is not a registered atom name; resolution falls
+    // back to `#R001`. The stringConvertTo entry delegates to resolveAtom,
+    // which never throws and returns the fallback atom.
+    const ast = parse('"" -> :>atom');
+    const ctx = createRuntimeContext({});
+    const { result } = await execute(ast, ctx);
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  });
+
+  it('AC-38: whitespace-only string through `:>atom` falls back to #R001', async () => {
+    // AC-38: whitespace-only names are never registered, so resolution
+    // collapses to `#R001` via the same fallback path as AC-37.
+    const ast = parse('"   " -> :>atom');
+    const ctx = createRuntimeContext({});
+    const { result } = await execute(ast, ctx);
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  });
+});
+
+describe('isAtom safety (EC-4, AC-27)', () => {
+  it('AC-27: rejects legacy `__rill_code` brand (no coercion from old marker)', () => {
+    // Regression guard: prior to the atom rename, `:atom` values carried a
+    // `__rill_code: true` brand. `isAtom` must NOT treat legacy-shaped
+    // objects as atoms post-rename, even when they carry the old brand
+    // alongside atom-shaped fields.
+    const legacy = { __rill_code: true, name: 'TIMEOUT', kind: 'default' };
+    expect(isAtom(legacy)).toBe(false);
+  });
+
+  it('EC-4: returns false without throwing for arbitrary non-atom inputs', () => {
+    // `isAtom` must be total: it accepts `unknown` and returns a boolean
+    // for every input, never throwing.
+    expect(isAtom(null)).toBe(false);
+    expect(isAtom(undefined)).toBe(false);
+    expect(isAtom({})).toBe(false);
+    expect(isAtom('string')).toBe(false);
+    expect(isAtom(42)).toBe(false);
+    expect(isAtom(true)).toBe(false);
+    expect(isAtom([])).toBe(false);
   });
 });
 
@@ -171,23 +239,75 @@ describe(':code primitive via deserialize (EC-13)', () => {
 // ============================================================
 
 describe('Atom runtime evaluation (Phase 2)', () => {
-  it('evaluates #TIMEOUT to a :code value whose atom matches the registry', async () => {
+  it('evaluates #TIMEOUT to a :atom value whose atom matches the registry', async () => {
     // AtomLiteral dispatch landed in Phase 2.2 (core.ts case 'AtomLiteral');
-    // the evaluator materialises a `:code` value carrying the interned atom.
+    // the evaluator materialises a `:atom` value carrying the interned atom.
     const ast = parse('#TIMEOUT');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
-    expect(isCode(result as never)).toBe(true);
-    expect((result as RillCodeValue).atom).toBe(resolveAtom('TIMEOUT'));
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
   });
 
-  it('evaluates unregistered #FOO to a :code whose atom is #R001', async () => {
+  it('evaluates unregistered #FOO to a :atom whose atom is #R001', async () => {
     // EC-12 runtime half: unregistered names collapse to #R001 via the
     // registry fallback. The evaluator resolves at Phase 2.
     const ast = parse('#FOO');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
-    expect(isCode(result as never)).toBe(true);
-    expect((result as RillCodeValue).atom).toBe(resolveAtom('R001'));
+    expect(isAtom(result as never)).toBe(true);
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  });
+});
+
+// ============================================================
+// POST-RENAME LEGACY SYNTAX REGRESSION (EC-8, EC-9, AC-24, AC-25)
+// ============================================================
+
+describe('Legacy `:code` type syntax rejected after rename', () => {
+  it('EC-8 / AC-24: `$x :code` produces an unknown-type parse error (VALID_TYPE_NAMES membership failure)', () => {
+    // After the `code` -> `atom` rename, the string literal `code` is no
+    // longer a member of VALID_TYPE_NAMES. The parser reaches `:code`
+    // through the type-assertion path and rejects it via parseTypeName's
+    // membership check, producing a ParseError. `atom` remains listed,
+    // which anchors this as a regression guard for the rename.
+    const src = '"abc" => $x\n$x :code';
+    expect(() => parse(src)).toThrow(/Invalid type: code/);
+    // Confirm the valid replacement still parses, guarding against the
+    // error firing for unrelated reasons.
+    expect(() => parse('"abc" => $x\n$x :atom')).not.toThrow();
+  });
+
+  it('EC-9 / AC-25: `:code("TIMEOUT")` as a pipe target produces an unknown-type parse error', () => {
+    // `:code("TIMEOUT")` was the pre-rename parameterised conversion form.
+    // After the rename, the parser's existing VALID_TYPE_NAMES dispatch
+    // rejects `code`. The error message cites the allowed list, which
+    // must contain `atom` and must NOT contain `code`.
+    const src = '"x" -> :code("TIMEOUT")';
+    expect(() => parse(src)).toThrow(/Invalid type: code/);
+    // The error message enumerates the allowed type names. After the
+    // rename `atom` is present, and the enumerated-list portion must not
+    // contain `code`.
+    try {
+      parse(src);
+      expect.unreachable('expected ParseError');
+    } catch (e) {
+      const msg = (e as Error).message;
+      // `atom` appears in the allowed list.
+      expect(msg).toMatch(/expected:[^)]*\batom\b/);
+      // `code` appears only in the "Invalid type: code" prefix, NOT in
+      // the enumerated allowed list.
+      expect(msg).not.toMatch(/expected:[^)]*\bcode\b/);
+    }
+  });
+
+  it('EC-9 / AC-25: bare `:code("TIMEOUT")` statement produces a parse error', () => {
+    // When `:code("TIMEOUT")` appears at the head of a statement (not as a
+    // pipe target), the parser rejects the leading `:` via the existing
+    // dispatch failure path before any type-name validation runs. The
+    // exact shape is "Unexpected token: :" from the statement-head
+    // dispatcher; this test guards the broader "parse error or
+    // unknown-operator error" contract from the spec.
+    expect(() => parse(':code("TIMEOUT")')).toThrow(/Unexpected token: :/);
   });
 });

@@ -429,7 +429,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // names resolve to `#R001` at registry level; the node itself simply
           // materialises a typed atom value.
           return {
-            __rill_code: true,
+            __rill_atom: true,
             atom: resolveAtom(primary.name),
           } as unknown as RillValue;
 

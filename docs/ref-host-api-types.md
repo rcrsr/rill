@@ -130,7 +130,7 @@ export {
 
 // Error atom registry
 export { registerCoreAtom, resolveAtom, atomName };
-export type { RillCode, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
+export type { RillAtom, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
 export type { ExtensionFactoryCtx };
 
 // Halt formatting
@@ -381,12 +381,12 @@ type InvalidMeta = InvalidateMeta;
 
 ---
 
-## RillCode
+## RillAtom
 
-`RillCode` is the opaque interned handle for a registered atom. The runtime creates handles exclusively via the atom registry.
+`RillAtom` is the opaque interned handle for a registered atom. The runtime creates handles exclusively via the atom registry.
 
 ```typescript
-interface RillCode {
+interface RillAtom {
   readonly __rill_atom: true;
   readonly name: string;
   readonly kind: string;
@@ -398,13 +398,13 @@ interface RillCode {
 | `name` | `string` | Bare uppercase atom name without the `#` sigil (e.g. `"TIMEOUT"`) |
 | `kind` | `string` | Classification tag supplied at registration (e.g. `"network"`, `"domain"`) |
 
-Use `atomName(code)` to retrieve the name string. Use `resolveAtom(name)` to look up a handle by name.
+Use `atomName(atom)` to retrieve the name string. Use `resolveAtom(name)` to look up a handle by name.
 
 ```typescript
 import { resolveAtom, atomName } from '@rcrsr/rill';
 
-const code = resolveAtom('TIMEOUT');
-atomName(code);  // "TIMEOUT"
+const atom = resolveAtom('TIMEOUT');
+atomName(atom);  // "TIMEOUT"
 ```
 
 ---
@@ -415,7 +415,7 @@ atomName(code);  // "TIMEOUT"
 
 ```typescript
 interface RillStatus {
-  readonly code: RillCode;
+  readonly code: RillAtom;
   readonly message: string;
   readonly provider: string;
   readonly raw: Readonly<Record<string, RillValue>>;
@@ -425,7 +425,7 @@ interface RillStatus {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `code` | `RillCode` | Atom identity. `#ok` means valid; any other atom means invalid. |
+| `code` | `RillAtom` | Atom identity. `#ok` means valid; any other atom means invalid. |
 | `message` | `string` | Human-readable description. `""` on valid values. |
 | `provider` | `string` | Origin identifier. `""` on valid values. |
 | `raw` | `Record<string, RillValue>` | Provider-specific payload bag. Frozen empty object on valid values. |

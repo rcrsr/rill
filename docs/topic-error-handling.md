@@ -89,7 +89,7 @@ $x.upper
 
 ---
 
-## Error Atoms (`:code`)
+## Error Atoms (`:atom`)
 
 Error codes are atoms. Atoms are capitalized identifiers prefixed with `#`. They are interned at startup; identity comparison is O(1).
 
@@ -102,19 +102,19 @@ Read the code from any value's sidecar:
 
 A valid value's code is always `#ok`. An invalid value's code is the atom set at invalidation time.
 
-`:code` is the 16th primitive type in rill. Atoms are interned at registry init time; two atoms with the same name are the same identity.
+`:atom` is the 16th primitive type in rill. Atoms are interned at registry init time; two atoms with the same name are the same identity.
 
 Convert between atoms and strings with the built-in forms:
 
 | Operation | Syntax | Result |
 |-----------|--------|--------|
-| Atom to string | `#TIMEOUT -> :code(name)` | `"TIMEOUT"` (no `#` sigil) |
-| String to atom | `:code("TIMEOUT")` | `#TIMEOUT` atom identity |
-| Unknown string to atom | `:code("BOGUS")` | `#R001` |
+| Atom to string | `#TIMEOUT -> :>string` | `"TIMEOUT"` (no `#` sigil) |
+| String to atom | `"TIMEOUT" -> :>atom` | `#TIMEOUT` atom identity |
+| Unknown string to atom | `"BOGUS" -> :>atom` | `#R001` |
 
 The `.!code` probe returns the atom value. Pass atoms in option lists as `#CODE` literals.
 
-Unregistered atom names in `:code(name)` resolve to `#R001`. The conversion never throws.
+Unregistered atom names in `"NAME" -> :>atom` resolve to `#R001`. The conversion never throws.
 
 ---
 

@@ -14,7 +14,7 @@
  * AC-FDL-1  : guard fixture
  * AC-FDL-2  : retry<3> exhausted, 3 guard-caught frames
  * AC-FDL-3  : .! probe variants (valid and invalid)
- * AC-FDL-4  : :code literal / .!code comparison
+ * AC-FDL-4  : atom literal / .!code comparison
  * AC-FDL-5  : invalid LHS coerced to default with ??
  * AC-FDL-9  : harness runs as part of pnpm --filter @rcrsr/rill-fiddle test
  * AC-FDL-E1 : formatHalt export present (release gate)
@@ -187,7 +187,7 @@ describe('error-handling parity: Fiddle vs Node', () => {
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
     expect(fiddleSide).toBe(nodeSide);
-    // Result is a valid :code value whose atom name is R001
+    // Result is a valid atom value whose atom name is R001
     const native = JSON.parse(nodeSide) as {
       value: { atom: { name: string } };
     };

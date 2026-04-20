@@ -2,7 +2,7 @@
 #
 # guard catches the type-assertion halt and the invalid value carries
 # a #TYPE_MISMATCH status code. .!code materialises the atom as a
-# :code value; comparing it to the #TYPE_MISMATCH literal returns true.
+# atom value; comparing it to the #TYPE_MISMATCH literal returns true.
 # Both runtimes produce byte-equal results via the shared @rcrsr/rill runtime.
 
 guard { "hello" -> :number } => $x

@@ -40,7 +40,7 @@ import {
   isInvalid,
 } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
-import type { RillCode } from '../../types/atom-registry.js';
+import type { RillAtom } from '../../types/atom-registry.js';
 import { resolveAtom } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -63,7 +63,7 @@ const RETRY_MIN_ATTEMPTS = 1;
 
 /**
  * Resolves a node's atom-literal `onCodes` filter into a set of
- * interned `RillCode` references. Returns `undefined` when the filter
+ * interned `RillAtom` references. Returns `undefined` when the filter
  * is absent (meaning: catch every catchable halt).
  *
  * The registry interns atoms once per name, so identity comparison
@@ -71,9 +71,9 @@ const RETRY_MIN_ATTEMPTS = 1;
  */
 function resolveOnCodes(
   onCodes: AtomLiteralNode[] | undefined
-): ReadonlySet<RillCode> | undefined {
+): ReadonlySet<RillAtom> | undefined {
   if (onCodes === undefined || onCodes.length === 0) return undefined;
-  const codes = new Set<RillCode>();
+  const codes = new Set<RillAtom>();
   for (const lit of onCodes) {
     codes.add(resolveAtom(lit.name));
   }
@@ -89,7 +89,7 @@ function resolveOnCodes(
  */
 function shouldCatch(
   signal: RuntimeHaltSignal,
-  onCodes: ReadonlySet<RillCode> | undefined
+  onCodes: ReadonlySet<RillAtom> | undefined
 ): boolean {
   if (!signal.catchable) return false;
   if (onCodes === undefined) return true;
@@ -229,7 +229,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Projection semantics:
      * - bare `.!`         -> bool: `false` when valid, `true` when invalid
      *                        (spec AC-1: `$valid.!` is `false`).
-     * - `.!code`          -> `:code` atom value.
+     * - `.!code`          -> `:atom` atom value.
      * - `.!message`       -> string.
      * - `.!provider`      -> string.
      * - `.!trace`         -> list of trace-frame dicts.
@@ -254,7 +254,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       switch (node.field) {
         case 'code':
           return {
-            __rill_code: true,
+            __rill_atom: true,
             atom: status.code,
           } as unknown as RillValue;
         case 'message':

@@ -28,7 +28,7 @@ import type {
   RillStream,
   RillDatetime,
   RillDuration,
-  RillCodeValue,
+  RillAtomValue,
 } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import {
@@ -40,7 +40,7 @@ import {
   isIterator,
   isDatetime,
   isDuration,
-  isCode,
+  isAtom,
 } from './guards.js';
 import { resolveAtom } from './atom-registry.js';
 import { createTuple, createOrdered, createVector } from './constructors.js';
@@ -178,7 +178,7 @@ function formatDatetime(v: RillValue): string {
 }
 
 function formatCode(v: RillValue): string {
-  const c = v as unknown as RillCodeValue;
+  const c = v as unknown as RillAtomValue;
   return `#${c.atom.name}`;
 }
 
@@ -333,14 +333,14 @@ function eqDuration(a: RillValue, b: RillValue): boolean {
 }
 
 /**
- * Equality for `:code` primitives.
+ * Equality for `:atom` primitives.
  *
  * AC-3: atoms are identity-compared. `resolveAtom` interns one
- * frozen RillCode per name, so identical names share the same atom
+ * frozen RillAtom per name, so identical names share the same atom
  * reference.
  */
 function eqCode(a: RillValue, b: RillValue): boolean {
-  if (!isCode(a) || !isCode(b)) return false;
+  if (!isAtom(a) || !isAtom(b)) return false;
   return a.atom === b.atom;
 }
 
@@ -434,6 +434,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     if (s === 'true') return true;
     if (s === 'false') return false;
     throw new RuntimeError('RILL-R065', `cannot convert string "${s}" to bool`);
+  },
+  atom: (v: RillValue): RillValue => {
+    const atom = resolveAtom(v as string);
+    return { __rill_atom: true, atom } as unknown as RillValue;
   },
 };
 
@@ -546,39 +550,39 @@ const streamConvertTo: Record<string, (v: RillValue) => RillValue> = {
 };
 
 /**
- * Code convertTo targets.
- * - code -> string: bare atom name (no `#` sigil), matches `atomName`.
+ * Atom convertTo targets.
+ * - atom -> string: bare atom name (no `#` sigil), matches `atomName`.
  */
-const codeConvertTo: Record<string, (v: RillValue) => RillValue> = {
+const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (v: RillValue): RillValue =>
-    (v as unknown as RillCodeValue).atom.name,
+    (v as unknown as RillAtomValue).atom.name,
 };
 
 /**
- * Serialize a `:code` value as its bare uppercase atom name string.
+ * Serialize a `:atom` value as its bare uppercase atom name string.
  * The `#` sigil is a syntactic convenience, not part of the identity.
  */
-function serializeCode(v: RillValue): unknown {
-  return (v as unknown as RillCodeValue).atom.name;
+function serializeAtom(v: RillValue): unknown {
+  return (v as unknown as RillAtomValue).atom.name;
 }
 
 /**
- * Deserialize a string into a `:code` value via `resolveAtom`.
+ * Deserialize a string into a `:atom` value via `resolveAtom`.
  *
  * Unregistered names resolve to `#R001` (EC-3) rather than throwing.
  */
-function deserializeCode(data: unknown): RillValue {
+function deserializeAtom(data: unknown): RillValue {
   if (typeof data !== 'string') {
     throwTypeHalt(
-      { fn: 'deserialize-code' },
+      { fn: 'deserialize-atom' },
       'INVALID_INPUT',
-      `Cannot deserialize ${typeof data} as code, expected string`,
+      `Cannot deserialize ${typeof data} as atom, expected string`,
       'runtime',
       { actualType: typeof data }
     );
   }
   const atom = resolveAtom(data);
-  return { __rill_code: true, atom } as unknown as RillValue;
+  return { __rill_atom: true, atom } as unknown as RillValue;
 }
 
 // ============================================================
@@ -876,19 +880,19 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
     },
   },
   {
-    // `:code` is the 16th primitive. Atoms compare by identity (AC-3):
-    // `resolveAtom` interns one frozen RillCode per name.
-    name: 'code',
-    identity: (v: RillValue): boolean => isCode(v),
+    // `:atom` is the 16th primitive. Atoms compare by identity (AC-3):
+    // `resolveAtom` interns one frozen RillAtom per name.
+    name: 'atom',
+    identity: (v: RillValue): boolean => isAtom(v),
     isLeaf: true,
     immutable: true,
     methods: {},
     protocol: {
       format: formatCode,
       eq: eqCode,
-      convertTo: codeConvertTo,
-      serialize: serializeCode,
-      deserialize: deserializeCode,
+      convertTo: atomConvertTo,
+      serialize: serializeAtom,
+      deserialize: deserializeAtom,
     },
   },
   {

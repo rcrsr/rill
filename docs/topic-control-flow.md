@@ -686,22 +686,22 @@ $cond ? do_something() ! pass
 
 ## Operational Recovery with `guard`
 
-`guard { body }` executes its body. When the body halts (via `error`, `assert`, or a throwing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. The invalid value carries a `:code` atom identifying the failure.
+`guard { body }` executes its body. When the body halts (via `error`, `assert`, or a throwing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. The invalid value carries a `:atom` value identifying the failure.
 
 ```text
 guard { app::fetch("https://api.example.com/data") } => $result
 $result.? ? $result.data ! error "fetch failed: {$result.!}"
 ```
 
-The `.?` operator tests whether `$result` is valid. The `.!` operator extracts the `:code` atom when it is not.
+The `.?` operator tests whether `$result` is valid. The `.!` operator extracts the `:atom` value when it is not.
 
 ### Invalid Value
 
-An invalid value is a first-class rill value that carries a `:code` atom. It is not an exception. It propagates through pipes and dict fields without halting, until an explicit check uses `.?` or `.!`.
+An invalid value is a first-class rill value that carries a `:atom` value. It is not an exception. It propagates through pipes and dict fields without halting, until an explicit check uses `.?` or `.!`.
 
 ```text
 guard { app::risky_call() } => $r
-$r.!              # :code atom (e.g. #TIMEOUT, #AUTH, #ok if valid)
+$r.!              # :atom value (e.g. #TIMEOUT, #AUTH, #ok if valid)
 $r.?              # bool: true if valid
 ```
 

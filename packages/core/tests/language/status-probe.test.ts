@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
-import type { RillCodeValue } from '../../src/runtime/core/types/structures.js';
+import type { RillAtomValue } from '../../src/runtime/core/types/structures.js';
 
 /**
  * Unwraps a script's first statement and returns the head primary of its
@@ -114,7 +114,7 @@ describe('Status probe runtime (Phase 2)', () => {
     const ast = parse('"hello".!code');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
-    expect((result as RillCodeValue).atom).toBe(resolveAtom('ok'));
+    expect((result as RillAtomValue).atom).toBe(resolveAtom('ok'));
   });
 
   it('`.!message` reads sidecar message as a string (empty on valid)', async () => {

@@ -12,7 +12,7 @@
 
 import type { RillTypeName } from '../../../types.js';
 import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
-import type { RillCode } from './atom-registry.js';
+import type { RillAtom } from './atom-registry.js';
 import type { RillStatus } from './status.js';
 
 export type { RillStatus } from './status.js';
@@ -154,20 +154,20 @@ export interface RillIterator extends Record<string, RillValue> {
 }
 
 /**
- * Code primitive - represents a first-class error-code atom.
+ * Atom primitive - represents a first-class error-code atom.
  * The 16th built-in primitive type.
  *
- * A `:code` value holds a reference to a registered atom from the atom
+ * A `:atom` value holds a reference to a registered atom from the atom
  * registry. Authored in scripts as `#NAME` (uppercase). Compared by
  * identity: `#TIMEOUT === #TIMEOUT` because `resolveAtom` interns a
- * single frozen RillCode instance per name.
+ * single frozen RillAtom instance per name.
  *
- * The optional `status` sidecar lets a `:code` value carry invalidation
- * metadata (uncommon: codes themselves are valid by default).
+ * The optional `status` sidecar lets a `:atom` value carry invalidation
+ * metadata (uncommon: atoms themselves are valid by default).
  */
-export interface RillCodeValue {
-  readonly __rill_code: true;
-  readonly atom: RillCode;
+export interface RillAtomValue {
+  readonly __rill_atom: true;
+  readonly atom: RillAtom;
   readonly status?: RillStatus;
 }
 
@@ -203,4 +203,4 @@ export type RillValue =
   | FieldDescriptorMarker
   | RillTypeValue
   | RillStream
-  | RillCodeValue;
+  | RillAtomValue;
