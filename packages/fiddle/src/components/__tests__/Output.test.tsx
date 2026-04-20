@@ -49,6 +49,10 @@ describe('Output', () => {
         line: 1,
         column: 5,
         errorId: 'RILL-L001',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       },
       duration: 10,
       logs: [],
@@ -181,6 +185,10 @@ describe('Output', () => {
           line: 5,
           column: 10,
           errorId: 'RILL-R001',
+          statusCode: null,
+          statusMessage: null,
+          statusProvider: null,
+          statusTrace: null,
         },
         duration: 30,
         logs: ['log before error', 'another log'],
@@ -208,6 +216,10 @@ describe('Output', () => {
           line: 1,
           column: 1,
           errorId: 'RILL-P001',
+          statusCode: null,
+          statusMessage: null,
+          statusProvider: null,
+          statusTrace: null,
         },
         duration: 10,
         logs: [],
@@ -379,6 +391,10 @@ describe('Output', () => {
         line: 1,
         column: 10,
         errorId: 'RILL-L002',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const lexerState: ExecutionState = {
         status: 'error',
@@ -402,6 +418,10 @@ describe('Output', () => {
         line: null,
         column: null,
         errorId: 'RILL-L001',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const lexerState: ExecutionState = {
         status: 'error',
@@ -431,6 +451,10 @@ describe('Output', () => {
         line: 3,
         column: 8,
         errorId: 'RILL-P001',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const parseState: ExecutionState = {
         status: 'error',
@@ -454,6 +478,10 @@ describe('Output', () => {
         line: null,
         column: null,
         errorId: 'RILL-P002',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const parseState: ExecutionState = {
         status: 'error',
@@ -482,6 +510,10 @@ describe('Output', () => {
         line: 2,
         column: 12,
         errorId: 'RILL-R001',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const runtimeState: ExecutionState = {
         status: 'error',
@@ -505,6 +537,10 @@ describe('Output', () => {
         line: null,
         column: null,
         errorId: 'RILL-R002',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const runtimeState: ExecutionState = {
         status: 'error',
@@ -533,6 +569,10 @@ describe('Output', () => {
         line: 1,
         column: 1,
         errorId: 'RILL-R999',
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const errorState: ExecutionState = {
         status: 'error',
@@ -553,6 +593,10 @@ describe('Output', () => {
         line: 1,
         column: 1,
         errorId: null,
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const errorState: ExecutionState = {
         status: 'error',
@@ -583,6 +627,10 @@ describe('Output', () => {
         cause: 'Variable referenced before assignment',
         resolution: undefined,
         examples: undefined,
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const stateWithCause: ExecutionState = {
         status: 'error',
@@ -611,6 +659,10 @@ describe('Output', () => {
         resolution:
           'Ensure both operands are the same type before performing the operation',
         examples: undefined,
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const stateWithResolution: ExecutionState = {
         status: 'error',
@@ -641,6 +693,10 @@ describe('Output', () => {
         cause: undefined,
         resolution: undefined,
         examples: undefined,
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const stateWithHelpUrl: ExecutionState = {
         status: 'error',
@@ -671,6 +727,10 @@ describe('Output', () => {
         cause: undefined,
         resolution: undefined,
         examples: undefined,
+        statusCode: null,
+        statusMessage: null,
+        statusProvider: null,
+        statusTrace: null,
       };
       const stateWithBasicError: ExecutionState = {
         status: 'error',
@@ -743,6 +803,288 @@ describe('Output', () => {
       const { container } = render(<Output state={successState} />);
       const resultElement = container.querySelector('.output-result');
       expect(resultElement).toBeDefined();
+    });
+  });
+
+  // ============================================================
+  // AC-FDL-6: Invalid-value halt panel rendering
+  // ============================================================
+
+  describe('invalid-value halt rendering', () => {
+    it('AC-FDL-6: halt panel renders #CODE with sigil when statusCode is set', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message:
+            '#TYPE_MISMATCH: Type assertion failed: expected number, got string',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TYPE_MISMATCH',
+          statusMessage: 'Type assertion failed: expected number, got string',
+          statusProvider: 'runtime',
+          statusTrace: [
+            { kind: 'type', site: '<script>:1:20', fn: '', wrapped: {} },
+            {
+              kind: 'guard-caught',
+              site: '<script>:1:1',
+              fn: 'guard',
+              wrapped: {},
+            },
+          ],
+        },
+        duration: 10,
+        logs: [],
+      };
+      const { container } = render(<Output state={haltState} />);
+      const statusCode = container.querySelector('.output-error-status-code');
+      expect(statusCode).toBeDefined();
+      expect(statusCode?.textContent).toContain('#TYPE_MISMATCH');
+    });
+
+    it('AC-FDL-6: halt panel renders statusMessage when present', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TYPE_MISMATCH: Type assertion failed',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TYPE_MISMATCH',
+          statusMessage: 'Type assertion failed',
+          statusProvider: 'runtime',
+          statusTrace: [
+            {
+              kind: 'guard-caught',
+              site: '<script>:1:1',
+              fn: 'guard',
+              wrapped: {},
+            },
+          ],
+        },
+        duration: 5,
+        logs: [],
+      };
+      const { container } = render(<Output state={haltState} />);
+      const msg = container.querySelector('.output-error-status-message');
+      expect(msg).toBeDefined();
+      expect(msg?.textContent).toContain('Type assertion failed');
+    });
+
+    it('AC-FDL-6: halt panel renders statusProvider when present', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TIMEOUT: timed out',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TIMEOUT',
+          statusMessage: 'timed out',
+          statusProvider: 'my-service',
+          statusTrace: [
+            { kind: 'host', site: '<host>', fn: 'my-service', wrapped: {} },
+            {
+              kind: 'guard-caught',
+              site: '<script>:1:1',
+              fn: 'guard',
+              wrapped: {},
+            },
+          ],
+        },
+        duration: 200,
+        logs: [],
+      };
+      const { container } = render(<Output state={haltState} />);
+      const provider = container.querySelector('.output-error-status-provider');
+      expect(provider).toBeDefined();
+      expect(provider?.textContent).toContain('my-service');
+    });
+
+    // AC-FDL-8: trace frame panel renders kind, site, fn
+    it('AC-FDL-8: trace frame panel renders kind, site, and fn for each frame', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TYPE_MISMATCH: Type assertion failed',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TYPE_MISMATCH',
+          statusMessage: 'Type assertion failed',
+          statusProvider: 'runtime',
+          statusTrace: [
+            { kind: 'type', site: '<script>:1:20', fn: 'check', wrapped: {} },
+            {
+              kind: 'guard-caught',
+              site: '<script>:1:1',
+              fn: 'guard',
+              wrapped: {},
+            },
+          ],
+        },
+        duration: 8,
+        logs: [],
+      };
+      const { container } = render(<Output state={haltState} />);
+      const frames = container.querySelectorAll(
+        '.output-error-status-trace-frame'
+      );
+      expect(frames.length).toBe(2);
+
+      // First frame: type / <script>:1:20 / check
+      const frame0 = frames[0];
+      expect(
+        frame0?.querySelector('.output-error-status-trace-kind')?.textContent
+      ).toBe('type');
+      expect(
+        frame0?.querySelector('.output-error-status-trace-fn')?.textContent
+      ).toBe('check');
+      expect(
+        frame0?.querySelector('.output-error-status-trace-site')?.textContent
+      ).toBe('<script>:1:20');
+
+      // Second frame: guard-caught / <script>:1:1 / guard
+      const frame1 = frames[1];
+      expect(
+        frame1?.querySelector('.output-error-status-trace-kind')?.textContent
+      ).toBe('guard-caught');
+      expect(
+        frame1?.querySelector('.output-error-status-trace-fn')?.textContent
+      ).toBe('guard');
+    });
+
+    it('AC-FDL-8: frame with empty fn does not render fn element', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TYPE_MISMATCH: failed',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TYPE_MISMATCH',
+          statusMessage: 'failed',
+          statusProvider: '',
+          statusTrace: [
+            { kind: 'type', site: '<script>:1:5', fn: '', wrapped: {} },
+          ],
+        },
+        duration: 3,
+        logs: [],
+      };
+      const { container } = render(<Output state={haltState} />);
+      const fnElement = container.querySelector(
+        '.output-error-status-trace-fn'
+      );
+      // fn is empty string; Output.tsx gates render on frame.fn !== ''
+      expect(fnElement).toBeNull();
+    });
+
+    // AC-FDL-B3: wrap frame with empty wrapped dict renders without crashing
+    it('AC-FDL-B3: wrap frame with empty wrapped dict renders without error', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TYPE_MISMATCH: failed',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TYPE_MISMATCH',
+          statusMessage: 'failed',
+          statusProvider: '',
+          statusTrace: [
+            { kind: 'wrap', site: '<script>:1:1', fn: '', wrapped: {} },
+            {
+              kind: 'guard-caught',
+              site: '<script>:1:1',
+              fn: 'guard',
+              wrapped: {},
+            },
+          ],
+        },
+        duration: 2,
+        logs: [],
+      };
+      // Must not throw — wrap frame with empty fn renders without crash
+      expect(() => render(<Output state={haltState} />)).not.toThrow();
+      const { container } = render(<Output state={haltState} />);
+      const frames = container.querySelectorAll(
+        '.output-error-status-trace-frame'
+      );
+      expect(frames.length).toBe(2);
+    });
+
+    // AC-FDL-B1: valid final value uses existing success renderer unchanged
+    it('AC-FDL-B1: valid final value does not render halt panel', () => {
+      const { container } = render(<Output state={successState} />);
+      // Status fields must not appear when result is valid
+      expect(container.querySelector('.output-error-status-code')).toBeNull();
+      expect(container.querySelector('.output-error-status-trace')).toBeNull();
+      // Success renderer must still be present
+      expect(container.querySelector('.output-result')).toBeDefined();
+    });
+
+    // AC-FDL-B2: trace with only origin frame (0 non-origin frames)
+    it('AC-FDL-B2: trace with 1 frame (origin only) renders single frame without error', () => {
+      const haltState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: '#TIMEOUT: timed out',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: 'TIMEOUT',
+          statusMessage: 'timed out',
+          statusProvider: 'host',
+          statusTrace: [
+            { kind: 'host', site: '<host>', fn: 'call', wrapped: {} },
+          ],
+        },
+        duration: 50,
+        logs: [],
+      };
+      expect(() => render(<Output state={haltState} />)).not.toThrow();
+      const { container } = render(<Output state={haltState} />);
+      const frames = container.querySelectorAll(
+        '.output-error-status-trace-frame'
+      );
+      expect(frames.length).toBe(1);
+    });
+
+    it('halt panel does not render trace section when statusTrace is null', () => {
+      const noTraceState: ExecutionState = {
+        status: 'error',
+        result: null,
+        error: {
+          message: 'Some error',
+          category: 'runtime',
+          line: null,
+          column: null,
+          errorId: null,
+          statusCode: null,
+          statusMessage: null,
+          statusProvider: null,
+          statusTrace: null,
+        },
+        duration: 5,
+        logs: [],
+      };
+      const { container } = render(<Output state={noTraceState} />);
+      expect(container.querySelector('.output-error-status-trace')).toBeNull();
     });
   });
 });

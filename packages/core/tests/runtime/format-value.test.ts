@@ -42,6 +42,8 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { run, runFull, createLogCollector } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
 
 // ============================================================
 // Shared test fixtures
@@ -720,13 +722,15 @@ describe('Script-level integration', () => {
     });
   });
 
-  describe('AC-10: json(closure) throws RuntimeError RILL-R004', () => {
-    it('json on a closure rejects with RuntimeError', async () => {
-      await expect(run('|x| { $x * 2 } -> json')).rejects.toThrow(RuntimeError);
+  describe('AC-10: json(closure) halts typed-atom', () => {
+    it('json on a closure rejects with RuntimeHaltSignal', async () => {
+      await expect(run('|x| { $x * 2 } -> json')).rejects.toBeInstanceOf(
+        RuntimeHaltSignal
+      );
     });
 
     it('error message mentions closures', async () => {
-      await expect(run('|x| { $x * 2 } -> json')).rejects.toThrow('closures');
+      await expectHaltMessage(() => run('|x| { $x * 2 } -> json'), 'closures');
     });
   });
 
@@ -738,13 +742,15 @@ describe('Script-level integration', () => {
     });
   });
 
-  describe('AC-12: json(tuple(a:1)) throws RuntimeError', () => {
+  describe('AC-12: json(tuple(a:1)) halts typed-atom', () => {
     it('json on tuple rejects', async () => {
-      await expect(run('ordered[a: 1] -> json')).rejects.toThrow(RuntimeError);
+      await expect(run('ordered[a: 1] -> json')).rejects.toBeInstanceOf(
+        RuntimeHaltSignal
+      );
     });
   });
 
-  describe('AC-13: json(vector(...)) throws RuntimeError', () => {
+  describe('AC-13: json(vector(...)) halts typed-atom', () => {
     it('json on vector created via host function rejects', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0]), 'test-model');
       await expect(
@@ -753,7 +759,7 @@ describe('Script-level integration', () => {
             get_vec: { params: [], fn: () => vec },
           },
         })
-      ).rejects.toThrow(RuntimeError);
+      ).rejects.toBeInstanceOf(RuntimeHaltSignal);
     });
   });
 });

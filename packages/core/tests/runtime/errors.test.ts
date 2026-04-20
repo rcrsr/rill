@@ -47,11 +47,13 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined();
       expect(ERROR_REGISTRY.has('RILL-R001')).toBe(true);
 
-      // Verify multiple error IDs exist for type errors
+      // Verify multiple error IDs exist for type errors.
+      // RILL-R004 was migrated to typed-atom halts in Phase 4 (FR-ERR-17);
+      // its registry entry is scheduled for removal in Phase 5. Meta-shape
+      // assertions against RILL-R004 are intentionally omitted here.
       expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined(); // Parameter type mismatch
       expect(ERROR_REGISTRY.get('RILL-R002')).toBeDefined(); // Operator type mismatch
       expect(ERROR_REGISTRY.get('RILL-R003')).toBeDefined(); // Method receiver type mismatch
-      expect(ERROR_REGISTRY.get('RILL-R004')).toBeDefined(); // Type conversion failure
     });
 
     it('Error ID format supports 3-digit numbers [AC-15]', () => {
@@ -547,22 +549,23 @@ describe('Rill Runtime: Error Taxonomy', () => {
     });
 
     it('Multiple error IDs exist for different type error scenarios', () => {
-      // Multiple distinct error IDs for different type error contexts
+      // Multiple distinct error IDs for different type error contexts.
+      // RILL-R004 meta-shape checks were removed in Phase 4.3 (FR-ERR-17):
+      // the error id was migrated to typed-atom halts (#TYPE_MISMATCH /
+      // #INVALID_INPUT) and its registry entry is slated for removal in
+      // Phase 5. See tests/language/typed-atom-migration.test.ts.
       const r001 = ERROR_REGISTRY.get('RILL-R001');
       const r002 = ERROR_REGISTRY.get('RILL-R002');
       const r003 = ERROR_REGISTRY.get('RILL-R003');
-      const r004 = ERROR_REGISTRY.get('RILL-R004');
 
       expect(r001?.description).toBe('Parameter type mismatch');
       expect(r002?.description).toBe('Operator type mismatch');
       expect(r003?.description).toBe('Method receiver type mismatch');
-      expect(r004?.description).toBe('Type conversion failure');
 
       // All should be runtime category
       expect(r001?.category).toBe('runtime');
       expect(r002?.category).toBe('runtime');
       expect(r003?.category).toBe('runtime');
-      expect(r004?.category).toBe('runtime');
     });
 
     it('All error definitions have required fields', () => {

@@ -1,5 +1,6 @@
 import type {
   ExtensionEvent,
+  ExtensionFactoryCtx,
   RuntimeCallbacks,
 } from '../core/types/runtime.js';
 import type { RillValue } from '../core/types/structures.js';
@@ -26,11 +27,18 @@ export interface ExtensionFactoryResult {
 }
 
 /**
- * Factory function contract for creating extensions.
- * Accepts typed configuration and returns isolated instance.
+ * Factory function contract for creating extensions (IR-10).
+ *
+ * Accepts typed configuration and a factory-scope {@link ExtensionFactoryCtx}.
+ * Returns (or resolves to) an {@link ExtensionFactoryResult}.
+ *
+ * The factory-scope ctx exposes exactly `{ registerErrorCode, signal }`
+ * (IR-9, NFR-ERR-4). Host-scope helpers like `invalidate` and `catch` are
+ * intentionally absent at factory init time.
  */
 export type ExtensionFactory<TConfig> = (
-  config: TConfig
+  config: TConfig,
+  ctx: ExtensionFactoryCtx
 ) => ExtensionFactoryResult | Promise<ExtensionFactoryResult>;
 
 /**

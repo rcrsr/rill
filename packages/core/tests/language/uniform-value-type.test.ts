@@ -20,6 +20,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Language: Uniform Value Type Assertions', () => {
   // ============================================================
@@ -90,32 +91,37 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   // ============================================================
 
   describe('Error cases for uniform assertions', () => {
-    it('string value fails dict(closure) with RILL-R004 [AC-10, EC-3]', async () => {
-      await expect(
-        run('[name: "a", run: "b"] -> :>dict(closure)')
-      ).rejects.toThrow('Type assertion failed');
-    });
-
-    it('dict(closure, name: string) halts with RILL-R004 for mixed args [AC-11, EC-1]', async () => {
-      await expect(run('dict(closure, name: string)')).rejects.toThrow(
-        'dict() cannot mix positional and named arguments'
-      );
-    });
-
-    it('ordered(closure, name: string) halts with RILL-R004 for mixed args [AC-12, EC-1]', async () => {
-      await expect(run('ordered(closure, name: string)')).rejects.toThrow(
-        'ordered() cannot mix positional and named arguments'
-      );
-    });
-
-    it('tuple[1, "a"] fails tuple(number) with RILL-R004 [AC-13, EC-3]', async () => {
-      await expect(run('tuple[1, "a"] -> :>tuple(number)')).rejects.toThrow(
+    it('string value fails dict(closure) [AC-10, EC-3]', async () => {
+      await expectHaltMessage(
+        () => run('[name: "a", run: "b"] -> :>dict(closure)'),
         'Type assertion failed'
       );
     });
 
-    it('dict(string, number) halts with RILL-R004 for 2 positional args [AC-14, EC-2]', async () => {
-      await expect(run('dict(string, number)')).rejects.toThrow(
+    it('dict(closure, name: string) halts for mixed args [AC-11, EC-1]', async () => {
+      await expectHaltMessage(
+        () => run('dict(closure, name: string)'),
+        'dict() cannot mix positional and named arguments'
+      );
+    });
+
+    it('ordered(closure, name: string) halts for mixed args [AC-12, EC-1]', async () => {
+      await expectHaltMessage(
+        () => run('ordered(closure, name: string)'),
+        'ordered() cannot mix positional and named arguments'
+      );
+    });
+
+    it('tuple[1, "a"] fails tuple(number) [AC-13, EC-3]', async () => {
+      await expectHaltMessage(
+        () => run('tuple[1, "a"] -> :>tuple(number)'),
+        'Type assertion failed'
+      );
+    });
+
+    it('dict(string, number) halts for 2 positional args [AC-14, EC-2]', async () => {
+      await expectHaltMessage(
+        () => run('dict(string, number)'),
         'dict() requires exactly 1 positional type argument'
       );
     });
@@ -127,18 +133,16 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
   describe('Error message format', () => {
     it('failed dict(closure) assertion message contains "expected dict(closure)" [AC-9, EC-3]', async () => {
-      await expect(
-        run('[name: "a", run: "b"] -> :>dict(closure)')
-      ).rejects.toThrow('expected dict(closure)');
+      await expectHaltMessage(
+        () => run('[name: "a", run: "b"] -> :>dict(closure)'),
+        'expected dict(closure)'
+      );
     });
 
-    it('failed dict(closure) assertion uses RILL-R004 error code [EC-3]', async () => {
-      try {
-        await run('[name: "a", run: "b"] -> :>dict(closure)');
-        expect.unreachable('should have thrown');
-      } catch (e: unknown) {
-        expect((e as { errorId?: string }).errorId).toBe('RILL-R004');
-      }
+    it('failed dict(closure) assertion uses #TYPE_MISMATCH atom [EC-3]', async () => {
+      await expectHalt(() => run('[name: "a", run: "b"] -> :>dict(closure)'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 

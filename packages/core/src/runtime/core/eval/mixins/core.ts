@@ -12,7 +12,6 @@
  * - evaluatePostfixExpr(expr) -> Promise<RillValue> [IR-10]
  * - evaluatePrimary(primary) -> Promise<RillValue> [IR-11]
  * - evaluatePipeTarget(target, input) -> Promise<RillValue> [IR-12]
- * - evaluateArgs(argExprs) -> Promise<RillValue[]> [IR-13]
  *
  * Error Handling:
  * - Unsupported expression types throw RuntimeError [EC-4]
@@ -28,15 +27,19 @@ import type {
   PrimaryNode,
   PipeTargetNode,
   SourceLocation,
-  SpreadArgNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { isTuple } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
+import { invalidate } from '../../types/status.js';
+import { createTraceFrame } from '../../types/trace.js';
+import { resolveAtom } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import { accessHaltGateFast, formatAccessSite } from './access.js';
+import { throwTypeHalt } from '../../types/halt.js';
 
 /**
  * CoreMixin implementation.
@@ -61,7 +64,6 @@ import type { EvaluatorBase } from '../base.js';
  * - evaluatePostfixExpr(expr) -> Promise<RillValue>
  * - evaluatePrimary(primary) -> Promise<RillValue>
  * - evaluatePipeTarget(target, input) -> Promise<RillValue>
- * - evaluateArgs(argExprs) -> Promise<RillValue[]>
  */
 function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class CoreEvaluator extends Base {
@@ -116,6 +118,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Value flows through unchanged
           continue;
         }
+
+        // EC-7: access-halt gate at pipe site. An invalid LHS halts before
+        // flowing into the pipe target; `->` is an access on the LHS value.
+        // Status probes bypass the gate at their own call site (see
+        // evaluateStatusProbe) so this gate never fires for `.!` access.
+        value = accessHaltGateFast(
+          value,
+          '->',
+          () => this.getNodeLocation(target),
+          this.ctx.sourceId
+        );
 
         value = await this.evaluatePipeTarget(target, value);
         this.ctx.pipeValue = value; // OK: flows within chain
@@ -319,10 +332,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'TypeAssertion': {
           // Postfix type assertion: the operand is already evaluated
           if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
+            throwTypeHalt(
+              {
+                location: primary.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: ':',
+              },
+              'INVALID_INPUT',
               'Postfix type assertion requires operand',
-              primary.span.start
+              'runtime',
+              undefined,
+              'host'
             );
           }
           const assertValue = await this.evaluatePostfixExpr(primary.operand);
@@ -333,10 +353,17 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'TypeCheck': {
           // Postfix type check: the operand is already evaluated
           if (!primary.operand) {
-            throw new RuntimeError(
-              'RILL-R004',
+            throwTypeHalt(
+              {
+                location: primary.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: ':?',
+              },
+              'INVALID_INPUT',
               'Postfix type check requires operand',
-              primary.span.start
+              'runtime',
+              undefined,
+              'host'
             );
           }
           const checkValue = await this.evaluatePostfixExpr(primary.operand);
@@ -383,11 +410,58 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateUseExpr(primary);
 
+        case 'GuardBlock':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateGuardBlock(primary);
+
+        case 'RetryBlock':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateRetryBlock(primary);
+
+        case 'StatusProbe':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateStatusProbe(primary);
+
+        case 'AtomLiteral':
+          // Atom literals (`#NAME`) resolve via the atom registry. Unregistered
+          // names resolve to `#R001` at registry level; the node itself simply
+          // materialises a typed atom value.
+          return {
+            __rill_code: true,
+            atom: resolveAtom(primary.name),
+          } as unknown as RillValue;
+
+        case 'RecoveryError': {
+          // EC-12 / EC-14: a RecoveryErrorNode reached runtime produces an
+          // invalid value with code `#R001`. Parse-recovery emitted the node;
+          // execution surfaces it as an invalid per FR-ERR-4.
+          const site = formatAccessSite(
+            this.getNodeLocation(primary),
+            this.ctx.sourceId
+          );
+          return invalidate(
+            {},
+            {
+              code: 'R001',
+              provider: 'parse-recovery',
+              raw: { message: primary.message },
+            },
+            createTraceFrame({ site, kind: 'host', fn: 'parse-recovery' })
+          );
+        }
+
         default:
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location: this.getNodeLocation(primary),
+              sourceId: this.ctx.sourceId,
+              fn: 'primary',
+            },
+            'INVALID_INPUT',
             `Unsupported expression type: ${(primary as { type: string }).type}`,
-            this.getNodeLocation(primary)
+            'runtime',
+            { nodeType: (primary as { type: string }).type },
+            'host'
           );
       }
     }
@@ -711,31 +785,19 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).evaluateUseExpr(target);
 
         default:
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location: this.getNodeLocation(target),
+              sourceId: this.ctx.sourceId,
+              fn: '->',
+            },
+            'INVALID_INPUT',
             `Unsupported pipe target type: ${(target as { type: string }).type}`,
-            this.getNodeLocation(target)
+            'runtime',
+            { nodeType: (target as { type: string }).type },
+            'host'
           );
       }
-    }
-
-    /**
-     * Evaluate argument expressions [IR-13].
-     *
-     * Evaluates arguments in order, preserving pipe value.
-     * The pipe value is saved and restored so arguments don't affect it.
-     */
-    async evaluateArgs(
-      argExprs: (ExpressionNode | SpreadArgNode)[]
-    ): Promise<RillValue[]> {
-      const savedPipeValue = this.ctx.pipeValue;
-      const args: RillValue[] = [];
-      for (const arg of argExprs) {
-        const expr = arg.type === 'SpreadArg' ? arg.expression : arg;
-        args.push(await this.evaluateExpression(expr));
-      }
-      this.ctx.pipeValue = savedPipeValue;
-      return args;
     }
 
     /**

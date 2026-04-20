@@ -53,6 +53,7 @@ import {
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
+import { throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -532,10 +533,17 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof entry.key === 'object') {
           // Check for new key types (variable/computed keys)
           if ('kind' in entry.key) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Variable and computed dict keys not yet supported`,
-              entry.span.start
+            throwTypeHalt(
+              {
+                location: entry.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'dict-dispatch',
+              },
+              'INVALID_INPUT',
+              'Variable and computed dict keys not yet supported',
+              'runtime',
+              undefined,
+              'host'
             );
           }
           // ListLiteralNode key - evaluate to get list of candidates
@@ -891,9 +899,15 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             (name: string) => getVariable(this.ctx, name)
           );
           if (!isTypeValue(resolved)) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Closure parameter '${param.name}' type must be a type value, not a shape`
+            throwTypeHalt(
+              {
+                sourceId: this.ctx.sourceId,
+                fn: 'closure-param',
+              },
+              'TYPE_MISMATCH',
+              `Closure parameter '${param.name}' type must be a type value, not a shape`,
+              'runtime',
+              { paramName: param.name }
             );
           }
           resolvedType = resolved.structure;

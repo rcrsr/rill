@@ -12,13 +12,12 @@ import type {
   SourceLocation,
   VariableNode,
 } from '../types.js';
-import { TOKEN_TYPES, ParseError } from '../types.js';
+import { TOKEN_TYPES } from '../types.js';
 import {
   check,
   advance,
   expect,
   makeSpan,
-  current,
   skipNewlinesIfFollowedBy,
 } from './state.js';
 import { isMethodCallWithArgs } from './helpers.js';
@@ -88,16 +87,11 @@ Parser.prototype.makeVariableWithAccess = function (
 ): VariableNode {
   const { accessChain, existenceCheck } = this.parseAccessChain();
 
+  // Task 1.4: `.?` and `??` may now compose. Consume the default when
+  // present; the evaluator treats vacancy from the existence check as the
+  // trigger for the default value.
   let defaultValue: BodyNode | null = null;
   if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-    if (existenceCheck) {
-      const token = current(this.state);
-      throw new ParseError(
-        'RILL-P003',
-        'Cannot combine existence check (.?field) with default value operator (??). Use one or the other.',
-        token.span.start
-      );
-    }
     advance(this.state);
     defaultValue = this.parseDefaultValue();
   }

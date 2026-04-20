@@ -1,0 +1,7 @@
+# AC-FDL-1: guard { host_call() } byte-equal halt output
+#
+# guard catches the type-assertion halt and returns an invalid value.
+# Both Fiddle and Node run the identical @rcrsr/rill runtime, so
+# formatHalt output is byte-equal across runtimes.
+
+guard { "hello" -> :number }

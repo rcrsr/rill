@@ -1,7 +1,7 @@
 /**
  * Tests for type-registrations.ts dispatch functions and error contracts.
  *
- * AC-1:  BUILT_IN_TYPES has exactly 12 entries, each with unique name
+ * AC-1:  BUILT_IN_TYPES has exactly 16 entries, each with unique name
  * AC-2:  inferType returns same type name as existing inferType from values.ts
  * AC-5:  formatValue output matches existing formatValue from values.ts
  * AC-10: copyValue returns same reference for immutable, independent copy for mutable
@@ -51,6 +51,13 @@ import {
   type TypeProtocol,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import {
+  expectHaltMessage,
+  expectHaltMessageSync,
+  expectHaltSync,
+  expectHalt,
+} from '../helpers/halt.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
 
 // Old implementations from values.ts for comparison.
 // These remain as internal imports because they verify parity between
@@ -170,16 +177,17 @@ const sharedTestValues = testValues.filter(
 // ============================================================
 
 describe('type-registrations', () => {
-  // AC-1: BUILT_IN_TYPES has exactly 15 entries, each with unique name
+  // AC-1: BUILT_IN_TYPES has exactly 16 entries, each with unique name.
+  // Task 1.2 added the `:code` primitive as the 16th type.
   describe('AC-1: BUILT_IN_TYPES registry', () => {
-    it('has exactly 15 entries', () => {
-      expect(BUILT_IN_TYPES).toHaveLength(15);
+    it('has exactly 16 entries', () => {
+      expect(BUILT_IN_TYPES).toHaveLength(16);
     });
 
     it('has unique names for all entries', () => {
       const names = BUILT_IN_TYPES.map((t) => t.name);
       const uniqueNames = new Set(names);
-      expect(uniqueNames.size).toBe(15);
+      expect(uniqueNames.size).toBe(16);
     });
   });
 
@@ -507,53 +515,33 @@ describe('type-registrations', () => {
 
   // EC-9: deserializeValue with invalid data raises RILL-R004
   describe('EC-9: deserialize invalid data', () => {
-    it('throws RILL-R004 for unrecognized type name', () => {
-      expect(() => deserializeValue('bad', 'nonexistent_type')).toThrow(
-        RuntimeError
-      );
-      try {
-        deserializeValue('bad', 'nonexistent_type');
-        expect.unreachable('should have thrown');
-      } catch (e) {
-        expect(e).toBeInstanceOf(RuntimeError);
-        expect((e as RuntimeError).errorId).toBe('RILL-R004');
-      }
+    it('halts typed-atom for unrecognized type name', () => {
+      expectHaltSync(() => deserializeValue('bad', 'nonexistent_type'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
     it('error message contains "Cannot deserialize as" for unrecognized type', () => {
-      try {
-        deserializeValue('bad', 'nonexistent_type');
-        expect.unreachable('should have thrown');
-      } catch (e) {
-        expect((e as RuntimeError).message).toContain(
-          'Cannot deserialize as nonexistent_type'
-        );
-      }
+      expectHaltMessageSync(
+        () => deserializeValue('bad', 'nonexistent_type'),
+        'Cannot deserialize as nonexistent_type'
+      );
     });
   });
 
-  // EC-10: deserializeValue(null, 'number') raises RILL-R004
+  // EC-10: deserializeValue(null, 'number') halts typed-atom
   describe('EC-10: deserialize null', () => {
-    it('throws RILL-R004 for null input', () => {
-      expect(() => deserializeValue(null, 'number')).toThrow(RuntimeError);
-      try {
-        deserializeValue(null, 'number');
-        expect.unreachable('should have thrown');
-      } catch (e) {
-        expect(e).toBeInstanceOf(RuntimeError);
-        expect((e as RuntimeError).errorId).toBe('RILL-R004');
-      }
+    it('halts typed-atom for null input', () => {
+      expectHaltSync(() => deserializeValue(null, 'number'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
     it('error message contains "Cannot deserialize null as number"', () => {
-      try {
-        deserializeValue(null, 'number');
-        expect.unreachable('should have thrown');
-      } catch (e) {
-        expect((e as RuntimeError).message).toContain(
-          'Cannot deserialize null as number'
-        );
-      }
+      expectHaltMessageSync(
+        () => deserializeValue(null, 'number'),
+        'Cannot deserialize null as number'
+      );
     });
   });
 
@@ -652,17 +640,23 @@ describe('type-registrations', () => {
     });
   });
 
-  // EC-7: json built-in on non-serializable type raises RILL-R004
-  describe('EC-7 integration: json on non-serializable raises RILL-R004', () => {
-    it('raises RILL-R004 for closure passed to json', async () => {
-      await expect(run('||{ "test" } -> json')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
+  // EC-7: json built-in on non-serializable type halts typed-atom
+  describe('EC-7 integration: json on non-serializable halts typed-atom', () => {
+    it('halts #INVALID_INPUT for closure passed to json', async () => {
+      await expectHalt(() => run('||{ "test" } -> json'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('rejects with RuntimeHaltSignal (not RuntimeError)', async () => {
+      await expect(run('||{ "test" } -> json')).rejects.toBeInstanceOf(
+        RuntimeHaltSignal
       );
     });
 
     it('error message contains "not JSON-serializable"', async () => {
-      await expect(run('||{ "test" } -> json')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('||{ "test" } -> json'),
         /not JSON-serializable/
       );
     });

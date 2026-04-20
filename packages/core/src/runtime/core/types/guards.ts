@@ -12,6 +12,7 @@
 
 import type { CallableMarker } from './markers.js';
 import type {
+  RillCodeValue,
   RillDatetime,
   RillDuration,
   RillIterator,
@@ -22,6 +23,21 @@ import type {
   RillValue,
   RillVector,
 } from './structures.js';
+
+/**
+ * Type guard for RillCodeValue (`:code` primitive).
+ *
+ * A `:code` value carries an interned atom from the atom registry.
+ * Compared by atom identity via `deepEquals`.
+ */
+export function isCode(value: RillValue): value is RillCodeValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_code' in value &&
+    (value as RillCodeValue).__rill_code === true
+  );
+}
 
 /** Type guard for RillTuple (spread args) */
 export function isTuple(value: RillValue): value is RillTuple {
@@ -138,3 +154,17 @@ export function isIterator(value: RillValue): value is RillIterator {
   if (!dict['done'] && !('value' in dict)) return false;
   return true;
 }
+
+// ============================================================
+// STATUS-AWARE PREDICATES (re-exported from status.ts)
+// ============================================================
+
+/**
+ * Re-exports for `isInvalid`, `isVacant`, and `getStatus`.
+ *
+ * Canonical implementations live in `./status.js` (task 1.1). This
+ * module re-exports them so downstream consumers import status-aware
+ * predicates from the central guards module alongside the structural
+ * type guards.
+ */
+export { isInvalid, isVacant, getStatus, emptyStatus } from './status.js';

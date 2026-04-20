@@ -1,0 +1,8 @@
+# AC-FDL-E2: Unregistered atom literal #FOO -> collapses to #R001
+#
+# #FOO is a well-formed but unregistered atom name. The atom registry
+# resolves it to the #R001 fallback. The script returns a valid :code
+# value whose atom name is "R001". Both runtimes produce identical
+# toNative output since they share the @rcrsr/rill atom registry.
+
+#FOO

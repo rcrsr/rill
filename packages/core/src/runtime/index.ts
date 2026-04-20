@@ -27,18 +27,23 @@ export type {
   ExecutionResult,
   ExecutionStepper,
   ExtensionEvent,
+  ExtensionFactoryCtx,
   FieldComparisonCallbacks,
   FunctionReturnEvent,
   HostCallEvent,
+  InvalidateMeta,
+  InvalidMeta,
   NativeArray,
   NativePlainObject,
   NativeValue,
   ObservabilityCallbacks,
   ResolverResult,
+  RillCode,
   RillDatetime,
   RillDuration,
   RillFieldDef,
   RillIterator,
+  RillStatus,
   RillStream,
   RillTuple,
   RillTypeValue,
@@ -51,6 +56,8 @@ export type {
   StepEndEvent,
   StepResult,
   StepStartEvent,
+  TraceFrame,
+  TraceKind,
   TypeDefinition,
   TypeProtocol,
   TypeStructure,
@@ -91,6 +98,7 @@ export type { NativeResult } from './core/values.js';
 
 // Extracted to types/ sub-modules (via barrel)
 export {
+  atomName,
   BUILT_IN_TYPES,
   commonType,
   compareStructuredFields,
@@ -101,21 +109,26 @@ export {
   createVector,
   deepEquals,
   deserializeValue,
+  formatHalt,
   formatRillLiteral,
   formatStructure,
   formatValue,
+  getStatus,
   inferElementType,
   inferStructure,
   inferType,
   isDatetime,
   isDuration,
+  isInvalid,
   isIterator,
   isRillStream,
   isStream,
   isTuple,
   isTypeValue,
+  isVacant,
   isVector,
   paramToFieldDef,
+  resolveAtom,
   serializeValue,
   structureEquals,
   structureMatches,
@@ -139,6 +152,7 @@ export { buildFieldDescriptor } from './core/field-descriptor.js';
 // ============================================================
 
 export { BreakSignal, ReturnSignal, YieldSignal } from './core/signals.js';
+export { RuntimeHaltSignal } from './core/types/index.js';
 
 // ============================================================
 // EXTENSION API

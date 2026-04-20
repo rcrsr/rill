@@ -21,6 +21,7 @@
 | Hierarchical Dispatch | `[path] -> target` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?field&type` |
+| Status probe | `.!` (status code on current `$`), `.!field` (status code on field) |
 
 ---
 
@@ -244,7 +245,7 @@ This works naturally with conditionals and captures:
 "hello" -> !.empty => $not_empty               # $not_empty = true
 ```
 
-No grouping needed — `!.empty` is parsed as a unit before `?` or `=>`.
+No grouping needed; `!.empty` is parsed as a unit before `?` or `=>`.
 
 ---
 
@@ -281,7 +282,7 @@ Chain a single closure:
 dict[c: 3, a: 1, b: 2] -> $fmt(...)       # "1-2-3" (names matched, key order irrelevant)
 ```
 
-`ordered` values convert to plain objects via `toNative()` — the `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
+`ordered` values convert to plain objects via `toNative()`. The `native` field holds `{ key: value, ... }`. Closures, iterators, vectors, and type values produce `native: null`.
 
 See [Types](topic-types.md) for full type documentation.
 
@@ -534,6 +535,26 @@ See [Reference](ref-language.md) for full dispatch semantics including dict disp
 
 ---
 
+## Status Probe (`.!`, `.!field`)
+
+The status probe returns the `:code` atom from an invalid value. Use it to inspect which error condition halted a value.
+
+```text
+$result.!              # :code atom from invalid $result
+$result.!status        # :code atom from invalid field "status"
+```
+
+`.!` returns `#ok` when the value is valid (not halted). `.!field` extracts the status code from a specific field. Both return a `:code` value.
+
+| Form | Returns |
+|------|---------|
+| `$v.!` | `:code` on `$v` (`#ok` if valid) |
+| `$v.!field` | `:code` on field `field` of `$v` (`#ok` if valid) |
+
+Compare with existence probes: `.?` tests presence (returns `bool`), `.!` tests status (returns `:code`). See [Error Handling](topic-error-handling.md) for guard and invalid value patterns.
+
+---
+
 ## Default Operator `??`
 
 Provide a default value if field is missing or access fails:
@@ -571,6 +592,17 @@ Method calls evaluate fully before the default operator applies.
 ---
 
 ## Existence Operators
+
+### Presence Probe `.?`
+
+`.?` on a bare value (no field name) returns `true` when the current `$` is a valid (non-halted) value.
+
+```text
+$result.?           # true if $result is valid, false if invalid
+$value -> .?        # bool: present and valid?
+```
+
+Use `.?` after `guard` to branch on success vs. invalid result. The status probe `.!` retrieves the specific code when `.?` returns false.
 
 ### Field Existence `.?field`
 
@@ -723,7 +755,7 @@ The `:>type` operator converts a value to the target type. Same-type conversions
 
 ## Spread Call Operator
 
-The spread call operator expands a value into the positional or named arguments of a function call. Spreading is opt-in — passing a tuple or ordered value without `...` passes it as a single argument.
+The spread call operator expands a value into the positional or named arguments of a function call. Spreading is opt-in; passing a tuple or ordered value without `...` passes it as a single argument.
 
 ### Syntax Forms
 
@@ -733,7 +765,7 @@ The spread call operator expands a value into the positional or named arguments 
 | `$fn(...$expr)` | Spread a specific expression into call arguments |
 | `$fn(a, ...$rest)` | Mix fixed args with a spread |
 
-`...` (bare) is equivalent to `...$` — it spreads the current piped value.
+`...` (bare) is equivalent to `...$`; it spreads the current piped value.
 
 At most one spread is permitted per call.
 
@@ -847,8 +879,8 @@ The `limit` key controls maximum iterations for sequential operators and maximum
 
 ## See Also
 
-- [Types](topic-types.md) — Type system and assertions
-- [Variables](topic-variables.md) — Capture and scope
-- [Control Flow](topic-control-flow.md) — Conditionals and loops
-- [Collections](topic-collections.md) — Collection operators
-- [Reference](ref-language.md) — Quick reference tables
+- [Types](topic-types.md): Type system and assertions
+- [Variables](topic-variables.md): Capture and scope
+- [Control Flow](topic-control-flow.md): Conditionals and loops
+- [Collections](topic-collections.md): Collection operators
+- [Reference](ref-language.md): Quick reference tables

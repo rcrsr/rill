@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
@@ -638,13 +639,11 @@ describe('Rill Runtime: Closure Semantics', () => {
       );
     });
 
-    it('return type :number halts with RILL-R004 on mismatch', async () => {
-      try {
-        await run('|x: number| { "{$x}" }:number => $fn\n$fn(5)');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId', 'RILL-R004');
-      }
+    it('return type :number halts with #TYPE_MISMATCH on mismatch', async () => {
+      await expectHalt(
+        () => run('|x: number| { "{$x}" }:number => $fn\n$fn(5)'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
     it('^output reflects declared return type', async () => {

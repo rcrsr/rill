@@ -46,6 +46,7 @@ import type {
 } from '../../types/operations.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered, isTypeValue } from '../../types/guards.js';
+import { throwTypeHalt } from '../../types/halt.js';
 import {
   createOrdered,
   createTuple,
@@ -144,9 +145,16 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Union type ref: :>(A | B) — intentionally unsupported in this release
       if (typeRef.kind === 'union') {
-        throw new RuntimeError(
-          'RILL-R004',
-          'union type conversion is not yet supported'
+        throwTypeHalt(
+          {
+            sourceId: this.ctx.sourceId,
+            fn: ':>',
+          },
+          'INVALID_INPUT',
+          'union type conversion is not yet supported',
+          'runtime',
+          undefined,
+          'host'
         );
       }
 

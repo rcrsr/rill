@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Node Consolidation Regression', () => {
   // ============================================================
@@ -27,7 +28,8 @@ describe('Node Consolidation Regression', () => {
     });
 
     it('42 -> :string fails with type mismatch', async () => {
-      await expect(run('42 -> :string')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('42 -> :string'),
         'expected string, got number'
       );
     });
@@ -47,7 +49,8 @@ describe('Node Consolidation Regression', () => {
     });
 
     it('$t holds number type value — "hello" -> :$t fails', async () => {
-      await expect(run('number => $t\n"hello" -> :$t')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('number => $t\n"hello" -> :$t'),
         'expected number, got string'
       );
     });
@@ -98,13 +101,15 @@ describe('Node Consolidation Regression', () => {
   // ============================================================
 
   describe('Error Cases Unchanged', () => {
-    it('"number" => $t; 42 -> :$t throws RILL-R004 (string is not a type reference)', async () => {
-      await expect(
-        run(`
+    it('"number" => $t; 42 -> :$t throws (string is not a type reference)', async () => {
+      await expectHaltMessage(
+        () =>
+          run(`
           "number" => $t
           42 -> :$t
-        `)
-      ).rejects.toThrow('not a valid type reference');
+        `),
+        'not a valid type reference'
+      );
     });
   });
 });

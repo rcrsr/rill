@@ -12,32 +12,30 @@ import { run } from '../helpers/runtime.js';
 
 describe('CoreMixin Error Contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
-    it('throws RuntimeError for unsupported primary node type', async () => {
-      // Create a mock AST with an unsupported expression type
-      // We'll use the public API to test this behavior indirectly
-      // The error would occur if we had an AST node with an invalid type
-
-      // Since we can't easily construct invalid AST through parsing,
-      // we test the error message pattern when such nodes are encountered
+    it('RuntimeError shape for unsupported primary node type', async () => {
+      // This is a structural check on RuntimeError construction.
+      // Sites that previously raised RILL-R004 now throw RuntimeHaltSignal
+      // via throwTypeHalt (see evaluator-core-annotations.test.ts).
       const error = new RuntimeError(
-        'RILL-R004',
+        'RILL-R002',
         'Unsupported expression type: InvalidType',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.errorId).toBe('RILL-R004');
+      expect(error.errorId).toBe('RILL-R002');
       expect(error.message).toContain('Unsupported expression type');
     });
 
-    it('throws RuntimeError for unsupported pipe target type', async () => {
-      // Similar to above - testing the error contract exists
+    it('RuntimeError shape for unsupported pipe target type', async () => {
+      // Structural check only; see evaluator-core-annotations.test.ts for
+      // the live-throw assertion via typed-atom halt.
       const error = new RuntimeError(
-        'RILL-R004',
+        'RILL-R002',
         'Unsupported pipe target type: InvalidTarget',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.errorId).toBe('RILL-R004');
+      expect(error.errorId).toBe('RILL-R002');
       expect(error.message).toContain('Unsupported pipe target type');
     });
   });

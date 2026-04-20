@@ -585,26 +585,6 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R004',
-    category: 'runtime',
-    description: 'Type conversion failure',
-    messageTemplate: 'Cannot convert {value} to {targetType}',
-    cause:
-      'Value cannot be converted to target type (invalid format or incompatible types).',
-    resolution:
-      'Ensure value has valid format for target type. For string-to-number: check numeric format. For parse operations: validate input structure.',
-    examples: [
-      {
-        description: 'Type mismatch in function argument',
-        code: 'range("ten", 20)  # range expects number, got string',
-      },
-      {
-        description: 'Cannot serialize closure',
-        code: 'fn() => "test" end -> json()',
-      },
-    ],
-  },
-  {
     errorId: 'RILL-R005',
     category: 'runtime',
     description: 'Undefined variable',

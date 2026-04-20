@@ -11,6 +11,7 @@ import { isDuration, toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Language: Duration Type', () => {
   // ============================================================
@@ -343,23 +344,26 @@ describe('Rill Language: Duration Type', () => {
   // ============================================================
 
   describe('error cases', () => {
-    it('halts on negative hours with RILL-R004 [AC-E4]', async () => {
+    it('halts on negative hours [AC-E4]', async () => {
       // duration(hours: -2)
-      await expect(run('duration(0, 0, 0, -2)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('duration(0, 0, 0, -2)'),
         'duration hours must be non-negative'
       );
     });
 
-    it('halts on negative days with RILL-R004 [EC-2]', async () => {
+    it('halts on negative days [EC-2]', async () => {
       // duration(days: -1)
-      await expect(run('duration(0, 0, -1)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('duration(0, 0, -1)'),
         'duration days must be non-negative'
       );
     });
 
-    it('halts on negative months with RILL-R004 [EC-2]', async () => {
+    it('halts on negative months [EC-2]', async () => {
       // duration(months: -3)
-      await expect(run('duration(0, -3)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('duration(0, -3)'),
         'duration months must be non-negative'
       );
     });
@@ -401,7 +405,8 @@ describe('Rill Language: Duration Type', () => {
 
     it('halts on non-number parameter [EC-4]', async () => {
       // duration(hours: "two") - positional equivalent
-      await expect(run('duration(0, 0, 0, "two")')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('duration(0, 0, 0, "two")'),
         'duration hours must be a finite number: two'
       );
     });
@@ -412,9 +417,10 @@ describe('Rill Language: Duration Type', () => {
         returnType: { kind: 'number' },
         fn: () => NaN,
       };
-      await expect(
-        run('duration(0, 0, getNaN())', { functions: { getNaN } })
-      ).rejects.toThrow('duration days must be a finite number');
+      await expectHaltMessage(
+        () => run('duration(0, 0, getNaN())', { functions: { getNaN } }),
+        'duration days must be a finite number'
+      );
     });
 
     it('halts on Infinity duration parameter', async () => {
@@ -423,9 +429,10 @@ describe('Rill Language: Duration Type', () => {
         returnType: { kind: 'number' },
         fn: () => Infinity,
       };
-      await expect(
-        run('duration(0, 0, 0, getInf())', { functions: { getInf } })
-      ).rejects.toThrow('duration hours must be a finite number');
+      await expectHaltMessage(
+        () => run('duration(0, 0, 0, getInf())', { functions: { getInf } }),
+        'duration hours must be a finite number'
+      );
     });
   });
 

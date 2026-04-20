@@ -33,6 +33,8 @@ import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import { haltSlowPath } from './access.js';
+import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 
 /**
  * Find the type registration for a value by type name.
@@ -149,7 +151,29 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Arithmetic operators - require numbers
       // Auto-invoke closures before checking type
       const rawLeft = await this.evaluateExprHead(node.left);
-      const resolvedLeft = await this.resolveExpressionValue(rawLeft);
+      const resolvedLeftRaw = await this.resolveExpressionValue(rawLeft);
+      // EC-7: access-halt gate at arith site. An invalid operand halts
+      // before the type check, so the halt surfaces as an access frame.
+      // RI-4: inline the Symbol-keyed sidecar probe to eliminate the
+      // per-iteration arrow-closure allocation that `accessHaltGateFast`
+      // required (NFR-ERR-1 hot loop). Slow path delegates to
+      // `haltSlowPath` which reads `node.span.start` itself.
+      let resolvedLeft: RillValue;
+      if (
+        resolvedLeftRaw !== null &&
+        typeof resolvedLeftRaw === 'object' &&
+        (resolvedLeftRaw as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !==
+          undefined
+      ) {
+        resolvedLeft = haltSlowPath(
+          resolvedLeftRaw,
+          op,
+          node.left,
+          this.ctx.sourceId
+        );
+      } else {
+        resolvedLeft = resolvedLeftRaw;
+      }
       if (typeof resolvedLeft !== 'number') {
         throw new RuntimeError(
           'RILL-R002',
@@ -160,7 +184,23 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const left = resolvedLeft;
 
       const rawRight = await this.evaluateExprHead(node.right);
-      const resolvedRight = await this.resolveExpressionValue(rawRight);
+      const resolvedRightRaw = await this.resolveExpressionValue(rawRight);
+      let resolvedRight: RillValue;
+      if (
+        resolvedRightRaw !== null &&
+        typeof resolvedRightRaw === 'object' &&
+        (resolvedRightRaw as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !==
+          undefined
+      ) {
+        resolvedRight = haltSlowPath(
+          resolvedRightRaw,
+          op,
+          node.right,
+          this.ctx.sourceId
+        );
+      } else {
+        resolvedRight = resolvedRightRaw;
+      }
       if (typeof resolvedRight !== 'number') {
         throw new RuntimeError(
           'RILL-R002',

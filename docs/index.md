@@ -24,6 +24,7 @@
 | [Operators](topic-operators.md) | Arithmetic, comparison, spread, extraction |
 | [Closures](topic-closures.md) | Late binding, dict-bound closures |
 | [Closure Annotations](topic-closure-annotations.md) | Parameter metadata, annotations, and reflection |
+| [Error Handling](topic-error-handling.md) | `.!`, `.?`, `guard`, `retry`, and error recovery patterns |
 
 ## Data & Collections
 
@@ -78,14 +79,15 @@
 3. **See it in action:** Browse [Examples](guide-examples.md) for working code
 4. **Something not working?** Check [Troubleshooting](guide-troubleshooting.md)
 5. **Learn the language:** Read [Types](topic-types.md), [Control Flow](topic-control-flow.md), [Closures](topic-closures.md)
-6. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Type System](topic-type-system.md)
-7. **Design patterns:** Study the [Cookbook](cookbook.md)
-8. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
-9. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)
-10. **Configure a project:** See [Config Reference](ref-config.md) and [Config API Reference](ref-config-api.md)
-11. **Extend rill:** See [Extensions](integration-extensions.md) and [Extension Packages](bundled-extensions.md)
-12. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
-13. **Extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
+6. **Handle errors:** Study [Error Handling](topic-error-handling.md) for `.!`, `guard`, `retry`, and recovery operators
+7. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Type System](topic-type-system.md)
+8. **Design patterns:** Study the [Cookbook](cookbook.md)
+9. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
+10. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)
+11. **Configure a project:** See [Config Reference](ref-config.md) and [Config API Reference](ref-config-api.md)
+12. **Extend rill:** See [Extensions](integration-extensions.md) and [Extension Packages](bundled-extensions.md)
+13. **Agent framework:** See [rill-agent](https://github.com/rcrsr/rill-agent)
+14. **Extensions:** See [rill-ext](https://github.com/rcrsr/rill-ext)
 
 ## Changelog
 

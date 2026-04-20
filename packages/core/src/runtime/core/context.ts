@@ -13,16 +13,243 @@ import type {
   RuntimeContext,
   RuntimeOptions,
   SchemeResolver,
+  InvalidMeta,
 } from './types/runtime.js';
 import { bindDictCallables } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { inferType } from './types/registrations.js';
+import {
+  invalidate as invalidateStatus,
+  type InvalidateMeta,
+} from './types/status.js';
+import { createTraceFrame } from './types/trace.js';
 import {
   callable,
   validateDefaultValueType,
   type ApplicationCallable,
   type RillParam,
 } from './callable.js';
+
+/**
+ * Maximum time (ms) `dispose()` waits for in-flight operations before
+ * logging a warning and proceeding (EC-11).
+ */
+const DISPOSE_TIMEOUT_MS = 5000;
+
+/**
+ * Non-enumerable slot used to stash the shared {@link LifecycleState} on
+ * the factory-scope RuntimeContext. Child contexts locate it by reference
+ * through the parent chain so dispose and the chained signal remain shared.
+ */
+const LIFECYCLE_SYMBOL: unique symbol = Symbol('rill.lifecycle');
+
+/**
+ * Shared lifecycle state between a factory-scope context and all child
+ * contexts derived from it. A single object is created in
+ * `createRuntimeContext` and propagated by reference to children so that
+ * `dispose`, `isDisposed`, and the chained signal observe the same state.
+ */
+interface LifecycleState {
+  readonly factoryController: AbortController;
+  readonly signal: AbortSignal | undefined;
+  readonly callbacks: RuntimeCallbacks;
+  disposed: boolean;
+  disposePromise: Promise<void> | null;
+  readonly inflight: Set<Promise<unknown>>;
+}
+
+/**
+ * Build the AbortSignal exposed to host-function call sites.
+ *
+ * When the host supplied `options.signal`, chain it with the factory-scope
+ * controller via `AbortSignal.any` so either can cancel. Requires Node
+ * >= 22.16.0 / 24.0.0 (DEC-6) to avoid GC bug #57736.
+ */
+function buildChainedSignal(
+  factorySignal: AbortSignal,
+  hostSignal: AbortSignal | undefined
+): AbortSignal {
+  if (hostSignal === undefined) return factorySignal;
+  return AbortSignal.any([factorySignal, hostSignal]);
+}
+
+/**
+ * Bind `invalidate`, `catch`, `dispose`, `isDisposed`, and
+ * `createDisposedResult` onto a mutable context draft.
+ *
+ * Shared between factory-scope and child-scope construction so both
+ * observe the same lifecycle state.
+ */
+function bindLifecycleMethods(
+  draft: {
+    invalidate: RuntimeContext['invalidate'];
+    catch: RuntimeContext['catch'];
+    dispose: RuntimeContext['dispose'];
+    isDisposed: RuntimeContext['isDisposed'];
+    createDisposedResult: RuntimeContext['createDisposedResult'];
+    trackInflight: RuntimeContext['trackInflight'];
+  },
+  state: LifecycleState
+): void {
+  draft.invalidate = (error: unknown, meta: InvalidMeta): RillValue => {
+    const mergedMeta = mergeMetaWithError(error, meta);
+    return invalidateStatus(
+      {},
+      mergedMeta,
+      createTraceFrame({
+        site: '',
+        kind: 'host',
+        fn: meta.provider,
+      })
+    );
+  };
+
+  draft.catch = async <T>(
+    thunk: () => Promise<T>,
+    detector: (e: unknown) => InvalidMeta | null
+  ): Promise<T | RillValue> => {
+    try {
+      return await thunk();
+    } catch (err) {
+      // Non-Error thrown (string, number, etc.) → #R999 with sanitized raw.
+      if (!(err instanceof Error)) {
+        return draft.invalidate(err, {
+          code: 'R999',
+          provider: 'catch',
+          raw: { original: String(err) },
+        });
+      }
+      const detected = detector(err);
+      if (detected === null) {
+        return draft.invalidate(err, {
+          code: 'R999',
+          provider: 'catch',
+          raw: { message: sanitizeMessage(err.message) },
+        });
+      }
+      return draft.invalidate(err, detected);
+    }
+  };
+
+  draft.dispose = (): Promise<void> => {
+    if (state.disposePromise !== null) return state.disposePromise;
+    state.disposePromise = performDispose(state);
+    return state.disposePromise;
+  };
+
+  draft.isDisposed = (): boolean => state.disposed;
+
+  draft.createDisposedResult = (): RillValue =>
+    invalidateStatus(
+      {},
+      { code: 'DISPOSED', provider: 'runtime', raw: {} },
+      createTraceFrame({ site: '', kind: 'host', fn: 'dispose' })
+    );
+
+  draft.trackInflight = (promise: Promise<unknown>): void => {
+    // Defensive: dispose() already began — do not register new work.
+    if (state.disposed) return;
+    state.inflight.add(promise);
+    // Settle handler removes the entry regardless of fulfillment state.
+    // Swallow rejections here so an unhandled-promise observer is not
+    // triggered by the bookkeeping promise; actual rejection handling
+    // remains the responsibility of the dispatch site.
+    const forget = (): void => {
+      state.inflight.delete(promise);
+    };
+    promise.then(forget, forget);
+  };
+}
+
+/**
+ * Merge an arbitrary thrown value with caller-supplied meta.
+ *
+ * Preserves `meta.raw` fields and fills `message` from the error when the
+ * caller did not provide one. Never mutates the input meta.
+ */
+function mergeMetaWithError(error: unknown, meta: InvalidMeta): InvalidateMeta {
+  const existingRaw = meta.raw ?? {};
+  const hasMessage =
+    typeof (existingRaw as { message?: unknown }).message === 'string';
+  if (hasMessage) return meta;
+  if (error instanceof Error) {
+    return {
+      code: meta.code,
+      provider: meta.provider,
+      raw: { ...existingRaw, message: sanitizeMessage(error.message) },
+    };
+  }
+  return meta;
+}
+
+/**
+ * Strip stack traces and trailing whitespace from error messages before
+ * embedding them in `raw.message` to avoid leaking host-internal detail.
+ */
+function sanitizeMessage(message: string): string {
+  const firstLine = message.split('\n', 1)[0] ?? '';
+  return firstLine.trim();
+}
+
+/**
+ * Implements the `dispose()` cascade (IR-13, EC-11):
+ * 1. Abort the factory-scope controller.
+ * 2. Await in-flight operations with a bounded timeout.
+ * 3. On timeout, log a warning via callbacks and proceed.
+ * 4. Flip the disposed flag.
+ */
+async function performDispose(state: LifecycleState): Promise<void> {
+  state.factoryController.abort();
+
+  if (state.inflight.size > 0) {
+    try {
+      await Promise.race([
+        Promise.allSettled(Array.from(state.inflight)),
+        timeoutReject(DISPOSE_TIMEOUT_MS),
+      ]);
+    } catch {
+      logDisposeTimeout(state);
+    }
+  }
+
+  state.disposed = true;
+}
+
+/**
+ * Reject after `ms` milliseconds; used by `performDispose` to bound the
+ * in-flight wait without pulling in Node's timers/promises API.
+ */
+function timeoutReject(ms: number): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('dispose-timeout')), ms);
+    // Don't let the timer keep the process alive on Node.
+    if (typeof timer === 'object' && timer !== null && 'unref' in timer) {
+      (timer as { unref(): void }).unref();
+    }
+  });
+}
+
+/**
+ * Emit a dispose-timeout warning via the existing callbacks channel.
+ *
+ * Prefers `onLogEvent` when the host installed it (structured diagnostic);
+ * falls back to `onLog` so the warning is never silently dropped.
+ */
+function logDisposeTimeout(state: LifecycleState): void {
+  const callbacks = state.callbacks;
+  if (callbacks.onLogEvent !== undefined) {
+    callbacks.onLogEvent({
+      event: 'dispose_timeout',
+      subsystem: 'runtime',
+      timestamp: new Date().toISOString(),
+      timeoutMs: DISPOSE_TIMEOUT_MS,
+    });
+    return;
+  }
+  callbacks.onLog(
+    `runtime: dispose() exceeded ${DISPOSE_TIMEOUT_MS}ms waiting for in-flight operations`
+  );
+}
 
 // Built-in functions that are genuinely variadic and must skip arg validation.
 // log: tests call log("msg", extraValue) — extra args are silently ignored.
@@ -293,7 +520,24 @@ export function createRuntimeContext(
   // Suppress unused-variable warning for typeNames (consumed in later phases).
   void typeNames;
 
-  return {
+  // Factory-scope AbortController: its signal is the ExtensionFactoryCtx.signal
+  // surface (wired in task 3.5) and is chained with the host-supplied signal
+  // (when present) for host-function call sites.
+  const factoryController = new AbortController();
+  const mergedCallbacks: RuntimeCallbacks = {
+    ...defaultCallbacks,
+    ...options.callbacks,
+  };
+  const lifecycle: LifecycleState = {
+    factoryController,
+    signal: buildChainedSignal(factoryController.signal, options.signal),
+    callbacks: mergedCallbacks,
+    disposed: false,
+    disposePromise: null,
+    inflight: new Set(),
+  };
+
+  const ctx: RuntimeContext = {
     parent: undefined,
     variables,
     variableTypes,
@@ -301,12 +545,20 @@ export function createRuntimeContext(
     typeMethodDicts,
     leafTypes,
     unvalidatedMethodReceivers,
-    callbacks: { ...defaultCallbacks, ...options.callbacks },
+    callbacks: mergedCallbacks,
     observability: options.observability ?? {},
     pipeValue: null,
     timeout: options.timeout,
     autoExceptions,
-    signal: options.signal,
+    signal: lifecycle.signal,
+    // Lifecycle methods bound below via bindLifecycleMethods; transient
+    // placeholders satisfy strict interface typing until that call returns.
+    invalidate: () => null,
+    catch: async () => null,
+    dispose: async () => undefined,
+    isDisposed: () => false,
+    createDisposedResult: () => null,
+    trackInflight: () => {},
     maxCallStackDepth: options.maxCallStackDepth ?? 100,
     annotationStack: [],
     callStack: [],
@@ -320,18 +572,54 @@ export function createRuntimeContext(
     timezone: options.timezone,
     nowMs: options.nowMs,
   };
+
+  bindLifecycleMethods(ctx, lifecycle);
+
+  // Stash lifecycle state so createChildContext can find it by walking to
+  // the root. Non-enumerable to avoid leaking into structural comparisons.
+  Object.defineProperty(ctx, LIFECYCLE_SYMBOL, {
+    value: lifecycle,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+
+  return ctx;
+}
+
+/**
+ * Walk the parent chain to find the shared {@link LifecycleState} stashed
+ * by `createRuntimeContext`. Returns `undefined` for minimal literal
+ * contexts (e.g. `eval/index.ts:assertType`) that never participate in
+ * dispose flow.
+ */
+function findLifecycleState(ctx: RuntimeContext): LifecycleState | undefined {
+  // Walk via `parent`; the lifecycle lives on the root factory-scope ctx.
+  let cursor: RuntimeContext | undefined = ctx;
+  while (cursor !== undefined) {
+    const slot = (cursor as unknown as Record<symbol, unknown>)[
+      LIFECYCLE_SYMBOL
+    ];
+    if (slot !== undefined) return slot as LifecycleState;
+    cursor = cursor.parent;
+  }
+  return undefined;
 }
 
 /**
  * Create a child context for block scoping.
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
+ *
+ * Child contexts inherit the parent's lifecycle state (disposed flag,
+ * chained signal, and dispose promise) by reference so a single
+ * `dispose()` call cascades across the entire scope tree.
  */
 export function createChildContext(
   parent: RuntimeContext,
   overrides?: { sourceId?: string; sourceText?: string }
 ): RuntimeContext {
-  return {
+  const child: RuntimeContext = {
     parent,
     variables: new Map<string, RillValue>(),
     variableTypes: new Map<
@@ -349,6 +637,16 @@ export function createChildContext(
     timeout: parent.timeout,
     autoExceptions: parent.autoExceptions,
     signal: parent.signal,
+    // Inherit the parent-bound methods. When the parent was produced by
+    // `createRuntimeContext`, these are real implementations sharing
+    // lifecycle state via closure. Rebinding here would break dispose
+    // idempotency across scopes.
+    invalidate: parent.invalidate,
+    catch: parent.catch,
+    dispose: parent.dispose,
+    isDisposed: parent.isDisposed,
+    createDisposedResult: parent.createDisposedResult,
+    trackInflight: parent.trackInflight,
     maxCallStackDepth: parent.maxCallStackDepth,
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
@@ -362,6 +660,11 @@ export function createChildContext(
     sourceId: overrides?.sourceId ?? parent.sourceId,
     sourceText: overrides?.sourceText ?? parent.sourceText,
   };
+  // Suppress unused-variable warning for findLifecycleState; exposed for
+  // future callers that need to inspect the shared state without reaching
+  // into the parent's closures (e.g. dispatch-site guards in task 3.3).
+  void findLifecycleState;
+  return child;
 }
 
 /**

@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Type Variable Positions', () => {
   // ============================================================
@@ -27,7 +28,8 @@ describe('Type Variable Positions', () => {
       expect(await run('number => $t\n42 -> :$t')).toBe(42);
     });
     it('AC-9: $t holds string type value — type mismatch throws', async () => {
-      await expect(run('number => $t\n"hello" -> :$t')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('number => $t\n"hello" -> :$t'),
         'expected number, got string'
       );
     });
@@ -143,22 +145,26 @@ describe('Type Variable Positions', () => {
 
   describe('Error Cases', () => {
     // AC-17 / EC-3: string variable in :$t — RILL-R004
-    it('AC-17/EC-3: string variable $t used in :$t assertion throws RILL-R004', async () => {
-      await expect(
-        run(`
+    it('AC-17/EC-3: string variable $t used in :$t assertion halts typed-atom', async () => {
+      await expectHaltMessage(
+        () =>
+          run(`
           "number" => $t
           42 -> :$t
-        `)
-      ).rejects.toThrow('not a valid type reference');
+        `),
+        'not a valid type reference'
+      );
     });
 
     it('AC-17/EC-3: string variable $t used in :$t — identifies the variable name', async () => {
-      await expect(
-        run(`
+      await expectHaltMessage(
+        () =>
+          run(`
           "string" => $t
           42 -> :$t
-        `)
-      ).rejects.toThrow('$t is not a valid type reference');
+        `),
+        '$t is not a valid type reference'
+      );
     });
 
     // AC-19 / EC-1: undefined variable in :$t — runtime error
@@ -174,25 +180,29 @@ describe('Type Variable Positions', () => {
     });
 
     // AC-21 / EC-2: number variable in :$t — RILL-R004
-    it('AC-21/EC-2: number variable $t used in :$t assertion throws RILL-R004', async () => {
-      await expect(
-        run(`
+    it('AC-21/EC-2: number variable $t used in :$t assertion halts typed-atom', async () => {
+      await expectHaltMessage(
+        () =>
+          run(`
           42 => $t
           42 -> :$t
-        `)
-      ).rejects.toThrow('not a valid type reference');
+        `),
+        'not a valid type reference'
+      );
     });
 
     it('AC-21/EC-2: number variable $t used in :$t — identifies the variable name', async () => {
-      await expect(
-        run(`
+      await expectHaltMessage(
+        () =>
+          run(`
           99 => $myNum
           42 -> :$myNum
-        `)
-      ).rejects.toThrow('$myNum is not a valid type reference');
+        `),
+        '$myNum is not a valid type reference'
+      );
     });
 
-    it('RILL-R004 error in closure param position identifies param and types', async () => {
+    it('typed-atom halt in closure param position identifies param and types', async () => {
       await expect(
         run(`
           string => $t

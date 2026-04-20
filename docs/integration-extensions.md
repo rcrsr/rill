@@ -76,11 +76,81 @@ Lifecycle hooks (`dispose`, `suspend`, `restore`) live on the factory result obj
 
 ### ExtensionFactory Type
 
+The factory signature accepts an optional second argument (`ExtensionFactoryCtx`) for async factories that need to register error codes or observe the dispose signal:
+
 ```typescript
-type ExtensionFactory<TConfig> = (config: TConfig) => ExtensionFactoryResult;
+type ExtensionFactory<TConfig> = (
+  config: TConfig,
+  ctx: ExtensionFactoryCtx
+) => ExtensionFactoryResult | Promise<ExtensionFactoryResult>;
 ```
 
 Factory functions accept typed configuration and return an isolated extension instance.
+
+## Registering Domain Error Codes
+
+Extensions register domain-specific error atoms using `ctx.registerErrorCode` in the factory. Registered atoms become available as `#NAME` literals in scripts.
+
+```typescript
+async function createPaymentExtension(
+  config: PaymentConfig,
+  ctx: ExtensionFactoryCtx
+): Promise<ExtensionFactoryResult> {
+  ctx.registerErrorCode('PAYMENT_FAILED', 'domain');
+  ctx.registerErrorCode('CARD_DECLINED', 'domain');
+
+  return { value: { charge: toCallable({ /* ... */ }) } };
+}
+```
+
+The second argument to `registerErrorCode` is the atom kind (`'domain'`, `'network'`, etc.). Kind is informational; scripts use the atom name only.
+
+Scripts access registered atoms by name:
+
+```text
+guard { app.charge(dict[amount: 100]) } => $result
+$result.! -> ($ == #CARD_DECLINED) ? "Try another card" ! error "Payment error: {$result.!}"
+```
+
+See [Error Reference](ref-errors.md) for pre-registered atoms. Atoms registered by the runtime itself (e.g. `#TIMEOUT`, `#AUTH`) do not need re-registration.
+
+---
+
+## Returning Invalid Values
+
+Use `ctx.invalidate` to return an invalid value instead of throwing. Invalid values propagate through pipes until the script tests them with `.?` or `.!`.
+
+```typescript
+fn: async (args, ctx) => {
+  try {
+    return await sdkClient.charge(args.amount as number);
+  } catch (e) {
+    if (e instanceof CardDeclinedError) {
+      return ctx.invalidate(e, { code: 'CARD_DECLINED', provider: 'payment' });
+    }
+    throw e; // re-throw unexpected errors
+  }
+},
+```
+
+Use `ctx.catch` for a declarative alternative:
+
+```typescript
+fn: async (args, ctx) => {
+  return ctx.catch(
+    () => sdkClient.charge(args.amount as number),
+    (e) => {
+      if (e instanceof CardDeclinedError) return { code: 'CARD_DECLINED', provider: 'payment' };
+      if (e instanceof TimeoutError) return { code: 'TIMEOUT', provider: 'payment' };
+      return null; // unclassified errors become #R999
+    }
+  );
+},
+```
+
+Both approaches produce an invalid value the script can recover from without halting.
+
+---
 
 ## Extension Manifest
 
@@ -124,7 +194,7 @@ interface ExtensionManifest {
 |-------|------|----------|-------------|
 | `type` | `'string' \| 'number' \| 'boolean'` | Yes | Expected type for the config value |
 | `required` | `boolean` | No | Whether the field must appear in config |
-| `secret` | `boolean` | No | Advisory flag — tooling may mask or omit the value |
+| `secret` | `boolean` | No | Advisory flag; tooling may mask or omit the value |
 
 ### Manifest Contract
 
@@ -132,7 +202,7 @@ To publish a conforming manifest:
 
 1. Export a named `extensionManifest` from the package's main entry point.
 2. If the factory accepts config, declare all fields in `configSchema` with their types and `required` flags.
-3. The factory receives only the config object — it must not call rill runtime APIs during construction.
+3. The factory receives only the config object; it must not call rill runtime APIs during construction.
 4. Validation errors must throw synchronously from the factory, not during function execution.
 
 ### Relationship to ExtensionFactoryResult and ExtensionFactory
@@ -192,7 +262,7 @@ const ctx = createRuntimeContext({
 
 Extensions that manage external resources (processes, connections, timers) must implement `dispose()`.
 
-`dispose`, `suspend`, and `restore` live on the `ExtensionFactoryResult` object — not inside the `value` dict:
+`dispose`, `suspend`, and `restore` live on the `ExtensionFactoryResult` object, not inside the `value` dict:
 
 ```typescript
 import { toCallable } from '@rcrsr/rill';
@@ -229,10 +299,13 @@ try {
 
 ### Dispose Guidelines
 
-- `dispose()` may be sync or async
-- Must be idempotent (safe to call multiple times)
-- Should not throw — log warnings for cleanup failures
-- Always call `dispose()` in a `finally` block
+- `dispose()` may be sync or async.
+- Must be idempotent (safe to call multiple times).
+- Should not throw; log warnings for cleanup failures.
+- Always call `dispose()` in a `finally` block.
+- `ctx.signal` in the factory fires when the runtime disposes before factory completion. Pass it to long-running setup operations.
+
+The top-level `dispose()` function from `@rcrsr/rill` shuts down the runtime and fires abort signals to all in-flight calls. See [Host API Reference](ref-host-api.md#dispose-lifecycle) for contract details.
 
 ## State Persistence
 
@@ -332,7 +405,7 @@ Key conventions:
 
 ### 1. Validate Configuration Eagerly
 
-Throw errors synchronously in the factory — not during function execution:
+Throw errors synchronously in the factory, not during function execution:
 
 ```typescript
 import type { ExtensionFactoryResult } from '@rcrsr/rill';

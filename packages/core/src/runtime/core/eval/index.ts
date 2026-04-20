@@ -117,6 +117,34 @@ export function assertType(
     ]),
     unvalidatedMethodReceivers: new Set(),
     hostContext: {},
+    // Minimal type-check context: assertType does not participate in the
+    // dispose / invalidate / catch flow, so these slots remain stubs that
+    // throw if reached. Real bindings live on the factory-scope context
+    // produced by createRuntimeContext.
+    invalidate: () => {
+      throw new Error(
+        'RuntimeContext.invalidate not available in type-check minimal context'
+      );
+    },
+    catch: () => {
+      throw new Error(
+        'RuntimeContext.catch not available in type-check minimal context'
+      );
+    },
+    dispose: () => {
+      throw new Error(
+        'RuntimeContext.dispose not available in type-check minimal context'
+      );
+    },
+    isDisposed: () => false,
+    createDisposedResult: () => {
+      throw new Error(
+        'RuntimeContext.createDisposedResult not available in type-check minimal context'
+      );
+    },
+    trackInflight: () => {
+      // No-op: minimal type-check context never participates in dispose flow.
+    },
   };
 
   const evaluator = getEvaluator(minimalContext);

@@ -722,6 +722,143 @@ Use `each` when order matters or streams depend on prior results. Use `map` when
 
 ---
 
+## Error Handling
+
+Recipes for recovering from failed operations, coercing invalid results, and classifying errors.
+
+### Guard and Coerce
+
+Catch a halt from a risky access and convert the invalid result to a safe default value:
+
+```rill
+"hello" => $val
+guard { $val.upper } => $out
+$out.! ? "FALLBACK" ! $out
+# Result: "HELLO"
+```
+
+When `guard` catches a halt, `.!` returns `true` and the right branch supplies the fallback. When the body succeeds, `.!` returns `false` and `$out` passes through.
+
+For invalid inputs, use `??` to replace a vacant or invalid result:
+
+```rill
+guard { "hello" -> .upper } ?? "fallback"
+# Result: "HELLO"
+```
+
+### Retry and Coerce
+
+Retry a failing operation up to N times, then coerce the result to a default:
+
+```text
+retry<3> {
+  app::fetch("https://api.example.com/data")
+} => $result
+
+$result.! ? "unavailable" ! $result
+```
+
+`retry<3>` re-enters the body up to 3 times. If all attempts fail, the final invalid value is returned. The `??` operator replaces it with a safe default.
+
+Combine with `??` for a one-liner fallback:
+
+```text
+retry<3> { app::fetch("https://api.example.com/data") } ?? "unavailable"
+```
+
+### Nested Guard and Retry
+
+Wrap an inner `guard` with an outer retry to re-execute on partial failure:
+
+```text
+retry<3, on: list[#UNAVAILABLE]> {
+  guard<on: list[#NOT_FOUND]> {
+    app::fetch("https://api.example.com/resource")
+  } => $inner
+  $inner.! ? (error "not found") ! $inner
+} => $result
+
+$result.! ? "all retries failed: {$result.!message}" ! $result
+```
+
+`guard<on: list[#NOT_FOUND]>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<3, on: list[#UNAVAILABLE]>` retries only on service unavailability.
+
+### Per-Item Collection Recovery
+
+Apply `guard` per item so one failure does not stop the whole collection:
+
+```text
+["https://a.example.com", "https://b.example.com", "https://c.example.com"] -> map {
+  guard { app::fetch($) } => $r
+  $r.! ? [url: $, ok: false, err: $r.!message] ! dict[url: $, ok: true, data: $r]
+}
+```
+
+Each item runs its own `guard`. Failed fetches produce an `[ok: false]` record. Downstream code filters or reports failures without halting.
+
+Filter out failures after collection:
+
+```rill
+[
+  [url: "a", ok: true, data: "response"],
+  [url: "b", ok: false, err: "timeout"],
+  [url: "c", ok: true, data: "response2"]
+] => $results
+
+$results -> filter { $.ok }
+# Result: list[dict[url: "a", ok: true, data: "response"], dict[url: "c", ok: true, data: "response2"]]
+```
+
+### Detect and Branch on `.!code`
+
+Use the error atom to route different error types to different handlers:
+
+```rill
+# Probe a valid value — guard succeeds, so .! is false
+"hello" => $val
+guard { $val.upper } => $result
+$result.! ? "error occurred" ! $result
+# Result: "HELLO"
+```
+
+For real error routing with host functions, use a `text` fence since the harness cannot produce specific error atoms:
+
+```text
+guard { app::fetch("https://api.example.com") } => $result
+$result.! ? {
+  ($result.!code == #TIMEOUT) ? "Request timed out — try again later"
+  ! ($result.!code == #AUTH) ? "Authentication failed — check credentials"
+  ! ($result.!code == #RATE_LIMIT) ? "Rate limit exceeded — wait before retrying"
+  ! "Unexpected error: {$result.!message}"
+} ! $result
+```
+
+Read `.!code` to branch by error type. The default branch handles unrecognized codes.
+
+### Wrap with Context via `error`
+
+Add context to an error by wrapping it with `error "..."` before re-raising:
+
+```text
+guard { app::fetch("https://api.example.com/users") } => $fetch_result
+$fetch_result.! ? {
+  error "user-fetch failed: {$fetch_result.!message}"
+} ! $fetch_result
+```
+
+`error "..."` raises a **non-catchable** halt that propagates through any outer `guard` or `retry`. Use it when the error is unrecoverable and the script must stop.
+
+To wrap and re-raise as catchable, capture the context in a new invalid value instead:
+
+```rill
+"hello" => $val
+guard { $val.upper } => $result
+$result.! ? "wrapped: {$result.!message}" ! $result
+# Result: "HELLO"
+```
+
+---
+
 ## See Also
 
 - [Examples](guide-examples.md) — Language feature demonstrations
@@ -729,3 +866,4 @@ Use `each` when order matters or streams depend on prior results. Use `map` when
 - [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` details
 - [Closures](topic-closures.md) — Function patterns and binding
 - [Host Integration](integration-host.md) — Embedding API
+- [Error Handling](topic-error-handling.md) — guard, retry, status probes

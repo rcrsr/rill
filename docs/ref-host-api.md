@@ -202,9 +202,15 @@ export { ERROR_REGISTRY };
 
 // Extension types
 export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
+export type { ExtensionFactoryCtx };
 
 // Extension utilities
 export { toCallable, createTestContext, emitExtensionEvent };
+
+// Error registry (atom registration)
+export { registerCoreAtom };
+export type { RillCode, RillStatus, InvalidMeta, TraceFrame };
+export { formatHalt };
 
 ```
 
@@ -412,7 +418,7 @@ type CallableFn = (
 
 **Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details.
 
-**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]` — their internal type cast is unchanged.
+**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
 
 ---
 
@@ -560,7 +566,7 @@ if (isRillStream(result.result)) {
 }
 ```
 
-`step.done` is `false` while chunks remain. The initial stream object has no value — call `step.next.fn({}, ctx)` to get the first step. When `step.done` is `true`, all chunks are consumed. The resolution callback is stored as `__rill_stream_resolve` on the initial stream object.
+`step.done` is `false` while chunks remain. The initial stream object has no value; call `step.next.fn({}, ctx)` to get the first step. When `step.done` is `true`, all chunks are consumed. The resolution callback is stored as `__rill_stream_resolve` on the initial stream object.
 
 ---
 
@@ -741,14 +747,166 @@ const ctx = createRuntimeContext({
 
 ---
 
+## Factory-Scope Context (`ExtensionFactoryCtx`)
+
+`ExtensionFactoryCtx` is passed as the second argument to async extension factories. It provides pre-execution registration and a lifecycle abort signal.
+
+```typescript
+interface ExtensionFactoryCtx {
+  registerErrorCode(name: string, kind: string): void;
+  readonly signal: AbortSignal;
+}
+
+type ExtensionFactory<TConfig> = (
+  config: TConfig,
+  ctx: ExtensionFactoryCtx
+) => ExtensionFactoryResult | Promise<ExtensionFactoryResult>;
+```
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `registerErrorCode` | `(name: string, kind: string) => void` | Register a domain atom (e.g. `"PAYMENT_FAILED"`, `"domain"`). Available as `#NAME` in scripts. |
+| `signal` | `AbortSignal` | Fires when the runtime disposes. Use to cancel long-running factory setup. |
+
+```typescript
+async function createPaymentExtension(
+  config: PaymentConfig,
+  ctx: ExtensionFactoryCtx
+): Promise<ExtensionFactoryResult> {
+  ctx.registerErrorCode('PAYMENT_FAILED', 'domain');
+  ctx.registerErrorCode('CARD_DECLINED', 'domain');
+
+  const client = await PaymentClient.connect(config.endpoint, {
+    signal: ctx.signal,
+  });
+
+  return {
+    value: {
+      charge: toCallable({ /* ... */ }),
+    },
+    dispose: () => client.close(),
+  };
+}
+```
+
+See [Extensions](integration-extensions.md) for registering error codes and returning invalid values.
+
+---
+
+## RuntimeContext Helpers
+
+Three helpers on `RuntimeContext` support error-aware extension functions.
+
+### `ctx.invalidate`
+
+```typescript
+invalidate(error: unknown, meta: InvalidateMeta): RillValue
+```
+
+Wraps a JavaScript error as an invalid rill value. Returns a `:code`-tagged invalid value the script can test with `.?` and `.!`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `error` | `unknown` | The caught JavaScript error or any throwable |
+| `meta` | `InvalidateMeta` | Metadata: `{ code, provider, raw? }` identifying the failure |
+
+```typescript
+fn: async (args, ctx) => {
+  try {
+    return await sdkClient.fetch(args.url as string);
+  } catch (e) {
+    return ctx.invalidate(e, { code: 'UNAVAILABLE', provider: 'my-ext' });
+  }
+},
+```
+
+### `ctx.catch`
+
+```typescript
+catch<T>(
+  thunk: () => Promise<T>,
+  detector: (e: unknown) => InvalidMeta | null
+): Promise<T | RillValue>
+```
+
+Runs `thunk`. On throw, calls `detector(e)`. When `detector` returns `InvalidMeta`, returns an invalid value. When `detector` returns `null`, returns an invalid value with code `#R999`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `thunk` | `() => Promise<T>` | Async operation to attempt |
+| `detector` | `(e: unknown) => InvalidMeta \| null` | Maps thrown errors to `InvalidMeta`, or `null` to return an invalid value with code `#R999` |
+
+```typescript
+fn: async (args, ctx) => {
+  return ctx.catch(
+    () => sdkClient.fetch(args.url as string),
+    (e) => {
+      if (e instanceof TimeoutError) return { code: 'TIMEOUT', provider: 'my-ext' };
+      if (e instanceof AuthError) return { code: 'AUTH', provider: 'my-ext' };
+      return null; // re-throw unknown errors
+    }
+  );
+},
+```
+
+### `ctx.signal`
+
+```typescript
+readonly signal: AbortSignal | undefined
+```
+
+The `AbortSignal` for the current execution, or `undefined` when no cancellation source is configured. Pass to async I/O operations to propagate cancellation from the script runtime.
+
+```typescript
+fn: async (args, ctx) => {
+  const response = await fetch(args.url as string, {
+    signal: ctx.signal,
+  });
+  return response.text();
+},
+```
+
+---
+
+## `dispose()` Lifecycle
+
+`dispose()` is a top-level async function that shuts down the runtime. It is idempotent.
+
+```typescript
+function dispose(): Promise<void>
+```
+
+Calling `dispose()` fires the `AbortSignal` on all in-flight extension calls. In-flight work receives abort via `AbortSignal.any()` combined with an internal timeout. After the timeout, `dispose()` resolves regardless.
+
+```typescript
+import { parse, execute, createRuntimeContext, dispose } from '@rcrsr/rill';
+
+const ctx = createRuntimeContext({ /* ... */ });
+
+try {
+  const result = await execute(parse(script), ctx);
+  console.log(result.result);
+} finally {
+  await dispose();
+}
+```
+
+| Behavior | Detail |
+|----------|--------|
+| Idempotent | Safe to call multiple times; subsequent calls are no-ops |
+| Signal propagation | Fires `AbortSignal` on all registered extension factory contexts |
+| In-flight timeout | Uses `AbortSignal.any()` plus a grace-period timeout |
+
+---
+
 ## Type System API
 
 `TypeStructure`, `TypeDefinition`, `TypeProtocol`, `RillFieldDef`, and related structural type exports are documented in [Host API Types Reference](ref-host-api-types.md).
 
 ## See Also
 
-- [Host Integration](integration-host.md) — Embedding guide and runtime configuration
-- [Extensions](integration-extensions.md) — Reusable function packages
-- [Modules](integration-modules.md) — Module convention
-- [Host API Types](ref-host-api-types.md) — TypeStructure, TypeDefinition, TypeProtocol
+- [Host Integration](integration-host.md): Embedding guide and runtime configuration
+- [Extensions](integration-extensions.md): Reusable function packages
+- [Modules](integration-modules.md): Module convention
+- [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
 

@@ -12,11 +12,13 @@
 // ============================================================
 
 export type {
+  RillCodeValue,
   RillDatetime,
   RillDuration,
   RillFieldDef,
   RillIterator,
   RillOrdered,
+  RillStatus,
   RillStream,
   RillTuple,
   RillTypeValue,
@@ -36,18 +38,35 @@ export type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 // ============================================================
 
 export {
+  emptyStatus,
+  getStatus,
   isCallable,
+  isCode,
   isDatetime,
   isDict,
   isDuration,
+  isInvalid,
   isIterator,
   isOrdered,
   isRillStream,
   isStream,
   isTuple,
   isTypeValue,
+  isVacant,
   isVector,
 } from './guards.js';
+
+// ============================================================
+// STATUS & ATOM REGISTRY (error-handling sidecar surface)
+// ============================================================
+
+export type { InvalidateMeta } from './status.js';
+export { formatHalt } from './status.js';
+export { RuntimeHaltSignal } from './halt.js';
+export type { RillCode } from './atom-registry.js';
+export { atomName, resolveAtom } from './atom-registry.js';
+export type { TraceFrame, TraceKind } from './trace.js';
+export { createTraceFrame, TRACE_KINDS } from './trace.js';
 
 // ============================================================
 // CONSTRUCTORS (factory functions for compound values)
@@ -111,8 +130,10 @@ export type {
   ExecutionResult,
   ExecutionStepper,
   ExtensionEvent,
+  ExtensionFactoryCtx,
   FunctionReturnEvent,
   HostCallEvent,
+  InvalidMeta,
   NativeArray,
   NativePlainObject,
   NativeValue,

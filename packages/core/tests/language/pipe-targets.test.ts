@@ -7,6 +7,7 @@ import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
@@ -76,15 +77,17 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('json errors on direct closure serialization', async () => {
-      await expect(run('|x|{ $x * 2 } -> json')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('|x|{ $x * 2 } -> json'),
         'closures are not JSON-serializable'
       );
     });
 
     it('json throws on closures in dicts', async () => {
-      await expect(
-        run('dict[name: "user", age: 30, greet: ||{ "Hello" }] -> json')
-      ).rejects.toThrow('closures are not JSON-serializable');
+      await expectHaltMessage(
+        () => run('dict[name: "user", age: 30, greet: ||{ "Hello" }] -> json'),
+        'closures are not JSON-serializable'
+      );
     });
 
     it('json throws on closures in lists', async () => {

@@ -13,10 +13,11 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: CoreMixin Error Contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
-    it('throws RuntimeError for unsupported expression type', async () => {
+    it('halts for unsupported expression type', async () => {
       // Create a mock AST node with an unsupported type
       const ast = parse('"hello"');
       const ctx = createRuntimeContext();
@@ -28,13 +29,13 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         stmt.expression.head.primary.type = 'InvalidType';
       }
 
-      await expect(execute(ast, ctx)).rejects.toThrow(RuntimeError);
-      await expect(execute(ast, ctx)).rejects.toThrow(
-        /Unsupported expression type/
-      );
+      await expectHalt(() => execute(ast, ctx), {
+        code: 'INVALID_INPUT',
+        messagePattern: /Unsupported expression type/,
+      });
     });
 
-    it('throws RuntimeError with correct error code for unsupported type', async () => {
+    it('halts #INVALID_INPUT and names the unsupported node type', async () => {
       const ast = parse('"hello"');
       const ctx = createRuntimeContext();
 
@@ -45,19 +46,13 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         stmt.expression.head.primary.type = 'UnknownNode';
       }
 
-      try {
-        await execute(ast, ctx);
-        expect.fail('Should have thrown RuntimeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.errorId).toBe('RILL-R004');
-        expect(runtimeErr.message).toContain('Unsupported expression type');
-        expect(runtimeErr.message).toContain('UnknownNode');
-      }
+      await expectHalt(() => execute(ast, ctx), {
+        code: 'INVALID_INPUT',
+        messagePattern: /Unsupported expression type.*UnknownNode/,
+      });
     });
 
-    it('throws RuntimeError for unsupported pipe target type', async () => {
+    it('halts for unsupported pipe target type', async () => {
       const ast = parse('"hello" -> .trim');
       const ctx = createRuntimeContext();
 
@@ -71,16 +66,10 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         }
       }
 
-      try {
-        await execute(ast, ctx);
-        expect.fail('Should have thrown RuntimeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.errorId).toBe('RILL-R004');
-        expect(runtimeErr.message).toContain('Unsupported pipe target type');
-        expect(runtimeErr.message).toContain('InvalidPipeTarget');
-      }
+      await expectHalt(() => execute(ast, ctx), {
+        code: 'INVALID_INPUT',
+        messagePattern: /Unsupported pipe target type.*InvalidPipeTarget/,
+      });
     });
   });
 

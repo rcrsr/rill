@@ -10,7 +10,6 @@ import type {
   ArithHead,
   BinaryOp,
   BlockNode,
-  BodyNode,
   CaptureNode,
   ChainTerminator,
   ClosureSigLiteralNode,
@@ -31,6 +30,7 @@ import type {
   SourceLocation,
   SourceSpan,
   SpreadArgNode,
+  StatusProbeNode,
   TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
@@ -306,6 +306,41 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   // Parse expression head with full precedence chain
   let head = this.parseLogicalOr();
 
+  // Null-coalesce operator `??` at general-expression precedence (task 1.4).
+  // Sits below the pipe/ternary/@ loop tier and above arithmetic/logical.
+  // When head is already a PostfixExprNode, update its `defaultValue` so
+  // existing evaluator paths (RILL-R007 default handling) still apply.
+  // For arithmetic heads (Binary/UnaryExprNode), wrap in a GroupedExpr to
+  // produce a PrimaryNode-compatible container.
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    advance(this.state);
+    const defaultValue = this.parseDefaultValue();
+    const span = makeSpan(head.span.start, defaultValue.span.end);
+    if (head.type === 'PostfixExpr') {
+      head = { ...head, defaultValue, span };
+    } else {
+      const innerChain: PipeChainNode = {
+        type: 'PipeChain',
+        head,
+        pipes: [],
+        terminator: null,
+        span: head.span,
+      };
+      const grouped: GroupedExprNode = {
+        type: 'GroupedExpr',
+        expression: innerChain,
+        span: head.span,
+      };
+      head = {
+        type: 'PostfixExpr',
+        primary: grouped,
+        methods: [],
+        defaultValue,
+        span,
+      };
+    }
+  }
+
   // Check for loop: expr @ body
   if (check(this.state, TOKEN_TYPES.AT)) {
     const headAsPipeChain: PipeChainNode = {
@@ -501,8 +536,46 @@ Parser.prototype.parsePostfixExprBase = function (
     !shouldStopPostfix &&
     (isAnnotationAccess(this.state) ||
       isMethodCall(this.state) ||
-      check(this.state, TOKEN_TYPES.LPAREN))
+      check(this.state, TOKEN_TYPES.LPAREN) ||
+      check(this.state, TOKEN_TYPES.DOT_BANG))
   ) {
+    if (check(this.state, TOKEN_TYPES.DOT_BANG)) {
+      // Status probe: .! (bare) or .!field (field projection)
+      const probeToken = advance(this.state);
+      let field: string | undefined = undefined;
+      let probeEnd = probeToken.span.end;
+      if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+        const fieldToken = advance(this.state);
+        field = fieldToken.value;
+        probeEnd = fieldToken.span.end;
+      }
+      // Wrap the current primary+methods so far as the probe target.
+      const targetSpan = makeSpan(start, receiverEnd);
+      const targetPipeChain: PipeChainNode = {
+        type: 'PipeChain',
+        head: {
+          type: 'PostfixExpr',
+          primary,
+          methods: [...methods],
+          defaultValue: null,
+          span: targetSpan,
+        },
+        pipes: [],
+        terminator: null,
+        span: targetSpan,
+      };
+      const probeNode: StatusProbeNode = {
+        type: 'StatusProbe',
+        target: targetPipeChain,
+        field,
+        span: makeSpan(start, probeEnd),
+      };
+      // The probe becomes the new primary; clear collected methods.
+      primary = probeNode;
+      methods.length = 0;
+      receiverEnd = probeEnd;
+      continue;
+    }
     if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;
       advance(this.state); // consume .
@@ -536,18 +609,16 @@ Parser.prototype.parsePostfixExprBase = function (
     }
   }
 
-  // Check for default value operator: ?? expr
-  let defaultValue: BodyNode | null = null;
-  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-    advance(this.state);
-    defaultValue = this.parseDefaultValue();
-  }
-
+  // Note: `??` is no longer consumed here; it has general-expression
+  // precedence now (task 1.4). The wrapper in parsePipeChain handles it,
+  // populating `defaultValue` on the resulting PostfixExprNode when the
+  // head is already a PostfixExprNode (preserves existing runtime behaviour
+  // for `$x.method() ?? default`).
   return {
     type: 'PostfixExpr',
     primary,
     methods,
-    defaultValue,
+    defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -851,6 +922,27 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     }
 
     return this.parseDict(start);
+  }
+
+  // Atom literal: #NAME (always expression-position primary)
+  if (check(this.state, TOKEN_TYPES.ATOM)) {
+    return this.parseAtomLiteral();
+  }
+
+  // Guard block: guard { body } or guard<on: list[#X]> { body }
+  if (
+    check(this.state, TOKEN_TYPES.GUARD_LBRACE) ||
+    check(this.state, TOKEN_TYPES.GUARD)
+  ) {
+    return this.parseGuardBlock();
+  }
+
+  // Retry block: retry<N> { body } or retry<N, on: list[#X]> { body }
+  if (
+    check(this.state, TOKEN_TYPES.RETRY_LANGLE) ||
+    check(this.state, TOKEN_TYPES.RETRY)
+  ) {
+    return this.parseRetryBlock();
   }
 
   // Literal

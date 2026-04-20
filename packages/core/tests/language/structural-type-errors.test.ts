@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
@@ -46,7 +47,8 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('list() with no arguments (AC-41)', () => {
     it('throws when list() is called with no arguments', async () => {
-      await expect(run('list()')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('list()'),
         'list() requires exactly 1 type argument'
       );
     });
@@ -95,13 +97,15 @@ describe('Rill Language: Structural Type Error Contracts', () => {
     });
 
     it('throws when dict() mixes positional and named arguments', async () => {
-      await expect(run('dict(string, x: number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('dict(string, x: number)'),
         'dict() cannot mix positional and named arguments'
       );
     });
 
     it('throws when dict() has 2+ positional arguments', async () => {
-      await expect(run('dict(string, number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('dict(string, number)'),
         'dict() requires exactly 1 positional type argument'
       );
     });
@@ -113,7 +117,8 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('tuple() with named argument (AC-44)', () => {
     it('throws when tuple() is called with a named argument', async () => {
-      await expect(run('tuple(a: string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('tuple(a: string)'),
         'tuple() requires positional arguments'
       );
     });
@@ -150,13 +155,15 @@ describe('Rill Language: Structural Type Error Contracts', () => {
     });
 
     it('throws when ordered() mixes positional and named arguments', async () => {
-      await expect(run('ordered(string, x: number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('ordered(string, x: number)'),
         'ordered() cannot mix positional and named arguments'
       );
     });
 
     it('throws when ordered() has 2+ positional arguments', async () => {
-      await expect(run('ordered(string, number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('ordered(string, number)'),
         'ordered() requires exactly 1 positional type argument'
       );
     });
@@ -218,7 +225,7 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('EC-4: list() no-argument error message', () => {
     it('error message mentions exactly 1 type argument', async () => {
-      await expect(run('list()')).rejects.toThrow('exactly 1 type argument');
+      await expectHaltMessage(() => run('list()'), 'exactly 1 type argument');
     });
   });
 

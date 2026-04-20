@@ -13,6 +13,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { parse, ParseError } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
@@ -87,25 +89,24 @@ describe('Union Types', () => {
       expect(result).toBe(42);
     });
 
-    it('AC-13: :string|number on bool throws RILL-R004', async () => {
-      await expect(run('true :string|number')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+    it('AC-13: :string|number on bool halts #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('true :string|number'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
 
     it('EC-1: assertion on true names string|number and bool in error', async () => {
-      await expect(run('true :string|number')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('true :string|number'),
         'Type assertion failed'
       );
     });
 
     it('EC-7: no implicit coercion — true is not coerced to string|number', async () => {
       // true must stay bool; no coercion to string or number occurs
-      await expect(run('true :string|number')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+      await expectHalt(() => run('true :string|number'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
 
     it('union assertion passes through value unchanged', async () => {
@@ -350,7 +351,7 @@ describe('Union Types', () => {
         bool => $T
         42 :string|$T
       `;
-      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R004');
+      await expectHalt(() => run(script), { code: 'TYPE_MISMATCH' });
     });
 
     it('BC-4: list(string|number) — string list matches union', async () => {
@@ -385,9 +386,9 @@ describe('Union Types', () => {
     });
 
     it('BC-5: list(string)|dict(name: number) — non-member fails assertion', async () => {
-      await expect(
-        run('42 :list(string)|dict(name: number)')
-      ).rejects.toHaveProperty('errorId', 'RILL-R004');
+      await expectHalt(() => run('42 :list(string)|dict(name: number)'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 

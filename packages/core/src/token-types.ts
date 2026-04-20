@@ -38,6 +38,7 @@ export const TOKEN_TYPES = {
   // Null-coalescing and existence
   NULLISH_COALESCE: 'NULLISH_COALESCE', // ??
   DOT_QUESTION: 'DOT_QUESTION', // .?
+  DOT_BANG: 'DOT_BANG', // .! (status probe)
   AMPERSAND: 'AMPERSAND', // &
 
   // Assignment
@@ -81,6 +82,8 @@ export const TOKEN_TYPES = {
   DESTRUCT_LANGLE: 'DESTRUCT_LANGLE', // destruct<
   SLICE_LANGLE: 'SLICE_LANGLE', // slice<
   USE_LANGLE: 'USE_LANGLE', // use<
+  GUARD_LBRACE: 'GUARD_LBRACE', // guard{
+  RETRY_LANGLE: 'RETRY_LANGLE', // retry<
 
   // Type conversion operator
   CONVERT: 'CONVERT', // :>
@@ -96,6 +99,11 @@ export const TOKEN_TYPES = {
   MAP: 'MAP',
   FOLD: 'FOLD',
   FILTER: 'FILTER',
+  GUARD: 'GUARD',
+  RETRY: 'RETRY',
+
+  // Atom literal: #NAME
+  ATOM: 'ATOM',
 
   // Frontmatter
   FRONTMATTER_DELIM: 'FRONTMATTER_DELIM', // ---

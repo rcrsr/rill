@@ -4,7 +4,7 @@
 
 ## Overview
 
-rill is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught—there are no implicit conversions or coercions.
+rill is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught. There are no implicit conversions or coercions.
 
 | Type | Syntax | Example |
 |------|--------|---------|
@@ -22,7 +22,7 @@ rill is dynamically typed and type-safe. Types are checked at runtime, but type 
 | Type | type name or constructor | `number`, `list(number)`, `dict(a: number)` |
 
 **Key principles:**
-- **Type-safe**: No implicit coercion—`"5" + 1` errors, not `"51"` or `6`
+- **Type-safe**: No implicit coercion; `"5" + 1` errors, not `"51"` or `6`
 - **Type-locked variables**: A variable that holds a string always holds a string
 - **Value-based**: All values are immutable, all comparisons by value
 - **No null/undefined**: Empty values are valid (`""`, `[]`, `[:]`), but "no value" cannot exist
@@ -107,7 +107,7 @@ true ? "yes" ! "no"        # "yes"
 false ? "yes" ! "no"       # "no"
 ```
 
-**No truthiness:** rill has no automatic boolean coercion. Empty strings, zero, and empty lists are not "falsy"—you must explicitly check:
+**No truthiness:** rill has no automatic boolean coercion. Empty strings, zero, and empty lists are not "falsy"; you must explicitly check:
 
 ```rill
 "" -> .empty ? "empty" ! "has content"     # Use .empty method
@@ -138,7 +138,7 @@ Use explicit boolean checks when needed:
 
 ## Lists
 
-Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent — `list[...]` is canonical (used in output and the LLM reference).
+Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent; `list[...]` is canonical (used in output and the LLM reference).
 
 When list elements share a compound type but differ in sub-structure, rill infers the bare compound type. See [Type Inference Cascade](topic-type-system.md#type-inference-cascade).
 
@@ -180,11 +180,11 @@ Spreading a non-list throws an error:
 ```
 
 **Access methods:**
-- `[0]`, `[1]` — Index access (0-based)
-- `[-1]`, `[-2]` — Negative index (from end)
-- `.head` — First element (errors on empty)
-- `.tail` — Last element (errors on empty)
-- `.at(n)` — Element at index
+- `[0]`, `[1]`: Index access (0-based)
+- `[-1]`, `[-2]`: Negative index (from end)
+- `.head`: First element (errors on empty)
+- `.tail`: Last element (errors on empty)
+- `.at(n)`: Element at index
 
 **Out-of-bounds access** throws an error:
 
@@ -204,7 +204,7 @@ See [Collections](topic-collections.md) for iteration operators.
 
 ## Dicts
 
-Key-value mappings with identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent — `dict[...]` is canonical.
+Key-value mappings with identifier, number, boolean, variable, or computed keys. The bare `[k: v]` form and the keyword `dict[...]` form are equivalent; `dict[...]` is canonical.
 
 ```rill
 [name: "alice", age: 30]         # bare form
@@ -258,15 +258,15 @@ Multi-key errors:
 ```
 
 **Access patterns:**
-- `.field` — Literal field access (identifier keys only)
-- `.$key` — Variable as key
-- `.($i + 1)` — Computed expression as key
-- `.(a || b)` — Alternatives (try keys left-to-right)
-- `.field ?? default` — Default value if missing
-- `.?field` — Existence check, literal key (returns bool)
-- `.?$key` — Existence check, variable key
-- `.?($expr)` — Existence check, computed key
-- `.?field&type` — Existence + type check (all forms support `&type`)
+- `.field`: Literal field access (identifier keys only)
+- `.$key`: Variable as key
+- `.($i + 1)`: Computed expression as key
+- `.(a || b)`: Alternatives (try keys left-to-right)
+- `.field ?? default`: Default value if missing
+- `.?field`: Existence check, literal key (returns bool)
+- `.?$key`: Existence check, variable key
+- `.?($expr)`: Existence check, computed key
+- `.?field&type`: Existence + type check (all forms support `&type`)
 
 **Note:** Number and boolean keys require dispatch syntax (`value -> dict`) or bracket access. Dot notation (`.1`, `.true`) is not valid syntax.
 
@@ -334,7 +334,7 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 # Result: dict[a: 1, b: 2]
 ```
 
-An empty dict passes — no values to violate the constraint.
+An empty dict passes; there are no values to violate the constraint.
 
 ```rill
 dict[] -> :>dict(number)
@@ -369,7 +369,7 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 
 Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
 
-`ordered` converts to a plain object via `toNative()` — the `NativeResult.value` field holds `{ key: value, ... }`.
+`ordered` converts to a plain object via `toNative()`. The `NativeResult.value` field holds `{ key: value, ... }`.
 
 ### Uniform Value Type
 
@@ -380,7 +380,7 @@ ordered[x: 1, y: 2] -> :>ordered(number)
 # Result: ordered[x: 1, y: 2]
 ```
 
-An empty ordered container passes — no values to violate the constraint.
+An empty ordered container passes; there are no values to violate the constraint.
 
 ### Field Annotations
 
@@ -439,7 +439,7 @@ tuple["x"] -> :$t
 # Result: tuple["x"]
 ```
 
-The `:` assertion also accepts the shorter value. No field synthesis occurs — the returned value is unchanged. Use `:>` to fill missing fields with their defaults.
+The `:` assertion also accepts the shorter value. No field synthesis occurs; the returned value is unchanged. Use `:>` to fill missing fields with their defaults.
 
 Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
 
@@ -476,7 +476,7 @@ tuple[1, 2, 3] -> :>tuple(number)
 # Result: tuple[1, 2, 3]
 ```
 
-An empty tuple passes — no values to violate the constraint.
+An empty tuple passes; there are no values to violate the constraint.
 
 **Breaking change:** The single-positional-argument form `tuple(T)` now defines a uniform value type, not a 1-element structural tuple. Use `tuple(T1, T2)` (two or more positional args) for structural tuples with specific element types.
 
@@ -573,17 +573,9 @@ $v1 == $v2
 - **No string coercion**: Cannot be used in string interpolation or concatenation
 - **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on vectors
 
-```text
-# Error: cannot coerce vector to string
-"Result: {$vec}"
-
-# Error: Collection operators require list, string, dict, or iterator, got vector
-$vec -> each { $ * 2 }
-```
-
 ## Datetime
 
-A datetime represents an instant in time stored as UTC milliseconds since the Unix epoch. It is an opaque scalar type — values are immutable and compared by their Unix timestamp.
+A datetime represents an instant in time stored as UTC milliseconds since the Unix epoch. It is an opaque scalar type; values are immutable and compared by their Unix timestamp.
 
 ### Construction
 
@@ -730,7 +722,7 @@ now() => $t
 
 ### Empty Value
 
-`.empty` returns `datetime(unix: 0)` — the Unix epoch.
+`.empty` returns `datetime(unix: 0)`, the Unix epoch.
 
 ```rill
 now() -> .empty -> .iso()
@@ -749,11 +741,7 @@ now() -> .empty -> .unix
 
 ### Extension Boundary
 
-The core datetime type stores UTC timestamps and formats with numeric offsets only. IANA timezone names (e.g. `"America/New_York"`) require the `datetime-extension` package, which is not part of core rill.
-
-### Leap-Second Note
-
-rill uses POSIX time (Unix milliseconds). POSIX time does not model leap seconds. A timestamp represents continuous SI seconds since 1970-01-01T00:00:00Z with no leap-second gaps or repeats.
+The core datetime type stores UTC timestamps and formats with numeric offsets only. IANA timezone names (e.g. `"America/New_York"`) require the `datetime-extension` package, which is not part of core rill. rill uses POSIX time (Unix milliseconds); POSIX time does not model leap seconds.
 
 ---
 
@@ -991,6 +979,12 @@ $s -> fold(0) { $@ + $ }      # reduces all chunks to a single value
 See [Collections](topic-collections.md) for full operator documentation including stream behavior.
 
 For stream closure syntax and the `:stream(T):R` annotation on closures, see [Closures](topic-closures.md).
+
+## Atom (`:code`)
+
+`:code` is the 16th primitive type. It carries a named error identity via `#NAME` literals. See [Error Handling: Error Atoms](topic-error-handling.md#error-atoms-code) for full syntax, conversions, pre-registered atoms, and extension registration.
+
+---
 
 ## See Also
 
