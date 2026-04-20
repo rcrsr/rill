@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   If your factory does not use `ctx`, add the parameter and ignore it. §RILL.3.3, §RILL.4.3.
 
+- **Error signal unification** — Public API surfaces halt errors as `RuntimeHaltSignal` only. Code catching legacy `AbortError` or `AutoExceptionError` must migrate to `instanceof RuntimeHaltSignal` with `getStatus()` or `atomName()` checks for differentiation
+
 ### Added
 
 - **Status probe operator (`.!`)** — `.!` returns `false` for valid values and `true` for invalid values without halting execution. `.!code` returns the atom code (e.g., `#TIMEOUT`, `#ok`) from the status sidecar. See [Error Handling](docs/topic-error-handling.md)
@@ -45,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ctx.signal`** — `AbortSignal | undefined` on `RuntimeContext`, threaded from `runOptions`. Allows host functions to detect cancellation. (On `ExtensionFactoryCtx`, `signal` is the non-optional `AbortSignal` scoped to the extension's lifetime.)
 - **`ExtensionFactoryCtx` type** — New type exported from `@rcrsr/rill`. Provides `registerErrorCode` and `signal` to extension factories
 - **`dispose()` method** — Extensions return an optional `dispose()` function in `ExtensionFactoryResult`. Called when the runtime tears down the extension instance
+
+### Changed
+
+- **Error message interpolation preservation** — `error "..."` statements with string interpolation now attach wrap trace frames preserving the evaluated message content at runtime
 
 ## [0.18.6] - 2026-04-17
 

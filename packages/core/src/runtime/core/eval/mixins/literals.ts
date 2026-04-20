@@ -11,7 +11,7 @@
  *
  * Interface requirements (from spec):
  * - evaluatePass(node) -> Promise<RillValue> [IR-4]
- * - evaluateString(node) -> Promise<string>
+ * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
@@ -156,7 +156,7 @@ async function evaluateAnnotations(
  *
  * Methods added:
  * - evaluatePass(node) -> Promise<RillValue>
- * - evaluateString(node) -> Promise<string>
+ * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
@@ -192,15 +192,23 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * String parts are concatenated with interpolated values formatted via formatValue().
      * Errors from interpolation expression evaluation propagate to caller.
+     *
+     * Returns `{ value, interpolated }` where `interpolated` is `true` iff at least one
+     * part is a non-literal (interpolation expression). This flag enables callers such as
+     * `evaluateError` to decide whether to wrap frames with the original literal text.
      */
-    protected async evaluateString(node: StringLiteralNode): Promise<string> {
+    protected async evaluateString(
+      node: StringLiteralNode
+    ): Promise<{ value: string; interpolated: boolean }> {
       let result = '';
+      let interpolated = false;
       // Save pipeValue since interpolation expressions can modify it
       const savedPipeValue = this.ctx.pipeValue;
       for (const part of node.parts) {
         if (typeof part === 'string') {
           result += part;
         } else {
+          interpolated = true;
           // InterpolationNode: evaluate the expression
           // Restore pipeValue before each interpolation so they all see the same value
           this.ctx.pipeValue = savedPipeValue;
@@ -219,7 +227,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       // Restore pipeValue after string evaluation
       this.ctx.pipeValue = savedPipeValue;
-      return result;
+      return { value: result, interpolated };
     }
 
     /**

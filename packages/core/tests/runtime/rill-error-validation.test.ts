@@ -6,8 +6,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  AbortError,
-  AutoExceptionError,
   ERROR_REGISTRY,
   ParseError,
   RillError,
@@ -601,81 +599,6 @@ describe('TimeoutError Constructor Validation (Task 1.4)', () => {
         functionName: 'myFunc',
         timeoutMs: 4000,
       });
-    });
-  });
-});
-
-describe('AutoExceptionError Constructor Validation (Task 1.4)', () => {
-  describe('IR-12: AutoExceptionError uses RILL-R014', () => {
-    it('creates AutoExceptionError with correct errorId', () => {
-      const error = new AutoExceptionError('error.*', 'error occurred');
-
-      expect(error).toBeInstanceOf(AutoExceptionError);
-      expect(error).toBeInstanceOf(RuntimeError);
-      expect(error.errorId).toBe('RILL-R014');
-    });
-
-    it('stores pattern and matchedValue', () => {
-      const error = new AutoExceptionError('fail.*', 'failed to connect');
-
-      expect(error.pattern).toBe('fail.*');
-      expect(error.matchedValue).toBe('failed to connect');
-    });
-
-    it('includes pattern in message', () => {
-      const error = new AutoExceptionError('exception', 'exception thrown');
-
-      expect(error.message).toContain('exception');
-      expect(error.message).toContain('Auto-exception triggered');
-    });
-
-    it('accepts optional location parameter', () => {
-      const location: SourceLocation = { line: 15, column: 3, offset: 150 };
-      const error = new AutoExceptionError('error', 'error text', location);
-
-      expect(error.location).toEqual(location);
-      expect(error.message).toContain('at 15:3');
-    });
-
-    it('includes pattern and matchedValue in context', () => {
-      const error = new AutoExceptionError('critical.*', 'critical failure');
-
-      expect(error.context).toEqual({
-        pattern: 'critical.*',
-        matchedValue: 'critical failure',
-      });
-    });
-  });
-});
-
-describe('AbortError Constructor Validation (Task 1.4)', () => {
-  describe('IR-13: AbortError uses RILL-R013', () => {
-    it('creates AbortError with correct errorId', () => {
-      const error = new AbortError();
-
-      expect(error).toBeInstanceOf(AbortError);
-      expect(error).toBeInstanceOf(RuntimeError);
-      expect(error.errorId).toBe('RILL-R013');
-    });
-
-    it('has predefined message', () => {
-      const error = new AbortError();
-
-      expect(error.message).toBe('Execution aborted');
-    });
-
-    it('accepts optional location parameter', () => {
-      const location: SourceLocation = { line: 20, column: 8, offset: 200 };
-      const error = new AbortError(location);
-
-      expect(error.location).toEqual(location);
-      expect(error.message).toContain('at 20:8');
-    });
-
-    it('has empty context object', () => {
-      const error = new AbortError();
-
-      expect(error.context).toEqual({});
     });
   });
 });

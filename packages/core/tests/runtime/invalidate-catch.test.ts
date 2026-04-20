@@ -12,13 +12,37 @@
 import { describe, expect, it } from 'vitest';
 import {
   type ApplicationCallable,
+  atomName,
   createRuntimeContext,
   execute,
   parse,
+  RuntimeHaltSignal,
   type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
+
+/**
+ * Asserts the thrown error is an abort halt:
+ * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
+ */
+async function expectAbortHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  const status = getStatus(signal.value);
+  expect(atomName(status.code)).toBe('DISPOSED');
+  return signal;
+}
 
 describe('RuntimeContext.invalidate (IR-11)', () => {
   it('AC-E5 / EC-4: unregistered code falls back to #R001 without throwing', () => {
@@ -264,7 +288,7 @@ describe('Extension-boundary reshape (AC-E4, AC-E9) end-to-end', () => {
     // the disposed factory signal and rejects the promise. The rejection
     // is the observable contract for a `run()` call on a disposed ctx.
     const ast = parse('probe()');
-    await expect(execute(ast, ctx)).rejects.toThrow(/aborted/i);
+    await expectAbortHalt(() => execute(ast, ctx));
 
     // Dispatch-site contract (AC-E9): the host fn body never ran, and
     // `createDisposedResult()` (the reshape target used by the dispatch

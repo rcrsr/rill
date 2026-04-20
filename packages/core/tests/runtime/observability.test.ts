@@ -3,7 +3,12 @@
  * Tests for event callbacks
  */
 
-import { AutoExceptionError, TimeoutError } from '@rcrsr/rill';
+import {
+  atomName,
+  getStatus,
+  RuntimeHaltSignal,
+  TimeoutError,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createEventCollector, mockAsyncFn, run } from '../helpers/runtime.js';
@@ -226,7 +231,7 @@ describe('Rill Runtime: Observability', () => {
       expect(events.error[0]?.index).toBe(1);
     });
 
-    it('fires on AutoExceptionError', async () => {
+    it('fires on auto-exception halt (RuntimeHaltSignal, code=R999)', async () => {
       const { events, callbacks } = createEventCollector();
 
       try {
@@ -239,7 +244,13 @@ describe('Rill Runtime: Observability', () => {
       }
 
       expect(events.error).toHaveLength(1);
-      expect(events.error[0]?.error).toBeInstanceOf(AutoExceptionError);
+      const err = events.error[0]?.error;
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      const signal = err as RuntimeHaltSignal;
+      expect(signal.name).toBe('RuntimeHaltSignal');
+      expect(signal.catchable).toBe(false);
+      const status = getStatus(signal.value);
+      expect(atomName(status.code)).toBe('R999');
     });
 
     it('fires on TimeoutError', async () => {

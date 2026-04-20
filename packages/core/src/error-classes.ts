@@ -269,33 +269,3 @@ export class TimeoutError extends RuntimeError {
     this.timeoutMs = timeoutMs;
   }
 }
-
-/** Auto-exception errors (when $_ matches a pattern) */
-export class AutoExceptionError extends RuntimeError {
-  readonly pattern: string;
-  readonly matchedValue: string;
-
-  constructor(
-    pattern: string,
-    matchedValue: string,
-    location?: SourceLocation
-  ) {
-    super(
-      'RILL-R014',
-      `Auto-exception triggered: pattern '${pattern}' matched`,
-      location,
-      { pattern, matchedValue }
-    );
-    this.name = 'AutoExceptionError';
-    this.pattern = pattern;
-    this.matchedValue = matchedValue;
-  }
-}
-
-/** Abort errors (when execution is cancelled via AbortSignal) */
-export class AbortError extends RuntimeError {
-  constructor(location?: SourceLocation) {
-    super('RILL-R013', 'Execution aborted', location, {});
-    this.name = 'AbortError';
-  }
-}

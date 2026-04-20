@@ -4,14 +4,38 @@
  */
 
 import {
-  AutoExceptionError,
+  atomName,
   createRuntimeContext,
+  getStatus,
   RuntimeError,
+  RuntimeHaltSignal,
   TimeoutError,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { mockAsyncFn, run } from '../helpers/runtime.js';
+
+/**
+ * Asserts the thrown error is an auto-exception halt:
+ * RuntimeHaltSignal with status.code=#R999, non-catchable.
+ */
+async function expectAutoExceptionHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  const status = getStatus(signal.value);
+  expect(atomName(status.code)).toBe('R999');
+  return signal;
+}
 
 describe('Rill Runtime: Configuration', () => {
   describe('Timeout', () => {
@@ -97,11 +121,11 @@ describe('Rill Runtime: Configuration', () => {
 
   describe('AutoExceptions', () => {
     it('throws when pattern matches string $_', async () => {
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('"ERROR: something failed"', {
           autoExceptions: ['ERROR'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
     });
 
     it('does not throw when pattern does not match', async () => {
@@ -112,11 +136,11 @@ describe('Rill Runtime: Configuration', () => {
     });
 
     it('matches with regex pattern', async () => {
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('"Code: 500"', {
           autoExceptions: ['Code: [45]\\d\\d'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
     });
 
     it('does not throw for non-string values', async () => {
@@ -128,45 +152,41 @@ describe('Rill Runtime: Configuration', () => {
 
     it('checks after each statement', async () => {
       // First statement OK, second triggers exception
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('"OK" => $first\n"ERROR happened"', {
           autoExceptions: ['ERROR'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
     });
 
-    it('AutoExceptionError has correct properties', async () => {
-      try {
-        await run('"FATAL: crash"', {
+    it('auto-exception halt carries pattern and matched value on status.raw', async () => {
+      const signal = await expectAutoExceptionHalt(() =>
+        run('"FATAL: crash"', {
           autoExceptions: ['FATAL'],
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(AutoExceptionError);
-        const autoErr = err as AutoExceptionError;
-        expect(autoErr.pattern).toBe('FATAL');
-        expect(autoErr.matchedValue).toBe('FATAL: crash');
-      }
+        })
+      );
+      const status = getStatus(signal.value);
+      expect(status.raw.pattern).toBe('FATAL');
+      expect(status.raw.matchedValue).toBe('FATAL: crash');
+      expect(status.provider).toBe('extension');
     });
 
     it('supports multiple patterns', async () => {
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('"WARNING: issue"', {
           autoExceptions: ['ERROR', 'FATAL', 'WARNING'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
     });
 
     it('first matching pattern wins', async () => {
-      try {
-        await run('"ERROR and FATAL"', {
+      const signal = await expectAutoExceptionHalt(() =>
+        run('"ERROR and FATAL"', {
           autoExceptions: ['ERROR', 'FATAL'],
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        const autoErr = err as AutoExceptionError;
-        expect(autoErr.pattern).toBe('ERROR');
-      }
+        })
+      );
+      const status = getStatus(signal.value);
+      expect(status.raw.pattern).toBe('ERROR');
     });
 
     it('throws on invalid regex pattern during context creation', () => {
@@ -178,11 +198,11 @@ describe('Rill Runtime: Configuration', () => {
     });
 
     it('works with complex regex', async () => {
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('"Exit code: 1"', {
           autoExceptions: ['Exit code: [1-9]\\d*'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
 
       // Exit code 0 should not match
       const result = await run('"Exit code: 0"', {
@@ -197,13 +217,13 @@ describe('Rill Runtime: Configuration', () => {
       const slowFn = mockAsyncFn(50, 'ERROR: failed');
 
       // AutoException should trigger on the result
-      await expect(
+      await expectAutoExceptionHalt(() =>
         run('slowFn()', {
           functions: { slowFn },
           timeout: 200,
           autoExceptions: ['ERROR'],
         })
-      ).rejects.toThrow(AutoExceptionError);
+      );
     });
 
     it('timeout fires before autoException when function is slow', async () => {

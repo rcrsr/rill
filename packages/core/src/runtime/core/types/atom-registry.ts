@@ -182,6 +182,10 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   // failures. Registered here so mixins and type-layer helpers can
   // resolve `#TYPE_MISMATCH` before any script parses.
   ['TYPE_MISMATCH', 'generic'],
+  // IR-3: error-wrap halt atom. Underscore form required by
+  // ATOM_NAME_REGEX. Host-facing error ID `RILL-R015`/`RILL-R016`
+  // (hyphen form) is a separate string namespace in error-registry.ts.
+  ['RILL_R016', 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {

@@ -4,15 +4,17 @@
  */
 
 import {
-  AbortError,
   anyTypeValue,
+  atomName,
   callable,
   createRuntimeContext,
+  getStatus,
   inferStructure,
   isApplicationCallable,
   isCallable,
   isScriptCallable,
   parse,
+  RuntimeHaltSignal,
   structureToTypeValue,
   toNative,
   type ApplicationCallable,
@@ -23,6 +25,28 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+
+/**
+ * Asserts the thrown error is an abort halt:
+ * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
+ */
+async function expectAbortHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  const status = getStatus(signal.value);
+  expect(atomName(status.code)).toBe('DISPOSED');
+  return signal;
+}
 
 describe('Rill Runtime: Host Integration', () => {
   describe('Custom Functions', () => {
@@ -207,16 +231,16 @@ describe('Rill Runtime: Host Integration', () => {
       expect(result).toBe('hello');
     });
 
-    it('throws AbortError when signal is aborted before execution', async () => {
+    it('halts when signal is aborted before execution', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"hello"', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
-    it('throws AbortError when aborted during function call', async () => {
+    it('halts when aborted during function call', async () => {
       const controller = new AbortController();
 
       const slowFn: RillFunction = {
@@ -238,15 +262,15 @@ describe('Rill Runtime: Host Integration', () => {
       setTimeout(() => controller.abort(), 10);
 
       // The second function call should be aborted
-      await expect(
+      await expectAbortHalt(() =>
         run('"x" -> slow -> slow', {
           functions: { slow: slowFn },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
-    it('throws AbortError during for loop iteration', async () => {
+    it('halts during for loop iteration', async () => {
       const controller = new AbortController();
       let iterations = 0;
 
@@ -268,18 +292,18 @@ describe('Rill Runtime: Host Integration', () => {
         },
       };
 
-      await expect(
+      await expectAbortHalt(() =>
         run('list[1,2,3,4,5,6,7,8,9,10] -> each { count() }', {
           functions: { count: countFn },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
 
       // Should have stopped around iteration 3-4
       expect(iterations).toBeLessThan(10);
     });
 
-    it('throws AbortError during while loop iteration', async () => {
+    it('halts during while loop iteration', async () => {
       const controller = new AbortController();
       let iterations = 0;
 
@@ -301,29 +325,26 @@ describe('Rill Runtime: Host Integration', () => {
         },
       };
 
-      await expect(
+      await expectAbortHalt(() =>
         run('list[1, 2, 3, 4, 5] -> each { tick($) }', {
           functions: { tick: tickFn },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
 
       expect(iterations).toBeLessThan(100);
     });
 
-    it('AbortError has correct properties', async () => {
+    it('abort halt carries DISPOSED code, non-catchable, with aborted message', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      try {
-        await run('"test"', { signal: controller.signal });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(AbortError);
-        const abortErr = err as AbortError;
-        expect(abortErr.errorId).toBe('RILL-R013');
-        expect(abortErr.message).toContain('aborted');
-      }
+      const signal = await expectAbortHalt(() =>
+        run('"test"', { signal: controller.signal })
+      );
+      const status = getStatus(signal.value);
+      expect(status.provider).toBe('runtime');
+      expect(status.message).toContain('abort');
     });
 
     it('abort is checked in stepper step()', async () => {
@@ -342,21 +363,101 @@ describe('Rill Runtime: Host Integration', () => {
       controller.abort();
 
       // Second step should throw
-      await expect(stepper.step()).rejects.toThrow(AbortError);
+      await expectAbortHalt(() => stepper.step());
     });
 
     it('abort works with custom functions', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('custom()', {
           functions: {
             custom: { params: [], fn: () => 'should not reach' },
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
+    });
+
+    // ============================================================
+    // AC-14: Abort during top-level statement — halt preserved by
+    // reshapeUnhandledThrow at execute.ts:337. Confirms the
+    // RuntimeHaltSignal branch passes DISPOSED halts through unchanged:
+    // not swallowed, not reshaped to RillError, not converted to
+    // RuntimeError by task 2.2's convertHaltToRuntimeError (which only
+    // handles RILL_R016).
+    // ============================================================
+    describe('AC-14: abort halt preservation through reshapeUnhandledThrow', () => {
+      it('abort during top-level statement preserves RuntimeHaltSignal (not reshaped to RillError or RuntimeError)', async () => {
+        const controller = new AbortController();
+        controller.abort();
+
+        let caught: unknown;
+        try {
+          await run('"top-level"', { signal: controller.signal });
+        } catch (e) {
+          caught = e;
+        }
+
+        // Positive: RuntimeHaltSignal preserved with DISPOSED atom, non-catchable.
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as RuntimeHaltSignal;
+        expect(signal.name).toBe('RuntimeHaltSignal');
+        expect(signal.catchable).toBe(false);
+        const status = getStatus(signal.value);
+        expect(atomName(status.code)).toBe('DISPOSED');
+        expect(status.provider).toBe('runtime');
+
+        // Negative: NOT reshaped to a RillError (ensures the RillError
+        // branch at execute.ts did not swallow it; RillError carries an
+        // `errorId`, RuntimeHaltSignal does not).
+        expect((caught as { errorId?: unknown }).errorId).toBeUndefined();
+        expect((caught as Error).name).not.toBe('RillError');
+
+        // Negative: NOT converted to a RuntimeError by task 2.2's
+        // halt-to-RuntimeError converter. The converter only acts on
+        // RILL_R016 error-wrap halts, not DISPOSED abort halts.
+        expect((caught as Error).name).not.toBe('RuntimeError');
+      });
+
+      it('abort during multi-statement script preserves RuntimeHaltSignal at the aborted statement', async () => {
+        const controller = new AbortController();
+        let firstRan = false;
+
+        const markFn: RillFunction = {
+          params: [],
+          fn: (): RillValue => {
+            firstRan = true;
+            controller.abort();
+            return null;
+          },
+        };
+
+        let caught: unknown;
+        try {
+          await run('mark()\n"second"', {
+            functions: { mark: markFn },
+            signal: controller.signal,
+          });
+        } catch (e) {
+          caught = e;
+        }
+
+        expect(firstRan).toBe(true);
+
+        // RuntimeHaltSignal propagates unchanged through the top-level
+        // statement boundary (execute.ts:337 preservation branch).
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as RuntimeHaltSignal;
+        expect(signal.catchable).toBe(false);
+        expect(atomName(getStatus(signal.value).code)).toBe('DISPOSED');
+
+        // Negative assertions: halt was not reshaped or converted.
+        expect((caught as { errorId?: unknown }).errorId).toBeUndefined();
+        expect((caught as Error).name).not.toBe('RillError');
+        expect((caught as Error).name).not.toBe('RuntimeError');
+      });
     });
   });
 

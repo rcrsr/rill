@@ -5,8 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  AbortError,
+  atomName,
+  getStatus,
   RuntimeError,
+  RuntimeHaltSignal,
   createRuntimeContext,
   parse,
   execute,
@@ -14,6 +16,28 @@ import {
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+
+/**
+ * Asserts the thrown error is an abort halt:
+ * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
+ */
+async function expectAbortHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  const status = getStatus(signal.value);
+  expect(atomName(status.code)).toBe('DISPOSED');
+  return signal;
+}
 
 describe('Rill Runtime: CoreMixin Error Contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
@@ -74,31 +98,26 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
   });
 
   describe('EC-5: Context signal aborted', () => {
-    it('throws AbortError when signal aborted before execution', async () => {
+    it('halts with RuntimeHaltSignal when signal aborted before execution', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() => run('"test"', { signal: controller.signal }));
+    });
+
+    it('halt carries DISPOSED code, non-catchable, with abort message', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      const signal = await expectAbortHalt(() =>
         run('"test"', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
+      const status = getStatus(signal.value);
+      expect(status.provider).toBe('runtime');
+      expect(status.message).toContain('abort');
     });
 
-    it('throws AbortError with correct error code and message', async () => {
-      const controller = new AbortController();
-      controller.abort();
-
-      try {
-        await run('"test"', { signal: controller.signal });
-        expect.fail('Should have thrown AbortError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(AbortError);
-        const abortErr = err as AbortError;
-        expect(abortErr.errorId).toBe('RILL-R013');
-        expect(abortErr.message).toContain('Execution aborted');
-      }
-    });
-
-    it('throws AbortError when aborted during expression evaluation', async () => {
+    it('halts when aborted during expression evaluation', async () => {
       const controller = new AbortController();
       let callCount = 0;
 
@@ -121,21 +140,21 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
         },
       };
 
-      await expect(
+      await expectAbortHalt(() =>
         run('slow() -> slow() -> slow()', {
           functions: { slow: slowFn },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
 
       // Should not complete all three calls
       expect(callCount).toBeLessThan(3);
     });
 
-    it('throws AbortError during nested expression evaluation', async () => {
+    it('halts during nested expression evaluation', async () => {
       const controller = new AbortController();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"" -> { slow() -> slow() -> slow() }', {
           functions: {
             slow: {
@@ -155,7 +174,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
     it('checks abort signal in evaluateExpression', async () => {
@@ -173,15 +192,15 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
       // Abort before second step
       controller.abort();
 
-      // Second step should throw AbortError
-      await expect(stepper.step()).rejects.toThrow(AbortError);
+      // Second step should halt with RuntimeHaltSignal
+      await expectAbortHalt(() => stepper.step());
     });
 
-    it('propagates AbortError through pipe chains', async () => {
+    it('propagates abort halt through pipe chains', async () => {
       const controller = new AbortController();
       let callCount = 0;
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"test" -> check -> check', {
           functions: {
             check: {
@@ -205,7 +224,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
   });
 });
@@ -262,13 +281,13 @@ describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
       ).rejects.toThrow('Custom error');
     });
 
-    it('propagates AbortError from annotated statement', async () => {
+    it('propagates abort halt from annotated statement', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('^(limit: 10) "test"', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
     it('preserves error location from inner statement', async () => {

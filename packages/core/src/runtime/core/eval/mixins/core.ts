@@ -15,7 +15,7 @@
  *
  * Error Handling:
  * - Unsupported expression types throw RuntimeError [EC-4]
- * - Aborted execution throws AbortError [EC-5]
+ * - Aborted execution halts via RuntimeHaltSignal [EC-5]
  *
  * @internal
  */
@@ -229,9 +229,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      */
     async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
       switch (primary.type) {
-        case 'StringLiteral':
+        case 'StringLiteral': {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateString(primary);
+          const { value } = await (this as any).evaluateString(primary);
+          return value;
+        }
 
         case 'NumberLiteral':
           return primary.value;
@@ -556,9 +558,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
 
-        case 'StringLiteral':
+        case 'StringLiteral': {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateString(target);
+          const { value } = await (this as any).evaluateString(target);
+          return value;
+        }
 
         case 'Dict': {
           // Hierarchical dispatch: detect list input (not tuple)

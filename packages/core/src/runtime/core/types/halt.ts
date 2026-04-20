@@ -20,8 +20,9 @@
  */
 
 import type { SourceLocation } from '../../../types.js';
-import { invalidate } from './status.js';
-import { createTraceFrame, type TraceKind } from './trace.js';
+import { appendTraceFrame, getStatus, invalidate } from './status.js';
+import { atomName } from './atom-registry.js';
+import { createTraceFrame, TRACE_KINDS, type TraceKind } from './trace.js';
 import type { RillValue } from './structures.js';
 
 // ============================================================
@@ -126,4 +127,157 @@ export function throwTypeHalt(
     frame
   );
   throw new RuntimeHaltSignal(invalid, true);
+}
+
+// ============================================================
+// ABORT HALT BUILDER (IR-1)
+// ============================================================
+
+/**
+ * Build an invalid RillValue representing an aborted execution, then
+ * throw a non-catchable `RuntimeHaltSignal` wrapping it.
+ *
+ * Emits the `#DISPOSED` atom with `provider="runtime"` and a single
+ * `host`-kind trace frame. Callers (typically `checkAborted` on the
+ * evaluator base) set `site.fn = "checkAborted"`.
+ *
+ * Per TD-2, abort halts are non-catchable: guard and retry must not
+ * recover them. The builder allocates only when thrown; it is not on
+ * the hot path and runs only when abort is detected.
+ *
+ * @throws RuntimeHaltSignal with code=`#DISPOSED`, catchable=false.
+ */
+export function throwAbortHalt(site: TypeHaltSite): never {
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind: TRACE_KINDS.HOST,
+    fn: site.fn,
+  });
+  const invalid = invalidate(
+    {},
+    {
+      code: 'DISPOSED',
+      provider: 'runtime',
+      raw: { message: 'aborted' },
+    },
+    frame
+  );
+  throw new RuntimeHaltSignal(invalid, false);
+}
+
+// ============================================================
+// AUTO-EXCEPTION HALT BUILDER (IR-2)
+// ============================================================
+
+/**
+ * Build an invalid RillValue representing an auto-exception pattern
+ * match, then throw a non-catchable `RuntimeHaltSignal` wrapping it.
+ *
+ * Emits the `#R999` atom with `provider="extension"` and a single
+ * `host`-kind trace frame. Callers (typically `checkAutoExceptions` on
+ * the evaluator base) set `site.fn = "checkAutoExceptions"`.
+ *
+ * The human-readable message is derived from `pattern` and
+ * `matchedValue`; callers do not format it.
+ *
+ * Caller responsibility (EC-3): the builder does not validate inputs.
+ * `pattern` MUST be a non-empty string (the regex source) and
+ * `matchedValue` MUST be a string, because auto-exceptions fire only on
+ * string pipe values. Violating these preconditions yields a
+ * degenerate but still well-formed invalid.
+ *
+ * @param site            Site descriptor (location, sourceId, fn).
+ * @param pattern         Regex source that matched (non-empty string).
+ * @param matchedValue    String value that triggered the match.
+ * @throws RuntimeHaltSignal with code=`#R999`, catchable=false.
+ */
+export function throwAutoExceptionHalt(
+  site: TypeHaltSite,
+  pattern: string,
+  matchedValue: string
+): never {
+  const message = `auto-exception: pattern ${pattern} matched ${JSON.stringify(matchedValue)}`;
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind: TRACE_KINDS.HOST,
+    fn: site.fn,
+  });
+  const invalid = invalidate(
+    {},
+    {
+      code: 'R999',
+      provider: 'extension',
+      raw: { message, pattern, matchedValue },
+    },
+    frame
+  );
+  throw new RuntimeHaltSignal(invalid, false);
+}
+
+// ============================================================
+// ERROR WRAP HALT BUILDER (IR-3)
+// ============================================================
+
+/**
+ * Build an invalid RillValue for an `error "..."` statement, then throw
+ * a non-catchable `RuntimeHaltSignal` wrapping it (NFR-HSM-7).
+ *
+ * Emits the `#RILL_R016` atom with `provider="runtime"` and always
+ * appends one `host`-kind trace frame via `invalidate`. Callers
+ * (typically `evaluateError`) set `site.fn = "evaluateError"`.
+ *
+ * Atom name uses underscore form (`RILL_R016`) per ATOM_NAME_REGEX
+ * (atom-registry.ts:21). The host-facing error ID `RILL-R016` in
+ * `error-registry.ts` is a separate string namespace.
+ *
+ * When `interpolated === true`, additionally appends a `wrap`-kind
+ * frame whose `wrapped` field carries the prior status dict of the
+ * invalid (code, message, provider, raw). This preserves the pre-wrap
+ * status so `.!trace` consumers can introspect what was wrapped when
+ * the error message was built from an interpolated string.
+ *
+ * When `interpolated === false`, no wrap frame is appended; the trace
+ * carries only the standard host frame.
+ *
+ * @param site           Site descriptor (location, sourceId, fn).
+ * @param message        Already-evaluated error message string.
+ * @param interpolated   True when the source message used interpolation.
+ * @throws RuntimeHaltSignal with code=`#RILL_R016`, catchable=false.
+ */
+export function throwErrorHalt(
+  site: TypeHaltSite,
+  message: string,
+  interpolated: boolean
+): never {
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind: TRACE_KINDS.HOST,
+    fn: site.fn,
+  });
+  let invalid = invalidate(
+    {},
+    {
+      code: 'RILL_R016',
+      provider: 'runtime',
+      raw: { message },
+    },
+    frame
+  );
+  if (interpolated) {
+    const priorStatus = getStatus(invalid);
+    const wrappedDict: Readonly<Record<string, RillValue>> = Object.freeze({
+      code: atomName(priorStatus.code),
+      message: priorStatus.message,
+      provider: priorStatus.provider,
+      raw: priorStatus.raw as RillValue,
+    });
+    const wrapFrame = createTraceFrame({
+      site: formatSite(site.location, site.sourceId),
+      kind: TRACE_KINDS.WRAP,
+      fn: site.fn,
+      wrapped: wrappedDict,
+    });
+    invalid = appendTraceFrame(invalid, wrapFrame);
+  }
+  throw new RuntimeHaltSignal(invalid, false);
 }

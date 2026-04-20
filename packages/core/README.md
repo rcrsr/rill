@@ -129,13 +129,17 @@ while (!(step = await stepper.next()).done) {
 ### Error Handling
 
 ```typescript
-import { parse, execute, createRuntimeContext, AbortError } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, RuntimeHaltSignal, getStatus, atomName } from '@rcrsr/rill';
 
 try {
   const result = await execute(parse(script), ctx);
 } catch (err) {
-  if (err instanceof AbortError) {
-    // Execution was cancelled via signal
+  if (err instanceof RuntimeHaltSignal) {
+    const status = getStatus(err.value);
+    if (atomName(status.code) === 'DISPOSED') {
+      // Execution was cancelled via AbortSignal
+    }
+    // err.catchable indicates whether guard/retry can recover
   }
   // Runtime errors include source location and error code
 }
