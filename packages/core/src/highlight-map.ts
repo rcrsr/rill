@@ -40,6 +40,8 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['DESTRUCT_LANGLE', 'keyword'],
     ['SLICE_LANGLE', 'keyword'],
     ['USE_LANGLE', 'keyword'],
+    ['GUARD_LBRACE', 'keyword'],
+    ['RETRY_LANGLE', 'keyword'],
 
     // Keywords
     ['EACH', 'keyword'],
@@ -52,6 +54,11 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['PASS', 'keyword'],
     ['ASSERT', 'keyword'],
     ['ERROR', 'keyword'],
+    ['GUARD', 'keyword'],
+    ['RETRY', 'keyword'],
+
+    // Atom literal: #NAME
+    ['ATOM', 'meta'],
 
     // Variables
     ['DOLLAR', 'variableName'],
@@ -83,6 +90,7 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['BANG', 'operator'],
     ['NULLISH_COALESCE', 'operator'],
     ['DOT_QUESTION', 'operator'],
+    ['DOT_BANG', 'operator'],
     ['ELLIPSIS', 'operator'],
     ['CONVERT', 'operator'],
     ['AT', 'operator'],

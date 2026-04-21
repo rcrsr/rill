@@ -532,7 +532,7 @@ describe('ref-llm: Closures', () => {
     );
   });
 
-  it('return type assertion: fails with RILL-R004', async () => {
+  it('return type assertion: fails (halts typed-atom)', async () => {
     await expect(
       run('|x: number| { $x * 2 }:string => $fn\n$fn(5)')
     ).rejects.toThrow();

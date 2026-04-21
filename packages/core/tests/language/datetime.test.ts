@@ -8,6 +8,7 @@ import { toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // Fixed reference instant: 2026-03-13T08:00:00Z
 const REF_ISO = '2026-03-13T08:00:00Z';
@@ -122,19 +123,22 @@ describe('Rill Language: Datetime Type', () => {
     });
 
     it('halts when nowMs is NaN', async () => {
-      await expect(run('now()', { nowMs: NaN })).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('now()', { nowMs: NaN }),
         'now() requires ctx.nowMs to be a finite integer'
       );
     });
 
     it('halts when nowMs is Infinity', async () => {
-      await expect(run('now()', { nowMs: Infinity })).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('now()', { nowMs: Infinity }),
         'now() requires ctx.nowMs to be a finite integer'
       );
     });
 
     it('halts when nowMs is a float', async () => {
-      await expect(run('now()', { nowMs: 1710316800000.5 })).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('now()', { nowMs: 1710316800000.5 }),
         'now() requires ctx.nowMs to be a finite integer'
       );
     });
@@ -208,31 +212,37 @@ describe('Rill Language: Datetime Type', () => {
     });
 
     it('.local_iso halts when timezone is NaN', async () => {
-      await expect(
-        run(`datetime("${REF_ISO}") -> .local_iso`, { timezone: NaN })
-      ).rejects.toThrow('Invalid timezone offset');
+      await expectHaltMessage(
+        () => run(`datetime("${REF_ISO}") -> .local_iso`, { timezone: NaN }),
+        'Invalid timezone offset'
+      );
     });
 
     it('.local_date halts when timezone is Infinity', async () => {
-      await expect(
-        run(`datetime("${REF_ISO}") -> .local_date`, {
-          timezone: Infinity,
-        })
-      ).rejects.toThrow('Invalid timezone offset');
+      await expectHaltMessage(
+        () =>
+          run(`datetime("${REF_ISO}") -> .local_date`, {
+            timezone: Infinity,
+          }),
+        'Invalid timezone offset'
+      );
     });
 
     it('.local_time halts when timezone is -Infinity', async () => {
-      await expect(
-        run(`datetime("${REF_ISO}") -> .local_time`, {
-          timezone: -Infinity,
-        })
-      ).rejects.toThrow('Invalid timezone offset');
+      await expectHaltMessage(
+        () =>
+          run(`datetime("${REF_ISO}") -> .local_time`, {
+            timezone: -Infinity,
+          }),
+        'Invalid timezone offset'
+      );
     });
 
     it('.local_offset halts when timezone is NaN', async () => {
-      await expect(
-        run(`datetime("${REF_ISO}") -> .local_offset`, { timezone: NaN })
-      ).rejects.toThrow('Invalid timezone offset');
+      await expectHaltMessage(
+        () => run(`datetime("${REF_ISO}") -> .local_offset`, { timezone: NaN }),
+        'Invalid timezone offset'
+      );
     });
   });
 
@@ -374,20 +384,23 @@ describe('Rill Language: Datetime Type', () => {
   // ============================================================
 
   describe('error cases', () => {
-    it('datetime() with no args halts RILL-R004 [AC-E1]', async () => {
-      await expect(run('datetime()')).rejects.toThrow(
+    it('datetime() with no args halts [AC-E1]', async () => {
+      await expectHaltMessage(
+        () => run('datetime()'),
         'datetime() requires arguments'
       );
     });
 
-    it('datetime(month: 13) halts RILL-R004 [AC-E2]', async () => {
-      await expect(
-        run('datetime(...dict[year: 2026, month: 13, day: 1])')
-      ).rejects.toThrow('Invalid datetime component month: 13');
+    it('datetime(month: 13) halts [AC-E2]', async () => {
+      await expectHaltMessage(
+        () => run('datetime(...dict[year: 2026, month: 13, day: 1])'),
+        'Invalid datetime component month: 13'
+      );
     });
 
-    it('datetime("now") halts RILL-R004 for non-ISO string [AC-E3]', async () => {
-      await expect(run('datetime("now")')).rejects.toThrow(
+    it('datetime("now") halts for non-ISO string [AC-E3]', async () => {
+      await expectHaltMessage(
+        () => run('datetime("now")'),
         'Invalid ISO 8601 string: now'
       );
     });
@@ -404,34 +417,43 @@ describe('Rill Language: Datetime Type', () => {
       ).rejects.toThrow('datetime.diff() requires a datetime argument');
     });
 
-    it('datetime(unix: NaN) halts RILL-R004', async () => {
+    it('datetime(unix: NaN) halts', async () => {
       const getNaN: RillFunction = {
         params: [],
         returnType: { kind: 'number' },
         fn: () => NaN,
       };
-      await expect(
-        run('datetime(...dict[unix: getNaN()])', { functions: { getNaN } })
-      ).rejects.toThrow('Invalid datetime component unix');
+      await expectHaltMessage(
+        () =>
+          run('datetime(...dict[unix: getNaN()])', {
+            functions: { getNaN },
+          }),
+        'Invalid datetime component unix'
+      );
     });
 
-    it('datetime(unix: Infinity) halts RILL-R004', async () => {
+    it('datetime(unix: Infinity) halts', async () => {
       const getInf: RillFunction = {
         params: [],
         returnType: { kind: 'number' },
         fn: () => Infinity,
       };
-      await expect(
-        run('datetime(...dict[unix: getInf()])', { functions: { getInf } })
-      ).rejects.toThrow('Invalid datetime component unix');
+      await expectHaltMessage(
+        () =>
+          run('datetime(...dict[unix: getInf()])', {
+            functions: { getInf },
+          }),
+        'Invalid datetime component unix'
+      );
     });
 
     it('error messages match spec patterns [EC-1, EC-3]', async () => {
       // EC-1: no args error message
-      await expect(run('datetime()')).rejects.toThrow(/requires arguments/);
+      await expectHaltMessage(() => run('datetime()'), /requires arguments/);
 
       // EC-3: non-ISO string error message
-      await expect(run('datetime("hello")')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('datetime("hello")'),
         /Invalid ISO 8601 string/
       );
     });

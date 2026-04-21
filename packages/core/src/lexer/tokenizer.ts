@@ -15,6 +15,7 @@ import {
 } from './helpers.js';
 import { SINGLE_CHAR_OPERATORS, TWO_CHAR_OPERATORS } from './operators.js';
 import {
+  readAtom,
   readIdentifier,
   readNumber,
   readString,
@@ -37,8 +38,18 @@ function skipWhitespace(state: LexerState): void {
   }
 }
 
+function isUppercaseLetter(ch: string): boolean {
+  return ch >= 'A' && ch <= 'Z';
+}
+
 function readComment(state: LexerState): Token | null {
   if (peek(state) !== '#') {
+    return null;
+  }
+
+  // Disambiguate: `#NAME` (uppercase letter follows) is an atom literal,
+  // not a comment. Let the main tokenizer path handle it via readAtom().
+  if (isUppercaseLetter(peek(state, 1))) {
     return null;
   }
 
@@ -129,6 +140,13 @@ export function nextToken(state: LexerState): Token {
   // Variable
   if (ch === '$') {
     return readVariable(state);
+  }
+
+  // Atom literal: #NAME (uppercase identifier)
+  // Note: readComment() returns null for `#` followed by an uppercase letter
+  // so execution reaches here to emit an ATOM token.
+  if (ch === '#' && isUppercaseLetter(peek(state, 1))) {
+    return readAtom(state);
   }
 
   // Three-character operators

@@ -21,6 +21,14 @@ import { VALID_TYPE_NAMES } from '../constants.js';
 /** @internal */
 export { VALID_TYPE_NAMES };
 
+/**
+ * Strict atom-name shape: uppercase leading letter, then uppercase letters, digits, underscores.
+ * Shared by parser-literals (`#NAME`) and parser-control (`guard<on: list[#NAME]>`).
+ * Registry enforces 64-char max; parser enforces shape only.
+ * @internal
+ */
+export const ATOM_NAME_SHAPE = /^[A-Z][A-Z0-9_]*$/;
+
 // ============================================================
 // LOOKAHEAD PREDICATES
 // ============================================================

@@ -80,7 +80,7 @@ rill requires actual `bool` values for conditions. Empty strings, zero, and empt
 
 ```rill
 "hello" -> .empty -> !$
-# Result: false
+# Result: true
 ```
 
 ## Type-Locked Variables
@@ -169,7 +169,7 @@ Methods like `.head` and `.tail` error on empty collections.
 
 ```rill
 [] => $list
-$list -> .empty ? "nothing" ! $list -> .head
+$list -> .empty ? "nothing" ! ($list -> .head)
 # Result: "nothing"
 ```
 
@@ -356,11 +356,101 @@ $s -> each { $ -> log }
 
 `$s()` remains valid on stale steps. Only `.next()` fails when called on a non-current step.
 
+## My Script Halted at an Access
+
+An access on an invalid value halts execution. Common causes: a host function returned an error, a type assertion failed, or a field did not exist.
+
+**Symptom:** Script stops mid-execution with no apparent syntax error.
+
+**Fix:** Wrap the risky access in `guard` to catch the halt and inspect the result.
+
+```rill
+"hello" => $val
+guard { $val.upper } => $out
+$out.! ? "halted: {$out.!message}" ! $out
+# Result: "HELLO"
+```
+
+To find which operation halted, read `.!trace`:
+
+```text
+guard { app::fetch("https://api.example.com") } => $result
+$result.!trace -> each { log("{$.kind} at {$.site}") }
+```
+
+Access halts are catchable. Halts from `error "..."` and `assert` are **non-catchable** and propagate through `guard`.
+
+## Why Does `#MY_CODE` Not Match?
+
+Atom comparison uses identity, not string equality. An atom name that was not registered resolves to `#R001`.
+
+```text
+# Error: #MY_CODE resolves to #R001 if not registered
+$result.!code == #MY_CODE ? "matched" ! "no match"
+```
+
+**Cause:** `#MY_CODE` was not registered before the script ran.
+
+**Fix:** Use a pre-registered atom, or register the atom via `ctx.registerErrorCode("MY_CODE", "generic")` in your host before running the script.
+
+Use `.!` to test validity without comparing atoms:
+
+```rill
+"hello" => $val
+guard { $val.upper } => $result
+$result.! ? "invalid" ! "valid"
+# Result: "valid"
+```
+
+Pre-registered atoms: `#TIMEOUT`, `#AUTH`, `#RATE_LIMIT`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#DISPOSED`, `#R001`, `#R999`. Note: `#ok` is a runtime sentinel, not a script-level atom literal — the lexer does not emit it.
+
+To convert a registered atom to its string name:
+
+```rill
+#TIMEOUT -> :>string
+# Result: TIMEOUT
+```
+
+## Guard Did Not Catch My Error
+
+`guard` catches **catchable** halts only. Halts from `error "..."` and `assert` are non-catchable.
+
+```text
+# Non-catchable halt — propagates through guard
+guard { error "fatal" }
+# Error: non-catchable halt from 'error' propagates
+```
+
+**Cause 1:** The halt originated from `error "..."` or `assert`. These are intentional escalations, not recoverable failures.
+
+**Cause 2:** A filtered `guard<on: list[#CODE]>` did not match the actual error code. Non-matching codes propagate.
+
+```text
+guard<on: list[#TIMEOUT]> {
+  app::fetch("https://api.example.com")
+  # If this returns #AUTH, the halt propagates — not caught
+}
+```
+
+**Fix for cause 1:** Remove `guard` — the script must stop. If the error is expected, do not use `error "..."` to produce it. Use `ctx.invalidate` from the host instead.
+
+**Fix for cause 2:** Widen the filter or remove it to catch all catchable codes.
+
+```rill
+"hello" => $val
+guard { $val.upper } => $out
+$out.!
+# Result: false
+```
+
+The filter `<on: list[...]>` is optional. Without it, `guard` catches every catchable halt.
+
 ## See Also
 
 | Document | Description |
 |----------|-------------|
 | [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
+| [Error Handling](topic-error-handling.md) | guard, retry, `.!`, and status probes |
 | [Types](topic-types.md) | Type rules and value semantics |
 | [Design Principles](topic-design-principles.md) | Why rill works this way |
 | [Guide](guide-getting-started.md) | Beginner-friendly introduction |

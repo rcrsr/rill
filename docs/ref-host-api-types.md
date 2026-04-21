@@ -56,8 +56,8 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 
 | Variant | Field | Type | Semantics |
 |---------|-------|------|-----------|
-| `datetime` | — | — | Leaf variant. No sub-fields |
-| `duration` | — | — | Leaf variant. No sub-fields |
+| `datetime` | N/A | N/A | Leaf variant. No sub-fields |
+| `duration` | N/A | N/A | Leaf variant. No sub-fields |
 | `list` | `element` | `TypeStructure \| undefined` | Element type for all list members. Absent when element type is unknown |
 | `dict` | `fields` | `Record<string, RillFieldDef> \| undefined` | Named fields with individual types and optional annotations. Present for structural dicts |
 | `dict` | `valueType` | `TypeStructure \| undefined` | Value type for all dict values. Present for uniform dicts. No per-field annotations |
@@ -127,6 +127,14 @@ export {
   deserializeValue,
   isIterator,
 };
+
+// Error atom registry
+export { registerErrorCode, resolveAtom, atomName };
+export type { RillAtom, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
+export type { ExtensionFactoryCtx };
+
+// Halt formatting
+export { formatHalt };
 ```
 
 ### `inferStructure`
@@ -323,6 +331,141 @@ Returns `true` when `value` is a lazy rill iterator (produced by `range`, `repea
 
 ---
 
+## ExtensionFactoryCtx
+
+`ExtensionFactoryCtx` is the factory-phase context passed as the second argument to async extension factories.
+
+```typescript
+interface ExtensionFactoryCtx {
+  registerErrorCode(name: string, kind: string): void;
+  readonly signal: AbortSignal;
+}
+```
+
+| Member | Description |
+|--------|-------------|
+| `registerErrorCode` | Registers a domain atom by name and kind. Atoms become available as `#NAME` literals in scripts. |
+| `signal` | Fires when the runtime disposes before the factory completes. |
+
+See [Host API Reference](ref-host-api.md#factory-scope-context-extensionfactoryctx) for usage examples.
+
+---
+
+## InvalidateMeta
+
+`InvalidateMeta` is the metadata descriptor passed to `ctx.invalidate` and returned by the `detector` in `ctx.catch`.
+
+```typescript
+interface InvalidateMeta {
+  readonly code: string;
+  readonly provider: string;
+  raw?: Record<string, unknown>;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `string` | Registered atom name (e.g. `"TIMEOUT"`). Unregistered names resolve to `#R001`. |
+| `provider` | `string` | Origin identifier for the failure (e.g. the extension name). |
+| `raw` | `Record<string, unknown>` | Optional provider-specific payload. A `message` key populates the display message. |
+
+---
+
+## InvalidMeta
+
+`InvalidMeta` is the alias used by the `detector` callback in `ctx.catch`. It is identical to `InvalidateMeta`.
+
+```typescript
+type InvalidMeta = InvalidateMeta;
+```
+
+---
+
+## RillAtom
+
+`RillAtom` is the opaque interned handle for a registered atom. The runtime creates handles exclusively via the atom registry.
+
+```typescript
+interface RillAtom {
+  readonly __rill_atom: true;
+  readonly name: string;
+  readonly kind: string;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Bare uppercase atom name without the `#` sigil (e.g. `"TIMEOUT"`) |
+| `kind` | `string` | Classification tag supplied at registration (e.g. `"network"`, `"domain"`) |
+
+Use `atomName(atom)` to retrieve the name string. Use `resolveAtom(name)` to look up a handle by name.
+
+```typescript
+import { resolveAtom, atomName } from '@rcrsr/rill';
+
+const atom = resolveAtom('TIMEOUT');
+atomName(atom);  // "TIMEOUT"
+```
+
+---
+
+## RillStatus
+
+`RillStatus` is the fixed-shape metadata sidecar attached to every `RillValue`. Valid values share one frozen empty-status singleton. Invalid values carry a populated clone.
+
+```typescript
+interface RillStatus {
+  readonly code: RillAtom;
+  readonly message: string;
+  readonly provider: string;
+  readonly raw: Readonly<Record<string, RillValue>>;
+  readonly trace: ReadonlyArray<TraceFrame>;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `RillAtom` | Atom identity. `#ok` means valid; any other atom means invalid. |
+| `message` | `string` | Human-readable description. `""` on valid values. |
+| `provider` | `string` | Origin identifier. `""` on valid values. |
+| `raw` | `Record<string, RillValue>` | Provider-specific payload bag. Frozen empty object on valid values. |
+| `trace` | `ReadonlyArray<TraceFrame>` | Append-only trace chain. Empty on valid values. |
+
+---
+
+## TraceFrame
+
+`TraceFrame` is one entry in the append-only trace chain on an invalid value. Frames record origin first, latest last.
+
+```typescript
+interface TraceFrame {
+  readonly site: string;
+  readonly kind: 'host' | 'type' | 'access' | 'guard-caught' | 'guard-rethrow' | 'wrap';
+  readonly fn: string;
+  readonly wrapped: Readonly<Record<string, RillValue>>;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `site` | `string` | Source location in `file.rill:line[:col]` form. `""` when location is unavailable. |
+| `kind` | `TraceKind` | One of the 6 normative kinds below. |
+| `fn` | `string` | Host function name, operator, or type op. `""` when not applicable. |
+| `wrapped` | `Record<string, RillValue>` | Prior status dict on `wrap` frames. `{}` on all other kinds. |
+
+**Kind values:**
+
+| Kind | Appended when |
+|------|---------------|
+| `host` | Extension calls `ctx.invalidate`. First frame. |
+| `type` | Type assertion or conversion fails. |
+| `access` | Invalid value is accessed via pipe, method, or encode. |
+| `guard-caught` | A `guard` block catches the halt. |
+| `guard-rethrow` | A caught invalid value is re-accessed and halts again. |
+| `wrap` | `error "..."` wraps an invalid value. `wrapped` carries prior status. |
+
+---
+
 ## TypeDefinition
 
 `TypeDefinition` is the registration contract for host-provided types. Pass instances to `registerType` when configuring the runtime.
@@ -414,9 +557,9 @@ const dateProtocol: TypeProtocol = {
 
 ## See Also
 
-- [Host API Reference](ref-host-api.md) — Complete TypeScript API for embedding rill
-- [Host Integration](integration-host.md) — Embedding guide and runtime configuration
-- [Extensions](integration-extensions.md) — Reusable function packages
+- [Host API Reference](ref-host-api.md): Complete TypeScript API for embedding rill
+- [Host Integration](integration-host.md): Embedding guide and runtime configuration
+- [Extensions](integration-extensions.md): Reusable function packages
 
 ---
 
@@ -438,4 +581,4 @@ v0.18.0 renames 7 exports in `@rcrsr/rill` to remove the `rill`-prefixed naming 
 
 ### Codemod
 
-No automated codemod is available for this rename. Use find-and-replace across your codebase for each old name. The old names do not exist in v0.18.0 — TypeScript will report errors at every import site, making all affected locations visible before runtime.
+No automated codemod is available for this rename. Use find-and-replace across your codebase for each old name. The old names do not exist in v0.18.0; TypeScript will report errors at every import site, making all affected locations visible before runtime.

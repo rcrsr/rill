@@ -17,6 +17,7 @@ export const TWO_CHAR_OPERATORS: Record<string, TokenType> = {
   '>=': TOKEN_TYPES.GE,
   '??': TOKEN_TYPES.NULLISH_COALESCE,
   '.?': TOKEN_TYPES.DOT_QUESTION,
+  '.!': TOKEN_TYPES.DOT_BANG,
   '::': TOKEN_TYPES.DOUBLE_COLON,
 };
 
@@ -61,4 +62,6 @@ export const KEYWORDS: Record<string, TokenType> = {
   map: TOKEN_TYPES.MAP,
   fold: TOKEN_TYPES.FOLD,
   filter: TOKEN_TYPES.FILTER,
+  guard: TOKEN_TYPES.GUARD,
+  retry: TOKEN_TYPES.RETRY,
 };

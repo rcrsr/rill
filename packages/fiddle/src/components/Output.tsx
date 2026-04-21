@@ -159,6 +159,47 @@ export function Output({
                 </div>
               )}
 
+              {error.statusCode !== null && (
+                <div className="output-error-status-code">
+                  #{error.statusCode}
+                </div>
+              )}
+
+              {error.statusMessage !== null && (
+                <div className="output-error-status-message">
+                  {error.statusMessage}
+                </div>
+              )}
+
+              {error.statusProvider !== null && (
+                <div className="output-error-status-provider">
+                  {error.statusProvider}
+                </div>
+              )}
+
+              {error.statusTrace !== null && error.statusTrace.length > 0 && (
+                <div className="output-error-status-trace">
+                  <div className="output-error-status-trace-label">
+                    trace:
+                  </div>
+                  {error.statusTrace.map((frame, index) => (
+                    <div key={index} className="output-error-status-trace-frame">
+                      <span className="output-error-status-trace-kind">
+                        {frame.kind}
+                      </span>
+                      {frame.fn !== '' && (
+                        <span className="output-error-status-trace-fn">
+                          {frame.fn}
+                        </span>
+                      )}
+                      <span className="output-error-status-trace-site">
+                        {frame.site}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {error.cause && (
                 <div className="output-error-cause">{error.cause}</div>
               )}

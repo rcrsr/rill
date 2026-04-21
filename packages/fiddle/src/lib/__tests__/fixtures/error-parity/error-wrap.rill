@@ -1,0 +1,8 @@
+# error halt (uncatchable): tests wrap-frame behaviour via error keyword
+#
+# The error keyword produces an uncatchable halt — guard does NOT catch it.
+# executeRill receives a thrown RuntimeError and routes it through
+# convertError (not convertInvalidValue). The resulting FiddleError
+# has statusCode === null and category === 'runtime'.
+
+error "wrapped"

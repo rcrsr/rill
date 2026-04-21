@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
 
 import { run, createLogCollector } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 // Ordered and vector are special internal types not constructable via rill syntax.
 // Provide them as host variables so |ordered| and |vector| can be exercised.
@@ -346,14 +347,14 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
   });
 
   describe('Error: Return Type Violation (AC-5, AC-36, EC-5)', () => {
-    it('AC-5/EC-5: |number|{ "hello" }:number throws RILL-R004 on return type mismatch', async () => {
+    it('AC-5/EC-5: |number|{ "hello" }:number halts #TYPE_MISMATCH on return type mismatch', async () => {
       const script = `5 -> |number|{ "hello" }:number`;
-      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R004');
+      await expectHalt(() => run(script), { code: 'TYPE_MISMATCH' });
     });
 
-    it('AC-36: |number|{ $ * 2 }:string throws RILL-R004 when body returns number', async () => {
+    it('AC-36: |number|{ $ * 2 }:string halts #TYPE_MISMATCH when body returns number', async () => {
       const script = `5 -> |number|{ $ * 2 }:string`;
-      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R004');
+      await expectHalt(() => run(script), { code: 'TYPE_MISMATCH' });
     });
   });
 
@@ -520,14 +521,15 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
   });
 
   describe('Parameterized Type: Return type assertion mismatch (AC-15)', () => {
-    it('AC-15: closure declared :list(string) that returns list[1, 2] halts with RILL-R004', async () => {
+    it('AC-15: closure declared :list(string) that returns list[1, 2] halts #TYPE_MISMATCH', async () => {
       const script = `
         || { list[1, 2] } :list(string) => $fn
         $fn()
       `;
-      const err = await run(script).catch((e: unknown) => e);
-      expect((err as Error & { errorId: string }).errorId).toBe('RILL-R004');
-      expect((err as Error).message).toContain('list(string)');
+      await expectHalt(() => run(script), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'list(string)',
+      });
     });
   });
 });

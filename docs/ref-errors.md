@@ -402,10 +402,10 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Cause:** Four conditions raise RILL-R002:
 
-1. **Operator type mismatch** — Binary operator applied to incompatible types. rill does not perform implicit type coercion.
-2. **List element type mismatch** — List elements have incompatible top-level types. Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
-3. **Stream already consumed** — A stream value is iterated a second time after all chunks have been yielded. Streams are single-pass; iteration cannot restart.
-4. **Stale step access** — `.next()` is called on a stream step that is no longer current. Each call to `.next()` on a stream produces a new step; holding a reference to an old step and calling `.next()` on it raises this error.
+1. **Operator type mismatch**: Binary operator applied to incompatible types. rill does not perform implicit type coercion.
+2. **List element type mismatch**: List elements have incompatible top-level types. Elements with the same compound type but different sub-structure (e.g., `list[list[1,2], list["a","b"]]`) do not trigger RILL-R002. These infer the bare compound type instead (e.g., `list(list)`).
+3. **Stream already consumed**: A stream value is iterated a second time after all chunks have been yielded. Streams are single-pass; iteration cannot restart.
+4. **Stale step access**: `.next()` is called on a stream step that is no longer current. Each call to `.next()` on a stream produces a new step; holding a reference to an old step and calling `.next()` on it raises this error.
 
 **Resolution:** For type mismatches: ensure both operands are compatible types and convert values explicitly if needed. For lists: ensure all elements share the same top-level type. For streams: iterate a stream only once; do not store and re-use intermediate step references.
 
@@ -453,8 +453,8 @@ list[list[1,2], list["a","b"]]
 
 **Cause:** Two conditions raise RILL-R003:
 
-1. **Method receiver type mismatch** — Method called on value of wrong type. String methods require strings, list methods require lists, etc.
-2. **`:>stream` conversion not supported** — The `:>` type conversion operator does not support converting any value to the `stream` type. Streams are created only by stream closures; they cannot be produced by conversion.
+1. **Method receiver type mismatch**: Method called on value of wrong type. String methods require strings, list methods require lists, etc.
+2. **`:>stream` conversion not supported**: The `:>` type conversion operator does not support converting any value to the `stream` type. Streams are created only by stream closures; they cannot be produced by conversion.
 
 **Exclusion:** `RILL-R003` is not triggered by `.^description`, `.^input`, or `.^output` on any callable kind. Annotation reflection operators work on all callable kinds (script, application, runtime) without raising this error.
 
@@ -482,11 +482,11 @@ list[list[1,2], list["a","b"]]
 
 **Cause:** Five distinct causes raise RILL-R004:
 
-1. **Type conversion failure** — Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
-2. **Return type assertion failure** — Closure return type annotation (`:type` after `}`) does not match the actual return value type.
-3. **Uniform type assertion failure** — Value does not match the uniform value type constraint in `dict(T)`, `ordered(T)`, or `tuple(T)`.
-4. **Stream chunk type mismatch** — A `yield` expression produces a chunk whose type does not match the declared chunk type of the stream closure (e.g., `stream(number)` closure yields a string).
-5. **Stream resolution type mismatch** — The final resolved value of a stream closure does not match the declared resolution type.
+1. **Type conversion failure**: Value cannot be converted to target type via the `:>` operator (invalid format or incompatible types).
+2. **Return type assertion failure**: Closure return type annotation (`:type` after `}`) does not match the actual return value type.
+3. **Uniform type assertion failure**: Value does not match the uniform value type constraint in `dict(T)`, `ordered(T)`, or `tuple(T)`.
+4. **Stream chunk type mismatch**: A `yield` expression produces a chunk whose type does not match the declared chunk type of the stream closure (e.g., `stream(number)` closure yields a string).
+5. **Stream resolution type mismatch**: The final resolved value of a stream closure does not match the declared resolution type.
 
 **Resolution:** For type conversion: ensure the value has valid format for the target type. For string-to-number, check numeric format. For parse operations, validate input structure. For return type assertions: ensure the closure body produces a value of the declared return type. For uniform type assertions: ensure all values in the collection match the declared uniform type T. For stream chunk type mismatch: ensure every `yield` expression produces a value of the declared chunk type. For stream resolution type mismatch: ensure the final expression in the stream closure matches the declared resolution type.
 
@@ -522,7 +522,7 @@ json({ "hi" })
 
 **Cause:** Variable referenced before assignment, or variable name misspelled. Also raised when `$` is accessed inside a no-args closure (`||{ }`) where no piped value is bound.
 
-**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference. Do not access `$` in no-args closures — use named parameters or pipe a value to an anonymous typed closure instead.
+**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference. Do not access `$` in no-args closures; use named parameters or pipe a value to an anonymous typed closure instead.
 
 **Example:**
 
@@ -591,10 +591,10 @@ app::fetch($url)  # Host must provide app::fetch
 
 **Cause:** Two conditions raise RILL-R008:
 
-1. **Missing annotation** — Annotation key accessed but not set on a statement or named parameter.
-2. **Type value annotation access** — `.^key` accessed on a type value (e.g., `string`, `number`, `list`). Type values are not annotation containers and do not support annotation access.
+1. **Missing annotation**: Annotation key accessed but not set on a statement or named parameter.
+2. **Type value annotation access**: `.^key` accessed on a type value (e.g., `string`, `number`, `list`). Type values are not annotation containers and do not support annotation access.
 
-**Resolution:** For missing annotations: set the annotation before accessing (`^(key: value)`), or check annotation key spelling. For type value access: do not use `.^` on type values — use `.^` only on dict-bound closures or annotated statements.
+**Resolution:** For missing annotations: set the annotation before accessing (`^(key: value)`), or check annotation key spelling. For type value access: do not use `.^` on type values; use `.^` only on dict-bound closures or annotated statements.
 
 **Example:**
 
@@ -637,8 +637,8 @@ string.^label  # Error: RILL-R008: Annotation access not supported on type value
 
 **Cause:** Two conditions raise RILL-R010:
 
-1. **Iteration limit exceeded** — A loop or collection operation exceeded the configured iteration limit (prevents infinite loops).
-2. **Stream expansion limit exceeded** — A stream closure yielded more chunks than the configured stream iteration ceiling. This prevents unbounded streaming.
+1. **Iteration limit exceeded**: A loop or collection operation exceeded the configured iteration limit (prevents infinite loops).
+2. **Stream expansion limit exceeded**: A stream closure yielded more chunks than the configured stream iteration ceiling. This prevents unbounded streaming.
 
 **Resolution:** Reduce data size, adjust the iteration limit via RuntimeOptions, or check for infinite loop and infinite yield conditions. For streams: ensure the stream closure yields a bounded number of chunks, or increase the stream iteration limit in RuntimeOptions.
 
@@ -897,8 +897,8 @@ $x -> :>$t  # $t is string, not a type value
 
 **Cause:** A closure body or script produced no value. Two conditions trigger this error:
 
-1. **Empty closure body** — A closure with a non-empty block that contains no pipe-producing statements (e.g., `|x| { }` invoked).
-2. **Non-producing script** — A script contains only comments or no statements that produce a pipe value.
+1. **Empty closure body**: A closure with a non-empty block that contains no pipe-producing statements (e.g., `|x| { }` invoked).
+2. **Non-producing script**: A script contains only comments or no statements that produce a pipe value.
 
 This replaces the former incorrect use of RILL-R005 for empty scripts.
 
@@ -1420,9 +1420,9 @@ use<module:unknown>
 
 ---
 
-### rill-r004 — datetime construction: no arguments
+### rill-r004: datetime construction: no arguments
 
-**Description:** Invalid datetime construction — no arguments
+**Description:** Invalid datetime construction, no arguments
 
 **Cause:** `datetime()` was called with no arguments. The constructor requires at least one argument: either an ISO 8601 string, a unix millisecond timestamp, or named date/time components.
 
@@ -1437,9 +1437,9 @@ datetime()
 
 ---
 
-### rill-r004 — datetime construction: out-of-range component
+### rill-r004: datetime construction: out-of-range component
 
-**Description:** Invalid datetime construction — out-of-range component
+**Description:** Invalid datetime construction, out-of-range component
 
 **Cause:** A named date or time component falls outside its valid range (e.g., month 13, hour 25, second 60).
 
@@ -1454,9 +1454,9 @@ datetime(...dict[year: 2024, month: 13, day: 1])
 
 ---
 
-### rill-r004 — datetime construction: non-ISO 8601 string
+### rill-r004: datetime construction: non-ISO 8601 string
 
-**Description:** Invalid datetime construction — non-ISO 8601 string
+**Description:** Invalid datetime construction, non-ISO 8601 string
 
 **Cause:** The string passed to `datetime()` does not conform to ISO 8601 format.
 
@@ -1471,9 +1471,9 @@ datetime("June 15, 2024")
 
 ---
 
-### rill-r004 — duration construction: negative unit value
+### rill-r004: duration construction: negative unit value
 
-**Description:** Invalid duration construction — negative unit value
+**Description:** Invalid duration construction, negative unit value
 
 **Cause:** A duration unit was given a negative value. Duration units must be non-negative integers.
 
@@ -1488,9 +1488,9 @@ duration(...dict[hours: -3])
 
 ---
 
-### rill-r003 — datetime arithmetic: `.add()` requires a duration
+### rill-r003: datetime arithmetic: `.add()` requires a duration
 
-**Description:** Type mismatch in datetime arithmetic — `.add()` requires a duration
+**Description:** Type mismatch in datetime arithmetic; `.add()` requires a duration
 
 **Cause:** `.add()` was called on a `datetime` value with an argument that is not a `duration`.
 
@@ -1505,9 +1505,9 @@ datetime("2024-06-15") -> .add(7)
 
 ---
 
-### rill-r002 — duration ordering: different calendar components
+### rill-r002: duration ordering: different calendar components
 
-**Description:** Incomparable duration ordering — different calendar components
+**Description:** Incomparable duration ordering, different calendar components
 
 **Cause:** The `<`, `>`, `<=`, or `>=` operators were applied to two `duration` values where one or both have a non-zero `months` field. Calendar durations (those with months) have variable length and cannot be ordered against fixed-time durations.
 
@@ -1522,7 +1522,7 @@ duration(...dict[months: 1]) < duration(...dict[days: 31])
 
 ---
 
-### rill-r003 — duration arithmetic: negative result from `.subtract()`
+### rill-r003: duration arithmetic: negative result from `.subtract()`
 
 **Description:** Negative duration result from `.subtract()`
 
@@ -1539,7 +1539,7 @@ duration(...dict[hours: 1]) -> .subtract(duration(...dict[hours: 2]))
 
 ---
 
-### rill-r003 — duration property: `.total_ms` on calendar durations
+### rill-r003: duration property: `.total_ms` on calendar durations
 
 **Description:** `.total_ms` not defined for calendar durations
 
@@ -1556,7 +1556,7 @@ duration(...dict[months: 2]) -> .total_ms
 
 ---
 
-### rill-r002 — collection operator: scalar datetime or duration
+### rill-r002: collection operator: scalar datetime or duration
 
 **Description:** Collection operator on scalar datetime or duration
 
@@ -1710,7 +1710,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg004
 
-**Description:** Config validation error — wrong field type
+**Description:** Config validation error, wrong field type
 
 **Cause:** A top-level config field has the wrong type. For example, `runtime` must be a string, `extensions` must be an object, and `context` must be an object.
 
@@ -1728,7 +1728,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg005
 
-**Description:** Config validation error — orphaned config key
+**Description:** Config validation error, orphaned config key
 
 **Cause:** An `extensions.config` entry references a package that has no corresponding mount in `extensions.mounts`.
 
@@ -1746,7 +1746,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg006
 
-**Description:** Config validation error — empty path or handler name
+**Description:** Config validation error, empty path or handler name
 
 **Cause:** The `main` field has an empty file path, or the handler name after the colon separator is empty (e.g., `"main": ":handler"` or `"main": "script.rill:"`).
 
@@ -1786,8 +1786,8 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 **Cause:** Two conditions raise RILL-CFG008:
 
-1. **Invalid path segment** — A mount path contains characters outside `[a-z0-9-_]`, starts with a digit, or is empty.
-2. **Conflicting version constraints** — Two mounts reference the same package with incompatible semver constraints.
+1. **Invalid path segment**: A mount path contains characters outside `[a-z0-9-_]`, starts with a digit, or is empty.
+2. **Conflicting version constraints**: Two mounts reference the same package with incompatible semver constraints.
 
 **Resolution:** Fix path segment characters to use only lowercase alphanumeric, hyphens, and underscores. Resolve conflicting version constraints so mounts agree on a compatible range.
 
@@ -1810,9 +1810,9 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 **Cause:** Three conditions raise RILL-CFG009:
 
-1. **Package not found** — The npm package name in the mount could not be resolved or installed.
-2. **Missing manifest** — The package does not export an `extensionManifest` named export.
-3. **Factory threw** — The extension's factory function threw during initialization.
+1. **Package not found**: The npm package name in the mount could not be resolved or installed.
+2. **Missing manifest**: The package does not export an `extensionManifest` named export.
+3. **Factory threw**: The extension's factory function threw during initialization.
 
 **Resolution:** Verify the package name is correct and installed. Ensure the package exports a valid `extensionManifest`. Check factory logs for initialization errors.
 
@@ -1882,7 +1882,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg013
 
-**Description:** Context validation error — missing value
+**Description:** Context validation error, missing value
 
 **Cause:** A key declared in the context schema has no corresponding value in the provided context object. The schema defines a required key that was not supplied.
 
@@ -1899,7 +1899,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg014
 
-**Description:** Context validation error — type mismatch
+**Description:** Context validation error, type mismatch
 
 **Cause:** A context value's runtime type does not match the type declared in the context schema. For example, the schema declares `userId: number` but the provided value is a string.
 
@@ -1934,7 +1934,7 @@ Config errors occur during `rill-config` load-time processing and handler parame
 
 ### rill-cfg016
 
-**Description:** Handler arg error — missing required param
+**Description:** Handler arg error, missing required param
 
 **Cause:** A required handler parameter was not provided when invoking a rill handler via the CLI or host API. The handler declares the parameter as required (no default value) but no value was passed.
 
@@ -1952,7 +1952,7 @@ rill-run script.rill:processUser
 
 ### rill-cfg017
 
-**Description:** Handler arg error — type coercion failure
+**Description:** Handler arg error, type coercion failure
 
 **Cause:** A CLI flag value cannot be coerced to the type declared by the handler parameter. For example, passing `--count=abc` for a `number` parameter.
 
@@ -1970,7 +1970,7 @@ rill-run script.rill:processItems --count=abc
 
 ### rill-cfg018
 
-**Description:** Handler arg error — unknown flag
+**Description:** Handler arg error, unknown flag
 
 **Cause:** A CLI flag was passed that does not match any declared parameter in the handler. The handler does not accept the given flag name.
 
@@ -2082,3 +2082,183 @@ We maintain this documentation to help users resolve issues quickly and understa
 
 - [Language Reference](ref-language.md) - Core rill syntax and semantics
 - [Host API Reference](ref-host-api.md) - TypeScript integration API
+
+---
+
+## Pre-Registered Error Atoms
+
+These atoms are registered by the rill runtime before script execution. Scripts reference them as `#NAME` literals. Extensions may use them via `resolveAtom('NAME')`.
+
+`#ok` is a reserved internal sentinel. It is not user-reachable and is not listed here.
+
+---
+
+### #TIMEOUT
+
+**Description:** Operation exceeded its deadline.
+
+**Cause:** A host function call or extension operation did not complete within its configured timeout.
+
+**Resolution:** Increase the timeout in `RuntimeOptions`, use `guard` to catch the atom, or implement retry with `retry<N>`.
+
+**Example:**
+
+```text
+guard { app::fetch("https://slow.api.example.com/data") } => $result
+$result.! -> ($ == #TIMEOUT) ? error "Request timed out" ! $result
+```
+
+---
+
+### #AUTH
+
+**Description:** Authentication or authorization failure.
+
+**Cause:** The host function received a 401 or 403 response, or the supplied credentials were rejected.
+
+**Resolution:** Check API keys or tokens in the extension config. Refresh credentials if expired.
+
+**Example:**
+
+```text
+guard { app.query("SELECT 1") } => $result
+$result.! -> ($ == #AUTH) ? error "Database credentials invalid" ! $result
+```
+
+---
+
+### #RATE_LIMIT
+
+**Description:** Rate limit exceeded on the external service.
+
+**Cause:** Too many requests within a time window. The host extension received a 429 response.
+
+**Resolution:** Add delay between calls, reduce concurrency, or use `retry<N>` with backoff.
+
+**Example:**
+
+```text
+retry<3> { guard { app.search($query) } } => $result
+$result.! -> ($ == #RATE_LIMIT) ? error "Rate limit hit after retries" ! $result
+```
+
+---
+
+### #UNAVAILABLE
+
+**Description:** Dependency unavailable.
+
+**Cause:** A downstream service returned 503, a connection was refused, or a required resource is offline.
+
+**Resolution:** Check the dependency's health status. Use `guard` and `retry<N>` for transient unavailability.
+
+**Example:**
+
+```text
+guard { app.db_query($sql) } => $result
+$result.! -> ($ == #UNAVAILABLE) ? error "Database offline" ! $result
+```
+
+---
+
+### #NOT_FOUND
+
+**Description:** Resource not found.
+
+**Cause:** The requested resource does not exist. Equivalent to HTTP 404.
+
+**Resolution:** Verify the resource identifier. Use `.?` to test before accessing.
+
+**Example:**
+
+```text
+guard { app.get_user($user_id) } => $result
+$result.! -> ($ == #NOT_FOUND) ? "User not found" ! $result.name
+```
+
+---
+
+### #CONFLICT
+
+**Description:** Resource-state conflict.
+
+**Cause:** The operation cannot complete because of a conflicting state (e.g., duplicate key, optimistic lock failure, HTTP 409).
+
+**Resolution:** Reload the resource and retry the operation with fresh state.
+
+**Example:**
+
+```text
+guard { app.create_record($data) } => $result
+$result.! -> ($ == #CONFLICT) ? error "Record already exists" ! $result
+```
+
+---
+
+### #INVALID_INPUT
+
+**Description:** Caller supplied bad input.
+
+**Cause:** The extension received input that fails domain validation (e.g., malformed email, out-of-range number). Distinct from rill type errors, which halt immediately.
+
+**Resolution:** Validate input before calling the extension. Use `:type` assertions or `assert` to enforce shape.
+
+**Example:**
+
+```text
+guard { app.send_email(dict[to: $address, body: $body]) } => $result
+$result.! -> ($ == #INVALID_INPUT) ? error "Invalid email address" ! $result
+```
+
+---
+
+### #DISPOSED
+
+**Description:** Runtime disposed; extension call after dispose.
+
+**Cause:** A script or host code called an extension function after `dispose()` completed.
+
+**Resolution:** Do not call extension functions after `dispose()`. Check the lifecycle order in host code.
+
+**Example:**
+
+```text
+# Host code: ensure scripts run before dispose()
+await execute(parse(script), ctx);
+await dispose();
+```
+
+---
+
+### #R001
+
+**Description:** Unknown atom name at parse or link time.
+
+**Cause:** A `#NAME` literal references an atom that was not registered before the script was parsed or linked. The runtime cannot resolve the atom identity.
+
+**Resolution:** Ensure `ctx.registerErrorCode('NAME', kind)` runs in the factory before scripts execute. Pre-registered atoms (`#TIMEOUT`, `#AUTH`, etc.) do not require registration.
+
+**Example:**
+
+```text
+# Error: #MY_CUSTOM_CODE is not registered
+guard { app.call() } => $r
+$r.! -> ($ == #MY_CUSTOM_CODE) ? "custom error" ! $r
+```
+
+---
+
+### #R999
+
+**Description:** Unhandled extension exception reshaped at extension boundary.
+
+**Cause:** An extension function threw an error that was not caught by `ctx.catch` or `ctx.invalidate`. The runtime caught the raw exception and wrapped it as an invalid value with this atom.
+
+**Resolution:** Instrument the extension with `ctx.catch` or try/catch to map known errors to specific atoms. Reserve `#R999` detection for unexpected failures.
+
+**Example:**
+
+```text
+guard { app.call() } => $result
+$result.! -> ($ == #R999) ? error "Unexpected extension error" ! $result
+```

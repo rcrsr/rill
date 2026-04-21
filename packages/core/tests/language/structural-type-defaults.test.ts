@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isTuple } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -193,11 +194,12 @@ describe('Rill Language: Structural Type Default Values', () => {
   // A dict missing field 'a' fails the assertion even when 'a' has a default in :>.
   // ============================================================
 
-  describe('AC-12 (EC-4): type assertion : does not hydrate defaults, fails RILL-R004', () => {
+  describe('AC-12 (EC-4): type assertion : does not hydrate defaults, fails typed-atom halt', () => {
     it('[b: "b"] -> :dict(a: string, b: string) fails because : does not hydrate', async () => {
-      await expect(
-        run('[b: "b"] -> :dict(a: string, b: string)')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () => run('[b: "b"] -> :dict(a: string, b: string)'),
+        /Type assertion failed/
+      );
     });
 
     it(':>dict hydrates the default while : does not', async () => {
@@ -208,9 +210,10 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect((hydrated as Record<string, unknown>).a).toBe('a');
 
       // Verify : fails on missing field (no hydration)
-      await expect(
-        run('[b: "b"] -> :dict(a: string, b: string)')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () => run('[b: "b"] -> :dict(a: string, b: string)'),
+        /Type assertion failed/
+      );
     });
   });
 
@@ -218,21 +221,23 @@ describe('Rill Language: Structural Type Default Values', () => {
   // AC-13 (EC-1, EC-3): non-trailing tuple element with default, subsequent without → RILL-R004
   // ============================================================
 
-  describe('AC-13 (EC-1, EC-3): non-trailing tuple default causes RILL-R004', () => {
-    it('tuple(string = "default", number) throws RILL-R004 at evaluation', async () => {
-      await expect(
-        run('tuple["x"] -> :>tuple(string = "default", number)')
-      ).rejects.toThrow(/tuple\(\) default values must be trailing/);
+  describe('AC-13 (EC-1, EC-3): non-trailing tuple default causes typed-atom halt', () => {
+    it('tuple(string = "default", number) halts at evaluation', async () => {
+      await expectHaltMessage(
+        () => run('tuple["x"] -> :>tuple(string = "default", number)'),
+        /tuple\(\) default values must be trailing/
+      );
     });
   });
 
   // ============================================================
-  // AC-14 (EC-2): default literal type mismatch → RILL-R004
+  // AC-14 (EC-2): default literal type mismatch → typed-atom halt
   // ============================================================
 
-  describe('AC-14 (EC-2): default value type mismatch causes RILL-R004', () => {
-    it('dict(a: string = 42) throws RILL-R004 when default is wrong type', async () => {
-      await expect(run('dict(a: string = 42)')).rejects.toThrow(
+  describe('AC-14 (EC-2): default value type mismatch causes typed-atom halt', () => {
+    it('dict(a: string = 42) halts when default is wrong type', async () => {
+      await expectHaltMessage(
+        () => run('dict(a: string = 42)'),
         /Default value for field 'a' must be string/
       );
     });
@@ -328,21 +333,23 @@ describe('Rill Language: Structural Type Default Values', () => {
   // EC-1 / EC-3: non-trailing default in tuple (parse-time shape validation)
   // ============================================================
 
-  describe('EC-1 / EC-3: non-trailing positional arg with default throws RILL-R004', () => {
-    it('tuple(string = "x", number) throws RILL-R004 on non-trailing default', async () => {
-      await expect(
-        run('tuple["a"] -> :>tuple(string = "x", number)')
-      ).rejects.toThrow(/tuple\(\) default values must be trailing/);
+  describe('EC-1 / EC-3: non-trailing positional arg with default halts typed-atom', () => {
+    it('tuple(string = "x", number) halts on non-trailing default', async () => {
+      await expectHaltMessage(
+        () => run('tuple["a"] -> :>tuple(string = "x", number)'),
+        /tuple\(\) default values must be trailing/
+      );
     });
   });
 
   // ============================================================
-  // EC-2: default value type mismatch → RILL-R004
+  // EC-2: default value type mismatch → typed-atom halt
   // ============================================================
 
   describe('EC-2: default value type mismatch on dict field', () => {
-    it('dict(name: string = 123) throws RILL-R004 for wrong default type', async () => {
-      await expect(run('dict(name: string = 123)')).rejects.toThrow(
+    it('dict(name: string = 123) halts for wrong default type', async () => {
+      await expectHaltMessage(
+        () => run('dict(name: string = 123)'),
         /Default value for field 'name' must be string/
       );
     });
@@ -584,9 +591,10 @@ describe('Rill Language: Structural Type Default Values', () => {
 
   describe('AC-2 (1.11): tuple : assertion rejects value missing non-defaulted field', () => {
     it('tuple["x"] fails :$t where $t = tuple(string, number)', async () => {
-      await expect(
-        run('tuple(string, number) => $t\ntuple["x"] -> :$t')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () => run('tuple(string, number) => $t\ntuple["x"] -> :$t'),
+        /Type assertion failed/
+      );
     });
   });
 
@@ -657,9 +665,11 @@ describe('Rill Language: Structural Type Default Values', () => {
     });
 
     it('tuple["x"] :$t throws where $t = tuple(string, number, bool = true)', async () => {
-      await expect(
-        run('tuple(string, number, bool = true) => $t\ntuple["x"] -> :$t')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () =>
+          run('tuple(string, number, bool = true) => $t\ntuple["x"] -> :$t'),
+        /Type assertion failed/
+      );
     });
   });
 

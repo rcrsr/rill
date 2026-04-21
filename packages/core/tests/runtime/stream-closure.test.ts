@@ -16,6 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { isStream, type RillStream, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -114,7 +115,7 @@ describe('Stream Closure Execution', () => {
   // ============================================================
 
   describe('chunk type mismatch at yield', () => {
-    it('throws when yielded value does not match declared chunk type', async () => {
+    it('halts when yielded value does not match declared chunk type', async () => {
       const script = `
         || {
           42 -> yield
@@ -123,12 +124,13 @@ describe('Stream Closure Execution', () => {
       `;
       // Stream is created lazily; consuming triggers the type check
       const result = (await run(script)) as unknown as RillStream;
-      await expect(collectStreamChunks(result)).rejects.toThrow(
+      await expectHaltMessage(
+        () => collectStreamChunks(result),
         'Yielded value type mismatch'
       );
     });
 
-    it('throws on second chunk when type mismatches', async () => {
+    it('halts on second chunk when type mismatches', async () => {
       const script = `
         || {
           "valid" -> yield
@@ -137,7 +139,8 @@ describe('Stream Closure Execution', () => {
         $gen()
       `;
       const result = (await run(script)) as unknown as RillStream;
-      await expect(collectStreamChunks(result)).rejects.toThrow(
+      await expectHaltMessage(
+        () => collectStreamChunks(result),
         'Yielded value type mismatch'
       );
     });
@@ -148,7 +151,7 @@ describe('Stream Closure Execution', () => {
   // ============================================================
 
   describe('resolution type mismatch', () => {
-    it('throws when body result does not match declared resolution type', async () => {
+    it('halts when body result does not match declared resolution type', async () => {
       const script = `
         || {
           1 -> yield
@@ -159,7 +162,8 @@ describe('Stream Closure Execution', () => {
       // Resolution type check fires when the body completes after all chunks.
       // Consuming the stream triggers the body to finish and validate.
       const result = (await run(script)) as unknown as RillStream;
-      await expect(collectStreamChunks(result)).rejects.toThrow(
+      await expectHaltMessage(
+        () => collectStreamChunks(result),
         'Stream resolution type mismatch'
       );
     });

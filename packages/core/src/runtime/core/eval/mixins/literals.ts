@@ -11,7 +11,7 @@
  *
  * Interface requirements (from spec):
  * - evaluatePass(node) -> Promise<RillValue> [IR-4]
- * - evaluateString(node) -> Promise<string>
+ * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
@@ -53,6 +53,7 @@ import {
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
+import { throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -155,7 +156,7 @@ async function evaluateAnnotations(
  *
  * Methods added:
  * - evaluatePass(node) -> Promise<RillValue>
- * - evaluateString(node) -> Promise<string>
+ * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
@@ -191,15 +192,23 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * String parts are concatenated with interpolated values formatted via formatValue().
      * Errors from interpolation expression evaluation propagate to caller.
+     *
+     * Returns `{ value, interpolated }` where `interpolated` is `true` iff at least one
+     * part is a non-literal (interpolation expression). This flag enables callers such as
+     * `evaluateError` to decide whether to wrap frames with the original literal text.
      */
-    protected async evaluateString(node: StringLiteralNode): Promise<string> {
+    protected async evaluateString(
+      node: StringLiteralNode
+    ): Promise<{ value: string; interpolated: boolean }> {
       let result = '';
+      let interpolated = false;
       // Save pipeValue since interpolation expressions can modify it
       const savedPipeValue = this.ctx.pipeValue;
       for (const part of node.parts) {
         if (typeof part === 'string') {
           result += part;
         } else {
+          interpolated = true;
           // InterpolationNode: evaluate the expression
           // Restore pipeValue before each interpolation so they all see the same value
           this.ctx.pipeValue = savedPipeValue;
@@ -218,7 +227,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       // Restore pipeValue after string evaluation
       this.ctx.pipeValue = savedPipeValue;
-      return result;
+      return { value: result, interpolated };
     }
 
     /**
@@ -532,10 +541,17 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (typeof entry.key === 'object') {
           // Check for new key types (variable/computed keys)
           if ('kind' in entry.key) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Variable and computed dict keys not yet supported`,
-              entry.span.start
+            throwTypeHalt(
+              {
+                location: entry.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'dict-dispatch',
+              },
+              'INVALID_INPUT',
+              'Variable and computed dict keys not yet supported',
+              'runtime',
+              undefined,
+              'host'
             );
           }
           // ListLiteralNode key - evaluate to get list of candidates
@@ -891,9 +907,15 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             (name: string) => getVariable(this.ctx, name)
           );
           if (!isTypeValue(resolved)) {
-            throw new RuntimeError(
-              'RILL-R004',
-              `Closure parameter '${param.name}' type must be a type value, not a shape`
+            throwTypeHalt(
+              {
+                sourceId: this.ctx.sourceId,
+                fn: 'closure-param',
+              },
+              'TYPE_MISMATCH',
+              `Closure parameter '${param.name}' type must be a type value, not a shape`,
+              'runtime',
+              { paramName: param.name }
             );
           }
           resolvedType = resolved.structure;

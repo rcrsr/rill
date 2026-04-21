@@ -12,6 +12,10 @@
 
 import type { RillTypeName } from '../../../types.js';
 import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
+import type { RillAtom } from './atom-registry.js';
+import type { RillStatus } from './status.js';
+
+export type { RillStatus } from './status.js';
 
 /**
  * Field definition - describes a single field in a structural type.
@@ -78,6 +82,7 @@ export type TypeStructure =
 export interface RillTuple {
   readonly __rill_tuple: true;
   readonly entries: RillValue[];
+  readonly status?: RillStatus;
 }
 
 /**
@@ -89,6 +94,7 @@ export interface RillTuple {
 export interface RillOrdered {
   readonly __rill_ordered: true;
   readonly entries: [string, RillValue, RillValue?][];
+  readonly status?: RillStatus;
 }
 
 /**
@@ -99,6 +105,7 @@ export interface RillVector {
   readonly __rill_vector: true;
   readonly data: Float32Array;
   readonly model: string;
+  readonly status?: RillStatus;
 }
 
 /**
@@ -108,6 +115,7 @@ export interface RillVector {
 export interface RillDatetime {
   readonly __rill_datetime: true;
   readonly unix: number;
+  readonly status?: RillStatus;
 }
 
 /**
@@ -119,6 +127,7 @@ export interface RillDuration {
   readonly __rill_duration: true;
   readonly months: number;
   readonly ms: number;
+  readonly status?: RillStatus;
 }
 
 /**
@@ -142,6 +151,24 @@ export interface RillIterator extends Record<string, RillValue> {
   readonly done: boolean;
   readonly next: CallableMarker;
   readonly value?: RillValue;
+}
+
+/**
+ * Atom primitive - represents a first-class error-code atom.
+ * The 16th built-in primitive type.
+ *
+ * A `:atom` value holds a reference to a registered atom from the atom
+ * registry. Authored in scripts as `#NAME` (uppercase). Compared by
+ * identity: `#TIMEOUT === #TIMEOUT` because `resolveAtom` interns a
+ * single frozen RillAtom instance per name.
+ *
+ * The optional `status` sidecar lets a `:atom` value carry invalidation
+ * metadata (uncommon: atoms themselves are valid by default).
+ */
+export interface RillAtomValue {
+  readonly __rill_atom: true;
+  readonly atom: RillAtom;
+  readonly status?: RillStatus;
 }
 
 /**
@@ -175,4 +202,5 @@ export type RillValue =
   | RillDuration
   | FieldDescriptorMarker
   | RillTypeValue
-  | RillStream;
+  | RillStream
+  | RillAtomValue;

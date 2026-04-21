@@ -38,6 +38,7 @@ import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
+import { throwErrorHalt, type TypeHaltSite } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 
@@ -444,8 +445,8 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (node.message) {
           // Evaluate the message string literal
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const messageValue = await (this as any).evaluateString(node.message);
-          errorMessage = String(messageValue);
+          const { value } = await (this as any).evaluateString(node.message);
+          errorMessage = value;
         } else {
           errorMessage = 'Assertion failed';
         }
@@ -478,12 +479,15 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       input?: RillValue
     ): Promise<never> {
       let messageValue: RillValue;
+      let interpolated = false;
 
       if (node.message) {
         // Direct form: error "message"
         // Evaluate the message string literal (handles interpolation)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messageValue = await (this as any).evaluateString(node.message);
+        const evaluated = await (this as any).evaluateString(node.message);
+        messageValue = evaluated.value;
+        interpolated = evaluated.interpolated === true;
       } else if (input !== undefined) {
         // Piped form: "message" -> error
         messageValue = input;
@@ -505,8 +509,15 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Always throw with user-provided message
-      throw RuntimeError.fromNode('RILL-R016', messageValue, node);
+      // IR-5: route through throwErrorHalt so the halt surfaces as a
+      // typed-atom invalid carrying `#RILL_R016` with a wrap frame when
+      // the source message used interpolation.
+      const site: TypeHaltSite = {
+        location: this.getNodeLocation(node),
+        sourceId: this.ctx.sourceId,
+        fn: 'evaluateError',
+      };
+      throwErrorHalt(site, messageValue, interpolated);
     }
 
     /**

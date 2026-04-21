@@ -19,6 +19,7 @@ import {
   isDatetime,
   isDict,
   isDuration,
+  isInvalid,
   isIterator,
   isOrdered,
   isStream,
@@ -119,8 +120,15 @@ export function checkType(value: RillValue, expected: RillTypeName): boolean {
   return inferType(value) === expected;
 }
 
-/** Check if a value is truthy in Rill semantics */
+/**
+ * Check if a value is truthy in Rill semantics.
+ *
+ * Status-aware: invalid values are never truthy (their halt semantics
+ * ensure they never reach boolean consumers in valid programs, but
+ * callbacks and guard blocks may surface one here).
+ */
 export function isTruthy(value: RillValue): boolean {
+  if (isInvalid(value)) return false;
   if (value === null) return false;
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value !== 0;
@@ -136,8 +144,15 @@ export function isTruthy(value: RillValue): boolean {
   return true;
 }
 
-/** Check if a value is empty (inverse of truthy) */
+/**
+ * Check if a value is structurally empty.
+ *
+ * Status-aware: invalid values are a distinct category (not empty).
+ * Use `isVacant` when the caller wants "empty OR invalid" semantics
+ * (the `??` trigger and `.?` probe use `isVacant`).
+ */
 export function isEmpty(value: RillValue): boolean {
+  if (isInvalid(value)) return false;
   return !isTruthy(value);
 }
 

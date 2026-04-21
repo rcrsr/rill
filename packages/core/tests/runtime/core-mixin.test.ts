@@ -3,62 +3,87 @@
  *
  * Tests error handling in CoreMixin:
  * - EC-4: Unsupported expression types throw RuntimeError
- * - EC-5: AbortError when context signal aborted
+ * - EC-5: RuntimeHaltSignal (code=DISPOSED) when context signal aborted
  */
 
 import { describe, it, expect } from 'vitest';
-import { AbortError, RuntimeError } from '@rcrsr/rill';
+import {
+  atomName,
+  getStatus,
+  RuntimeError,
+  RuntimeHaltSignal,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+
+/**
+ * Asserts the thrown error is an abort halt:
+ * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
+ */
+async function expectAbortHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  const status = getStatus(signal.value);
+  expect(atomName(status.code)).toBe('DISPOSED');
+  return signal;
+}
 
 describe('CoreMixin Error Contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
-    it('throws RuntimeError for unsupported primary node type', async () => {
-      // Create a mock AST with an unsupported expression type
-      // We'll use the public API to test this behavior indirectly
-      // The error would occur if we had an AST node with an invalid type
-
-      // Since we can't easily construct invalid AST through parsing,
-      // we test the error message pattern when such nodes are encountered
+    it('RuntimeError shape for unsupported primary node type', async () => {
+      // This is a structural check on RuntimeError construction.
+      // Sites that previously raised RILL-R004 now throw RuntimeHaltSignal
+      // via throwTypeHalt (see evaluator-core-annotations.test.ts).
       const error = new RuntimeError(
-        'RILL-R004',
+        'RILL-R002',
         'Unsupported expression type: InvalidType',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.errorId).toBe('RILL-R004');
+      expect(error.errorId).toBe('RILL-R002');
       expect(error.message).toContain('Unsupported expression type');
     });
 
-    it('throws RuntimeError for unsupported pipe target type', async () => {
-      // Similar to above - testing the error contract exists
+    it('RuntimeError shape for unsupported pipe target type', async () => {
+      // Structural check only; see evaluator-core-annotations.test.ts for
+      // the live-throw assertion via typed-atom halt.
       const error = new RuntimeError(
-        'RILL-R004',
+        'RILL-R002',
         'Unsupported pipe target type: InvalidTarget',
         { line: 1, column: 1, offset: 0 }
       );
 
-      expect(error.errorId).toBe('RILL-R004');
+      expect(error.errorId).toBe('RILL-R002');
       expect(error.message).toContain('Unsupported pipe target type');
     });
   });
 
   describe('EC-5: Context signal aborted', () => {
-    it('throws AbortError when aborted before execution', async () => {
+    it('halts when aborted before execution', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"hello"', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
-    it('throws AbortError when aborted during pipe chain evaluation', async () => {
+    it('halts when aborted during pipe chain evaluation', async () => {
       const controller = new AbortController();
 
       // Abort during execution
       setTimeout(() => controller.abort(), 10);
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"test" -> slow() -> slow()', {
           functions: {
             slow: {
@@ -78,15 +103,15 @@ describe('CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
-    it('throws AbortError when aborted during expression evaluation', async () => {
+    it('halts when aborted during expression evaluation', async () => {
       const controller = new AbortController();
 
       // Abort after first function call, before second
       let callCount = 0;
-      await expect(
+      await expectAbortHalt(() =>
         run('first() -> second()', {
           functions: {
             first: {
@@ -108,25 +133,22 @@ describe('CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
 
       // First function should have completed
       expect(callCount).toBe(1);
     });
 
-    it('throws AbortError with correct error code', async () => {
+    it('abort halt carries DISPOSED code, non-catchable, with aborted message', async () => {
       const controller = new AbortController();
       controller.abort();
 
-      try {
-        await run('"test"', { signal: controller.signal });
-        expect.fail('Should have thrown AbortError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(AbortError);
-        const abortErr = err as AbortError;
-        expect(abortErr.errorId).toBe('RILL-R013');
-        expect(abortErr.message).toContain('aborted');
-      }
+      const signal = await expectAbortHalt(() =>
+        run('"test"', { signal: controller.signal })
+      );
+      const status = getStatus(signal.value);
+      expect(status.provider).toBe('runtime');
+      expect(status.message).toContain('abort');
     });
 
     it('checks abort during postfix expression evaluation', async () => {
@@ -141,11 +163,11 @@ describe('CoreMixin Error Contracts', () => {
       // Now with abort
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"hello".upper.lower', {
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
     it('checks abort during primary evaluation', async () => {
@@ -154,25 +176,21 @@ describe('CoreMixin Error Contracts', () => {
       // Test various primary types with abort
       controller.abort();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('"string"', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
-
-      await expect(run('42', { signal: controller.signal })).rejects.toThrow(
-        AbortError
       );
 
-      await expect(run('true', { signal: controller.signal })).rejects.toThrow(
-        AbortError
-      );
+      await expectAbortHalt(() => run('42', { signal: controller.signal }));
 
-      await expect(
+      await expectAbortHalt(() => run('true', { signal: controller.signal }));
+
+      await expectAbortHalt(() =>
         run('list[1, 2, 3]', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
 
-      await expect(
+      await expectAbortHalt(() =>
         run('dict[a: 1, b: 2]', { signal: controller.signal })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
     it('checks abort during pipe target evaluation', async () => {
@@ -180,7 +198,7 @@ describe('CoreMixin Error Contracts', () => {
 
       // Abort during pipe target processing
       let callCount = 0;
-      await expect(
+      await expectAbortHalt(() =>
         run('list[1, 2, 3] -> each { count() }', {
           functions: {
             count: {
@@ -203,7 +221,7 @@ describe('CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
 
       expect(callCount).toBeLessThan(5);
     });
@@ -211,7 +229,7 @@ describe('CoreMixin Error Contracts', () => {
     it('checks abort during argument evaluation', async () => {
       const controller = new AbortController();
 
-      await expect(
+      await expectAbortHalt(() =>
         run('fn(a(), b())', {
           functions: {
             fn: {
@@ -236,7 +254,7 @@ describe('CoreMixin Error Contracts', () => {
           },
           signal: controller.signal,
         })
-      ).rejects.toThrow(AbortError);
+      );
     });
 
     it('preserves pipe value during abort', async () => {
@@ -244,12 +262,9 @@ describe('CoreMixin Error Contracts', () => {
       controller.abort();
 
       // Even when aborted, the error should maintain context
-      try {
-        await run('"test" -> .upper', { signal: controller.signal });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(AbortError);
-      }
+      await expectAbortHalt(() =>
+        run('"test" -> .upper', { signal: controller.signal })
+      );
     });
   });
 

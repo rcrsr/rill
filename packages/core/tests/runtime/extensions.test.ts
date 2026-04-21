@@ -21,6 +21,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   ExtensionFactory,
+  ExtensionFactoryCtx,
   ExtensionFactoryResult,
   ExtensionEvent,
 } from '@rcrsr/rill';
@@ -97,22 +98,27 @@ describe('Rill Runtime: Extension System', () => {
           timeout: number;
         }
 
-        const createHttpExtension: ExtensionFactory<HttpConfig> = (config) => {
+        const createHttpExtension: ExtensionFactory<HttpConfig> = (
+          config,
+          _ctx
+        ) => {
           // TypeScript ensures config has correct shape
           const { baseUrl, timeout } = config;
 
           return {
-            get: {
-              params: [
-                {
-                  name: 'path',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) =>
-                `GET ${baseUrl}${args['path']} (timeout: ${timeout}ms)`,
+            value: {
+              get: {
+                params: [
+                  {
+                    name: 'path',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) =>
+                  `GET ${baseUrl}${args['path']} (timeout: ${timeout}ms)`,
+              },
             },
           };
         };
@@ -122,9 +128,14 @@ describe('Rill Runtime: Extension System', () => {
           baseUrl: 'https://api.example.com',
           timeout: 5000,
         };
-        const extension = createHttpExtension(validConfig);
+        const factoryCtx: ExtensionFactoryCtx = {
+          registerErrorCode: (_name: string, _kind: string) => {},
+          signal: new AbortController().signal,
+        };
+        const extension = createHttpExtension(validConfig, factoryCtx);
+        const extValue = extension.value as Record<string, unknown>;
 
-        expect(extension.get).toBeDefined();
+        expect(extValue['get']).toBeDefined();
 
         // This demonstrates type safety - the following would fail to compile:
         // const invalidConfig = { baseUrl: 'http://example.com' }; // missing timeout

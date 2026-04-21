@@ -99,7 +99,6 @@ export interface RecoveryErrorNode extends BaseNode {
  * Examples:
  *   ^(limit: 100) $items @ process()
  *   ^(timeout: 30) fetch($url)
- *   ^(retry: 3, backoff: 1.5) api_call()
  */
 export interface AnnotatedStatementNode extends BaseNode {
   readonly type: 'AnnotatedStatement';
@@ -261,7 +260,12 @@ export type PrimaryNode =
   | TypeNameExprNode
   | TypeConstructorNode
   | ClosureSigLiteralNode
-  | UseExprNode;
+  | UseExprNode
+  | AtomLiteralNode
+  | StatusProbeNode
+  | GuardBlockNode
+  | RetryBlockNode
+  | RecoveryErrorNode;
 
 export type PipeTargetNode =
   | HostCallNode
@@ -683,6 +687,72 @@ export interface DoWhileLoopNode extends BaseNode {
 export interface BlockNode extends BaseNode {
   readonly type: 'Block';
   readonly statements: (StatementNode | AnnotatedStatementNode)[];
+}
+
+/**
+ * Guard block: guard { body } or guard<on: list[#X, ...]> { body }
+ * Intercepts error codes raised by the body. If the body raises a code in
+ * `onCodes` (or any code when onCodes is absent), the guard handles it and
+ * produces a recovered value. Otherwise the error propagates.
+ *
+ * Lexer emits GUARD_LBRACE when `guard` is followed immediately by `{`.
+ * Parser productions (task 1.4) populate this node.
+ */
+export interface GuardBlockNode extends BaseNode {
+  readonly type: 'GuardBlock';
+  readonly body: BlockNode;
+  /** Optional list of atom codes that this guard handles. */
+  readonly onCodes?: AtomLiteralNode[] | undefined;
+}
+
+/**
+ * Retry block: retry<N> { body } or retry<N, on: list[#X, ...]> { body }
+ * Runs the body up to N times. On error matching `onCodes` (or any error when
+ * onCodes is absent), the body is re-executed. The last attempt's error
+ * propagates if all attempts fail.
+ *
+ * Lexer emits RETRY_LANGLE when `retry` is followed immediately by `<`.
+ * Parser productions (task 1.4) populate this node.
+ */
+export interface RetryBlockNode extends BaseNode {
+  readonly type: 'RetryBlock';
+  /** Maximum number of attempts, derived from the N in `retry<N>`. */
+  readonly attempts: number;
+  readonly body: BlockNode;
+  /** Optional list of atom codes that trigger retry; absent = any error. */
+  readonly onCodes?: AtomLiteralNode[] | undefined;
+}
+
+/**
+ * Atom literal: #NAME
+ * An interned, uppercase-named symbol used as an error code identity.
+ *
+ * Shape rule (enforced by the atom registry at resolution time):
+ *   [A-Z][A-Z0-9_]*
+ *
+ * The lexer only guarantees the first character is uppercase; the registry
+ * applies strict validation and interns the atom.
+ */
+export interface AtomLiteralNode extends BaseNode {
+  readonly type: 'AtomLiteral';
+  /** Atom name, without the leading `#` sigil. */
+  readonly name: string;
+}
+
+/**
+ * Status probe: $x.! or $x.!field
+ * Reads the sidecar status associated with a value. Bare `.!` returns the full
+ * status record; `.!field` projects a single field.
+ *
+ * Lexer emits the DOT_BANG token for `.!`. Parser productions (task 1.4)
+ * wire this node into the AST.
+ */
+export interface StatusProbeNode extends BaseNode {
+  readonly type: 'StatusProbe';
+  /** The value being probed (e.g., `$x`). */
+  readonly target: ExpressionNode;
+  /** Optional field projection; `undefined` for bare `.!`. */
+  readonly field?: string | undefined;
 }
 
 // ============================================================
@@ -1123,4 +1193,8 @@ export type ASTNode =
   | OrderedLiteralNode
   | DestructNode
   | ConvertNode
-  | UseExprNode;
+  | UseExprNode
+  | GuardBlockNode
+  | RetryBlockNode
+  | AtomLiteralNode
+  | StatusProbeNode;

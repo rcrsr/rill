@@ -8,7 +8,7 @@ rill is an embeddable, sandboxed scripting language designed for AI agents.
 
 ## Overview
 
-rill is an imperative scripting language that is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught—there are no implicit conversions. Type annotations are optional, but variables lock their type on first assignment. The language is value-based: all values are immutable, all comparisons are by value. Empty values are valid (empty strings, lists, dicts), but null and undefined do not exist. Control flow is singular: no exceptions, no try/catch. Data flows through pipes (`->`), not assignment.
+rill is an imperative scripting language that is dynamically typed and type-safe. Types are checked at runtime, but type errors are always caught. There are no implicit conversions. Type annotations are optional, but variables lock their type on first assignment. The language is value-based: all values are immutable, all comparisons are by value. Empty values are valid (empty strings, lists, dicts), but null and undefined do not exist. Control flow is singular: no exceptions, no try/catch. Data flows through pipes (`->`), not assignment.
 
 ## Design Principles
 
@@ -42,6 +42,8 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&T1\|T2` (union), `.?field&list(T)` (parameterized) |
+| Status probe | `.!` (status code), `.!field` (field status code) |
+| Presence probe | `.?` (presence bool, current `$`) |
 
 See [Operators](topic-operators.md) for detailed documentation.
 
@@ -58,6 +60,8 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
+| `guard { body }` | Run body; replace halt with invalid value |
+| `retry<N> { body }` | Retry body up to N times on invalid result |
 
 See [Control Flow](topic-control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
@@ -90,16 +94,28 @@ See [Collections](topic-collections.md) for detailed documentation. All four ope
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
+| Atom | `#NAME` | `#TIMEOUT`, `#NOT_FOUND` | `:atom` value |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
 
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
 **Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. See [Type System](topic-type-system.md) for union type documentation.
 
-> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical — they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
+> **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical: they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
 See [Types](topic-types.md) for detailed documentation.
+
+### Atom Literals
+
+Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named error condition.
+
+| Form | Example | Produces |
+|------|---------|----------|
+| `#NAME` | `#TIMEOUT` | `:atom` value |
+| `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
+
+`#TIMEOUT -> :>string` converts a `:atom` value to its string name. `"TIMEOUT" -> :>atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
 
 ### Functions
 
@@ -142,10 +158,10 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Do-while `@ { } ? cond` | Accumulated value |
 | Conditional `cond ? { }` | Tested value |
 | Piped conditional `-> ? { }` | Piped value |
-| Stored closure `\|x\|{ }` | N/A — use params |
+| Stored closure `\|x\|{ }` | N/A: use params |
 | Dict closure `\|\|{ $.x }` | Dict self |
 | Anonymous typed closure `\|type\|{ }` | Piped value (typed) |
-| No-args closure `\|\|{ }` outside dict | Not bound — `$` access raises RILL-R005 |
+| No-args closure `\|\|{ }` outside dict | Not bound; `$` access raises RILL-R005 |
 
 ### Property Access
 
@@ -185,12 +201,12 @@ Type constructors are primary expressions that produce structural type values. T
 
 When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:
 
-- **Nested synthesis** — A missing field with no explicit default is synthesized as an empty collection when all its children have defaults. Missing children are filled from the nested type.
-- **Explicit default hydration** — An explicit collection default is hydrated through the nested type. Child defaults fill any fields the explicit default omits.
+- **Nested synthesis**: A missing field with no explicit default is synthesized as an empty collection when all its children have defaults. Missing children are filled from the nested type.
+- **Explicit default hydration**: An explicit collection default is hydrated through the nested type. Child defaults fill any fields the explicit default omits.
 
 If any required child field has no default, `:>` raises [RILL-R044](ref-errors.md).
 
-`^type` returns a structural type value — not a coarse string:
+`^type` returns a structural type value, not a coarse string:
 
 ```rill
 [1, 2, 3] => $list
@@ -424,7 +440,7 @@ Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruc
 
 ## Annotation Reflection
 
-Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value — it returns the structural type.
+Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value; it returns the structural type.
 
 ### `.^key` Dispatch Table
 
@@ -492,10 +508,10 @@ $validate.^version  # 2
 **Configuration Annotations:**
 
 ```rill
-^(timeout: 30000, retry: 3) |url|($url) => $fetch
+^(timeout: 30000, max_retries: 3) |url|($url) => $fetch
 
-$fetch.^timeout  # 30000
-$fetch.^retry    # 3
+$fetch.^timeout      # 30000
+$fetch.^max_retries  # 3
 ```
 
 **Complex Annotation Values:**
@@ -511,7 +527,7 @@ $fn.^config.endpoints[0] # "a"
 
 Accessing undefined annotation keys throws `RUNTIME_UNDEFINED_ANNOTATION`:
 
-```rill
+```text
 |x|($x) => $fn
 $fn.^missing   # Error: Annotation 'missing' not defined
 ```
@@ -549,7 +565,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
 ```
 
-The `name` key is not reserved — user annotations may use `name` on closures without restriction. On type values, `.name` is a dot-notation property (not annotation access). Accessing `.^name` on a type value raises RILL-R008. Use `.^type.name` to get the type name: `.^type` returns the type value, then `.name` accesses the dot-notation property.
+The `name` key is not reserved; user annotations may use `name` on closures without restriction. On type values, `.name` is a dot-notation property (not annotation access). Accessing `.^name` on a type value raises RILL-R008. Use `.^type.name` to get the type name: `.^type` returns the type value, then `.name` accesses the dot-notation property.
 
 ### Parameter Annotations
 
@@ -570,8 +586,8 @@ true
 
 The `.params` property returns a dict keyed by parameter name. Each entry is a dict containing:
 
-- `type` — Type annotation (string) if present
-- `__annotations` — Dict of parameter-level annotations if present
+- `type`: Type annotation (string) if present
+- `__annotations`: Dict of parameter-level annotations if present
 
 ```rill
 |^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
@@ -643,7 +659,7 @@ See [Closure Annotations](topic-closure-annotations.md) for the shared `^()` syn
 
 ## Return Type Assertions
 
-The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call — a mismatch halts with `RILL-R004`.
+The `:type-target` postfix after the closing `}` declares and enforces the closure's return type. The runtime validates the return value on every call; a mismatch halts with `RILL-R004`.
 
 **Syntax:** `|params| { body }:returnType`
 
@@ -775,7 +791,7 @@ See [Host Integration](integration-host.md) for complete API documentation.
 
 ## Script Frontmatter
 
-Optional YAML frontmatter between `---` markers. **Frontmatter is opaque to rill**—the host interprets it:
+Optional YAML frontmatter between `---` markers. **Frontmatter is opaque to rill**; the host interprets it:
 
 ```text
 ---
@@ -816,7 +832,7 @@ Single-line comments start with `#`:
 
 **Invariant: whitespace is insignificant inside a syntactic continuation.**
 
-Newlines are statement terminators. A newline ends a statement unless the parser is inside a syntactic continuation — any position where the preceding token cannot end a valid statement.
+Newlines are statement terminators. A newline ends a statement unless the parser is inside a syntactic continuation, meaning any position where the preceding token cannot end a valid statement.
 
 ### Continuation tokens
 
@@ -835,7 +851,7 @@ A newline after any of these continues the current statement:
 | Annotation | `^` |
 | Open delimiters | unclosed `[` `(` `{` `\|` `\|\|` |
 
-A subset of continuation tokens also work as **line-start continuations** — placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
+A subset of continuation tokens also work as **line-start continuations**: placing them at the beginning of the next line continues the previous statement. This applies to `->`, `=>`, `?`, `!`, `.`, and `.?`:
 
 ```rill
 "hello"
@@ -850,7 +866,7 @@ A subset of continuation tokens also work as **line-start continuations** — pl
   ! "no"
 ```
 
-Arithmetic, logical, and comparison operators work as **trailing continuations** only — place the operator at the end of the line, not the beginning:
+Arithmetic, logical, and comparison operators work as **trailing continuations** only: place the operator at the end of the line, not the beginning:
 
 ```rill
 1 +
@@ -872,7 +888,7 @@ These always begin a new statement:
 
 ### Disjoint sets
 
-The two token classes are disjoint. No token is both a continuation token and a statement-start token. This makes the grammar unambiguous with one token of lookahead — no symbol table, no backtracking.
+The two token classes are disjoint. No token is both a continuation token and a statement-start token. This makes the grammar unambiguous with one token of lookahead, with no symbol table and no backtracking.
 
 ---
 
@@ -911,12 +927,12 @@ See [Host Integration](integration-host.md) for error handling details.
 
 For detailed documentation on specific topics:
 
-- [Types](topic-types.md) — Type system, type assertions
-- [Variables](topic-variables.md) — Declaration, scope, `$` binding
-- [Control Flow](topic-control-flow.md) — Conditionals, loops
-- [Operators](topic-operators.md) — All operators
-- [Closures](topic-closures.md) — Late binding, dict closures
-- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold`
-- [Iterators](topic-iterators.md) — `range`, `repeat`, `.first()`
-- [Strings](topic-strings.md) — String methods
-- [Host Integration](integration-host.md) — Embedding API
+- [Types](topic-types.md): Type system, type assertions
+- [Variables](topic-variables.md): Declaration, scope, `$` binding
+- [Control Flow](topic-control-flow.md): Conditionals, loops
+- [Operators](topic-operators.md): All operators
+- [Closures](topic-closures.md): Late binding, dict closures
+- [Collections](topic-collections.md): `each`, `map`, `filter`, `fold`
+- [Iterators](topic-iterators.md): `range`, `repeat`, `.first()`
+- [Strings](topic-strings.md): String methods
+- [Host Integration](integration-host.md): Embedding API

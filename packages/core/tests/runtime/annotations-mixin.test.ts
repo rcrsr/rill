@@ -166,7 +166,7 @@ describe('AnnotationsMixin', () => {
                 },
               ],
               fn: (args) => {
-                throw new RuntimeError('RILL-R004', String(args['msg']), {
+                throw new RuntimeError('RILL-R002', String(args['msg']), {
                   line: 1,
                   column: 1,
                   offset: 0,
@@ -199,7 +199,7 @@ describe('AnnotationsMixin', () => {
                 },
               ],
               fn: () => {
-                throw new RuntimeError('RILL-R004', 'Function failed', {
+                throw new RuntimeError('RILL-R002', 'Function failed', {
                   line: 1,
                   column: 1,
                   offset: 0,
@@ -276,7 +276,7 @@ describe('AnnotationsMixin', () => {
               params: [],
               fn: () => {
                 throw new RuntimeError(
-                  'RILL-R004',
+                  'RILL-R002',
                   'Annotation function failed',
                   { line: 1, column: 1, offset: 0 }
                 );

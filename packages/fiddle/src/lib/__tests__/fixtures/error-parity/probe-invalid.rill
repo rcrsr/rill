@@ -1,0 +1,8 @@
+# AC-FDL-3 (invalid variant): .! probe on an invalid value returns true
+#
+# guard produces an invalid value from the failing type assertion.
+# The bare .! probe on the invalid value returns boolean true.
+# This script produces a valid success result (true), not a halt.
+
+guard { "hello" -> :number } => $x
+$x.!

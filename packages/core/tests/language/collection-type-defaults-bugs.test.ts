@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isTuple } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -54,14 +55,16 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
 
     it(':dict(string) assertion fails when value types do not match', async () => {
       // [a: 1] has number values, not string
-      await expect(run('[a: 1] -> :dict(string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('[a: 1] -> :dict(string)'),
         /Type assertion failed/
       );
     });
 
     it(':ordered(number) assertion fails on dict value (type mismatch)', async () => {
       // [a: 1] is a dict, not an ordered, so :ordered(number) fails
-      await expect(run('[a: 1] -> :ordered(number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('[a: 1] -> :ordered(number)'),
         /Type assertion failed/
       );
     });
@@ -135,8 +138,9 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       expect(result.structure.valueType).toEqual({ kind: 'number' });
     });
 
-    it('ordered(string, number) with 2+ positional args throws RILL-R004', async () => {
-      await expect(run('ordered(string, number)')).rejects.toThrow(
+    it('ordered(string, number) with 2+ positional args halts typed-atom', async () => {
+      await expectHaltMessage(
+        () => run('ordered(string, number)'),
         /ordered\(\) requires exactly 1 positional type argument/
       );
     });

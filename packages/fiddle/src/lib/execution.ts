@@ -10,13 +10,20 @@ import {
   execute,
   toNative,
   ERROR_REGISTRY,
+  formatHalt,
   getCallStack,
   getHelpUrl,
+  getStatus,
+  isInvalid,
+  atomName,
+  RuntimeHaltSignal,
   VERSION,
+  type RillValue,
   type ScriptNode,
   type SchemeResolver,
   type RuntimeOptions,
   type RillFunction,
+  type TraceFrame,
 } from '@rcrsr/rill';
 import { EXECUTION_TIMEOUT_MS } from './constants.js';
 
@@ -61,6 +68,14 @@ export interface FiddleError {
   examples?: Array<{ description: string; code: string }> | undefined;
   /** Call stack frames (callers of the error site) */
   callStack?: FiddleCallFrame[] | undefined;
+  /** Bare atom name from .!code (no # sigil); null when not an invalid-value halt */
+  statusCode: string | null;
+  /** .!message text; null when not an invalid-value halt */
+  statusMessage: string | null;
+  /** .!provider text; null when not an invalid-value halt */
+  statusProvider: string | null;
+  /** .!trace frames (origin first); null when not an invalid-value halt */
+  statusTrace: TraceFrame[] | null;
 }
 
 /**
@@ -177,6 +192,17 @@ export async function executeRill(
     const executionResult = await execute(ast, ctx);
     const duration = performance.now() - startTime;
 
+    // Route invalid final-value results to the error path (AC-FDL-6)
+    if (isInvalid(executionResult.result)) {
+      return {
+        status: 'error',
+        result: null,
+        error: convertInvalidValue(executionResult.result),
+        duration,
+        logs,
+      };
+    }
+
     const nativeResult = toNative(executionResult.result);
 
     return {
@@ -214,6 +240,10 @@ function convertError(err: unknown, source?: string): FiddleError {
       line: err.location?.line ?? null,
       column: err.location?.column ?? null,
       errorId: err.errorId,
+      statusCode: null,
+      statusMessage: null,
+      statusProvider: null,
+      statusTrace: null,
     };
 
     // Extract call stack frames, deduplicating the primary error location
@@ -239,6 +269,11 @@ function convertError(err: unknown, source?: string): FiddleError {
     return basicError;
   }
 
+  // EC-RHS: RuntimeHaltSignal escaping unguarded execution
+  if (err instanceof RuntimeHaltSignal) {
+    return convertInvalidValue(err.value);
+  }
+
   // EC-4: Unexpected error (non-Rill errors)
   return {
     message: err instanceof Error ? err.message : String(err),
@@ -246,6 +281,34 @@ function convertError(err: unknown, source?: string): FiddleError {
     line: null,
     column: null,
     errorId: null,
+    statusCode: null,
+    statusMessage: null,
+    statusProvider: null,
+    statusTrace: null,
+  };
+}
+
+/**
+ * Convert an invalid final RillValue to a FiddleError.
+ *
+ * Uses formatHalt for the message body and getStatus (exported from
+ * @rcrsr/rill) for the structured status fields.
+ */
+function convertInvalidValue(value: RillValue): FiddleError {
+  const status = getStatus(value);
+  const haltText = formatHalt(value);
+  const invalid = isInvalid(value);
+
+  return {
+    message: haltText,
+    category: 'runtime',
+    line: null,
+    column: null,
+    errorId: null,
+    statusCode: invalid ? atomName(status.code) : null,
+    statusMessage: invalid ? status.message : null,
+    statusProvider: invalid ? status.provider : null,
+    statusTrace: invalid ? (status.trace as TraceFrame[]) : null,
   };
 }
 

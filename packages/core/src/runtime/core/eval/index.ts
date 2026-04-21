@@ -28,7 +28,7 @@ export type CaptureInfo = { name: string; value: RillValue };
 
 /**
  * Check if execution has been aborted via AbortSignal.
- * Throws AbortError if signal is aborted.
+ * Throws RuntimeHaltSignal (code=#DISPOSED, catchable=false) if signal is aborted.
  */
 export function checkAborted(ctx: RuntimeContext, node?: ASTNode): void {
   const evaluator = getEvaluator(ctx);
@@ -39,7 +39,7 @@ export function checkAborted(ctx: RuntimeContext, node?: ASTNode): void {
 
 /**
  * Check if the current pipe value matches any autoException pattern.
- * Only checks string values. Throws AutoExceptionError on match.
+ * Only checks string values. Throws RuntimeHaltSignal (code=#R999, catchable=false) on match.
  */
 export function checkAutoExceptions(
   value: RillValue,
@@ -117,6 +117,34 @@ export function assertType(
     ]),
     unvalidatedMethodReceivers: new Set(),
     hostContext: {},
+    // Minimal type-check context: assertType does not participate in the
+    // dispose / invalidate / catch flow, so these slots remain stubs that
+    // throw if reached. Real bindings live on the factory-scope context
+    // produced by createRuntimeContext.
+    invalidate: () => {
+      throw new Error(
+        'RuntimeContext.invalidate not available in type-check minimal context'
+      );
+    },
+    catch: () => {
+      throw new Error(
+        'RuntimeContext.catch not available in type-check minimal context'
+      );
+    },
+    dispose: () => {
+      throw new Error(
+        'RuntimeContext.dispose not available in type-check minimal context'
+      );
+    },
+    isDisposed: () => false,
+    createDisposedResult: () => {
+      throw new Error(
+        'RuntimeContext.createDisposedResult not available in type-check minimal context'
+      );
+    },
+    trackInflight: () => {
+      // No-op: minimal type-check context never participates in dispose flow.
+    },
   };
 
   const evaluator = getEvaluator(minimalContext);

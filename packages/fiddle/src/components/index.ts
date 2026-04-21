@@ -18,3 +18,4 @@ export type { SplitPaneProps } from './SplitPane.js';
 
 export type { ExecutionState, FiddleError } from '../lib/execution.js';
 export type { CopyLinkResult } from '../lib/sharing.js';
+export type { TraceFrame } from '@rcrsr/rill';

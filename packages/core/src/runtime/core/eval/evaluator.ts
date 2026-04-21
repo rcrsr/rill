@@ -10,12 +10,16 @@
  * 3. LiteralsMixin - String, dict, tuple, closure literals
  * 4. VariablesMixin - Variable resolution and access chains
  * 5. CollectionsMixin - each, map, fold, filter operators
- * 6. ExtractionMixin - Destructure, slice, spread operators
- * 7. ControlFlowMixin - Conditionals, loops, blocks
- * 8. ClosuresMixin - Function calls and invocation
- * 9. ExpressionsMixin - Binary, unary, grouped expressions
- * 10. TypesMixin - Type assertions and checks
- * 11. AnnotationsMixin - Annotated statement execution (outermost)
+ * 6. ListDispatchMixin - list literal dispatch
+ * 7. ExtractionMixin - Destructure, slice, spread operators
+ * 8. RecoveryMixin - guard / retry blocks and status probes
+ * 9. ControlFlowMixin - Conditionals, loops, blocks
+ * 10. UseMixin - use<...> imports
+ * 11. ConversionMixin - :> conversion
+ * 12. ClosuresMixin - Function calls and invocation
+ * 13. ExpressionsMixin - Binary, unary, grouped expressions
+ * 14. TypesMixin - Type assertions and checks
+ * 15. AnnotationsMixin - Annotated statement execution (outermost)
  *
  * The order ensures that each mixin can depend on the methods provided
  * by mixins below it in the stack.
@@ -115,6 +119,7 @@ import { TypesMixin } from './mixins/types.js';
 import { AnnotationsMixin } from './mixins/annotations.js';
 import { ConversionMixin } from './mixins/conversion.js';
 import { UseMixin } from './mixins/use.js';
+import { RecoveryMixin } from './mixins/recovery.js';
 import type { RuntimeContext } from '../types/runtime.js';
 
 /**
@@ -131,10 +136,12 @@ export const Evaluator = AnnotationsMixin(
         ConversionMixin(
           UseMixin(
             ControlFlowMixin(
-              ExtractionMixin(
-                ListDispatchMixin(
-                  CollectionsMixin(
-                    VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+              RecoveryMixin(
+                ExtractionMixin(
+                  ListDispatchMixin(
+                    CollectionsMixin(
+                      VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+                    )
                   )
                 )
               )

@@ -25,6 +25,7 @@ import {
   isTypeValue,
   isVector,
 } from './guards.js';
+import { throwTypeHalt } from './halt.js';
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
@@ -498,7 +499,14 @@ export function structureMatches(
 ): boolean {
   type = normalizeStructure(type);
   if (typeof value === 'undefined') {
-    throw new RuntimeError('RILL-R004', 'Cannot type-check non-value');
+    throwTypeHalt(
+      { fn: 'structureMatches' },
+      'INVALID_INPUT',
+      'Cannot type-check non-value',
+      'runtime',
+      undefined,
+      'host'
+    );
   }
 
   if (type.kind === 'any') return true;
@@ -850,9 +858,13 @@ export function inferStructure(value: RillValue): TypeStructure {
     }
     return { kind: 'dict', fields };
   }
-  throw new RuntimeError(
-    'RILL-R004',
-    `Cannot infer structural type for ${registryFormatValue(value as RillValue)}`
+  throwTypeHalt(
+    { fn: 'inferStructure' },
+    'INVALID_INPUT',
+    `Cannot infer structural type for ${registryFormatValue(value as RillValue)}`,
+    'runtime',
+    undefined,
+    'host'
   );
 }
 

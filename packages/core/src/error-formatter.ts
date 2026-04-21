@@ -113,7 +113,7 @@ function renderSnippet(
  *
  * Output structure:
  * ```
- * error[RILL-R004]: file not found: test.txta
+ * error[RILL-R001]: file not found: test.txta
  *   at script.rill:5:10
  *
  *    5 | |path| { $read("data", $path) } => $moar_reader

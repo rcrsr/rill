@@ -42,7 +42,13 @@ import {
 import type { RillStream } from '../../types/structures.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { BreakSignal } from '../../signals.js';
-import { isCallable, isDict, marshalArgs } from '../../callable.js';
+import {
+  isCallable,
+  isDict,
+  marshalArgs,
+  type ScriptCallable,
+} from '../../callable.js';
+import { throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
@@ -168,8 +174,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const nextIterator = await (this as any).invokeCallable(
           nextClosure,
           [],
-          this.ctx,
-          node.span.start
+          node.span.start,
+          'next'
         );
         if (typeof nextIterator !== 'object' || nextIterator === null) {
           throw new RuntimeError(
@@ -220,10 +226,16 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             if (expectedType === undefined) {
               expectedType = actualType;
             } else if (actualType !== expectedType) {
-              throw new RuntimeError(
-                'RILL-R004',
+              throwTypeHalt(
+                {
+                  location: node.span.start,
+                  sourceId: this.ctx.sourceId,
+                  fn: 'stream-chunk',
+                },
+                'TYPE_MISMATCH',
                 `Stream chunk type mismatch: expected ${expectedType}, got ${actualType}`,
-                node.span.start
+                'runtime',
+                { expectedType, actualType }
               );
             }
             elements.push(val);
@@ -243,8 +255,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const nextStep = await (this as any).invokeCallable(
             nextClosure,
             [],
-            this.ctx,
-            node.span.start
+            node.span.start,
+            'next'
           );
           if (typeof nextStep !== 'object' || nextStep === null) {
             throw new RuntimeError(
@@ -306,23 +318,27 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async evaluateIteratorBody(
       body: IteratorBody,
       element: RillValue,
-      accumulator: RillValue | null
+      accumulator: RillValue | null,
+      hoistedClosure?: ScriptCallable
     ): Promise<RillValue> {
       switch (body.type) {
         case 'Closure': {
           // Inline closure: invoke with element (and accumulator if present in params)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const closure = await (this as any).createClosure(body, this.ctx);
+          // Callers may hoist the closure construction out of per-element loops
+          // to avoid GC pressure; when provided, skip the per-call createClosure.
+          const closure =
+            hoistedClosure ??
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (await (this as any).createClosure(body, this.ctx));
           const args: RillValue[] = [element];
           // Accumulator is passed as second arg if closure has 2+ params
           if (accumulator !== null && closure.params.length >= 2) {
             args.push(accumulator);
           }
           // Create context with $@ for closures that use it (e.g., |x| { $x + $@ })
-          let invokeCtx = this.ctx;
           let closureToInvoke = closure;
           if (accumulator !== null) {
-            invokeCtx = createChildContext(this.ctx);
+            const invokeCtx = createChildContext(this.ctx);
             invokeCtx.variables.set('@', accumulator);
             // Create new closure with updated definingScope to include $@
             closureToInvoke = { ...closure, definingScope: invokeCtx };
@@ -331,8 +347,9 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (this as any).invokeCallable(
             closureToInvoke,
             args,
-            invokeCtx,
-            body.span.start
+            body.span.start,
+            undefined,
+            true
           );
         }
 
@@ -395,18 +412,13 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           ) {
             args.push(accumulator);
           }
-          // Create context with $@ for accumulator access
-          let invokeCtx = this.ctx;
-          if (accumulator !== null) {
-            invokeCtx = createChildContext(this.ctx);
-            invokeCtx.variables.set('@', accumulator);
-          }
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).invokeCallable(
             varValue,
             args,
-            invokeCtx,
-            body.span.start
+            body.span.start,
+            undefined,
+            true
           );
         }
 
@@ -510,6 +522,16 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
 
+      // Hoist closure construction out of per-element loop when body is a
+      // Closure literal. Accumulator branch inside evaluateIteratorBody spreads
+      // the closure to override definingScope per iteration, so hoisting is
+      // safe for the scan pattern as well.
+      const hoistedClosure =
+        node.body.type === 'Closure'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((await (this as any).createClosure(node.body)) as ScriptCallable)
+          : undefined;
+
       const results: RillValue[] = [];
       let iterCount = 0;
 
@@ -540,7 +562,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const result = await this.evaluateIteratorBody(
               node.body,
               element,
-              accumulator
+              accumulator,
+              hoistedClosure
             );
             results.push(result);
             // Update accumulator for next iteration (scan pattern)
@@ -595,6 +618,16 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       );
       const hasExplicitLimit = operatorAnnotations?.['limit'] !== undefined;
 
+      // Hoist closure construction out of per-element loop when body is a
+      // Closure literal. The body AST is static across iterations; elementCtx
+      // adds only pipeValue (no variables), so the outer ctx is an equivalent
+      // definingScope for late-bound variable resolution.
+      const hoistedClosure =
+        node.body.type === 'Closure'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((await (this as any).createClosure(node.body)) as ScriptCallable)
+          : undefined;
+
       if (!hasExplicitLimit) {
         // No limit: all in parallel
         // Create separate evaluator instance for each element to avoid late binding
@@ -606,7 +639,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (evaluator as any).evaluateIteratorBody(
             node.body,
             element,
-            null
+            null,
+            hoistedClosure
           );
         });
         return Promise.all(promises);
@@ -625,7 +659,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return (evaluator as any).evaluateIteratorBody(
             node.body,
             element,
-            null
+            null,
+            hoistedClosure
           );
         });
         const batchResults = await Promise.all(batchPromises);
@@ -714,6 +749,14 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return accumulator;
       }
 
+      // Hoist closure construction out of per-element loop when body is a
+      // Closure literal.
+      const hoistedClosure =
+        node.body.type === 'Closure'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((await (this as any).createClosure(node.body)) as ScriptCallable)
+          : undefined;
+
       let iterCount = 0;
       for (const element of elements) {
         iterCount++;
@@ -739,7 +782,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           accumulator = await this.evaluateIteratorBody(
             node.body,
             element,
-            accumulator
+            accumulator,
+            hoistedClosure
           );
         } finally {
           this.ctx = savedCtx;
@@ -782,6 +826,14 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       );
       const hasExplicitLimit = operatorAnnotations?.['limit'] !== undefined;
 
+      // Hoist closure construction out of per-element loop when body is a
+      // Closure literal. Predicate has no accumulator, so no per-call spread.
+      const hoistedClosure =
+        node.body.type === 'Closure'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((await (this as any).createClosure(node.body)) as ScriptCallable)
+          : undefined;
+
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
         this.checkAborted(node);
@@ -792,7 +844,8 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const result = await (evaluator as any).evaluateIteratorBody(
           node.body,
           element,
-          null
+          null,
+          hoistedClosure
         );
         // Predicate must return boolean
         if (typeof result !== 'boolean') {

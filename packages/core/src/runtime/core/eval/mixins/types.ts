@@ -48,6 +48,7 @@ import {
   inferStructure,
   formatStructure,
 } from '../../types/operations.js';
+import { throwTypeHalt } from '../../types/halt.js';
 import { checkType, structureToTypeValue } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -87,13 +88,13 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * different resolution/evaluation strategies via callbacks.
      *
      * Error contracts:
-     * - EC-B1: Leaf type with args -> RILL-R004
-     * - EC-B2: list != 1 arg -> RILL-R004
-     * - EC-B3: Positional+named mix -> RILL-R004
-     * - EC-B4: tuple with named arg -> RILL-R004
+     * - EC-B1: Leaf type with args -> TYPE_MISMATCH
+     * - EC-B2: list != 1 arg -> TYPE_MISMATCH
+     * - EC-B3: Positional+named mix -> TYPE_MISMATCH
+     * - EC-B4: tuple with named arg -> TYPE_MISMATCH
      * - EC-B5: Non-type arg value (delegated to resolveArg callback)
-     * - EC-B6: Default type mismatch -> RILL-R004
-     * - EC-B7: Tuple non-trailing default -> RILL-R004
+     * - EC-B6: Default type mismatch -> TYPE_MISMATCH
+     * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
      */
     async buildCollectionType(
       name: 'list' | 'dict' | 'tuple' | 'ordered',
@@ -105,10 +106,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (name === 'list') {
         // EC-B2: list requires exactly 1 positional arg
         if (args.length !== 1 || args[0]!.name !== undefined) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'list',
+            },
+            'INVALID_INPUT',
             'list() requires exactly 1 type argument',
-            location
+            'runtime'
           );
         }
         const element = await resolveArg(args[0]!);
@@ -126,10 +132,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // EC-B3: Cannot mix positional and named arguments
         if (positional.length > 0 && named.length > 0) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: name,
+            },
+            'INVALID_INPUT',
             `${name}() cannot mix positional and named arguments`,
-            location
+            'runtime'
           );
         }
 
@@ -142,10 +153,19 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               positional[0]!.defaultValue
             );
             if (!structureMatches(defaultVal, valueType)) {
-              throw new RuntimeError(
-                'RILL-R004',
+              throwTypeHalt(
+                {
+                  location,
+                  sourceId: this.ctx.sourceId,
+                  fn: name,
+                },
+                'TYPE_MISMATCH',
                 `Default value for ${name} element must be ${formatStructure(valueType)}, got ${inferType(defaultVal)}`,
-                location
+                'runtime',
+                {
+                  expectedType: formatStructure(valueType),
+                  actualType: inferType(defaultVal),
+                }
               );
             }
           }
@@ -159,10 +179,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // EC: dict/ordered with 2+ positional args
         if (positional.length >= 2) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: name,
+            },
+            'INVALID_INPUT',
             `${name}() requires exactly 1 positional type argument`,
-            location
+            'runtime'
           );
         }
 
@@ -176,10 +201,19 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               const defaultVal = await evaluateDefault(arg.defaultValue);
               // EC-B6: Default type mismatch
               if (!structureMatches(defaultVal, resolvedType)) {
-                throw new RuntimeError(
-                  'RILL-R004',
+                throwTypeHalt(
+                  {
+                    location,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'dict',
+                  },
+                  'TYPE_MISMATCH',
                   `Default value for field '${arg.name}' must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-                  location
+                  'runtime',
+                  {
+                    expectedType: formatStructure(resolvedType),
+                    actualType: inferType(defaultVal),
+                  }
                 );
               }
               fieldDef.defaultValue = defaultVal;
@@ -218,10 +252,19 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const defaultVal = await evaluateDefault(arg.defaultValue);
             // EC-B6: Default type mismatch
             if (!structureMatches(defaultVal, resolvedType)) {
-              throw new RuntimeError(
-                'RILL-R004',
+              throwTypeHalt(
+                {
+                  location,
+                  sourceId: this.ctx.sourceId,
+                  fn: 'ordered',
+                },
+                'TYPE_MISMATCH',
                 `Default value for field '${arg.name}' must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-                location
+                'runtime',
+                {
+                  expectedType: formatStructure(resolvedType),
+                  actualType: inferType(defaultVal),
+                }
               );
             }
             fieldDef.defaultValue = defaultVal;
@@ -254,10 +297,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // EC-B4: tuple requires positional args only
       for (const arg of args) {
         if (arg.name !== undefined) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'tuple',
+            },
+            'INVALID_INPUT',
             'tuple() requires positional arguments',
-            location
+            'runtime'
           );
         }
       }
@@ -269,10 +317,19 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (args[0]!.defaultValue !== undefined) {
           const defaultVal = await evaluateDefault(args[0]!.defaultValue);
           if (!structureMatches(defaultVal, valueType)) {
-            throw new RuntimeError(
-              'RILL-R004',
+            throwTypeHalt(
+              {
+                location,
+                sourceId: this.ctx.sourceId,
+                fn: 'tuple',
+              },
+              'TYPE_MISMATCH',
               `Default value for tuple element must be ${formatStructure(valueType)}, got ${inferType(defaultVal)}`,
-              location
+              'runtime',
+              {
+                expectedType: formatStructure(valueType),
+                actualType: inferType(defaultVal),
+              }
             );
           }
         }
@@ -293,10 +350,19 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const defaultVal = await evaluateDefault(arg.defaultValue);
           // EC-B6: Default type mismatch
           if (!structureMatches(defaultVal, resolvedType)) {
-            throw new RuntimeError(
-              'RILL-R004',
+            throwTypeHalt(
+              {
+                location,
+                sourceId: this.ctx.sourceId,
+                fn: 'tuple',
+              },
+              'TYPE_MISMATCH',
               `Default value for tuple element must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-              location
+              'runtime',
+              {
+                expectedType: formatStructure(resolvedType),
+                actualType: inferType(defaultVal),
+              }
             );
           }
           fieldDef.defaultValue = defaultVal;
@@ -323,10 +389,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (hasDefault) {
           sawDefault = true;
         } else if (sawDefault) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'tuple',
+            },
+            'INVALID_INPUT',
             `tuple() default values must be trailing: element at position ${i} has no default but a preceding element does`,
-            location
+            'runtime'
           );
         }
       }
@@ -346,16 +417,16 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Static refs with args delegate to buildCollectionType.
      * Dynamic refs call getVariable, then dispatch on the result:
      * - RillTypeValue -> return as-is
-     * - Otherwise -> throw RILL-R004
+     * - Otherwise -> throw TYPE_MISMATCH
      *
      * EC-3: Variable not found -> RILL-R005.
-     * EC-4: Non-type variable value -> RILL-R004.
-     * EC-5: list with != 1 positional arg -> RILL-R004.
-     * EC-6: dict/ordered positional+named mix -> RILL-R004.
-     * EC-7: tuple with named arg -> RILL-R004.
-     * EC-8: Default type mismatch -> RILL-R004.
+     * EC-4: Non-type variable value -> TYPE_MISMATCH.
+     * EC-5: list with != 1 positional arg -> TYPE_MISMATCH.
+     * EC-6: dict/ordered positional+named mix -> TYPE_MISMATCH.
+     * EC-7: tuple with named arg -> TYPE_MISMATCH.
+     * EC-8: Default type mismatch -> TYPE_MISMATCH.
      * EC-9: Default evaluation failure -> propagated.
-     * EC-10: Tuple non-trailing default -> RILL-R004.
+     * EC-10: Tuple non-trailing default -> TYPE_MISMATCH.
      */
     async resolveTypeRef(
       typeRef: TypeRef,
@@ -375,9 +446,14 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // EC-B1: Leaf types reject all type arguments (AC-4: derived from registrations)
         if (this.ctx.leafTypes.has(typeName)) {
-          throw new RuntimeError(
-            'RILL-R004',
-            `${typeName} does not accept type arguments`
+          throwTypeHalt(
+            {
+              sourceId: this.ctx.sourceId,
+              fn: typeName,
+            },
+            'INVALID_INPUT',
+            `${typeName} does not accept type arguments`,
+            'runtime'
           );
         }
 
@@ -453,9 +529,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       if (isTypeValue(result)) return result;
 
-      throw new RuntimeError(
-        'RILL-R004',
-        `Variable $${typeRef.varName} is not a valid type reference (got ${inferType(result)})`
+      throwTypeHalt(
+        {
+          sourceId: this.ctx.sourceId,
+          fn: 'resolveTypeRef',
+        },
+        'TYPE_MISMATCH',
+        `Variable $${typeRef.varName} is not a valid type reference (got ${inferType(result)})`,
+        'runtime',
+        { actualType: inferType(result) }
       );
     }
 
@@ -484,10 +566,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (!structureMatches(value, expected)) {
             const expectedStr = formatStructure(expected);
             const actualStr = formatStructure(inferStructure(value));
-            throw new RuntimeError(
-              'RILL-R004',
+            throwTypeHalt(
+              {
+                location,
+                sourceId: this.ctx.sourceId,
+                fn: ':',
+              },
+              'TYPE_MISMATCH',
               `Type assertion failed: expected ${expectedStr}, got ${actualStr}`,
-              location,
+              'runtime',
               { expectedType: expectedStr, actualType: actualStr }
             );
           }
@@ -500,10 +587,15 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (expected === 'any') return value;
       const actual = inferType(value);
       if (actual !== expected) {
-        throw new RuntimeError(
-          'RILL-R004',
+        throwTypeHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: ':',
+          },
+          'TYPE_MISMATCH',
           `Type assertion failed: expected ${expected}, got ${actual}`,
-          location,
+          'runtime',
           { expectedType: expected, actualType: actual }
         );
       }
@@ -569,10 +661,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: TypeAssertionNode
     ): Promise<RillValue> {
       if (!node.operand) {
-        throw new RuntimeError(
-          'RILL-R004',
+        throwTypeHalt(
+          {
+            location: node.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: ':',
+          },
+          'INVALID_INPUT',
           'Postfix type assertion requires operand',
-          node.span.start
+          'runtime',
+          undefined,
+          'host'
         );
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -586,10 +685,17 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      */
     async evaluateTypeCheckPrimary(node: TypeCheckNode): Promise<boolean> {
       if (!node.operand) {
-        throw new RuntimeError(
-          'RILL-R004',
+        throwTypeHalt(
+          {
+            location: node.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: ':?',
+          },
+          'INVALID_INPUT',
           'Postfix type check requires operand',
-          node.span.start
+          'runtime',
+          undefined,
+          'host'
         );
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -664,8 +770,8 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Each parameter produces a [name, TypeStructure] entry.
      *
      * Error contracts:
-     * - EC-8: missing return type -> RILL-R004 (enforced at parse time; node always has returnType)
-     * - EC-9: non-type in parameter position -> RILL-R004
+     * - EC-8: missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
+     * - EC-9: non-type in parameter position -> TYPE_MISMATCH
      */
     async evaluateClosureSigLiteral(
       node: ClosureSigLiteralNode
@@ -677,10 +783,16 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         argVal: RillValue
       ): Promise<TypeStructure> => {
         if (!isTypeValue(argVal)) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'closure-sig',
+            },
+            'TYPE_MISMATCH',
             `Parameter type must be a type value, got ${inferType(argVal)}`,
-            location
+            'runtime',
+            { actualType: inferType(argVal) }
           );
         }
         return argVal.structure.kind === 'any' &&
@@ -708,10 +820,16 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         node.returnType
       );
       if (!isTypeValue(retVal)) {
-        throw new RuntimeError(
-          'RILL-R004',
+        throwTypeHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'closure-sig',
+          },
+          'TYPE_MISMATCH',
           `Closure type literal requires return type after |, got ${inferType(retVal)}`,
-          location
+          'runtime',
+          { actualType: inferType(retVal) }
         );
       }
       const ret: TypeStructure =

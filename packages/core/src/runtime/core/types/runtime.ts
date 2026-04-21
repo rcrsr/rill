@@ -8,8 +8,18 @@
 import type { RillTypeName } from '../../../types.js';
 import type { CallableFn, RillFunction } from '../callable.js';
 import type { TypeStructure, RillValue } from './structures.js';
+import type { InvalidateMeta } from './status.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
+
+/**
+ * Alias for {@link InvalidateMeta} used by `RuntimeContext.catch` detector
+ * signatures. The detector returns the same shape that `invalidate` accepts.
+ * See API Contract (§Data Model).
+ */
+export type InvalidMeta = InvalidateMeta;
+
+export type { InvalidateMeta } from './status.js';
 
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
@@ -149,6 +159,51 @@ export interface RuntimeContext {
   readonly autoExceptions: RegExp[];
   /** AbortSignal for cancellation (undefined = no cancellation) */
   readonly signal: AbortSignal | undefined;
+  /**
+   * Produce an invalid RillValue from an arbitrary error and structured meta.
+   * Never throws at the call site: `meta.code` that names an unregistered atom
+   * resolves to `#R001` (see FR-ERR-21 / EC-4). Behavior bound at construction
+   * site in context.ts (task 3.2).
+   */
+  invalidate(error: unknown, meta: InvalidateMeta): RillValue;
+  /**
+   * Execute a Promise-returning thunk; on rejection, run the detector to
+   * classify the error. When the detector returns a non-null {@link InvalidMeta},
+   * produce an invalid RillValue via {@link invalidate}. When the detector
+   * returns `null`, produce an invalid value with code `#R999` (see EC-5/EC-6).
+   * Behavior bound at construction site in context.ts (task 3.2).
+   */
+  catch<T>(
+    thunk: () => Promise<T>,
+    detector: (e: unknown) => InvalidMeta | null
+  ): Promise<T | RillValue>;
+  /**
+   * Aborts the factory-scope signal, awaits in-flight operations with a
+   * bounded timeout, flips the disposed flag, and marks subsequent extension
+   * calls as returning `#DISPOSED` (IR-13).
+   *
+   * Idempotent: repeated calls resolve to the same promise (EC-10/AC-B6).
+   * Signal abort propagates through the same chain that feeds
+   * `ExtensionFactoryCtx.signal` and host-function `ctx.signal`.
+   */
+  dispose(): Promise<void>;
+  /**
+   * True once `dispose()` has begun (AC-E9). Host-function dispatch sites
+   * consult this to short-circuit with {@link createDisposedResult}.
+   */
+  isDisposed(): boolean;
+  /**
+   * Produce an invalid RillValue carrying `.!code == #DISPOSED` without
+   * dispatching to user code. Used by post-dispose guard paths (AC-E9).
+   */
+  createDisposedResult(): RillValue;
+  /**
+   * Register an in-flight extension-dispatch promise so `dispose()` awaits
+   * its settlement before flipping the disposed flag (EC-11). No-op when
+   * the context is not attached to a factory lifecycle (e.g. minimal test
+   * contexts); safe to call from any dispatch site.
+   */
+  trackInflight(promise: Promise<unknown>): void;
   /** Maximum call stack depth */
   readonly maxCallStackDepth: number;
   /**
@@ -276,6 +331,24 @@ export interface StepResult {
   total: number;
   /** Variable captured by this step (if any) */
   captured?: { name: string; value: RillValue } | undefined;
+}
+
+/**
+ * Factory-scope context passed to an `ExtensionFactory` at init time.
+ *
+ * Surface is exactly `{ registerErrorCode, signal }` (IR-9, NFR-ERR-4).
+ * Factory authors must not receive host-scope helpers like `invalidate` or
+ * `catch`; those live on {@link RuntimeContext} at call time only.
+ *
+ * TypeScript enforces the exact-prop constraint on object-literal assignment:
+ * any object literal with properties outside this set fails the excess-property
+ * check under `strict` (AC-7, AC-N5, EC-15).
+ */
+export interface ExtensionFactoryCtx {
+  /** Register a custom error code atom with kind metadata. */
+  registerErrorCode(name: string, kind: string): void;
+  /** Abort signal scoped to the extension's lifetime. */
+  readonly signal: AbortSignal;
 }
 
 /** Stepper for controlled step-by-step execution */

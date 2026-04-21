@@ -882,9 +882,69 @@ $s()
 
 `yield` emits the piped value as a chunk. `return` sets the resolution value and closes the stream.
 
+## Recovering from Failures
+
+rill has no try/catch. Failed operations produce **invalid values**. Use `guard` and `.!` to recover.
+
+### Detect an Invalid Result
+
+```rill
+"hello" => $val
+guard { $val.upper } => $out
+$out.!
+# Result: false
+```
+
+`.!` returns `false` when `guard` caught nothing. A `true` result means the body halted.
+
+### Coerce to a Default
+
+Replace an invalid result with a safe default using `??`:
+
+```rill
+guard { "hello" -> .upper } => $out
+$out ?? "fallback"
+# Result: "HELLO"
+```
+
+`??` returns the fallback when the left-hand side is vacant or invalid. No halt occurs.
+
+### End-to-End: Fetch with Fallback
+
+This pattern fetches a URL, retries on failure, and falls back to cached data:
+
+```text
+# Attempt fetch with retry
+retry<3> {
+  app::fetch("https://api.example.com/data")
+} => $result
+
+# Branch on success or failure
+$result.! ? {
+  # Log the error code and use cached data
+  "fetch failed ({$result.!code}), using cache" -> log
+  $cache
+} ! {
+  # Parse and use the live response
+  $result -> json -> .items
+}
+```
+
+`retry<3>` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The `!` branch reads `.!code` to log which error occurred before falling back to `$cache`.
+
+### Read the Error Atom
+
+```rill
+"ok".!code
+# Result: #ok
+```
+
+`.!code` returns `#ok` on valid values. On invalid values it returns the error atom (e.g. `#TIMEOUT`, `#AUTH`). Use `==` to compare atoms.
+
 ## See Also
 
 - [Guide](guide-getting-started.md) — Getting started tutorial
 - [Cookbook](cookbook.md) — Reusable design patterns (state machines, dispatch, accumulators)
 - [Troubleshooting](guide-troubleshooting.md) — Common mistakes and fixes
 - [Reference](ref-language.md) — Language specification
+- [Error Handling](topic-error-handling.md) — guard, retry, `.!`, and status probes

@@ -128,7 +128,14 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
-              params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'path',
+                  type: { kind: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: () => ({ title: 'Test' }), // no status
             },
           },
@@ -150,7 +157,14 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
-              params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+              params: [
+                {
+                  name: 'path',
+                  type: { kind: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
               fn: () => ({ status: 'draft', title: 'Test' }),
             },
           },
@@ -327,14 +341,84 @@ describe('Default Value Operator (??)', () => {
       await expect(run('?? "orphan"')).rejects.toThrow();
     });
 
-    it('throws when combining existence check with default value', async () => {
-      // AC-5: Parser should reject .?field ?? pattern
-      await expect(
-        run(`
-          dict[name: "test"] => $data
-          $data.?field ?? "default"
-        `)
-      ).rejects.toThrow(/Cannot combine existence check/);
+    // Error-handling phase 1 (task 1.4) removes the .?/?? mutual-exclusion.
+    // Composing existence check with default value is now permitted; the
+    // vacant-then-default semantics are owned by FR-ERR-4 in phase 2.
+  });
+
+  describe('Composition with existence check (.?)', () => {
+    // Phase 1 task 1.4 removed the `.?` / `??` parser mutex. Phase 2 task 2.2
+    // wired vacancy-triggered defaults for the non-existence-check paths.
+    // These tests lock in the observed semantics of composing the two forms.
+    //
+    // Actual semantic contract:
+    //   1. `$x.?field ?? default` — `.?field` (existence check with a final
+    //      access) returns a bool. `??` trigger never fires on a valid bool,
+    //      so the default is effectively dead code. The expression always
+    //      evaluates to the existence bool.
+    //   2. `$x.?` with no final access is NOT an existence check. The parser
+    //      accepts the trailing `.?` but produces no existence-check node;
+    //      the variable value passes through. `??` then applies the
+    //      bare-variable vacancy trigger (null or invalid).
+    //   3. Access-chain vacancy rule still applies when a chain precedes a
+    //      non-existence-check final access (covered by other suites).
+
+    it('returns true when .?field matches present field (?? is dead code)', async () => {
+      const result = await run(`
+        dict[status: "active"] => $data
+        $data.?status ?? "fallback"
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when .?field targets an absent field (?? is dead code)', async () => {
+      const result = await run(`
+        dict[name: "test"] => $data
+        $data.?status ?? "fallback"
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('returns true when type-qualified existence check matches', async () => {
+      const result = await run(`
+        dict[status: "active"] => $data
+        $data.?status&string ?? "fallback"
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when type-qualified existence check rejects wrong type', async () => {
+      const result = await run(`
+        dict[status: 42] => $data
+        $data.?status&string ?? "fallback"
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('returns true when nested .?field resolves to a present field', async () => {
+      const result = await run(`
+        dict[inner: dict[a: 1]] => $data
+        $data.inner.?a ?? "fallback"
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when nested .?field targets an absent nested field', async () => {
+      const result = await run(`
+        dict[inner: dict[b: 1]] => $data
+        $data.inner.?a ?? "fallback"
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('passes non-empty valid $x through when trailing .? has no field', async () => {
+      // `$x.?` with nothing after `.?` is parsed without an existence check,
+      // so it behaves as `$x ?? default`. Valid non-empty LHS passes through.
+      const result = await run(`
+        "hello" => $x
+        $x.? ?? "fallback"
+      `);
+      expect(result).toBe('hello');
     });
   });
 });

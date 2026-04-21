@@ -1,0 +1,8 @@
+# AC-FDL-4 (literal variant): #TIMEOUT atom literal identity comparison
+#
+# #TIMEOUT is a pre-registered atom. Two references resolve to the same
+# interned atom, so equality holds. The script returns boolean true.
+# Both Fiddle and Node produce identical output via formatHalt (N/A here,
+# result is a valid boolean) or toNative.
+
+#TIMEOUT == #TIMEOUT

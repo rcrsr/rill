@@ -1,0 +1,8 @@
+# AC-FDL-5: $x ?? default where $x is invalid; output contains "default"
+#
+# guard catches the type-assertion halt, producing invalid $x.
+# The ?? operator substitutes the default string when the LHS is invalid.
+# The script returns the valid string "default".
+
+guard { "hello" -> :number } => $x
+$x ?? "default"

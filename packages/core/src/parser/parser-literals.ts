@@ -6,6 +6,7 @@
 import { Parser } from './parser.js';
 import type {
   AnnotationArg,
+  AtomLiteralNode,
   ClosureNode,
   ClosureParamNode,
   DictEntryNode,
@@ -20,6 +21,7 @@ import type {
   ListSpreadNode,
   BodyNode,
   OrderedLiteralNode,
+  RecoveryErrorNode,
   SourceLocation,
   StringLiteralNode,
   TupleLiteralNode,
@@ -37,13 +39,19 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
-import { isDictStart, isNegativeNumber, VALID_TYPE_NAMES } from './helpers.js';
+import {
+  ATOM_NAME_SHAPE,
+  isDictStart,
+  isNegativeNumber,
+  VALID_TYPE_NAMES,
+} from './helpers.js';
 import { parseTypeRef, parseFieldArgList } from './parser-types.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
   interface Parser {
     parseLiteral(): LiteralNode;
+    parseAtomLiteral(): AtomLiteralNode | RecoveryErrorNode;
     parseString(): StringLiteralNode;
     parseStringParts(
       raw: string,
@@ -72,6 +80,44 @@ declare module './parser.js' {
       | OrderedLiteralNode;
   }
 }
+
+// ============================================================
+// ATOM LITERAL PARSING
+// ============================================================
+
+/**
+ * Parse an atom literal: #NAME.
+ *
+ * The lexer emits an ATOM token whose value is the name without the leading
+ * `#` sigil (readAtom ensures the first character is uppercase). This parser
+ * applies strict shape validation; on failure it emits a RecoveryErrorNode so
+ * the evaluator produces #R001 at runtime (hard parse/link error per spec).
+ *
+ * Registry membership is NOT checked here; unknown-but-well-shaped names
+ * resolve to #R001 at runtime via resolveAtom().
+ */
+Parser.prototype.parseAtomLiteral = function (
+  this: Parser
+): AtomLiteralNode | RecoveryErrorNode {
+  const token = expect(this.state, TOKEN_TYPES.ATOM, 'Expected atom literal');
+  const name = token.value;
+
+  if (!ATOM_NAME_SHAPE.test(name)) {
+    const message = `Invalid atom name '#${name}'; expected [A-Z][A-Z0-9_]*`;
+    return {
+      type: 'RecoveryError',
+      message,
+      text: `#${name}`,
+      span: token.span,
+    };
+  }
+
+  return {
+    type: 'AtomLiteral',
+    name,
+    span: token.span,
+  };
+};
 
 // ============================================================
 // LITERAL PARSING

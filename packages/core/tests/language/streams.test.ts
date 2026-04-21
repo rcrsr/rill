@@ -21,6 +21,7 @@ import {
   type TypeStructure,
 } from '@rcrsr/rill';
 import { run, runFull } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -491,16 +492,18 @@ describe('Streams: Error Cases', () => {
   // AC-E5: Chunk type mismatch at emission halts with RILL-R004
   describe('AC-E5: chunk type mismatch at yield', () => {
     it('halts when yielded value does not match declared type', async () => {
-      await expect(
-        run(
-          `
+      await expectHaltMessage(
+        () =>
+          run(
+            `
             || {
               42 -> yield
             } :stream(string) => $gen
             $gen() -> each { $ }
           `
-        )
-      ).rejects.toThrow('Yielded value type mismatch');
+          ),
+        'Yielded value type mismatch'
+      );
     });
   });
 
@@ -529,17 +532,19 @@ describe('Streams: Error Cases', () => {
   // AC-E8: Resolution type mismatch halts with RILL-R004
   describe('AC-E8: resolution type mismatch', () => {
     it('halts when resolution does not match declared type', async () => {
-      await expect(
-        run(
-          `
+      await expectHaltMessage(
+        () =>
+          run(
+            `
             || {
               1 -> yield
               "not-a-number"
             } :stream():number => $gen
             $gen() -> each { $ }
           `
-        )
-      ).rejects.toThrow('Stream resolution type mismatch');
+          ),
+        'Stream resolution type mismatch'
+      );
     });
   });
 });
@@ -866,27 +871,31 @@ describe('Streams: Error Contracts', () => {
     it('throws when stream chunks have inconsistent types', async () => {
       // expandStream validates type homogeneity during expansion
       const mixedChunks: RillValue[] = [1, 'two', 3];
-      await expect(
-        run('make_stream() -> each { $ }', {
-          functions: { make_stream: makeStreamFn(mixedChunks) },
-        })
-      ).rejects.toThrow('Stream chunk type mismatch');
+      await expectHaltMessage(
+        () =>
+          run('make_stream() -> each { $ }', {
+            functions: { make_stream: makeStreamFn(mixedChunks) },
+          }),
+        'Stream chunk type mismatch'
+      );
     });
   });
 
   // EC-7: Chunk type mismatch at yield
   describe('EC-7: chunk type mismatch at yield', () => {
-    it('throws RILL-R004 when yielded value mismatches declared type', async () => {
-      await expect(
-        run(
-          `
+    it('halts typed-atom when yielded value mismatches declared type', async () => {
+      await expectHaltMessage(
+        () =>
+          run(
+            `
             || {
               42 -> yield
             } :stream(string) => $gen
             $gen() -> each { $ }
           `
-        )
-      ).rejects.toThrow('Yielded value type mismatch');
+          ),
+        'Yielded value type mismatch'
+      );
     });
   });
 
@@ -966,18 +975,20 @@ describe('Streams: Error Contracts', () => {
 
   // EC-14: Resolution type mismatch
   describe('EC-14: resolution type mismatch', () => {
-    it('throws RILL-R004 when body result does not match declared type', async () => {
-      await expect(
-        run(
-          `
+    it('halts typed-atom when body result does not match declared type', async () => {
+      await expectHaltMessage(
+        () =>
+          run(
+            `
             || {
               1 -> yield
               "wrong"
             } :stream():number => $gen
             $gen() -> each { $ }
           `
-        )
-      ).rejects.toThrow('Stream resolution type mismatch');
+          ),
+        'Stream resolution type mismatch'
+      );
     });
   });
 

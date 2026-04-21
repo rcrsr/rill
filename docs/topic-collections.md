@@ -358,7 +358,7 @@ When filtering a dict, `$` contains `key` and `value` fields. Returns list of ma
 
 ```rill
 [a: 1, b: 5, c: 3] -> filter { $.value > 2 }
-# Result: [[key: "b", value: 5], dict[key: "c", value: 3]]
+# Result: [[key: "b", value: 5], [key: "c", value: 3]]
 ```
 
 ### String Filtering

@@ -8,16 +8,16 @@
  */
 
 import type { ASTNode, CaptureNode, SourceLocation } from '../../../types.js';
-import {
-  AbortError,
-  AutoExceptionError,
-  RuntimeError,
-  TimeoutError,
-} from '../../../types.js';
+import { RuntimeError, TimeoutError } from '../../../types.js';
 import type { RuntimeContext } from '../types/runtime.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
+import {
+  throwAbortHalt,
+  throwAutoExceptionHalt,
+  type TypeHaltSite,
+} from '../types/halt.js';
 
 /**
  * Base class for the evaluator.
@@ -37,17 +37,24 @@ export class EvaluatorBase {
 
   /**
    * Check if execution has been aborted via AbortSignal.
-   * Throws AbortError if signal is aborted.
+   * Throws a non-catchable RuntimeHaltSignal via throwAbortHalt (IR-1)
+   * when the signal is aborted.
    */
   protected checkAborted(node?: ASTNode): void {
     if (this.ctx.signal?.aborted) {
-      throw new AbortError(this.getNodeLocation(node));
+      const site: TypeHaltSite = {
+        location: this.getNodeLocation(node),
+        sourceId: this.ctx.sourceId,
+        fn: 'checkAborted',
+      };
+      throwAbortHalt(site);
     }
   }
 
   /**
    * Check if the current pipe value matches any autoException pattern.
-   * Only checks string values. Throws AutoExceptionError on match.
+   * Only checks string values. Throws a non-catchable RuntimeHaltSignal
+   * via throwAutoExceptionHalt (IR-2) on match.
    */
   protected checkAutoExceptions(value: RillValue, node?: ASTNode): void {
     if (typeof value !== 'string' || this.ctx.autoExceptions.length === 0) {
@@ -56,11 +63,12 @@ export class EvaluatorBase {
 
     for (const pattern of this.ctx.autoExceptions) {
       if (pattern.test(value)) {
-        throw new AutoExceptionError(
-          pattern.source,
-          value,
-          this.getNodeLocation(node)
-        );
+        const site: TypeHaltSite = {
+          location: this.getNodeLocation(node),
+          sourceId: this.ctx.sourceId,
+          fn: 'checkAutoExceptions',
+        };
+        throwAutoExceptionHalt(site, pattern.source, value);
       }
     }
   }

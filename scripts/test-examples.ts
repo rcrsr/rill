@@ -15,6 +15,8 @@ import * as path from 'path';
 import {
   createRuntimeContext,
   execute,
+  formatRillLiteral,
+  formatValue,
   parse,
   RillError,
   type RillFunction,
@@ -25,6 +27,7 @@ interface CodeBlock {
   code: string;
   lineNumber: number;
   file: string;
+  expectedResult?: string;
 }
 
 interface TestResult {
@@ -839,10 +842,19 @@ function extractRillBlocks(content: string, filePath: string): CodeBlock[] {
       blockLines = [];
     } else if (inBlock && line.trim() === '```') {
       inBlock = false;
+      // Capture the LAST `# Result:` annotation in the block
+      let expectedResult: string | undefined;
+      for (const bl of blockLines) {
+        const resultMatch = bl.trim().match(/^# Result:\s*(.*)$/);
+        if (resultMatch) {
+          expectedResult = resultMatch[1]!;
+        }
+      }
       blocks.push({
         code: blockLines.join('\n'),
         lineNumber: blockStart + 1, // Line after the opening fence
         file: filePath,
+        ...(expectedResult !== undefined ? { expectedResult } : {}),
       });
     } else if (inBlock) {
       blockLines.push(line);
@@ -1014,7 +1026,26 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
 
   try {
     const ast = parse(code);
-    await execute(ast, ctx);
+    const exec = await execute(ast, ctx);
+    if (block.expectedResult !== undefined) {
+      const actual1 = formatValue(exec.result).trim();
+      const actual2 = formatRillLiteral(exec.result).trim();
+      const expected = block.expectedResult.trim();
+      const normalized = expected.replace(/\s*\([^)]*\)\s*$/, '');
+      if (
+        expected !== actual1 &&
+        expected !== actual2 &&
+        normalized !== actual1 &&
+        normalized !== actual2
+      ) {
+        return {
+          block,
+          success: false,
+          error: `Result drift: expected \`${block.expectedResult}\`, got \`${actual1}\``,
+          errorColumn: undefined,
+        };
+      }
+    }
     return { block, success: true };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);

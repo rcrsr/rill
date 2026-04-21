@@ -132,7 +132,19 @@ export function createRillStream(options: {
       exhausted = true;
       if (!disposed && dispose) {
         disposed = true;
-        dispose();
+        try {
+          dispose();
+        } catch (err) {
+          // EC-15: Propagate dispose errors as RILL-R002. Wrapping
+          // ensures the throw is a structured halt (RillError) rather
+          // than a plain Error that the extension-boundary reshape
+          // would convert to #R999.
+          if (err instanceof RuntimeError) throw err;
+          throw new RuntimeError(
+            'RILL-R002',
+            err instanceof Error ? err.message : String(err)
+          );
+        }
       }
       const doneStep: RillStream = {
         __rill_stream: true,

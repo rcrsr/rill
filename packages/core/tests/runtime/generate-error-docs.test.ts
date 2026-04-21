@@ -231,7 +231,7 @@ describe('generate-error-docs validation', () => {
     it('passes when examples field has multiple entries', () => {
       const definitions: ErrorDefinition[] = [
         {
-          errorId: 'RILL-R004',
+          errorId: 'RILL-R002',
           category: 'runtime',
           description: 'Test error',
           messageTemplate: 'Test message',

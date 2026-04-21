@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Type Assertions', () => {
   describe('Pipe Shorthand :type', () => {
@@ -37,31 +38,36 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('errors on type mismatch - string expected, got number', async () => {
-      await expect(run('42 -> :string')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('42 -> :string'),
         'expected string, got number'
       );
     });
 
     it('errors on type mismatch - number expected, got string', async () => {
-      await expect(run('"hello" -> :number')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"hello" -> :number'),
         'expected number, got string'
       );
     });
 
     it('errors on type mismatch - bool expected, got string', async () => {
-      await expect(run('"true" -> :bool')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"true" -> :bool'),
         'expected bool, got string'
       );
     });
 
     it('errors on type mismatch - list expected, got dict', async () => {
-      await expect(run('dict[a: 1] -> :list')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('dict[a: 1] -> :list'),
         'expected list, got dict'
       );
     });
 
     it('errors on type mismatch - dict expected, got list', async () => {
-      await expect(run('list[1, 2] -> :dict')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('list[1, 2] -> :dict'),
         'expected dict, got list'
       );
     });
@@ -314,19 +320,22 @@ describe('Rill Runtime: Type Assertions', () => {
 
   describe('Leaf type with type arguments rejects (AC-16, AC-17, AC-18)', () => {
     it('AC-16: :string(number) halts with "string does not accept type arguments"', async () => {
-      await expect(run('"hello" :string(number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"hello" :string(number)'),
         'string does not accept type arguments'
       );
     });
 
     it('AC-17: :vector(string) halts with "vector does not accept type arguments"', async () => {
-      await expect(run('"hello" :vector(string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"hello" :vector(string)'),
         'vector does not accept type arguments'
       );
     });
 
     it('AC-18: :closure(string, number) halts with "closure does not accept type arguments"', async () => {
-      await expect(run('"hello" :closure(string, number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"hello" :closure(string, number)'),
         'closure does not accept type arguments'
       );
     });
@@ -338,13 +347,15 @@ describe('Rill Runtime: Type Assertions', () => {
 
   describe('Post-conversion structural mismatch (AC-19, EC-12)', () => {
     it('AC-19: list[1,2] -> :>list(string) halts with structural mismatch containing "list(string)"', async () => {
-      await expect(run('list[1, 2] -> :>list(string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('list[1, 2] -> :>list(string)'),
         'list(string)'
       );
     });
 
-    it('EC-12: post-conversion structural mismatch uses RILL-R004 error path', async () => {
-      await expect(run('list[1, 2] -> :>list(string)')).rejects.toThrow(
+    it('EC-12: post-conversion structural mismatch uses typed-atom halt path', async () => {
+      await expectHaltMessage(
+        () => run('list[1, 2] -> :>list(string)'),
         'Type assertion failed'
       );
     });
@@ -366,17 +377,19 @@ describe('Rill Runtime: Type Assertions', () => {
         1 => $n
         $n :$n
       `;
-      await expect(run(script)).rejects.toThrow('not a valid type reference');
+      await expectHaltMessage(() => run(script), 'not a valid type reference');
     });
 
     it('EC-3: leaf type with args via annotation syntax halts (same as AC-16)', async () => {
-      await expect(run('"hello" :string(number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"hello" :string(number)'),
         'string does not accept type arguments'
       );
     });
 
     it('EC-4: list(string, number) annotation halts with "requires exactly 1 type argument"', async () => {
-      await expect(run('"x" :list(string, number)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"x" :list(string, number)'),
         'list() requires exactly 1 type argument'
       );
     });
@@ -384,13 +397,15 @@ describe('Rill Runtime: Type Assertions', () => {
     it('EC-5: dict(string) annotation (positional) resolves as uniform dict type', async () => {
       // Single positional arg now produces uniform dict type { kind: 'dict', valueType: { kind: 'string' } }
       // "x" is not a dict, so assertType raises a type mismatch
-      await expect(run('"x" :dict(string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"x" :dict(string)'),
         'Type assertion failed'
       );
     });
 
     it('EC-6: tuple(x: string) annotation (named) halts with "requires positional arguments"', async () => {
-      await expect(run('"x" :tuple(x: string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('"x" :tuple(x: string)'),
         'tuple() requires positional arguments'
       );
     });
@@ -400,11 +415,12 @@ describe('Rill Runtime: Type Assertions', () => {
         1 => $n
         $n :list($n)
       `;
-      await expect(run(script)).rejects.toThrow('not a valid type reference');
+      await expectHaltMessage(() => run(script), 'not a valid type reference');
     });
 
     it('EC-10: structural assertion mismatch halts with "list(string)" in error', async () => {
-      await expect(run('list[1, 2] :list(string)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('list[1, 2] :list(string)'),
         'list(string)'
       );
     });
@@ -444,15 +460,17 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('AC-2: tuple assertion rejects missing non-defaulted element', async () => {
-      await expect(
-        run('tuple(string, number) => $t\ntuple["x"] -> :$t')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () => run('tuple(string, number) => $t\ntuple["x"] -> :$t'),
+        /Type assertion failed/
+      );
     });
 
     it('AC-2: tuple assertion rejects when all required elements are missing', async () => {
-      await expect(
-        run('tuple(string, number) => $t\ntuple[] -> :$t')
-      ).rejects.toThrow(/Type assertion failed/);
+      await expectHaltMessage(
+        () => run('tuple(string, number) => $t\ntuple[] -> :$t'),
+        /Type assertion failed/
+      );
     });
   });
 });

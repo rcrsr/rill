@@ -2,7 +2,7 @@
  * Type Registration Definitions
  *
  * Defines the TypeDefinition interface, TypeProtocol interface, and
- * BUILT_IN_TYPES registration array. Each of the 15 built-in types
+ * BUILT_IN_TYPES registration array. Each of the 16 built-in types
  * carries identity predicates, protocol functions (format, eq, compare,
  * convertTo, serialize), and a methods record populated from BUILTIN_METHODS.
  *
@@ -28,6 +28,7 @@ import type {
   RillStream,
   RillDatetime,
   RillDuration,
+  RillAtomValue,
 } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import {
@@ -39,7 +40,9 @@ import {
   isIterator,
   isDatetime,
   isDuration,
+  isAtom,
 } from './guards.js';
+import { resolveAtom } from './atom-registry.js';
 import { createTuple, createOrdered, createVector } from './constructors.js';
 import {
   formatRillLiteral,
@@ -53,6 +56,7 @@ import {
   callableEquals,
 } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
+import { throwTypeHalt } from './halt.js';
 
 // ============================================================
 // TYPE PROTOCOL INTERFACE
@@ -171,6 +175,11 @@ function formatStream(_v: RillValue): string {
 function formatDatetime(v: RillValue): string {
   const dt = v as unknown as RillDatetime;
   return new Date(dt.unix).toISOString();
+}
+
+function formatCode(v: RillValue): string {
+  const c = v as unknown as RillAtomValue;
+  return `#${c.atom.name}`;
 }
 
 /**
@@ -323,6 +332,18 @@ function eqDuration(a: RillValue, b: RillValue): boolean {
   return a.months === b.months && a.ms === b.ms;
 }
 
+/**
+ * Equality for `:atom` primitives.
+ *
+ * AC-3: atoms are identity-compared. `resolveAtom` interns one
+ * frozen RillAtom per name, so identical names share the same atom
+ * reference.
+ */
+function eqCode(a: RillValue, b: RillValue): boolean {
+  if (!isAtom(a) || !isAtom(b)) return false;
+  return a.atom === b.atom;
+}
+
 function eqList(a: RillValue, b: RillValue): boolean {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
   return compareElements(a, b, compareByDeepEquals);
@@ -413,6 +434,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     if (s === 'true') return true;
     if (s === 'false') return false;
     throw new RuntimeError('RILL-R065', `cannot convert string "${s}" to bool`);
+  },
+  atom: (v: RillValue): RillValue => {
+    const atom = resolveAtom(v as string);
+    return { __rill_atom: true, atom } as unknown as RillValue;
   },
 };
 
@@ -524,6 +549,42 @@ const streamConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (_v: RillValue): RillValue => 'type(stream)',
 };
 
+/**
+ * Atom convertTo targets.
+ * - atom -> string: bare atom name (no `#` sigil), matches `atomName`.
+ */
+const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
+  string: (v: RillValue): RillValue =>
+    (v as unknown as RillAtomValue).atom.name,
+};
+
+/**
+ * Serialize a `:atom` value as its bare uppercase atom name string.
+ * The `#` sigil is a syntactic convenience, not part of the identity.
+ */
+function serializeAtom(v: RillValue): unknown {
+  return (v as unknown as RillAtomValue).atom.name;
+}
+
+/**
+ * Deserialize a string into a `:atom` value via `resolveAtom`.
+ *
+ * Unregistered names resolve to `#R001` (EC-3) rather than throwing.
+ */
+function deserializeAtom(data: unknown): RillValue {
+  if (typeof data !== 'string') {
+    throwTypeHalt(
+      { fn: 'deserialize-atom' },
+      'INVALID_INPUT',
+      `Cannot deserialize ${typeof data} as atom, expected string`,
+      'runtime',
+      { actualType: typeof data }
+    );
+  }
+  const atom = resolveAtom(data);
+  return { __rill_atom: true, atom } as unknown as RillValue;
+}
+
 // ============================================================
 // PROTOCOL IMPLEMENTATIONS: SERIALIZE
 // ============================================================
@@ -613,16 +674,21 @@ function serializeDuration(v: RillValue): unknown {
  */
 function deserializeDatetime(data: unknown): RillValue {
   if (typeof data !== 'string') {
-    throw new RuntimeError(
-      'RILL-R004',
-      `Cannot deserialize ${typeof data} as datetime, expected ISO 8601 string`
+    throwTypeHalt(
+      { fn: 'deserialize-datetime' },
+      'INVALID_INPUT',
+      `Cannot deserialize ${typeof data} as datetime, expected ISO 8601 string`,
+      'runtime',
+      { actualType: typeof data }
     );
   }
   const ms = Date.parse(data);
   if (isNaN(ms)) {
-    throw new RuntimeError(
-      'RILL-R004',
-      `Cannot deserialize invalid ISO 8601 string as datetime: ${data}`
+    throwTypeHalt(
+      { fn: 'deserialize-datetime' },
+      'INVALID_INPUT',
+      `Cannot deserialize invalid ISO 8601 string as datetime: ${data}`,
+      'runtime'
     );
   }
   return { __rill_datetime: true, unix: ms } as unknown as RillValue;
@@ -647,9 +713,11 @@ function deserializeDuration(data: unknown): RillValue {
   ) {
     const obj = data as { months: unknown; ms: unknown };
     if (typeof obj.months !== 'number' || typeof obj.ms !== 'number') {
-      throw new RuntimeError(
-        'RILL-R004',
-        'Cannot deserialize duration: months and ms must be numbers'
+      throwTypeHalt(
+        { fn: 'deserialize-duration' },
+        'INVALID_INPUT',
+        'Cannot deserialize duration: months and ms must be numbers',
+        'runtime'
       );
     }
     return {
@@ -658,9 +726,12 @@ function deserializeDuration(data: unknown): RillValue {
       ms: obj.ms,
     } as unknown as RillValue;
   }
-  throw new RuntimeError(
-    'RILL-R004',
-    `Cannot deserialize ${typeof data} as duration, expected number or {months, ms}`
+  throwTypeHalt(
+    { fn: 'deserialize-duration' },
+    'INVALID_INPUT',
+    `Cannot deserialize ${typeof data} as duration, expected number or {months, ms}`,
+    'runtime',
+    { actualType: typeof data }
   );
 }
 
@@ -806,6 +877,22 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
       compare: compareDuration,
       serialize: serializeDuration,
       deserialize: deserializeDuration,
+    },
+  },
+  {
+    // `:atom` is the 16th primitive. Atoms compare by identity (AC-3):
+    // `resolveAtom` interns one frozen RillAtom per name.
+    name: 'atom',
+    identity: (v: RillValue): boolean => isAtom(v),
+    isLeaf: true,
+    immutable: true,
+    methods: {},
+    protocol: {
+      format: formatCode,
+      eq: eqCode,
+      convertTo: atomConvertTo,
+      serialize: serializeAtom,
+      deserialize: deserializeAtom,
     },
   },
   {
@@ -993,15 +1080,18 @@ export function serializeValue(value: RillValue): unknown {
  * Dispatches to protocol.deserialize for the given type name.
  * Falls back to raw value when no protocol.deserialize exists (primitives).
  *
- * IR-8: Raw value fallback rejects null/undefined inputs with RILL-R004.
- * EC-9: Invalid data raises RILL-R004.
- * EC-10: null/undefined input raises RILL-R004.
+ * IR-8: Raw value fallback rejects null/undefined inputs with INVALID_INPUT.
+ * EC-9: Invalid data raises INVALID_INPUT.
+ * EC-10: null/undefined input raises INVALID_INPUT.
  */
 export function deserializeValue(data: unknown, typeName: string): RillValue {
   if (data === null || data === undefined) {
-    throw new RuntimeError(
-      'RILL-R004',
-      `Cannot deserialize null as ${typeName}`
+    throwTypeHalt(
+      { fn: 'deserialize' },
+      'INVALID_INPUT',
+      `Cannot deserialize null as ${typeName}`,
+      'runtime',
+      { typeName }
     );
   }
   for (const reg of BUILT_IN_TYPES) {
@@ -1010,7 +1100,13 @@ export function deserializeValue(data: unknown, typeName: string): RillValue {
       return data as RillValue;
     }
   }
-  throw new RuntimeError('RILL-R004', `Cannot deserialize as ${typeName}`);
+  throwTypeHalt(
+    { fn: 'deserialize' },
+    'INVALID_INPUT',
+    `Cannot deserialize as ${typeName}`,
+    'runtime',
+    { typeName }
+  );
 }
 
 // ============================================================

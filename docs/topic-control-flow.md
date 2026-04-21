@@ -4,7 +4,7 @@
 
 ## Overview
 
-rill provides singular control flow—no exceptions, no try/catch. Errors halt execution. Recovery requires explicit conditionals.
+rill provides singular control flow with no exceptions and no try/catch. Errors halt execution. `guard` captures halts as invalid values for explicit recovery. `retry` retries a body when it returns an invalid result.
 
 | Syntax | Description |
 |--------|-------------|
@@ -16,6 +16,8 @@ rill provides singular control flow—no exceptions, no try/catch. Errors halt e
 | `return` / `$val -> return` | Exit block |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
+| `guard { body }` | Run body; replace halt with invalid value |
+| `retry<N> { body }` | Retry body up to N times on invalid result |
 
 ---
 
@@ -141,7 +143,7 @@ $input -> .empty
 
 Pre-condition loop. Condition is evaluated before each iteration. The body result becomes the next iteration's `$`.
 
-> **Note:** There is no `while` keyword. Use `(condition) @ { body }` syntax. Loop bodies cannot modify outer-scope variables—use `$` to carry all state. For multiple values, pack them in a dict.
+> **Note:** There is no `while` keyword. Use `(condition) @ { body }` syntax. Loop bodies cannot modify outer-scope variables; use `$` to carry all state. For multiple values, pack them in a dict.
 
 ### Syntax
 
@@ -372,6 +374,9 @@ Assert halts execution when the condition evaluates to `false`. If the condition
 
 ```rill
 5 -> assert ($ > 0)              # Returns 5 (condition true)
+```
+
+```text
 -1 -> assert ($ > 0)             # Error: Assertion failed
 ```
 
@@ -379,10 +384,12 @@ Assert halts execution when the condition evaluates to `false`. If the condition
 
 Provide a descriptive message as the second argument:
 
-```rill
+```text
 "" -> assert !.empty "Empty input not allowed"
 # Error: Empty input not allowed
+```
 
+```rill
 [1, 2, 3] -> assert (.len > 0) "List cannot be empty"
 # Returns [1, 2, 3] (assertion passes)
 ```
@@ -393,6 +400,9 @@ Combine with type checks to validate input:
 
 ```rill
 "hello" -> assert $:?string      # Returns "hello" (type check passes)
+```
+
+```text
 42 -> assert $:?string           # Error: Assertion failed
 ```
 
@@ -405,7 +415,9 @@ Assert validates each iteration. The loop halts on the first failing assertion:
   assert ($ > 0) "Must be positive"
 }
 # Returns [1, 2, 3] (all elements valid)
+```
 
+```text
 [1, 0, 3] -> each {
   assert ($ > 0) "Must be positive"
 }
@@ -434,7 +446,7 @@ Assert throws `RuntimeError` when:
 | Condition is `false` | `RUNTIME_ASSERTION_FAILED` | Custom message or "Assertion failed" |
 | Condition is not boolean | `RUNTIME_TYPE_ERROR` | "assert requires boolean condition, got {type}" |
 
-```rill
+```text
 # Non-boolean condition
 "test" -> assert $               # Error: assert requires boolean condition, got string
 
@@ -672,6 +684,61 @@ $cond ? do_something() ! pass
 
 ---
 
+## Operational Recovery with `guard`
+
+`guard { body }` executes its body. When the body halts (via `error`, `assert`, or a throwing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. The invalid value carries a `:atom` value identifying the failure.
+
+```text
+guard { app::fetch("https://api.example.com/data") } => $result
+$result.? ? $result.data ! error "fetch failed: {$result.!}"
+```
+
+The `.?` operator tests whether `$result` is valid. The `.!` operator extracts the `:atom` value when it is not.
+
+### Invalid Value
+
+An invalid value is a first-class rill value that carries a `:atom` value. It is not an exception. It propagates through pipes and dict fields without halting, until an explicit check uses `.?` or `.!`.
+
+```text
+guard { app::risky_call() } => $r
+$r.!              # :atom value (e.g. #TIMEOUT, #AUTH, #ok if valid)
+$r.?              # bool: true if valid
+```
+
+Using an invalid value as an operand in arithmetic or type assertions halts execution. Test with `.?` before use.
+
+See [Error Handling](topic-error-handling.md) for full patterns and [Error Reference](ref-errors.md) for pre-registered atoms.
+
+---
+
+## Bounded Retry with `retry<N>`
+
+`retry<N> { body }` runs its body up to N times. Each attempt that returns an invalid value triggers the next attempt. The result is the first valid value, or the final invalid value when all attempts fail.
+
+```text
+retry<3> { app::fetch("https://api.example.com/data") } => $result
+```
+
+`retry` is strictly bounded; N must be a literal integer. Use `guard` inside `retry` to convert halts to invalid values that `retry` can detect.
+
+```text
+retry<3> {
+  guard { app::fetch("https://api.example.com/data") }
+} => $result
+$result.? ? $result ! error "all retries failed: {$result.!}"
+```
+
+### When to Use retry vs. do-while
+
+| Pattern | Use when |
+|---------|----------|
+| `retry<N> { guard { ... } }` | Fixed maximum attempts, automatic backoff not needed |
+| `@ { } ? cond` | Custom retry logic, delay, or condition-based exit |
+
+See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
+
+---
+
 ## Control Flow Summary
 
 | Statement | Scope | Effect |
@@ -685,6 +752,8 @@ $cond ? do_something() ! pass
 | `assert cond "msg"` | Any | Halt with custom message if condition false |
 | `error "msg"` | Any | Always halt with error message |
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
+| `guard { body }` | Any | Replace halt with invalid value |
+| `retry<N> { body }` | Any | Retry up to N times on invalid result |
 
 ---
 
@@ -735,7 +804,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 
 ## See Also
 
-- [Variables](topic-variables.md) — Scope rules and `$` binding
-- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` iteration
-- [Operators](topic-operators.md) — Comparison and logical operators
-- [Reference](ref-language.md) — Quick reference tables
+- [Variables](topic-variables.md): Scope rules and `$` binding
+- [Collections](topic-collections.md): `each`, `map`, `filter`, `fold` iteration
+- [Operators](topic-operators.md): Comparison and logical operators
+- [Reference](ref-language.md): Quick reference tables

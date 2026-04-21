@@ -18,6 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeError, TimeoutError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
   describe('RuntimeError from base class methods (EC-1)', () => {
@@ -57,16 +58,11 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       }
     });
 
-    it('throws RuntimeError for type assertion failure', async () => {
-      try {
-        await run('42 :string');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const runtimeErr = err as RuntimeError;
-        expect(runtimeErr.errorId).toBe('RILL-R004');
-        expect(runtimeErr.message).toContain('expected string');
-      }
+    it('halts for type assertion failure with #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('42 :string'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected string',
+      });
     });
 
     it('throws RuntimeError for non-boolean condition in conditional', async () => {
@@ -415,118 +411,78 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
   describe('TypesMixin error contracts', () => {
     describe('EC-24: Type assertion failures', () => {
-      it('throws RuntimeError with RUNTIME_TYPE_ERROR for type mismatch', async () => {
-        try {
-          await run('42 :string');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('Type assertion failed');
-        }
+      it('halts #TYPE_MISMATCH with "Type assertion failed" for type mismatch', async () => {
+        await expectHalt(() => run('42 :string'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'Type assertion failed',
+        });
       });
 
-      it('AC-10: error message includes expected vs actual types', async () => {
-        try {
-          await run('"hello" :number');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.message).toContain('expected number');
-          expect(runtimeErr.message).toContain('got string');
-        }
+      it('AC-10: halt message includes expected vs actual types', async () => {
+        await expectHalt(() => run('"hello" :number'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected number.*got string/,
+        });
       });
 
-      it('AC-10: error includes location information', async () => {
+      it('AC-10: halt trace frame includes a site string', async () => {
+        const { RuntimeHaltSignal } =
+          await import('../../src/runtime/core/eval/mixins/access.js');
+        const { getStatus } =
+          await import('../../src/runtime/core/types/status.js');
+        let caught: unknown;
         try {
           await run('42 :string');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.location).toBeDefined();
-          expect(runtimeErr.location?.line).toBe(1);
+        } catch (e) {
+          caught = e;
         }
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as InstanceType<typeof RuntimeHaltSignal>;
+        const status = getStatus(signal.value);
+        expect(status.trace.length).toBeGreaterThan(0);
+        expect(status.trace[0]?.site.length).toBeGreaterThan(0);
       });
 
       it('type assertion failure with list expected, got dict', async () => {
-        try {
-          await run('dict[a: 1] :list');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected list');
-          expect(runtimeErr.message).toContain('got dict');
-        }
+        await expectHalt(() => run('dict[a: 1] :list'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected list.*got dict/,
+        });
       });
 
       it('type assertion failure with dict expected, got list', async () => {
-        try {
-          await run('list[1, 2, 3] :dict');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected dict');
-          expect(runtimeErr.message).toContain('got list');
-        }
+        await expectHalt(() => run('list[1, 2, 3] :dict'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected dict.*got list/,
+        });
       });
 
       it('type assertion failure with bool expected, got number', async () => {
-        try {
-          await run('1 :bool');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected bool');
-          expect(runtimeErr.message).toContain('got number');
-        }
+        await expectHalt(() => run('1 :bool'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected bool.*got number/,
+        });
       });
 
       it('type assertion failure in pipe chain', async () => {
-        try {
-          await run('"hello" -> .len -> :string');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected string');
-          expect(runtimeErr.message).toContain('got number');
-        }
+        await expectHalt(() => run('"hello" -> .len -> :string'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected string.*got number/,
+        });
       });
 
       it('type assertion failure with tuple expected, got list', async () => {
-        try {
-          await run('list[1, 2] :tuple');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected tuple');
-          expect(runtimeErr.message).toContain('got list');
-        }
+        await expectHalt(() => run('list[1, 2] :tuple'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected tuple.*got list/,
+        });
       });
 
       it('type assertion failure with closure expected, got string', async () => {
-        try {
-          await run('"not a function" :closure');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R004');
-          expect(runtimeErr.message).toContain('expected closure');
-          expect(runtimeErr.message).toContain('got string');
-        }
+        await expectHalt(() => run('"not a function" :closure'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /expected closure.*got string/,
+        });
       });
     });
 

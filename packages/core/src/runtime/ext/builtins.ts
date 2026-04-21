@@ -11,6 +11,7 @@ import type { RillFunction } from '../core/callable.js';
 import { callable, isCallable, isDict } from '../core/callable.js';
 import type { RuntimeContext } from '../core/types/runtime.js';
 import { type SourceLocation, RuntimeError } from '../../types.js';
+import { throwTypeHalt } from '../core/types/halt.js';
 import { parseSignatureRegistration } from '../../signature-parser.js';
 import type {
   RillDatetime,
@@ -139,7 +140,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     },
   },
 
-  /** Convert any value to JSON string (throws RuntimeError RILL-R004 on closures, tuples, vectors) */
+  /** Convert any value to JSON string (halts with invalid #INVALID_INPUT on closures, tuples, vectors) */
   json: {
     params: [
       {
@@ -150,15 +151,24 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: structureToTypeValue({ kind: 'string' }),
-    fn: (args, _ctx, location) => {
+    fn: (args, ctx, location) => {
       const value = args['value'] ?? null;
       try {
         const jsonValue = serializeValue(value);
         return JSON.stringify(jsonValue);
       } catch (err) {
-        // Wrap serialization errors (RILL-R067 from protocol) as RILL-R004
+        // Wrap serialization errors (RILL-R067 from protocol) as #INVALID_INPUT halts
         if (err instanceof Error) {
-          throw new RuntimeError('RILL-R004', err.message, location);
+          throwTypeHalt(
+            {
+              location,
+              sourceId: (ctx as RuntimeContext).sourceId,
+              fn: 'json',
+            },
+            'INVALID_INPUT',
+            err.message,
+            'runtime'
+          );
         }
         throw err;
       }
@@ -460,10 +470,17 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       const nowMs = (ctx as RuntimeContext).nowMs;
       if (nowMs !== undefined) {
         if (!Number.isFinite(nowMs) || !Number.isInteger(nowMs)) {
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: (ctx as RuntimeContext).sourceId,
+              fn: 'now',
+            },
+            'INVALID_INPUT',
             `now() requires ctx.nowMs to be a finite integer: ${nowMs}`,
-            location
+            'runtime',
+            undefined,
+            'host'
           );
         }
         return { __rill_datetime: true, unix: nowMs } as unknown as RillValue;
@@ -571,10 +588,12 @@ function validateComponent(
   location?: SourceLocation
 ): void {
   if (!Number.isInteger(value) || value < min || value > max) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       `Invalid datetime component ${name}: ${value}`,
-      location
+      'runtime',
+      { component: name }
     );
   }
 }
@@ -613,25 +632,28 @@ function constructDatetime(
         args['second'] !== 0) ||
       (args['ms'] !== undefined && args['ms'] !== null && args['ms'] !== 0);
     if (hasTimeOnly) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'datetime' },
+        'INVALID_INPUT',
         'datetime() accepts string, named components, or unix',
-        location
+        'runtime'
       );
     }
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       'datetime() requires arguments',
-      location
+      'runtime'
     );
   }
 
   // Mixed forms
   if (formCount > 1) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       'datetime() accepts string, named components, or unix',
-      location
+      'runtime'
     );
   }
 
@@ -642,10 +664,12 @@ function constructDatetime(
       key !== 'unix' &&
       !DATETIME_COMPONENT_KEYS.has(key)
     ) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'datetime' },
+        'INVALID_INPUT',
         `Unknown datetime parameter: ${key}`,
-        location
+        'runtime',
+        { parameter: key }
       );
     }
   }
@@ -654,18 +678,20 @@ function constructDatetime(
   if (hasInput && typeof input === 'string') {
     // Reject non-ISO formats
     if (!ISO_8601_RE.test(input)) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'datetime' },
+        'INVALID_INPUT',
         `Invalid ISO 8601 string: ${input}`,
-        location
+        'runtime'
       );
     }
     const ms = Date.parse(input);
     if (Number.isNaN(ms)) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'datetime' },
+        'INVALID_INPUT',
         `Invalid ISO 8601 string: ${input}`,
-        location
+        'runtime'
       );
     }
     return { __rill_datetime: true, unix: ms } as unknown as RillValue;
@@ -673,10 +699,11 @@ function constructDatetime(
 
   // Form 1 non-string: halt
   if (hasInput) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       `Invalid ISO 8601 string: ${formatValue(input)}`,
-      location
+      'runtime'
     );
   }
 
@@ -684,10 +711,12 @@ function constructDatetime(
   if (hasUnix) {
     const unix = args['unix'];
     if (typeof unix !== 'number' || !Number.isFinite(unix)) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'datetime' },
+        'INVALID_INPUT',
         `Invalid datetime component unix: ${formatValue(unix ?? null)}`,
-        location
+        'runtime',
+        { component: 'unix' }
       );
     }
     return { __rill_datetime: true, unix } as unknown as RillValue;
@@ -699,24 +728,30 @@ function constructDatetime(
   const day = args['day'];
 
   if (typeof year !== 'number') {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       `Invalid datetime component year: ${formatValue(year)}`,
-      location
+      'runtime',
+      { component: 'year' }
     );
   }
   if (month === undefined || month === null || typeof month !== 'number') {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       `Invalid datetime component month: ${formatValue(month ?? null)}`,
-      location
+      'runtime',
+      { component: 'month' }
     );
   }
   if (day === undefined || day === null || typeof day !== 'number') {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
       `Invalid datetime component day: ${formatValue(day ?? null)}`,
-      location
+      'runtime',
+      { component: 'day' }
     );
   }
 
@@ -755,7 +790,7 @@ const DURATION_PARAM_KEYS = new Set([
 
 /**
  * Validate a duration parameter: must be a non-negative integer.
- * Throws RILL-R004 on non-number or negative value.
+ * Halts with invalid #INVALID_INPUT on non-number or negative value.
  */
 function validateDurationParam(
   name: string,
@@ -763,17 +798,21 @@ function validateDurationParam(
   location?: SourceLocation
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'duration' },
+      'INVALID_INPUT',
       `duration ${name} must be a finite number: ${formatValue(value)}`,
-      location
+      'runtime',
+      { parameter: name }
     );
   }
   if (value < 0) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      { location, fn: 'duration' },
+      'INVALID_INPUT',
       `duration ${name} must be non-negative: ${value}`,
-      location
+      'runtime',
+      { parameter: name }
     );
   }
   return value;
@@ -790,10 +829,12 @@ function constructDuration(
   // Check for unknown parameters
   for (const key of Object.keys(args)) {
     if (!DURATION_PARAM_KEYS.has(key)) {
-      throw new RuntimeError(
-        'RILL-R004',
+      throwTypeHalt(
+        { location, fn: 'duration' },
+        'INVALID_INPUT',
         `Unknown duration parameter: ${key}`,
-        location
+        'runtime',
+        { parameter: key }
       );
     }
   }
@@ -1015,10 +1056,17 @@ function getTimezoneOffset(
   const tz = ctx.timezone;
   if (tz === undefined) return 0;
   if (!Number.isFinite(tz)) {
-    throw new RuntimeError(
-      'RILL-R004',
+    throwTypeHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'timezone',
+      },
+      'INVALID_INPUT',
       `Invalid timezone offset: ${tz}`,
-      location
+      'runtime',
+      undefined,
+      'host'
     );
   }
   return tz;

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { callable, isTuple, parse, ParseError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // EXPLICIT SPREAD CALL SYNTAX TESTS (AC-1 through AC-27)
@@ -706,7 +707,8 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
     describe('json()', () => {
       it('throws on ordered spread serialization to JSON', async () => {
-        await expect(run('ordered[a: 1, b: 2] -> json')).rejects.toThrow(
+        await expectHaltMessage(
+          () => run('ordered[a: 1, b: 2] -> json'),
           'ordered values are not JSON-serializable'
         );
       });

@@ -22,6 +22,7 @@ import {
   formatStructure,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
@@ -380,18 +381,18 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // EC-8, AC-11: dict(a: string = 42) -> RILL-R004
   // ============================================================
 
-  describe('EC-8, AC-11: default type mismatch in dict -> RILL-R004', () => {
-    it('dict(a: string = 42) throws RILL-R004 for wrong default type', async () => {
-      await expect(run('dict(a: string = 42)')).rejects.toThrow(
+  describe('EC-8, AC-11: default type mismatch in dict -> typed-atom halt', () => {
+    it('dict(a: string = 42) halts with "must be string" message', async () => {
+      await expectHaltMessage(
+        () => run('dict(a: string = 42)'),
         /Default value for field 'a' must be string/
       );
     });
 
-    it('dict(a: string = 42) has errorId RILL-R004', async () => {
-      await expect(run('dict(a: string = 42)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+    it('dict(a: string = 42) halts #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('dict(a: string = 42)'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 
@@ -442,85 +443,77 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // EC-8, AC-14: tuple(number = "x") -> RILL-R004
   // ============================================================
 
-  describe('EC-8, AC-14: tuple default type mismatch -> RILL-R004', () => {
-    it('tuple(number = "x") throws RILL-R004', async () => {
-      await expect(run('tuple(number = "x")')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+  describe('EC-8, AC-14: tuple default type mismatch -> typed-atom halt', () => {
+    it('tuple(number = "x") halts #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('tuple(number = "x")'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 
   // ============================================================
-  // EC-4: Non-type variable value -> RILL-R004
+  // EC-4: Non-type variable value -> typed-atom halt
   // ============================================================
 
-  describe('EC-4: non-type variable used as type ref -> RILL-R004', () => {
-    it('variable holding number used as type ref throws RILL-R004', async () => {
-      await expect(run('42 => $t\n"hello" -> :$t')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+  describe('EC-4: non-type variable used as type ref -> typed-atom halt', () => {
+    it('variable holding number used as type ref halts #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 
   // ============================================================
-  // EC-5: list with != 1 arg -> RILL-R004
+  // EC-5: list with != 1 arg -> typed-atom halt
   // ============================================================
 
-  describe('EC-5: list with wrong number of args -> RILL-R004', () => {
-    it('list(string, number) with 2 args throws RILL-R004', async () => {
-      await expect(run('list(string, number)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+  describe('EC-5: list with wrong number of args -> typed-atom halt', () => {
+    it('list(string, number) with 2 args halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list(string, number)'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
-    it('list(a: string) with named arg throws RILL-R004', async () => {
-      await expect(run('list(a: string)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+    it('list(a: string) with named arg halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list(a: string)'), {
+        code: 'INVALID_INPUT',
+      });
     });
   });
 
   // ============================================================
-  // EC-6: dict/ordered mixed arg kinds -> RILL-R004
+  // EC-6: dict/ordered mixed arg kinds -> typed-atom halt
   // ============================================================
 
-  describe('EC-6: dict/ordered mixed positional and named args -> RILL-R004', () => {
-    it('dict(string, a: number) with mixed args throws RILL-R004', async () => {
-      await expect(run('dict(string, a: number)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+  describe('EC-6: dict/ordered mixed positional and named args -> typed-atom halt', () => {
+    it('dict(string, a: number) with mixed args halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('dict(string, a: number)'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
-    it('ordered(string, a: number) with mixed args throws RILL-R004', async () => {
-      await expect(run('ordered(string, a: number)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+    it('ordered(string, a: number) with mixed args halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('ordered(string, a: number)'), {
+        code: 'INVALID_INPUT',
+      });
     });
   });
 
   // ============================================================
-  // EC-7: tuple with named arg -> RILL-R004
+  // EC-7: tuple with named arg -> typed-atom halt
   // ============================================================
 
-  describe('EC-7: tuple with named arg -> RILL-R004', () => {
-    it('tuple(a: number) throws RILL-R004', async () => {
-      await expect(run('tuple(a: number)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+  describe('EC-7: tuple with named arg -> typed-atom halt', () => {
+    it('tuple(a: number) halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('tuple(a: number)'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
-    it('tuple(a: number, b: string) throws RILL-R004', async () => {
-      await expect(run('tuple(a: number, b: string)')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R004'
-      );
+    it('tuple(a: number, b: string) halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('tuple(a: number, b: string)'), {
+        code: 'INVALID_INPUT',
+      });
     });
   });
 
@@ -541,17 +534,19 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // EC-10: tuple non-trailing default -> RILL-R004
   // ============================================================
 
-  describe('EC-10: tuple non-trailing default -> RILL-R004', () => {
-    it('tuple(number = 0, string) throws RILL-R004 for non-trailing default', async () => {
-      await expect(run('tuple(number = 0, string)')).rejects.toThrow(
+  describe('EC-10: tuple non-trailing default -> typed-atom halt', () => {
+    it('tuple(number = 0, string) halts for non-trailing default', async () => {
+      await expectHaltMessage(
+        () => run('tuple(number = 0, string)'),
         /tuple\(\) default values must be trailing/
       );
     });
 
-    it('tuple(string = "x", number, bool = true) throws RILL-R004 for non-trailing default', async () => {
-      await expect(
-        run('tuple(string = "x", number, bool = true)')
-      ).rejects.toThrow(/tuple\(\) default values must be trailing/);
+    it('tuple(string = "x", number, bool = true) halts for non-trailing default', async () => {
+      await expectHaltMessage(
+        () => run('tuple(string = "x", number, bool = true)'),
+        /tuple\(\) default values must be trailing/
+      );
     });
   });
 });

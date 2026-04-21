@@ -597,13 +597,13 @@ Examples:
 All 12 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, iterator, any, type
 Parameterized: |list(number)|{ $ -> each { $ * 2 } }
 
-**Return type assertions** (enforced at runtime — RILL-R004 on mismatch):
+**Return type assertions** (enforced at runtime — halts with `#TYPE_MISMATCH` on mismatch):
 
     |x: number| { "{$x}" }:string => $fn    # asserts string return type
     $fn(42)                                  # "42" (passes assertion)
 
-    |x: number| { $x * 2 }:string => $fn    # mismatch halts with RILL-R004
-    $fn(5)                                   # RILL-R004: expected string, got number
+    |x: number| { $x * 2 }:string => $fn    # mismatch halts with #TYPE_MISMATCH
+    $fn(5)                                   # #TYPE_MISMATCH: expected string, got number
 
 ### Callable Reflection
 

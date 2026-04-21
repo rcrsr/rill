@@ -8,11 +8,15 @@ import type {
   AnnotatedStatementNode,
   AnnotationArg,
   AssertNode,
+  AtomLiteralNode,
   BlockNode,
   ConditionalNode,
   DoWhileLoopNode,
   ErrorNode,
   ExpressionNode,
+  GuardBlockNode,
+  RecoveryErrorNode,
+  RetryBlockNode,
   StringLiteralNode,
   WhileLoopNode,
   BodyNode,
@@ -29,6 +33,7 @@ import {
   skipNewlinesIfFollowedBy,
   makeSpan,
 } from './state.js';
+import { ATOM_NAME_SHAPE } from './helpers.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -46,8 +51,14 @@ declare module './parser.js' {
     parseBlock(allowEmpty?: boolean): BlockNode;
     parseAssert(): AssertNode;
     parseError(requireMessage?: boolean): ErrorNode;
+    parseGuardBlock(): GuardBlockNode | RecoveryErrorNode;
+    parseRetryBlock(): RetryBlockNode | RecoveryErrorNode;
   }
 }
+
+type OnCodeListResult =
+  | { kind: 'ok'; codes: AtomLiteralNode[] }
+  | { kind: 'invalid'; node: RecoveryErrorNode };
 
 // ============================================================
 // CONDITIONALS
@@ -334,3 +345,298 @@ Parser.prototype.parseError = function (
     span: makeSpan(start, current(this.state).span.end),
   };
 };
+
+// ============================================================
+// GUARD / RETRY BLOCKS (task 1.4)
+// ============================================================
+
+/**
+ * Parse the `<on: list[#X, #Y, ...]>` option list that may follow `guard` or
+ * `retry<N,`. Returns either the collected atoms or a RecoveryErrorNode when
+ * any atom fails the strict shape check (EC-14).
+ *
+ * Assumes the opening `<` has NOT yet been consumed by the caller; caller
+ * decides based on whether the compound lexer token (GUARD_LBRACE /
+ * RETRY_LANGLE) was emitted.
+ *
+ * Grammar: `<` `on` `:` `list[` atom (`,` atom)* `]` `>`
+ */
+function parseOnOptionList(
+  parser: Parser,
+  start: { line: number; column: number; offset: number }
+): OnCodeListResult {
+  // Opening `<` already consumed for GUARD (bare) path; we consume `on:`.
+  skipNewlines(parser.state);
+  if (
+    !check(parser.state, TOKEN_TYPES.IDENTIFIER) ||
+    current(parser.state).value !== 'on'
+  ) {
+    throw new ParseError(
+      'RILL-P004',
+      "Expected 'on:' inside guard/retry option list",
+      current(parser.state).span.start
+    );
+  }
+  advance(parser.state); // consume 'on'
+  expect(parser.state, TOKEN_TYPES.COLON, "Expected ':' after 'on'");
+  skipNewlines(parser.state);
+
+  // Require the compound `list[` lexer token (no whitespace between keyword
+  // and bracket); bare `[` is not accepted as the spec syntax is
+  // `list[#X, ...]`.
+  if (!check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    throw new ParseError(
+      'RILL-P004',
+      "Expected 'list[' in on: option list",
+      current(parser.state).span.start
+    );
+  }
+  const listOpen = advance(parser.state); // consume list[
+  skipNewlines(parser.state);
+
+  const codes: AtomLiteralNode[] = [];
+  let hadInvalid = false;
+  let invalidMessage = '';
+  void listOpen;
+
+  while (!check(parser.state, TOKEN_TYPES.RBRACKET)) {
+    if (check(parser.state, TOKEN_TYPES.EOF)) {
+      throw new ParseError(
+        'RILL-P005',
+        "Expected ']' to close on: option list",
+        current(parser.state).span.start
+      );
+    }
+    if (!check(parser.state, TOKEN_TYPES.ATOM)) {
+      throw new ParseError(
+        'RILL-P004',
+        'on: option list entries must be atom literals (e.g. #NAME)',
+        current(parser.state).span.start
+      );
+    }
+    const atomToken = advance(parser.state);
+    if (!ATOM_NAME_SHAPE.test(atomToken.value)) {
+      hadInvalid = true;
+      invalidMessage = `Invalid atom name '#${atomToken.value}' in on: option list`;
+    } else {
+      codes.push({
+        type: 'AtomLiteral',
+        name: atomToken.value,
+        span: atomToken.span,
+      });
+    }
+    skipNewlines(parser.state);
+    if (check(parser.state, TOKEN_TYPES.COMMA)) {
+      advance(parser.state);
+      skipNewlines(parser.state);
+    } else {
+      break;
+    }
+  }
+
+  expect(
+    parser.state,
+    TOKEN_TYPES.RBRACKET,
+    "Expected ']' to close on: option list",
+    'RILL-P005'
+  );
+
+  skipNewlines(parser.state);
+  const rangle = expect(
+    parser.state,
+    TOKEN_TYPES.GT,
+    "Expected '>' to close option list",
+    'RILL-P005'
+  );
+
+  if (hadInvalid) {
+    const invalidEnd = rangle.span.end;
+    // Record the error on the parser's error collection so
+    // parseWithRecovery reports success: false for shape-invalid atoms
+    // (EC-14). Without this push, parser.errors remains empty and the
+    // caller incorrectly reports a successful parse despite a
+    // RecoveryErrorNode in the AST.
+    parser.state.errors.push(
+      new ParseError('RILL-P004', invalidMessage, start)
+    );
+    return {
+      kind: 'invalid',
+      node: {
+        type: 'RecoveryError',
+        message: invalidMessage,
+        text: parser.state.source.slice(start.offset, invalidEnd.offset),
+        span: makeSpan(start, invalidEnd),
+      },
+    };
+  }
+
+  return { kind: 'ok', codes };
+}
+
+/**
+ * Parse a guard block: `guard { body }` or `guard<on: list[#X]> { body }`.
+ *
+ * Enters with current token being GUARD_LBRACE (compound, no option list)
+ * or GUARD (bare keyword, option list follows). Returns a RecoveryErrorNode
+ * per EC-14 if any atom in the option list fails the strict shape check.
+ */
+Parser.prototype.parseGuardBlock = function (
+  this: Parser
+): GuardBlockNode | RecoveryErrorNode {
+  const start = current(this.state).span.start;
+
+  // Form 1: `guard{` — no option list; the compound token consumes `guard`
+  // but leaves `{` in the stream? Actually the compound-lbrace lexer
+  // recognises `guard{` as a single token, so we advance past it and then
+  // continue parsing the block body manually (LBRACE has already been
+  // consumed virtually). We still need the block parser. Strategy: replace
+  // GUARD_LBRACE with LBRACE semantics by treating it as the block opener.
+  if (check(this.state, TOKEN_TYPES.GUARD_LBRACE)) {
+    advance(this.state); // consume guard{
+    const body = parseGuardOrRetryBody(this, start);
+    return {
+      type: 'GuardBlock',
+      body,
+      span: makeSpan(start, body.span.end),
+    };
+  }
+
+  // Form 2a: `guard { body }` — bare GUARD keyword with whitespace
+  // before `{`. The lexer emits GUARD + LBRACE (rather than the
+  // compound GUARD_LBRACE) when any whitespace separates the two.
+  // Treat this as the no-option-list path.
+  expect(this.state, TOKEN_TYPES.GUARD, "Expected 'guard'");
+  if (check(this.state, TOKEN_TYPES.LBRACE)) {
+    const body = parseGuardOrRetryBody(this, start);
+    return {
+      type: 'GuardBlock',
+      body,
+      span: makeSpan(start, body.span.end),
+    };
+  }
+  // Form 2b: `guard<...> { body }` — bare GUARD keyword then `<on: ...>`.
+  if (!check(this.state, TOKEN_TYPES.LT)) {
+    throw new ParseError(
+      'RILL-P004',
+      "Expected '<on: list[#X, ...]> { body }' or 'guard { body }'",
+      current(this.state).span.start
+    );
+  }
+  advance(this.state); // consume `<`
+  const onResult = parseOnOptionList(this, start);
+  if (onResult.kind === 'invalid') {
+    // Still consume the body so recovery leaves the stream in a sane state.
+    if (check(this.state, TOKEN_TYPES.LBRACE)) {
+      this.parseBlock(true);
+    }
+    return onResult.node;
+  }
+
+  const body = parseGuardOrRetryBody(this, start);
+  return {
+    type: 'GuardBlock',
+    body,
+    onCodes: onResult.codes,
+    span: makeSpan(start, body.span.end),
+  };
+};
+
+/**
+ * Parse a retry block: `retry<N> { body }` or `retry<N, on: list[#X]> { body }`.
+ *
+ * Enters with current token being RETRY_LANGLE (compound) or RETRY (bare).
+ * Returns a RecoveryErrorNode when an atom in the on: list fails the strict
+ * shape check (EC-14).
+ */
+Parser.prototype.parseRetryBlock = function (
+  this: Parser
+): RetryBlockNode | RecoveryErrorNode {
+  const start = current(this.state).span.start;
+
+  // Both RETRY_LANGLE and RETRY + `<` lead into the same `<N[, on: ...]>`
+  // body. Consume the opener uniformly.
+  if (check(this.state, TOKEN_TYPES.RETRY_LANGLE)) {
+    advance(this.state); // consume retry<
+  } else {
+    expect(this.state, TOKEN_TYPES.RETRY, "Expected 'retry'");
+    if (!check(this.state, TOKEN_TYPES.LT)) {
+      throw new ParseError(
+        'RILL-P004',
+        "Expected 'retry<N> { body }' or 'retry<N, on: list[#X]> { body }'",
+        current(this.state).span.start
+      );
+    }
+    advance(this.state); // consume `<`
+  }
+
+  skipNewlines(this.state);
+  // Parse integer attempts.
+  if (!check(this.state, TOKEN_TYPES.NUMBER)) {
+    throw new ParseError(
+      'RILL-P004',
+      "Expected integer attempt count inside 'retry<N>'",
+      current(this.state).span.start
+    );
+  }
+  const attemptsToken = advance(this.state);
+  const attempts = Number(attemptsToken.value);
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new ParseError(
+      'RILL-P004',
+      `retry<N> attempt count must be a positive integer; got ${attemptsToken.value}`,
+      attemptsToken.span.start
+    );
+  }
+
+  skipNewlines(this.state);
+
+  let onCodes: AtomLiteralNode[] | undefined = undefined;
+
+  if (check(this.state, TOKEN_TYPES.COMMA)) {
+    advance(this.state); // consume `,`
+    const onResult = parseOnOptionList(this, start);
+    if (onResult.kind === 'invalid') {
+      if (check(this.state, TOKEN_TYPES.LBRACE)) {
+        this.parseBlock(true);
+      }
+      return onResult.node;
+    }
+    onCodes = onResult.codes;
+  } else {
+    expect(
+      this.state,
+      TOKEN_TYPES.GT,
+      "Expected '>' to close retry attempt list",
+      'RILL-P005'
+    );
+  }
+
+  skipNewlines(this.state);
+  const body = parseGuardOrRetryBody(this, start);
+  return {
+    type: 'RetryBlock',
+    attempts,
+    body,
+    onCodes,
+    span: makeSpan(start, body.span.end),
+  };
+};
+
+/**
+ * Parse the `{ body }` that follows a guard/retry header. Unlike
+ * parser-level generic blocks the body is required.
+ */
+function parseGuardOrRetryBody(
+  parser: Parser,
+  start: { line: number; column: number; offset: number }
+): BlockNode {
+  if (!check(parser.state, TOKEN_TYPES.LBRACE)) {
+    throw new ParseError(
+      'RILL-P004',
+      'Expected { to start guard/retry body',
+      current(parser.state).span.start
+    );
+  }
+  void start;
+  return parser.parseBlock(false);
+}

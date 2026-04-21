@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- **`ExtensionFactory<TConfig>` signature change** — The factory function signature changed from `(config: TConfig) => ExtensionFactoryResult` to `(config: TConfig, ctx: ExtensionFactoryCtx) => ExtensionFactoryResult`. All existing extension factories must add the `ctx` parameter.
+
+  **Before:**
+  ```typescript
+  const factory: ExtensionFactory<MyConfig> = (config) => ({
+    value: buildValue(config),
+  });
+  ```
+
+  **After:**
+  ```typescript
+  const factory: ExtensionFactory<MyConfig> = (config, ctx) => {
+    const client = createClient(config, { signal: ctx.signal });
+    return {
+      value: buildValue(client),
+      dispose: () => client.close(),
+    };
+  };
+  ```
+
+  If your factory does not use `ctx`, add the parameter and ignore it. §RILL.3.3, §RILL.4.3.
+
+- **Error signal unification** — Public API surfaces halt errors as `RuntimeHaltSignal` only. Code catching legacy `AbortError` or `AutoExceptionError` must migrate to `instanceof RuntimeHaltSignal` with `getStatus()` or `atomName()` checks for differentiation
+
+### Added
+
+- **Status probe operator (`.!`)** — `.!` returns `false` for valid values and `true` for invalid values without halting execution. `.!code` returns the atom code (e.g., `#TIMEOUT`, `#ok`) from the status sidecar. See [Error Handling](docs/topic-error-handling.md)
+- **Presence check operator (`.?field`)** — `$x.?field` returns `true` if the field exists, `false` otherwise, without halting. Composable with `??` for fallback values
+- **`guard` keyword** — `guard { body }` catches operational halts raised inside `body` and substitutes an invalid value with a `guard-caught` trace frame. Does not catch `error "..."` or `assert` halts
+- **`retry` keyword** — `retry<N> { body }` executes `body` up to N times, retrying on operational halt. Returns the first successful result or an invalid value with N `guard-caught` frames when exhausted
+- **`:atom` primitive type** — New first-class primitive for representing typed error codes. Atom literals in the form `#NAME` produce `:atom` values (e.g., `#NOT_FOUND`, `#TIMEOUT`)
+- **Atom literal syntax (`#NAME`)** — Uppercase-named atoms produce `:atom` values directly in source. Use with `guard`, `retry`, and `.!` for structured error handling
+- **`ctx.invalidate(error, meta)`** — Host API method on `RuntimeContext`. Wraps a JavaScript `Error` (or non-Error throwable) as a rill invalid value carrying the provided atom code and metadata. Used by host functions to return invalid values instead of throwing
+- **`ctx.catch<T>(thunk, detector)`** — Host API method on `RuntimeContext`. Executes a thunk, running a detector callback on any thrown value to map it to a `RillValue` invalid result. Unmapped throws produce `#R999` with `raw.original = String(thrown)`
+- **`ctx.registerErrorCode(name, kind)`** — Host API method on `ExtensionFactoryCtx`. Registers a new atom at factory-init time. Throws `RuntimeError` on duplicate with different kind or on regex validation failure
+- **`ctx.signal`** — `AbortSignal | undefined` on `RuntimeContext`, threaded from `runOptions`. Allows host functions to detect cancellation. (On `ExtensionFactoryCtx`, `signal` is the non-optional `AbortSignal` scoped to the extension's lifetime.)
+- **`ExtensionFactoryCtx` type** — New type exported from `@rcrsr/rill`. Provides `registerErrorCode` and `signal` to extension factories
+- **`dispose()` method** — Extensions return an optional `dispose()` function in `ExtensionFactoryResult`. Called when the runtime tears down the extension instance
+
+### Changed
+
+- **Atom type rename** — The `:code` primitive type is now spelled `:atom`. Host API exports are renamed: `RillCode` → `RillAtom`, `RillCodeValue` → `RillAtomValue`, `isCode` → `isAtom`. Scripts using `:code` type annotations must migrate to `:atom`; sidecar field access (`.!code`) is unaffected
+- **Error message interpolation preservation** — `error "..."` statements with string interpolation now attach wrap trace frames preserving the evaluated message content at runtime
+
 ## [0.18.6] - 2026-04-17
 
 ### Added

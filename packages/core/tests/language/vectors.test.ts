@@ -7,6 +7,7 @@ import { createVector, isVector, type RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Vector Type', () => {
   describe('.^type typeName [AC-9]', () => {
@@ -526,13 +527,15 @@ describe('Rill Runtime: Vector Type', () => {
   // the parser is updated to recognize "vector" as a valid type name.
 
   describe('json() serialization [AC-13]', () => {
-    it('throws RuntimeError with "vectors are not JSON-serializable" (AC-13)', async () => {
+    it('halts with "vectors are not JSON-serializable" (AC-13)', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('$v -> json', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow('vectors are not JSON-serializable');
+      await expectHaltMessage(
+        () =>
+          run('$v -> json', {
+            variables: { v: vec },
+          }),
+        'vectors are not JSON-serializable'
+      );
     });
   });
 });

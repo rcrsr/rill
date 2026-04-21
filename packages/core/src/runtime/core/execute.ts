@@ -11,13 +11,39 @@ import type {
   ScriptNode,
   StatementNode,
 } from '../../types.js';
-import { RuntimeError } from '../../types.js';
+import { RillError, RuntimeError } from '../../types.js';
+
+// ============================================================
+// HALT-SIGNAL MIGRATION BRIDGE (internal, phase-bounded)
+// ============================================================
+//
+// `convertHaltToRuntimeError` attaches the halt's invalid `RillValue`
+// payload to the rematerialised `RuntimeError` under a non-enumerable
+// `haltValue` property so protected language tests
+// (`tests/language/trace-frames.test.ts`) can assert wrap-frame
+// structure on halts that escape the host boundary (IR-3, IR-5).
+//
+// The property is added via `Object.defineProperty` (non-enumerable,
+// non-writable, non-configurable) to preserve the existing
+// serialization shape of `RuntimeError` for consumers that iterate
+// own keys. This declaration merging provides a compile-time contract
+// so consumers can read `err.haltValue` without `as any` casts.
+//
+// @internal Attached only by `convertHaltToRuntimeError` during the
+// halt-signal migration. Do not rely on this in host code outside the
+// language-spec test surface.
+declare module '../../error-classes.js' {
+  interface RuntimeError {
+    readonly haltValue?: RillValue;
+  }
+}
 import {
   executeStatement,
   checkAutoExceptions,
   checkAborted,
 } from './eval/index.js';
 import { ReturnSignal } from './signals.js';
+import { isExtensionThrow } from './extension-throw.js';
 import type {
   ExecutionResult,
   ExecutionStepper,
@@ -25,6 +51,11 @@ import type {
   StepResult,
 } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
+import { getStatus, invalidate } from './types/status.js';
+import { atomName } from './types/atom-registry.js';
+import { RuntimeHaltSignal } from './types/halt.js';
+import { createTraceFrame } from './types/trace.js';
+import { formatAccessSite } from './eval/mixins/access.js';
 
 /**
  * Execute a parsed Rill script.
@@ -128,13 +159,32 @@ export function createStepper(
       let captured: { name: string; value: RillValue } | undefined;
 
       try {
-        // Check for RecoveryErrorNode from recovery mode parsing
+        // EC-12 / EC-14: a RecoveryErrorNode reaching execution produces an
+        // invalid value with `.!code == #R001` (FR-ERR-4). Parse-recovery
+        // emitted the node; runtime surfaces it as an invalid value so
+        // guard / retry downstream can observe and recover.
         if (isRecoveryErrorNode(stmt)) {
-          throw RuntimeError.fromNode(
-            'RILL-P002',
-            `Cannot execute RecoveryErrorNode: ${stmt.message}. Use parse() instead of parseWithRecovery() for execution.`,
-            stmt
+          const site = formatAccessSite(stmt.span.start, context.sourceId);
+          const value = invalidate(
+            {},
+            {
+              code: 'R001',
+              provider: 'parse-recovery',
+              raw: { message: stmt.message },
+            },
+            createTraceFrame({ site, kind: 'host', fn: 'parse-recovery' })
           );
+          lastValue = value;
+          checkAutoExceptions(value, context, stmt);
+          context.observability.onStepEnd?.({
+            index,
+            total,
+            value,
+            durationMs: Date.now() - startTime,
+          });
+          index++;
+          isDone = index >= total;
+          return { value, done: isDone, index: index - 1, total };
         }
 
         // Execute the statement (handles both regular and annotated)
@@ -191,6 +241,65 @@ export function createStepper(
           };
         }
 
+        // AC-E4 / EC-6: Extension-boundary reshape wrapper. Unhandled
+        // throws from extension-provided host functions (non-RillError)
+        // surface as `#R999` invalid values at the script's mount point
+        // instead of propagating as JS exceptions. Known RillError halts
+        // (RuntimeError thrown by runtime internals) preserve existing
+        // halt semantics by rethrowing.
+        //
+        // Migration (§Migration Strategy):
+        // - RuntimeError rethrows to preserve halts
+        // - Non-RillError Error reshapes to `#R999` with sanitized message
+        // - Non-Error throw reshapes to `#R999` with `.!raw.original`
+        const reshaped = reshapeUnhandledThrow(error, stmt, context);
+        if (reshaped !== undefined) {
+          lastValue = reshaped;
+
+          // Fire onError for observability: host applications still see
+          // the original throw even though the script result is reshaped.
+          context.observability.onError?.({
+            error: error instanceof Error ? error : new Error(String(error)),
+            index,
+          });
+
+          // Fire onStepEnd so observability sees the reshaped value.
+          context.observability.onStepEnd?.({
+            index,
+            total,
+            value: reshaped,
+            durationMs: Date.now() - startTime,
+          });
+
+          index++;
+          isDone = index >= total;
+
+          return {
+            value: reshaped,
+            done: isDone,
+            index: index - 1,
+            total,
+            captured,
+          };
+        }
+
+        // IR-5 surface: a non-catchable RuntimeHaltSignal that was not
+        // caught by guard/retry must bubble out to the host as a
+        // RuntimeError for backward compatibility with existing language
+        // tests that assert `err.errorId`. We convert halts whose atom
+        // code maps to a known host-facing runtime error ID (e.g.
+        // `RILL_R016` -> `RILL-R016`). Trace-frame order is preserved on
+        // the underlying invalid value for downstream `.!trace`
+        // introspection; the conversion only wraps the halt in an Error
+        // shape the host expects.
+        if (error instanceof RuntimeHaltSignal) {
+          const converted = convertHaltToRuntimeError(error, stmt);
+          if (converted !== undefined) {
+            context.observability.onError?.({ error: converted, index });
+            throw converted;
+          }
+        }
+
         // Fire onError
         context.observability.onError?.({
           error: error instanceof Error ? error : new Error(String(error)),
@@ -229,6 +338,117 @@ function isRecoveryErrorNode(
 }
 
 /**
+ * Extension-boundary reshape (AC-E4, EC-6).
+ *
+ * Translates unhandled throws from extension-provided host functions into
+ * `#R999` invalid values carried by the step's result.
+ * Returns `undefined` when the throw should continue to propagate
+ * (preserves existing halt semantics for structured runtime errors).
+ *
+ * Semantics (§Migration Strategy, AC-E4, EC-6):
+ * - {@link RillError} (including {@link RuntimeError}, {@link TimeoutError},
+ *   recovery halts) and internal control-flow {@link Error} subclasses
+ *   ({@link ReturnSignal}, {@link BreakSignal}, {@link YieldSignal},
+ *   `RuntimeHaltSignal`) continue to propagate so pre-existing halt
+ *   semantics are preserved.
+ * - Non-Error throws reshape to `#R999` with `.!raw.original = String(thrown)`
+ *   (EC-6). This is the narrow unhandled-throw path because structured
+ *   errors are carriers whose existing halt behavior must survive until
+ *   Phase 5 cleanup.
+ */
+function reshapeUnhandledThrow(
+  error: unknown,
+  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode,
+  ctx: RuntimeContext
+): RillValue | undefined {
+  // Preserve control-flow signals: these are legitimate non-error flows
+  // carrying values/break/yield state through the statement boundary.
+  if (
+    error instanceof ReturnSignal ||
+    (error instanceof Error && error.name === 'RuntimeHaltSignal') ||
+    (error instanceof Error && error.name === 'BreakSignal') ||
+    (error instanceof Error && error.name === 'YieldSignal')
+  ) {
+    return undefined;
+  }
+
+  // AC-E4 / EC-6 (Option A): Only reshape throws that originated at the
+  // extension dispatch boundary (`invokeFnCallable`). Internal engine
+  // halts (from checkAborted, checkAutoExceptions, TimeoutError, parse
+  // recoveries, RuntimeError raised by runtime internals) continue to
+  // propagate so their existing halt contracts survive.
+  if (!isExtensionThrow(error)) {
+    return undefined;
+  }
+
+  // Preserve halt semantics for structured runtime errors raised at the
+  // extension boundary (RuntimeError constructed by the extension itself,
+  // TimeoutError, ParseError, RecoveryError emitters). These continue to
+  // propagate so internal halts retain their existing contract.
+  if (error instanceof RillError) {
+    return undefined;
+  }
+
+  // AC-E4: Generic `Error` thrown from extension-provided host functions
+  // reshapes to `#R999` at the script's mount point instead of surfacing
+  // as a JS exception (§Migration Strategy). `raw.message` carries the
+  // sanitised first line so formatHalt can render a diagnostic.
+  if (error instanceof Error) {
+    return makeBoundaryInvalid(
+      {
+        code: 'R999',
+        provider: 'extension',
+        raw: { message: sanitizeErrorMessage(error.message) },
+      },
+      stmt,
+      ctx
+    );
+  }
+
+  // EC-6: Non-Error throw -> #R999 with `.!raw.original = String(thrown)`.
+  // This is the unhandled-throw path: provider code threw a non-Error
+  // value (e.g. `throw "oops"` or `throw 42`). Reshape at the script's
+  // mount point instead of propagating the raw JS throw upstream.
+  return makeBoundaryInvalid(
+    {
+      code: 'R999',
+      provider: 'extension',
+      raw: { original: String(error) },
+    },
+    stmt,
+    ctx
+  );
+}
+
+/**
+ * Strip trailing location suffixes and multi-line stack traces from a
+ * caught Error's message before embedding it in `raw.message`. Mirrors
+ * the helper used by `RuntimeContext.catch` (context.ts) so reshape
+ * output is consistent across boundary paths.
+ */
+function sanitizeErrorMessage(message: string): string {
+  const firstLine = message.split('\n', 1)[0] ?? '';
+  return firstLine.trim();
+}
+
+/**
+ * Build the reshape invalid value with a `host`-kind trace frame pointing
+ * at the statement span so post-halt diagnostics carry an origin frame.
+ */
+function makeBoundaryInvalid(
+  meta: { code: string; provider: string; raw: Record<string, unknown> },
+  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode,
+  ctx: RuntimeContext
+): RillValue {
+  const site = formatAccessSite(stmt.span.start, ctx.sourceId);
+  return invalidate(
+    {},
+    meta,
+    createTraceFrame({ site, kind: 'host', fn: meta.provider })
+  );
+}
+
+/**
  * Get the inner StatementNode from either a StatementNode or AnnotatedStatementNode.
  * For annotated statements, returns the wrapped statement.
  */
@@ -236,4 +456,63 @@ function getInnerStatement(
   stmt: StatementNode | AnnotatedStatementNode
 ): StatementNode {
   return stmt.type === 'AnnotatedStatement' ? stmt.statement : stmt;
+}
+
+/**
+ * Map from invalid-atom codes to host-facing RuntimeError IDs.
+ *
+ * Halt atom names use underscore form (ATOM_NAME_REGEX); host-facing
+ * error IDs use hyphen form. The IR-5 migration replaces
+ * `RuntimeError.fromNode('RILL-R016', ...)` with a `RuntimeHaltSignal`
+ * carrying atom `RILL_R016`. When such a halt escapes guard/retry, we
+ * rematerialise the old RuntimeError shape here so existing language
+ * tests asserting `err.errorId` keep working.
+ */
+const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
+  RILL_R016: 'RILL-R016',
+};
+
+/**
+ * Convert a non-catchable `RuntimeHaltSignal` that escaped guard/retry
+ * into a `RuntimeError` for host consumption (IR-5 surface path).
+ *
+ * Returns `undefined` when the halt's atom code has no registered
+ * host-facing error ID; the caller falls back to rethrowing the signal
+ * unchanged so abort / auto-exception halts (`#DISPOSED`, `#R999`)
+ * preserve their existing propagation contract.
+ *
+ * The underlying invalid value's trace frames are not mutated: the host
+ * error wraps the halt's message only. Downstream `.!trace` consumers
+ * that inspect the invalid via recovery paths still see original
+ * ordering (host frame first, optional wrap frame last).
+ *
+ * The original halt's invalid value is attached to the rematerialised
+ * `RuntimeError` under the non-enumerable `haltValue` property so
+ * language tests (`tests/language/trace-frames.test.ts`) can assert
+ * wrap-frame structure on halts that escape the host boundary. The
+ * property is non-enumerable to preserve serialization shape of
+ * `RuntimeError` for existing consumers that iterate own keys.
+ */
+function convertHaltToRuntimeError(
+  signal: RuntimeHaltSignal,
+  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode
+): RuntimeError | undefined {
+  const status = getStatus(signal.value);
+  const code = atomName(status.code);
+  const errorId = HALT_ATOM_TO_ERROR_ID[code];
+  if (errorId === undefined) return undefined;
+  const err = new RuntimeError(
+    errorId,
+    status.message,
+    stmt.span.start,
+    undefined,
+    stmt.span
+  );
+  Object.defineProperty(err, 'haltValue', {
+    value: signal.value,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+  return err;
 }

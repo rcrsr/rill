@@ -67,4 +67,8 @@ export type NodeType =
   | 'OrderedLiteral'
   | 'Destruct'
   | 'Convert'
-  | 'UseExpr';
+  | 'UseExpr'
+  | 'GuardBlock'
+  | 'RetryBlock'
+  | 'AtomLiteral'
+  | 'StatusProbe';

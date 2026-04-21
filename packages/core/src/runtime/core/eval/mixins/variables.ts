@@ -46,8 +46,10 @@ import { isTypeValue } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
+import { isVacant, isInvalid } from '../../types/status.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import { accessHaltGateFast } from './access.js';
 
 /**
  * VariablesMixin implementation.
@@ -265,16 +267,29 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Apply access chain ($.field, $var.field, etc.)
       for (const access of node.accessChain) {
-        if (value === null) {
+        // AC-6 / FR-ERR-4: `??` widens from `=== null` to `isVacant(value)`.
+        // Vacancy fires the default branch for empty OR invalid values; an
+        // invalid LHS with a default short-circuits instead of halting.
+        if (isVacant(value)) {
           // Use default value if available
           if (node.defaultValue) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (this as any).evaluateBody(node.defaultValue);
           }
-          throw new RuntimeError(
-            'RILL-R009',
-            `Cannot access property on null`,
-            this.getNodeLocation(node)
+          if (value === null) {
+            throw new RuntimeError(
+              'RILL-R009',
+              `Cannot access property on null`,
+              this.getNodeLocation(node)
+            );
+          }
+          // Invalid (non-null) value with no default: route through the
+          // access-halt gate so the halt carries an `access` trace frame.
+          value = accessHaltGateFast(
+            value,
+            '.',
+            () => this.getNodeLocation(node),
+            this.ctx.sourceId
           );
         }
 
@@ -571,10 +586,32 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
 
-      // Apply default value if final result is null
-      if (value === null && node.defaultValue) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (this as any).evaluateBody(node.defaultValue);
+      // AC-6 / FR-ERR-4: apply default value when the final result is
+      // vacant (empty OR invalid). `??` fires on vacancy so an invalid
+      // LHS also routes to the default branch per GF-25.
+      //
+      // When an access chain was applied, the vacancy predicate covers
+      // the full partition (null, empty, or invalid).
+      //
+      // When no access chain was applied, the variable itself is the
+      // result and may be consumed as a pipe target by
+      // `evaluatePipeTarget`. In pipe-target position the dispatcher
+      // consumes `target.defaultValue` as a dispatch fallback (AC-19:
+      // empty list dispatch returns default via the dispatcher). For
+      // that path to work, we must return the empty collection here —
+      // not short-circuit to the default branch — so the dispatcher can
+      // reach its own default-handling. We therefore widen the bare
+      // trigger to cover null OR invalid (FR-ERR-4's bare-invalid case),
+      // but leave empty-valid collections for the dispatcher to handle.
+      if (node.defaultValue) {
+        const trigger =
+          node.accessChain.length > 0
+            ? isVacant(value)
+            : value === null || isInvalid(value);
+        if (trigger) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).evaluateBody(node.defaultValue);
+        }
       }
 
       return value;

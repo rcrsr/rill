@@ -33,8 +33,17 @@ export type CompoundToken = {
 };
 
 /**
- * Mapping from collection keyword to its expected bracket character
- * and the compound token type emitted when the bracket immediately follows.
+ * Mapping from keyword to its expected opener character
+ * and the compound token type emitted when the opener immediately follows.
+ *
+ * Three opener flavors:
+ * - `[` bracket-body: collection literals (list, dict, tuple, ordered)
+ * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry)
+ * - `{` brace-body: block heads (guard) — DEC-3 parallel path
+ *
+ * The brace-body flavor is a parallel addition per DEC-3 in the error-handling
+ * plan. It reuses the same dispatch table so the lexer emits a single compound
+ * token without leaking opener discrimination into the parser.
  */
 const COMPOUND_KEYWORD_MAP: Record<
   string,
@@ -47,9 +56,11 @@ const COMPOUND_KEYWORD_MAP: Record<
   destruct: { bracket: '<', tokenType: TOKEN_TYPES.DESTRUCT_LANGLE },
   slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
   use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },
+  retry: { bracket: '<', tokenType: TOKEN_TYPES.RETRY_LANGLE },
+  guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 
-/** Returns true when the identifier is one of the six collection keywords. */
+/** Returns true when the identifier is one of the compound-keyword heads. */
 export function isCollectionKeyword(identifier: string): boolean {
   return Object.prototype.hasOwnProperty.call(COMPOUND_KEYWORD_MAP, identifier);
 }
@@ -279,6 +290,29 @@ export function readIdentifier(state: LexerState): Token {
 
   const type = KEYWORDS[value] ?? TOKEN_TYPES.IDENTIFIER;
   return makeToken(type, value, start, currentLocation(state));
+}
+
+/**
+ * Read an atom literal: #NAME
+ * Called when the current character is `#` and the next character is an
+ * uppercase ASCII letter. Consumes the `#` plus the trailing identifier
+ * characters and emits an ATOM token whose value is the name WITHOUT the
+ * leading `#` sigil.
+ *
+ * The lexer performs only light shape checks (`[A-Z][A-Z0-9_]*`-ish by virtue
+ * of starting on an uppercase letter and continuing on identifier chars). The
+ * atom registry enforces strict validation at parse/resolution time.
+ */
+export function readAtom(state: LexerState): Token {
+  const start = currentLocation(state);
+  advance(state); // consume #
+
+  let value = '';
+  while (!isAtEnd(state) && isIdentifierChar(peek(state))) {
+    value += advance(state);
+  }
+
+  return makeToken(TOKEN_TYPES.ATOM, value, start, currentLocation(state));
 }
 
 export function readVariable(state: LexerState): Token {

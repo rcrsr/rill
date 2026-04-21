@@ -78,6 +78,7 @@ import {
   popCallFrame,
   UNVALIDATED_METHOD_PARAMS,
 } from '../../context.js';
+import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import type {
   RillValue,
@@ -104,6 +105,9 @@ import { YieldSignal, ReturnSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { CallFrame } from '../../../../types.js';
+import { haltSlowPath } from './access.js';
+import { STATUS_SYM, type RillStatus } from '../../types/status.js';
+import { throwTypeHalt } from '../../types/halt.js';
 
 /**
  * Result of bindArgsToParams: parameter names mapped to evaluated values.
@@ -365,10 +369,34 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue[]> {
       const savedPipeValue = this.ctx.pipeValue;
       const args: RillValue[] = [];
+      const sourceId = this.ctx.sourceId;
       for (const arg of argExprs) {
-        const expr = arg.type === 'SpreadArg' ? arg.expression : arg;
+        const isSpread = arg.type === 'SpreadArg';
+        const expr = isSpread ? arg.expression : arg;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        args.push(await (this as any).evaluateExpression(expr));
+        const evaluated = await (this as any).evaluateExpression(expr);
+        // EC-7: access-halt gate at arg / spread site. Passing an invalid
+        // value as an argument (or spreading it) accesses that value.
+        // RI-5: inline the Symbol-keyed sidecar probe to eliminate the
+        // per-arg arrow-closure allocation required by `accessHaltGateFast`
+        // (NFR-ERR-1 call-site hot path). Slow path delegates to
+        // `haltSlowPath` which reads `expr.span.start` itself.
+        let gated: RillValue;
+        if (
+          evaluated !== null &&
+          typeof evaluated === 'object' &&
+          (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
+        ) {
+          gated = haltSlowPath(
+            evaluated,
+            isSpread ? '...' : 'arg',
+            expr,
+            sourceId
+          );
+        } else {
+          gated = evaluated;
+        }
+        args.push(gated);
       }
       this.ctx.pipeValue = savedPipeValue;
       return args;
@@ -382,9 +410,39 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       callable: RillCallable,
       args: RillValue[],
       callLocation?: SourceLocation,
-      functionName?: string
+      functionName?: string,
+      internal?: boolean
     ): Promise<RillValue> {
       this.checkAborted();
+
+      // Fast path (AC-N2, NFR-ERR-1): internal iterator-body invocations bypass
+      // CallFrame push/pop and the surrounding try/finally. The frame is not
+      // user-recoverable for these sites, so skipping eliminates per-element
+      // object allocation plus unwind overhead. Stream tracking is preserved.
+      if (internal === true) {
+        let result: RillValue;
+        if (callable.kind === 'script') {
+          result = await this.invokeScriptCallable(
+            callable,
+            args,
+            callLocation
+          );
+        } else {
+          result = await this.invokeFnCallable(
+            callable,
+            args,
+            callLocation,
+            functionName
+          );
+        }
+
+        // IR-14: Track returned streams for scope exit cleanup
+        if (isStream(result)) {
+          this.trackStream(result as RillStream);
+        }
+
+        return result;
+      }
 
       // Push call frame before invocation (IR-2, IC-9)
       // Call stack captures the call site location, not the function body location
@@ -462,6 +520,12 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       callLocation?: SourceLocation,
       functionName = 'callable'
     ): Promise<RillValue> {
+      // AC-E9: Post-dispose gate. Any extension dispatch after `dispose()`
+      // short-circuits with `#DISPOSED` rather than invoking user code.
+      if (this.ctx.isDisposed()) {
+        return this.ctx.createDisposedResult();
+      }
+
       // Apply boundDict BEFORE validation (property-style callables need dict as first arg)
       const effectiveArgs =
         callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
@@ -480,20 +544,35 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         fnArgs = effectiveArgs as unknown as Record<string, RillValue>;
       }
 
+      // EC-11: Register the dispatch promise in the lifecycle inflight set
+      // so `dispose()` awaits its settlement before flipping the disposed
+      // flag. No-op for minimal contexts that never participate in dispose.
+      const raw = callable.fn(fnArgs, this.ctx, callLocation);
+      const dispatchPromise =
+        raw instanceof Promise ? raw : Promise.resolve(raw);
+      this.ctx.trackInflight(dispatchPromise);
+
       try {
-        const result = callable.fn(fnArgs, this.ctx, callLocation);
-        return result instanceof Promise ? await result : result;
+        return await dispatchPromise;
       } catch (error) {
+        // AC-E4 / EC-6: Tag extension-dispatch throws so the step-level
+        // reshape wrapper can distinguish extension-boundary failures
+        // (which reshape to `#R999` / `#DISPOSED` invalid values) from
+        // internal engine halts (which propagate with existing semantics).
+        markExtensionThrow(error);
+
         if (error instanceof RuntimeError && !error.location && callLocation) {
           // Enrich extension errors with call site location via construction
           const span: SourceSpan = { start: callLocation, end: callLocation };
-          throw new RuntimeError(
+          const enriched = new RuntimeError(
             error.errorId,
             error.toData().message,
             callLocation,
             error.context,
             span
           );
+          markExtensionThrow(enriched);
+          throw enriched;
         }
         throw error;
       }
@@ -565,7 +644,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * (for nested evaluation contexts that catch it).
      *
      * Validates pipe value against declared chunk type at emission (FR-STREAM-10).
-     * Throws RILL-R004 if chunk type does not match declared type.
+     * Throws TYPE_MISMATCH if chunk type does not match declared type.
      */
     protected evaluateYield(
       value: RillValue,
@@ -576,10 +655,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (!structureMatches(value, this.activeStreamChunkType)) {
           const expected = formatStructure(this.activeStreamChunkType);
           const actual = inferType(value);
-          throw new RuntimeError(
-            'RILL-R004',
+          throwTypeHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'yield',
+            },
+            'TYPE_MISMATCH',
             `Yielded value type mismatch: expected ${expected}, got ${actual}`,
-            location,
+            'runtime',
             { expected, actual }
           );
         }
@@ -625,22 +709,45 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       const callableCtx = this.createCallableContext(callable);
 
-      // Marshal positional args to named record (IC-1).
-      // Script callables always have params defined.
-      const record = marshalArgs(args, callable.params, {
-        functionName: '<anonymous>',
-        location: callLocation,
-      });
+      // Fast path (Task 7.3): single-arg, untyped, plain named param — the
+      // dominant map/each/fold/filter iterator-body shape. Skips marshalArgs,
+      // its error checks, and the Object.entries allocation that otherwise
+      // re-pays per iteration.
+      //
+      // Excluded (routed through marshalArgs below):
+      // - multi-param callables (arity checks, default hydration)
+      // - typed params (Stage 2.5 field-default hydration + Stage 3 type check)
+      // - arg-count mismatches (excess args or missing required)
+      const params = callable.params;
+      if (
+        params.length === 1 &&
+        args.length === 1 &&
+        params[0]!.type === undefined
+      ) {
+        const only = params[0]!;
+        callableCtx.variables.set(only.name, args[0]!);
+        // IR-4: Block closure pipe sync — first param named '$' means block closure.
+        if (only.name === '$') {
+          callableCtx.pipeValue = args[0]!;
+        }
+      } else {
+        // Marshal positional args to named record (IC-1).
+        // Script callables always have params defined.
+        const record = marshalArgs(args, params, {
+          functionName: '<anonymous>',
+          location: callLocation,
+        });
 
-      // Bind each named value into the callable context.
-      for (const [name, value] of Object.entries(record)) {
-        callableCtx.variables.set(name, value);
-      }
+        // Bind each named value into the callable context.
+        for (const [name, value] of Object.entries(record)) {
+          callableCtx.variables.set(name, value);
+        }
 
-      // IR-4: Block closure pipe sync — first param named '$' means block closure.
-      // Sync pipeValue so bare '$' references resolve correctly inside the body.
-      if (callable.params[0]?.name === '$') {
-        callableCtx.pipeValue = record['$']!;
+        // IR-4: Block closure pipe sync — first param named '$' means block closure.
+        // Sync pipeValue so bare '$' references resolve correctly inside the body.
+        if (params[0]?.name === '$') {
+          callableCtx.pipeValue = record['$']!;
+        }
       }
 
       // EC-1: Reject empty block bodies before execution (AC-17)
@@ -708,8 +815,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Each call produces a new, independent stream instance (idempotency).
      *
      * Error contracts:
-     * - Chunk type mismatch at yield → RILL-R004 (validated by evaluateYield)
-     * - Resolution type mismatch → RILL-R004
+     * - Chunk type mismatch at yield → TYPE_MISMATCH (validated by evaluateYield)
+     * - Resolution type mismatch → TYPE_MISMATCH
      */
     private async invokeStreamClosure(
       callable: ScriptCallable,
@@ -767,10 +874,15 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             if (!structureMatches(result, streamStructure.ret)) {
               const expected = formatStructure(streamStructure.ret);
               const actual = inferType(result);
-              throw new RuntimeError(
-                'RILL-R004',
+              throwTypeHalt(
+                {
+                  location: callLocation,
+                  sourceId: this.ctx.sourceId,
+                  fn: 'stream-resolve',
+                },
+                'TYPE_MISMATCH',
                 `Stream resolution type mismatch: expected ${expected}, got ${actual}`,
-                callLocation,
+                'runtime',
                 { expected, actual }
               );
             }
@@ -784,14 +896,21 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               if (!structureMatches(result, streamStructure.ret)) {
                 const expected = formatStructure(streamStructure.ret);
                 const actual = inferType(result);
-                channel.error(
-                  new RuntimeError(
-                    'RILL-R004',
+                try {
+                  throwTypeHalt(
+                    {
+                      location: callLocation,
+                      sourceId: this.ctx.sourceId,
+                      fn: 'stream-resolve',
+                    },
+                    'TYPE_MISMATCH',
                     `Stream resolution type mismatch: expected ${expected}, got ${actual}`,
-                    callLocation,
+                    'runtime',
                     { expected, actual }
-                  )
-                );
+                  );
+                } catch (haltErr) {
+                  channel.error(haltErr);
+                }
                 return;
               }
             }
