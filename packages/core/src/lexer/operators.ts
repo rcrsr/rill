@@ -58,10 +58,6 @@ export const KEYWORDS: Record<string, TokenType> = {
   pass: TOKEN_TYPES.PASS,
   assert: TOKEN_TYPES.ASSERT,
   error: TOKEN_TYPES.ERROR,
-  each: TOKEN_TYPES.EACH,
-  map: TOKEN_TYPES.MAP,
-  fold: TOKEN_TYPES.FOLD,
-  filter: TOKEN_TYPES.FILTER,
   guard: TOKEN_TYPES.GUARD,
   retry: TOKEN_TYPES.RETRY,
 };

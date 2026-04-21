@@ -37,9 +37,9 @@ describe('Rill Runtime: Performance Regression', () => {
     const testScript = `
       |x| { $x * 2 } => $double
 
-      list[1, 2, 3, 4, 5] -> map $double => $doubled
-      $doubled -> each { $ + 1 } => $incremented
-      $incremented -> fold(0) { $@ + $ } => $total
+      list[1, 2, 3, 4, 5] -> fan($double) => $doubled
+      $doubled -> seq({ $ + 1 }) => $incremented
+      $incremented -> fold(0, { $@ + $ }) => $total
 
       dict[result: $total, doubled: $doubled] => $data
       $data.result

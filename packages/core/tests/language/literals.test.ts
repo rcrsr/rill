@@ -176,7 +176,7 @@ describe('Rill Runtime: Literals', () => {
     });
 
     it('spreads result of piped expression (AC-4)', async () => {
-      const script = 'list[1, 2, 3] => $nums\nlist[...($nums -> map {$ * 2})]';
+      const script = 'list[1, 2, 3] => $nums\nlist[...($nums -> fan({$ * 2}))]';
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 

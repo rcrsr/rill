@@ -87,22 +87,27 @@ describe('Rill Language: Pass Keyword Parsing', () => {
   });
 
   describe('Pass in Collection Operators', () => {
-    it('parses pass in map body (AC-12)', () => {
-      const ast = parse('$items -> map { ($ > 0) ? pass ! 0 }');
+    it('parses pass in fan body (AC-12)', () => {
+      const ast = parse('$items -> fan({ ($ > 0) ? pass ! 0 })');
       expect(ast.type).toBe('Script');
 
       const stmt = ast.statements[0]!;
       expect(stmt.expression.type).toBe('PipeChain');
       expect(stmt.expression.pipes).toHaveLength(1);
 
-      const mapExpr = stmt.expression.pipes[0]!;
-      expect(mapExpr.type).toBe('MapExpr');
+      const fanExpr = stmt.expression.pipes[0]!;
+      expect(fanExpr.type).toBe('HostCall');
+      expect(fanExpr.name).toBe('fan');
+      expect(fanExpr.args).toHaveLength(1);
 
-      const mapBody = mapExpr.body;
-      expect(mapBody.type).toBe('Block');
-      expect(mapBody.statements).toHaveLength(1);
+      // The arg is a PipeChain whose head is a PostfixExpr containing the block
+      const closureArg = fanExpr.args[0]!;
+      expect(closureArg.type).toBe('PipeChain');
+      const fanBody = closureArg.head.primary;
+      expect(fanBody.type).toBe('Block');
+      expect(fanBody.statements).toHaveLength(1);
 
-      const conditional = mapBody.statements[0]!.expression.head.primary;
+      const conditional = fanBody.statements[0]!.expression.head.primary;
       expect(conditional.type).toBe('Conditional');
       expect(conditional.thenBranch.type).toBe('PostfixExpr');
       expect(conditional.thenBranch.primary.type).toBe('Pass');

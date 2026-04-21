@@ -206,9 +206,9 @@ describe('executeRill', () => {
         // Create a very large range that will exceed iteration limit
         // Default limit is 10,000 iterations
         const longRunning = `
-          range(1, 1000000) -> each {
+          range(1, 1000000) -> seq({
             $ * 2
-          }
+          })
         `;
 
         const result = await executeRill(longRunning);
@@ -223,7 +223,7 @@ describe('executeRill', () => {
       it('completes operations within iteration limit', async () => {
         // Operation well under 10,000 iteration limit
         const quickOperation = `
-          range(1, 100) -> map { $ * 2 }
+          range(1, 100) -> fan({ $ * 2 })
         `;
 
         const result = await executeRill(quickOperation);

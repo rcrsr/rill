@@ -115,7 +115,7 @@ describe('executeRill', () => {
     });
 
     it('executes loops', async () => {
-      const result = await executeRill('range(1, 3) -> each { $ }');
+      const result = await executeRill('range(1, 3) -> seq({ $ })');
 
       expect(result.status).toBe('success');
       expect(result.result).toContain('"value"');
@@ -153,7 +153,7 @@ describe('executeRill', () => {
     });
 
     it('executes piped operations', async () => {
-      const result = await executeRill('[1, 2, 3] -> map { $ * 2 }');
+      const result = await executeRill('[1, 2, 3] -> fan({ $ * 2 })');
 
       expect(result.status).toBe('success');
       expect(JSON.parse(result.result!)).toEqual({

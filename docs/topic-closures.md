@@ -160,7 +160,7 @@ A non-keyword identifier in the same position (e.g., `|x|{ body }`) parses as a 
 The `list`, `dict`, `tuple`, and `ordered` keywords accept type arguments in the anonymous typed position for deep structural validation:
 
 ```rill
-[1, 2, 3] -> |list(number)|{ $ -> each { $ * 2 } }
+[1, 2, 3] -> |list(number)|{ $ -> seq({ $ * 2 }) }
 # Result: list[2, 4, 6]
 ```
 
@@ -330,9 +330,9 @@ Block-closures can contain multiple statements:
 Block-closures integrate with collection operators:
 
 ```rill
-[1, 2, 3] -> map { $ * 2 }                    # list[2, 4, 6]
-[1, 2, 3] -> filter { $ > 1 }                 # list[2, 3]
-[1, 2, 3] -> fold(0) { $@ + $ }               # 6 ($@ is accumulator)
+[1, 2, 3] -> fan({ $ * 2 })                    # list[2, 4, 6]
+[1, 2, 3] -> filter({ $ > 1 })                 # list[2, 3]
+[1, 2, 3] -> fold(0, { $@ + $ })               # 6 ($@ is accumulator)
 ```
 
 ### Eager vs Deferred Evaluation
@@ -399,7 +399,7 @@ Inside a stream closure body, two keywords control output:
 }:stream(string):number => $producer
 
 $producer() => $s       # calling the closure returns a stream
-$s -> each { $ }        # ["first", "second", "third"]
+$s -> seq({ $ })        # ["first", "second", "third"]
 $s()                    # 3 (resolution value)
 ```
 
@@ -412,7 +412,7 @@ $s()                    # 3 (resolution value)
 ```text
 # Valid: yield inside inline collection operator block
 || {
-  [1, 2, 3] -> each { $ -> yield }
+  [1, 2, 3] -> seq({ $ -> yield })
   return 3
 }:stream(number):number
 
@@ -429,7 +429,7 @@ Calling a stream closure returns a stream value, not the body result. The stream
 
 ```text
 $producer() => $s       # $s is a stream, not the body's return value
-$s -> map { $ }         # consume chunks with map
+$s -> fan({ $ })         # consume chunks with map
 $s()                    # get resolution value after stream closes
 ```
 
@@ -439,7 +439,7 @@ $s()                    # get resolution value after stream closes
 
 ```text
 # fold accumulates inward with $@
-[1, 2, 3] -> fold(0) { $@ + $ }    # 6
+[1, 2, 3] -> fold(0, { $@ + $ })    # 6
 
 # stream closure emits outward with yield
 || {
@@ -610,20 +610,20 @@ $transforms[2](5)    # 25
 Closures can appear inline in expressions:
 
 ```rill
-[1, 2, 3] -> map |x| { $x * 2 }    # list[2, 4, 6]
+[1, 2, 3] -> fan(|x| { $x * 2 })    # list[2, 4, 6]
 
-[1, 2, 3] -> filter |x| { $x > 1 }    # list[2, 3]
+[1, 2, 3] -> filter(|x| { $x > 1 })    # list[2, 3]
 
-[1, 2, 3] -> fold(0) |acc, x| { $acc + $x }    # 6
+[1, 2, 3] -> fold(0, |x|($@ + $x))    # 6
 ```
 
 ### Inline with Block Bodies
 
 ```rill
-[1, 2, 3] -> map |x| {
+[1, 2, 3] -> fan(|x| {
   ($x * 10) => $scaled
   "{$x} -> {$scaled}"
-}
+})
 # ["1 -> 10", "2 -> 20", "3 -> 30"]
 ```
 
@@ -683,10 +683,10 @@ Each loop iteration creates a new child scope. Capture variables explicitly to p
 
 ```rill
 # Capture $ into named variable for each iteration
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   $ => $item
   || { $item }
-} => $closures
+}) => $closures
 
 [$closures[0](), $closures[1](), $closures[2]()]    # list[1, 2, 3]
 ```
@@ -834,5 +834,5 @@ Closures store a reference to their defining scope (`definingScope`). At invocat
 |----------|-------------|
 | [Closure Annotations](topic-closure-annotations.md) | Parameter metadata, annotations, and reflection |
 | [Reference](ref-language.md) | Language specification |
-| [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` with closures |
+| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc` with closures |
 | [Guide](guide-getting-started.md) | Getting started tutorial |

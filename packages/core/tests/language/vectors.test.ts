@@ -214,7 +214,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for each on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> each { $ * 2 }', {
+        run('$v -> seq({ $ * 2 })', {
           variables: { v: vec },
         })
       ).rejects.toThrow(
@@ -225,7 +225,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for map on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> map { $ * 2 }', {
+        run('$v -> fan({ $ * 2 })', {
           variables: { v: vec },
         })
       ).rejects.toThrow(
@@ -236,7 +236,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for filter on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> filter { $ > 1.5 }', {
+        run('$v -> filter({ $ > 1.5 })', {
           variables: { v: vec },
         })
       ).rejects.toThrow(
@@ -247,7 +247,7 @@ describe('Rill Runtime: Vector Type', () => {
     it('throws RILL-R003 for fold on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
       await expect(
-        run('$v -> fold(0) { $@ + $ }', {
+        run('$v -> fold(0, { $@ + $ })', {
           variables: { v: vec },
         })
       ).rejects.toThrow(

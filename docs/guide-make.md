@@ -200,7 +200,7 @@ $result.content            # only printed once by run.ts
 
 ```text
 newsapi.headlines() => $articles
-$articles -> map { [title: $.title, source: $.source.name] }
+$articles -> fan({ [title: $.title, source: $.source.name] })
 # returns list of dicts — run.ts prints as JSON
 ```
 
@@ -486,10 +486,10 @@ $i -> ($ < 3) @ { $ + 1 }
 **Collections:**
 
 ```rill
-[1, 2, 3] -> each { $ * 2 }       # sequential iteration
-[1, 2, 3] -> map { $ * 2 }        # parallel iteration
-[1, 2, 3] -> filter { $ > 1 }     # filter elements
-[1, 2, 3] -> fold(0) { $@ + $ }   # reduce to value
+[1, 2, 3] -> seq({ $ * 2 })       # sequential iteration
+[1, 2, 3] -> fan({ $ * 2 })        # parallel iteration
+[1, 2, 3] -> filter({ $ > 1 })     # filter elements
+[1, 2, 3] -> fold(0, { $@ + $ })   # reduce to value
 ```
 
 **String building** — the `+` operator is arithmetic-only. Use interpolation or `.join()`:
@@ -502,7 +502,7 @@ $i -> ($ < 3) @ { $ + 1 }
 
 # Multi-part assembly — build a list, then join
 [$title, $description] -> .join(" — ")        # "Title — Description"
-$items -> map { "- {$}" } -> .join("\n")      # markdown bullet list
+$items -> fan({ "- {$}" }) -> .join("\n")      # markdown bullet list
 ```
 
 **Closures:**
@@ -611,8 +611,8 @@ All three share identical function signatures and return shapes.
 
 ```text
 $embedding -> qdrant.search($, 5) => $results
-$results -> each { log("{$.id}: {$.score}") }     # id and score on each hit
-$results -> map { $.metadata } => $all_metadata    # extract metadata dicts
+$results -> seq({ log("{$.id}: {$.score}") })     # id and score on each hit
+$results -> fan({ $.metadata }) => $all_metadata    # extract metadata dicts
 ```
 
 ### fs — Sandboxed File I/O
@@ -694,7 +694,7 @@ Uses `child_process.execFile()` — no shell injection. Arguments validated agai
 
 ```text
 kv.get("run_count") -> ($ + 1) -> kv.set("run_count", $)
-kv.keys() -> each { log($) }
+kv.keys() -> seq({ log($) })
 ```
 
 ### crypto — Hashing and Identifiers

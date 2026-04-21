@@ -355,10 +355,6 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
     });
 
     it('maps keyword tokens correctly', () => {
-      expect(TOKEN_HIGHLIGHT_MAP.get('EACH')).toBe('keyword');
-      expect(TOKEN_HIGHLIGHT_MAP.get('MAP')).toBe('keyword');
-      expect(TOKEN_HIGHLIGHT_MAP.get('FOLD')).toBe('keyword');
-      expect(TOKEN_HIGHLIGHT_MAP.get('FILTER')).toBe('keyword');
       expect(TOKEN_HIGHLIGHT_MAP.get('BREAK')).toBe('keyword');
       expect(TOKEN_HIGHLIGHT_MAP.get('RETURN')).toBe('keyword');
       expect(TOKEN_HIGHLIGHT_MAP.get('PASS')).toBe('keyword');

@@ -64,18 +64,18 @@ describe('Rill Language: Pass Keyword', () => {
   describe('Pass in Collection Operators', () => {
     it('preserves matching items in map (AC-12)', async () => {
       const result = await run(
-        'list[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }'
+        'list[1, -2, 3, -4] -> fan({ ($ > 0) ? pass ! 0 })'
       );
       expect(result).toEqual([1, 0, 3, 0]);
     });
 
     it('preserves items in each', async () => {
-      const result = await run('list[10, 20, 30] -> each { pass }');
+      const result = await run('list[10, 20, 30] -> seq({ pass })');
       expect(result).toEqual([10, 20, 30]);
     });
 
     it('uses each to iterate and preserve with pass', async () => {
-      const result = await run('list[1, 2, 3] -> each { $ }');
+      const result = await run('list[1, 2, 3] -> seq({ $ })');
       expect(result).toEqual([1, 2, 3]);
     });
   });

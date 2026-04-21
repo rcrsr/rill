@@ -91,16 +91,16 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
 
   describe('AC-12: range() with no step param applies default value = 1', () => {
     it('range(1, 4) executes without error when step is omitted', async () => {
-      await expect(run('range(1, 4) -> each { $ }')).resolves.not.toThrow();
+      await expect(run('range(1, 4) -> seq({ $ })')).resolves.not.toThrow();
     });
 
     it('range(1, 4) produces [1, 2, 3] using default step of 1', async () => {
-      const result = await run('range(1, 4) -> each { $ }');
+      const result = await run('range(1, 4) -> seq({ $ })');
       expect(result).toEqual([1, 2, 3]);
     });
 
     it('range(0, 5) produces [0, 1, 2, 3, 4] using default step', async () => {
-      const result = await run('range(0, 5) -> each { $ }');
+      const result = await run('range(0, 5) -> seq({ $ })');
       expect(result).toEqual([0, 1, 2, 3, 4]);
     });
   });

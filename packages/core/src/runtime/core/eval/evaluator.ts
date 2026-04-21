@@ -191,3 +191,20 @@ export function getEvaluator(
   }
   return evaluator;
 }
+
+/**
+ * Register an existing evaluator under an additional RuntimeContext key.
+ *
+ * Used by invokeStreamClosure to ensure getEvaluator(callableCtx) returns
+ * the stream body evaluator (with activeStreamChannel set) rather than
+ * creating a new one. This allows builtins like seq to find the correct
+ * evaluator when invoked from a swapped-ctx stream body.
+ *
+ * @internal
+ */
+export function registerEvaluatorForContext(
+  ctx: RuntimeContext,
+  evaluator: InstanceType<typeof Evaluator>
+): void {
+  evaluatorCache.set(ctx, evaluator);
+}

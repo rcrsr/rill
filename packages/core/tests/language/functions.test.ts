@@ -315,7 +315,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('$fn() in for loop receives loop value', async () => {
       expect(
-        await run('|x| { $x } => $echo\nlist[1, 2, 3] -> each { $echo() }')
+        await run('|x| { $x } => $echo\nlist[1, 2, 3] -> seq({ $echo() })')
       ).toEqual([1, 2, 3]);
     });
 
@@ -363,7 +363,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('rejects number in for loop with string param', async () => {
       await expect(
-        run('|r: string| { $r } => $fn\nlist[1, 2, 3] -> each { $fn() }')
+        run('|r: string| { $r } => $fn\nlist[1, 2, 3] -> seq({ $fn() })')
       ).rejects.toThrow(
         'Parameter type mismatch: r expects string, got number'
       );
@@ -371,7 +371,7 @@ describe('Rill Runtime: Closures', () => {
 
     it('accepts string in for loop with string param', async () => {
       expect(
-        await run('|r: string| { $r } => $fn\nlist["a", "b"] -> each { $fn() }')
+        await run('|r: string| { $r } => $fn\nlist["a", "b"] -> seq({ $fn() })')
       ).toEqual(['a', 'b']);
     });
 

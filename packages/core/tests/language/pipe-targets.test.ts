@@ -164,7 +164,7 @@ $fn("x", "y")`;
 
     it('calls closure in for loop', async () => {
       const script = `|x| { ($x * 2) } => $double
-list[1, 2, 3] -> each { $double() }`;
+list[1, 2, 3] -> seq({ $double() })`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
@@ -201,7 +201,7 @@ list[1, 2, 3] -> each { $double() }`;
     });
 
     it('pipes to for loop', async () => {
-      expect(await run('list[1, 2, 3] -> each { ($ + 10) }')).toEqual([
+      expect(await run('list[1, 2, 3] -> seq({ ($ + 10) })')).toEqual([
         11, 12, 13,
       ]);
     });
@@ -273,7 +273,7 @@ list[$x, $y]`;
 
     it('inline closure in each loop', async () => {
       expect(
-        await run('list[1, 2, 3] -> each { $ -> |x| { $x * 2 } }')
+        await run('list[1, 2, 3] -> seq({ $ -> |x| { $x * 2 } })')
       ).toEqual([2, 4, 6]);
     });
 
@@ -307,12 +307,12 @@ $val -> |x| { $x -> .len }`;
     });
 
     it('chains with for loop transformation', async () => {
-      const script = `list[1, 2, 3] -> each { ($ * 2) } -> .head`;
+      const script = `list[1, 2, 3] -> seq({ ($ * 2) }) -> .head`;
       expect(await run(script)).toBe(2);
     });
 
     it('complex nested pipe chain', async () => {
-      const script = `"a,b,c" -> .split(",") -> each { "{$}!" } -> .join("-")`;
+      const script = `"a,b,c" -> .split(",") -> seq({ "{$}!" }) -> .join("-")`;
       expect(await run(script)).toBe('a!-b!-c!');
     });
   });

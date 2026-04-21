@@ -31,10 +31,10 @@ $code -> .gt(0) ? {
   ["src/auth.ts", "security"],
   ["src/api.ts", "performance"],
   ["src/db.ts", "security"]
-] -> each {
+] -> seq({
   $ -> destruct<$f, $mode>
   "Review {$f} for {$mode} issues" -> log
-}
+})
 ```
 
 ### Slicing Results
@@ -55,55 +55,55 @@ $code -> .gt(0) ? {
 
 ```rill
 # Use .entries to iterate over dict key-value pairs
-[host: "localhost", port: 8080] -> .entries -> each {
+[host: "localhost", port: 8080] -> .entries -> seq({
   "{$[0]}={$[1]}"
-} -> .join("\n")
+}) -> .join("\n")
 ```
 
 ## Collection Operations
 
-Pipeline operators for map, reduce, find, and aggregate patterns.
+Pipeline operators for fan, fold, seq, filter, and aggregate patterns.
 
-### Map with Parallel Spread
+### fan: Parallel Transform
 
 ```rill
 # Define closure first, then use it
 |x| { $x * 2 } => $double
-[1, 2, 3, 4, 5] -> map $double
+[1, 2, 3, 4, 5] -> fan($double)
 # [2, 4, 6, 8, 10]
 ```
 
 ```rill
 # Map with inline block
-["alice", "bob", "carol"] -> map { "Hello, {$}!" }
+["alice", "bob", "carol"] -> fan({ "Hello, {$}!" })
 # ["Hello, alice!", "Hello, bob!", "Hello, carol!"]
 ```
 
-### Filter with Parallel Filter
+### filter: Parallel Predicate
 
 ```rill
 # Keep elements matching condition (block form)
-[1, 2, 3, 4, 5] -> filter { .gt(2) }
+[1, 2, 3, 4, 5] -> filter({ .gt(2) })
 # [3, 4, 5]
 ```
 
 ```rill
 # Filter with closure predicate
 |x| { $x % 2 == 0 } => $even
-[1, 2, 3, 4, 5, 6] -> filter $even
+[1, 2, 3, 4, 5, 6] -> filter($even)
 # [2, 4, 6]
 ```
 
 ```rill
 # Filter non-empty strings
-["hello", "", "world", ""] -> filter { !.empty }
+["hello", "", "world", ""] -> filter({ !.empty })
 # ["hello", "world"]
 ```
 
 ```rill
-# Chain filter and map
+# Chain filter and fan
 |x| { $x * 2 } => $dbl
-[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $dbl
+[1, 2, 3, 4, 5] -> filter({ .gt(2) }) -> fan($dbl)
 # [6, 8, 10]
 ```
 
@@ -113,11 +113,11 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
   [name: "alice", age: 30],
   [name: "bob", age: 17],
   [name: "carol", age: 25]
-] -> filter { $.age -> .ge(18) }
+] -> filter({ $.age -> .ge(18) })
 # [[name: "alice", age: 30], dict[name: "carol", age: 25]]
 ```
 
-### Reduce with Sequential Spread
+### fold/chain: Reduction and Sequential Chaining
 
 ```rill
 # Chain transformations
@@ -136,39 +136,42 @@ Pipeline operators for map, reduce, find, and aggregate patterns.
 # ((5 + 10) * 2) + 10 = 40
 ```
 
-### Find First Match
+### seq with break: Early Termination
 
 ```rill
-# Find first element matching condition
-[1, 2, 3, 4, 5] -> each {
-  .gt(3) ? { $ -> break }
-} => $found
-# 4
+# Break stops iteration and returns collected results up to that point
+[1, 2, 3, 4, 5] -> seq({
+  ($ == 3) ? break
+  $ * 2
+}) => $result
+# Result: [2, 4]
+```
 
-# Find with default
-[1, 2, 3] -> each {
-  .gt(10) ? { $ -> break }
-} => $result
-$result -> .empty ? { "not found" } ! { "found: {$result}" }
+`seq` catches the break signal and returns the partial results list. Elements processed before break are included; the element that triggered break is not.
+
+```rill
+# Use filter to find matching elements
+[1, 2, 3, 4, 5] -> filter({ .gt(3) })
+# Result: [4, 5]
 ```
 
 ### Aggregate/Sum
 
 ```rill
 # Sum numbers using fold
-[10, 20, 30, 40] -> fold(0) { $@ + $ }
+[10, 20, 30, 40] -> fold(0, { $@ + $ })
 # 100
 
-# Count matching elements using filter
-$items -> filter { .contains("error") } -> .len => $count
+# Count matching elements using filter (parallel predicate)
+$items -> filter({ .contains("error") }) -> .len => $count
 "Found {$count} errors" -> log
 ```
 
 ### Transform and Collect
 
 ```rill
-# Process items, collect results using map
-["file1.txt", "file2.txt", "file3.txt"] -> map { "analyzed: {$}" } -> .join("\n")
+# Process items, collect results using fan
+["file1.txt", "file2.txt", "file3.txt"] -> fan({ "analyzed: {$}" }) -> .join("\n")
 # "analyzed: file1.txt\nanalyzed: file2.txt\nanalyzed: file3.txt"
 ```
 
@@ -525,7 +528,7 @@ app::prompt("Analyze {$file}") => $analysis:string
 ```rill
 # Parameterized type annotation on closure parameter
 |items: list(string)| {
-  $items -> each { $ -> .upper }
+  $items -> seq({ $ -> .upper })
 } => $upper_all:closure
 
 # Runtime validates element types
@@ -606,7 +609,7 @@ $m.groups[0] -> number => $count
 "Processing {$count} items in {$batches} batches" -> log
 
 # Process each batch using range
-range(1, $batches + 1) -> each {
+range(1, $batches + 1) -> seq({
   $ => $batch_num
   (($batch_num - 1) * 10) => $start
   ($start + 10) => $end
@@ -614,7 +617,7 @@ range(1, $batches + 1) -> each {
   """
 Process batch {$batch_num} of {$batches}
 Items {$start} through {$end}
-  """ -> app::prompt()}
+  """ -> app::prompt()})
 
 [0, "Processed all batches"]
 ```
@@ -670,7 +673,7 @@ $question -> openai::embed => $query_vector
 $query_vector -> qdrant::search($, [k: 3, score_threshold: 0.7]) => $results
 
 # Extract metadata for context
-$results -> map { $.metadata.text } -> .join("\n\n---\n\n") => $context
+$results -> fan({ $.metadata.text }) -> .join("\n\n---\n\n") => $context
 
 # Generate answer with retrieved context
 """
@@ -691,13 +694,13 @@ Store multiple documents with partial failure recovery.
 args: documents: list
 
 # Embed all documents
-$documents -> map {
+$documents -> fan({
   [
     id: $.id,
     vector: $.text -> openai::embed,
     metadata: [title: $.title, source: $.source]
   ]
-} => $items
+}) => $items
 
 # Batch insert with error handling
 $items -> qdrant::upsert_batch => $result
@@ -728,13 +731,13 @@ qdrant::create_collection("knowledge_base", [
 "Created collection: {$create_result.name}" -> log
 
 # Store vectors (assumes $docs defined)
-$docs -> map {
+$docs -> fan({
   [
     id: $.id,
     vector: $.text -> openai::embed,
     metadata: [title: $.title]
   ]
-} -> qdrant::upsert_batch => $upsert_result
+}) -> qdrant::upsert_batch => $upsert_result
 
 # Verify collection state
 qdrant::describe() => $info
@@ -742,7 +745,7 @@ qdrant::describe() => $info
 
 # List all collections
 qdrant::list_collections() => $collections
-$collections -> each { $ -> log }
+$collections -> seq({ $ -> log })
 
 # Clean up when done
 # qdrant::delete_collection("knowledge_base")
@@ -760,9 +763,9 @@ args: user_query: string
 # Define search tool with closure annotation
 ^("Search the knowledge base for relevant information")
 |^("Search query text") query: string| {
-  $query -> openai::embed -> qdrant::search($, [k: 5]) -> map {
+  $query -> openai::embed -> qdrant::search($, [k: 5]) -> fan({
     "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
-  } -> .join("\n\n---\n\n")
+  }) -> .join("\n\n---\n\n")
 } => $search_knowledge_base
 
 # Define store tool with closure annotation
@@ -796,7 +799,7 @@ $loop_result.content
 Stream host functions are unavailable in the test harness, so all stream examples use `text` fences.
 See [Types](topic-types.md) for stream type documentation and [Collections](topic-collections.md) for operator behavior.
 
-### Stream Consumption with `each` (Token Processing)
+### Stream Consumption with `seq` (Token Processing)
 
 Consume a host-provided token stream one chunk at a time:
 
@@ -804,9 +807,9 @@ Consume a host-provided token stream one chunk at a time:
 # Process each token from an LLM stream
 app::llm_stream("Explain rill in 3 sentences") => $tokens
 
-$tokens -> each {
+$tokens -> seq({
   $ -> log
-}
+})
 # logs each token string as it arrives
 ```
 
@@ -820,7 +823,7 @@ Iterate chunks and then read the resolution value:
 # Consume chunks, then get the final token usage
 app::llm_stream("Summarize this document") => $s
 
-$s -> each { $ -> log }
+$s -> seq({ $ -> log })
 
 # Resolution value is available after the stream closes
 $s()
@@ -837,29 +840,29 @@ Accumulate all chunks into a single string:
 # Fold all tokens into a complete response string
 app::llm_stream("Write a haiku") => $s
 
-$s -> fold("") { $@ ++ $ } => $full_response
+$s -> fold("", { $@ ++ $ }) => $full_response
 
 "Complete response: {$full_response}" -> log
 ```
 
 `fold` reduces every chunk using `$@` as the accumulator. The initial value is the empty string `""`.
 
-### Parallel Resolution with `map { $() }`
+### Parallel Resolution with `fan { $() }`
 
-Resolve multiple streams in parallel using `map`:
+Resolve multiple streams in parallel using `fan`:
 
 ```text
 # Create streams from a list of prompts
-["Summarize A", "Summarize B", "Summarize C"] -> map {
+["Summarize A", "Summarize B", "Summarize C"] -> fan({
   app::llm_stream($)
-} => $streams
+}) => $streams
 
 # Consume all streams in parallel, collecting resolution values
-$streams -> map { $() }
+$streams -> fan({ $() })
 # Returns list of resolution values, one per stream
 ```
 
-`map` runs each `$()` concurrently. Results preserve input order despite parallel execution.
+`fan` runs each `$()` concurrently. Results preserve input order despite parallel execution.
 
 ### Script Stream Production with `:stream(T):R`
 
@@ -868,14 +871,14 @@ Define a stream closure that emits chunks from a script:
 ```text
 # Stream closure: emit processed lines, resolve with line count
 |input: string| {
-  $input -> .split("\n") -> each {
+  $input -> .split("\n") -> seq({
     $ -> .trim -> .empty -> !$ ? { $ -> yield }
-  }
+  })
   return $input -> .split("\n") -> .len
 }:stream(string):number => $line_stream
 
 $line_stream("line one\nline two\nline three") => $s
-$s -> each { $ -> log }
+$s -> seq({ $ -> log })
 $s()
 # Returns 3 (total line count)
 ```

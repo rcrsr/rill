@@ -228,14 +228,16 @@ describe('rillHighlighter', () => {
 
 describe('token highlighting', () => {
   describe('AC-14: keyword highlighting', () => {
-    it('highlights "each" as keyword', () => {
+    it('"each" is no longer a keyword (now an identifier)', () => {
       const tags = tokenizeLine('each');
-      expect(tags).toContain('keyword');
+      expect(tags).toContain('variableName');
+      expect(tags).not.toContain('keyword');
     });
 
-    it('highlights "map" as keyword', () => {
+    it('"map" is no longer a keyword (now an identifier)', () => {
       const tags = tokenizeLine('map');
-      expect(tags).toContain('keyword');
+      expect(tags).toContain('variableName');
+      expect(tags).not.toContain('keyword');
     });
 
     it('highlights "break" as keyword', () => {

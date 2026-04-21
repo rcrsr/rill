@@ -63,7 +63,7 @@ describe('executeRill', () => {
 
     it('captures log() output from loop iterations', async () => {
       const result = await executeRill(
-        'range(1, 4) -> each { $ -> log }\n"done"'
+        'range(1, 4) -> seq({ $ -> log })\n"done"'
       );
 
       expect(result.status).toBe('success');

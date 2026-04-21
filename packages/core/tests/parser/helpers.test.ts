@@ -46,26 +46,6 @@ describe('isIdentifierOrKeyword', () => {
       expect(isIdentifierOrKeyword(token)).toBe(true);
     });
 
-    it('returns true for EACH token (IR-1)', () => {
-      const token = { type: TOKEN_TYPES.EACH };
-      expect(isIdentifierOrKeyword(token)).toBe(true);
-    });
-
-    it('returns true for MAP token (IR-1)', () => {
-      const token = { type: TOKEN_TYPES.MAP };
-      expect(isIdentifierOrKeyword(token)).toBe(true);
-    });
-
-    it('returns true for FOLD token (IR-1)', () => {
-      const token = { type: TOKEN_TYPES.FOLD };
-      expect(isIdentifierOrKeyword(token)).toBe(true);
-    });
-
-    it('returns true for FILTER token (IR-1)', () => {
-      const token = { type: TOKEN_TYPES.FILTER };
-      expect(isIdentifierOrKeyword(token)).toBe(true);
-    });
-
     it('returns true for PASS token (BC-1)', () => {
       const token = { type: TOKEN_TYPES.PASS };
       expect(isIdentifierOrKeyword(token)).toBe(true);
@@ -100,7 +80,7 @@ describe('isIdentifierOrKeyword', () => {
   });
 
   describe('comprehensive coverage', () => {
-    it('accepts all 12 valid token types (IR-1)', () => {
+    it('accepts all 8 valid token types (IR-1)', () => {
       const validTypes = [
         TOKEN_TYPES.IDENTIFIER,
         TOKEN_TYPES.TRUE,
@@ -109,10 +89,6 @@ describe('isIdentifierOrKeyword', () => {
         TOKEN_TYPES.RETURN,
         TOKEN_TYPES.ASSERT,
         TOKEN_TYPES.ERROR,
-        TOKEN_TYPES.EACH,
-        TOKEN_TYPES.MAP,
-        TOKEN_TYPES.FOLD,
-        TOKEN_TYPES.FILTER,
         TOKEN_TYPES.PASS,
       ];
 

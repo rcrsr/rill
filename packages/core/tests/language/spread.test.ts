@@ -12,7 +12,7 @@ describe('Rill Runtime: Collection Operators', () => {
     it('applies closure to each element in parallel', async () => {
       const result = await run(`
         |x| { ($x * 2) } => $double
-        list[1, 2, 3] -> map $double
+        list[1, 2, 3] -> fan($double)
       `);
       expect(result).toEqual([2, 4, 6]);
     });
@@ -20,18 +20,18 @@ describe('Rill Runtime: Collection Operators', () => {
     it('applies closure with string transformation', async () => {
       const result = await run(`
         |s| { "item: {$s}" } => $format
-        list["a", "b", "c"] -> map $format
+        list["a", "b", "c"] -> fan($format)
       `);
       expect(result).toEqual(['item: a', 'item: b', 'item: c']);
     });
 
     it('applies inline closure', async () => {
-      const result = await run('list[1, 2, 3] -> map |x| ($x * 2)');
+      const result = await run('list[1, 2, 3] -> fan(|x| ($x * 2))');
       expect(result).toEqual([2, 4, 6]);
     });
 
     it('applies block body', async () => {
-      const result = await run('list[1, 2, 3] -> map { $ * 2 }');
+      const result = await run('list[1, 2, 3] -> fan({ $ * 2 })');
       expect(result).toEqual([2, 4, 6]);
     });
   });
@@ -39,36 +39,36 @@ describe('Rill Runtime: Collection Operators', () => {
   describe('filter - Parallel Filtering', () => {
     describe('Block form: filter { condition }', () => {
       it('filters elements greater than threshold', async () => {
-        const result = await run('list[1, 2, 3, 4, 5] -> filter { .gt(2) }');
+        const result = await run('list[1, 2, 3, 4, 5] -> filter({ .gt(2) })');
         expect(result).toEqual([3, 4, 5]);
       });
 
       it('filters non-empty strings', async () => {
         const result = await run(
-          'list["hello", "", "world", ""] -> filter { !.empty }'
+          'list["hello", "", "world", ""] -> filter({ !.empty })'
         );
         expect(result).toEqual(['hello', 'world']);
       });
 
       it('filters with equality check', async () => {
-        const result = await run('list[1, 2, 2, 3, 2] -> filter { .eq(2) }');
+        const result = await run('list[1, 2, 2, 3, 2] -> filter({ .eq(2) })');
         expect(result).toEqual([2, 2, 2]);
       });
 
       it('filters strings containing substring', async () => {
         const result = await run(
-          'list["error: bad", "info: ok", "error: fail", "debug: x"] -> filter { .contains("error") }'
+          'list["error: bad", "info: ok", "error: fail", "debug: x"] -> filter({ .contains("error") })'
         );
         expect(result).toEqual(['error: bad', 'error: fail']);
       });
 
       it('returns empty array when nothing matches', async () => {
-        const result = await run('list[1, 2, 3] -> filter { .gt(10) }');
+        const result = await run('list[1, 2, 3] -> filter({ .gt(10) })');
         expect(result).toEqual([]);
       });
 
       it('returns all elements when everything matches', async () => {
-        const result = await run('list[1, 2, 3] -> filter { .gt(0) }');
+        const result = await run('list[1, 2, 3] -> filter({ .gt(0) })');
         expect(result).toEqual([1, 2, 3]);
       });
     });
@@ -77,7 +77,7 @@ describe('Rill Runtime: Collection Operators', () => {
       it('uses closure as predicate', async () => {
         const result = await run(`
           |x| { $x -> .gt(2) } => $gtTwo
-          list[1, 2, 3, 4, 5] -> filter $gtTwo
+          list[1, 2, 3, 4, 5] -> filter($gtTwo)
         `);
         expect(result).toEqual([3, 4, 5]);
       });
@@ -85,7 +85,7 @@ describe('Rill Runtime: Collection Operators', () => {
       it('uses complex predicate closure', async () => {
         const result = await run(`
           |x| { ($x % 2) -> .eq(0) } => $even
-          list[1, 2, 3, 4, 5, 6] -> filter $even
+          list[1, 2, 3, 4, 5, 6] -> filter($even)
         `);
         expect(result).toEqual([2, 4, 6]);
       });
@@ -93,7 +93,7 @@ describe('Rill Runtime: Collection Operators', () => {
       it('uses predicate with string operations', async () => {
         const result = await run(`
           |s| { $s -> .len -> .gt(3) } => $longEnough
-          list["a", "ab", "abc", "abcd", "abcde"] -> filter $longEnough
+          list["a", "ab", "abc", "abcd", "abcde"] -> filter($longEnough)
         `);
         expect(result).toEqual(['abcd', 'abcde']);
       });
@@ -101,14 +101,14 @@ describe('Rill Runtime: Collection Operators', () => {
 
     describe('Inline closure form: filter |x| body', () => {
       it('uses inline closure as predicate', async () => {
-        const result = await run('list[1, 2, 3, 4, 5] -> filter |x| ($x > 2)');
+        const result = await run('list[1, 2, 3, 4, 5] -> filter(|x| ($x > 2))');
         expect(result).toEqual([3, 4, 5]);
       });
     });
 
     describe('Grouped expression form: filter (expr)', () => {
       it('uses grouped expression as predicate', async () => {
-        const result = await run('list[1, 2, 3, 4, 5] -> filter ($ > 2)');
+        const result = await run('list[1, 2, 3, 4, 5] -> filter({ $ > 2 })');
         expect(result).toEqual([3, 4, 5]);
       });
     });
@@ -117,7 +117,7 @@ describe('Rill Runtime: Collection Operators', () => {
       it('filter then map', async () => {
         const result = await run(`
           |x| { ($x * 2) } => $double
-          list[1, 2, 3, 4, 5] -> filter { .gt(2) } -> map $double
+          list[1, 2, 3, 4, 5] -> filter({ .gt(2) }) -> fan($double)
         `);
         expect(result).toEqual([6, 8, 10]);
       });
@@ -125,7 +125,7 @@ describe('Rill Runtime: Collection Operators', () => {
       it('map then filter', async () => {
         const result = await run(`
           |x| { ($x * 2) } => $double
-          list[1, 2, 3, 4, 5] -> map $double -> filter { .gt(5) }
+          list[1, 2, 3, 4, 5] -> fan($double) -> filter({ .gt(5) })
         `);
         expect(result).toEqual([6, 8, 10]);
       });
@@ -133,7 +133,7 @@ describe('Rill Runtime: Collection Operators', () => {
 
     describe('Error cases', () => {
       it('throws on undefined predicate variable', async () => {
-        await expect(run('list[1, 2, 3] -> filter $undefined')).rejects.toThrow(
+        await expect(run('list[1, 2, 3] -> filter($undefined)')).rejects.toThrow(
           /Undefined variable/
         );
       });
@@ -193,10 +193,10 @@ describe('Rill Runtime: Collection Operators', () => {
         |x| { ($x * 2) } => $double
 
         # Parallel: double both values
-        list[5, 10] -> map $double => $doubled
+        list[5, 10] -> fan($double) => $doubled
 
         # For-each over results
-        $doubled -> each { $ }
+        $doubled -> seq({ $ })
       `);
       // [5*2, 10*2] = [10, 20]
       expect(result).toEqual([10, 20]);

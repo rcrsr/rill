@@ -122,7 +122,7 @@ describe('Rill Language: Error Statement', () => {
     });
 
     it('throws on first iteration in each loop (AC-BOUND-4)', async () => {
-      await expect(run('list[1, 2] -> each { error "stop" }')).rejects.toThrow(
+      await expect(run('list[1, 2] -> seq({ error "stop" })')).rejects.toThrow(
         'stop'
       );
     });
@@ -238,20 +238,20 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from map operator on conditional error', async () => {
       const script = `
-        list[1, 2, 3] -> map {
+        list[1, 2, 3] -> fan({
           ($ == 2) ? { error "failed at 2" }
           $ * 2
-        }
+        })
       `;
       await expect(run(script)).rejects.toThrow('failed at 2');
     });
 
     it('throws from filter operator on conditional error', async () => {
       const script = `
-        list[1, 2, 3] -> filter {
+        list[1, 2, 3] -> filter({
           ($ == 2) ? { error "filter error" }
           $ > 1
-        }
+        })
       `;
       await expect(run(script)).rejects.toThrow('filter error');
     });
@@ -268,10 +268,10 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from fold operator accumulator', async () => {
       const script = `
-        list[1, 2, 3] -> fold(0) {
+        list[1, 2, 3] -> fold(0, {
           ($ == 2) ? { error "fold error" }
           $@ + $
-        }
+        })
       `;
       await expect(run(script)).rejects.toThrow('fold error');
     });
@@ -376,12 +376,12 @@ describe('Rill Language: Error Statement', () => {
 
     it('works in nested each loops', async () => {
       const script = `
-        list[1, 2] -> each {
-          list[10, 20] -> each {
+        list[1, 2] -> seq({
+          list[10, 20] -> seq({
             ($ == 20) ? { error "inner error" }
             $
-          }
-        }
+          })
+        })
       `;
       await expect(run(script)).rejects.toThrow('inner error');
     });

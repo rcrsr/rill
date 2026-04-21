@@ -143,7 +143,7 @@ not: frontmatter
       const script = `---
 name: test
 ---
-list[1, 2, 3] -> each { ($ * 2) }`;
+list[1, 2, 3] -> seq({ ($ * 2) })`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 

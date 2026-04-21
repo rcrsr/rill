@@ -199,7 +199,7 @@ describe('CoreMixin Error Contracts', () => {
       // Abort during pipe target processing
       let callCount = 0;
       await expectAbortHalt(() =>
-        run('list[1, 2, 3] -> each { count() }', {
+        run('list[1, 2, 3] -> seq({ count() })', {
           functions: {
             count: {
               params: [
@@ -287,7 +287,7 @@ describe('CoreMixin Error Contracts', () => {
 
     it('evaluatePipeChain handles break terminator', async () => {
       const result = await run(
-        'list[1, 2, 3] -> each { ($ == 2) ? ($ -> break)\n$ }'
+        'list[1, 2, 3] -> seq({ ($ == 2) ? ($ -> break)\n$ })'
       );
       expect(result).toEqual([1]);
     });

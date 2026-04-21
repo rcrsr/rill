@@ -18,7 +18,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // Attempting to assign to outer variable name is an error
       const script = `
         "outer" => $x
-        list[1, 2, 3] -> each { "inner" => $x }
+        list[1, 2, 3] -> seq({ "inner" => $x })
         $x
       `;
       await expect(run(script)).rejects.toThrow(
@@ -30,7 +30,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // Variable created inside block is not visible outside
       // Accessing undefined variable throws an error
       const script = `
-        list[1, 2, 3] -> each { "created" => $y }
+        list[1, 2, 3] -> seq({ "created" => $y })
         $y
       `;
       await expect(run(script)).rejects.toThrow('Undefined variable');
@@ -39,7 +39,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('reading outer variable inside block works', async () => {
       const script = `
         100 => $x
-        list[1, 2, 3] -> each { $x + $ }
+        list[1, 2, 3] -> seq({ $x + $ })
       `;
       expect(await run(script)).toEqual([101, 102, 103]);
     });
@@ -48,10 +48,10 @@ describe('Rill Runtime: Block Scoping', () => {
       // New variables with unique names are allowed
       const script = `
         10 => $x
-        list[1, 2, 3] -> each {
+        list[1, 2, 3] -> seq({
           ($x + $) => $local
           list[$x, $local]
-        }
+        })
       `;
       // $x is read from outer (10), $local is new in each iteration
       expect(await run(script)).toEqual([
@@ -65,13 +65,13 @@ describe('Rill Runtime: Block Scoping', () => {
       // Each level can create new unique variables
       const script = `
         "outer" => $x
-        list[1, 2] -> each {
+        list[1, 2] -> seq({
           "level1" => $a
-          list[3, 4] -> each {
+          list[3, 4] -> seq({
             "level2" => $b
             list[$x, $a, $b]
-          }
-        }
+          })
+        })
       `;
       // Each inner block can read from all outer scopes
       expect(await run(script)).toEqual([
@@ -90,7 +90,7 @@ describe('Rill Runtime: Block Scoping', () => {
       // $ changes per iteration but doesn't leak to outer scope
       const script = `
         "original" => $outer
-        list[1, 2, 3] -> each { $ * 10 } => $result
+        list[1, 2, 3] -> seq({ $ * 10 }) => $result
         $result
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
@@ -198,10 +198,10 @@ describe('Rill Runtime: Block Scoping', () => {
       // Cannot reuse outer variable name in child scope
       const script = `
         "hello" => $x
-        list[1, 2, 3] -> each {
+        list[1, 2, 3] -> seq({
           100 => $x
           $x
-        }
+        })
       `;
       await expect(run(script)).rejects.toThrow(
         /Cannot reassign outer variable/
@@ -211,7 +211,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('reading outer variable respects its type', async () => {
       const script = `
         10 => $x
-        list[1, 2, 3] -> each { $x + $ }
+        list[1, 2, 3] -> seq({ $x + $ })
       `;
       expect(await run(script)).toEqual([11, 12, 13]);
     });

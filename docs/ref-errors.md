@@ -668,7 +668,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 (true) @ { "looping" }  # Never terminates
 
 # Large collection with default limit
-range(0, 1000000) -> each |x| $x  # May exceed default limit
+range(0, 1000000) -> seq(|x| $x)  # May exceed default limit
 ```
 
 ---

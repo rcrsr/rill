@@ -159,7 +159,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty for loop block', async () => {
-      await expect(run('list[1, 2] -> each { }')).rejects.toThrow(
+      await expect(run('list[1, 2] -> seq({ })')).rejects.toThrow(
         'Empty blocks are not allowed'
       );
     });

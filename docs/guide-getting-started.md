@@ -165,13 +165,13 @@ Methods are called with `.name()` syntax. The pipe value becomes the implicit fi
 "hello" -> .contains("ell")
 # Result: true
 
-[1, 2, 3] -> map |x|($x * 2)
+[1, 2, 3] -> fan(|x|($x * 2))
 # Result: [2, 4, 6]
 ```
 
 Common string methods: `.len`, `.trim`, `.split()`, `.contains()`, `.match()`, `.is_match()`, `.lower`, `.upper`, `.replace()`, `.replace_all()`
 
-Common list operations: `.len`, `.head`, `.tail`, `.at()`, `.join()`, `map $fn`, `filter { }`
+Common list operations: `.len`, `.head`, `.tail`, `.at()`, `.join()`, `fan({ })`, `filter({ })`
 
 ## Conditionals
 
@@ -217,12 +217,12 @@ $input -> .contains("x")
 
 ## Loops
 
-### For-Each Loop
+### seq Loop
 
-Iterate over a list with `each { body }`:
+Iterate over a list with `seq({ body })`:
 
 ```rill
-[1, 2, 3] -> each { $ * 2 }
+[1, 2, 3] -> seq({ $ * 2 })
 # Result: [2, 4, 6]
 ```
 
@@ -246,10 +246,10 @@ The body's result becomes the next iteration's `$`. The loop exits when the cond
 Use `break` to exit a loop early:
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> seq({
   ($ == 3) ? break
   $
-}
+})
 # Result: [1, 2]
 ```
 
@@ -263,7 +263,7 @@ Define reusable logic with closure syntax `|params| body`. See [Closures](topic-
 5 -> $double()
 # Result: 10
 
-[1, 2, 3] -> map $double
+[1, 2, 3] -> fan($double)
 # Result: [2, 4, 6]
 ```
 
@@ -352,7 +352,7 @@ Here's a complete example that processes a list of names:
 
 ```rill
 ["alice", "bob", "charlie"] => $names
-$names -> map |name| { "{$name}: {$name -> .len} chars" } => $descriptions
+$names -> fan(|name| { "{$name}: {$name -> .len} chars" }) => $descriptions
 $descriptions -> .join(", ")
 ```
 
@@ -368,7 +368,7 @@ $descriptions -> .join(", ")
 
 - [Reference](ref-language.md) — Complete language specification
 - [Closures](topic-closures.md) — Late binding, dict-bound, and invocation patterns
-- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` operators
+- [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` operators
 - [Examples](guide-examples.md) — Workflow patterns
 
 ## Quick Reference Card
@@ -395,17 +395,17 @@ cond                        # multi-line form
   ? then ! else
 
 # Loops
-list -> each { body }       # for-each
+list -> seq({ body })       # for-each
 (bool) @ { body }           # while
 @ { body } ? cond           # do-while
 break                       # exit loop
 return                      # exit block
 
 # Collection Operators
--> each { body }            # sequential, all results
--> each(init) { $@ + $ }    # with accumulator
--> map { body }             # parallel, all results
--> fold(init) { $@ + $ }    # reduction, final only
+-> seq({ body })            # sequential, all results
+-> acc(init, { $@ + $ })    # with accumulator
+-> fan({ body })             # parallel, all results
+-> fold(init, { $@ + $ })    # reduction, final only
 
 # Access
 $data.field                 # dict field

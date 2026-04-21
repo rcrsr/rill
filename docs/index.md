@@ -30,7 +30,7 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Collections](topic-collections.md) | `each`, `map`, `filter`, `fold` operators and stream iteration |
+| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc` operators and stream iteration |
 | [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison |
 
 ## Reference

@@ -37,7 +37,7 @@ $greeting -> .upper => $shouted
   functions: {
     id: 'functions',
     label: 'Functions',
-    source: `range(0, 5) -> each { $ * 2 }`,
+    source: `range(0, 5) -> seq({ $ * 2 })`,
   },
   conditionals: {
     id: 'conditionals',
@@ -48,17 +48,17 @@ $greeting -> .upper => $shouted
     id: 'fold',
     label: 'Fold',
     source: `# Factorial of 10
-range(1, 11) -> fold(1) { $@ * $ }`,
+range(1, 11) -> fold(1, { $@ * $ })`,
   },
   fizzbuzz: {
     id: 'fizzbuzz',
     label: 'FizzBuzz',
-    source: `range(1, 21) -> each {
+    source: `range(1, 21) -> seq({
   ($ % 15 == 0) ? "FizzBuzz"
     ! ($ % 3 == 0) ? "Fizz"
     ! ($ % 5 == 0) ? "Buzz"
     ! "{$}"
-}`,
+})`,
   },
   dispatch: {
     id: 'dispatch',
@@ -90,11 +90,11 @@ range(1, 11) -> fold(1) { $@ * $ }`,
   dict[name: "Dave", score: 67],
   dict[name: "Eve", score: 95]
 ]
-  -> filter { $.score >= 70 }
-  -> map {
+  -> filter({ $.score >= 70 })
+  -> fan({
     ($.score >= 90) ? "A" ! "B" => $grade
     dict[name: $.name, grade: $grade]
-  }`,
+  })`,
   },
   destructuring: {
     id: 'destructuring',
@@ -141,7 +141,7 @@ $val:?string ? "it's a string" ! "not a string"`,
   -> .trim
   -> .replace_all("\\\\s+", " ")
   -> .split(" ")
-  -> map .lower
+  -> fan({ .lower })
   -> .join(" -> ")`,
   },
   'dict-methods': {
@@ -149,12 +149,12 @@ $val:?string ? "it's a string" ! "not a string"`,
     label: 'Dict Methods',
     source: `dict[
   items: list[12, 5, 8, 23, 3],
-  total: ||{ $.items -> fold(0) { $@ + $ } },
-  max: ||{ $.items -> fold(0) { ($@ > $) ? $@ ! $ } }
+  total: ||{ $.items -> fold(0, { $@ + $ }) },
+  max: ||{ $.items -> fold(0, { ($@ > $) ? $@ ! $ }) }
 ] => $bag
 log($bag.total)
 log($bag.max)
-$bag.items -> filter { $ > 10 }`,
+$bag.items -> filter({ $ > 10 })`,
   },
   'state-machine': {
     id: 'state-machine',
@@ -180,8 +180,8 @@ dict[state: "red", cycles: 0]
 list[4, 5, 6] => $b
 list[...$a, ...$b] => $combined
 log($combined)
-# Running total with each(init)
-$combined -> each(0) { $@ + $ }`,
+# Running total with acc(init)
+$combined -> acc(0, { $@ + $ })`,
   },
   'type-conversion': {
     id: 'type-conversion',
@@ -290,10 +290,10 @@ log("items: {$items}")
     id: 'break-return',
     label: 'Break & Return',
     source: `# Break exits loop, returns collected results
-list[1, 2, 3, 4, 5] -> each {
+list[1, 2, 3, 4, 5] -> seq({
   ($ == 4) ? break
   $ * 10
-} => $before_four
+}) => $before_four
 log($before_four)
 
 # Return exits script with value
@@ -305,9 +305,9 @@ log($before_four)
     id: 'pass-keyword',
     label: 'Pass',
     source: `# Pass returns $ unchanged (explicit no-op)
-list[1, -2, 3, -4, 5] -> map {
+list[1, -2, 3, -4, 5] -> fan({
   ($ > 0) ? pass ! 0
-} => $clamped
+}) => $clamped
 log($clamped)
 
 # Pass in conditional branches
@@ -318,37 +318,37 @@ log($result)
 
 # Preserve value in filter-like logic
 list["a", "", "b", "", "c"]
-  -> map { .empty ? "empty" ! pass }`,
+  -> fan({ .empty ? "empty" ! pass })`,
   },
   enumerate: {
     id: 'enumerate',
     label: 'Enumerate',
     source: `# Enumerate adds index to each item
 enumerate(list["apple", "banana", "cherry"])
-  -> each {
+  -> seq({
     "{$.index}: {$.value}"
-  } => $indexed
+  }) => $indexed
 log($indexed)
 
 # Enumerate a dict (index, key, value)
 enumerate(dict[x: 10, y: 20, z: 30])
-  -> each {
+  -> seq({
     "#{$.index} {$.key}={$.value}"
-  }`,
+  })`,
   },
   'dict-iteration': {
     id: 'dict-iteration',
     label: 'Dict Iteration',
     source: `# Iterating dicts: $ has .key and .value
 dict[alice: 95, bob: 82, carol: 91]
-  -> filter { $.value >= 90 }
-  -> each { "{$.key} scored {$.value}" }
+  -> filter({ $.value >= 90 })
+  -> seq({ "{$.key} scored {$.value}" })
   => $honors
 log($honors)
 
 # Fold dict entries into a total
 dict[apples: 3, bananas: 5, cherries: 2]
-  -> fold(0) { $@ + $.value }`,
+  -> fold(0, { $@ + $.value })`,
   },
   'list-dispatch': {
     id: 'list-dispatch',
@@ -383,8 +383,8 @@ log("exact match: {$match}")
 
 # In pipelines with filter
 list[3, 7, 2, 9, 1, 8, 4]
-  -> filter .ge(5)
-  -> each { "{$}" }
+  -> filter({ .ge(5) })
+  -> seq({ "{$}" })
   -> .join(", ")`,
   },
 };

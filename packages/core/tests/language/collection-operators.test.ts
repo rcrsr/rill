@@ -1,15 +1,44 @@
 /**
- * Rill Runtime Tests: Collection Operators (each, map, fold)
+ * Rill Language Tests: Collection Operators — new callable syntax
  *
- * Tests for each (sequential iteration), map (parallel iteration), and fold (reduction).
+ * Tests for seq (sequential map), fan (parallel map), fold (reduction),
+ * filter (predicate filtering), and acc (scan/running accumulator).
+ *
+ * AC-17: Release coordination — core, fiddle, and docs ship together in this
+ * branch. Legacy keyword forms (each/map/fold/filter as keywords) are removed.
+ * All tests below use the new callable-function syntax only.
  */
 
 import type { RillValue } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRillStream,
+  createVector,
+  parse,
+  TOKEN_TYPES,
+  type RillStream,
+  type TypeStructure,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 
-// Helper functions
+// Helper: host function returning a RillStream over provided values
+function makeStreamFn(chunks: RillValue[], resolution: RillValue = null) {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          for (const v of chunks) yield v;
+        })(),
+        resolve: async () => resolution,
+      }),
+  };
+}
+
+// Helper: host function wrapping a numeric doubling operation
 const double = {
   params: [
     {
@@ -25,327 +54,390 @@ const double = {
   },
 };
 
-describe('Rill Runtime: Collection Operators', () => {
-  describe('each - Sequential Iteration', () => {
-    it('iterates with inline closure', async () => {
-      const result = await run('list[1, 2, 3] -> each |x| ($x * 2)');
-      expect(result).toEqual([2, 4, 6]);
+describe('Rill Language: Collection Operators — new callable syntax', () => {
+  // ── Success Cases ────────────────────────────────────────────────────────
+
+  describe('Success Cases', () => {
+    it('AC-1: seq maps list elements sequentially', async () => {
+      expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
     });
 
-    it('iterates with block body', async () => {
-      const result = await run('list[1, 2, 3] -> each { $ * 2 }');
-      expect(result).toEqual([2, 4, 6]);
+    it('AC-2: fan maps list elements in parallel', async () => {
+      expect(await run('list[1, 2, 3] -> fan({ $ * 2 })')).toEqual([2, 4, 6]);
     });
 
-    it('iterates with grouped expression', async () => {
-      const result = await run('list[1, 2, 3] -> each ($ + 10)');
-      expect(result).toEqual([11, 12, 13]);
+    it('AC-3: fold reduces list to final accumulator value', async () => {
+      expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
     });
 
-    it('iterates with variable closure', async () => {
-      // Define $fn as a closure first, then use it in each
+    it('AC-4: acc builds running total (scan pattern)', async () => {
+      expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([
+        1, 3, 6,
+      ]);
+    });
+
+    it('AC-5: filter keeps elements where predicate is true', async () => {
+      expect(await run('list[1, 2, 3, 4] -> filter({ ($ % 2) == 0 })')).toEqual(
+        [2, 4]
+      );
+    });
+
+    it('AC-6: fan with method-call body', async () => {
+      expect(await run('list["a", "b"] -> fan({ $.upper() })')).toEqual([
+        'A',
+        'B',
+      ]);
+    });
+
+    it('AC-7: seq with variable-bound callable', async () => {
       const script = `
-        |x| ($x * 2) => $fn
-        list[1, 2, 3] -> each $fn
+        |x| ($x * 10) => $fn
+        list[1, 2] -> seq($fn)
       `;
-      expect(await run(script)).toEqual([2, 4, 6]);
+      expect(await run(script)).toEqual([10, 20]);
     });
 
-    it('identity with bare $', async () => {
-      const result = await run('list[1, 2, 3] -> each $');
-      expect(result).toEqual([1, 2, 3]);
+    it('AC-8: fold with single named-param closure referencing $@ accumulator', async () => {
+      // Named param |item| binds element; $@ binds accumulator from fold context.
+      expect(await run('list[1, 2, 3] -> fold(0, |item|($@ + $item))')).toBe(6);
     });
 
-    it('returns empty list for empty collection', async () => {
-      const result = await run('list[] -> each { $ * 2 }');
-      expect(result).toEqual([]);
+    it('AC-9 (acc): two-type anonymous closure parses and binds in acc', async () => {
+      expect(
+        await run('list[1, 2, 3] -> acc(0, |number, number|{ $@ + $ })')
+      ).toEqual([1, 3, 6]);
     });
 
-    it('iterates over string characters', async () => {
-      const result = await run('"abc" -> each { "{$}!" }');
-      expect(result).toEqual(['a!', 'b!', 'c!']);
+    it('AC-9 (fold): two-type anonymous closure parses and binds in fold', async () => {
+      expect(
+        await run('list[1, 2, 3] -> fold(0, |number, number|{ $@ + $ })')
+      ).toBe(6);
     });
 
-    it('iterates over dict entries', async () => {
-      const result = await run('dict[a: 1, b: 2] -> each { $.value * 2 }');
-      expect(result).toEqual([2, 4]);
+    it('AC-10: fan with concurrency cap processes all elements in order', async () => {
+      const items = Array.from({ length: 20 }, (_, i) => i + 1);
+      const script = `list[${items.join(', ')}] -> fan({ $ * 2 }, [concurrency: 8])`;
+      const result = (await run(script)) as number[];
+      expect(result).toHaveLength(20);
+      expect(result[0]).toBe(2);
+      expect(result[19]).toBe(40);
     });
 
-    it('supports break for early termination', async () => {
+    it('AC-11: seq body break returns partial results', async () => {
       const script = `
-        list[1, 2, 3, 4, 5] -> each {
+        list[1, 2, 3, 4, 5] -> seq({
           ($ == 3) ? break
           $ * 2
-        }
-      `;
-      // break terminates at 3, returning results collected before break
-      expect(await run(script)).toEqual([2, 4]);
-    });
-
-    describe('with accumulator', () => {
-      it('accumulator via block form with $@', async () => {
-        // Running sum (scan pattern)
-        const script = 'list[1, 2, 3] -> each(0) { $@ + $ }';
-        expect(await run(script)).toEqual([1, 3, 6]);
-      });
-
-      it('accumulator via inline closure', async () => {
-        // Running sum with inline closure
-        const script = 'list[1, 2, 3] -> each |x, acc = 0| ($acc + $x)';
-        expect(await run(script)).toEqual([1, 3, 6]);
-      });
-
-      it('string accumulation', async () => {
-        const script = 'list["a", "b", "c"] -> each("") { "{$@}{$}" }';
-        expect(await run(script)).toEqual(['a', 'ab', 'abc']);
-      });
-    });
-  });
-
-  describe('map - Parallel Iteration', () => {
-    it('iterates with inline closure', async () => {
-      const result = await run('list[1, 2, 3] -> map |x| ($x * 2)');
-      expect(result).toEqual([2, 4, 6]);
-    });
-
-    it('iterates with block body', async () => {
-      const result = await run('list[1, 2, 3] -> map { $ * 2 }');
-      expect(result).toEqual([2, 4, 6]);
-    });
-
-    it('iterates with grouped expression', async () => {
-      const result = await run('list[1, 2, 3] -> map ($ + 10)');
-      expect(result).toEqual([11, 12, 13]);
-    });
-
-    it('identity with bare $', async () => {
-      const result = await run('list[1, 2, 3] -> map $');
-      expect(result).toEqual([1, 2, 3]);
-    });
-
-    it('returns empty list for empty collection', async () => {
-      const result = await run('list[] -> map { $ * 2 }');
-      expect(result).toEqual([]);
-    });
-
-    it('iterates over string characters', async () => {
-      const result = await run('"abc" -> map { "{$}!" }');
-      expect(result).toEqual(['a!', 'b!', 'c!']);
-    });
-
-    it('iterates over dict entries', async () => {
-      const result = await run('dict[a: 1, b: 2] -> map { $.value * 2 }');
-      expect(result).toEqual([2, 4]);
-    });
-
-    it('preserves order despite parallel execution', async () => {
-      // Even with parallel execution, order should be preserved
-      const script = 'list[1, 2, 3, 4, 5] -> map { $ }';
-      expect(await run(script)).toEqual([1, 2, 3, 4, 5]);
-    });
-  });
-
-  describe('fold - Sequential Reduction', () => {
-    it('reduces with inline closure', async () => {
-      // Sum via fold
-      const script = 'list[1, 2, 3] -> fold |x, acc = 0| ($acc + $x)';
-      expect(await run(script)).toBe(6);
-    });
-
-    it('reduces with block body and $@', async () => {
-      // Sum via block form
-      const script = 'list[1, 2, 3] -> fold(0) { $@ + $ }';
-      expect(await run(script)).toBe(6);
-    });
-
-    it('string concatenation', async () => {
-      const script = 'list["a", "b", "c"] -> fold("") { "{$@}{$}" }';
-      expect(await run(script)).toBe('abc');
-    });
-
-    it('returns initial value for empty collection', async () => {
-      const script = 'list[] -> fold(42) { $@ + $ }';
-      expect(await run(script)).toBe(42);
-    });
-
-    it('product reduction', async () => {
-      const script = 'list[1, 2, 3, 4] -> fold(1) { $@ * $ }';
-      expect(await run(script)).toBe(24);
-    });
-
-    it('max reduction', async () => {
-      const script = `
-        list[3, 1, 4, 1, 5, 9] -> fold(0) {
-          ($@ > $) ? $@ ! $
-        }
-      `;
-      expect(await run(script)).toBe(9);
-    });
-
-    it('count elements', async () => {
-      const script = 'list[1, 2, 3, 4, 5] -> fold(0) { $@ + 1 }';
-      expect(await run(script)).toBe(5);
-    });
-
-    it('reduce with variable closure', async () => {
-      const script = `
-        |x, acc = 0| ($acc + $x) => $sum
-        list[1, 2, 3] -> fold $sum
-      `;
-      expect(await run(script)).toBe(6);
-    });
-  });
-
-  describe('Comparison: each vs map vs fold', () => {
-    it('each returns all intermediate results', async () => {
-      const script = 'list[1, 2, 3] -> each(0) { $@ + $ }';
-      // Running sum: [1, 3, 6]
-      expect(await run(script)).toEqual([1, 3, 6]);
-    });
-
-    it('fold returns only final result', async () => {
-      const script = 'list[1, 2, 3] -> fold(0) { $@ + $ }';
-      // Final sum: 6
-      expect(await run(script)).toBe(6);
-    });
-
-    it('map has no accumulator', async () => {
-      const script = 'list[1, 2, 3] -> map { $ * 2 }';
-      // Each element doubled independently
-      expect(await run(script)).toEqual([2, 4, 6]);
-    });
-  });
-
-  describe('Chaining', () => {
-    it('chains multiple operations', async () => {
-      // Double each, then sum
-      const script = 'list[1, 2, 3] -> map { $ * 2 } -> fold(0) { $@ + $ }';
-      expect(await run(script)).toBe(12);
-    });
-
-    it('filter-like with filter operator', async () => {
-      // Use filter for filtering (cleaner than each + conditional)
-      const script = `
-        list[1, 2, 3, 4, 5] -> filter { ($ % 2) == 0 }
+        })
       `;
       expect(await run(script)).toEqual([2, 4]);
     });
-  });
 
-  describe('Edge Cases', () => {
-    it('single element collection', async () => {
-      expect(await run('list[42] -> each { $ * 2 }')).toEqual([84]);
-      expect(await run('list[42] -> map { $ * 2 }')).toEqual([84]);
-      expect(await run('list[42] -> fold(0) { $@ + $ }')).toBe(42);
+    it('AC-12: acc body break returns partial intermediate list', async () => {
+      const script = `
+        list[1, 2, 3, 4, 5] -> acc(0, {
+          ($ == 3) ? break
+          $@ + $
+        })
+      `;
+      expect(await run(script)).toEqual([1, 3]);
     });
 
-    it('nested collections', async () => {
+    it('fold produces only final result, not intermediate values', async () => {
+      expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
+    });
+
+    it('fold string concatenation reduces to joined string', async () => {
+      expect(await run('list["a", "b", "c"] -> fold("", { "{$@}{$}" })')).toBe(
+        'abc'
+      );
+    });
+
+    it('fold product reduction', async () => {
+      expect(await run('list[1, 2, 3, 4] -> fold(1, { $@ * $ })')).toBe(24);
+    });
+
+    it('fold max reduction', async () => {
+      expect(
+        await run('list[3, 1, 4, 1, 5, 9] -> fold(0, { ($@ > $) ? $@ ! $ })')
+      ).toBe(9);
+    });
+
+    it('filter preserves all elements when predicate always true', async () => {
+      expect(await run('list[1, 2, 3] -> filter({ $ > 0 })')).toEqual([
+        1, 2, 3,
+      ]);
+    });
+
+    it('filter returns empty list when predicate always false', async () => {
+      expect(await run('list[1, 2, 3] -> filter({ $ > 10 })')).toEqual([]);
+    });
+
+    it('seq and fan produce same results for pure transformations', async () => {
+      const seqResult = await run('list[1, 2, 3] -> seq({ $ * 2 })');
+      const fanResult = await run('list[1, 2, 3] -> fan({ $ * 2 })');
+      expect(seqResult).toEqual(fanResult);
+    });
+
+    it('chaining: seq then fold', async () => {
+      expect(
+        await run('list[1, 2, 3] -> seq({ $ * 2 }) -> fold(0, { $@ + $ })')
+      ).toBe(12);
+    });
+
+    it('chaining: seq then filter', async () => {
+      expect(
+        await run('list[1, 2, 3, 4] -> seq({ $ * 2 }) -> filter({ $ > 4 })')
+      ).toEqual([6, 8]);
+    });
+
+    it('seq with host function call in body', async () => {
+      expect(
+        await run('list[1, 2, 3] -> seq({ $ -> double })', {
+          functions: { double },
+        })
+      ).toEqual([2, 4, 6]);
+    });
+
+    it('seq with nested collection inside body', async () => {
       const script =
-        'list[list[1, 2], list[3, 4]] -> map { $ -> map { $ * 2 } }';
+        'list[list[1, 2], list[3, 4]] -> seq({ $ -> seq({ $ * 2 }) })';
       expect(await run(script)).toEqual([
         [2, 4],
         [6, 8],
       ]);
     });
+  });
 
-    it('works with function calls in body', async () => {
-      const script = 'list[1, 2, 3] -> map { $ -> double }';
-      expect(await run(script, { functions: { double } })).toEqual([2, 4, 6]);
+  // ── Boundary Conditions ──────────────────────────────────────────────────
+
+  describe('Boundary Conditions', () => {
+    it('AC-27/BC-1: empty list through seq returns empty list', async () => {
+      expect(await run('list[] -> seq({ $ * 2 })')).toEqual([]);
+    });
+
+    it('BC-2: empty list through fan returns empty list', async () => {
+      expect(await run('list[] -> fan({ $ * 2 })')).toEqual([]);
+    });
+
+    it('BC-3: empty list through filter returns empty list', async () => {
+      expect(await run('list[] -> filter({ $ > 0 })')).toEqual([]);
+    });
+
+    it('AC-28/BC-NOD-2: empty list through fold returns seed unchanged', async () => {
+      expect(await run('list[] -> fold(10, { $@ + $ })')).toBe(10);
+    });
+
+    it('AC-29/BC-NOD-3: empty list through acc returns empty list', async () => {
+      expect(await run('list[] -> acc(10, { $@ + $ })')).toEqual([]);
+    });
+
+    it('AC-30/BC-4: string input through seq returns list of processed characters', async () => {
+      expect(await run('"abc" -> seq({ $.upper })')).toEqual(['A', 'B', 'C']);
+    });
+
+    it('AC-31/BC-5: dict input through fan returns list of values', async () => {
+      const result = (await run(
+        '[a: 1, b: 2] -> fan({ $.value })'
+      )) as RillValue[];
+      expect(result).toHaveLength(2);
+      expect(result).toContain(1);
+      expect(result).toContain(2);
+    });
+
+    it('AC-32/BC-6: iterator (range) input through seq', async () => {
+      expect(await run('range(0, 3) -> seq({ $ * 10 })')).toEqual([0, 10, 20]);
+    });
+
+    it('AC-33/BC-7: stream input through fan dispatches parallel', async () => {
+      const script = `
+        make_stream() => $s
+        $s -> fan({ $ * 2 })
+      `;
+      expect(
+        await run(script, {
+          functions: { make_stream: makeStreamFn([1, 2, 3]) },
+        })
+      ).toEqual([2, 4, 6]);
+    });
+
+    it('AC-34/BC-8: iteration count > 10000 raises RILL-R010', async () => {
+      await expect(run('range(0, 10001) -> seq({ $ })')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R010' })
+      );
+    });
+
+    it('AC-35/BC-9: fan with concurrency > element count completes without error', async () => {
+      expect(
+        await run('list[1, 2] -> fan({ $ * 2 }, [concurrency: 100])')
+      ).toEqual([2, 4]);
+    });
+
+    it('AC-36/BC-10: seq called with extra dict arg raises arity error', async () => {
+      await expect(
+        run('list[1, 2, 3] -> seq({ $ * 2 }, [concurrency: 8])')
+      ).rejects.toThrow();
+    });
+
+    it('single element collection through seq', async () => {
+      expect(await run('list[42] -> seq({ $ * 2 })')).toEqual([84]);
+    });
+
+    it('single element collection through fold', async () => {
+      expect(await run('list[42] -> fold(0, { $@ + $ })')).toBe(42);
+    });
+
+    it('single element collection through filter (match)', async () => {
+      expect(await run('list[42] -> filter({ $ > 0 })')).toEqual([42]);
+    });
+
+    it('single element collection through filter (no match)', async () => {
+      expect(await run('list[42] -> filter({ $ > 100 })')).toEqual([]);
     });
   });
 
-  describe('Method Shorthand Syntax', () => {
-    describe('basic .method form', () => {
-      it('each .method', async () => {
-        const result = await run('list["hello", "world"] -> each .upper');
-        expect(result).toEqual(['HELLO', 'WORLD']);
-      });
+  // ── Error Cases ──────────────────────────────────────────────────────────
 
-      it('map .method', async () => {
-        const result = await run('list["hello", "world"] -> map .upper');
-        expect(result).toEqual(['HELLO', 'WORLD']);
-      });
-
-      it('filter .method', async () => {
-        const result = await run('list["hello", "", "world"] -> filter .empty');
-        expect(result).toEqual(['']);
-      });
-
-      it('filter with negation (!.empty) uses grouped form', async () => {
-        // Negated methods require grouped expression
-        const result = await run(
-          'list["hello", "", "world"] -> filter (!.empty)'
-        );
-        expect(result).toEqual(['hello', 'world']);
-      });
+  describe('Error Cases', () => {
+    it('AC-18/EC-1 (seq): non-callable body raises RILL-R040', async () => {
+      await expect(run('list[1] -> seq(42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R040' })
+      );
     });
 
-    describe('method with arguments', () => {
-      it('.method(arg)', async () => {
-        const result = await run('list["a", "b"] -> map .pad_start(3, "0")');
-        expect(result).toEqual(['00a', '00b']);
-      });
-
-      it('.method(arg1, arg2)', async () => {
-        // .replace replaces first occurrence only
-        const result = await run(
-          'list["hello world", "foo bar"] -> map .replace("o", "0")'
-        );
-        expect(result).toEqual(['hell0 world', 'f0o bar']);
-      });
+    it('EC-1 (fold): non-callable body raises RILL-R040', async () => {
+      await expect(run('list[1] -> fold(0, 42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R040' })
+      );
     });
 
-    describe('chained methods', () => {
-      it('.method1.method2', async () => {
-        const result = await run(
-          'list["  HELLO  ", "  WORLD  "] -> map .trim.lower'
-        );
-        expect(result).toEqual(['hello', 'world']);
-      });
-
-      it('triple chain .trim.upper.len', async () => {
-        const result = await run(
-          'list["  hi  ", " bye "] -> each .trim.upper.len'
-        );
-        expect(result).toEqual([2, 3]);
-      });
+    it('EC-1 (filter): non-callable body raises RILL-R040', async () => {
+      await expect(run('list[1] -> filter(42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R040' })
+      );
     });
 
-    describe('all collection operators', () => {
-      it('each -> string', async () => {
-        const result = await run('list[1, 2, 3] -> each { $ -> string }');
-        expect(result).toEqual(['1', '2', '3']);
-      });
-
-      it('map -> string', async () => {
-        const result = await run('list[1, 2, 3] -> map { $ -> string }');
-        expect(result).toEqual(['1', '2', '3']);
-      });
-
-      it('filter .method', async () => {
-        const result = await run('list["", "a", "", "b"] -> filter .empty');
-        expect(result).toEqual(['', '']);
-      });
+    it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
+      await expect(
+        run('list[1, 2, 3] -> fold(0, |a, b, c|($a + $b + $c))')
+      ).rejects.toThrow();
     });
 
-    describe('consistency with other body forms', () => {
-      it('.method equivalent to { $.method() }', async () => {
-        const methodResult = await run('list["a", "b"] -> map .upper');
-        const blockResult = await run('list["a", "b"] -> map { $.upper() }');
-        expect(methodResult).toEqual(blockResult);
-      });
+    it('EC-2 (seq): 2-arg named closure raises arity error', async () => {
+      await expect(
+        run('list[1, 2, 3] -> seq(|a, b| ($a + $b))')
+      ).rejects.toThrow();
+    });
 
-      it('.method equivalent to ($.method())', async () => {
-        const methodResult = await run('list["a", "b"] -> map .upper');
-        const groupedResult = await run('list["a", "b"] -> map ($.upper())');
-        expect(methodResult).toEqual(groupedResult);
-      });
+    it('AC-20/EC-NOD-3: named param mixed with bare $ raises undefined-variable error', async () => {
+      await expect(run('list[1] -> fan(|x|{ $ + 1 })')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R005' })
+      );
+    });
 
-      it('.method equivalent to |x| $x.method()', async () => {
-        const methodResult = await run('list["a", "b"] -> map .upper');
-        const closureResult = await run('list["a", "b"] -> map |x| $x.upper()');
-        expect(methodResult).toEqual(closureResult);
-      });
+    it('AC-21/EC-3: seq body references $@ raises undefined-variable error', async () => {
+      await expect(run('list[1, 2] -> seq({ $@ + 1 })')).rejects.toThrow();
+    });
+
+    it('AC-22/EC-10 (fan): negative concurrency raises RILL-R001', async () => {
+      await expect(
+        run('list[1, 2, 3] -> fan({ $ * 2 }, [concurrency: -1])')
+      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    });
+
+    it('AC-23/EC-9 (filter): non-number concurrency raises RILL-R001', async () => {
+      await expect(
+        run('list[1, 2] -> filter({ $ > 0 }, [concurrency: "8"])')
+      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    });
+
+    it('AC-24/EC-5: non-iterable input to seq raises error', async () => {
+      await expect(run('42 -> seq({ $ })')).rejects.toThrow(
+        'Collection operators require'
+      );
+    });
+
+    it('AC-25/EC-NOD-8: legacy `each` syntax fails with unknown-function error (RILL-R006)', async () => {
+      // `each` is now an identifier; it resolves to unknown function at runtime.
+      await expect(run('list[1] -> each { $ }')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R006' })
+      );
+    });
+
+    it('AC-26/EC-11 (fold): typed closure with mismatched element type raises RILL-R001', async () => {
+      // |string, number| declares $ as string, but list has numbers.
+      await expect(
+        run('list[1, 2, 3] -> fold(0, |string, number|{ $@ + $ })')
+      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    });
+
+    it('EC-4: bare $ reference at module scope without pipe provider raises error', async () => {
+      await expect(run('$ + 1')).rejects.toThrow();
+    });
+
+    it('EC-6: vector input to seq raises error', async () => {
+      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
+      await expect(
+        run('$v -> seq({ $ })', { variables: { v: vec } })
+      ).rejects.toThrow('Collection operators require');
+    });
+
+    it('EC-8 (filter): options not a dict raises RILL-R001', async () => {
+      await expect(run('list[1] -> filter({ $ > 0 }, 42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R001' })
+      );
+    });
+
+    it('EC-10 (filter): negative concurrency raises RILL-R001', async () => {
+      await expect(
+        run('list[1, 2] -> filter({ $ > 0 }, [concurrency: -1])')
+      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    });
+  });
+
+  // ── Infrastructure Assertions ─────────────────────────────────────────────
+
+  describe('Infrastructure Assertions', () => {
+    it('AC-14: parse produces zero EACH/MAP/FOLD/FILTER legacy tokens', () => {
+      // Legacy keyword token types were removed from TOKEN_TYPES when the
+      // keyword-based syntax was replaced with callable-function syntax.
+      expect(TOKEN_TYPES).not.toHaveProperty('EACH');
+      expect(TOKEN_TYPES).not.toHaveProperty('MAP');
+      expect(TOKEN_TYPES).not.toHaveProperty('FOLD');
+      expect(TOKEN_TYPES).not.toHaveProperty('FILTER');
+    });
+
+    it('AC-15: AST contains no EachExpr/MapExpr/FoldExpr/FilterExpr nodes', () => {
+      // Legacy AST node types are removed. Parse a new-syntax script and walk
+      // the full AST tree to confirm no legacy node type appears.
+      const LEGACY_TYPES = new Set([
+        'EachExpr',
+        'MapExpr',
+        'FoldExpr',
+        'FilterExpr',
+      ]);
+      const visit = (value: unknown): void => {
+        if (value === null || typeof value !== 'object') return;
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+          return;
+        }
+        const node = value as Record<string, unknown>;
+        if (typeof node['type'] === 'string') {
+          expect(LEGACY_TYPES.has(node['type'] as string)).toBe(false);
+        }
+        Object.values(node).forEach(visit);
+      };
+      visit(parse('list[1, 2, 3] -> seq({ $ * 2 })'));
+    });
+
+    it('AC-16: src/parser/parser-collect.ts does not exist (removed)', async () => {
+      const fs = await import('fs');
+      const exists = fs.existsSync(
+        new URL('../../../../src/parser/parser-collect.ts', import.meta.url)
+          .pathname
+      );
+      expect(exists).toBe(false);
     });
   });
 });

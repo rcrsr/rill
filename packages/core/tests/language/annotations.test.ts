@@ -202,9 +202,9 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('allows for-each loops within limit', async () => {
-      // Operator-level annotation on each
+      // Statement-level annotation on seq (callable form)
       const script = `
-        list[1, 2, 3] -> each^(limit: 10) { $ }
+        list[1, 2, 3] -> seq({ $ })
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
@@ -272,7 +272,7 @@ describe('Rill Runtime: Annotations', () => {
   describe('Annotations with Various Statements', () => {
     it('works with pipe chains', async () => {
       const script = `
-        ^(limit: 5) list[1, 2, 3] -> each { $ } -> .len
+        ^(limit: 5) list[1, 2, 3] -> seq({ $ }) -> .len
       `;
       expect(await run(script)).toBe(3);
     });
@@ -816,62 +816,54 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
-    describe('each with operator-level annotation', () => {
-      it('parses ^(limit:) before each body without error', () => {
-        const ast = parse('list[1, 2, 3] -> each ^(limit: 10) { $ }');
+    describe('each (seq) with annotation', () => {
+      it('parses seq body without error', () => {
+        const ast = parse('list[1, 2, 3] -> seq({ $ })');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes each with operator-level annotation and produces correct result', async () => {
-        const result = await run('list[1, 2, 3] -> each ^(limit: 10) { $ }');
+      it('executes seq and produces correct result', async () => {
+        const result = await run('list[1, 2, 3] -> seq({ $ })');
         expect(result).toEqual([1, 2, 3]);
       });
     });
 
-    describe('map with operator-level annotation', () => {
-      it('parses ^(limit:) before map body without error', () => {
-        const ast = parse('list[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+    describe('map (fan) with annotation', () => {
+      it('parses fan body without error', () => {
+        const ast = parse('list[1, 2, 3] -> fan({ $ * 2 })');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes map with operator-level annotation and doubles each element', async () => {
-        const result = await run('list[1, 2, 3] -> map ^(limit: 10) { $ * 2 }');
+      it('executes fan and doubles each element', async () => {
+        const result = await run('list[1, 2, 3] -> fan({ $ * 2 })');
         expect(result).toEqual([2, 4, 6]);
       });
     });
 
-    describe('fold with operator-level annotation', () => {
-      it('parses ^(limit:) before fold body without error', () => {
-        // fold uses closure form with default accumulator so ^(...) can precede the body
-        const ast = parse(
-          'list[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
-        );
+    describe('fold with callable form', () => {
+      it('parses fold(seed, body) without error', () => {
+        const ast = parse('list[1, 2, 3] -> fold(0, { $@ + $ })');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes fold with operator-level annotation and sums elements', async () => {
-        // fold(init) prefix conflicts with ^(...) placement; use closure form instead
-        const result = await run(
-          'list[1, 2, 3] -> fold ^(limit: 10) |x, acc = 0| ($acc + $x)'
-        );
+      it('executes fold and sums elements', async () => {
+        const result = await run('list[1, 2, 3] -> fold(0, { $@ + $ })');
         expect(result).toBe(6);
       });
     });
 
-    describe('filter with operator-level annotation', () => {
-      it('parses ^(limit:) before filter body without error', () => {
-        const ast = parse('list[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }');
+    describe('filter with callable form', () => {
+      it('parses filter(body) without error', () => {
+        const ast = parse('list[1, 2, 3, 4] -> filter({ $ > 2 })');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes filter with operator-level annotation and returns matching elements', async () => {
-        const result = await run(
-          'list[1, 2, 3, 4] -> filter ^(limit: 10) { $ > 2 }'
-        );
+      it('executes filter and returns matching elements', async () => {
+        const result = await run('list[1, 2, 3, 4] -> filter({ $ > 2 })');
         expect(result).toEqual([3, 4]);
       });
     });
@@ -885,7 +877,7 @@ describe('Rill Runtime: Annotations', () => {
 
       it('statement-level ^(limit:) before each — still runs each to completion', async () => {
         // Statement annotation wraps the full pipe chain; each uses default limit.
-        const result = await run('^(limit: 1000) list[1, 2, 3] -> each { $ }');
+        const result = await run('^(limit: 1000) list[1, 2, 3] -> seq({ $ })');
         expect(result).toEqual([1, 2, 3]);
       });
 
@@ -896,21 +888,20 @@ describe('Rill Runtime: Annotations', () => {
       });
     });
 
-    describe('EC-7: Invalid annotation key for operator context — parse-level acceptance', () => {
-      // EC-7: Runtime enforcement of invalid operator annotation keys is not implemented in Phase 2.
-      // Phase 2 only adds parser support. The parser accepts any key in ^(...) operator annotations.
-      // This test verifies the parser does not reject unknown keys (runtime error is Phase 3 scope).
+    describe('EC-7: Unknown annotation key at statement level — parse-level acceptance', () => {
+      // EC-7: The parser accepts any key in ^(...) statement-level annotations.
+      // This test verifies the parser does not reject unknown keys.
 
-      it('parses unknown annotation key on each without error', () => {
-        const ast = parse('list[1, 2, 3] -> each ^(invalid_key: 99) { $ }');
+      it('parses unknown annotation key on seq without error', () => {
+        const ast = parse('^(invalid_key: 99) list[1, 2, 3] -> seq({ $ })');
         expect(ast.statements).toHaveLength(1);
-        expect(ast.statements[0]?.type).toBe('Statement');
+        expect(ast.statements[0]?.type).toBe('AnnotatedStatement');
       });
 
-      it('parses unknown annotation key on map without error', () => {
-        const ast = parse('list[1, 2, 3] -> map ^(unknown: true) { $ }');
+      it('parses unknown annotation key on fan without error', () => {
+        const ast = parse('^(unknown: true) list[1, 2, 3] -> fan({ $ * 2 })');
         expect(ast.statements).toHaveLength(1);
-        expect(ast.statements[0]?.type).toBe('Statement');
+        expect(ast.statements[0]?.type).toBe('AnnotatedStatement');
       });
     });
   });
@@ -1138,9 +1129,9 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run(script)).toBe('loop');
     });
 
-    it('operator-level limit on each with block-closure runs without error (IR-8)', async () => {
-      // Combines operator-level annotation (IR-8) with each collection operator
-      const result = await run('list[1, 2, 3] -> each ^(limit: 10) { $ * 2 }');
+    it('seq with block-closure runs without error (IR-8)', async () => {
+      // seq collection operator with block body
+      const result = await run('list[1, 2, 3] -> seq({ $ * 2 })');
       expect(result).toEqual([2, 4, 6]);
     });
   });

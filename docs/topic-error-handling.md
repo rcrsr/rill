@@ -304,9 +304,9 @@ Read the trace with `.!trace`:
 
 ```text
 guard { app::fetch("https://api.example.com") } => $result
-$result.!trace -> each {
+$result.!trace -> seq({
   "{$.kind} at {$.site}"
-}
+})
 ```
 
 A trace with 3 frames from `retry<3>` exhaustion looks like:

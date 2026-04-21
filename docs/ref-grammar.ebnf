@@ -106,7 +106,7 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
    "hello" -> $x                 -- terminal capture (ends chain)
    "hello" -> $x -> .len         -- inline capture (-> $x ->, value flows through)
    "hello" => $x -> .len         -- capture arrow (clearer, same effect)
-   [1,2,3] -> each { break } -- break terminates (exits loop)
+   [1,2,3] -> seq({ break }) -- break terminates (exits seq body)
    "result" -> return            -- return terminates (exits function) *)
 
 statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
@@ -539,10 +539,8 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | string             (* $ -> "hello {$}" — template with interpolation *)
               | conditional        (* $ -> ? "yes" ! "no" — conditional on $ *)
               | loop               (* $ -> @(cond) { body } — while loop *)
-              | each-expr          (* $ -> each { body } — sequential iteration *)
-              | map-expr           (* $ -> map { body } — parallel iteration *)
-              | fold-expr          (* $ -> fold(init) { body } — reduction *)
-              | filter-expr        (* $ -> filter { cond } — parallel filtering *)
+                                   (* Collection operators seq, fan, fold, filter, acc *)
+                                   (* parse as ordinary host-call: seq({ body }), fan({ body }), etc. *)
               | block              (* $ -> { .len } — block with implicit $ head *)
               | grouped-expr       (* $ -> ($ + 1) — arithmetic/compound expression *)
               | destructure        (* $ -> destruct<$a, $b> — extract elements into vars *)
@@ -624,7 +622,7 @@ slice-bound       = number | variable | grouped-expr ;
 spread            = "..." , postfix-expr ;
               (* Spread converts a dict to ordered for arg unpacking: ...[a: 1, b: 2]
                  Only dict spread is valid.
-                 Bare ... in pipe position uses implicit $: each { ... } ≡ each { $ -> ... } *)
+                 Bare ... in pipe position uses implicit $: seq({ ... }) ≡ seq({ $ -> ... }) *)
 
 (* Type conversion operator: coerce pipe value to a target type.
    -> type — static type name
@@ -815,16 +813,16 @@ else-clause   = conditional | body ;
    - bool input: while loop (re-evaluates condition each iteration)
    - trailing ? condition: do-while (body first, then check)
 
-   For-each iteration uses collection operators (each, map, filter, fold).
+   For-each iteration uses collection operators (seq, fan, fold, filter, acc).
    See docs/collections.md for collection operators.
 
    Examples:
      ($x < 10) @ { ($x + 1) => $x }     -- while loop (condition is bool)
      @ { $ } ? ($x < 10)                -- do-while (body, then check)
-     [1, 2, 3] -> each { $ * 2 }    -- for-each (use each operator)
-     "abc" -> each { $ }                -- iterate over string chars
-     [a: 1, b: 2] -> each { $.key } -- iterate over dict entries
-     $items -> each { process($) }      -- iterate over variable *)
+     [1, 2, 3] -> seq({ $ * 2 })        -- sequential for-each
+     "abc" -> seq({ $ })                -- iterate over string chars
+     [a: 1, b: 2] -> seq({ $.key })     -- iterate over dict entries
+     $items -> seq({ process($) })      -- iterate over variable *)
 
 loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
               (* First body: input (condition for while, iterable for for-each)
@@ -838,89 +836,29 @@ loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
 (* COLLECTION OPERATORS                                         *)
 (* ============================================================ *)
 
-(* Collection operators for iteration and reduction.
-   See docs/collections.md for complete documentation.
+(* Collection operators seq, fan, fold, filter, and acc are ordinary
+   host-callable functions. They parse as host-call under function-call syntax.
+   No dedicated grammar productions exist for these operators.
 
    Operator comparison:
-   - each:   Sequential iteration, returns list of all results
-   - map:    Parallel iteration (Promise.all), returns list of all results
-   - filter: Parallel filtering, returns elements where predicate is truthy
-   - fold:   Sequential reduction, returns final result only
+   - seq(body):          Sequential, returns list of all results, catches break
+   - fan(body, opts?):   Parallel (Promise.all), returns list in order, no break catch
+   - fold(seed, body):   Sequential reduction, returns final value only, no break catch
+   - filter(body, opts?):Parallel predicate, returns matching elements, no break catch
+   - acc(seed, body):    Sequential scan, returns list of intermediates, catches break
 
-   Body forms (all operators):
-   - block:     { body }           -- $ is current element
-   - grouped:   ( expr )           -- $ is current element
-   - closure:   |x| body           -- named parameter
-   - variable:  $fn                -- pre-defined closure
-   - identity:  $                  -- return elements unchanged
-
-   Accumulator (each and fold only):
-   - Block form: (init) { body }   -- $@ is accumulator, $ is element
-   - Closure:    |x, acc = init|   -- named accumulator parameter
-
-   Dict iteration binds $ to { key, value } objects.
+   $@ is the accumulator in fold(seed, body) and acc(seed, body).
+   $ is the current element in all operator bodies.
+   Dict iteration binds $ to { key, value } entries.
 
    Examples:
-     [1, 2, 3] -> each { $ * 2 }           -- [2, 4, 6]
-     [1, 2, 3] -> map ($ + 10)             -- [11, 12, 13]
-     [1, 2, 3, 4, 5] -> filter { $ > 2 }   -- [3, 4, 5]
-     [1, 2, 3] -> fold(0) { $@ + $ }       -- 6
-     [1, 2, 3] -> each(0) { $@ + $ }       -- [1, 3, 6] (running sum)
-     [1, 2, 3] -> each |x, s = 0| ($s + $x) -- [1, 3, 6]
+     [1, 2, 3] -> seq({ $ * 2 })              -- [2, 4, 6]
+     [1, 2, 3] -> fan({ $ * 2 })              -- [2, 4, 6]
+     [1, 2, 3, 4, 5] -> filter({ $ > 2 })     -- [3, 4, 5]
+     [1, 2, 3] -> fold(0, { $@ + $ })         -- 6
+     [1, 2, 3] -> acc(0, { $@ + $ })          -- [1, 3, 6] (running sum)
+     [1, 2, 3] -> fan({ $ * 2 }, [concurrency: 2]) -- parallel with concurrency cap
 *)
-
-iterator-body = closure | block | grouped-expr | postfix-expr | host-name ;
-              (* Valid body forms for each, map, fold, filter operators.
-                 closure: |x| body or |x, acc = init| body
-                 block: { body } where $ is current element
-                 grouped-expr: ( expr ) where $ is current element
-                 postfix-expr: includes variables ($fn), bare $ for identity, and .method shorthand
-                 host-name: bare function name (func or ns::func), element passed as first arg
-                 Note: variable not listed separately since postfix-expr -> primary -> variable
-                 .method shorthand applies method to each element: ["a","b"] -> map .upper *)
-
-each-expr     = "each" , [ "(" , expression , ")" ] , [ annotation ] , iterator-body ;
-              (* Sequential iteration returning list of all body results.
-                 Optional (expression) provides initial accumulator value.
-                 With accumulator: $@ is accumulator, $ is current element.
-                 Supports break for early termination.
-                 Optional annotation before body attaches operational metadata.
-                 [1, 2, 3] -> each { $ * 2 }              -- [2, 4, 6]
-                 [1, 2, 3] -> each(0) { $@ + $ }          -- [1, 3, 6]
-                 [1, 2, 3] -> each ^(limit: 1000) { $ }   -- with annotation *)
-
-map-expr      = "map" , [ annotation ] , iterator-body ;
-              (* Parallel iteration returning list of all body results.
-                 Executes all iterations concurrently via Promise.all.
-                 Order is preserved despite parallel execution.
-                 No accumulator (parallel has no "previous" value).
-                 No break support.
-                 Optional annotation before body controls concurrency limit.
-                 [1, 2, 3] -> map { $ * 2 }               -- [2, 4, 6]
-                 $urls -> map |url| fetch($url)                -- concurrent fetch
-                 $urls -> map ^(limit: 10) { fetch($) }       -- limit concurrency *)
-
-fold-expr     = "fold" , ( "(" , expression , ")" , [ annotation ] , iterator-body | closure | variable ) ;
-              (* Sequential reduction returning final accumulated value.
-                 Requires accumulator (reduction semantics need initial value).
-                 Block form: (init) { body } where $@ is accumulator.
-                 Closure form: |x, acc = init| body.
-                 Variable form: $fn where closure defines accumulator.
-                 No break support.
-                 [1, 2, 3] -> fold(0) { $@ + $ }                    -- 6
-                 [1, 2, 3] -> fold ^(limit: 20) |x, s = 0| ($s + $x) -- with annotation *)
-
-filter-expr   = "filter" , [ annotation ] , iterator-body ;
-              (* Parallel filtering returning elements where predicate is true.
-                 Predicate MUST return boolean (true or false).
-                 Non-boolean values will cause a runtime error.
-                 Executes all predicates concurrently via Promise.all.
-                 Order is preserved despite parallel execution.
-                 No accumulator (each element evaluated independently).
-                 Optional annotation before body attaches operational metadata.
-                 [1, 2, 3, 4, 5] -> filter { $ > 2 }          -- [3, 4, 5]
-                 $users -> filter |u| ($u.active)                  -- active users
-                 $users -> filter ^(limit: 50) { $.active }        -- with annotation *)
 
 block         = "{" , statement , { statement } , "}" ;
               (* Block expression semantics depend on context:
@@ -936,7 +874,7 @@ block         = "{" , statement , { statement } , "}" ;
                  Observable result identical to eager evaluation.
 
                  SYNTACTIC BODY (eager evaluation):
-                 - each { }                         -- loop body
+                 - (cond) @ { }                     -- while loop body
                  - cond ? { } ! { }                 -- conditional branches
                  - |x| { }                          -- closure body
                  These use BlockNode as grammar body, not expression.

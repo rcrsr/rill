@@ -15,7 +15,6 @@ import './parser-literals.js';
 import './parser-variables.js';
 import './parser-control.js';
 import './parser-functions.js';
-import './parser-collect.js';
 import './parser-extract.js';
 import './parser-shape.js';
 import './parser-use.js';

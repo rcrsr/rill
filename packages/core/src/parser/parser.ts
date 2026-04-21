@@ -23,7 +23,6 @@ import { type ParserState, createParserState } from './state.js';
  * - parser-variables.ts: Variables, access chains
  * - parser-control.ts: Conditionals, loops, blocks
  * - parser-functions.ts: Function calls, methods, type operations
- * - parser-collect.ts: Collection operators (each, map, fold, filter)
  * - parser-extract.ts: Extraction operators (destructure, slice, spread)
  *
  * @example

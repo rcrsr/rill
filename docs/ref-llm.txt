@@ -8,7 +8,7 @@
 2. Pipe with `->`, capture with `=>`: `"hello" => $x -> .upper => $y`
 3. No null/undefined, no try/catch, no truthiness (conditions must be boolean)
 4. Variables lock to first type: `"hi" => $x; 42 => $x` is an ERROR
-5. Loops cannot modify outer vars: use `fold`, `each(init)`, or `$` as state dict
+5. Loops cannot modify outer vars: use `fold`, `acc(init, { })`, or `$` as state dict
 
 ## Critical Differences from Mainstream Languages
 
@@ -53,15 +53,15 @@ Variables created inside blocks/loops do NOT leak out.
 WRONG — outer variable modification (runtime error):
 
     0 => $count
-    list[1, 2, 3] -> each { $count + 1 => $count }  # ERROR: Cannot reassign outer variable
+    list[1, 2, 3] -> seq({ $count + 1 => $count })  # ERROR: Cannot reassign outer variable
 
 RIGHT — use `fold` for reduction:
 
-    list[1, 2, 3] -> fold(0) { $@ + $ }             # 6 ($@ is accumulator)
+    list[1, 2, 3] -> fold(0, { $@ + $ })             # 6 ($@ is accumulator)
 
-RIGHT — use `each(init)` for results AND accumulator:
+RIGHT — use `acc` for results AND running accumulator:
 
-    list[1, 2, 3] -> each(0) { $@ + $ }             # list[1, 3, 6] (running totals)
+    list[1, 2, 3] -> acc(0, { $@ + $ })              # list[1, 3, 6] (running totals)
 
 RIGHT — use `(cond) @ { }` with `$` as state dict for multiple values:
 
@@ -75,8 +75,8 @@ RIGHT — use `(cond) @ { }` with `$` as state dict for multiple values:
 
 Pattern summary:
 
-    Single value accumulation     -> fold(init) { $@ + $ }
-    Per-item results + running    -> each(init) { ... $@ ... }
+    Single value accumulation     -> fold(init, { $@ + $ })
+    Per-item results + running    -> acc(init, { ... $@ ... })
     Multiple state values / while -> (cond) @ { } with $ as state dict
     "while" and "for" keywords    -> DO NOT EXIST
 
@@ -141,7 +141,11 @@ The `$` prefix disambiguates callables from variables and keys:
 | Context | `$` contains |
 |---|---|
 | `-> { body }` | piped value |
-| `-> each { }` | current item |
+| `-> seq({ })` | current item |
+| `-> fan({ })` | current item |
+| `-> filter({ })` | current item |
+| `-> fold(i, { })` | current item (`$@` = accumulator) |
+| `-> acc(i, { })` | current item (`$@` = accumulator) |
 | `(cond) @ { }` | accumulated value |
 | `@ { } ? cond` | accumulated value |
 | `cond ? { } ! { }` | tested value |
@@ -198,12 +202,12 @@ Do-condition loop (body runs at least once):
 
     init_value -> @ { $ + 1 } ? ($ < 10)
 
-Break (exits loop, returns collected results before break):
+Break (exits loop or seq/acc body, returns collected results before break):
 
-    list[1,2,3,4,5] -> each {
+    list[1,2,3,4,5] -> seq({
       ($ == 3) ? break
       $
-    }                                                # returns list[1, 2]
+    })                                               # returns list[1, 2]
 
 Return (exits block or script with value):
 
@@ -230,7 +234,7 @@ Pass (returns `$` unchanged, explicit no-op):
     cond ? pass ! "fallback"               # preserve $ when condition true
     cond ? "value" ! pass                  # preserve $ when condition false
     "data" -> { dict[status: pass] }              # include $ in dict: dict[status: "data"]
-    list[1, -2, 3] -> map { ($ > 0) ? pass ! 0 }  # list[1, 0, 3]
+    list[1, -2, 3] -> fan({ ($ > 0) ? pass ! 0 })  # list[1, 0, 3]
 
 Note: `pass` requires pipe context. Using `pass` without `$` throws error.
 
@@ -273,48 +277,38 @@ Zero-param dict closures (methods):
 
 Choose the right operator:
 
-    Transform each item?         -> map { }
-    Side effects per item?       -> each { }
-    Single result from list?     -> fold(init) { $@ + $ }
-    Filter items?                -> filter { }
-    Results + running total?     -> each(init) { ... $@ ... }
+    Transform each item?         -> seq({ }) or fan({ })
+    Single result from list?     -> fold(init, { $@ + $ })
+    Filter items?                -> filter({ })
+    Results + running total?     -> acc(init, { ... $@ ... })
     Loop with state?             -> (cond) @ { } (see Control Flow)
 
-| Operator | Execution | Returns | Break? |
+| Operator | Execution | Returns | Catches break? |
 |---|---|---|---|
-| `-> each { }` | sequential | all body results | yes |
-| `-> each(i) { $@ + $ }` | sequential | all with accumulator | yes |
-| `-> map { }` | parallel | all body results | NO |
-| `-> filter { }` | parallel | matching elements | NO |
-| `-> fold(i) { $@ + $ }` | sequential | final result only | yes |
+| `-> seq({ })` | sequential | all body results | yes |
+| `-> acc(i, { $@ + $ })` | sequential | all with accumulator | yes |
+| `-> fan({ })` | parallel | all body results | no |
+| `-> filter({ })` | parallel | matching elements | no |
+| `-> fold(i, { $@ + $ })` | sequential | final result only | no |
 
-`$@` is the accumulator in `each(init)` and `fold(init)`.
+`$@` is the accumulator in `acc(init, ...)` and `fold(init, ...)`.
 
-Method shorthand in collection operators:
+Body forms (all operators accept a callable as first or only body argument):
 
-    list["a", "b"] -> map .upper              # list["A", "B"]
-    list["", "x"] -> filter (!.empty)         # list["x"]
-    list["a", "b"] -> map .pad_start(3, "0")  # list["00a", "00b"] (with args)
-    list["  HI  "] -> map .trim.lower         # list["hi"] (chained methods)
-
-Body forms (all operators accept these):
-
-    -> each { $ * 2 }                   # block ($ is current element)
-    -> each ($ + 10)                    # grouped expression
-    -> each |x| ($x * 2)               # inline closure
-    -> each $double                     # variable closure
-    -> each .upper                      # method shorthand
-    -> each log                         # built-in function
+    -> seq({ $ * 2 })                   # block ($ is current element)
+    -> seq(|x| ($x * 2))               # inline closure
+    -> seq($double)                     # variable closure
+    -> seq(log)                         # built-in function
 
 Dict iteration (`$` contains `key` and `value` fields):
 
-    dict[a: 1, b: 2] -> each { "{$.key}={$.value}" }   # list["a=1", "b=2"]
-    dict[a: 1, b: 5] -> filter { $.value > 2 }          # entries where value > 2
+    dict[a: 1, b: 2] -> seq({ "{$.key}={$.value}" })   # list["a=1", "b=2"]
+    dict[a: 1, b: 5] -> filter({ $.value > 2 })         # entries where value > 2
 
 String iteration (iterates over characters):
 
-    "abc" -> each { "{$}!" }            # list["a!", "b!", "c!"]
-    "hello" -> filter { $ != "l" }      # list["h", "e", "o"]
+    "abc" -> seq({ "{$}!" })            # list["a!", "b!", "c!"]
+    "hello" -> filter({ $ != "l" })     # list["h", "e", "o"]
 
 ## Property Access
 
@@ -394,20 +388,20 @@ Use in closure params to validate input structure:
 
     app::fetch("https://api.example.com/users") => $response
     $response.data
-      -> filter { $.active }
-      -> map { dict[name: $.name, email: $.email] }
-      -> each {
+      -> filter({ $.active })
+      -> fan({ dict[name: $.name, email: $.email] })
+      -> seq({
         "Processing {$.name}" -> log
         app::send_welcome($.email)
-      }
+      })
 
 **Build a result from a list:**
 
     list["alice", "bob", "charlie"]
-      -> map { dict[name: $, greeting: "Hello, {$}!"] }
-      -> fold(dict[]) {
+      -> fan({ dict[name: $, greeting: "Hello, {$}!"] })
+      -> fold(dict[:], {
         dict[...$@, $.name: $.greeting]
-      }
+      })
     # dict[alice: "Hello, alice!", bob: "Hello, bob!", charlie: "Hello, charlie!"]
 
 **Validate and transform input:**
@@ -417,8 +411,8 @@ Use in closure params to validate input structure:
       -> .trim
       -> assert !.empty "Input cannot be empty"
       -> .split(",")
-      -> map .trim
-      -> filter (!.empty)
+      -> fan({ $.trim })
+      -> filter({ !.empty })
 
 **Stateful retry loop:**
 
@@ -437,12 +431,12 @@ Use in closure params to validate input structure:
 **Reduce with running state:**
 
     list[10, 25, 5, 40, 15]
-      -> each(dict[sum: 0, max: 0]) {
-        $.sum + $@ => $new_sum
+      -> acc(dict[sum: 0, max: 0], {
+        $@.sum + $ => $new_sum
         ($ > $@.max) ? $ ! $@.max => $new_max
         dict[sum: $new_sum, max: $new_max]
-      }
-    # each item produces the running state; last element is final
+      })
+    # acc item produces the running state; last element is final
 
 ## Method Reference
 
@@ -523,9 +517,9 @@ replace vs replace_all:
 
 enumerate example:
 
-    list["a", "b"] -> enumerate -> each {
+    list["a", "b"] -> enumerate -> seq({
       "{$.index}: {$.value}"
-    }
+    })
     # list["0: a", "1: b"]
 
 ## Style
@@ -540,7 +534,7 @@ enumerate example:
 
     Operators:     space both sides       5 + 3, $x -> .upper, "a" => $b
     Parentheses:   no inner space         ($x + 1), ($ > 3) ? "yes"
-    Braces:        space inside           { $x + 1 }, each { $ * 2 }
+    Braces:        space inside           { $x + 1 }, seq({ $ * 2 })
     Brackets:      no inner space         $list[0], $dict.items[1]
     Literals:      space after , and :    list[1, 2, 3], dict[name: "x", age: 30]
     Keyword+[      NO space between       list[1, 2] (not list [1, 2] — RILL-P007)
@@ -548,8 +542,8 @@ enumerate example:
     Methods:       no space before . or ( $str.upper(), $list.join(", ")
     Pipes:         space both sides       "x" -> .upper -> .len
     Continuations: indent 2 spaces        $data
-                                            -> .filter { $.active }
-                                            -> map { $.name }
+                                            -> filter({ $.active })
+                                            -> fan({ $.name })
 
 ### Line Continuations
 
@@ -567,8 +561,8 @@ Examples:
 
     # Valid: -> and ? start continuation lines
     $items
-      -> filter { $.active }
-      -> map { $.name }
+      -> filter({ $.active })
+      -> fan({ $.name })
 
     condition
       ? "yes"
@@ -595,7 +589,7 @@ Examples:
     "hi" -> $double                          # RILL-R001: expected number, got string
 
 All 12 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, iterator, any, type
-Parameterized: |list(number)|{ $ -> each { $ * 2 } }
+Parameterized: |list(number)|{ $ -> seq({ $ * 2 }) }
 
 **Return type assertions** (enforced at runtime — halts with `#TYPE_MISMATCH` on mismatch):
 
@@ -681,7 +675,7 @@ Slice (`slice<start:stop:step>`):
     list[1, 2] => $a
     list[...$a, 3]                      # list[1, 2, 3]
     list[...$a, ...$b]                  # concatenate lists
-    list[...($nums -> map {$ * 2})]     # spread expression result
+    list[...($nums -> fan({ $ * 2 }))]  # spread expression result
 
 ### Argument Unpacking
 
@@ -753,8 +747,8 @@ Nested fields are recursively hydrated.
 
 Lazy sequence generation. Collection operators auto-expand iterators.
 
-    range(0, 5) -> each { $ * 2 }        # list[0, 2, 4, 6, 8]
-    repeat("x", 3) -> each { $ }         # list["x", "x", "x"]
+    range(0, 5) -> seq({ $ * 2 })        # list[0, 2, 4, 6, 8]
+    repeat("x", 3) -> seq({ $ })         # list["x", "x", "x"]
 
 `.first()` method (returns iterator for any collection):
 
@@ -772,9 +766,9 @@ Iterator protocol (dict with `value`, `done`, `next`):
 Default: 10,000 iterations max for loops.
 Override: `^(limit: N)` at operator level (between operator name and body).
 
-    0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }         # while loop
-    $items -> each ^(limit: 1000) { process($) }     # each operator
-    $items -> map ^(limit: 3) { slow_process($) }    # concurrency limit
+    0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }                    # while loop
+    $items -> seq({ process($) }) ^(limit: 1000)              # seq with limit annotation
+    $items -> fan({ slow_process($) }, [concurrency: 3])      # concurrency limit
 
 Invalid annotation keys produce a runtime error.
 

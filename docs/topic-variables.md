@@ -61,7 +61,7 @@ Capture at end of expression stores and ends the chain:
 | Context | `$` contains |
 |---------|--------------|
 | Inline block `-> { }` | Piped value |
-| Each loop `-> each { }` | Current iteration item |
+| Each loop `-> seq({ })` | Current iteration item |
 | While-loop `(cond) @ { }` | Accumulated value |
 | Do-while `@ { } ? cond` | Accumulated value |
 | Conditional `cond ? { }` | Tested value |
@@ -89,7 +89,7 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 
 # In each loops, $ is the current item
 |x| { $x * 2 } => $double
-[1, 2, 3] -> each { $double() }   # $double receives 1, 2, 3
+[1, 2, 3] -> seq({ $double() })   # $double receives 1, 2, 3
 ```
 
 **When implied `$` does NOT apply:**
@@ -209,7 +209,7 @@ While loops use `$` as the accumulator since named variables in the body don't p
 >
 > ```text
 > 0 => $count
-> [1, 2, 3] -> each { $count + 1 => $count }  # Creates LOCAL $count!
+> [1, 2, 3] -> seq({ $count + 1 => $count })  # Creates LOCAL $count!
 > $count                                       # Still 0!
 > ```
 >
@@ -219,9 +219,9 @@ While loops use `$` as the accumulator since named variables in the body don't p
 
 ```rill
 10 => $x
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   $x + $      # Reads outer $x = 10
-}
+})
 # Result: [11, 12, 13]
 ```
 
@@ -245,7 +245,7 @@ Access CLI positional arguments:
 ```text
 $ARGS[0]                     # first argument
 $ARGS[1]                     # second argument
-$ARGS -> each { log($) }     # iterate all arguments
+$ARGS -> seq({ log($) })     # iterate all arguments
 ```
 
 ### `$ENV`

@@ -71,7 +71,7 @@ rill-eval '"hello".len'
 rill-eval '5 + 3'
 # 8
 
-rill-eval '[1, 2, 3] -> map |x|($x * 2)'
+rill-eval '[1, 2, 3] -> fan(|x|($x * 2))'
 # [2, 4, 6]
 ```
 

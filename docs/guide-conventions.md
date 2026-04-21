@@ -36,7 +36,7 @@ Use descriptive snake_case names with `$` prefix:
 For loop variables, short names are acceptable when scope is small:
 
 ```rill
-[1, 2, 3] -> each |x| ($x * 2)    # fine: small scope
+[1, 2, 3] -> seq(|x| ($x * 2))    # fine: small scope
 ```
 
 ### Closures
@@ -88,57 +88,56 @@ $result -> .contains("OK") ? {
 
 | Use case | Operator | Why |
 |----------|----------|-----|
-| Transform each element | `map` | Parallel, all results |
-| Transform with side effects | `each` | Sequential order |
-| Keep matching elements | `filter` | Parallel filter |
+| Transform each element | `fan` | Parallel, all results |
+| Transform with side effects | `seq` | Sequential order |
+| Keep matching elements | `filter` | Parallel predicate filter |
 | Reduce to single value | `fold` | Final result only |
-| Running totals | `each(init)` | All intermediate results |
-| Find first match | `each` + `break` | Early termination |
+| Running totals | `acc` | All intermediate accumulator values |
+| Find first match | `seq` + `break` | Early termination |
 
-### Prefer method shorthand in collection operators
+### Use block bodies in collection operators
 
 ```rill
-# good: concise
-["hello", "world"] -> map .upper
+# standard block body
+["hello", "world"] -> fan({ $.upper })
 
-# equivalent but verbose
-["hello", "world"] -> map { $.upper() }
-["hello", "world"] -> map |x| $x.upper()
+# equivalent closure form
+["hello", "world"] -> fan(|x| { $x.upper() })
 ```
 
-Method chains work too:
+Method chains work in block bodies:
 
 ```rill
-["  HELLO  ", "  WORLD  "] -> map .trim.lower
+["  HELLO  ", "  WORLD  "] -> fan({ $.trim.lower })
 ```
 
 ### Use grouped form for negation
 
 ```rill
 # correct: grouped negation
-["", "a", "b"] -> filter (!.empty)
+["", "a", "b"] -> filter({ !.empty })
 
 # wrong: .empty returns truthy elements
-["", "a", "b"] -> filter .empty    # returns list[""]
+["", "a", "b"] -> filter({ $.empty })    # returns list[""]
 ```
 
-### Use fold for reduction, each(init) for running totals
+### Use fold for reduction, acc for running totals
 
 ```rill
 # sum: use fold (returns final value)
-[1, 2, 3] -> fold(0) { $@ + $ }    # 6
+[1, 2, 3] -> fold(0, { $@ + $ })    # 6
 
-# running sum: use each (returns all intermediates)
-[1, 2, 3] -> each(0) { $@ + $ }    # list[1, 3, 6]
+# running sum: use acc (returns all intermediate accumulator values)
+[1, 2, 3] -> acc(0, { $@ + $ })    # list[1, 3, 6]
 ```
 
-### Break returns partial results in each
+### Break returns partial results in seq
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> seq({
   ($ == 3) ? break
   $ * 2
-}
+})
 # Result: [2, 4] (elements processed BEFORE break)
 ```
 
@@ -174,11 +173,11 @@ $result -> .contains("RETRY") @ {
 }
 ```
 
-### Use each for collection iteration, not while
+### Use seq for collection iteration, not while
 
 ```text
-# good: each is designed for collections
-$items -> each { process($) }
+# good: seq is designed for collections
+$items -> seq({ process($) })
 
 # avoid: manual iteration with while
 $items -> .first() -> (!$.done) @ {
@@ -268,10 +267,10 @@ true
 
 ```rill
 # good: explicit capture per iteration
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   $ => $item
   || { $item }
-} => $closures
+}) => $closures
 
 # result: closures return [1, 2, 3] when called
 true
@@ -419,17 +418,17 @@ $fn(5)
 
 ### Avoid break in parallel operators
 
-Break is not supported in `map` or `filter` (they run in parallel):
+Break is not supported in `fan` or `filter` (they run in parallel):
 
 ```text
-# wrong: break in map
-[1, 2, 3] -> map { ($ > 2) ? break }
+# wrong: break in fan
+[1, 2, 3] -> fan({ ($ > 2) ? break })
 
-# correct: use each if you need break
-[1, 2, 3] -> each { ($ > 2) ? break }
+# correct: use seq if you need break
+[1, 2, 3] -> seq({ ($ > 2) ? break })
 
 # or filter first
-[1, 2, 3] -> filter { $ <= 2 } -> map { $ }
+[1, 2, 3] -> filter({ $ <= 2 }) -> fan({ $ })
 ```
 
 ### Avoid complex logic in conditions
@@ -469,7 +468,7 @@ $x->.upper
 # good
 ($x + 1)
 ($ > 3) ? "big"
-[1, 2, 3] -> each |x| ($x * 2)
+[1, 2, 3] -> seq(|x| ($x * 2))
 
 # avoid
 ( $x + 1 )
@@ -481,28 +480,29 @@ $x->.upper
 ```text
 # good
 { $x + 1 }
-[1, 2, 3] -> each { $ * 2 }
+[1, 2, 3] -> seq({ $ * 2 })
 |x| { $x -> .trim }
 
 # avoid
 {$x + 1}
-[1, 2, 3] -> each {$ * 2}
+[1, 2, 3] -> seq({$ * 2})
 ```
 
-**Multiline braces**: opening brace on same line, closing on own line
+**Multiline braces**: opening brace on same line as operator, closing on own line
 
 ```text
 # good
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   $ => $item
   $item * 2
-}
+})
 
-# avoid
-[1, 2, 3] -> each
-{
-  $ * 2
-}
+# avoid: brace on separate line
+[1, 2, 3] -> seq(
+  {
+    $ * 2
+  }
+)
 ```
 
 **Brackets**: no inner spaces for indexing
@@ -572,7 +572,7 @@ $list.join (", ")
 # methods: $.foo() -> .foo
 # good
 "hello" -> .upper -> .len
-[1, 2, 3] -> map { $ -> string }
+[1, 2, 3] -> fan({ $ -> string })
 
 # avoid
 "hello" -> $.upper() -> $.len
@@ -621,7 +621,7 @@ $input -> .upper => $upper
 # good: align continuation with pipe
 $data
   -> .filter { $.active }
-  -> map { $.name }
+  -> fan({ $.name })
   -> .join(", ")
 
 # good: long method chains
@@ -650,7 +650,7 @@ $val -> .eq("A") ? 1
 # avoid: no indent on continuation
 $data
 -> .filter { $.active }
--> map { $.name }
+-> fan({ $.name })
 ```
 
 ### One statement per line for complex code
