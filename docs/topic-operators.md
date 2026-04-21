@@ -15,7 +15,7 @@
 | Chain | `chain($fn)`, `chain([...])` |
 | Ordered | `ordered[k: v]` (named ordered container) |
 | Extraction | `destruct<...>` (destructure), `slice<...>` (slice) |
-| Convert | `:>type` (conversion) |
+| Convert | `-> type` (type conversion) |
 | Type | `:type` (assert), `:?type` (check) |
 | Member | `.field`, `[index]` |
 | Hierarchical Dispatch | `[path] -> target` |
@@ -716,10 +716,10 @@ Structural checks are also supported. These match element and field types:
 42 -> ^type                      # number
 ```
 
-The type value formats as a structural string via `:>string` or string interpolation:
+The type value formats as a structural string via `-> string` or string interpolation:
 
 ```text
-[1, 2, 3] -> ^type -> :>string   # "list(number)"
+[1, 2, 3] -> ^type -> string   # "list(number)"
 "hello {[1,2,3] -> ^type}"       # "hello list(number)"
 ```
 
@@ -732,11 +732,11 @@ To get the type name only, chain `.name` on the type value:
 
 See [Types](topic-types.md) for detailed type system documentation.
 
-### Conversion Operator :>type
+### Conversion Operator `-> type`
 
-The `:>type` operator converts a value to the target type. Same-type conversions are no-ops. Incompatible conversions halt with `RILL-R036`.
+The `-> type` operator converts a value to the target type. Same-type conversions are no-ops. Incompatible conversions halt with `RILL-R036`.
 
-| Source | `:>list` | `:>dict` | `:>tuple` | `:>ordered(sig)` | `:>number` | `:>string` | `:>bool` |
+| Source | `-> list` | `-> dict` | `-> tuple` | `-> ordered(sig)` | `-> number` | `-> string` | `-> bool` |
 |---------|--------|--------|---------|----------------|----------|----------|--------|
 | `list`    | no-op  | error  | valid   | error          | error    | valid¹   | error  |
 | `dict`    | error  | no-op  | error   | valid          | error    | valid¹   | error  |
@@ -752,7 +752,7 @@ The `:>type` operator converts a value to the target type. Same-type conversions
 ⁴ `true` maps to `1`, `false` maps to `0`.
 ⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
-**Structural conversion with signatures:** `:>dict(sig)`, `:>ordered(sig)`, and `:>tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
+**Structural conversion with signatures:** `-> dict(sig)`, `-> ordered(sig)`, and `-> tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
 
 ---
 

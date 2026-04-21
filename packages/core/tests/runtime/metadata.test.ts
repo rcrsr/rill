@@ -50,7 +50,14 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { testKey: 'hello-from-metadata' },
         functions: {
           readMeta: {
-            params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'input',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, ctx) => {
               capturedMetadata = (ctx as RuntimeContext).metadata;
               return (ctx as RuntimeContext).metadata?.['testKey'] ?? '';
@@ -71,7 +78,14 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { env: 'test' },
         functions: {
           readMeta: {
-            params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'input',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, ctx) => {
               seen = (ctx as RuntimeContext).metadata?.['env'];
               return seen ?? '';
@@ -90,7 +104,14 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { a: '1', b: '2', c: '3' },
         functions: {
           collectMeta: {
-            params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'input',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, ctx) => {
               const md = (ctx as RuntimeContext).metadata ?? {};
               Object.assign(collected, md);
@@ -109,7 +130,14 @@ describe('Rill Runtime: metadata (IC-11)', () => {
       await run('"x" -> checkMeta', {
         functions: {
           checkMeta: {
-            params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+            params: [
+              {
+                name: 'input',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
             fn: (_args, ctx) => {
               seen = (ctx as RuntimeContext).metadata;
               return null;

@@ -187,7 +187,7 @@ describe('Rill Language: Closure Annotation Defaults', () => {
     });
 
     it('param typed dict(items: list = []) parses and empty list is default', async () => {
-      const result = await run('dict(items: list = []) => $t\n$t -> :>string');
+      const result = await run('dict(items: list = []) => $t\n$t -> string');
       expect(result).toContain('items');
     });
   });
@@ -376,21 +376,21 @@ describe('Rill Language: Closure Annotation Defaults', () => {
 
     it('dict[] converts to all-defaulted dict type', async () => {
       const result = await run(
-        'dict[] -> :>dict(a: string = "x", b: number = 0)'
+        'dict[] -> dict(a: string = "x", b: number = 0)'
       );
       expect(result).toEqual({ a: 'x', b: 0 });
     });
 
     it('partial dict converts and fills remaining defaults', async () => {
       const result = await run(
-        '[a: "hello"] -> :>dict(a: string = "x", b: number = 0)'
+        '[a: "hello"] -> dict(a: string = "x", b: number = 0)'
       );
       expect(result).toEqual({ a: 'hello', b: 0 });
     });
 
     it('full dict passes through without applying defaults', async () => {
       const result = await run(
-        '[a: "hello", b: 99] -> :>dict(a: string = "x", b: number = 0)'
+        '[a: "hello", b: 99] -> dict(a: string = "x", b: number = 0)'
       );
       expect(result).toEqual({ a: 'hello', b: 99 });
     });

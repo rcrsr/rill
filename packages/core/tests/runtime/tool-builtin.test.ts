@@ -153,8 +153,13 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       await expect(run(`type(42)`)).rejects.toThrow('Unknown function: type');
     });
 
-    it('throws unknown function error when type() is called via pipe', async () => {
-      await expect(run(`42 -> type`)).rejects.toThrow('Unknown function: type');
+    it('throws conversion error when type appears at pipe target position', async () => {
+      // `type` is a reserved type keyword at pipe target position, so
+      // `42 -> type` is parsed as a type conversion rather than a function
+      // call. Converting a number to the type-of-types raises RILL-R036.
+      await expect(run(`42 -> type`)).rejects.toThrow(
+        'cannot convert number to type'
+      );
     });
   });
 

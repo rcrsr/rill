@@ -187,3 +187,8 @@ export {
 } from './highlight-map.js';
 
 export * from './types.js';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+export { VALID_TYPE_NAMES } from './constants.js';

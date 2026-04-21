@@ -6,6 +6,7 @@
 // Re-export all public symbols from sub-modules
 export * from './source-location.js';
 export * from './error-registry.js';
+export * from './error-patterns.js';
 export * from './value-types.js';
 export * from './token-types.js';
 export * from './ast-nodes.js';

@@ -1,7 +1,7 @@
 /**
  * Rill Language Tests: Structural Type Default Values
  *
- * Tests that the :> conversion operator hydrates missing fields/elements
+ * Tests that the -> conversion operator hydrates missing fields/elements
  * from defaults defined in structural type signatures (dict, ordered, tuple).
  *
  * AC-1  through AC-19: acceptance criteria for hydration, formatting, independence, and performance
@@ -34,29 +34,27 @@ function orderedEntries(value: unknown): [string, unknown][] {
 
 describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
-  // AC-1: dict :> dict(sig) with default filling missing field
+  // AC-1: dict -> dict(sig) with default filling missing field
   // ============================================================
 
   describe('AC-1: dict with missing field gets default from sig', () => {
-    it('[b: "b"] -> :>dict(b: string, a: string = "a") produces [a: "a", b: "b"]', async () => {
-      const result = await run(
-        '[b: "b"] -> :>dict(b: string, a: string = "a")'
-      );
+    it('[b: "b"] -> dict(b: string, a: string = "a") produces [a: "a", b: "b"]', async () => {
+      const result = await run('[b: "b"] -> dict(b: string, a: string = "a")');
       expect(result).toEqual({ a: 'a', b: 'b' });
     });
   });
 
   // ============================================================
-  // AC-2: ordered input :> ordered(sig) with default filling missing field
+  // AC-2: ordered input -> ordered(sig) with default filling missing field
   // Note: The spec lists ordered[b: "b"] as input, but convertToOrderedWithSig
   // requires dict input. A dict[b: "b"] input is used here, which tests the
   // same hydration behavior. See Implementation Notes for details.
   // ============================================================
 
-  describe('AC-2: dict :> ordered(sig) with default filling missing field', () => {
-    it('[b: "b"] -> :>ordered(b: string, a: string = "a") produces ordered[b: "b", a: "a"]', async () => {
+  describe('AC-2: dict -> ordered(sig) with default filling missing field', () => {
+    it('[b: "b"] -> ordered(b: string, a: string = "a") produces ordered[b: "b", a: "a"]', async () => {
       const result = await run(
-        '[b: "b"] -> :>ordered(b: string, a: string = "a")'
+        '[b: "b"] -> ordered(b: string, a: string = "a")'
       );
       expect(isOrdered(result)).toBe(true);
       const entries = orderedEntries(result);
@@ -68,12 +66,12 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-3: tuple :> tuple(sig) with default filling trailing element
+  // AC-3: tuple -> tuple(sig) with default filling trailing element
   // ============================================================
 
-  describe('AC-3: tuple :> tuple(sig) with trailing default', () => {
-    it('tuple["x"] -> :>tuple(string, number = 0) produces tuple["x", 0]', async () => {
-      const result = await run('tuple["x"] -> :>tuple(string, number = 0)');
+  describe('AC-3: tuple -> tuple(sig) with trailing default', () => {
+    it('tuple["x"] -> tuple(string, number = 0) produces tuple["x", 0]', async () => {
+      const result = await run('tuple["x"] -> tuple(string, number = 0)');
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
       expect(tupleResult.entries).toEqual(['x', 0]);
@@ -81,13 +79,13 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-4: extra fields stripped when dict :> dict(sig) with subset
+  // AC-4: extra fields stripped when dict -> dict(sig) with subset
   // ============================================================
 
   describe('AC-4: extra fields omitted during dict conversion', () => {
-    it('[a: "a", b: "b", c: "c"] -> :>dict(a: string, b: string) omits c', async () => {
+    it('[a: "a", b: "b", c: "c"] -> dict(a: string, b: string) omits c', async () => {
       const result = await run(
-        '[a: "a", b: "b", c: "c"] -> :>dict(a: string, b: string)'
+        '[a: "a", b: "b", c: "c"] -> dict(a: string, b: string)'
       );
       expect(result).toEqual({ a: 'a', b: 'b' });
       expect((result as Record<string, unknown>).c).toBeUndefined();
@@ -95,29 +93,29 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-5: nested dict inner defaults hydrated during outer :>
+  // AC-5: nested dict inner defaults hydrated during outer ->
   // ============================================================
 
-  describe('AC-5: nested dict inner defaults hydrated during outer :>', () => {
+  describe('AC-5: nested dict inner defaults hydrated during outer ->', () => {
     it('outer field present, inner default x=42 hydrated', async () => {
       const result = await run(
-        '[outer: [y: "z"]] -> :>dict(outer: dict(x: number = 42, y: string))'
+        '[outer: [y: "z"]] -> dict(outer: dict(x: number = 42, y: string))'
       );
       expect(result).toEqual({ outer: { x: 42, y: 'z' } });
     });
   });
 
   // ============================================================
-  // AC-6: two separate :> conversions produce independent values
+  // AC-6: two separate -> conversions produce independent values
   // ============================================================
 
-  describe('AC-6: two separate :> conversions produce independent hydrated values', () => {
+  describe('AC-6: two separate -> conversions produce independent hydrated values', () => {
     it('first conversion default does not affect second conversion default', async () => {
       const result1 = await run(
-        '[b: "b"] -> :>dict(b: string, a: string = "default")'
+        '[b: "b"] -> dict(b: string, a: string = "default")'
       );
       const result2 = await run(
-        '[b: "c"] -> :>dict(b: string, a: string = "default")'
+        '[b: "c"] -> dict(b: string, a: string = "default")'
       );
       // Both have the default, but different b values — they are independent
       expect((result1 as Record<string, unknown>).a).toBe('default');
@@ -128,12 +126,12 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-7: dict(a: string = "Test") formatted via :>string → "dict(a: string = "Test")"
+  // AC-7: dict(a: string = "Test") formatted via -> string → "dict(a: string = "Test")"
   // ============================================================
 
   describe('AC-7: formatStructure includes default values in output', () => {
-    it('dict(a: string = "Test") -> :>string produces the formatted type string', async () => {
-      const result = await run('dict(a: string = "Test") -> :>string');
+    it('dict(a: string = "Test") -> string produces the formatted type string', async () => {
+      const result = await run('dict(a: string = "Test") -> string');
       expect(result).toBe('dict(a: string = "Test")');
     });
   });
@@ -145,7 +143,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('AC-8: hydrated value ^type shows no defaults in inferred type', () => {
     it('^type of hydrated dict shows inferred structural type without defaults', async () => {
       const result = await run(
-        '[b: "b"] -> :>dict(b: string, a: string = "a") -> .^type -> :>string'
+        '[b: "b"] -> dict(b: string, a: string = "a") -> .^type -> string'
       );
       // Inferred type has no defaults — just dict(a: string, b: string)
       expect(result).toBe('dict(a: string, b: string)');
@@ -153,14 +151,14 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-9 (EC-5): dict missing required field (no default) via :> → RILL-R044
+  // AC-9 (EC-5): dict missing required field (no default) via -> → RILL-R044
   // ============================================================
 
   describe('AC-9 (EC-5): dict missing required field errors with RILL-R044', () => {
-    it('[x: 1] -> :>dict(x: number, y: string) throws RILL-R044 naming the field', async () => {
-      await expect(
-        run('[x: 1] -> :>dict(x: number, y: string)')
-      ).rejects.toThrow(/missing required field 'y'/);
+    it('[x: 1] -> dict(x: number, y: string) throws RILL-R044 naming the field', async () => {
+      await expect(run('[x: 1] -> dict(x: number, y: string)')).rejects.toThrow(
+        /missing required field 'y'/
+      );
     });
   });
 
@@ -169,10 +167,10 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-10 (EC-6): tuple missing required element errors with RILL-R044', () => {
-    it('tuple["x"] -> :>tuple(string, number) throws RILL-R044 naming the position', async () => {
-      await expect(
-        run('tuple["x"] -> :>tuple(string, number)')
-      ).rejects.toThrow(/missing required element at position 1/);
+    it('tuple["x"] -> tuple(string, number) throws RILL-R044 naming the position', async () => {
+      await expect(run('tuple["x"] -> tuple(string, number)')).rejects.toThrow(
+        /missing required element at position 1/
+      );
     });
   });
 
@@ -181,9 +179,9 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-11 (EC-5): ordered missing required field errors with RILL-R044', () => {
-    it('[b: "b"] -> :>ordered(a: string, b: string) throws RILL-R044 naming the field', async () => {
+    it('[b: "b"] -> ordered(a: string, b: string) throws RILL-R044 naming the field', async () => {
       await expect(
-        run('[b: "b"] -> :>ordered(a: string, b: string)')
+        run('[b: "b"] -> ordered(a: string, b: string)')
       ).rejects.toThrow(/missing required field 'a'/);
     });
   });
@@ -191,7 +189,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
   // AC-12 (EC-4): dict missing field with default asserted via : → RILL-R004 (no hydration)
   // The : assertion checks structure but does not hydrate defaults.
-  // A dict missing field 'a' fails the assertion even when 'a' has a default in :>.
+  // A dict missing field 'a' fails the assertion even when 'a' has a default in ->.
   // ============================================================
 
   describe('AC-12 (EC-4): type assertion : does not hydrate defaults, fails typed-atom halt', () => {
@@ -202,10 +200,10 @@ describe('Rill Language: Structural Type Default Values', () => {
       );
     });
 
-    it(':>dict hydrates the default while : does not', async () => {
-      // Verify :> hydrates
+    it('-> dict hydrates the default while : does not', async () => {
+      // Verify -> hydrates
       const hydrated = await run(
-        '[b: "b"] -> :>dict(b: string, a: string = "a")'
+        '[b: "b"] -> dict(b: string, a: string = "a")'
       );
       expect((hydrated as Record<string, unknown>).a).toBe('a');
 
@@ -224,7 +222,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('AC-13 (EC-1, EC-3): non-trailing tuple default causes typed-atom halt', () => {
     it('tuple(string = "default", number) halts at evaluation', async () => {
       await expectHaltMessage(
-        () => run('tuple["x"] -> :>tuple(string = "default", number)'),
+        () => run('tuple["x"] -> tuple(string = "default", number)'),
         /tuple\(\) default values must be trailing/
       );
     });
@@ -248,9 +246,9 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-15: all fields have defaults, empty dict input fully hydrated', () => {
-    it('dict[] -> :>dict(a: string = "x", b: number = 0) produces [a: "x", b: 0]', async () => {
+    it('dict[] -> dict(a: string = "x", b: number = 0) produces [a: "x", b: 0]', async () => {
       const result = await run(
-        'dict[] -> :>dict(a: string = "x", b: number = 0)'
+        'dict[] -> dict(a: string = "x", b: number = 0)'
       );
       expect(result).toEqual({ a: 'x', b: 0 });
     });
@@ -261,9 +259,9 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-16: all fields present, no defaults, pass-through unchanged', () => {
-    it('[a: "a", b: "b"] -> :>dict(a: string, b: string) unchanged', async () => {
+    it('[a: "a", b: "b"] -> dict(a: string, b: string) unchanged', async () => {
       const result = await run(
-        '[a: "a", b: "b"] -> :>dict(a: string, b: string)'
+        '[a: "a", b: "b"] -> dict(a: string, b: string)'
       );
       expect(result).toEqual({ a: 'a', b: 'b' });
     });
@@ -274,8 +272,8 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-17: tuple with no trailing defaults behaves as current', () => {
-    it('tuple[1, 2] -> :>tuple(number, number) passes through unchanged', async () => {
-      const result = await run('tuple[1, 2] -> :>tuple(number, number)');
+    it('tuple[1, 2] -> tuple(number, number) passes through unchanged', async () => {
+      const result = await run('tuple[1, 2] -> tuple(number, number)');
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([1, 2]);
@@ -288,8 +286,8 @@ describe('Rill Language: Structural Type Default Values', () => {
 
   describe('AC-18: dict default is nested dict literal, deep copy produces independent values', () => {
     it('two conversions using the same type with nested dict default produce independent values', async () => {
-      const result1 = await run('dict[] -> :>dict(cfg: dict = [x: 99])');
-      const result2 = await run('dict[] -> :>dict(cfg: dict = [x: 99])');
+      const result1 = await run('dict[] -> dict(cfg: dict = [x: 99])');
+      const result2 = await run('dict[] -> dict(cfg: dict = [x: 99])');
       const cfg1 = (result1 as Record<string, unknown>).cfg as Record<
         string,
         unknown
@@ -316,11 +314,11 @@ describe('Rill Language: Structural Type Default Values', () => {
       const iterations = 500;
       // Warmup: allow JIT compilation to stabilize
       for (let i = 0; i < warmup; i++) {
-        await run('[b: "b"] -> :>dict(b: string, a: string = "default")');
+        await run('[b: "b"] -> dict(b: string, a: string = "default")');
       }
       const start = performance.now();
       for (let i = 0; i < iterations; i++) {
-        await run('[b: "b"] -> :>dict(b: string, a: string = "default")');
+        await run('[b: "b"] -> dict(b: string, a: string = "default")');
       }
       const elapsed = performance.now() - start;
       const avgMs = elapsed / iterations;
@@ -336,7 +334,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('EC-1 / EC-3: non-trailing positional arg with default halts typed-atom', () => {
     it('tuple(string = "x", number) halts on non-trailing default', async () => {
       await expectHaltMessage(
-        () => run('tuple["a"] -> :>tuple(string = "x", number)'),
+        () => run('tuple["a"] -> tuple(string = "x", number)'),
         /tuple\(\) default values must be trailing/
       );
     });
@@ -360,14 +358,14 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('EC-4: incompatible input type for structural conversion', () => {
-    it('list[1, 2] -> :>dict(a: number) throws RILL-R036', async () => {
-      await expect(run('list[1, 2] -> :>dict(a: number)')).rejects.toThrow(
+    it('list[1, 2] -> dict(a: number) throws RILL-R036', async () => {
+      await expect(run('list[1, 2] -> dict(a: number)')).rejects.toThrow(
         /cannot convert list to dict/
       );
     });
 
-    it('list[1] -> :>ordered(a: number) throws RILL-R036', async () => {
-      await expect(run('list[1] -> :>ordered(a: number)')).rejects.toThrow(
+    it('list[1] -> ordered(a: number) throws RILL-R036', async () => {
+      await expect(run('list[1] -> ordered(a: number)')).rejects.toThrow(
         /cannot convert list to ordered/
       );
     });
@@ -380,13 +378,13 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('EC-5: missing required field (no default) during dict/ordered conversion', () => {
     it('dict conversion missing required field throws RILL-R044', async () => {
       await expect(
-        run('[a: "a"] -> :>dict(a: string, b: number)')
+        run('[a: "a"] -> dict(a: string, b: number)')
       ).rejects.toThrow(/missing required field 'b'/);
     });
 
     it('ordered conversion missing required field throws RILL-R044', async () => {
       await expect(
-        run('[a: "a"] -> :>ordered(a: string, b: number)')
+        run('[a: "a"] -> ordered(a: string, b: number)')
       ).rejects.toThrow(/missing required field 'b'/);
     });
   });
@@ -398,7 +396,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('EC-6: missing required element (no default) during tuple conversion', () => {
     it('tuple with fewer elements than required throws RILL-R044 naming the position', async () => {
       await expect(
-        run('tuple["x"] -> :>tuple(string, number, bool)')
+        run('tuple["x"] -> tuple(string, number, bool)')
       ).rejects.toThrow(/missing required element at position 1/);
     });
   });
@@ -410,7 +408,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('AC-20: nested ordered field hydrated during dict-to-ordered conversion', () => {
     it('outer field present, inner default x=42 hydrated in nested ordered', async () => {
       const result = await run(
-        '[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number = 42, y: string))'
+        '[outer: [y: "z"]] -> ordered(outer: ordered(x: number = 42, y: string))'
       );
       expect(isOrdered(result)).toBe(true);
       const outerEntries = orderedEntries(result);
@@ -433,7 +431,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('AC-21: nested dict inside ordered field hydrated (cross-type nesting)', () => {
     it('dict-to-ordered with nested dict field hydrates dict defaults', async () => {
       const result = await run(
-        '[outer: [y: "z"]] -> :>ordered(outer: dict(x: number = 42, y: string))'
+        '[outer: [y: "z"]] -> ordered(outer: dict(x: number = 42, y: string))'
       );
       expect(isOrdered(result)).toBe(true);
       const outerEntries = orderedEntries(result);
@@ -450,7 +448,7 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('AC-22: nested ordered inside dict field hydrated (reverse cross-type nesting)', () => {
     it('dict-to-dict with nested ordered field hydrates ordered defaults', async () => {
       const result = await run(
-        '[outer: [y: "z"]] -> :>dict(outer: ordered(x: number = 42, y: string))'
+        '[outer: [y: "z"]] -> dict(outer: ordered(x: number = 42, y: string))'
       );
       expect(result).toMatchObject({ outer: expect.anything() });
       const outer = (result as Record<string, unknown>).outer;
@@ -468,9 +466,9 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('AC-23: all ordered fields have defaults, empty dict fully hydrated', () => {
-    it('dict[] -> :>ordered(a: string = "x", b: number = 0) produces ordered with all defaults', async () => {
+    it('dict[] -> ordered(a: string = "x", b: number = 0) produces ordered with all defaults', async () => {
       const result = await run(
-        'dict[] -> :>ordered(a: string = "x", b: number = 0)'
+        'dict[] -> ordered(a: string = "x", b: number = 0)'
       );
       expect(isOrdered(result)).toBe(true);
       const entries = orderedEntries(result);
@@ -486,37 +484,37 @@ describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
 
   describe('EC-7: nested ordered missing required field errors with RILL-R044', () => {
-    it('[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number, y: string)) throws RILL-R044', async () => {
+    it('[outer: [y: "z"]] -> ordered(outer: ordered(x: number, y: string)) throws RILL-R044', async () => {
       await expect(
         run(
-          '[outer: [y: "z"]] -> :>ordered(outer: ordered(x: number, y: string))'
+          '[outer: [y: "z"]] -> ordered(outer: ordered(x: number, y: string))'
         )
       ).rejects.toThrow(/missing required field 'x'/);
     });
   });
 
   // ============================================================
-  // AC-24: ordered input converted to dict via :>dict(sig)
+  // AC-24: ordered input converted to dict via -> dict(sig)
   // ============================================================
 
-  describe('AC-24: ordered input converted to dict via :>dict(sig)', () => {
-    it('ordered[b: "b"] -> :>dict(b: string, a: string = "a") hydrates default', async () => {
+  describe('AC-24: ordered input converted to dict via -> dict(sig)', () => {
+    it('ordered[b: "b"] -> dict(b: string, a: string = "a") hydrates default', async () => {
       const result = await run(
-        'ordered[b: "b"] -> :>dict(b: string, a: string = "a")'
+        'ordered[b: "b"] -> dict(b: string, a: string = "a")'
       );
       expect(result).toEqual({ a: 'a', b: 'b' });
     });
 
-    it('ordered[a: 1, b: 2] -> :>dict(a: number, b: number) passes through all fields', async () => {
+    it('ordered[a: 1, b: 2] -> dict(a: number, b: number) passes through all fields', async () => {
       const result = await run(
-        'ordered[a: 1, b: 2] -> :>dict(a: number, b: number)'
+        'ordered[a: 1, b: 2] -> dict(a: number, b: number)'
       );
       expect(result).toEqual({ a: 1, b: 2 });
     });
 
-    it('ordered[a: 1] -> :>dict(a: number, b: number) throws RILL-R044 for missing required', async () => {
+    it('ordered[a: 1] -> dict(a: number, b: number) throws RILL-R044 for missing required', async () => {
       await expect(
-        run('ordered[a: 1] -> :>dict(a: number, b: number)')
+        run('ordered[a: 1] -> dict(a: number, b: number)')
       ).rejects.toThrow(
         /cannot convert ordered to dict|missing required field 'b'/
       );
@@ -524,13 +522,13 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-25: ordered input converted to ordered via :>ordered(sig)
+  // AC-25: ordered input converted to ordered via -> ordered(sig)
   // ============================================================
 
-  describe('AC-25: ordered input converted to ordered via :>ordered(sig)', () => {
-    it('ordered[b: "b"] -> :>ordered(b: string, a: string = "a") hydrates default', async () => {
+  describe('AC-25: ordered input converted to ordered via -> ordered(sig)', () => {
+    it('ordered[b: "b"] -> ordered(b: string, a: string = "a") hydrates default', async () => {
       const result = await run(
-        'ordered[b: "b"] -> :>ordered(b: string, a: string = "a")'
+        'ordered[b: "b"] -> ordered(b: string, a: string = "a")'
       );
       expect(isOrdered(result)).toBe(true);
       const entries = orderedEntries(result);
@@ -540,9 +538,9 @@ describe('Rill Language: Structural Type Default Values', () => {
       ]);
     });
 
-    it('ordered[a: 1, b: 2] -> :>ordered(a: number, b: number) passes through all fields', async () => {
+    it('ordered[a: 1, b: 2] -> ordered(a: number, b: number) passes through all fields', async () => {
       const result = await run(
-        'ordered[a: 1, b: 2] -> :>ordered(a: number, b: number)'
+        'ordered[a: 1, b: 2] -> ordered(a: number, b: number)'
       );
       expect(isOrdered(result)).toBe(true);
       const entries = orderedEntries(result);
@@ -552,9 +550,9 @@ describe('Rill Language: Structural Type Default Values', () => {
       ]);
     });
 
-    it('ordered[a: 1] -> :>ordered(a: number, b: number) throws RILL-R044 for missing required', async () => {
+    it('ordered[a: 1] -> ordered(a: number, b: number) throws RILL-R044 for missing required', async () => {
       await expect(
-        run('ordered[a: 1] -> :>ordered(a: number, b: number)')
+        run('ordered[a: 1] -> ordered(a: number, b: number)')
       ).rejects.toThrow(
         /cannot convert ordered to ordered|missing required field 'b'/
       );
@@ -685,9 +683,9 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(result).toEqual({});
     });
 
-    it('dict[] -> :>dict(a: string = "x", b: number = 0) hydrates all defaults', async () => {
+    it('dict[] -> dict(a: string = "x", b: number = 0) hydrates all defaults', async () => {
       const result = await run(
-        'dict[] -> :>dict(a: string = "x", b: number = 0)'
+        'dict[] -> dict(a: string = "x", b: number = 0)'
       );
       expect(result).toEqual({ a: 'x', b: 0 });
     });
@@ -700,14 +698,14 @@ describe('Rill Language: Structural Type Default Values', () => {
   describe('BC-5 (1.11): closure params with defaults display correctly', () => {
     it('closure with default param displays default in ^type string', async () => {
       const result = await run(
-        '|x: string, y: number = 42| { $x } => $fn\n$fn.^type -> :>string'
+        '|x: string, y: number = 42| { $x } => $fn\n$fn.^type -> string'
       );
       expect(result).toBe('|x: string, y: number = 42| :any');
     });
 
     it('closure with string default param displays quoted default', async () => {
       const result = await run(
-        '|name: string = "world"| { $name } => $fn\n$fn.^type -> :>string'
+        '|name: string = "world"| { $name } => $fn\n$fn.^type -> string'
       );
       expect(result).toBe('|name: string = "world"| :any');
     });
@@ -724,7 +722,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('synthesizes missing dict field from children defaults', async () => {
       const result = await run(
-        'dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))'
+        'dict[a: 1] -> dict(a: number, b: dict(c: number = 5))'
       );
       expect(result).toEqual({ a: 1, b: { c: 5 } });
     });
@@ -735,9 +733,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('throws RILL-R044 when nested dict has missing required child', async () => {
       await expect(
-        run(
-          'dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5, d: string))'
-        )
+        run('dict[a: 1] -> dict(a: number, b: dict(c: number = 5, d: string))')
       ).rejects.toThrow(/missing required field 'd'/);
     });
 
@@ -748,7 +744,7 @@ describe('Rill Language: Structural Type Default Values', () => {
     it('hydrates explicit empty dict default through nested type', async () => {
       // [:] is the empty dict literal accepted by parseLiteral; dict[] is not valid in default position
       const result = await run(
-        'dict[] -> :>dict(cfg: dict(x: number = 42) = [:])'
+        'dict[] -> dict(cfg: dict(x: number = 42) = [:])'
       );
       expect(result).toEqual({ cfg: { x: 42 } });
     });
@@ -759,7 +755,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('synthesizes defaults through 3 levels of dict nesting', async () => {
       const result = await run(
-        'dict[] -> :>dict(a: dict(b: dict(c: number = 99)))'
+        'dict[] -> dict(a: dict(b: dict(c: number = 99)))'
       );
       expect(result).toEqual({ a: { b: { c: 99 } } });
     });
@@ -770,7 +766,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('synthesizes missing ordered field from children defaults', async () => {
       const result = await run(
-        'dict[] -> :>dict(items: ordered(x: number = 1, y: string = "hi"))'
+        'dict[] -> dict(items: ordered(x: number = 1, y: string = "hi"))'
       );
       const items = (result as Record<string, unknown>).items;
       expect(isOrdered(items)).toBe(true);
@@ -787,7 +783,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('synthesizes missing tuple field from trailing defaults', async () => {
       const result = await run(
-        'dict[] -> :>dict(pair: tuple(number = 0, string = ""))'
+        'dict[] -> dict(pair: tuple(number = 0, string = ""))'
       );
       const pair = (result as Record<string, unknown>).pair;
       expect(isTuple(pair)).toBe(true);
@@ -800,7 +796,7 @@ describe('Rill Language: Structural Type Default Values', () => {
     // ============================================================
 
     it('synthesizes dict field inside ordered target', async () => {
-      const result = await run('dict[] -> :>ordered(a: dict(x: number = 10))');
+      const result = await run('dict[] -> ordered(a: dict(x: number = 10))');
       expect(isOrdered(result)).toBe(true);
       const entries = orderedEntries(result);
       expect(entries).toHaveLength(1);

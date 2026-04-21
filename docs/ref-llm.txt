@@ -380,13 +380,13 @@ Use in closure params to validate input structure:
     tuple(number, string)                 # positional tuple
     ordered(x: number, y: number)        # named ordered args
 
-**Type conversion** `:>type` — explicit conversion between compatible types:
+**Type conversion** `-> type` — explicit conversion between compatible types:
 
-    42 -> :>string                        # "42"
-    "3.14" -> :>number                    # 3.14
-    list[1, 2] -> :>tuple                 # tuple[1, 2]
-    tuple[1, 2] -> :>list                 # list[1, 2]
-    ordered[a: 1] -> :>dict              # dict[a: 1]
+    42 -> string                          # "42"
+    "3.14" -> number                      # 3.14
+    list[1, 2] -> tuple                   # tuple[1, 2]
+    tuple[1, 2] -> list                   # list[1, 2]
+    ordered[a: 1] -> dict                 # dict[a: 1]
 
 ## Common Patterns
 
@@ -672,7 +672,7 @@ Destructure (`destruct<>`):
 Slice (`slice<start:stop:step>`):
 
     list[0,1,2,3,4] -> slice<1:3>               # list[1, 2]
-    list[0,1,2,3,4] -> slice<-2:>               # list[3, 4]
+    list[0,1,2,3,4] -> slice<-2:>              # list[3, 4]
     list[0,1,2,3,4] -> slice<::-1>              # list[4,3,2,1,0] (reverse)
     "hello" -> slice<1:4>                       # "ell"
 
@@ -695,17 +695,17 @@ Slice (`slice<start:stop:step>`):
 
 ### Type Conversion Matrix
 
-`:>type` compatibility (error = halts with RILL-R036, no-op = same-type identity):
+`-> type` compatibility (error = halts with RILL-R036, no-op = same-type identity):
 
-    Source   | :>list  | :>dict  | :>tuple | :>ordered(sig) | :>number | :>string | :>bool
-    ---------|---------|---------|---------|----------------|----------|----------|-------
-    list     | no-op   | error   | valid   | error          | error    | valid¹   | error
-    dict     | error   | no-op   | error   | valid          | error    | valid¹   | error
-    tuple    | valid   | error   | no-op   | error          | error    | valid¹   | error
-    ordered  | error   | valid   | error   | no-op          | error    | valid¹   | error
-    string   | error   | error   | error   | error          | valid²   | no-op    | valid³
-    number   | error   | error   | error   | error          | no-op    | valid¹   | valid⁵
-    bool     | error   | error   | error   | error          | valid⁴   | valid¹   | no-op
+    Source   | -> list | -> dict | -> tuple | -> ordered(sig) | -> number | -> string | -> bool
+    ---------|---------|---------|----------|-----------------|-----------|-----------|--------
+    list     | no-op   | error   | valid    | error           | error     | valid¹    | error
+    dict     | error   | no-op   | error    | valid           | error     | valid¹    | error
+    tuple    | valid   | error   | no-op    | error           | error     | valid¹    | error
+    ordered  | error   | valid   | error    | no-op           | error     | valid¹    | error
+    string   | error   | error   | error    | error           | valid²    | no-op     | valid³
+    number   | error   | error   | error    | error           | no-op     | valid¹    | valid⁵
+    bool     | error   | error   | error    | error           | valid⁴    | valid¹    | no-op
 
     ¹ Uses formatValue semantics for formatted output
     ² Parseable strings only; halts with RILL-R038 on failure
@@ -713,16 +713,16 @@ Slice (`slice<start:stop:step>`):
     ⁴ true maps to 1, false maps to 0
     ⁵ 0 maps to false, 1 maps to true; all other values halt with RILL-R036
 
-**Default values in type constructors** (used with `:>` conversion):
+**Default values in type constructors** (used with `-> type` conversion):
 
     dict(a: string, b: string = "x")     # field b defaults to "x"
     ordered(x: number, y: number = 0)    # field y defaults to 0
     tuple(string, number = 0)            # trailing element defaults to 0
 
-    dict[b: "b"] -> :>dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
+    dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
-Only `:>` conversion fills defaults. `:` assertion does NOT hydrate defaults.
-`:>dict(...)` and `:>ordered(...)` fill missing fields from type constructor defaults.
+Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults.
+`-> dict(...)` and `-> ordered(...)` fill missing fields from type constructor defaults.
 Nested fields are recursively hydrated.
 
 ### Type Inspection

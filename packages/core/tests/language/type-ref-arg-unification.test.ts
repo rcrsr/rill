@@ -111,8 +111,8 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
     it('dict(b: number = 5) structure matches between contexts', async () => {
       // Expression context
       const exprType = (await run('dict(b: number = 5)')) as any;
-      // Annotation context: :> conversion hydrates defaults
-      const convResult = await run('dict[] -> :>dict(b: number = 5)');
+      // Annotation context: -> conversion hydrates defaults
+      const convResult = await run('dict[] -> dict(b: number = 5)');
       expect(exprType.structure.fields.b.type).toEqual({ kind: 'number' });
       expect(exprType.structure.fields.b.defaultValue).toBe(5);
       expect(convResult).toEqual({ b: 5 });
@@ -165,15 +165,13 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   describe('AC-8: default applied when caller omits arg', () => {
-    it('dict default applied during :> conversion', async () => {
-      const result = await run('dict[] -> :>dict(x: number = 42)');
+    it('dict default applied during -> conversion', async () => {
+      const result = await run('dict[] -> dict(x: number = 42)');
       expect(result).toEqual({ x: 42 });
     });
 
-    it('tuple trailing default applied during :> conversion', async () => {
-      const result = await run(
-        'tuple[1] -> :>tuple(number, string = "default")'
-      );
+    it('tuple trailing default applied during -> conversion', async () => {
+      const result = await run('tuple[1] -> tuple(number, string = "default")');
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([1, 'default']);
@@ -231,7 +229,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
 
     // Row 2: dict(a: number = 5) — named with default, annotation context
     it('row 2: dict(a: number = 5) annotation context with conversion', async () => {
-      const result = await run('dict[] -> :>dict(a: number = 5)');
+      const result = await run('dict[] -> dict(a: number = 5)');
       expect(result).toEqual({ a: 5 });
     });
 
@@ -245,7 +243,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
 
     // Row 4: tuple(number = 0, string = "") — positional with defaults, annotation context
     it('row 4: tuple(number = 0, string = "") annotation context with conversion', async () => {
-      const result = await run('tuple[] -> :>tuple(number = 0, string = "")');
+      const result = await run('tuple[] -> tuple(number = 0, string = "")');
       expect(isTuple(result)).toBe(true);
       const tupleResult = result as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([0, '']);
@@ -338,7 +336,7 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       expect(result).toBe(true);
     });
 
-    it('annotated dict field preserves annotation through :> conversion', async () => {
+    it('annotated dict field preserves annotation through -> conversion', async () => {
       const result = (await run('dict(^("label") a: number) => $t\n$t')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.structure.fields.a.annotations).toEqual({

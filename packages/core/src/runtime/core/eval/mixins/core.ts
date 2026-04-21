@@ -30,7 +30,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import { isTuple } from '../../types/guards.js';
+import { isTuple, isTypeValue } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate } from '../../types/status.js';
@@ -694,6 +694,16 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             }
           }
 
+          // Slot 6 (IR-2): Type value dispatch — delegate to applyConversion.
+          // Detection uses the __rill_type flag on RillTypeValue, not structural
+          // duck typing. Must be checked BEFORE isDict and hierarchical dispatch
+          // checks, since RillTypeValue is a plain object that isDict() would
+          // otherwise match.
+          if (isTypeValue(value)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (this as any).applyConversion(input, value.typeName, target);
+          }
+
           // Variable dispatch: if value is dict or list, dispatch into it
           // Hierarchical dispatch: detect list input (not tuple) for path navigation
           if (Array.isArray(input) && !isTuple(input)) {
@@ -780,9 +790,25 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateError(target, input);
 
-        case 'Convert':
+        case 'TypeNameExpr': {
+          // Pipe target: `-> type` (bare type keyword). Delegate directly to
+          // applyConversion, which enforces the full conversion compatibility
+          // matrix (no-op short-circuits, RILL-R036, RILL-R037, etc.).
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateConvert(target, input);
+          return (this as any).applyConversion(input, target.typeName, target);
+        }
+
+        case 'TypeConstructor': {
+          // Pipe target: `-> type(...)` (parameterized type constructor).
+          // Delegate to applyConstructorConversion, which handles structural
+          // signatures (dict/ordered/tuple with fields) and uniform types.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (this as any).applyConstructorConversion(
+            input,
+            target,
+            target
+          );
+        }
 
         case 'UseExpr':
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

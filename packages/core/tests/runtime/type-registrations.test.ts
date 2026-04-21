@@ -21,8 +21,8 @@
  * AC-9:  json built-in serializes dict, list, string, number, bool correctly
  * EC-3:  iterator == iterator raises RILL-R002 via script execution
  * EC-4:  true > false raises RILL-R002 via script execution (breaking change)
- * EC-5:  :> unsupported target raises RILL-R036 via script execution
- * EC-6:  "abc" :> number raises RILL-R038 via script execution
+ * EC-5:  -> unsupported target raises RILL-R036 via script execution
+ * EC-6:  "abc" -> number raises RILL-R038 via script execution
  * EC-7:  json(closure) raises RILL-R004 via script execution
  * BC-3:  list eq works, list ordering raises RILL-R002 via script execution
  * BC-4:  type with undefined convertTo has no conversions (field_descriptor)
@@ -612,31 +612,31 @@ describe('type-registrations', () => {
     });
   });
 
-  // EC-5: :> unsupported target raises RILL-R036 via rill script execution
+  // EC-5: -> unsupported target raises RILL-R036 via rill script execution
   describe('EC-5 integration: unsupported conversion raises RILL-R036', () => {
-    it('raises RILL-R036 for number -> :>bool', async () => {
-      await expect(run('42 -> :>bool')).rejects.toHaveProperty(
+    it('raises RILL-R036 for number -> bool', async () => {
+      await expect(run('42 -> bool')).rejects.toHaveProperty(
         'errorId',
         'RILL-R036'
       );
     });
 
     it('error message contains "cannot convert"', async () => {
-      await expect(run('42 -> :>bool')).rejects.toThrow(/cannot convert/);
+      await expect(run('42 -> bool')).rejects.toThrow(/cannot convert/);
     });
   });
 
-  // EC-6 (RI table): "abc" :> number raises RILL-R038 via rill script execution
+  // EC-6 (RI table): "abc" -> number raises RILL-R038 via rill script execution
   describe('EC-6 integration: string-to-number parse failure raises RILL-R038', () => {
     it('raises RILL-R038 for non-numeric string to number', async () => {
-      await expect(run('"abc" -> :>number')).rejects.toHaveProperty(
+      await expect(run('"abc" -> number')).rejects.toHaveProperty(
         'errorId',
         'RILL-R038'
       );
     });
 
     it('error message contains "cannot convert"', async () => {
-      await expect(run('"abc" -> :>number')).rejects.toThrow(/cannot convert/);
+      await expect(run('"abc" -> number')).rejects.toThrow(/cannot convert/);
     });
   });
 

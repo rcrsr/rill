@@ -184,7 +184,7 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
 
     it('AC-31 variant: closure returning string in negation', async () => {
       const script = `
-        |x|($x -> :>string) => $toStr
+        |x|($x -> string) => $toStr
         5 -> (! $toStr)
       `;
       try {

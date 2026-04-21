@@ -1,14 +1,12 @@
 /**
- * ConversionMixin: :> Convert Operator
+ * ConversionMixin: `-> type` conversion helpers
  *
- * Handles the :> (convert) pipe target, which converts the pipe value
- * to a target type according to the compatibility matrix.
- *
- * Interface requirements (from spec IR-9):
- * - evaluateConvert(value, node) -> Promise<RillValue>
+ * Converts the pipe value to a target type according to the compatibility
+ * matrix. Used by `-> type` (bare type keyword), `-> type(...)` (parameterized
+ * type constructor), and `-> $var` when `$var` is bound to a type value.
  *
  * Compatibility matrix:
- * | Source  | :>list | :>dict | :>tuple | :>ordered(sig) | :>number        | :>string | :>bool              |
+ * | Source  | list   | dict   | tuple   | ordered(sig)   | number          | string   | bool                |
  * |---------|--------|--------|---------|----------------|-----------------|----------|---------------------|
  * | list    | no-op  | error  | valid   | error          | error           | valid    | error               |
  * | dict    | error  | no-op  | error   | valid          | error           | valid    | error               |
@@ -20,18 +18,13 @@
  *
  * Error Contracts:
  * - EC-10 (RILL-R036): Incompatible source/target type
- * - EC-11 (RILL-R037): dict -> :>ordered without structural signature
+ * - EC-11 (RILL-R037): dict -> ordered without structural signature
  * - EC-12 (RILL-R038): Non-parseable string to number
- * - EC-13 (RILL-R039): :>$var where $var is not a type value
  *
  * @internal
  */
 
-import type {
-  ConvertNode,
-  TypeConstructorNode,
-  TypeRef,
-} from '../../../../types.js';
+import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type {
   RillValue,
@@ -45,8 +38,7 @@ import type {
   OrderedStructure,
 } from '../../types/operations.js';
 import { inferType } from '../../types/registrations.js';
-import { isTuple, isOrdered, isTypeValue } from '../../types/guards.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import { isTuple, isOrdered } from '../../types/guards.js';
 import {
   createOrdered,
   createTuple,
@@ -57,7 +49,6 @@ import { hasCollectionFields } from '../../values.js';
 import { isDict } from '../../callable.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
-import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { RillTypeName } from '../../../../types.js';
@@ -65,118 +56,72 @@ import type { RillTypeName } from '../../../../types.js';
 /**
  * ConversionMixin implementation.
  *
- * Evaluates the :> (convert) pipe target operator.
+ * Provides conversion helpers used by pipe-target evaluators when a
+ * `-> type` or `-> type(...)` form is piped onto a value.
  *
  * Depends on:
  * - EvaluatorBase: ctx, getNodeLocation()
  * - evaluateExpression() (from CoreMixin composition)
  *
  * Methods added:
- * - evaluateConvert(node, input) -> Promise<RillValue>
+ * - applyConversion(input, targetType, node) -> RillValue
+ * - applyConstructorConversion(input, typeRef, node) -> Promise<RillValue>
+ * - convertToOrderedWithSig / convertToDictWithSig / convertToTupleWithSig
  */
 function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ConversionEvaluator extends Base {
     /**
-     * Evaluate the :> convert operator [IR-9].
+     * Apply conversion for a parameterized type constructor target
+     * (`-> list(T)`, `-> dict(...)`, `-> ordered(...)`, `-> tuple(...)`, ...).
      *
-     * Resolves the target type (static, dynamic, or structural) and applies
-     * the conversion compatibility matrix to the input value.
+     * Handles the uniform vs structural dispatch and delegates to the
+     * structural conversion helpers for dict/ordered/tuple with fields.
      */
-    protected async evaluateConvert(
-      node: ConvertNode,
-      input: RillValue
+    protected async applyConstructorConversion(
+      input: RillValue,
+      typeRef: TypeConstructorNode,
+      node: ASTNode
     ): Promise<RillValue> {
-      const typeRef = node.typeRef;
-
-      // Structural type constructor: :>ordered(name: type, ...) or :>list(T), :>dict(...), :>tuple(...)
-      if (isTypeConstructorNode(typeRef)) {
-        // For dict/ordered/tuple, evaluate the type constructor to determine
-        // uniform (valueType) vs structural (fields/elements) dispatch.
-        if (
-          typeRef.constructorName === 'ordered' ||
-          typeRef.constructorName === 'dict' ||
-          typeRef.constructorName === 'tuple'
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const typeValue = await (this as any).evaluateTypeConstructor(
-            typeRef
-          );
-          const structure = typeValue.structure;
-
-          // Uniform types (valueType present): use general convert-then-assert path
-          if ('valueType' in structure && structure.valueType) {
-            const result = this.applyConversion(
-              input,
-              typeRef.constructorName,
-              node
-            );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).assertType(result, structure, node.span.start);
-            return result;
-          }
-
-          // Structural types (fields/elements present): use structural-specific handlers
-          if (typeRef.constructorName === 'ordered') {
-            return this.convertToOrderedWithSig(input, typeRef, node);
-          }
-          if (typeRef.constructorName === 'dict') {
-            return this.convertToDictWithSig(input, typeRef, node);
-          }
-          return this.convertToTupleWithSig(input, typeRef, node);
-        }
-
-        // Non-dict/ordered/tuple constructors: convert first, then assert structural type
+      // For dict/ordered/tuple, evaluate the type constructor to determine
+      // uniform (valueType) vs structural (fields/elements) dispatch.
+      if (
+        typeRef.constructorName === 'ordered' ||
+        typeRef.constructorName === 'dict' ||
+        typeRef.constructorName === 'tuple'
+      ) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
-        const result = this.applyConversion(
-          input,
-          typeRef.constructorName,
-          node
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).assertType(result, typeValue.structure, node.span.start);
-        return result;
+        const structure = typeValue.structure;
+
+        // Uniform types (valueType present): use general convert-then-assert path
+        if ('valueType' in structure && structure.valueType) {
+          const result = this.applyConversion(
+            input,
+            typeRef.constructorName,
+            node
+          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).assertType(result, structure, node.span.start);
+          return result;
+        }
+
+        // Structural types (fields/elements present): use structural-specific handlers
+        if (typeRef.constructorName === 'ordered') {
+          return this.convertToOrderedWithSig(input, typeRef, node);
+        }
+        if (typeRef.constructorName === 'dict') {
+          return this.convertToDictWithSig(input, typeRef, node);
+        }
+        return this.convertToTupleWithSig(input, typeRef, node);
       }
 
-      // Static type ref: :>list, :>dict, etc.
-      if (typeRef.kind === 'static') {
-        return this.applyConversion(input, typeRef.typeName, node);
-      }
-
-      // Union type ref: :>(A | B) — intentionally unsupported in this release
-      if (typeRef.kind === 'union') {
-        throwTypeHalt(
-          {
-            sourceId: this.ctx.sourceId,
-            fn: ':>',
-          },
-          'INVALID_INPUT',
-          'union type conversion is not yet supported',
-          'runtime',
-          undefined,
-          'host'
-        );
-      }
-
-      // Dynamic type ref: :>$var
-      const typeValue = getVariable(this.ctx, typeRef.varName);
-      if (typeValue === undefined) {
-        throw new RuntimeError(
-          'RILL-R005',
-          `Variable '${typeRef.varName}' is not defined`,
-          this.getNodeLocation(node)
-        );
-      }
-      if (!isTypeValue(typeValue)) {
-        throw new RuntimeError(
-          'RILL-R039',
-          `expected type value, got ${inferType(typeValue)}`,
-          this.getNodeLocation(node),
-          { actual: inferType(typeValue) }
-        );
-      }
-
-      return this.applyConversion(input, typeValue.typeName, node);
+      // Non-dict/ordered/tuple constructors: convert first, then assert structural type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
+      const result = this.applyConversion(input, typeRef.constructorName, node);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this as any).assertType(result, typeValue.structure, node.span.start);
+      return result;
     }
 
     /**
@@ -194,7 +139,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     private applyConversion(
       input: RillValue,
       targetType: RillTypeName,
-      node: ConvertNode
+      node: ASTNode
     ): RillValue {
       const sourceType = inferType(input) as RillTypeName;
 
@@ -275,7 +220,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     private async convertToOrderedWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
-      node: ConvertNode
+      node: ASTNode
     ): Promise<RillValue> {
       let dictInput: Record<string, RillValue>;
       if (isOrdered(input)) {
@@ -346,7 +291,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     private async convertToDictWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
-      node: ConvertNode
+      node: ASTNode
     ): Promise<RillValue> {
       let dictInput: Record<string, RillValue>;
       if (isOrdered(input)) {
@@ -437,7 +382,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     private async convertToTupleWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
-      node: ConvertNode
+      node: ASTNode
     ): Promise<RillValue> {
       const isTupleInput = isTuple(input);
       const isListInput =
@@ -507,7 +452,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     private hydrateNested(
       value: RillValue,
       fieldType: TypeStructure,
-      node: ConvertNode
+      node: ASTNode
     ): RillValue {
       if (
         fieldType.kind === 'dict' &&
@@ -645,15 +590,6 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       return value;
     }
   };
-}
-
-/**
- * Type guard: check if a TypeRef | TypeConstructorNode is a TypeConstructorNode.
- */
-function isTypeConstructorNode(
-  ref: TypeRef | TypeConstructorNode
-): ref is TypeConstructorNode {
-  return 'type' in ref && ref.type === 'TypeConstructor';
 }
 
 // Export with type assertion to work around TS4094 limitation

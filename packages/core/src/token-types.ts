@@ -85,9 +85,6 @@ export const TOKEN_TYPES = {
   GUARD_LBRACE: 'GUARD_LBRACE', // guard{
   RETRY_LANGLE: 'RETRY_LANGLE', // retry<
 
-  // Type conversion operator
-  CONVERT: 'CONVERT', // :>
-
   // Keywords
   BREAK: 'BREAK',
   RETURN: 'RETURN',

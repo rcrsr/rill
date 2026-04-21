@@ -194,10 +194,10 @@ log($n)
 log("hello":?string)
 log("hello":?number)
 
-# Convert with :>type
-42 -> :>string => $s
+# Convert with -> type
+42 -> string => $s
 log("number to string: {$s}")
-"3.14" -> :>number => $pi
+"3.14" -> number => $pi
 log("string to number: {$pi}")
 
 # Inspect type at runtime

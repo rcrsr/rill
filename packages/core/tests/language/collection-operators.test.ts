@@ -312,13 +312,13 @@ describe('Rill Runtime: Collection Operators', () => {
     });
 
     describe('all collection operators', () => {
-      it('each :>string', async () => {
-        const result = await run('list[1, 2, 3] -> each { $ -> :>string }');
+      it('each -> string', async () => {
+        const result = await run('list[1, 2, 3] -> each { $ -> string }');
         expect(result).toEqual(['1', '2', '3']);
       });
 
-      it('map :>string', async () => {
-        const result = await run('list[1, 2, 3] -> map { $ -> :>string }');
+      it('map -> string', async () => {
+        const result = await run('list[1, 2, 3] -> map { $ -> string }');
         expect(result).toEqual(['1', '2', '3']);
       });
 

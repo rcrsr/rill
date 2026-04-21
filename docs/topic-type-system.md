@@ -50,37 +50,37 @@ $lt.^type.name
 
 ### Default Values in Type Constructors
 
-Type constructor fields accept a default value using `= literal` syntax after the field type. When you convert a value with `:>`, the runtime fills in any missing fields using those defaults.
+Type constructor fields accept a default value using `= literal` syntax after the field type. When you convert a value with `-> type`, the runtime fills in any missing fields using those defaults.
 
 ```rill
-[b: "b"] -> :>dict(b: string, a: string = "a")
+[b: "b"] -> dict(b: string, a: string = "a")
 # Result: [b: "b", a: "a"]
 ```
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
 
 ```rill
-[x: 1] -> :>ordered(x: number, y: number = 0)
+[x: 1] -> ordered(x: number, y: number = 0)
 # Result: ordered[x: 1, y: 0]
 ```
 
 ```rill
-tuple["x"] -> :>tuple(string, number = 0)
+tuple["x"] -> tuple(string, number = 0)
 # Result: tuple["x", 0]
 ```
 
 Tuple defaults are restricted to trailing positions. You cannot place a defaulted field before a required field in a tuple constructor.
 
-The `:` assertion operator does not hydrate defaults. Only `:>` conversion fills missing fields. Use `:` when you want strict validation with no field synthesis.
+The `:` assertion operator does not hydrate defaults. Only `-> type` conversion fills missing fields. Use `:` when you want strict validation with no field synthesis.
 
-When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `:>` compatibility matrix.
+When a required field has no default and the input omits it, the runtime raises [RILL-R044](ref-errors.md). See [Operators](topic-operators.md) for the full `-> type` compatibility matrix.
 
 #### Nested Collection Synthesis
 
 When a field is missing with no explicit default, the runtime synthesizes the field if its type is a collection where all children have defaults. The runtime seeds an empty collection and hydrates it.
 
 ```rill
-dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+dict[a: 1] -> dict(a: number, b: dict(c: number = 5))
 # Result: dict[a: 1, b: dict[c: 5]]
 ```
 
@@ -93,7 +93,7 @@ If any child of the nested collection lacks a default, the conversion raises [RI
 When a field has an explicit default that is itself a collection, the runtime hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
 
 ```rill
-dict[] -> :>dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
+dict[] -> dict(a: dict(x: number = 1, y: number = 2) = [x: 10])
 # Result: dict[a: dict[x: 10, y: 2]]
 ```
 
@@ -275,7 +275,7 @@ Error if type doesn't match, returns value unchanged:
 # Postfix form (binds tighter than method calls)
 42:number                     # passes, returns 42
 (1 + 2):number                # passes, returns 3
-42:number -> :>string         # "42" - assertion then conversion
+42:number -> string           # "42" - assertion then conversion
 
 # Pipe target form
 "hello" -> :string            # passes, returns "hello"
@@ -331,7 +331,7 @@ ordered[x: 1] -> :$ot
 # Result: ordered[x: 1]
 ```
 
-The assertion passes and returns the original value unchanged. No field synthesis occurs. Use `:>` (convert) to fill missing fields with their defaults.
+The assertion passes and returns the original value unchanged. No field synthesis occurs. Use `-> type` (convert) to fill missing fields with their defaults.
 
 A missing field without a default causes the assertion to fail:
 
@@ -441,11 +441,11 @@ $s -> :?stream
 # Result: true
 ```
 
-Attempting to convert a non-stream value to a stream with `:>stream` halts execution — there is no conversion path to the stream type [EC-20]:
+Attempting to convert a non-stream value to a stream with `-> stream` halts execution — there is no conversion path to the stream type [EC-20]:
 
 ```text
-# Error: RILL-R002: Cannot convert string to stream
-"hello" -> :>stream
+# Error: RILL-R003: Type conversion not supported for stream type
+"hello" -> stream
 ```
 
 ### In Pipe Chains

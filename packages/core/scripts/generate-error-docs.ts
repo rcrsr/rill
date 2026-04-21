@@ -15,7 +15,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ErrorDefinition } from '../src/types.js';
+import type { ErrorDefinition, ErrorHandlingPattern } from '../src/types.js';
 
 const OUTPUT_FILE = 'docs/ref-errors.md';
 
@@ -47,6 +47,13 @@ function generateErrorDocs(): void {
       const errorRegistry = module.ERROR_REGISTRY;
       if (!errorRegistry) {
         console.error('ERROR: ERROR_REGISTRY not found in types.js');
+        process.exit(1);
+      }
+
+      const handlingPatterns: readonly ErrorHandlingPattern[] =
+        module.ERROR_HANDLING_PATTERNS;
+      if (!handlingPatterns || handlingPatterns.length === 0) {
+        console.error('ERROR: ERROR_HANDLING_PATTERNS not found in types.js');
         process.exit(1);
       }
 
@@ -126,7 +133,11 @@ function generateErrorDocs(): void {
       }
 
       // Generate markdown
-      const markdown = generateMarkdown(byCategory, definitions);
+      const markdown = generateMarkdown(
+        byCategory,
+        definitions,
+        handlingPatterns
+      );
 
       // Write output file
       fs.writeFileSync(outputPath, markdown, 'utf-8');
@@ -151,7 +162,8 @@ function generateMarkdown(
     string,
     { name: string; description: string; errors: ErrorDefinition[] }
   >,
-  _allDefinitions: ErrorDefinition[]
+  _allDefinitions: ErrorDefinition[],
+  handlingPatterns: readonly ErrorHandlingPattern[]
 ): string {
   const lines: string[] = [];
 
@@ -234,60 +246,23 @@ function generateMarkdown(
   // Error Handling Patterns section
   lines.push('## Error Handling Patterns');
   lines.push('');
-  lines.push('### Defensive Checks');
-  lines.push('');
-  lines.push('Prevent runtime errors with existence and type checks:');
-  lines.push('');
-  lines.push('```rill');
-  lines.push('# Check variable existence before use');
-  lines.push('[apiKey: "secret123"] => $config');
-  lines.push('$config.?apiKey ? $config.apiKey ! "default-key"');
-  lines.push('');
-  lines.push('# Check type before method call');
-  lines.push('"test" => $value');
-  lines.push('$value :? string ? ($value -> .upper) ! $value');
-  lines.push('');
-  lines.push('# Validate before conversion');
-  lines.push('"42" => $input');
-  lines.push('$input -> .is_match("^[0-9]+$") ? (.num) ! 0');
-  lines.push('```');
-  lines.push('');
-  lines.push('### Default Values');
-  lines.push('');
-  lines.push('Provide fallbacks for missing properties:');
-  lines.push('');
-  lines.push('```rill');
-  lines.push('# Field with default');
-  lines.push('[name: "Alice", age: 30] => $user');
-  lines.push('$user.email ?? "no-email@example.com"');
-  lines.push('');
-  lines.push('# Annotation with default');
-  lines.push('|x|($x) => $fn');
-  lines.push('$fn.^timeout ?? 30');
-  lines.push('');
-  lines.push('# Dict dispatch with default');
-  lines.push('[a: 1, b: 2, c: 3] => $lookup');
-  lines.push('"b" -> $lookup ?? "not found"');
-  lines.push('```');
-  lines.push('');
-  lines.push('### Type Assertions');
-  lines.push('');
-  lines.push('Explicitly verify and convert types:');
-  lines.push('');
-  lines.push('```rill');
-  lines.push('# Assert type before operation');
-  lines.push('"  hello  " => $input');
-  lines.push('$input:string -> .trim');
-  lines.push('');
-  lines.push('# Check type before calling method');
-  lines.push('[1, 2, 3] => $items');
-  lines.push('$items :? list ? ($items -> .len) ! 0');
-  lines.push('');
-  lines.push('# Convert with validation');
-  lines.push('"42" => $value');
-  lines.push('$value -> .str -> .is_match("^[0-9]+$") ? (.num:number) ! 0');
-  lines.push('```');
-  lines.push('');
+  for (const pattern of handlingPatterns) {
+    lines.push(`### ${pattern.title}`);
+    lines.push('');
+    lines.push(pattern.intro);
+    lines.push('');
+    lines.push('```' + pattern.fence);
+    for (let i = 0; i < pattern.examples.length; i++) {
+      const example = pattern.examples[i]!;
+      if (i > 0) lines.push('');
+      lines.push(`# ${example.description}`);
+      for (const codeLine of example.code.split('\n')) {
+        lines.push(codeLine);
+      }
+    }
+    lines.push('```');
+    lines.push('');
+  }
   lines.push('---');
   lines.push('');
   lines.push('## Getting Help');

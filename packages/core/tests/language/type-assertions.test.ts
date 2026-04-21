@@ -129,7 +129,7 @@ describe('Rill Runtime: Type Assertions', () => {
     });
 
     it('assertion fails and stops chain', async () => {
-      await expect(run('42 -> :string -> :>string')).rejects.toThrow();
+      await expect(run('42 -> :string -> string')).rejects.toThrow();
     });
 
     it('multiple type assertions in chain', async () => {
@@ -346,16 +346,16 @@ describe('Rill Runtime: Type Assertions', () => {
   // ============================================================
 
   describe('Post-conversion structural mismatch (AC-19, EC-12)', () => {
-    it('AC-19: list[1,2] -> :>list(string) halts with structural mismatch containing "list(string)"', async () => {
+    it('AC-19: list[1,2] -> list(string) halts with structural mismatch containing "list(string)"', async () => {
       await expectHaltMessage(
-        () => run('list[1, 2] -> :>list(string)'),
+        () => run('list[1, 2] -> list(string)'),
         'list(string)'
       );
     });
 
     it('EC-12: post-conversion structural mismatch uses typed-atom halt path', async () => {
       await expectHaltMessage(
-        () => run('list[1, 2] -> :>list(string)'),
+        () => run('list[1, 2] -> list(string)'),
         'Type assertion failed'
       );
     });

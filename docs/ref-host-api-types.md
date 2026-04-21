@@ -537,7 +537,7 @@ interface TypeProtocol {
 | `structure` | `(v: RillValue) => TypeStructure` | No | Returns the structural descriptor for a value. Absent = type has no parameterized structure |
 | `eq` | `(a: RillValue, b: RillValue) => boolean` | No | Equality test. Absent = identity comparison (`===`) |
 | `compare` | `(a: RillValue, b: RillValue) => number` | No | Ordering: negative, zero, or positive. Absent = type is unordered; `>` and `<` raise `RILL-R002` |
-| `convertTo` | `Record<string, (v: RillValue) => RillValue>` | No | Explicit conversion targets for the `:>` operator. Keys are target type names |
+| `convertTo` | `Record<string, (v: RillValue) => RillValue>` | No | Explicit conversion targets for the `-> type` operator. Keys are target type names |
 | `serialize` | `(v: RillValue) => unknown` | No | Converts value to JSON-serializable form. Used by `serializeValue` |
 | `deserialize` | `(data: unknown) => RillValue` | No | Restores value from serialized data. Used by `deserializeValue` |
 

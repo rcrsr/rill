@@ -14,7 +14,6 @@ import type {
   ChainTerminator,
   ClosureSigLiteralNode,
   ConditionalNode,
-  ConvertNode,
   DoWhileLoopNode,
   ExpressionNode,
   WhileLoopNode,
@@ -31,7 +30,6 @@ import type {
   SourceSpan,
   SpreadArgNode,
   StatusProbeNode,
-  TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
   UseExprNode,
@@ -108,7 +106,6 @@ declare module './parser.js' {
       span: SourceSpan
     ): PostfixExprNode;
     parseClosureSigLiteral(): ClosureSigLiteralNode;
-    parseConvert(): ConvertNode;
     parseUseExpr(): UseExprNode;
   }
 }
@@ -1055,6 +1052,34 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
 // PIPE TARGET PARSING
 // ============================================================
 
+/**
+ * Parses the right-hand side of a `->` pipe operator.
+ *
+ * Dispatch order:
+ *    1. `assert` keyword
+ *    2. `error` keyword
+ *    3. Legacy `:>` migration error (RILL-R078)
+ *    4. `:type` / `:?type` type operations
+ *    5. Extraction operators (`<...>`, slice `[<...>]`)
+ *    6. `use<...>` expression
+ *    7. Collection operators (`each`, `map`, `fold`, `filter`)
+ *    8. Inline closure `|x| { ... }`
+ *    9. Method / annotation chain starting with `.`
+ *   10. Closure call with property access (e.g. `$math.double()`)
+ *   11. Pipe invoke `$(...)`
+ *   12. Bare pipe variable (`$`, `$var`, `$.field`)
+ *   13. String literal
+ *   14. Bracket literal (`[...]`) as dispatch target
+ *   15. `list[...]` keyword literal
+ *   16. `dict[...]` keyword literal
+ *   17. Type constructor (`list(...)`, `dict(...)`, `tuple(...)`,
+ *       `ordered(...)`, `stream(...)`) -> TypeConstructorNode
+ *   18. Bare type keyword (VALID_TYPE_NAMES) -> TypeNameExprNode
+ *   19. Host call with parens `fn(...)`
+ *   20. Bare function name (`greet`, `ns::func`)
+ *   21. Common construct fallthrough (optionally followed by `:type`)
+ *   22. Error: RILL-P001 (no matching pipe target)
+ */
 Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // Assert: -> assert
   if (check(this.state, TOKEN_TYPES.ASSERT)) {
@@ -1066,12 +1091,16 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseError();
   }
 
-  // Convert operator: -> :>type or -> :>$var or -> :>ordered(...)
+  // Legacy convert operator: -> :>type (retired; emit migration error RILL-R078)
   if (
     check(this.state, TOKEN_TYPES.COLON) &&
     peek(this.state, 1).type === TOKEN_TYPES.GT
   ) {
-    return this.parseConvert();
+    throw new ParseError(
+      'RILL-R078',
+      "Legacy ':>' conversion syntax removed; use '-> type' instead",
+      current(this.state).span.start
+    );
   }
 
   // Type operations: -> :type or -> :?type
@@ -1259,6 +1288,45 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
       return { ...dict, defaultValue };
     }
     return dict;
+  }
+
+  // Parameterized type constructor as pipe target:
+  //   -> list(...), -> dict(...), -> tuple(...), -> ordered(...), -> stream(...)
+  // Mirrors the primary-expression dispatch in parsePrimary (see parseTypeConstructor).
+  const PIPE_TARGET_TYPE_CONSTRUCTORS = [
+    'list',
+    'dict',
+    'tuple',
+    'ordered',
+    'stream',
+  ] as const;
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    PIPE_TARGET_TYPE_CONSTRUCTORS.includes(
+      current(this.state)
+        .value as (typeof PIPE_TARGET_TYPE_CONSTRUCTORS)[number]
+    ) &&
+    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
+  ) {
+    const name = current(this.state).value;
+    return this.parseTypeConstructor(name);
+  }
+
+  // Bare type keyword as pipe target: -> string, -> number, -> bool, ...
+  // Produces TypeNameExprNode (mirrors parseBareHostCall's dispatch location
+  // but routes type keywords through the TypeNameExpr node rather than HostCall).
+  // Type keywords are reserved; no ambiguity with host/closure names.
+  if (
+    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+    VALID_TYPE_NAMES.includes(current(this.state).value as RillTypeName) &&
+    this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
+  ) {
+    const token = advance(this.state);
+    return {
+      type: 'TypeNameExpr',
+      typeName: token.value as RillTypeName,
+      span: token.span,
+    } satisfies TypeNameExprNode;
   }
 
   // Function call with parens
@@ -1588,58 +1656,6 @@ Parser.prototype.parseClosureSigLiteral = function (
     type: 'ClosureSigLiteral',
     params,
     returnType,
-    span: makeSpan(start, current(this.state).span.end),
-  };
-};
-
-// ============================================================
-// CONVERT PARSING
-// ============================================================
-
-/**
- * Parse the convert operator: :>type, :>$var, or :>ordered(field: type, ...)
- *
- * Called when current token is COLON and next is GT (i.e. `:>`).
- * Consumes COLON and GT, then parses:
- *   - structural: ordered(field: type, ...) → TypeConstructorNode
- *   - dynamic:    $varName                  → TypeRef { kind: 'dynamic' }
- *   - static:     list | dict | tuple | ...  → TypeRef { kind: 'static' }
- */
-Parser.prototype.parseConvert = function (this: Parser): ConvertNode {
-  const start = current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
-  expect(this.state, TOKEN_TYPES.GT, 'Expected >');
-
-  // Structural convert: :>ordered(field: type, ...), :>stream(T), etc.
-  const TYPE_CONSTRUCTORS_CONVERT = [
-    'list',
-    'dict',
-    'tuple',
-    'ordered',
-    'stream',
-  ] as const;
-  if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    TYPE_CONSTRUCTORS_CONVERT.includes(
-      current(this.state).value as (typeof TYPE_CONSTRUCTORS_CONVERT)[number]
-    ) &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
-    const constructorName = current(this.state).value;
-    const typeRef: TypeConstructorNode =
-      this.parseTypeConstructor(constructorName);
-    return {
-      type: 'Convert',
-      typeRef,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  // Dynamic or static type reference
-  const typeRef = parseTypeRef(this.state);
-  return {
-    type: 'Convert',
-    typeRef,
     span: makeSpan(start, current(this.state).span.end),
   };
 };
