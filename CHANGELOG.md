@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Before:**
   ```typescript
   const factory: ExtensionFactory<MyConfig> = (config) => ({
-    functions: buildFunctions(config),
+    value: buildValue(config),
   });
   ```
 
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   const factory: ExtensionFactory<MyConfig> = (config, ctx) => {
     const client = createClient(config, { signal: ctx.signal });
     return {
-      functions: buildFunctions(client),
+      value: buildValue(client),
       dispose: () => client.close(),
     };
   };

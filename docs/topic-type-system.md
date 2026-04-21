@@ -54,7 +54,7 @@ Type constructor fields accept a default value using `= literal` syntax after th
 
 ```rill
 [b: "b"] -> :>dict(b: string, a: string = "a")
-# Result: [a: "a", b: "b"]
+# Result: [b: "b", a: "a"]
 ```
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
@@ -677,7 +677,7 @@ $o.^type.name
 # Result: "ordered"
 
 ||{ $ } => $fn
-$fn.^type == closure
+$fn.^type.name == "closure"
 # Result: true
 ```
 
@@ -693,7 +693,7 @@ When a dict, ordered, or tuple type carries field annotations, `.^type` exposes 
 
 ```rill
 dict(^("A person's name") name: string, ^("Age in years") age: number) => $schema
-$schema.^type.name
+$schema.name
 # Result: "dict"
 ```
 
@@ -703,7 +703,7 @@ Multi-key annotations appear on the same record:
 
 ```rill
 dict(^(description: "Status", enum: "active,inactive") status: string) => $d
-$d.^type.name
+$d.name
 # Result: "dict"
 ```
 
@@ -921,7 +921,7 @@ The following table lists all built-in methods with their typed signatures. Meth
 
 ```rill
 [a: 1, b: 2] -> json
-# Result: '{"a":1,"b":2}'
+# Result: {"a":1,"b":2}
 ```
 
 **`json` closure handling:**

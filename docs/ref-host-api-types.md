@@ -129,7 +129,7 @@ export {
 };
 
 // Error atom registry
-export { registerCoreAtom, resolveAtom, atomName };
+export { registerErrorCode, resolveAtom, atomName };
 export type { RillAtom, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
 export type { ExtensionFactoryCtx };
 

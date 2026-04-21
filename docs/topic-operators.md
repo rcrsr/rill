@@ -537,21 +537,24 @@ See [Reference](ref-language.md) for full dispatch semantics including dict disp
 
 ## Status Probe (`.!`, `.!field`)
 
-The status probe returns the `:atom` value from an invalid value. Use it to inspect which error condition halted a value.
+Bare `.!` tests whether a value is invalid (halted). `.!field` projects a named field of the status sidecar.
 
 ```text
-$result.!              # :atom value from invalid $result
-$result.!status        # :atom value from invalid field "status"
+$result.!              # bool: true if $result is invalid, false if valid
+$result.!code          # :atom status code (#ok when valid)
+$result.!message       # string message
 ```
-
-`.!` returns `#ok` when the value is valid (not halted). `.!field` extracts the status code from a specific field. Both return a `:atom` value.
 
 | Form | Returns |
 |------|---------|
-| `$v.!` | `:atom` on `$v` (`#ok` if valid) |
-| `$v.!field` | `:atom` on field `field` of `$v` (`#ok` if valid) |
+| `$v.!` | `bool` — `false` when valid, `true` when invalid |
+| `$v.!code` | `:atom` status code (`#ok` when valid) |
+| `$v.!message` | `string` status message |
+| `$v.!provider` | `string` provider tag |
+| `$v.!trace` | `list` of trace-frame dicts |
+| `$v.!<other>` | provider-specific raw field; missing keys yield `""` |
 
-Compare with existence probes: `.?` tests presence (returns `bool`), `.!` tests status (returns `:atom`). See [Error Handling](topic-error-handling.md) for guard and invalid value patterns.
+Compare with existence probes: `.?` tests presence (returns `bool`). `.!` bare also returns `bool`; field projections (`.!code`, `.!message`, ...) return the projected value's type. See [Error Handling](topic-error-handling.md) for guard and invalid value patterns.
 
 ---
 

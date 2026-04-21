@@ -80,7 +80,7 @@ rill requires actual `bool` values for conditions. Empty strings, zero, and empt
 
 ```rill
 "hello" -> .empty -> !$
-# Result: false
+# Result: true
 ```
 
 ## Type-Locked Variables
@@ -169,7 +169,7 @@ Methods like `.head` and `.tail` error on empty collections.
 
 ```rill
 [] => $list
-$list -> .empty ? "nothing" ! $list -> .head
+$list -> .empty ? "nothing" ! ($list -> .head)
 # Result: "nothing"
 ```
 

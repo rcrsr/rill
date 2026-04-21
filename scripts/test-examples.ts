@@ -1028,14 +1028,15 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
     const ast = parse(code);
     const exec = await execute(ast, ctx);
     if (block.expectedResult !== undefined) {
-      const actual1 = formatValue(exec.result);
-      const actual2 = formatRillLiteral(exec.result);
-      const normalizedExpected = block.expectedResult
-        .trim()
-        .replace(/\s*\([^)]*\)\s*$/, '');
+      const actual1 = formatValue(exec.result).trim();
+      const actual2 = formatRillLiteral(exec.result).trim();
+      const expected = block.expectedResult.trim();
+      const normalized = expected.replace(/\s*\([^)]*\)\s*$/, '');
       if (
-        normalizedExpected !== actual1.trim() &&
-        normalizedExpected !== actual2.trim()
+        expected !== actual1 &&
+        expected !== actual2 &&
+        normalized !== actual1 &&
+        normalized !== actual2
       ) {
         return {
           block,

@@ -415,7 +415,7 @@ Convert rows to columns:
 range(0, $matrix[0] -> .len) -> map |col|{
   $matrix -> map |row|{ $row[$col] }
 }
-# Result: [list[1, 4, 7], list[2, 5, 8], list[3, 6, 9]]
+# Result: [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
 ```
 
 ### Zip Lists
@@ -429,7 +429,7 @@ Combine parallel lists into dicts:
 range(0, $zipKeys -> .len) -> map |i|{
   [key: $zipKeys[$i], value: $zipValues[$i]]
 }
-# Result: [[key: "a", value: 1], dict[key: "b", value: 2], dict[key: "c", value: 3]]
+# Result: [[key: "a", value: 1], [key: "b", value: 2], [key: "c", value: 3]]
 ```
 
 Converting to a dict requires dict spread (not yet implemented):
