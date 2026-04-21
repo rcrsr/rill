@@ -37,7 +37,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Capture | `=>` |
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |
-| Conversion | `:>type` (convert type) |
+| Conversion | `-> type` (convert type) |
 | Type | `:type` (assert), `:?type` (check), `:T1\|T2` (union assert/check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
@@ -115,7 +115,7 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 | `#NAME` | `#TIMEOUT` | `:atom` value |
 | `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
 
-`#TIMEOUT -> :>string` converts a `:atom` value to its string name. `"TIMEOUT" -> :>atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
+`#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
 
 ### Functions
 
@@ -199,12 +199,12 @@ Type constructors are primary expressions that produce structural type values. T
 | Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
 | Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
 
-When using `:>` to convert a value, the runtime applies two default behaviors for collection-typed fields:
+When using `-> type` to convert a value, the runtime applies two default behaviors for collection-typed fields:
 
 - **Nested synthesis**: A missing field with no explicit default is synthesized as an empty collection when all its children have defaults. Missing children are filled from the nested type.
 - **Explicit default hydration**: An explicit collection default is hydrated through the nested type. Child defaults fill any fields the explicit default omits.
 
-If any required child field has no default, `:>` raises [RILL-R044](ref-errors.md).
+If any required child field has no default, `-> type` raises [RILL-R044](ref-errors.md).
 
 `^type` returns a structural type value, not a coarse string:
 

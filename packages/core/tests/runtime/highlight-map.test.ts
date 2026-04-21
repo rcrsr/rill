@@ -292,13 +292,7 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       expect(TOKEN_HIGHLIGHT_MAP.get('SLICE_LANGLE')).toBeDefined();
     });
 
-    it('CONVERT is in TOKEN_HIGHLIGHT_MAP', () => {
-      // AC-38: :> conversion operator must have a highlight entry
-      expect(TOKEN_HIGHLIGHT_MAP.has('CONVERT')).toBe(true);
-      expect(TOKEN_HIGHLIGHT_MAP.get('CONVERT')).toBeDefined();
-    });
-
-    it('all 7 new compound tokens resolve to valid HighlightCategory values', () => {
+    it('all compound tokens resolve to valid HighlightCategory values', () => {
       // AC-38: each compound token maps to a valid category
       const compoundTokens = [
         'LIST_LBRACKET',
@@ -307,7 +301,6 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
         'ORDERED_LBRACKET',
         'DESTRUCT_LANGLE',
         'SLICE_LANGLE',
-        'CONVERT',
       ] as const;
 
       for (const token of compoundTokens) {

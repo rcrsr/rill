@@ -507,10 +507,10 @@ describe('Streams: Error Cases', () => {
     });
   });
 
-  // AC-E6: :> on stream type halts with RILL-R003
+  // AC-E6: -> on stream type halts with RILL-R003
   describe('AC-E6: type conversion on stream', () => {
-    it('halts with error on :>stream conversion', async () => {
-      await expect(run('42 -> :>stream')).rejects.toThrow(
+    it('halts with error on -> stream conversion', async () => {
+      await expect(run('42 -> stream')).rejects.toThrow(
         'Type conversion not supported for stream type'
       );
     });
@@ -935,10 +935,10 @@ describe('Streams: Error Contracts', () => {
     });
   });
 
-  // EC-12: :> on stream type
+  // EC-12: -> on stream type
   describe('EC-12: type conversion to stream', () => {
-    it('halts with RILL-R003 on :>stream', async () => {
-      await expect(run('"hello" -> :>stream')).rejects.toThrow(
+    it('halts with RILL-R003 on -> stream', async () => {
+      await expect(run('"hello" -> stream')).rejects.toThrow(
         'Type conversion not supported for stream type'
       );
     });

@@ -824,11 +824,11 @@ describe('ref-llm: String Methods', () => {
   });
 
   it('.str', async () => {
-    expect(await run('42 -> :>string')).toBe('42');
+    expect(await run('42 -> string')).toBe('42');
   });
 
   it('.num', async () => {
-    expect(await run('"42" -> :>number')).toBe(42);
+    expect(await run('"42" -> number')).toBe(42);
   });
 
   it('.head', async () => {

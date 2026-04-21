@@ -1138,30 +1138,30 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The :> operator does not support conversion between the given source and target types. :>string accepts any source type. :>number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (:>boolean, :>list, :>dict, :>tuple, :>ordered) have their own accepted sources.',
+      'The `-> type` form does not support conversion between the given source and target types. -> string accepts any source type. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> boolean, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
     resolution:
-      'Check the target type. Use :>string to convert any value to its string representation. For :>number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
+      'Check the target type. Use -> string to convert any value to its string representation. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
       {
         description: 'String to list conversion',
-        code: '"hello" -> :>list  # Not allowed',
+        code: '"hello" -> list  # Not allowed',
       },
     ],
   },
   {
     errorId: 'RILL-R037',
     category: 'runtime',
-    description: 'dict :>ordered without structural signature',
+    description: 'dict -> ordered without structural signature',
     messageTemplate:
       'dict to ordered conversion requires structural type signature',
     cause:
-      'Converting a dict to ordered with :>ordered requires an explicit ordered(field: type, ...) type signature to determine field order.',
+      'Converting a dict to ordered with -> ordered requires an explicit ordered(field: type, ...) type signature to determine field order.',
     resolution:
-      'Provide a structural type signature: $dict -> :>ordered(name: string, age: number)',
+      'Provide a structural type signature: $dict -> ordered(name: string, age: number)',
     examples: [
       {
         description: 'Missing structural signature',
-        code: '$dict -> :>ordered  # Ambiguous field order',
+        code: '$dict -> ordered  # Ambiguous field order',
       },
     ],
   },
@@ -1172,26 +1172,26 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate: 'cannot convert string "{value}" to number',
     cause: 'The string does not represent a valid number.',
     resolution:
-      'Ensure the string contains a valid numeric format before converting with :>number.',
+      'Ensure the string contains a valid numeric format before converting with -> number.',
     examples: [
       {
         description: 'Non-numeric string',
-        code: '"hello" -> :>number  # Not a number',
+        code: '"hello" -> number  # Not a number',
       },
     ],
   },
   {
     errorId: 'RILL-R039',
     category: 'runtime',
-    description: ':>$var not a type value',
+    description: 'Pipe to non-type-value variable',
     messageTemplate: 'expected type value, got {actual}',
-    cause: 'The variable used with :>$var does not hold a type value.',
+    cause: 'The variable used with -> $var does not hold a type value.',
     resolution:
       'Ensure the variable holds a type value (e.g. from a type name expression like `list` or `string`).',
     examples: [
       {
         description: 'Variable is a string, not a type',
-        code: '"list" => $t\n$x -> :>$t  # $t is string, not a type value',
+        code: '"list" => $t\n$x -> $t  # $t is string, not a type value',
       },
     ],
   },
@@ -1267,17 +1267,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       "cannot convert {source} to {target}: missing required member '{name}'",
     cause:
-      'The :> operator requires all fields/elements without defaults to be present in the source value.',
+      'The `-> type` form requires all fields/elements without defaults to be present in the source value.',
     resolution:
       'Supply the missing field or element in the source value, or add a default to the type annotation.',
     examples: [
       {
         description: 'Dict missing a required field',
-        code: '{name: "Alice"} :> {name: string, age: number}  # age is missing',
+        code: '{name: "Alice"} -> {name: string, age: number}  # age is missing',
       },
       {
         description: 'Tuple missing a required element',
-        code: 'tuple["a"] :> tuple(string, number)  # element at position 1 is missing',
+        code: 'tuple["a"] -> tuple(string, number)  # element at position 1 is missing',
       },
     ],
   },
@@ -1775,6 +1775,30 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Type mismatch in default',
         code: '# param { name: "x", type: "number", defaultValue: "hello" }',
+      },
+    ],
+  },
+
+  // Legacy :> conversion syntax (RILL-R078)
+  // Registered for documentation; parser emission wired in Phase 3 task 3.1.
+  {
+    errorId: 'RILL-R078',
+    category: 'parse',
+    description: 'Legacy :> conversion syntax',
+    messageTemplate:
+      "Legacy ':>' conversion syntax removed; use '-> {target}' instead",
+    cause:
+      "The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both closure dispatch and type conversion dispatch.",
+    resolution:
+      "Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.",
+    examples: [
+      {
+        description: 'Before (legacy syntax triggers RILL-R078)',
+        code: '42 -> :>string\n"3.14" -> :>number\nlist[1, 2] -> :>tuple',
+      },
+      {
+        description: 'After (current syntax)',
+        code: '42 -> string\n"3.14" -> number\nlist[1, 2] -> tuple',
       },
     ],
   },

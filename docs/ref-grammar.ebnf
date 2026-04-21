@@ -549,7 +549,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | slice              (* $ -> slice<0:3> — extract portion of $ *)
               | type-assertion     (* $ -> :string — assert $ is string type *)
               | type-check         (* $ -> :?string — check if $ is string type *)
-              | convert            (* $ -> :>type — convert $ to target type *)
+              | type-conversion     (* $ -> type — convert $ to target type *)
               | spread ;           (* $ -> ... — convert $ dict to ordered for unpacking *)
 
 (* Dispatch semantics (runtime behavior, not grammar):
@@ -626,12 +626,15 @@ spread            = "..." , postfix-expr ;
                  Only dict spread is valid.
                  Bare ... in pipe position uses implicit $: each { ... } ≡ each { $ -> ... } *)
 
-(* Convert operator: coerce pipe value to a target type.
-   -> :>type — static type name
-   -> :>$var — variable holding a type value
-   -> :>ordered(field: type) — structural conversion
+(* Type conversion operator: coerce pipe value to a target type.
+   -> type — static type name
+   -> $var — variable holding a type value
+   -> ordered(field: type) — structural conversion
 
-   Default handling during :> conversion:
+   Dispatch to a type keyword or type constructor via the unified pipe operator (->).
+   Same-type conversions are no-ops. Incompatible conversions halt with RILL-R036.
+
+   Default handling during conversion:
    - Missing fields with defaults are filled from the type constructor.
    - Nested synthesis: a missing collection field with no explicit default
      is synthesized as an empty collection when all its children have defaults.
@@ -640,12 +643,12 @@ spread            = "..." , postfix-expr ;
    - RILL-R044 raised when a required child field has no default.
 
    Examples:
-   42 -> :>string                   -- convert number to string
-   $val -> :>number                 -- convert to number
-   $record -> :>ordered(x: number, y: number) -- structural conversion
-   dict[a: 1] -> :>dict(a: number, b: string = "x") -- fills b with "x"
-   dict[] -> :>dict(a: dict(x: number = 1)) -- nested synthesis fills a.x *)
-convert           = ":>" , ( type-ref | type-constructor ) ;
+   42 -> string                     -- convert number to string
+   $val -> number                   -- convert to number
+   $record -> ordered(x: number, y: number) -- structural conversion
+   dict[a: 1] -> dict(a: number, b: string = "x") -- fills b with "x"
+   dict[] -> dict(a: dict(x: number = 1)) -- nested synthesis fills a.x *)
+type-conversion   = type-ref | type-constructor ;
 
 (* Pipe-invoke: call the pipe value ($) as a closure
    ||{ "hello" } -> $()          -- invoke with no args
@@ -660,7 +663,7 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
 
    Trailing defaults: values that omit trailing fields pass assertion
    when every omitted field has a default in the type constructor.
-   No field synthesis occurs. Use :> to fill defaults.
+   No field synthesis occurs. Use -> type to fill defaults.
 
    Examples:
    42:number                       -- postfix assertion
@@ -750,7 +753,7 @@ field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , litera
    tuple(number)                   -- all tuple entries must be number
    ordered(string)                 -- all ordered values must be string
 
-   Default values (= literal) fill missing fields during :> conversion:
+   Default values (= literal) fill missing fields during -> type conversion:
    dict(a: number, b: string = "x")       -- b defaults to "x"
    tuple(number, string = "")              -- second position defaults to ""
    ordered(x: number, y: number = 0)      -- y defaults to 0

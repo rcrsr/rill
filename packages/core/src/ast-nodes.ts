@@ -294,9 +294,10 @@ export type PipeTargetNode =
   | AssertNode
   | ErrorNode
   | AnnotationAccessNode
-  | ConvertNode
   | DestructNode
   | ListLiteralNode
+  | TypeNameExprNode
+  | TypeConstructorNode
   | UseExprNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
@@ -1061,27 +1062,6 @@ export interface DestructNode extends BaseNode {
   readonly elements: DestructPatternNode[];
 }
 
-// ============================================================
-// CONVERT OPERATOR
-// ============================================================
-
-/**
- * Convert operator: -> :>type or -> :>$var
- * Converts the pipe value to the specified type.
- * Accepts a static type name, a dynamic type variable, or a structural
- * ordered type signature for field-ordered conversion.
- *
- * Examples:
- *   $items -> :>list
- *   $data  -> :>$targetType
- *   $row   -> :>ordered(name: string, age: number)
- */
-export interface ConvertNode extends BaseNode {
-  readonly type: 'Convert';
-  /** Static or dynamic type reference, or a structural type constructor */
-  readonly typeRef: TypeRef | TypeConstructorNode;
-}
-
 /**
  * Discriminated union for the identifier in a use expression.
  * - 'static': scheme:seg1.seg2 — parsed at parse time into scheme and segments
@@ -1192,7 +1172,6 @@ export type ASTNode =
   | TupleLiteralNode
   | OrderedLiteralNode
   | DestructNode
-  | ConvertNode
   | UseExprNode
   | GuardBlockNode
   | RetryBlockNode

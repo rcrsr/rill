@@ -46,7 +46,6 @@ import type {
   TupleLiteralNode,
   OrderedLiteralNode,
   DestructNode,
-  ConvertNode,
   SpreadArgNode,
   TypeRef,
   FieldArg,
@@ -172,9 +171,6 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'Destruct':
       return destructNodeEquals(a, b as DestructNode);
-
-    case 'Convert':
-      return convertEquals(a, b as ConvertNode);
 
     case 'Capture': {
       const bCapture = b as typeof a;
@@ -585,23 +581,6 @@ function destructNodeEquals(a: DestructNode, b: DestructNode): boolean {
     if (!destructElemEquals(a.elements[i]!, b.elements[i]!)) return false;
   }
   return true;
-}
-
-function convertEquals(a: ConvertNode, b: ConvertNode): boolean {
-  const aRef = a.typeRef;
-  const bRef = b.typeRef;
-  // TypeConstructorNode has a 'type' property; TypeRef has a 'kind' property
-  if ('type' in aRef && 'type' in bRef) {
-    return astEquals(aRef, bRef);
-  }
-  if ('kind' in aRef && 'kind' in bRef) {
-    if (aRef.kind !== bRef.kind) return false;
-    if (aRef.kind === 'static' && bRef.kind === 'static')
-      return typeRefStaticEquals(aRef, bRef);
-    if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic')
-      return aRef.varName === bRef.varName;
-  }
-  return false;
 }
 
 /**

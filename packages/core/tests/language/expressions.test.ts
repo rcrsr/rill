@@ -86,7 +86,7 @@ describe('Rill Runtime: Expressions', () => {
     });
 
     it('chains methods', async () => {
-      expect(await run('123 -> :>string -> .len')).toBe(3);
+      expect(await run('123 -> string -> .len')).toBe(3);
     });
 
     it('calls custom function', async () => {

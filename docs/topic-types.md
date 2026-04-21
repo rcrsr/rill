@@ -330,14 +330,14 @@ $obj.str    # "toolkit: 3 items" (auto-invoked)
 `dict(T)` asserts that every value in the dict matches type T. The dict itself is returned unchanged.
 
 ```rill
-[a: 1, b: 2] -> :>dict(number)
+[a: 1, b: 2] -> dict(number)
 # Result: dict[a: 1, b: 2]
 ```
 
 An empty dict passes; there are no values to violate the constraint.
 
 ```rill
-dict[] -> :>dict(number)
+dict[] -> dict(number)
 # Result: dict[]
 ```
 
@@ -376,7 +376,7 @@ Key order in `ordered` is the insertion order. This differs from `dict`, which i
 `ordered(T)` asserts that every entry value in the ordered container matches type T. The container is returned unchanged.
 
 ```rill
-ordered[x: 1, y: 2] -> :>ordered(number)
+ordered[x: 1, y: 2] -> ordered(number)
 # Result: ordered[x: 1, y: 2]
 ```
 
@@ -439,7 +439,7 @@ tuple["x"] -> :$t
 # Result: tuple["x"]
 ```
 
-The `:` assertion also accepts the shorter value. No field synthesis occurs; the returned value is unchanged. Use `:>` to fill missing fields with their defaults.
+The `:` assertion also accepts the shorter value. No field synthesis occurs; the returned value is unchanged. Use `-> type` to fill missing fields with their defaults.
 
 Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
 
@@ -447,14 +447,14 @@ This matches the trailing-default behavior of `dict` and `ordered` type construc
 
 #### Nested Default Synthesis
 
-When a collection-typed field has no value and no explicit default, `:>` synthesizes it if all its children have defaults. The runtime seeds an empty collection and fills each child from the nested type.
+When a collection-typed field has no value and no explicit default, `-> type` synthesizes it if all its children have defaults. The runtime seeds an empty collection and fills each child from the nested type.
 
 ```rill
-dict[a: 1] -> :>dict(a: number, b: dict(c: number = 5))
+dict[a: 1] -> dict(a: number, b: dict(c: number = 5))
 # Result: dict[a: 1, b: dict[c: 5]]
 ```
 
-When a field has an explicit collection default, `:>` hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
+When a field has an explicit collection default, `-> type` hydrates that default through the nested type. Child defaults fill any fields the explicit default omits.
 
 If any required child field lacks a default, the conversion raises RILL-R044.
 
@@ -472,7 +472,7 @@ Use tuples with explicit spread `...` to pass positional args in `map`:
 `tuple(T)` asserts that every entry in the tuple matches type T. The tuple is returned unchanged.
 
 ```rill
-tuple[1, 2, 3] -> :>tuple(number)
+tuple[1, 2, 3] -> tuple(number)
 # Result: tuple[1, 2, 3]
 ```
 

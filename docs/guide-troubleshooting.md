@@ -21,7 +21,7 @@ rill never converts between types automatically. Operations that silently coerce
 ```
 
 ```rill
-5 -> :>string
+5 -> string
 # Result: "5"
 ```
 
@@ -32,17 +32,17 @@ rill never converts between types automatically. Operations that silently coerce
 # Error: Arithmetic requires number, got string
 ```
 
-**Fix:** Convert with `:>number`.
+**Fix:** Convert with `-> number`.
 
 ```rill
-"42" -> :>number -> ($ + 1)
+"42" -> number -> ($ + 1)
 # Result: 43
 ```
 
 Non-numeric strings throw on conversion:
 
 ```text
-"abc" -> :>number
+"abc" -> number
 # Error: Cannot convert "abc" to number
 ```
 
@@ -101,7 +101,7 @@ Variables lock to the type of their first assignment. Reassigning a different ty
 
 ```rill
 "hello" => $x
-42 -> :>string => $x     # OK: still a string
+42 -> string => $x       # OK: still a string
 ```
 
 ## Missing Dict Keys
@@ -407,7 +407,7 @@ Pre-registered atoms: `#TIMEOUT`, `#AUTH`, `#RATE_LIMIT`, `#UNAVAILABLE`, `#NOT_
 To convert a registered atom to its string name:
 
 ```rill
-#TIMEOUT -> :>string
+#TIMEOUT -> string
 # Result: TIMEOUT
 ```
 

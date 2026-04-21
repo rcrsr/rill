@@ -92,7 +92,6 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['DOT_QUESTION', 'operator'],
     ['DOT_BANG', 'operator'],
     ['ELLIPSIS', 'operator'],
-    ['CONVERT', 'operator'],
     ['AT', 'operator'],
     ['CARET', 'operator'],
     ['AMPERSAND', 'operator'],

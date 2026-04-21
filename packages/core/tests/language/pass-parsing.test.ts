@@ -147,13 +147,13 @@ describe('Rill Language: Pass Keyword Parsing', () => {
     });
 
     it('parses pass piped to convert operator', () => {
-      const ast = parse('pass -> :>string');
+      const ast = parse('pass -> string');
       expect(ast.type).toBe('Script');
 
       const stmt = ast.statements[0]!;
       expect(stmt.expression.head.primary.type).toBe('Pass');
       expect(stmt.expression.pipes).toHaveLength(1);
-      expect(stmt.expression.pipes[0]!.type).toBe('Convert');
+      expect(stmt.expression.pipes[0]!.type).toBe('TypeNameExpr');
     });
   });
 });

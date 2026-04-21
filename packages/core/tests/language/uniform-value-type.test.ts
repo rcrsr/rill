@@ -31,7 +31,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     it('dict(closure) passes when all values are callable [AC-1]', async () => {
       // All values must be closures for dict(closure) to pass
       const result = await run(
-        '[name: ||{ "a" }, run: ||{ 1 }] -> :>dict(closure)'
+        '[name: ||{ "a" }, run: ||{ 1 }] -> dict(closure)'
       );
       expect(result).toHaveProperty('name');
       expect(result).toHaveProperty('run');
@@ -39,13 +39,13 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('ordered(closure) passes when all values are callable [AC-2]', async () => {
       const result = await run(
-        'ordered[name: ||{ "a" }, run: ||{ 1 }] -> :>ordered(closure)'
+        'ordered[name: ||{ "a" }, run: ||{ 1 }] -> ordered(closure)'
       );
       expect(result).toHaveProperty('entries');
     });
 
     it('tuple(number) passes when all entries are numbers [AC-3]', async () => {
-      const result = await run('tuple[1, 2, 3] -> :>tuple(number)');
+      const result = await run('tuple[1, 2, 3] -> tuple(number)');
       expect(result).toEqual({
         __rill_tuple: true,
         entries: [1, 2, 3],
@@ -54,14 +54,14 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('dict(list(number)) passes with nested uniform types [AC-4]', async () => {
       const result = await run(
-        '[a: list[1, 2], b: list[3, 4]] -> :>dict(list(number))'
+        '[a: list[1, 2], b: list[3, 4]] -> dict(list(number))'
       );
       expect(result).toEqual({ a: [1, 2], b: [3, 4] });
     });
 
     it('dict() bare type matches any dict [AC-5]', async () => {
-      // :>dict (bare, no parens) passes any dict through unchanged
-      const result = await run('[a: 1, b: "s"] -> :>dict');
+      // -> dict (bare, no parens) passes any dict through unchanged
+      const result = await run('[a: 1, b: "s"] -> dict');
       expect(result).toEqual({ a: 1, b: 's' });
     });
 
@@ -72,13 +72,13 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('structural dict assertion unchanged [AC-7]', async () => {
       const result = await run(
-        '[name: "a", age: 1] -> :>dict(name: string, age: number)'
+        '[name: "a", age: 1] -> dict(name: string, age: number)'
       );
       expect(result).toEqual({ name: 'a', age: 1 });
     });
 
     it('multi-element structural tuple unchanged [AC-8]', async () => {
-      const result = await run('tuple["a", 1] -> :>tuple(string, number)');
+      const result = await run('tuple["a", 1] -> tuple(string, number)');
       expect(result).toEqual({
         __rill_tuple: true,
         entries: ['a', 1],
@@ -93,7 +93,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   describe('Error cases for uniform assertions', () => {
     it('string value fails dict(closure) [AC-10, EC-3]', async () => {
       await expectHaltMessage(
-        () => run('[name: "a", run: "b"] -> :>dict(closure)'),
+        () => run('[name: "a", run: "b"] -> dict(closure)'),
         'Type assertion failed'
       );
     });
@@ -114,7 +114,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
     it('tuple[1, "a"] fails tuple(number) [AC-13, EC-3]', async () => {
       await expectHaltMessage(
-        () => run('tuple[1, "a"] -> :>tuple(number)'),
+        () => run('tuple[1, "a"] -> tuple(number)'),
         'Type assertion failed'
       );
     });
@@ -134,13 +134,13 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
   describe('Error message format', () => {
     it('failed dict(closure) assertion message contains "expected dict(closure)" [AC-9, EC-3]', async () => {
       await expectHaltMessage(
-        () => run('[name: "a", run: "b"] -> :>dict(closure)'),
+        () => run('[name: "a", run: "b"] -> dict(closure)'),
         'expected dict(closure)'
       );
     });
 
     it('failed dict(closure) assertion uses #TYPE_MISMATCH atom [EC-3]', async () => {
-      await expectHalt(() => run('[name: "a", run: "b"] -> :>dict(closure)'), {
+      await expectHalt(() => run('[name: "a", run: "b"] -> dict(closure)'), {
         code: 'TYPE_MISMATCH',
       });
     });
@@ -152,12 +152,12 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
 
   describe('Boundary conditions', () => {
     it('empty dict passes dict(closure) [AC-15]', async () => {
-      const result = await run('dict[] -> :>dict(closure)');
+      const result = await run('dict[] -> dict(closure)');
       expect(result).toEqual({});
     });
 
     it('empty tuple passes tuple(number) [AC-16]', async () => {
-      const result = await run('tuple[] -> :>tuple(number)');
+      const result = await run('tuple[] -> tuple(number)');
       expect(result).toEqual({
         __rill_tuple: true,
         entries: [],
@@ -165,7 +165,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     });
 
     it('empty ordered passes ordered(number) [AC-17]', async () => {
-      const result = await run('ordered[] -> :>ordered(number)');
+      const result = await run('ordered[] -> ordered(number)');
       expect(result).toHaveProperty('entries');
       expect((result as { entries: unknown[] }).entries).toHaveLength(0);
     });
@@ -185,7 +185,7 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       // on access. The extracted value is a plain value, not a closure
       // with uniform type metadata.
       const script = `
-        dict[run: ||{ 42 }] -> :>dict(closure) => $d
+        dict[run: ||{ 42 }] -> dict(closure) => $d
         "run" => $key
         $d.$key
       `;
@@ -221,12 +221,12 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
     });
 
     it('tuple(number) uniform assertion passes without annotations', async () => {
-      const result = await run('tuple[1, 2] -> :>tuple(number)');
+      const result = await run('tuple[1, 2] -> tuple(number)');
       expect(result).toEqual({ __rill_tuple: true, entries: [1, 2] });
     });
 
     it('ordered(number) uniform assertion passes without annotations', async () => {
-      const result = await run('ordered[a: 1, b: 2] -> :>ordered(number)');
+      const result = await run('ordered[a: 1, b: 2] -> ordered(number)');
       expect(result).toHaveProperty('entries');
     });
   });

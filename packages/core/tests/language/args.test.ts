@@ -473,30 +473,30 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
 
       it('creates tuple from list variable', async () => {
         const result = (await run(
-          'list[1, 2] => $t\n$t -> :>tuple => $u\n$u.^type'
+          'list[1, 2] => $t\n$t -> tuple => $u\n$u.^type'
         )) as any;
         expect(result.typeName).toBe('tuple');
       });
 
       it('creates ordered from dict variable', async () => {
         const result = (await run(
-          'dict[a: 1] => $d\n$d -> :>ordered(a: number) => $u\n$u.^type'
+          'dict[a: 1] => $d\n$d -> ordered(a: number) => $u\n$u.^type'
         )) as any;
         expect(result.typeName).toBe('ordered');
       });
     });
 
-    describe('Pipe target form: -> :>type', () => {
-      it('list pipe to :>tuple creates tuple', async () => {
+    describe('Pipe target form: -> type', () => {
+      it('list pipe to -> tuple creates tuple', async () => {
         const result = (await run(
-          'list[1, 2, 3] -> :>tuple => $t\n$t.^type'
+          'list[1, 2, 3] -> tuple => $t\n$t.^type'
         )) as any;
         expect(result.typeName).toBe('tuple');
       });
 
-      it('ordered pipe to :>dict creates dict', async () => {
+      it('ordered pipe to -> dict creates dict', async () => {
         const result = (await run(
-          'ordered[a: 1, b: 2] -> :>dict => $t\n$t.^type'
+          'ordered[a: 1, b: 2] -> dict => $t\n$t.^type'
         )) as any;
         expect(result.typeName).toBe('dict');
       });
@@ -627,9 +627,9 @@ describe('Rill Runtime: Tuple Type (Spread Args)', () => {
     });
   });
 
-  describe(':>string on ordered spread', () => {
+  describe('-> string on ordered spread', () => {
     it('includes named keys in string', async () => {
-      const result = await run('ordered[x: 1, y: 2] -> :>string');
+      const result = await run('ordered[x: 1, y: 2] -> string');
       expect(result).toContain('x');
       expect(result).toContain('y');
     });

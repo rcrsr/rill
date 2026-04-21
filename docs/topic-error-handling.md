@@ -108,13 +108,13 @@ Convert between atoms and strings with the built-in forms:
 
 | Operation | Syntax | Result |
 |-----------|--------|--------|
-| Atom to string | `#TIMEOUT -> :>string` | `"TIMEOUT"` (no `#` sigil) |
-| String to atom | `"TIMEOUT" -> :>atom` | `#TIMEOUT` atom identity |
-| Unknown string to atom | `"BOGUS" -> :>atom` | `#R001` |
+| Atom to string | `#TIMEOUT -> string` | `"TIMEOUT"` (no `#` sigil) |
+| String to atom | `"TIMEOUT" -> atom` | `#TIMEOUT` atom identity |
+| Unknown string to atom | `"BOGUS" -> atom` | `#R001` |
 
 The `.!code` probe returns the atom value. Pass atoms in option lists as `#CODE` literals.
 
-Unregistered atom names in `"NAME" -> :>atom` resolve to `#R001`. The conversion never throws.
+Unregistered atom names in `"NAME" -> atom` resolve to `#R001`. The conversion never throws.
 
 ---
 

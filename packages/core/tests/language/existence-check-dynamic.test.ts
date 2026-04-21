@@ -620,8 +620,8 @@ describe('Dynamic Existence Check', () => {
       it('creates dict with computed arithmetic key and checks existence with same computation', async () => {
         const result = await run(`
           2 => $base
-          dict[_static: 0, (($base + 3) -> :>string): "five"] => $dict
-          $dict.?(5 -> :>string)
+          dict[_static: 0, (($base + 3) -> string): "five"] => $dict
+          $dict.?(5 -> string)
         `);
         expect(result).toBe(true);
       });

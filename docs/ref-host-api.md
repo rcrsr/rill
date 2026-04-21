@@ -331,7 +331,7 @@ The explicit-literal-syntax initiative (replacing sigil-based forms with keyword
 | `ORDERED_LBRACKET` | `keyword` | `ordered[` |
 | `DESTRUCT_LANGLE` | `keyword` | `destruct<` |
 | `SLICE_LANGLE` | `keyword` | `slice<` |
-| `CONVERT` | `operator` | `:>` |
+| `CONVERT` | `operator` | `->` (type conversion) |
 
 **2 tokens removed:**
 

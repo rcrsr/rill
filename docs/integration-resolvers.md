@@ -223,7 +223,7 @@ type TypeStructure =
 
 The structural type formats as a human-readable string via `formatStructure`:
 
-| Expression | `:>string` output |
+| Expression | `-> string` output |
 |------------|---------------|
 | `[1, 2, 3] -> ^type` | `"list(number)"` |
 | `[a: 1, b: "x"] -> ^type` | `"dict(a: number, b: string)"` |
@@ -240,7 +240,7 @@ All callable kinds expose their parameter and return type shapes via `.^input` a
 
 ```typescript
 // Script closure returned from execute():
-// |x: number, y: string| x -> :>string
+// |x: number, y: string| x -> string
 
 const closure = result.result; // RillCallable (ScriptCallable)
 // $fn.^input -> ordered[x: ^number, y: ^string]

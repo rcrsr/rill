@@ -3,7 +3,7 @@
  *
  * Covers:
  * - IR-11: ^chunk and ^output reflection on streams
- * - IR-11: :>stream halts with RILL-R003
+ * - IR-11: -> stream halts with RILL-R003
  * - IR-12: $s() invocation returns resolution value
  * - IR-12: $s() is idempotent (cached after first call)
  * - IR-14: Scope exit disposes unconsumed streams in reverse order
@@ -127,9 +127,9 @@ describe('Stream Reflection', () => {
     });
   });
 
-  describe(':>stream error', () => {
-    it('halts with RILL-R003 on :>stream conversion', async () => {
-      const script = '42 -> :>stream';
+  describe('-> stream error', () => {
+    it('halts with RILL-R003 on -> stream conversion', async () => {
+      const script = '42 -> stream';
       await expect(run(script)).rejects.toThrow(
         'Type conversion not supported for stream type'
       );

@@ -368,12 +368,17 @@ describe('Rill Language: Type Value Expressions', () => {
   });
 
   // ============================================================
-  // EC-7: 42 -> type produces unknown-function error
+  // EC-7: 42 -> type produces conversion error
   // ============================================================
 
   describe('EC-7: type() removal', () => {
-    it('42 -> type produces unknown-function error (EC-7)', async () => {
-      await expect(run('42 -> type')).rejects.toThrow('Unknown function: type');
+    it('42 -> type produces conversion error (EC-7)', async () => {
+      // `type` is a reserved type keyword at pipe target position, so
+      // `42 -> type` is parsed as a type conversion. Converting a number
+      // to the type-of-types is not supported, raising RILL-R036.
+      await expect(run('42 -> type')).rejects.toThrow(
+        'cannot convert number to type'
+      );
     });
   });
 

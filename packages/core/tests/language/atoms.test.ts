@@ -164,13 +164,13 @@ describe(':atom primitive via deserialize (EC-13)', () => {
   });
 });
 
-describe(':>atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
-  it('AC-8: `"TIMEOUT" -> :>atom` converts the string to the registered TIMEOUT atom', async () => {
+describe('-> atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
+  it('AC-8: `"TIMEOUT" -> atom` converts the string to the registered TIMEOUT atom', async () => {
     // AC-8 happy path: a well-formed, pre-registered atom name piped through
-    // `:>atom` returns a `:atom` value whose interned atom is identity-equal
+    // `-> atom` returns a `:atom` value whose interned atom is identity-equal
     // to the registry entry for `#TIMEOUT`. TIMEOUT is pre-registered during
     // atom-registry bootstrap, so no extra registration is required here.
-    const ast = parse('"TIMEOUT" -> :>atom');
+    const ast = parse('"TIMEOUT" -> atom');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);
@@ -178,32 +178,32 @@ describe(':>atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
     expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
   });
 
-  it('AC-9: unregistered well-formed name via `:>atom` falls back to #R001', async () => {
+  it('AC-9: unregistered well-formed name via `-> atom` falls back to #R001', async () => {
     // AC-9: a syntactically valid but unregistered atom name collapses to
     // the `#R001` fallback through the registry (EC-3 contract). Identity
     // equality with `resolveAtom("R001")` holds because atoms intern.
-    const ast = parse('"DEFINITELY_NOT_REGISTERED_XYZ" -> :>atom');
+    const ast = parse('"DEFINITELY_NOT_REGISTERED_XYZ" -> atom');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);
     expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
   });
 
-  it('AC-37: empty string through `:>atom` falls back to #R001', async () => {
+  it('AC-37: empty string through `-> atom` falls back to #R001', async () => {
     // AC-37: empty string is not a registered atom name; resolution falls
     // back to `#R001`. The stringConvertTo entry delegates to resolveAtom,
     // which never throws and returns the fallback atom.
-    const ast = parse('"" -> :>atom');
+    const ast = parse('"" -> atom');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);
     expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
   });
 
-  it('AC-38: whitespace-only string through `:>atom` falls back to #R001', async () => {
+  it('AC-38: whitespace-only string through `-> atom` falls back to #R001', async () => {
     // AC-38: whitespace-only names are never registered, so resolution
     // collapses to `#R001` via the same fallback path as AC-37.
-    const ast = parse('"   " -> :>atom');
+    const ast = parse('"   " -> atom');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);

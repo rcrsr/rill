@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Atom type rename** — The `:code` primitive type is now spelled `:atom`. Host API exports are renamed: `RillCode` → `RillAtom`, `RillCodeValue` → `RillAtomValue`, `isCode` → `isAtom`. Scripts using `:code` type annotations must migrate to `:atom`; sidecar field access (`.!code`) is unaffected
 - **Error message interpolation preservation** — `error "..."` statements with string interpolation now attach wrap trace frames preserving the evaluated message content at runtime
+- **Type conversion syntax unified** — The `:>` type-conversion operator is removed. Type conversions now use the unified `->` pipe form (e.g., `"42" -> number`, `dict -> ordered(name: string)`). Type values bound to variables work with pipes too: `number => $t; "42" -> $t`
 
 ## [0.18.6] - 2026-04-17
 

@@ -198,7 +198,7 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email"
 [[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $items
 $items -> each {
   $.name -> .pad_end(20) => $name
-  $.value -> :>string -> .pad_start(10) => $val
+  $.value -> string -> .pad_start(10) => $val
   "{$name}{$val}"
 } -> .join("\n")
 ```

@@ -208,8 +208,8 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toContain('string');
     });
 
-    it('multi-pipe after bare sig: |x: string| :string -> :>string -> .len returns string length', async () => {
-      const result = await run('|x: string| :string -> :>string -> .len');
+    it('multi-pipe after bare sig: |x: string| :string -> string -> .len returns string length', async () => {
+      const result = await run('|x: string| :string -> string -> .len');
       expect(typeof result).toBe('number');
       expect(result as number).toBeGreaterThan(0);
     });
