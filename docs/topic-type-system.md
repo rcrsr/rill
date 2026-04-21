@@ -444,7 +444,7 @@ $s -> :?stream
 Attempting to convert a non-stream value to a stream with `-> stream` halts execution — there is no conversion path to the stream type [EC-20]:
 
 ```text
-# Error: RILL-R003: Cannot convert string to stream
+# Error: RILL-R003: Type conversion not supported for stream type
 "hello" -> stream
 ```
 

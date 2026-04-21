@@ -321,7 +321,7 @@ for (const token of tokens) {
 
 The explicit-literal-syntax initiative (replacing sigil-based forms with keyword-prefixed forms) changed which tokens exist:
 
-**7 tokens added:**
+**6 tokens added:**
 
 | Token | Category | Syntax |
 |-------|----------|--------|
@@ -331,7 +331,6 @@ The explicit-literal-syntax initiative (replacing sigil-based forms with keyword
 | `ORDERED_LBRACKET` | `keyword` | `ordered[` |
 | `DESTRUCT_LANGLE` | `keyword` | `destruct<` |
 | `SLICE_LANGLE` | `keyword` | `slice<` |
-| `CONVERT` | `operator` | `->` (type conversion) |
 
 **2 tokens removed:**
 

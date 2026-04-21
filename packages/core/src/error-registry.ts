@@ -1183,15 +1183,17 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: 'RILL-R039',
     category: 'runtime',
-    description: 'Pipe to non-type-value variable',
+    description: 'Retired: type-value variable dispatch (`:>` form)',
     messageTemplate: 'expected type value, got {actual}',
-    cause: 'The variable used with -> $var does not hold a type value.',
+    cause:
+      'This error was raised by the legacy `:>$var` conversion form when the variable did not hold a type value. The `:>` operator has been removed; variable dispatch now falls through to RILL-R002 when the target variable does not hold a dispatchable value.',
     resolution:
-      'Ensure the variable holds a type value (e.g. from a type name expression like `list` or `string`).',
+      'This error code is no longer thrown. If a variable pipe target produces an unexpected dispatch error, see RILL-R002.',
     examples: [
       {
-        description: 'Variable is a string, not a type',
-        code: '"list" => $t\n$x -> $t  # $t is string, not a type value',
+        description:
+          'Legacy: `:>$var` where $var held a string (no longer thrown; produces RILL-R002)',
+        code: '# "list" => $t\n# "hello" :> $t  # was: expected type value, got string',
       },
     ],
   },
@@ -1273,7 +1275,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Dict missing a required field',
-        code: '{name: "Alice"} -> {name: string, age: number}  # age is missing',
+        code: '[name: "Alice"] -> dict(name: string, age: number)  # age is missing',
       },
       {
         description: 'Tuple missing a required element',

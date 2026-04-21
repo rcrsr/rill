@@ -1182,18 +1182,18 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r039
 
-**Description:** Pipe to non-type-value variable
+**Description:** Retired: type-value variable dispatch (`:>` form)
 
-**Cause:** The variable used with -> $var does not hold a type value.
+**Cause:** This error was raised by the legacy `:>$var` conversion form when the variable did not hold a type value. The `:>` operator has been removed; variable dispatch now falls through to RILL-R002 when the target variable does not hold a dispatchable value.
 
-**Resolution:** Ensure the variable holds a type value (e.g. from a type name expression like `list` or `string`).
+**Resolution:** This error code is no longer thrown. If a variable pipe target produces an unexpected dispatch error, see RILL-R002.
 
 **Example:**
 
 ```text
-# Variable is a string, not a type
-"list" => $t
-$x -> $t  # $t is string, not a type value
+# Legacy: `:>$var` where $var held a string (no longer thrown; produces RILL-R002)
+# "list" => $t
+# "hello" :> $t  # was: expected type value, got string
 ```
 
 ---
@@ -1281,7 +1281,7 @@ $x -> $t  # $t is string, not a type value
 
 ```text
 # Dict missing a required field
-{name: "Alice"} -> {name: string, age: number}  # age is missing
+[name: "Alice"] -> dict(name: string, age: number)  # age is missing
 
 # Tuple missing a required element
 tuple["a"] -> tuple(string, number)  # element at position 1 is missing
