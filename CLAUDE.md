@@ -1,3 +1,14 @@
+## PR and Commit Policy
+
+The `conduct/` directory and its initiatives, specifications, plans, and requirements are internal workflow artifacts. They are not published and not referenced by consumers. Never cite `conduct/initiatives/...` paths or conduct document names in:
+
+- PR titles or descriptions
+- Commit messages on `main` or release branches
+- CHANGELOG.md entries
+- Any user-facing documentation under `docs/` or `packages/web/`
+
+Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
+
 ## Monorepo Structure
 
 rill uses pnpm workspaces with the following package organization:
