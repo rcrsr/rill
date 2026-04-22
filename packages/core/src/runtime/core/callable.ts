@@ -42,7 +42,6 @@ import type {
 import { formatValue, inferType } from './types/registrations.js';
 import {
   formatStructure,
-  paramToFieldDef,
   structureEquals,
   structureMatches,
 } from './types/operations.js';
@@ -232,15 +231,6 @@ export function toCallable(
 // isDict imported from ./types/guards.js and re-exported
 export { isDict };
 
-/** Format a callable for display */
-export function formatCallable(callable: RillCallable): string {
-  if (callable.kind === 'script') {
-    const paramStr = callable.params.map((p) => p.name).join(', ');
-    return `(${paramStr}) { ... }`;
-  }
-  return '(...) { [native] }';
-}
-
 /**
  * Compare two annotation records for equality.
  * Returns true if both records have the same keys and values.
@@ -328,31 +318,6 @@ export function callableEquals(
  * - Untyped params (type: undefined) map to { kind: 'any' }
  * - Return type is always { kind: 'any' }
  *
- * No validation: parser already validates type names.
- *
- * @param params - Closure parameter definitions (RillParam[])
- * @returns Frozen TypeStructure with closure variant
- */
-export function paramsToStructuralType(
-  params: readonly RillParam[]
-): TypeStructure {
-  const closureParams = params.map((param) =>
-    paramToFieldDef(
-      param.name,
-      param.type ?? { kind: 'any' },
-      param.defaultValue,
-      param.annotations
-    )
-  );
-
-  return Object.freeze({
-    kind: 'closure' as const,
-    params: closureParams,
-    ret: { kind: 'any' as const },
-  });
-}
-
-/**
  * Validate defaultValue type matches declared parameter type.
  *
  * Called at registration time to catch configuration errors early.
