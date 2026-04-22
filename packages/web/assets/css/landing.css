@@ -669,6 +669,10 @@
     animation-delay: 0.2s;
   }
 
+  .integration-category-search {
+    animation-delay: 0.25s;
+  }
+
   .integration-category-tools {
     animation-delay: 0.3s;
   }
@@ -793,7 +797,37 @@
     opacity: 1;
   }
 
-  /* Connectivity category accent — green */
+  /* Search category accent — blue */
+  .integration-category-search .category-label-dot {
+    background: var(--neon-blue);
+  }
+
+  .integration-category-search .category-label-text {
+    color: var(--neon-blue);
+    opacity: 0.7;
+  }
+
+  .integration-category-search .category-label-line {
+    background: var(--neon-blue);
+  }
+
+  .integration-category-search .integration-chip:hover {
+    border-color: rgba(96, 165, 250, 0.3);
+    border-left-color: var(--neon-blue);
+    box-shadow: 0 0 20px rgba(96, 165, 250, 0.06);
+    color: var(--neon-blue);
+  }
+
+  .integration-category-search .chip-prefix {
+    color: var(--neon-blue);
+    opacity: 0.6;
+  }
+
+  .integration-category-search .integration-chip:hover .chip-prefix {
+    opacity: 1;
+  }
+
+  /* Tools category accent — green */
   .integration-category-tools .category-label-dot {
     background: var(--neon-green);
   }
