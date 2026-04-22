@@ -106,8 +106,10 @@ Pass a pre-defined closure by reference.
 ### Streams with seq
 
 ```text
+use<ext:app> => $app
+
 # Stream: each chunk is one call
-app::lines("file.txt") -> seq({ $ -> .upper })
+$app.lines("file.txt") -> seq({ $ -> .upper })
 # Returns list of uppercased lines
 ```
 
@@ -169,8 +171,10 @@ Use `fan` when:
 ### Streams with fan
 
 ```text
+use<ext:app> => $app
+
 # Each stream chunk is transformed; result is a list
-app::stream_numbers() -> fan({ $ * 2 })
+$app.stream_numbers() -> fan({ $ * 2 })
 # Returns list[...] — not a stream
 ```
 
@@ -255,8 +259,10 @@ Filters characters in a string.
 ### Streams with filter
 
 ```text
+use<ext:app> => $app
+
 # Each stream chunk is tested; result is a list
-app::stream_numbers() -> filter({ $ > 0 })
+$app.stream_numbers() -> filter({ $ > 0 })
 # Returns list[...] of matching chunks — not a stream
 ```
 
@@ -365,8 +371,10 @@ $r1
 ### Streams with fold
 
 ```text
+use<ext:app> => $app
+
 # Reduce all stream chunks to a single value
-app::stream_numbers() -> fold(0, { $@ + $ })
+$app.stream_numbers() -> fold(0, { $@ + $ })
 # Returns the sum of all chunks
 ```
 
@@ -421,8 +429,10 @@ Use a two-type anonymous closure to declare element and accumulator types.
 ### Streams with acc
 
 ```text
+use<ext:app> => $app
+
 # Accumulator persists across stream chunks
-app::stream_numbers() -> acc(0, { $@ + $ })
+$app.stream_numbers() -> acc(0, { $@ + $ })
 # Returns running totals across all chunks
 ```
 
@@ -483,8 +493,10 @@ Streams produce chunks over time. Collection operators consume all chunks before
 `break` stops iteration immediately. The host cleanup function (`dispose`) runs to release stream resources.
 
 ```text
+use<ext:app> => $app
+
 # Stop after the first matching chunk; host disposes the stream
-app::log_stream() -> seq({
+$app.log_stream() -> seq({
   ($ -> .contains("ERROR")) ? break
   $
 })
@@ -495,14 +507,18 @@ app::log_stream() -> seq({
 The `^(limit: N)` annotation is not valid inside collection operator calls. The parser rejects it with RILL-R081.
 
 ```text
+use<ext:app> => $app
+
 # Rejected — RILL-R081: ^(limit: N) is not accepted inside seq()
-app::events() ^(limit: 100) -> seq({ $ })
+$app.events() ^(limit: 100) -> seq({ $ })
 ```
 
 To stop early, use `break` inside the operator body. Inner scopes cannot reassign outer variables, so use the incoming value `$` or an `acc`/`fold` accumulator for stateful conditions:
 
 ```text
-app::events() -> seq({
+use<ext:app> => $app
+
+$app.events() -> seq({
   ($ > 100) ? break
   $
 })
@@ -513,8 +529,10 @@ app::events() -> seq({
 Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R010 and halts execution. Use `break` inside the body to consume at most N chunks and stay within bounds.
 
 ```text
+use<ext:app> => $app
+
 # Error: exceeds iteration ceiling
-app::infinite_stream() -> seq({ $ })
+$app.infinite_stream() -> seq({ $ })
 # RILL-R010: halts on the 10,001st chunk
 ```
 
@@ -523,8 +541,10 @@ app::infinite_stream() -> seq({ $ })
 A consumed stream cannot be re-iterated. Passing a consumed stream to a second operator halts execution with an error.
 
 ```text
+use<ext:app> => $app
+
 # Error: stream already consumed
-app::stream_numbers() => $s
+$app.stream_numbers() => $s
 $s -> seq({ $ })
 $s -> seq({ $ })   # Halts: stream is consumed
 ```

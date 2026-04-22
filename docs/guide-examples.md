@@ -2,7 +2,7 @@
 
 *Working code for each language feature, from extraction operators to agent workflows*
 
-> **Note:** These examples use `app::` prefix for host-provided functions (`app::prompt()`, `app::fetch()`, etc.). Built-in functions (`log`, `range`, `json`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
+> **Note:** These examples hoist a host extension with `use<ext:app> => $app` and call methods via dotted access (`$app.prompt()`, `$app.fetch()`, etc.). Built-in functions (`log`, `range`, `json`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 
 ## Pure Language Examples
 
@@ -252,12 +252,14 @@ Validates requirements, creates spec, iterates on review, then implements.
 timeout: 00:10:00
 args: requirements: string
 
+use<ext:app> => $app
+
 # Phase 1: Validate requirements
 """
 Review the requirements document at {$requirements}.
 Check for completeness and clarity.
 Output READY if complete, or list missing elements.
-""" -> app::prompt() => $validation
+""" -> $app.prompt() => $validation
 
 $validation -> .contains("READY") -> !$ ? {
   error "Requirements incomplete: {$validation}"
@@ -267,7 +269,7 @@ $validation -> .contains("READY") -> !$ ? {
 """
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
-""" -> app::prompt() => $spec
+""" -> $app.prompt() => $spec
 
 "Specification created" -> log
 
@@ -278,7 +280,7 @@ Review this specification for issues:
 {$}
 
 Output APPROVED if ready, or REVISION REQUIRED with feedback.
-  """ -> app::prompt() => $review
+  """ -> $app.prompt() => $review
 
   $review -> ?(.contains("APPROVED")) { break }
 
@@ -289,7 +291,7 @@ Update the specification based on this feedback:
 
 Original spec:
 {$}
-  """ -> app::prompt()} => $approved_spec
+  """ -> $app.prompt()} => $approved_spec
 
 # Phase 4: Implementation
 """
@@ -297,10 +299,10 @@ Implement the approved specification:
 {$approved_spec}
 
 Create the necessary files and tests.
-""" -> app::prompt() => $implementation
+""" -> $app.prompt() => $implementation
 
 # Phase 5: Verify
-app::prompt("Run tests and verify implementation") => $verification
+$app.prompt("Run tests and verify implementation") => $verification
 
 $verification -> ?(.contains("PASS")) {
   [0, "Workflow complete"]
@@ -316,8 +318,10 @@ Works through a checklist until complete.
 ```text
 args: plan: string
 
+use<ext:app> => $app
+
 # Initial check
-app::prompt("Read {$plan} and find the first unchecked item (- [ ])") => $status
+$app.prompt("Read {$plan} and find the first unchecked item (- [ ])") => $status
 
 # Work loop
 $status -> while (!.contains("ALL COMPLETE")) do {
@@ -329,7 +333,7 @@ Based on this status:
 2. Mark it complete in {$plan}
 3. Check if any unchecked items remain
 4. Output ALL COMPLETE if done, or describe next item
-  """ -> app::prompt()
+  """ -> $app.prompt()
 } => $final
 
 "Plan complete: {$final}" -> log
@@ -342,8 +346,10 @@ Runs tests, fixes failures, repeats until passing.
 ```text
 args: target: string
 
+use<ext:app> => $app
+
 # Run tests
-app::prompt("Run tests for {$target} and report results") => $result
+$app.prompt("Run tests for {$target} and report results") => $result
 
 # Fix loop
 $result -> while (.contains("FAIL")) do {
@@ -354,7 +360,7 @@ Fix these test failures:
 {$}
 
 Make minimal changes. Then run tests again and report results.
-  """ -> app::prompt()} => $final
+  """ -> $app.prompt()} => $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
@@ -372,8 +378,10 @@ Reviews code against multiple criteria.
 args: file: string
 ---
 
+use<ext:app> => $app
+
 # Get file summary
-app::prompt("Read and summarize {$file}") => $summary
+$app.prompt("Read and summarize {$file}") => $summary
 
 # Security check
 """
@@ -381,7 +389,7 @@ Evaluate for SECURITY issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> app::prompt() => $security
+""" -> $app.prompt() => $security
 
 # Performance check
 """
@@ -389,7 +397,7 @@ Evaluate for PERFORMANCE issues:
 {$summary}
 
 Output PASS, WARN, or FAIL with explanation.
-""" -> app::prompt() => $performance
+""" -> $app.prompt() => $performance
 
 # Check results
 $security -> .contains("FAIL") -> ? {
@@ -410,6 +418,8 @@ Deploys based on environment configuration.
 ```text
 args: service: string
 
+use<ext:app> => $app
+
 # Validate environment
 $ENV.DEPLOY_ENV -> ?(.empty()) {
   error "DEPLOY_ENV not set"
@@ -422,13 +432,13 @@ Deploy {$service} to production.
 - Run full test suite first
 - Enable monitoring
 - Use blue-green deployment
-  """ -> app::prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
+  """ -> $app.prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
   """
 Deploy {$service} to staging.
 - Run smoke tests
 - Enable debug logging
-  """ -> app::prompt()} ! {
-  app::prompt("Deploy {$service} to development environment")
+  """ -> $app.prompt()} ! {
+  $app.prompt("Deploy {$service} to development environment")
 } => $result
 
 "Deployment complete" -> log
@@ -444,13 +454,15 @@ Retries an operation until success or max attempts. Use do-while since you alway
 args: operation: string
 ---
 
+use<ext:app> => $app
+
 # Do-while: body runs first, then condition checked
 do<limit: 5> {
   """
 Perform: {$operation}
 
 Output SUCCESS, RETRY, or FAILED.
-  """ -> app::prompt()
+  """ -> $app.prompt()
 } while (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
@@ -468,13 +480,15 @@ Captures mid-chain for debugging or later reference while data continues flowing
 args: file: string
 ---
 
+use<ext:app> => $app
+
 # Inline capture: value flows through $raw to log to conditional
-app::prompt("Read {$file}") => $raw -> log -> .contains("ERROR") -> ? {
+$app.prompt("Read {$file}") => $raw -> log -> .contains("ERROR") -> ? {
   error "Failed to read: {$raw}"
 }
 
 # Continue with $raw available for later use
-app::prompt("Analyze this content:\n{$raw}") => $analysis -> log -> .empty -> ? {
+$app.prompt("Analyze this content:\n{$raw}") => $analysis -> log -> .empty -> ? {
   error "Analysis produced no output"
 }
 
@@ -485,7 +499,7 @@ Compare the original:
 
 With the analysis:
 {$analysis}
-""" -> app::prompt()
+""" -> $app.prompt()
 ```
 
 Semantically, `=> $var ->` is `=> $var.set($) ->` — the capture acts like `log`, storing the value while passing it through unchanged.
@@ -497,9 +511,11 @@ Uses type annotations to prevent accidental type changes during script execution
 ```text
 args: file: string
 
+use<ext:app> => $app
+
 # Define a typed helper closure
 |input: string| {
-  app::prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
+  $app.prompt("Validate: {$input}") -> ?(.contains("VALID")) { true } ! { false }
 } => $validate:closure
 
 # Capture with explicit type locks the variable
@@ -511,12 +527,12 @@ args: file: string
 # "oops" => $validate                  # ERROR: cannot assign string to closure
 
 # Inline type annotation in pipe chain
-app::prompt("Check {$file}") => $result:string -> log -> ?(.contains("ERROR")) {
+$app.prompt("Check {$file}") => $result:string -> log -> ?(.contains("ERROR")) {
   error $result
 }
 
 # Type annotations catch mistakes early
-app::prompt("Analyze {$file}") => $analysis:string
+$app.prompt("Analyze {$file}") => $analysis:string
 
 ?(.contains("FAIL")) {
   error "Analysis failed: {$analysis}"
@@ -545,7 +561,9 @@ Extracts specific information from responses.
 args: logfile: string
 ---
 
-app::prompt("Read {$logfile} and find all ERROR lines") => $errors
+use<ext:app> => $app
+
+$app.prompt("Read {$logfile} and find all ERROR lines") => $errors
 
 $errors -> .empty -> ? {
   "No errors found"
@@ -555,7 +573,7 @@ Analyze these errors and categorize them:
 {$errors}
 
 For each unique error type, suggest a fix.
-  """ -> app::prompt() => $analysis
+  """ -> $app.prompt() => $analysis
 
   "Error analysis complete" -> log
   $analysis
@@ -594,8 +612,10 @@ Uses bar-delimited arithmetic for calculations within workflow logic.
 ```text
 args: items: string
 
+use<ext:app> => $app
+
 # Count items and calculate batch sizes
-app::prompt("Count items in {$items}") -> .match("(\\d+) items") => $m
+$app.prompt("Count items in {$items}") -> .match("(\\d+) items") => $m
 
 $m -> .empty -> ? {
   error "Could not parse item count"
@@ -617,7 +637,7 @@ range(1, $batches + 1) -> seq({
   """
 Process batch {$batch_num} of {$batches}
 Items {$start} through {$end}
-  """ -> app::prompt()})
+  """ -> $app.prompt()})
 
 [0, "Processed all batches"]
 ```
@@ -632,6 +652,8 @@ exceptions:
   - ":::BLOCKED:::"
   - ":::NEEDS_HUMAN:::"
 
+use<ext:app> => $app
+
 """
 Work on this task: {$task}
 
@@ -639,7 +661,7 @@ Rules:
 - Output :::BLOCKED::: if you need information you don't have
 - Output :::NEEDS_HUMAN::: if human judgment is required
 - Output :::DONE::: when complete
-""" -> app::prompt() => $result
+""" -> $app.prompt() => $result
 
 $result -> while (!.contains(":::DONE:::")) do {
   """
@@ -649,7 +671,7 @@ Previous progress:
 {$}
 
 Remember the signal rules.
-  """ -> app::prompt()
+  """ -> $app.prompt()
 } => $final
 
 "Task complete: {$final}" -> log
@@ -657,7 +679,7 @@ Remember the signal rules.
 
 ## Vector Database
 
-Vector database operations for semantic search and RAG workflows. These examples use `qdrant::` prefix, but all functions work identically across `qdrant::`, `pinecone::`, and `chroma::` namespaces — change the prefix to switch providers.
+Vector database operations for semantic search and RAG workflows. These examples hoist a `qdrant` extension with `use<ext:qdrant> => $qdrant` and call `$qdrant.method(...)`. The same script runs against `pinecone` or `chroma` by changing the hoisted extension to `use<ext:pinecone>` or `use<ext:chroma>` — method signatures match across providers.
 
 ### RAG Pipeline
 
@@ -666,11 +688,15 @@ Embed query, search similar vectors, format context for LLM.
 ```text
 args: question: string
 
+use<ext:openai> => $openai
+use<ext:qdrant> => $qdrant
+use<ext:anthropic> => $anthropic
+
 # Generate embedding for the query
-$question -> openai::embed => $query_vector
+$question -> $openai.embed => $query_vector
 
 # Search for similar documents
-$query_vector -> qdrant::search($, [k: 3, score_threshold: 0.7]) => $results
+$query_vector -> $qdrant.search($, [k: 3, score_threshold: 0.7]) => $results
 
 # Extract metadata for context
 $results -> fan({ $.metadata.text }) -> .join("\n\n---\n\n") => $context
@@ -683,7 +709,7 @@ Question: {$question}
 
 Context:
 {$context}
-""" -> anthropic::prompt
+""" -> $anthropic.prompt
 ```
 
 ### Batch Upsert with Error Handling
@@ -693,17 +719,20 @@ Store multiple documents with partial failure recovery.
 ```text
 args: documents: list
 
+use<ext:openai> => $openai
+use<ext:qdrant> => $qdrant
+
 # Embed all documents
 $documents -> fan({
   [
     id: $.id,
-    vector: $.text -> openai::embed,
+    vector: $.text -> $openai.embed,
     metadata: [title: $.title, source: $.source]
   ]
 }) => $items
 
 # Batch insert with error handling
-$items -> qdrant::upsert_batch => $result
+$items -> $qdrant.upsert_batch => $result
 
 # Check for partial failure
 $result.failed -> .empty -> !$ ? {
@@ -722,8 +751,11 @@ $result.failed -> .empty -> !$ ? {
 Create, populate, and manage vector collections.
 
 ```text
+use<ext:openai> => $openai
+use<ext:qdrant> => $qdrant
+
 # Create a new collection
-qdrant::create_collection("knowledge_base", [
+$qdrant.create_collection("knowledge_base", [
   dimensions: 1536,
   distance: "cosine"
 ]) => $create_result
@@ -734,36 +766,40 @@ qdrant::create_collection("knowledge_base", [
 $docs -> fan({
   [
     id: $.id,
-    vector: $.text -> openai::embed,
+    vector: $.text -> $openai.embed,
     metadata: [title: $.title]
   ]
-}) -> qdrant::upsert_batch => $upsert_result
+}) -> $qdrant.upsert_batch => $upsert_result
 
 # Verify collection state
-qdrant::describe() => $info
+$qdrant.describe() => $info
 "Collection has {$info.count} vectors with {$info.dimensions} dimensions" -> log
 
 # List all collections
-qdrant::list_collections() => $collections
+$qdrant.list_collections() => $collections
 $collections -> seq({ $ -> log })
 
 # Clean up when done
-# qdrant::delete_collection("knowledge_base")
+# $qdrant.delete_collection("knowledge_base")
 ```
 
 ### Tool Loop Integration
 
-Vector search as an LLM tool within `anthropic::tool_loop`.
+Vector search as an LLM tool within `$anthropic.tool_loop`.
 
 ```rill
 ---
 args: user_query: string
 ---
 
+use<ext:openai> => $openai
+use<ext:qdrant> => $qdrant
+use<ext:anthropic> => $anthropic
+
 # Define search tool with closure annotation
 ^("Search the knowledge base for relevant information")
 |^("Search query text") query: string| {
-  $query -> openai::embed -> qdrant::search($, [k: 5]) -> fan({
+  $query -> $openai.embed -> $qdrant.search($, [k: 5]) -> fan({
     "ID: {$.id}\nScore: {$.score}\nContent: {$.metadata.text}"
   }) -> .join("\n\n---\n\n")
 } => $search_knowledge_base
@@ -773,16 +809,16 @@ args: user_query: string
 |^("Document ID") id: string, ^("Document text") text: string, ^("Document title") title: string| {
   [
     id: $id,
-    vector: $text -> openai::embed,
+    vector: $text -> $openai.embed,
     metadata: [title: $title, text: $text]
   ] => $item
 
-  $item.vector -> qdrant::upsert($item.id, $, [title: $item.metadata.title])
+  $item.vector -> $qdrant.upsert($item.id, $, [title: $item.metadata.title])
   "Stored document {$item.id}"
 } => $store_document
 
 # Run tool loop with dict-form tools
-anthropic::tool_loop(
+$anthropic.tool_loop(
   "Answer the user's question. Use search_knowledge_base to find relevant information. If the user provides new information to remember, use store_document.",
   [
     tools: [search_knowledge_base: $search_knowledge_base, store_document: $store_document],
@@ -804,8 +840,10 @@ See [Types](topic-types.md) for stream type documentation and [Collections](topi
 Consume a host-provided token stream one chunk at a time:
 
 ```text
+use<ext:app> => $app
+
 # Process each token from an LLM stream
-app::llm_stream("Explain rill in 3 sentences") => $tokens
+$app.llm_stream("Explain rill in 3 sentences") => $tokens
 
 $tokens -> seq({
   $ -> log
@@ -820,8 +858,10 @@ Each iteration body receives one chunk as `$`. The host disposes the stream when
 Iterate chunks and then read the resolution value:
 
 ```text
+use<ext:app> => $app
+
 # Consume chunks, then get the final token usage
-app::llm_stream("Summarize this document") => $s
+$app.llm_stream("Summarize this document") => $s
 
 $s -> seq({ $ -> log })
 
@@ -837,8 +877,10 @@ $s()
 Accumulate all chunks into a single string:
 
 ```text
+use<ext:app> => $app
+
 # Fold all tokens into a complete response string
-app::llm_stream("Write a haiku") => $s
+$app.llm_stream("Write a haiku") => $s
 
 $s -> fold("", { $@ ++ $ }) => $full_response
 
@@ -852,9 +894,11 @@ $s -> fold("", { $@ ++ $ }) => $full_response
 Resolve multiple streams in parallel using `fan`:
 
 ```text
+use<ext:app> => $app
+
 # Create streams from a list of prompts
 ["Summarize A", "Summarize B", "Summarize C"] -> fan({
-  app::llm_stream($)
+  $app.llm_stream($)
 }) => $streams
 
 # Consume all streams in parallel, collecting resolution values
@@ -917,9 +961,11 @@ $out ?? "fallback"
 This pattern fetches a URL, retries on failure, and falls back to cached data:
 
 ```text
+use<ext:app> => $app
+
 # Attempt fetch with retry
 retry<3> {
-  app::fetch("https://api.example.com/data")
+  $app.fetch("https://api.example.com/data")
 } => $result
 
 # Branch on success or failure

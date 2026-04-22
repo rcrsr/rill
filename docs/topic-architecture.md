@@ -56,7 +56,7 @@ The runtime walks the AST and evaluates each node. It manages:
 | Type checking | Validates operand types for every operation |
 | Pipe threading | Passes each result as `$` to the next pipe stage |
 | Built-in methods | `.len`, `.trim`, `.keys`, collection operators |
-| Host functions | Calls registered `app::` functions via `RuntimeContext` |
+| Host functions | Invokes host extensions hoisted via `use<ext:name> => $var`, then called as `$var.fn()` |
 | Control flow | Conditionals (`?`), loops (`@`), `break`, `return` |
 | Limits | Iteration caps, timeouts, abort signals |
 
@@ -73,8 +73,7 @@ import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 
 const ast = parse(sourceText);
 const ctx = createRuntimeContext({
-  functions: { /* app:: functions */ },
-  variables: { /* initial $variables */ },
+  variables: { /* host extensions (dotted access via $name.fn()) and initial $variables */ },
   callbacks: { onLog: console.log },
 });
 const result = await execute(ast, ctx);

@@ -222,11 +222,13 @@ The `do<limit: N>` construct option applies only to that specific loop evaluatio
 When you need to track multiple values across iterations, use `$` as a state dict:
 
 ```text
+use<ext:app> => $app
+
 # Track iteration count, text, and done flag
 [iter: 0, text: $input, done: false]
   -> while (!$.done && $.iter < 3) do {
     $.iter + 1 => $i
-    app::process($.text) => $result
+    $app.process($.text) => $result
     $result.finished
       ? [iter: $i, text: $.text, done: true]
       ! [iter: $i, text: $result.text, done: false]
@@ -287,8 +289,10 @@ Pipe a seed value to prime the accumulator `$` before the first iteration:
 Do-while is ideal for retry patterns:
 
 ```text
+use<ext:app> => $app
+
 do<limit: 5> {
-  app::prompt("Perform operation")
+  $app.prompt("Perform operation")
 } while (.contains("RETRY"))
 # Loop exits when result doesn't contain RETRY
 ```
@@ -501,12 +505,14 @@ true
 Multi-step validation:
 
 ```text
+use<ext:app> => $app
+
 $input
   -> assert $:?string "Input must be string"
   -> .trim
   -> assert !.empty "Trimmed input cannot be empty"
   -> assert (.len >= 5) "Input too short (min 5 chars)"
-  -> app::process()
+  -> $app.process()
 ```
 
 ---
@@ -720,7 +726,9 @@ $cond ? do_something() ! pass
 `guard { body }` executes its body. When the body halts (via `error`, `assert`, or a throwing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. The invalid value carries a `:atom` value identifying the failure.
 
 ```text
-guard { app::fetch("https://api.example.com/data") } => $result
+use<ext:app> => $app
+
+guard { $app.fetch("https://api.example.com/data") } => $result
 $result.? ? $result.data ! error "fetch failed: {$result.!}"
 ```
 
@@ -731,7 +739,9 @@ The `.?` operator tests whether `$result` is valid. The `.!` operator extracts t
 An invalid value is a first-class rill value that carries a `:atom` value. It is not an exception. It propagates through pipes and dict fields without halting, until an explicit check uses `.?` or `.!`.
 
 ```text
-guard { app::risky_call() } => $r
+use<ext:app> => $app
+
+guard { $app.risky_call() } => $r
 $r.!              # :atom value (e.g. #TIMEOUT, #AUTH, #ok if valid)
 $r.?              # bool: true if valid
 ```
@@ -747,14 +757,18 @@ See [Error Handling](topic-error-handling.md) for full patterns and [Error Refer
 `retry<N> { body }` runs its body up to N times. Each attempt that returns an invalid value triggers the next attempt. The result is the first valid value, or the final invalid value when all attempts fail.
 
 ```text
-retry<3> { app::fetch("https://api.example.com/data") } => $result
+use<ext:app> => $app
+
+retry<3> { $app.fetch("https://api.example.com/data") } => $result
 ```
 
 `retry` is strictly bounded; N must be a literal integer. Use `guard` inside `retry` to convert halts to invalid values that `retry` can detect.
 
 ```text
+use<ext:app> => $app
+
 retry<3> {
-  guard { app::fetch("https://api.example.com/data") }
+  guard { $app.fetch("https://api.example.com/data") }
 } => $result
 $result.? ? $result ! error "all retries failed: {$result.!}"
 ```
@@ -795,9 +809,11 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 Exit early on invalid conditions (assumes host provides `error()`):
 
 ```text
+use<ext:app> => $app
+
 |data| {
-  $data -> .empty ? app::error("Empty input")
-  $data -> :?list ? $ ! app::error("Expected list")
+  $data -> .empty ? $app.error("Empty input")
+  $data -> :?list ? $ ! $app.error("Expected list")
   $data -> seq({ $ * 2 })
 } => $process
 ```
@@ -805,8 +821,10 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ### Retry with Limit
 
 ```text
+use<ext:app> => $app
+
 do<limit: 3> {
-  app::prompt("Try operation")
+  $app.prompt("Try operation")
 } while (.contains("RETRY"))
 
 .contains("SUCCESS") ? [0, "Done"] ! list[1, "Failed"]

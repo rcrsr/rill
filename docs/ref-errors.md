@@ -588,7 +588,8 @@ $x  # $x only exists inside block
 leng("hello")  # Should be length()
 
 # Missing host function
-app::fetch($url)  # Host must provide app::fetch
+use<ext:app> => $app
+$app.fetch($url)  # Host must register fetch on the app extension
 ```
 
 ---
@@ -704,11 +705,13 @@ range(0, 1000000) -> seq(|x| $x)  # May exceed default limit
 **Example:**
 
 ```text
+use<ext:app> => $app
+
 # Slow host function
-app::slow_api()  # Times out if exceeds limit
+$app.slow_api()  # Times out if exceeds limit
 
 # Setting higher timeout
-^(timeout: 30000) app::slow_api()  # 30 seconds
+^(timeout: 30000) $app.slow_api()  # 30 seconds
 ```
 
 ---
@@ -798,8 +801,10 @@ error "Invalid configuration"
 **Example:**
 
 ```text
+use<ext:fs> => $fs
+
 # Unknown mount
-fs::read("unknown", "file.txt")  # Mount "unknown" not in config
+$fs.read("unknown", "file.txt")  # Mount "unknown" not in config
 
 # Invalid mount path
 # createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })
@@ -818,11 +823,13 @@ fs::read("unknown", "file.txt")  # Mount "unknown" not in config
 **Example:**
 
 ```text
+use<ext:fs> => $fs
+
 # Path traversal with ..
-fs::read("data", "../../etc/passwd")  # Attempts escape
+$fs.read("data", "../../etc/passwd")  # Attempts escape
 
 # Symlink escape
-fs::read("data", "symlink_to_root")  # Symlink points outside mount
+$fs.read("data", "symlink_to_root")  # Symlink points outside mount
 ```
 
 ---
@@ -838,11 +845,13 @@ fs::read("data", "symlink_to_root")  # Symlink points outside mount
 **Example:**
 
 ```text
+use<ext:fs> => $fs
+
 # Glob mismatch
-fs::read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
+$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
 
 # Multiple extensions
-fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
+$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 ```
 
 ---
@@ -858,11 +867,13 @@ fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 **Example:**
 
 ```text
+use<ext:fs> => $fs
+
 # Write to read-only mount
-fs::write("readonly", "file.txt", "data")  # Mount mode: "read"
+$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"
 
 # Read from write-only mount
-fs::read("writeonly", "file.txt")  # Mount mode: "write"
+$fs.read("writeonly", "file.txt")  # Mount mode: "write"
 ```
 
 ---
@@ -878,11 +889,13 @@ fs::read("writeonly", "file.txt")  # Mount mode: "write"
 **Example:**
 
 ```text
+use<ext:fs> => $fs
+
 # Permission denied
-fs::read("data", "protected.txt")  # File exists but no read permission
+$fs.read("data", "protected.txt")  # File exists but no read permission
 
 # File not found
-fs::read("data", "missing.txt")  # File does not exist
+$fs.read("data", "missing.txt")  # File does not exist
 ```
 
 ---
@@ -898,11 +911,13 @@ fs::read("data", "missing.txt")  # File does not exist
 **Example:**
 
 ```text
+use<ext:fetch> => $fetch
+
 # HTTP 404 Not Found
-fetch::get("api", "/nonexistent")  # Returns 404
+$fetch.get("api", "/nonexistent")  # Returns 404
 
 # HTTP 400 Bad Request
-fetch::post("api", "/users", [invalid: "data"])  # Returns 400
+$fetch.post("api", "/users", [invalid: "data"])  # Returns 400
 ```
 
 ---
@@ -918,8 +933,10 @@ fetch::post("api", "/users", [invalid: "data"])  # Returns 400
 **Example:**
 
 ```text
+use<ext:fetch> => $fetch
+
 # HTTP 503 Service Unavailable
-fetch::get("api", "/resource")  # Server returns 503
+$fetch.get("api", "/resource")  # Server returns 503
 ```
 
 ---
@@ -935,8 +952,10 @@ fetch::get("api", "/resource")  # Server returns 503
 **Example:**
 
 ```text
+use<ext:fetch> => $fetch
+
 # Slow API endpoint
-fetch::get("api", "/slow")  # Times out if exceeds limit
+$fetch.get("api", "/slow")  # Times out if exceeds limit
 ```
 
 ---
@@ -952,8 +971,10 @@ fetch::get("api", "/slow")  # Times out if exceeds limit
 **Example:**
 
 ```text
+use<ext:fetch> => $fetch
+
 # Connection refused
-fetch::get("api", "/endpoint")  # Server not running
+$fetch.get("api", "/endpoint")  # Server not running
 ```
 
 ---
@@ -969,8 +990,10 @@ fetch::get("api", "/endpoint")  # Server not running
 **Example:**
 
 ```text
+use<ext:fetch> => $fetch
+
 # HTML error page returned as JSON
-fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON
+$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
 ```
 
 ---
@@ -986,8 +1009,10 @@ fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON
 **Example:**
 
 ```text
+use<ext:ahi> => $ahi
+
 # Missing required parameter
-ahi::parser([])  # Agent expects a non-empty params dict
+$ahi.parser([])  # Agent expects a non-empty params dict
 ```
 
 ---
@@ -1020,8 +1045,10 @@ ahi::parser([])  # Agent expects a non-empty params dict
 **Example:**
 
 ```text
+use<ext:ahi> => $ahi
+
 # Unhandled error in downstream agent
-ahi::parser([input: $text])  # Downstream agent crashes
+$ahi.parser([input: $text])  # Downstream agent crashes
 ```
 
 ---
@@ -1071,8 +1098,10 @@ ahi::parser([input: $text])  # Downstream agent crashes
 **Example:**
 
 ```text
+use<ext:ahi> => $ahi
+
 # Too many concurrent requests
-ahi::parser([input: $text])  # Agent enforces per-second request quota
+$ahi.parser([input: $text])  # Agent enforces per-second request quota
 ```
 
 ---
@@ -1105,8 +1134,10 @@ ahi::parser([input: $text])  # Agent enforces per-second request quota
 **Example:**
 
 ```text
+use<ext:ahi> => $ahi
+
 # HTTP 503 Service Unavailable
-ahi::parser([input: $text])  # Downstream returns 503
+$ahi.parser([input: $text])  # Downstream returns 503
 ```
 
 ---
@@ -1300,8 +1331,10 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 **Example:**
 
 ```text
+use<ext:app> => $app
+
 # Too many arguments to a two-param closure
-|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params
+|x: number, y: number| { x + y } -> $app.call(1, 2, 3)  # 3 args, 2 params
 ```
 
 ---
@@ -1369,7 +1402,8 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 
 ```text
 # Nonexistent member
-# ext::qdrant.missing — "missing" key not in qdrant extension
+use<ext:qdrant> => $qdrant
+$qdrant.missing  # "missing" key not in qdrant extension
 ```
 
 ---

@@ -98,7 +98,8 @@ All copies are deep. All comparisons are by value. No object identity.
     Ordered:       ordered[a: 1, b: 2]         # named argument unpacking (preserves order)
     Closures:      |x|($x + 1)                 # like lambda/arrow functions
     Type annot:    "hi" => $x:string           # lock type on capture
-    Modules:       use<module:greetings> => $g  # host-provided imports
+    Modules:       use<module:greetings> => $g  # host-provided module imports
+    Extensions:    use<ext:llm> => $llm          # hoist extension, then call $llm.method()
     Comments:      # single line only
     Frontmatter:   ---\nkey: value\n---          # YAML block at top of script
 
@@ -112,7 +113,7 @@ rill has three callable types:
 |------|--------|---------|
 | Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
 | Built-in function | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
-| Host function | Registered by host app | `app::fetch()`, `app::prompt()` |
+| Host function | Registered by host app | `$app.fetch()`, `$app.prompt()` (hoisted via `use<ext:app> => $app`) |
 
 The `$` prefix disambiguates callables from variables and keys:
 
@@ -277,7 +278,7 @@ Extensions register additional atoms at init time.
 Filtered form catches only matching atoms:
 
     guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
-      app::fetch($url)
+      $app.fetch($url)
     }
 
 `guard` does NOT catch halts from `error`, `assert`, or runtime errors (division by zero, OOB, missing field, failed conversion). Those propagate through.
@@ -287,11 +288,11 @@ Filtered form catches only matching atoms:
 `retry<N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. N must be >= 1.
 
     retry<3> {
-      app::fetch($url)
+      $app.fetch($url)
     } => $result
 
     retry<3, on: list[#UNAVAILABLE]> {
-      app::fetch($url)
+      $app.fetch($url)
     }
 
 ### Vacancy and `??`
@@ -317,11 +318,11 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
     $out.! ? "failed: {$out.!message}" ! $out
 
     # Retry with fallback
-    retry<3> { app::fetch($url) } => $result
+    retry<3> { $app.fetch($url) } => $result
     $result ?? "fallback"
 
     # Branch on error atom (flat chain; each comparison parenthesized)
-    guard { app::fetch($url) } => $result
+    guard { $app.fetch($url) } => $result
     ($result.!code == #TIMEOUT) ? "timed out"
       ! ($result.!code == #AUTH) ? "auth failed"
       ! $result.! ? "error: {$result.!message}"
@@ -494,7 +495,7 @@ Use in closure params to validate input structure:
 
 **Retry an extension call with fallback** (prefer `retry<N>` over manual while loops):
 
-    retry<3, on: list[#UNAVAILABLE, #TIMEOUT]> { app::fetch($url) } => $res
+    retry<3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
     $res ?? "fallback"
 
 **Reduce with running state:**

@@ -66,14 +66,16 @@ What's left when the failure modes are structurally impossible:
 ```rill
 # No null. No exceptions. No wrong types. If it parses, it's safe to run.
 
+use<ext:app> => $app
+
 $task
-  -> host::classify
+  -> $app.classify
   -> .category:string
   -> [
-    billing:   host::handle_billing,
-    technical: host::handle_technical,
-    general:   host::handle_general
-  ] ?? host::handle_general
+    billing:   $app.handle_billing,
+    technical: $app.handle_technical,
+    general:   $app.handle_general
+  ] ?? $app.handle_general
   -> $($task)
 ```
 
@@ -111,7 +113,7 @@ rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext, prefixFunctions } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, extResolver } from '@rcrsr/rill';
 import { createOpenAIExtension } from '@rcrsr/rill-ext-openai';
 
 const ext = createOpenAIExtension({
@@ -119,16 +121,22 @@ const ext = createOpenAIExtension({
   model: 'gpt-4o',
 });
 
-const { dispose, ...functions } = prefixFunctions('llm', ext);
-
-const ctx = createRuntimeContext({ functions });
+const ctx = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: {
+      ext: { llm: ext.value },
+    },
+  },
+});
 
 const result = await execute(parse(`
-  llm::message("Summarize this code for issues")
+  use<ext:llm> => $llm
+  $llm.message("Summarize this code for issues")
     -> .content -> .contains("ERROR") ? "Issues found" ! "All clear"
 `), ctx);
 
-await dispose();
+await ext.dispose?.();
 ```
 
 Switch providers by changing one line — `createAnthropicExtension` or `createGeminiExtension`. Scripts stay identical.
@@ -155,24 +163,28 @@ See [Bundled Extensions](docs/bundled-extensions.md) for core extension docs and
 Branch based on content patterns. Ideal for parsing LLM output.
 
 ```rill
-app::prompt("analyze code")
-  -> .contains("ERROR") ? app::error() ! app::process()
+use<ext:app> => $app
+
+$app.prompt("analyze code")
+  -> .contains("ERROR") ? $app.error() ! $app.process()
 ```
 
 ### Bounded Loops
 
-`^(limit: N)` annotations prevent runaway execution. The host stays in control.
+The `do<limit: N>` construct option caps loop iterations. `seq` and `fan` enforce a built-in 10,000-iteration ceiling. The host stays in control.
 
 ```rill
 # Retry until non-empty, bail after 5 attempts
-^(limit: 5) "" -> ($ == "") @ {
-  app::prompt("Generate a summary")
-}
+use<ext:app> => $app
+
+"" -> do<limit: 5> {
+  $app.prompt("Generate a summary")
+} while ($ == "")
 ```
 
 ```rill
 # Bounded iteration
-^(limit: 100) $items -> each { "Processing: {$}" -> log }
+$items -> seq({ "Processing: {$}" -> log })
 ```
 
 ### Parallel Execution
@@ -180,15 +192,17 @@ app::prompt("analyze code")
 Fan out work concurrently. Results preserve order.
 
 ```rill
-# Parallel map with closure
-["security", "performance", "style"] -> map |aspect| {
-  app::prompt("Review for {$aspect} issues")
-}
+# Parallel fan-out with closure
+use<ext:app> => $app
+
+["security", "performance", "style"] -> fan(|aspect| {
+  $app.prompt("Review for {$aspect} issues")
+})
 ```
 
 ```rill
 # Parallel filter with method
-["critical bug", "minor note", "critical fix"] -> filter .contains("critical")
+["critical bug", "minor note", "critical fix"] -> filter({ .contains("critical") })
 ```
 
 ### Closures
@@ -197,16 +211,18 @@ First-class functions with captured environment.
 
 ```rill
 |x| ($x * 2) => $double
-[1, 2, 3] -> map $double  # [2, 4, 6]
-5 -> $double              # 10
+[1, 2, 3] -> fan($double)  # [2, 4, 6]
+5 -> $double               # 10
 ```
 
 ### Dataflow Syntax
 
-Data flows forward through pipes. `app::*` denotes a host-provided function.
+Data flows forward through pipes. Host extensions are hoisted with `use<ext:name> => $var`, then invoked via dotted access.
 
 ```rill
-app::prompt("analyze this code") -> .trim -> log
+use<ext:app> => $app
+
+$app.prompt("analyze this code") -> .trim -> log
 ```
 
 ### String Interpolation
@@ -238,7 +254,7 @@ These aren't arbitrary constraints — they're guardrails for reliable codegen.
 | **`$` prefix on variables** | Single-pass parsing, no symbol table. `name()` is a host function, `$name` is a variable — zero ambiguity |
 | **Type locking** | Variables lock type on first assignment. Catches type hallucinations at the assignment site |
 | **Linear error handling** | No try/catch, no unwinding. `assert` and `error` are terminal — easy for models to place correctly |
-| **Loops as expressions** | `fold`, `each`, `(cond) @ {}` return state instead of mutating it. Aligns with step-by-step LLM reasoning |
+| **Loops as expressions** | `fold`, `seq`, `while (cond) do { }` return state instead of mutating it. Aligns with step-by-step LLM reasoning |
 
 ## What Our Target Users Say
 
@@ -262,10 +278,12 @@ We asked LLMs to review rill. They had opinions.
 | `$` | Current pipe value |
 | `.field` | Property access on `$` |
 | `cond ? a ! b` | Conditional |
-| `cond @ { }` | While loop |
-| `@ { } ? cond` | Do-while loop |
-| `each`, `map`, `filter` | Collection operators |
-| `fold(init)` | Reduction |
+| `while (cond) do { }` | While loop |
+| `do { } while (cond)` | Do-while loop |
+| `do<limit: N> { }` | Bounded loop construct option |
+| `seq`, `fan`, `filter` | Collection operator callables |
+| `fold(init, body)` | Reduction |
+| `acc(init, body)` | Scan (intermediate accumulator values) |
 | `\|args\| { }` | Closure |
 
 ## Use Cases
@@ -273,7 +291,7 @@ We asked LLMs to review rill. They had opinions.
 - **User-defined workflows.** Let power users script automation without exposing arbitrary code execution.
 - **Multi-phase pipelines.** Chain LLM calls with review gates between each step.
 - **Parallel agent fan-out.** Launch specialist agents concurrently, collect structured results.
-- **Edit-review loops.** Iterate until approval or `^(limit: N)` max attempts.
+- **Edit-review loops.** Iterate until approval or `do<limit: N>` max attempts.
 
 See [Examples](docs/guide-examples.md) for complete workflow patterns.
 

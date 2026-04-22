@@ -495,7 +495,9 @@ Vectors represent dense numeric embeddings from language models or other ML syst
 **Display format:** `vector(model, Nd)` where `model` is the source model name and `N` is the dimension count.
 
 ```text
-app::embed("hello world") => $vec
+use<ext:app> => $app
+
+$app.embed("hello world") => $vec
 $vec -> .model
 # Result: "mock-embed"
 ```
@@ -508,7 +510,9 @@ $vec -> .model
 | `.model` | string | Source model name |
 
 ```text
-app::embed("hello world") => $vec
+use<ext:app> => $app
+
+$app.embed("hello world") => $vec
 $vec -> .dimensions
 # Result: 3
 
@@ -527,8 +531,10 @@ $vec -> .model
 | `.normalize()` | vector | Unit vector (preserves model) |
 
 ```text
-app::embed("hello") => $a
-app::embed("hi") => $b
+use<ext:app> => $app
+
+$app.embed("hello") => $a
+$app.embed("hi") => $b
 $a -> .similarity($b)
 # Result: 1.0
 
@@ -550,8 +556,10 @@ $a -> .normalize -> .norm
 Vectors support equality comparison (`==`, `!=`). Two vectors are equal when both model and all float elements match:
 
 ```text
-app::embed("test") => $v1
-app::embed("test") => $v2
+use<ext:app> => $app
+
+$app.embed("test") => $v1
+$app.embed("test") => $v2
 $v1 == $v2
 # Result: true
 ```
@@ -559,9 +567,11 @@ $v1 == $v2
 Vectors from different models are never equal, even with identical data:
 
 ```text
+use<ext:app> => $app
+
 # Different models
-app::embed("test", "model-a") => $v1
-app::embed("test", "model-b") => $v2
+$app.embed("test", "model-a") => $v1
+$app.embed("test", "model-b") => $v2
 $v1 == $v2
 # Result: false
 ```

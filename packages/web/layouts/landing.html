@@ -119,14 +119,16 @@
           <pre><code><span class="hl-comment"># No null. No exceptions. No wrong types.</span>
 <span class="hl-comment"># If it parses, it's safe to run.</span>
 
+<span class="hl-kw">use</span>&lt;<span class="hl-fn">ext:app</span>&gt; <span class="hl-pipe">=&gt;</span> <span class="hl-var">$app</span>
+
 <span class="hl-var">$task</span>
-  <span class="hl-pipe">-&gt;</span> <span class="hl-fn">host::classify</span>
+  <span class="hl-pipe">-&gt;</span> <span class="hl-var">$app</span>.<span class="hl-fn">classify</span>
   <span class="hl-pipe">-&gt;</span> .category<span class="hl-kw">:string</span>
   <span class="hl-pipe">-&gt;</span> [
-    billing:   <span class="hl-fn">host::handle_billing</span>,
-    technical: <span class="hl-fn">host::handle_technical</span>,
-    general:   <span class="hl-fn">host::handle_general</span>
-  ] <span class="hl-pipe">??</span> <span class="hl-fn">host::handle_general</span>
+    billing:   <span class="hl-var">$app</span>.<span class="hl-fn">handle_billing</span>,
+    technical: <span class="hl-var">$app</span>.<span class="hl-fn">handle_technical</span>,
+    general:   <span class="hl-var">$app</span>.<span class="hl-fn">handle_general</span>
+  ] <span class="hl-pipe">??</span> <span class="hl-var">$app</span>.<span class="hl-fn">handle_general</span>
   <span class="hl-pipe">-&gt;</span> <span class="hl-kw">$</span>(<span class="hl-var">$task</span>)</code></pre>
         </div>
       </div>
@@ -202,13 +204,13 @@
         </div>
         <div class="integration-chips">
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">llm::</span>anthropic
+            <span class="chip-prefix">ext:llm/</span>anthropic
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">llm::</span>openai
+            <span class="chip-prefix">ext:llm/</span>openai
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">llm::</span>gemini
+            <span class="chip-prefix">ext:llm/</span>gemini
           </a>
         </div>
       </div>
@@ -221,13 +223,13 @@
         </div>
         <div class="integration-chips">
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">vectordb::</span>chroma
+            <span class="chip-prefix">ext:vectordb/</span>chroma
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">vectordb::</span>pinecone
+            <span class="chip-prefix">ext:vectordb/</span>pinecone
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">vectordb::</span>qdrant
+            <span class="chip-prefix">ext:vectordb/</span>qdrant
           </a>
         </div>
       </div>
@@ -240,13 +242,13 @@
         </div>
         <div class="integration-chips">
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">kv::</span>sqlite
+            <span class="chip-prefix">ext:kv/</span>sqlite
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">kv::</span>redis
+            <span class="chip-prefix">ext:kv/</span>redis
           </a>
           <a href="https://github.com/rcrsr/rill-ext" class="integration-chip">
-            <span class="chip-prefix">fs::</span>s3
+            <span class="chip-prefix">ext:fs/</span>s3
           </a>
         </div>
       </div>

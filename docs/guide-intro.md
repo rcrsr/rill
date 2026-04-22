@@ -35,7 +35,7 @@ Compare this with the variable-mutation model you may be used to. There, you wri
 
 You might wonder why rill has no standard library. That's deliberate.
 
-The host application registers named functions before running any script. When a rill script calls `app::prompt()` or `app::fetch()`, those names exist because the host put them there. A different host could provide `app::query()` or `app::write()` instead. The language stays neutral.
+The host application registers named functions before running any script. A rill script hoists a host-registered extension with `use<ext:app> => $app`, then calls methods via dotted access such as `$app.prompt()` or `$app.fetch()`. A different host could provide `$app.query()` or `$app.write()` instead. The language stays neutral.
 
 This keeps rill portable. The same script syntax works in a CLI tool, a web service, or an IDE plugin. Reviewers can audit exactly which functions the host exposes, and nothing outside that list is reachable from inside a script.
 
