@@ -12,13 +12,11 @@
  */
 
 import { type JSX, useEffect, useState, useCallback, useRef } from 'react';
-import {
-  Editor,
-  Output,
-  Toolbar,
-  SplitPane,
-  type ExecutionState,
-} from './components/index.js';
+import { Editor } from './components/Editor.js';
+import { Output } from './components/Output.js';
+import { Toolbar } from './components/Toolbar.js';
+import { SplitPane } from './components/SplitPane.js';
+import type { ExecutionState } from './lib/execution.js';
 import { contextResolver } from '@rcrsr/rill';
 import { executeRill } from './lib/execution.js';
 import { DEMO_CONTEXT_VALUES } from './lib/context.js';
