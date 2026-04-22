@@ -258,7 +258,7 @@ describe('Rill Language: Error Statement', () => {
 
     it('throws from while loop body', async () => {
       const script = `
-        1 -> ($ <= 5) @ {
+        1 -> while ($ <= 5) do {
           ($ == 3) ? { error "loop halted" }
           $ + 1
         }
@@ -366,10 +366,10 @@ describe('Rill Language: Error Statement', () => {
 
     it('works in do-while loop', async () => {
       const script = `
-        1 -> @ {
+        1 -> do {
           ($ == 3) ? { error "stopped" }
           $ + 1
-        } ? ($ < 5)
+        } while ($ < 5)
       `;
       await expect(run(script)).rejects.toThrow('stopped');
     });

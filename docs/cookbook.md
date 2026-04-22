@@ -341,7 +341,7 @@ Retry an operation with exponential backoff:
 } => $operation
 
 # Retry loop with backoff
-1 -> ($ <= 5) @ {
+1 -> while ($ <= 5) do {
   $operation($) => $result
   $result.ok ? ($result -> return)
   log("Attempt {$} failed: {$result.err}")

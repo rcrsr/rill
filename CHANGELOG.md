@@ -73,6 +73,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   | `list -> filter { body }` | `list -> filter({ body })` |
   | `list -> each(init) { body }` | `list -> acc(init, { body })` |
 
+- **Loop syntax unified under `while`/`do` keywords** — The `@` loop operator is removed. Scripts using the old `@`-based loop forms must migrate to the keyword forms.
+
+  **Before (no longer valid):**
+  ```text
+  (cond) @ { body }           # pre-loop: condition first
+  @ { body } ? (cond)         # post-loop: condition after
+  ^(limit: N) @ { body }      # limit annotation on loop
+  ```
+
+  **After:**
+  ```text
+  while (cond) do { body }        # pre-loop
+  do { body } while (cond)        # post-loop
+  do<limit: N> { body }           # loop with iteration limit
+  ```
+
+  Migration errors RILL-R079 (`@` used as pre-loop), RILL-R080 (`@` used as post-loop), and RILL-R081 (`^(limit: N)` in non-loop context) report the exact source location and required replacement at parse time.
+
 - **Two-type anonymous closure syntax** — `|type1, type2|{ body }` synthesizes `$` (bound to `type1`) and `$@` (bound to `type2`) closure parameters. Used by `fold` and `acc` closures to receive both the accumulator and the current element.
 
   ```rill

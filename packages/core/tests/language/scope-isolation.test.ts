@@ -233,12 +233,12 @@ describe('Phase 0: Scope Isolation', () => {
 
   describe('loops maintain self-chaining semantics', () => {
     it('while loop body result becomes next $', async () => {
-      const result = await run('1 -> ($ < 100) @ { $ * 2 }');
+      const result = await run('1 -> while ($ < 100) do { $ * 2 }');
       expect(result).toBe(128); // 1->2->4->8->16->32->64->128
     });
 
     it('do-while body result becomes next $', async () => {
-      const result = await run('1 -> @ { $ * 2 } ? ($ < 100)');
+      const result = await run('1 -> do { $ * 2 } while ($ < 100)');
       expect(result).toBe(128);
     });
 

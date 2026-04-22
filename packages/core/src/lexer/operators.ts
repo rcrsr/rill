@@ -60,4 +60,6 @@ export const KEYWORDS: Record<string, TokenType> = {
   error: TOKEN_TYPES.ERROR,
   guard: TOKEN_TYPES.GUARD,
   retry: TOKEN_TYPES.RETRY,
+  while: TOKEN_TYPES.WHILE,
+  do: TOKEN_TYPES.DO,
 };

@@ -179,12 +179,12 @@ describe('executeRill', () => {
 
     describe('execution timeout', () => {
       it('triggers iteration limit error for infinite loop [AC-25]', async () => {
-        // Create infinite while loop that exceeds iteration limit
-        // Syntax: cond @ body (while loop)
-        // Default iteration limit is 10,000
+        // Create while loop that exceeds iteration limit
+        // Syntax: while (cond) do<limit: N> { body }
+        // Explicit limit of 1,000 is exceeded by 20,000-iteration target
         const infiniteLoop = `
           0 => $counter
-          $counter -> ($ < 20000) @ {
+          $counter -> while ($ < 20000) do<limit: 1000> {
             $ + 1
           }
         `;
@@ -236,12 +236,12 @@ describe('executeRill', () => {
       });
 
       it('handles do-while loop with break before exceeding limit', async () => {
-        // Do-while syntax: @ body ? cond
+        // Do-while syntax: do { body } while (cond)
         // Use break to exit after a reasonable number of iterations
         const doWhileLoop = `
-          0 -> @ {
+          0 -> do {
             ($ + 1) -> ($ >= 100) ? break ! $
-          } ? ($ < 1000)
+          } while ($ < 1000)
         `;
 
         const result = await executeRill(doWhileLoop);
@@ -258,8 +258,9 @@ describe('executeRill', () => {
 
       it('completes loop within iteration limit', async () => {
         // Loop that completes successfully
+        // Syntax: while (cond) do { body }
         const finiteLoop = `
-          0 -> ($ < 100) @ {
+          0 -> while ($ < 100) do {
             $ + 1
           }
         `;
@@ -401,6 +402,20 @@ describe('executeRill', () => {
           value: largeString,
         });
       }, 10000);
+    });
+  });
+
+  describe('legacy loop syntax passthrough [AC-F10, AC-F11]', () => {
+    it('surfaces verbatim RILL-R079 migration error for legacy @ { } syntax', async () => {
+      const result = await executeRill('($ < 5) @ { $ + 1 }');
+
+      expect(result.status).toBe('error');
+      expect(result.error).not.toBe(null);
+      expect(result.error?.category).toBe('parse');
+      expect(result.error?.errorId).toBe('RILL-R079');
+      // UXT-LOOP-1: core message prefix passed through verbatim; RillError appends ' at line:col'
+      expect(result.error?.message).toContain('Migration error: use `while (cond) do { body }`');
+      expect(result.error?.message).toMatch(/^Migration error: use `while \(cond\) do \{ body \}`/);
     });
   });
 });

@@ -53,8 +53,9 @@ See [Operators](topic-operators.md) for detailed documentation.
 |--------|-------------|
 | `cond ? then ! else` | Conditional (if-else, supports multi-line) |
 | `$val -> ? then ! else` | Piped conditional ($ as condition, supports multi-line) |
-| `(cond) @ body` | While loop |
-| `@ body ? cond` | Do-while |
+| `while (cond) do { body }` | While loop (condition checked before each iteration) |
+| `do { body } while (cond)` | Do-while (body runs at least once, condition checked after) |
+| `do<limit: N> { body }` | Construct option: set maximum iterations |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
 | `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
@@ -154,8 +155,8 @@ See [Variables](topic-variables.md) for detailed documentation.
 |---------|--------------|
 | Inline block `-> { }` | Piped value |
 | Each loop `-> seq({ })` | Current item |
-| While-loop `(cond) @ { }` | Accumulated value |
-| Do-while `@ { } ? cond` | Accumulated value |
+| While-loop `while (cond) do { }` | Accumulated value |
+| Do-while `do { } while (cond)` | Accumulated value |
 | Conditional `cond ? { }` | Tested value |
 | Piped conditional `-> ? { }` | Piped value |
 | Stored closure `\|x\|{ }` | N/A: use params |
@@ -724,24 +725,20 @@ See [Types](topic-types.md) for detailed ordered and tuple documentation.
 
 ## Operator-Level Annotations
 
-Place `^(...)` between the operator name and its body to attach metadata to that operation. Annotations apply per evaluation, not per definition.
+Place `^(...)` at the statement level to attach metadata to a statement. For loops, use the `do<limit: N>` construct option to set an iteration ceiling.
 
 **Loops:**
 
 ```rill
-0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+0 -> while ($ < 50) do<limit: 100> { $ + 1 }
 ```
 
-**Collection operators:**
+**Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Use a statement-level annotation to attach metadata to a collection pipeline:
 
-```rill
+```text
+# Not accepted — RILL-R081: use do<limit: N> for loops
 [1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
-[1, 2, 3] -> fan(^(limit: 10) { $ + 1 })
-[1, 2, 3] -> filter(^(limit: 50) { $ > 1 })
-[1, 2, 3] -> fold(0, ^(limit: 20) |x|($@ + $x))
 ```
-
-Invalid annotation keys for operator context produce a runtime error.
 
 See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md) for detailed examples.
 
@@ -749,19 +746,21 @@ See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md
 
 ### Iteration Limits
 
-Loops have a default maximum of **10,000 iterations**. Place `^(limit: N)` at operator level, before the body:
+Loops have a default maximum of **10,000 iterations**. Use `do<limit: N>` as the construct option:
 
 ```rill
-0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
+0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+```
+
+For do-while loops, the same construct option applies:
+
+```rill
+0 -> do<limit: 100> { $ + 1 } while ($ < 50)
 ```
 
 ### Concurrency Limits
 
-The `^(limit: N)` annotation also controls parallel concurrency in `fan`:
-
-```text
-$items -> fan ^(limit: 3) { slow_process($) }
-```
+Parallel concurrency in `fan` is not controlled by a `^(limit: N)` annotation. The runtime rejects `^(limit: N)` inside operator calls (RILL-R081). Configure concurrency limits via the host `RuntimeContext`.
 
 See [Host Integration](integration-host.md) for timeout and cancellation configuration.
 
@@ -881,8 +880,7 @@ These always begin a new statement:
 | Token | Starts |
 |-------|--------|
 | `$` | Variable reference or closure call |
-| identifier | Host function call |
-| `@` | Loop |
+| identifier | Host function call or loop keyword (`while`, `do`) |
 | `\|` `\|\|` | Closure definition |
 | literals | String, number, bool, `[...]`, `[...]`, `tuple[...]`, `ordered[...]` |
 

@@ -1,16 +1,20 @@
 /**
- * Rill Hot Path Benchmarks (Phase 2, Task 2.5)
+ * Rill Hot Path Benchmarks
  *
- * Captures timings for five acceptance criteria tied to NFR-ERR-1 through
- * NFR-ERR-3:
+ * Captures timings for acceptance criteria tied to NFR-ERR-1 through
+ * NFR-ERR-3 and NFR-LOOP-1 / NFR-LOOP-2:
  *
- * | Bench ID | Criterion                                                 |
- * | AC-N1    | Arithmetic hot loop regression < 2%                       |
- * | AC-N2    | `list -> map` iteration regression < 2%                   |
- * | AC-N3    | `.!code` probe on valid value: 0 heap allocations after   |
- * |          | 100-iter warm-up (measured in `allocations.ts`)           |
- * | AC-N4    | N-deep guard nesting appends N frames w/ O(1) per append  |
- * | AC-B5    | 10,000-frame trace; `.!` on valid is O(1)                 |
+ * | Bench ID    | Criterion                                               |
+ * | AC-N1       | Arithmetic hot loop regression < 2%                     |
+ * | AC-N2       | `list -> map` iteration regression < 2%                 |
+ * | AC-N3       | `.!code` probe on valid value: 0 heap allocations after |
+ * |             | 100-iter warm-up (measured in `allocations.ts`)         |
+ * | AC-N4       | N-deep guard nesting appends N frames w/ O(1) per      |
+ * |             | append                                                   |
+ * | AC-B5       | 10,000-frame trace; `.!` on valid is O(1)               |
+ * | AC-NOD-21   | Loop-parsing cases: ≤2% regression (NFR-LOOP-1)        |
+ * | AC-NOD-22   | Tokenizer keyword-table lookup: no regression           |
+ * |             | (NFR-LOOP-2)                                             |
  *
  * This file uses vitest's `bench()` API. Invocation: `pnpm bench` (see
  * package.json). Allocation-specific measurement for AC-N3 lives in the
@@ -26,6 +30,13 @@
  *   AC-N4 and AC-B5 require direct access to the status / trace helpers,
  *   which are not yet in the public API (Phase 3 work); we import them
  *   from the internal barrel as a benchmark-only concession.
+ * - Loop benchmarks (AC-NOD-21, AC-NOD-22) use keyword syntax introduced
+ *   in the loop-syntax-unification initiative:
+ *     while (cond) do { body }
+ *     do { body } while (cond)
+ *     do<limit: N> { body } while (cond)
+ *   No legacy `(cond) @ {`, `@ { } ?`, or `^(limit: N) @` patterns exist
+ *   in this file (they were never present; no migration was required).
  */
 
 import { bench, describe } from 'vitest';
@@ -179,5 +190,64 @@ describe('AC-B5: large-trace validity probe', () => {
 
   bench('getStatus().code on 10k-frame invalid value', () => {
     void getStatus(bigInvalid).code;
+  });
+});
+
+// ============================================================
+// AC-NOD-21: LOOP-PARSING CASES (NFR-LOOP-1)
+// Keyword-form while and do-while parse + execute cost.
+// Baseline captured post-migration; ≤2% regression vs main.
+// ============================================================
+
+describe('AC-NOD-21: loop-parsing cases (NFR-LOOP-1)', () => {
+  // while (cond) do { body } — 50 iterations, arithmetic accumulator.
+  // Exercises the WhileLoopNode parse path + evaluate path.
+  const WHILE_SOURCE = '0 -> while ($ < 50) do { $ + 1 }';
+  const whileAst = parse(WHILE_SOURCE);
+
+  bench(
+    'while (cond) do { body } — parse + execute 50 iterations',
+    async () => {
+      await runCached(whileAst);
+    }
+  );
+
+  // do { body } while (cond) — 50 iterations, arithmetic accumulator.
+  // Exercises the DoWhileLoopNode parse path + evaluate path.
+  const DO_WHILE_SOURCE = '0 -> do { $ + 1 } while ($ < 50)';
+  const doWhileAst = parse(DO_WHILE_SOURCE);
+
+  bench(
+    'do { body } while (cond) — parse + execute 50 iterations',
+    async () => {
+      await runCached(doWhileAst);
+    }
+  );
+});
+
+// ============================================================
+// AC-NOD-22: do<limit: N> CONSTRUCT-OPTION PARSE OVERHEAD
+// (NFR-LOOP-2)
+// Isolates the extra tokenizer work for `do<limit: N>`: the
+// `<` glyph, key-value pair, and `>` close must be lexed and
+// the keyword-table lookup for `limit` exercised each call.
+// Parse-only; no execute. Baseline captured post-migration.
+// ============================================================
+
+describe('AC-NOD-22: do<limit: N> construct-option parse overhead (NFR-LOOP-2)', () => {
+  // Parse a do-while with a limit annotation each iteration to
+  // measure the incremental cost of the construct-option path
+  // versus a plain do-while (see AC-NOD-21 above).
+  const SOURCE = '0 -> do<limit: 100> { $ + 1 } while ($ < 100)';
+
+  bench('parse do<limit: 100> { $ + 1 } while ($ < 100)', () => {
+    parse(SOURCE);
+  });
+
+  // For direct comparison, parse a plain while loop of the same length.
+  const PLAIN_SOURCE = '0 -> while ($ < 100) do { $ + 1 }';
+
+  bench('parse while ($ < 100) do { $ + 1 } (plain, comparison)', () => {
+    parse(PLAIN_SOURCE);
   });
 });

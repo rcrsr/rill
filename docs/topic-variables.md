@@ -62,8 +62,8 @@ Capture at end of expression stores and ends the chain:
 |---------|--------------|
 | Inline block `-> { }` | Piped value |
 | Each loop `-> seq({ })` | Current iteration item |
-| While-loop `(cond) @ { }` | Accumulated value |
-| Do-while `@ { } ? cond` | Accumulated value |
+| While-loop `while (cond) do { }` | Accumulated value |
+| Do-while `do { } while (cond)` | Accumulated value |
 | Conditional `cond ? { }` | Tested value |
 | Piped conditional `-> ? { }` | Piped value (also used as condition) |
 | Stored closure `\|x\|{ }` | N/A — use explicit params |
@@ -195,10 +195,10 @@ While loops use `$` as the accumulator since named variables in the body don't p
 
 ```rill
 # Use $ as accumulator (body result becomes next iteration's $)
-0 -> ($ < 5) @ { $ + 1 }    # Result: 5
+0 -> while ($ < 5) do { $ + 1 }    # Result: 5
 
 # Variables inside loop body are local to each iteration
-0 -> ($ < 3) @ {
+0 -> while ($ < 3) do {
   ($ * 10) => $temp    # $temp exists only in this iteration
   $ + 1
 }
@@ -325,7 +325,7 @@ app::prompt("check status")
 Use `$` for accumulation in while loops:
 
 ```rill
-"" -> (.len < 5) @ { "{$}x" }   # "xxxxx"
+"" -> while (.len < 5) do { "{$}x" }   # "xxxxx"
 ```
 
 ---

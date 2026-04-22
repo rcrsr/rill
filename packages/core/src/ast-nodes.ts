@@ -484,6 +484,7 @@ export interface VariableNode extends BaseNode {
   readonly type: 'Variable';
   readonly name: string | null; // null for $ (pipe variable)
   readonly isPipeVar: boolean;
+  readonly isPipeTarget?: boolean;
   /** Ordered chain of property accesses: .name, [0], .$var, etc. */
   readonly accessChain: PropertyAccess[];
   /**
@@ -666,6 +667,13 @@ export interface ConditionalNode extends BaseNode {
   readonly elseBranch: BodyNode | ConditionalNode | null;
 }
 
+/**
+ * While loop: `while (cond) do { body }`
+ *
+ * `condition` is required and evaluated as a boolean before each iteration.
+ * Loop executes body repeatedly while condition is true.
+ * BreakSignal exits the loop; ReturnSignal propagates upward.
+ */
 export interface WhileLoopNode extends BaseNode {
   readonly type: 'WhileLoop';
   readonly condition: ExpressionNode; // must evaluate to boolean
@@ -673,6 +681,15 @@ export interface WhileLoopNode extends BaseNode {
   readonly annotations?: AnnotationArg[] | undefined;
 }
 
+/**
+ * Do-while loop: `do { body } while (cond)`
+ *
+ * Body executes at least once before condition is checked.
+ * `input` carries the pipe-seed expression when present (null = implied $).
+ * `condition` is stored as a BodyNode — the `(cond)` expression in surface
+ * syntax is wrapped in a single-statement body during parsing.
+ * BreakSignal exits the loop; ReturnSignal propagates upward.
+ */
 export interface DoWhileLoopNode extends BaseNode {
   readonly type: 'DoWhileLoop';
   readonly input: ExpressionNode | null; // null = implied $

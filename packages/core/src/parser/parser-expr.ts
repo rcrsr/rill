@@ -182,9 +182,9 @@ Parser.prototype.parseCommonConstruct = function (
     return this.parsePipedConditional();
   }
 
-  // Loop: @ body [? cond]
-  // Guard: @[ and @$fn are not valid expression forms (RILL-P010)
-  // @ is only valid as a do-while terminator inside a loop body.
+  // Loop dispatch: WHILE / DO / DO_LANGLE → new keyword forms.
+  // Guard: @[ and @$fn are not valid expression forms (RILL-P010).
+  // Bare AT at expression head → legacy post-loop form (RILL-R080).
   if (check(this.state, TOKEN_TYPES.AT)) {
     const nextType = peek(this.state, 1).type;
     if (nextType === TOKEN_TYPES.LBRACKET || nextType === TOKEN_TYPES.DOLLAR) {
@@ -194,13 +194,49 @@ Parser.prototype.parseCommonConstruct = function (
         current(this.state).span.start
       );
     }
-    return this.parseLoop(null);
+    // Legacy annotated loop: @ ^(limit: N) { body } — RILL-R079 at @
+    if (peek(this.state, 1).type === TOKEN_TYPES.CARET) {
+      throw new ParseError(
+        'RILL-R079',
+        'Migration error: use `do<limit: N> { body }`',
+        current(this.state).span.start
+      );
+    }
+    // Legacy post-loop: @ { body } ? (cond) — RILL-R080 at @
+    throw new ParseError(
+      'RILL-R080',
+      'Migration error: use `do { body } while (cond)`',
+      current(this.state).span.start
+    );
   }
 
-  // Block (may be followed by @ for loop with input, or ? for conditional)
+  // New keyword-headed loop forms at expression head.
+  if (check(this.state, TOKEN_TYPES.WHILE)) {
+    return this.parseWhileLoop();
+  }
+  if (
+    check(this.state, TOKEN_TYPES.DO) ||
+    check(this.state, TOKEN_TYPES.DO_LANGLE)
+  ) {
+    return this.parseLoop();
+  }
+
+  // Block (may be followed by loop keyword or ? for conditional)
   if (check(this.state, TOKEN_TYPES.LBRACE)) {
     const block = this.parseBlock();
     if (check(this.state, TOKEN_TYPES.AT)) {
+      // Legacy post-loop: { body } @ ? (cond) — RILL-R080 at @
+      throw new ParseError(
+        'RILL-R080',
+        'Migration error: use `do { body } while (cond)`',
+        current(this.state).span.start
+      );
+    }
+    if (
+      check(this.state, TOKEN_TYPES.WHILE) ||
+      check(this.state, TOKEN_TYPES.DO) ||
+      check(this.state, TOKEN_TYPES.DO_LANGLE)
+    ) {
       return this.parseLoopWithInput(block);
     }
     if (check(this.state, TOKEN_TYPES.QUESTION)) {
@@ -213,6 +249,18 @@ Parser.prototype.parseCommonConstruct = function (
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     const grouped = this.parseGrouped();
     if (check(this.state, TOKEN_TYPES.AT)) {
+      // Legacy pre-loop: (cond) @ { body } — RILL-R079 at @
+      throw new ParseError(
+        'RILL-R079',
+        'Migration error: use `while (cond) do { body }`',
+        current(this.state).span.start
+      );
+    }
+    if (
+      check(this.state, TOKEN_TYPES.WHILE) ||
+      check(this.state, TOKEN_TYPES.DO) ||
+      check(this.state, TOKEN_TYPES.DO_LANGLE)
+    ) {
       return this.parseLoopWithInput(grouped);
     }
     if (check(this.state, TOKEN_TYPES.QUESTION)) {
@@ -338,8 +386,20 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     }
   }
 
-  // Check for loop: expr @ body
+  // Check for loop: expr while/do/do< body (new syntax) or expr @ (legacy RILL-R080)
   if (check(this.state, TOKEN_TYPES.AT)) {
+    // Legacy seeded loop: expr @ { body } ? (cond) — RILL-R080 at @
+    throw new ParseError(
+      'RILL-R080',
+      'Migration error: use `do { body } while (cond)`',
+      current(this.state).span.start
+    );
+  }
+  if (
+    check(this.state, TOKEN_TYPES.WHILE) ||
+    check(this.state, TOKEN_TYPES.DO) ||
+    check(this.state, TOKEN_TYPES.DO_LANGLE)
+  ) {
     const headAsPipeChain: PipeChainNode = {
       type: 'PipeChain',
       head,
@@ -770,6 +830,20 @@ function isClosureSigLiteralStart(state: {
 // ============================================================
 
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
+  // Legacy bare ^ (CARET) loop annotation: ^(limit: N) { body } → RILL-R081
+  if (
+    check(this.state, TOKEN_TYPES.CARET) &&
+    peek(this.state, 1).type === TOKEN_TYPES.LPAREN &&
+    peek(this.state, 2).type === TOKEN_TYPES.IDENTIFIER &&
+    peek(this.state, 2).value === 'limit'
+  ) {
+    throw new ParseError(
+      'RILL-R081',
+      'Migration error: use `do<limit: N> { body }`',
+      current(this.state).span.start
+    );
+  }
+
   // Expression-position annotation: ^(...) expression (IR-5)
   if (
     check(this.state, TOKEN_TYPES.CARET) &&
@@ -1209,7 +1283,8 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     check(this.state, TOKEN_TYPES.DOLLAR) ||
     check(this.state, TOKEN_TYPES.PIPE_VAR)
   ) {
-    return this.parseVariable();
+    const varNode = this.parseVariable();
+    return { ...varNode, isPipeTarget: true };
   }
 
   // String literal

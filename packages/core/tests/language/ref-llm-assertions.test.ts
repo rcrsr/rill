@@ -286,8 +286,8 @@ describe('ref-llm: Pipes and $ Binding', () => {
     expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
   });
 
-  it('$ is accumulated value in @ loop', async () => {
-    expect(await run('0 -> ($ < 5) @ { $ + 1 }')).toBe(5);
+  it('$ is accumulated value in while loop', async () => {
+    expect(await run('0 -> while ($ < 5) do { $ + 1 }')).toBe(5);
   });
 
   it('implied $: .upper means $.upper()', async () => {
@@ -313,12 +313,12 @@ describe('ref-llm: Control Flow', () => {
     expect(await run('true -> ? "yes" ! "no"')).toBe('yes');
   });
 
-  it('condition loop with @', async () => {
-    expect(await run('0 -> ($ < 10) @ { $ + 1 }')).toBe(10);
+  it('condition loop with while', async () => {
+    expect(await run('0 -> while ($ < 10) do { $ + 1 }')).toBe(10);
   });
 
   it('do-condition loop', async () => {
-    expect(await run('0 -> @ { $ + 1 } ? ($ < 10)')).toBe(10);
+    expect(await run('0 -> do { $ + 1 } while ($ < 10)')).toBe(10);
   });
 
   it('break in each', async () => {
@@ -1044,8 +1044,8 @@ describe('ref-llm: Iterators', () => {
 // ============================================================
 
 describe('ref-llm: Iteration Limits', () => {
-  it('^(limit: N) overrides default', async () => {
-    expect(await run('0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }')).toBe(50);
+  it('do<limit: N> overrides default', async () => {
+    expect(await run('0 -> while ($ < 50) do<limit: 100> { $ + 1 }')).toBe(50);
   });
 });
 

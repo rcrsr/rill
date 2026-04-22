@@ -843,40 +843,31 @@ Use parentheses to override precedence:
 
 ## Operator-Level Annotations
 
-Place `^(...)` between the collection operator name and its body to attach operational metadata to that evaluation. Annotations apply per evaluation, not per definition.
+The `^(limit: N)` form is **not part of the current parser surface**. The parser emits RILL-R081 (migration error) for any occurrence of `^(limit:` in expression position. The examples below show the rejected syntax for reference only.
 
-**Syntax:**
+**Rejected syntax (RILL-R081):**
 
 ```text
-collection -> seq(^(limit: N) { body })
-collection -> fan(^(limit: N) { body })
-collection -> filter(^(limit: N) { body })
-collection -> fold(seed, ^(limit: N) |x|($@ + $x))
-```
-
-**Examples:**
-
-```rill
+# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
 [1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
-# [2, 4, 6]
 ```
 
-```rill
+```text
+# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
 [1, 2, 3] -> fan(^(limit: 10) { $ + 1 })
-# [2, 3, 4]
 ```
 
-```rill
+```text
+# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
 [1, 2, 3, 4] -> filter(^(limit: 50) { $ > 2 })
-# [3, 4]
 ```
 
-```rill
+```text
+# Error: RILL-R081 — Migration error: use `do<limit: N> { body }` at 1:N
 [1, 2, 3] -> fold(0, ^(limit: 20) |x|($@ + $x))
-# 6
 ```
 
-The `limit` key controls maximum iterations for sequential operators and maximum concurrency for parallel operators (`fan`, `filter`). Invalid annotation keys produce a runtime error.
+Iteration limits are controlled via the `do<limit: N>` loop construct, not via operator-level annotation. See [Control Flow](topic-control-flow.md) for `do<limit: N>` syntax.
 
 ---
 

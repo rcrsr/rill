@@ -106,8 +106,8 @@ $count  # Still 0
 # Use accumulators instead:
 [1, 2, 3] -> fold(0, { $@ + 1 })            # Final: 3
 [1, 2, 3] -> acc(0, { $@ + $ })            # Running: list[1, 3, 6]
-0 -> ($ < 5) @ { $ + 1 }                       # While: 5
-[result: "", done: false] -> (!.done) @ {  # While: "aaaaa"
+0 -> while ($ < 5) do { $ + 1 }                 # While: 5
+[result: "", done: false] -> while (!.done) do {  # While: "aaaaa"
   [result: "a{.result}", done: (.result.len == 5)]
 }
 ```
@@ -224,7 +224,7 @@ $str -> .empty ? "no" ! "yes"
 # Rillistic: $ in inline pipes and loops
 "hello" -> { .upper }
 [1, 2, 3] -> seq({ $ * 2 })
-0 -> ($ < 5) @ { $ + 1 }
+0 -> while ($ < 5) do { $ + 1 }
 
 # Rillistic: named params in stored closures
 |x| ($x * 2) => $double

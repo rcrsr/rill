@@ -523,10 +523,10 @@ describe('Rill Runtime: Closure Semantics', () => {
           "a"
         } => $c
 
-        0 -> @ {
+        0 -> do {
           $c()
           $ + 1
-        } ? ($ != 5)
+        } while ($ != 5)
       `;
       expect(await run(script)).toBe(5);
     });
@@ -537,9 +537,9 @@ describe('Rill Runtime: Closure Semantics', () => {
       const script = `
         { $ + 10 } => $fn
 
-        0 -> @ {
+        0 -> do {
           $fn()
-        } ? ($ < 15)
+        } while ($ < 15)
       `;
       // Loop: 0 -> $fn() receives 0, returns 10 -> check (10 < 15 is true) -> continue
       //       10 -> $fn() receives 10, returns 20 -> check (20 < 15 is false) -> exits
@@ -551,7 +551,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       const script = `
         || { 100 } => $constant
 
-        0 -> ($ < 3) @ {
+        0 -> while ($ < 3) do {
           $constant()
           $ + 1
         }
@@ -564,11 +564,11 @@ describe('Rill Runtime: Closure Semantics', () => {
       const script = `
         || { 0 } => $reset
 
-        5 -> @ {
+        5 -> do {
           $ => $prev
           $reset()
           $prev - 1
-        } ? ($ > 0)
+        } while ($ > 0)
       `;
       // Loop: 5 -> prev=5, reset()=0, prev-1=4
       //       4 -> prev=4, reset()=0, prev-1=3

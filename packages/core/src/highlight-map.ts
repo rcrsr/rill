@@ -42,6 +42,7 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['USE_LANGLE', 'keyword'],
     ['GUARD_LBRACE', 'keyword'],
     ['RETRY_LANGLE', 'keyword'],
+    ['DO_LANGLE', 'keyword'],
 
     // Keywords
     ['BREAK', 'keyword'],
@@ -52,6 +53,8 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['ERROR', 'keyword'],
     ['GUARD', 'keyword'],
     ['RETRY', 'keyword'],
+    ['WHILE', 'keyword'],
+    ['DO', 'keyword'],
 
     // Atom literal: #NAME
     ['ATOM', 'meta'],

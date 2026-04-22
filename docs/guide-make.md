@@ -479,7 +479,7 @@ $input -> .len                  # use variable
 
 ```rill
 0 => $i
-$i -> ($ < 3) @ { $ + 1 }
+$i -> while ($ < 3) do { $ + 1 }
 # Result: 3
 ```
 

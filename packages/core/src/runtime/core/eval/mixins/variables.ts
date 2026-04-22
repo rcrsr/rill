@@ -607,7 +607,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const trigger =
           node.accessChain.length > 0
             ? isVacant(value)
-            : value === null || isInvalid(value);
+            : node.isPipeTarget
+              ? value === null || isInvalid(value)
+              : isVacant(value);
         if (trigger) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateBody(node.defaultValue);

@@ -147,10 +147,10 @@ Method chains work in block bodies:
 
 ```rill
 # good: $ accumulates naturally
-0 -> ($ < 5) @ { $ + 1 }
+0 -> while ($ < 5) do { $ + 1 }
 
 # avoid: named variables don't persist across iterations
-0 -> ($ < 5) @ {
+0 -> while ($ < 5) do {
   $ => $x        # $x exists only in this iteration
   $x + 1
 }
@@ -162,13 +162,13 @@ Do-while runs body at least once, eliminating duplicate first-attempt code:
 
 ```text
 # good: body runs at least once
-@ {
+do {
   attemptOperation()
-} ? (.contains("RETRY"))
+} while (.contains("RETRY"))
 
 # less clean: separate first attempt
 attemptOperation() => $result
-$result -> .contains("RETRY") @ {
+$result -> while (.contains("RETRY")) do {
   attemptOperation()
 }
 ```
@@ -180,7 +180,7 @@ $result -> .contains("RETRY") @ {
 $items -> seq({ process($) })
 
 # avoid: manual iteration with while
-$items -> .first() -> (!$.done) @ {
+$items -> .first() -> while (!$.done) do {
   process($.value)
   $.next()
 }

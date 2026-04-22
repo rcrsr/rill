@@ -235,7 +235,7 @@ describe('Rill Runtime: Boolean Expressions', () => {
       // Uses pipe value ($) as accumulator since blocks have isolated scope
       expect(
         await run(`
-        0 -> ($ < 3 && $ >= 0) @ { $ + 1 }
+        0 -> while ($ < 3 && $ >= 0) do { $ + 1 }
       `)
       ).toBe(3);
     });
