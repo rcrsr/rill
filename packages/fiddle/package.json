@@ -17,23 +17,23 @@
     "@codemirror/commands": "^6.10.3",
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.6.0",
-    "@codemirror/view": "^6.41.0",
+    "@codemirror/view": "^6.41.1",
     "@lezer/highlight": "^1.2.3",
     "@rcrsr/rill": "workspace:^",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.2",
+    "@tailwindcss/vite": "^4.2.4",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/coverage-v8": "^4.1.2",
-    "happy-dom": "^20.8.9",
-    "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.3",
-    "vitest": "^4.1.2"
+    "@vitest/coverage-v8": "^4.1.5",
+    "happy-dom": "^20.9.0",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9",
+    "vitest": "^4.1.5"
   }
 }

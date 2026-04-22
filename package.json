@@ -3,7 +3,7 @@
   "version": "0.18.7",
   "description": "Scripting designed for machine-generated code",
   "private": true,
-  "packageManager": "pnpm@10.29.2",
+  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820",
   "type": "module",
   "repository": {
     "type": "git",
@@ -47,16 +47,16 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.2",
-    "@typescript-eslint/eslint-plugin": "^8.58.0",
-    "@typescript-eslint/parser": "^8.58.0",
-    "eslint": "^10.2.0",
-    "globals": "^17.4.0",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
     "knip": "^6.6.1",
-    "prettier": "^3.8.1",
+    "prettier": "^3.8.3",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5",
     "yaml": "^2.8.3"
   }
 }
