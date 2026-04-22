@@ -12,7 +12,7 @@
 export const MAX_URL_CODE_LENGTH = 8192;
 
 /** Result of a copy-link operation */
-export interface CopyLinkResult {
+interface CopyLinkResult {
   status: 'copied' | 'too-large' | 'error';
   /** URL that was copied (only when status is 'copied') */
   url?: string;

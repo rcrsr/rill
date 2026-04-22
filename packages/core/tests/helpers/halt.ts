@@ -15,7 +15,6 @@
  *   throws a `RuntimeHaltSignal` whose invalid `.status.code` matches
  *   the expected atom; `messagePattern` (optional) matches against
  *   `status.message` (which derives from `raw.message`).
- * - `expectHaltCode(exec, code)` is the minimal form (code only).
  * - `expectHaltMessage(exec, pattern)` matches just the message, for
  *   tests that previously asserted via `rejects.toThrow(/regex/)`.
  */
@@ -25,7 +24,7 @@ import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js'
 import { getStatus } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
-export interface HaltExpectation {
+interface HaltExpectation {
   /** Expected atom name (e.g. `'TYPE_MISMATCH'`, `'INVALID_INPUT'`). */
   code: string;
   /** Optional pattern (regex or substring) matched against status.message. */
@@ -57,16 +56,6 @@ export async function expectHalt(
       expect(status.message).toContain(expected.messagePattern);
     }
   }
-}
-
-/**
- * Shorthand for `expectHalt(exec, { code })`.
- */
-export function expectHaltCode(
-  exec: () => Promise<unknown>,
-  code: string
-): Promise<void> {
-  return expectHalt(exec, { code });
 }
 
 /**

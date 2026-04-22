@@ -22,7 +22,7 @@ import type { ExecutionState } from '../lib/execution.js';
 /**
  * Output component props
  */
-export interface OutputProps {
+interface OutputProps {
   /** Current execution state */
   state: ExecutionState;
   /** ARIA label for screen readers */
@@ -179,11 +179,12 @@ export function Output({
 
               {error.statusTrace !== null && error.statusTrace.length > 0 && (
                 <div className="output-error-status-trace">
-                  <div className="output-error-status-trace-label">
-                    trace:
-                  </div>
+                  <div className="output-error-status-trace-label">trace:</div>
                   {error.statusTrace.map((frame, index) => (
-                    <div key={index} className="output-error-status-trace-frame">
+                    <div
+                      key={index}
+                      className="output-error-status-trace-frame"
+                    >
                       <span className="output-error-status-trace-kind">
                         {frame.kind}
                       </span>

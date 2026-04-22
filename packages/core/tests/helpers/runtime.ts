@@ -5,7 +5,6 @@
 import {
   anyTypeValue,
   createRuntimeContext,
-  createStepper,
   execute,
   type ExecutionResult,
   type ObservabilityCallbacks,
@@ -14,11 +13,10 @@ import {
   type RillValue,
   type RuntimeContext,
   type RuntimeOptions,
-  type StepResult,
 } from '@rcrsr/rill';
 
 /** Options for test execution */
-export interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
+interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
   functions?: Record<string, RillFunction>;
 }
 
@@ -53,22 +51,6 @@ export async function runWithContext(
   const { ast, ctx } = setup(source, options);
   const result = await execute(ast, ctx);
   return { result, context: ctx };
-}
-
-/** Execute using stepper and return all step results */
-export async function runStepped(
-  source: string,
-  options: TestOptions = {}
-): Promise<StepResult[]> {
-  const { ast, ctx } = setup(source, options);
-  const stepper = createStepper(ast, ctx);
-  const results: StepResult[] = [];
-
-  while (!stepper.done) {
-    results.push(await stepper.step());
-  }
-
-  return results;
 }
 
 /** Create a mock async function with configurable delay */
@@ -109,7 +91,7 @@ export function mockFn(returnValue: RillValue = null): RillFunction & {
 }
 
 /** Event collector for observability testing */
-export interface CollectedEvents {
+interface CollectedEvents {
   stepStart: { index: number; total: number; pipeValue: RillValue }[];
   stepEnd: {
     index: number;
