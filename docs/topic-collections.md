@@ -499,13 +499,11 @@ The `^(limit: N)` annotation is not valid inside collection operator calls. The 
 app::events() ^(limit: 100) -> seq({ $ })
 ```
 
-To stop early, use `break` inside the operator body:
+To stop early, use `break` inside the operator body. Inner scopes cannot reassign outer variables, so use the incoming value `$` or an `acc`/`fold` accumulator for stateful conditions:
 
 ```text
-0 => $count
 app::events() -> seq({
-  ($count >= 100) ? break
-  ($count + 1) => $count
+  ($ > 100) ? break
   $
 })
 ```

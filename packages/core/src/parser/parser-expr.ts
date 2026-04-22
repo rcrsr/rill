@@ -194,11 +194,11 @@ Parser.prototype.parseCommonConstruct = function (
         current(this.state).span.start
       );
     }
-    // Legacy annotated loop: @ ^(limit: N) { body } — RILL-R079 at @
+    // Legacy bounded post-loop: @ ^(limit: N) { body } ? (cond) — RILL-R080
     if (peek(this.state, 1).type === TOKEN_TYPES.CARET) {
       throw new ParseError(
-        'RILL-R079',
-        'Migration error: use `do<limit: N> { body }`',
+        'RILL-R080',
+        'Migration error: use `do<limit: N> { body } while (cond)`',
         current(this.state).span.start
       );
     }

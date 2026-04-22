@@ -209,18 +209,18 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
-    it('ignores non-positive limit values', async () => {
+    it('rejects non-positive limit values at parse time', async () => {
       // do<limit: N> requires a positive integer at parse time
       await expect(
         run('0 -> while ($ < 100) do<limit: -5> { $ + 1 }')
       ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
-    it('floors fractional limit values', async () => {
-      // do<limit: N> requires an integer at parse time; fractional values error
+    it('rejects fractional limit values at parse time', async () => {
+      // do<limit: N> requires an integer literal; fractional values error at parse time.
       await expect(
-        run('0 -> while ($ < 100) do<limit: 3> { $ + 1 }')
-      ).rejects.toThrow(/exceeded 3 iterations/);
+        run('0 -> while ($ < 100) do<limit: 3.9> { $ + 1 }')
+      ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
     it('preserves limit behavior with multiple annotations (AC-8)', async () => {

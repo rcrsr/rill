@@ -834,9 +834,10 @@ do_while_loop = "do" , [ construct_options ] , body , "while" , "(" , expression
               (* Body executes at least once before condition is checked.
                  Example: 0 -> do { $ + 1 } while ($ < 5) *)
 
-construct_options = "<" , option , { "," , option } , ">" ;
-              (* Attach named options to the loop construct.
-                 Currently only "limit" is defined. Unknown keys error at parse time.
+construct_options = "<" , option , ">" ;
+              (* Attach a single named option to the loop construct.
+                 Currently only "limit" is defined; the grammar will extend to
+                 comma-separated options when additional option keys are added.
                  Example: do<limit: 100> — sets iteration ceiling to 100
                  Constraints: N must be a positive integer literal (RILL-P004). *)
 

@@ -686,8 +686,9 @@ export interface WhileLoopNode extends BaseNode {
  *
  * Body executes at least once before condition is checked.
  * `input` carries the pipe-seed expression when present (null = implied $).
- * `condition` is stored as a BodyNode — the `(cond)` expression in surface
- * syntax is wrapped in a single-statement body during parsing.
+ * `condition` is stored as a BodyNode. The parser assigns the PipeChainNode
+ * produced by parseExpression() directly — PipeChainNode is a member of the
+ * BodyNode union, so no wrapping is needed.
  * BreakSignal exits the loop; ReturnSignal propagates upward.
  */
 export interface DoWhileLoopNode extends BaseNode {
