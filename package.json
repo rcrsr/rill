@@ -26,6 +26,7 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "check": "pnpm -r run check",
+    "check:deps": "knip",
     "test:examples": "pnpm --filter @rcrsr/rill run test:examples",
     "sync-versions": "bash scripts/sync-versions.sh",
     "check-versions": "bash scripts/check-versions.sh"
@@ -51,6 +52,7 @@
     "@typescript-eslint/parser": "^8.58.0",
     "eslint": "^10.2.0",
     "globals": "^17.4.0",
+    "knip": "^6.6.1",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreWorkspaces": ["packages/web"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{ts,mjs,js,sh}"],
+      "project": ["scripts/**/*.{ts,mjs,js}", "eslint-rules/**/*.{js,cjs,ts}"],
+      "vitest": ["vitest.config.ts"]
+    },
+    "packages/core": {
+      "entry": ["tests/**/*.test.ts"]
+    },
+    "packages/fiddle": {
+      "entry": ["tests/**/*.test.{ts,tsx}"]
+    }
+  }
+}
