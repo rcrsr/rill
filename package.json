@@ -17,6 +17,7 @@
     "access": "public"
   },
   "scripts": {
+    "prepare": "lefthook install --force",
     "build": "pnpm -r run build",
     "build:dev": "pnpm -r --if-present run build:dev",
     "test": "pnpm -r run test",
@@ -45,6 +46,11 @@
   "engines": {
     "node": ">=22.16.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "lefthook"
+    ]
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
@@ -53,6 +59,7 @@
     "eslint": "^10.2.1",
     "globals": "^17.5.0",
     "knip": "^6.6.1",
+    "lefthook": "^2.1.6",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",

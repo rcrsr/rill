@@ -1,0 +1,26 @@
+# Lefthook git hooks
+# Docs: https://lefthook.dev/configuration/
+#
+# Skip with `LEFTHOOK=0 git <command>` or `git <command> --no-verify`.
+
+pre-commit:
+  piped: true
+  commands:
+    prettier:
+      priority: 1
+      glob: '*.{ts,tsx,js,mjs,cjs,json,yaml,yml}'
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+    eslint:
+      priority: 2
+      glob: '*.{ts,tsx}'
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    typecheck:
+      run: pnpm -r run typecheck
+    test:
+      run: pnpm -r run test
