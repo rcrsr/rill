@@ -698,7 +698,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Infinite loop without termination',
-        code: '(true) @ { "looping" }  # Never terminates',
+        code: 'while (true) do { "looping" }  # Never terminates',
       },
       {
         description: 'Large collection with default limit',
@@ -1801,6 +1801,72 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'After (current syntax)',
         code: '42 -> string\n"3.14" -> number\nlist[1, 2] -> tuple',
+      },
+    ],
+  },
+
+  // Legacy loop syntax: pre-loop @ (RILL-R079)
+  {
+    errorId: 'RILL-R079',
+    category: 'parse',
+    description: 'Legacy pre-loop @ syntax',
+    messageTemplate: 'Migration error: use `while (cond) do { body }`',
+    cause:
+      "The parser encountered the legacy pre-loop '@' operator. The 'while (cond) do { body }' syntax is now the canonical while-loop form.",
+    resolution:
+      "Replace '(cond) @ { body }' with 'while (cond) do { body }'. For annotated loops, use 'do<limit: N> { body } while (cond)'.",
+    examples: [
+      {
+        description: 'Before (legacy syntax triggers RILL-R079)',
+        code: '0 -> ($ < 3) @ { $ + 1 }',
+      },
+      {
+        description: 'After (current syntax)',
+        code: '0 -> while ($ < 3) do { $ + 1 }',
+      },
+    ],
+  },
+
+  // Legacy loop syntax: post-loop @ (RILL-R080)
+  {
+    errorId: 'RILL-R080',
+    category: 'parse',
+    description: 'Legacy post-loop @ syntax',
+    messageTemplate: 'Migration error: use `do { body } while (cond)`',
+    cause:
+      "The parser encountered the legacy post-loop '@' operator. The 'do { body } while (cond)' syntax is now the canonical do-while form.",
+    resolution:
+      "Replace '@ { body } ? (cond)' with 'do { body } while (cond)'. For seeded loops, pipe the seed: 'seed -> do { body } while (cond)'.",
+    examples: [
+      {
+        description: 'Before (legacy syntax triggers RILL-R080)',
+        code: '0 -> @ { $ + 1 } ? ($ < 3)',
+      },
+      {
+        description: 'After (current syntax)',
+        code: '0 -> do { $ + 1 } while ($ < 3)',
+      },
+    ],
+  },
+
+  // Legacy loop syntax: bare ^(limit:) annotation (RILL-R081)
+  {
+    errorId: 'RILL-R081',
+    category: 'parse',
+    description: 'Legacy ^(limit:) loop annotation syntax',
+    messageTemplate: 'Migration error: use `do<limit: N> { body }`',
+    cause:
+      "The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do<limit: N>' construct option is now the canonical syntax.",
+    resolution:
+      "Replace '^(limit: N) @ { body }' with 'do<limit: N> { body } while (cond)' or 'while (cond) do<limit: N> { body }'.",
+    examples: [
+      {
+        description: 'Before (legacy syntax triggers RILL-R081)',
+        code: '0 -> ^(limit: 10) @ { $ + 1 } ? ($ < 3)',
+      },
+      {
+        description: 'After (current syntax)',
+        code: '0 -> do<limit: 10> { $ + 1 } while ($ < 3)',
       },
     ],
   },

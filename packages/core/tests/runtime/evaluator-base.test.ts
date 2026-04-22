@@ -79,7 +79,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('throws RuntimeError for non-boolean while loop condition', async () => {
       try {
-        await run('0 -> ("string") @ { $ + 1 }');
+        await run('while ("string") do { $ + 1 }');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -333,7 +333,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
 
     it('evaluates while loops', async () => {
-      const result = await run('0 -> ($ < 5) @ { $ + 1 }');
+      const result = await run('0 -> while ($ < 5) do { $ + 1 }');
       expect(result).toBe(5);
     });
 
@@ -363,8 +363,8 @@ describe('Rill Runtime: Evaluator Base Class', () => {
   describe('Error handling edge cases', () => {
     it('throws RuntimeError for iteration limit exceeded', async () => {
       try {
-        // Infinite loop with iteration limit
-        await run('^(limit: 10) 0 -> (true) @ { $ }');
+        // Infinite loop with do<limit: N> construct option
+        await run('0 -> while (true) do<limit: 10> { $ }');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);

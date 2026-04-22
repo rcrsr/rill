@@ -219,10 +219,9 @@ describe('Rill Runtime: Block Scoping', () => {
 
   describe('While Loop Scoping', () => {
     it('while loop uses $ as accumulator', async () => {
-      // Old pattern ($x inside loop) no longer works
-      // New pattern: use $ as accumulator
+      // Use $ as accumulator with new while syntax
       const script = `
-        0 -> ($ < 5) @ { $ + 1 }
+        0 -> while ($ < 5) do { $ + 1 }
       `;
       expect(await run(script)).toBe(5);
     });
@@ -230,7 +229,7 @@ describe('Rill Runtime: Block Scoping', () => {
     it('while loop body has isolated scope', async () => {
       // Variable assignment inside while body doesn't leak
       const script = `
-        0 -> ($ < 3) @ {
+        0 -> while ($ < 3) do {
           ($ * 10) => $inner
           $ + 1
         }
@@ -244,7 +243,7 @@ describe('Rill Runtime: Block Scoping', () => {
   describe('Do-While Loop Scoping', () => {
     it('do-while uses $ as accumulator', async () => {
       const script = `
-        0 -> @ { $ + 1 } ? ($ < 5)
+        0 -> do { $ + 1 } while ($ < 5)
       `;
       expect(await run(script)).toBe(5);
     });
@@ -252,10 +251,10 @@ describe('Rill Runtime: Block Scoping', () => {
     it('do-while body has isolated scope', async () => {
       // Variable assignment inside do-while body doesn't leak
       const script = `
-        0 -> @ {
+        0 -> do {
           ($ * 10) => $inner
           $ + 1
-        } ? ($ < 3)
+        } while ($ < 3)
         $inner
       `;
       // $inner was only created inside loop, not visible outside

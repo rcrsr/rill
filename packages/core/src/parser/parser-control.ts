@@ -14,7 +14,13 @@ import type {
   DoWhileLoopNode,
   ErrorNode,
   ExpressionNode,
+  GroupedExprNode,
   GuardBlockNode,
+  NamedArgNode,
+  NumberLiteralNode,
+  PipeChainNode,
+  PipeTargetNode,
+  PostfixExprNode,
   RecoveryErrorNode,
   RetryBlockNode,
   StringLiteralNode,
@@ -44,10 +50,9 @@ declare module './parser.js' {
       condition: BodyNode | null,
       start: { line: number; column: number; offset: number }
     ): ConditionalNode;
-    parseLoop(
-      condition: ExpressionNode | null
-    ): WhileLoopNode | DoWhileLoopNode;
-    parseLoopWithInput(condition: BodyNode): WhileLoopNode | DoWhileLoopNode;
+    parseLoop(): DoWhileLoopNode;
+    parseWhileLoop(): WhileLoopNode;
+    parseLoopWithInput(seed: BodyNode): WhileLoopNode | DoWhileLoopNode;
     parseBlock(allowEmpty?: boolean): BlockNode;
     parseAssert(): AssertNode;
     parseError(requireMessage?: boolean): ErrorNode;
@@ -120,48 +125,209 @@ Parser.prototype.parseConditionalRest = function (
 // LOOPS
 // ============================================================
 
-Parser.prototype.parseLoop = function (
-  this: Parser,
-  condition: ExpressionNode | null
-): WhileLoopNode | DoWhileLoopNode {
-  const start = condition
-    ? condition.span.start
-    : current(this.state).span.start;
-  expect(this.state, TOKEN_TYPES.AT, 'Expected @');
+/**
+ * Parse construct options after `do<`.
+ *
+ * Precondition: DO_LANGLE token has already been consumed.
+ * Grammar: `limit` `:` NUMBER `>`
+ *
+ * Validates that `limit` is a positive integer.
+ * Returns a synthesized AnnotationArg[] equivalent to `^(limit: N)`.
+ *
+ * Error contracts (UXT-LOOP-1):
+ *   EC-4: unknown option name  → RILL-P004
+ *   EC-5: non-positive limit   → RILL-P004
+ *   EC-6: missing `>`          → RILL-P005
+ */
+function parseConstructOptions(
+  parser: Parser,
+  start: { line: number; column: number; offset: number }
+): AnnotationArg[] {
+  skipNewlines(parser.state);
 
-  let annotations: AnnotationArg[] | undefined;
-  if (check(this.state, TOKEN_TYPES.CARET)) {
-    advance(this.state); // consume ^
-    expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
-    annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
-  }
-
-  const body = this.parseBody();
-
-  // Check for do-while: @ body ? cond
-  if (check(this.state, TOKEN_TYPES.QUESTION)) {
-    advance(this.state);
-    const doWhileCondition = this.parseBody();
-
-    return {
-      type: 'DoWhileLoop',
-      input: condition,
-      body,
-      condition: doWhileCondition,
-      annotations,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  // While loop: cond @ body - condition is required
-  if (!condition) {
+  // Require an identifier as the option name.
+  if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
     throw new ParseError(
       'RILL-P004',
-      "Bare '@' requires trailing condition: @ body ? cond (do-while)",
-      start
+      `Parse error: unknown option \`${current(parser.state).value}\` for \`do\` construct (only \`limit\` accepted)`,
+      current(parser.state).span.start
     );
   }
+
+  const optionToken = advance(parser.state);
+  if (optionToken.value !== 'limit') {
+    throw new ParseError(
+      'RILL-P004',
+      `Parse error: unknown option \`${optionToken.value}\` for \`do\` construct (only \`limit\` accepted)`,
+      optionToken.span.start
+    );
+  }
+
+  expect(parser.state, TOKEN_TYPES.COLON, "Expected ':' after option name");
+  skipNewlines(parser.state);
+
+  if (!check(parser.state, TOKEN_TYPES.NUMBER)) {
+    throw new ParseError(
+      'RILL-P004',
+      'Validation error: `limit` must be a positive integer',
+      current(parser.state).span.start
+    );
+  }
+
+  const numToken = advance(parser.state);
+  const limitValue = Number(numToken.value);
+
+  if (!Number.isInteger(limitValue) || limitValue < 1) {
+    throw new ParseError(
+      'RILL-P004',
+      'Validation error: `limit` must be a positive integer',
+      numToken.span.start
+    );
+  }
+
+  skipNewlines(parser.state);
+  expect(
+    parser.state,
+    TOKEN_TYPES.GT,
+    'Parse error: expected `>` to close `do` construct options',
+    'RILL-P005'
+  );
+
+  // Synthesise a NamedArgNode for `limit: N` matching the shape produced by
+  // the legacy `^(limit: N)` annotation. The value must be an ExpressionNode
+  // (= PipeChainNode) wrapping a NumberLiteralNode.
+  const numLiteral: NumberLiteralNode = {
+    type: 'NumberLiteral',
+    value: limitValue,
+    span: numToken.span,
+  };
+  const postfix: PostfixExprNode = {
+    type: 'PostfixExpr',
+    primary: numLiteral,
+    methods: [],
+    defaultValue: null,
+    span: numToken.span,
+  };
+  const valueExpr: PipeChainNode = {
+    type: 'PipeChain',
+    head: postfix,
+    pipes: [],
+    terminator: null,
+    span: numToken.span,
+  };
+  const namedArg: NamedArgNode = {
+    type: 'NamedArg',
+    name: 'limit',
+    value: valueExpr,
+    span: makeSpan(start, numToken.span.end),
+  };
+
+  return [namedArg];
+}
+
+/**
+ * Parse a do-while loop: `do [<limit: N>] { body } while ( cond )`.
+ *
+ * Precondition: current token is DO or DO_LANGLE.
+ * Produces a DoWhileLoopNode. `input` is null (set by parseLoopWithInput when
+ * called from a pipe chain). Trailing `while (cond)` is required (EC-3).
+ */
+Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
+  const start = current(this.state).span.start;
+
+  // Consume `do` or `do<`; parse optional construct options.
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.DO_LANGLE)) {
+    advance(this.state); // consume do<
+    annotations = parseConstructOptions(this, start);
+  } else {
+    expect(this.state, TOKEN_TYPES.DO, 'Expected `do`');
+  }
+
+  const body = this.parseBlock();
+
+  // Require trailing `while (cond)` — EC-3.
+  skipNewlines(this.state);
+  if (!check(this.state, TOKEN_TYPES.WHILE)) {
+    throw new ParseError(
+      'RILL-P004',
+      'Parse error: `do { body }` requires trailing `while (cond)` in post-loop form',
+      current(this.state).span.start
+    );
+  }
+  advance(this.state); // consume `while`
+
+  if (!check(this.state, TOKEN_TYPES.LPAREN)) {
+    throw new ParseError(
+      'RILL-P004',
+      'Parse error: `while` requires `(condition)` before `do`',
+      current(this.state).span.start
+    );
+  }
+  advance(this.state); // consume `(`
+  const condition = this.parseExpression();
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+
+  return {
+    type: 'DoWhileLoop',
+    input: null,
+    body,
+    condition,
+    annotations,
+    span: makeSpan(start, current(this.state).span.end),
+  };
+};
+
+/**
+ * Parse a while loop: `while ( cond ) do [<limit: N>] { body }`.
+ *
+ * Precondition: current token is WHILE.
+ * Produces a WhileLoopNode. Trailing `do` / `do<limit: N>` is required.
+ *
+ * Error contracts (UXT-LOOP-1):
+ *   EC-1: missing `(cond)`  → RILL-P004
+ *   EC-2: missing `do`      → RILL-P004
+ */
+Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
+  const start = current(this.state).span.start;
+  advance(this.state); // consume `while`
+
+  // Require `( cond )` — EC-1.
+  if (!check(this.state, TOKEN_TYPES.LPAREN)) {
+    throw new ParseError(
+      'RILL-P004',
+      'Parse error: `while` requires `(condition)` before `do`',
+      current(this.state).span.start
+    );
+  }
+  advance(this.state); // consume `(`
+  const condition: ExpressionNode = this.parseExpression();
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+
+  skipNewlines(this.state);
+
+  // Require `do` or `do<opts>` — EC-2.
+  if (
+    !check(this.state, TOKEN_TYPES.DO) &&
+    !check(this.state, TOKEN_TYPES.DO_LANGLE)
+  ) {
+    throw new ParseError(
+      'RILL-P004',
+      'Parse error: expected `do` after `while (cond)`',
+      current(this.state).span.start
+    );
+  }
+
+  let annotations: AnnotationArg[] | undefined;
+  if (check(this.state, TOKEN_TYPES.DO_LANGLE)) {
+    const doStart = current(this.state).span.start;
+    advance(this.state); // consume do<
+    annotations = parseConstructOptions(this, doStart);
+  } else {
+    advance(this.state); // consume `do`
+  }
+
+  const body = this.parseBlock();
 
   return {
     type: 'WhileLoop',
@@ -172,33 +338,97 @@ Parser.prototype.parseLoop = function (
   };
 };
 
+/**
+ * Thin dispatcher: routes a pipe-seeded loop to parseWhileLoop or parseLoop
+ * based on the next token.
+ *
+ * - WHILE token  → parseWhileLoop(); seed is threaded into the condition head
+ *   so the seed value is the initial $ when the condition first evaluates.
+ * - DO / DO_LANGLE → parseLoop(); seed threads into DoWhileLoopNode.input.
+ */
 Parser.prototype.parseLoopWithInput = function (
   this: Parser,
-  condition: BodyNode
+  seed: BodyNode
 ): WhileLoopNode | DoWhileLoopNode {
-  let conditionExpr: ExpressionNode;
-  if (condition.type === 'PipeChain') {
-    conditionExpr = condition;
-  } else {
-    conditionExpr = {
-      type: 'PipeChain',
-      head:
-        condition.type === 'PostfixExpr'
-          ? condition
+  if (check(this.state, TOKEN_TYPES.WHILE)) {
+    const node = this.parseWhileLoop();
+
+    // IR-5: Thread seed into WhileLoopNode.condition as the pipe head.
+    // Wrap the existing condition in a GroupedExprNode so it can serve as a
+    // PipeTargetNode (GroupedExprNode is in the PipeTargetNode union).
+    const wrappedCondition: GroupedExprNode = {
+      type: 'GroupedExpr',
+      expression: node.condition,
+      span: node.condition.span,
+    };
+
+    let newCondition: ExpressionNode;
+    if (seed.type === 'PipeChain') {
+      // Seed is already a PipeChainNode — use its head directly and append
+      // the wrapped condition as the next pipe stage.
+      newCondition = {
+        type: 'PipeChain',
+        head: seed.head,
+        pipes: [...seed.pipes, wrappedCondition as PipeTargetNode],
+        terminator: null,
+        span: makeSpan(seed.span.start, node.condition.span.end),
+      };
+    } else {
+      // Non-PipeChain BodyNode variants (BlockNode, GroupedExprNode,
+      // PostfixExprNode) are all valid PrimaryNode members.
+      const seedHead: PostfixExprNode =
+        seed.type === 'PostfixExpr'
+          ? seed
           : {
               type: 'PostfixExpr',
-              primary: condition,
+              primary: seed,
               methods: [],
               defaultValue: null,
-              span: condition.span,
-            },
+              span: seed.span,
+            };
+      newCondition = {
+        type: 'PipeChain',
+        head: seedHead,
+        pipes: [wrappedCondition as PipeTargetNode],
+        terminator: null,
+        span: makeSpan(seed.span.start, node.condition.span.end),
+      };
+    }
+
+    return { ...node, condition: newCondition };
+  }
+
+  // DO or DO_LANGLE: parse the do-while body then attach seed as input.
+  const node = this.parseLoop();
+
+  // Build the seed as ExpressionNode to satisfy DoWhileLoopNode.input type.
+  let seedExpr: ExpressionNode;
+  if (seed.type === 'PipeChain') {
+    seedExpr = seed;
+  } else {
+    const head: PostfixExprNode =
+      seed.type === 'PostfixExpr'
+        ? seed
+        : {
+            type: 'PostfixExpr',
+            primary: seed,
+            methods: [],
+            defaultValue: null,
+            span: seed.span,
+          };
+    seedExpr = {
+      type: 'PipeChain',
+      head,
       pipes: [],
       terminator: null,
-      span: condition.span,
+      span: seed.span,
     };
   }
 
-  return this.parseLoop(conditionExpr);
+  return {
+    ...node,
+    input: seedExpr,
+  };
 };
 
 // ============================================================

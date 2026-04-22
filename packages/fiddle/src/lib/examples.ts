@@ -159,9 +159,9 @@ $bag.items -> filter({ $ > 10 })`,
   'state-machine': {
     id: 'state-machine',
     label: 'State Machine',
-    source: `# Traffic light with dispatch in condition loop
+    source: `# Traffic light with dispatch in while loop
 dict[state: "red", cycles: 0]
-  -> (.cycles < 6) @ {
+  -> while (.cycles < 6) do {
     log(.state)
     dict[
       state: .state -> dict[
@@ -206,19 +206,19 @@ list[1, 2, 3].^type.name`,
   'while-loop': {
     id: 'while-loop',
     label: 'While Loop',
-    source: `# Condition loop: (cond) @ { body }
+    source: `# Pre-condition loop: while (cond) do { body }
 # Counts from 1 to 10
-1 -> ($ <= 10) @ { $ + 1 } => $result
+1 -> while ($ <= 10) do { $ + 1 } => $result
 log("count result: {$result}")
 
-# Do-condition loop: @ { body } ? (cond)
+# Do-while loop: do { body } while (cond)
 # Body runs at least once
-0 -> @ { $ + 5 } ? ($ < 20) => $total
+0 -> do { $ + 5 } while ($ < 20) => $total
 log("do-while result: {$total}")
 
 # Collatz sequence length
 dict[value: 27, steps: 0]
-  -> ($.value != 1) @ {
+  -> while ($.value != 1) do {
     ($.value % 2 == 0)
       ? dict[value: $.value / 2, steps: $.steps + 1]
       ! dict[value: $.value * 3 + 1, steps: $.steps + 1]

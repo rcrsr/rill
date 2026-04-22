@@ -319,7 +319,7 @@ true ? { "second" }`;
         const script = `|path| { "draft" } => $get_status
 
 |doc_path, target_status, max_attempts| {
-  0 -> @ {
+  0 -> do {
     $get_status($doc_path) => $new_status
 
     ($new_status == $target_status) ? {
@@ -331,7 +331,7 @@ true ? { "second" }`;
     }
 
     $ + 1
-  } ? ($ < $max_attempts)
+  } while ($ < $max_attempts)
 } => $review_loop
 
 $review_loop("spec.md", "plan-ready", 3)`;
@@ -344,10 +344,10 @@ $review_loop("spec.md", "plan-ready", 3)`;
         // (cond) ? { break } followed by (expr) should NOT parse (expr)
         // as invocation since break is a terminator.
         const script = `|n| {
-  0 -> @ {
+  0 -> do {
     ($ == $n) ? { $ -> break }
     $ + 1
-  } ? ($ < 10)
+  } while ($ < 10)
 } => $loop
 
 $loop(5)`;

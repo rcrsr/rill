@@ -148,17 +148,17 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Limit Annotation', () => {
     it('allows loops within limit', async () => {
-      // Uses operator-level annotation: @^(limit: N) { body }
+      // Uses do<limit: N> construct option syntax
       const script = `
-        0 -> ($ < 3) @^(limit: 5) { $ + 1 }
+        0 -> while ($ < 3) do<limit: 5> { $ + 1 }
       `;
       expect(await run(script)).toBe(3);
     });
 
     it('throws when while loop exceeds limit', async () => {
-      // Operator-level annotation directly on the loop operator
+      // do<limit: N> enforces the limit at runtime
       const script = `
-        0 -> ($ < 100) @^(limit: 3) { $ + 1 }
+        0 -> while ($ < 100) do<limit: 3> { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
     });
@@ -166,7 +166,7 @@ describe('Rill Runtime: Annotations', () => {
     it('includes iteration count in error context when limit exceeded', async () => {
       // Verify AC-13: error context contains limit and iteration count
       const script = `
-        0 -> ($ < 100) @^(limit: 5) { $ + 1 }
+        0 -> while ($ < 100) do<limit: 5> { $ + 1 }
       `;
       try {
         await run(script);
@@ -196,7 +196,7 @@ describe('Rill Runtime: Annotations', () => {
     it('uses default limit when not specified', async () => {
       // This should succeed because default is 10000
       const script = `
-        0 -> ($ < 100) @ { $ + 1 }
+        0 -> while ($ < 100) do { $ + 1 }
       `;
       expect(await run(script)).toBe(100);
     });
@@ -209,26 +209,24 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
-    it('ignores non-positive limit values', async () => {
-      // Operator-level non-positive limit falls back to default (10000)
-      const script = `
-        0 -> ($ < 100) @^(limit: -5) { $ + 1 }
-      `;
-      expect(await run(script)).toBe(100);
+    it('rejects non-positive limit values at parse time', async () => {
+      // do<limit: N> requires a positive integer at parse time
+      await expect(
+        run('0 -> while ($ < 100) do<limit: -5> { $ + 1 }')
+      ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
-    it('floors fractional limit values', async () => {
-      // Operator-level fractional limit is floored
-      const script = `
-        0 -> ($ < 100) @^(limit: 3.9) { $ + 1 }
-      `;
-      await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
+    it('rejects fractional limit values at parse time', async () => {
+      // do<limit: N> requires an integer literal; fractional values error at parse time.
+      await expect(
+        run('0 -> while ($ < 100) do<limit: 3.9> { $ + 1 }')
+      ).rejects.toThrow(/limit.*must be a positive integer/i);
     });
 
     it('preserves limit behavior with multiple annotations (AC-8)', async () => {
-      // Multiple operator-level annotations
+      // do<limit: N> sets the iteration ceiling; unknown option keys error at parse
       const script = `
-        0 -> ($ < 100) @^(limit: 50, meta: "test") { $ + 1 }
+        0 -> while ($ < 100) do<limit: 50> { $ + 1 }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 50 iterations/);
     });
@@ -236,20 +234,20 @@ describe('Rill Runtime: Annotations', () => {
 
   describe('Annotation Inheritance', () => {
     it('inner annotations override outer', async () => {
-      // Inner operator-level limit of 2 on the loop
+      // Inner do<limit: 2> on the loop
       const script = `
         "" -> {
-          0 -> ($ < 10) @^(limit: 2) { $ + 1 }
+          0 -> while ($ < 10) do<limit: 2> { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 2 iterations/);
     });
 
     it('inner scope inherits outer annotations', async () => {
-      // Operator-level annotation on the loop enforces the limit
+      // do<limit: 3> on the loop enforces the limit
       const script = `
         "" -> {
-          0 -> ($ < 10) @^(limit: 3) { $ + 1 }
+          0 -> while ($ < 10) do<limit: 3> { $ + 1 }
         }
       `;
       await expect(run(script)).rejects.toThrow(/exceeded 3 iterations/);
@@ -260,9 +258,9 @@ describe('Rill Runtime: Annotations', () => {
       // Uses $ as accumulator
       const script = `
         ^(limit: 1000) "" -> {
-          0 -> ($ < 5) @ { $ + 1 }
+          0 -> while ($ < 5) do { $ + 1 }
         }
-        0 -> ($ < 100) @ { $ + 1 }
+        0 -> while ($ < 100) do { $ + 1 }
       `;
       // Should succeed - second loop uses default limit
       expect(await run(script)).toBe(100);
@@ -801,17 +799,19 @@ describe('Rill Runtime: Annotations', () => {
     // not at statement level. Phase 2 adds parser support only; Phase 3 (Task 3.3)
     // will implement runtime enforcement of operator-level limits.
 
-    describe('While loop (@) with operator-level annotation', () => {
-      it('parses ^(limit:) before while body without error', () => {
-        // Syntax: value -> (cond) @ ^(limit: N) { body }
-        const ast = parse('0 -> ($ < 3) @ ^(limit: 100) { $ + 1 }');
+    describe('While loop with do<limit:> construct option', () => {
+      it('parses while (cond) do<limit: N> { body } without error', () => {
+        // New syntax: while (cond) do<limit: N> { body }
+        const ast = parse('0 -> while ($ < 3) do<limit: 100> { $ + 1 }');
         expect(ast.statements).toHaveLength(1);
         expect(ast.statements[0]?.type).toBe('Statement');
       });
 
-      it('executes while loop with operator-level annotation (limit not enforced in Phase 2)', async () => {
-        // Runtime does not yet read operator-level limit; loop runs to natural end.
-        const result = await run('0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }');
+      it('executes while loop with do<limit:> construct option', async () => {
+        // Limit is enforced at runtime with the new do<limit: N> syntax.
+        const result = await run(
+          '0 -> while ($ < 50) do<limit: 100> { $ + 1 }'
+        );
         expect(result).toBe(50);
       });
     });
@@ -883,7 +883,9 @@ describe('Rill Runtime: Annotations', () => {
 
       it('statement-level ^(limit:) before while — still runs while to natural end', async () => {
         // Statement annotation does not restrict operator iteration count.
-        const result = await run('^(limit: 1000) 0 -> ($ < 5) @ { $ + 1 }');
+        const result = await run(
+          '^(limit: 1000) 0 -> while ($ < 5) do { $ + 1 }'
+        );
         expect(result).toBe(5);
       });
     });

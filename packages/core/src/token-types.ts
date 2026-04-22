@@ -84,6 +84,7 @@ export const TOKEN_TYPES = {
   USE_LANGLE: 'USE_LANGLE', // use<
   GUARD_LBRACE: 'GUARD_LBRACE', // guard{
   RETRY_LANGLE: 'RETRY_LANGLE', // retry<
+  DO_LANGLE: 'DO_LANGLE', // do<
 
   // Keywords
   BREAK: 'BREAK',
@@ -94,6 +95,8 @@ export const TOKEN_TYPES = {
   ERROR: 'ERROR',
   GUARD: 'GUARD',
   RETRY: 'RETRY',
+  WHILE: 'WHILE',
+  DO: 'DO',
 
   // Atom literal: #NAME
   ATOM: 'ATOM',

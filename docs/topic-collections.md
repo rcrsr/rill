@@ -490,20 +490,27 @@ app::log_stream() -> seq({
 })
 ```
 
-### ^(limit: N) on Streams
+### Stream Chunk Limits
 
-The `^(limit: N)` operator stops iteration after N chunks and calls host cleanup.
+The `^(limit: N)` annotation is not valid inside collection operator calls. The parser rejects it with RILL-R081.
 
 ```text
-# Process at most 100 chunks; host disposes the stream
+# Rejected — RILL-R081: ^(limit: N) is not accepted inside seq()
 app::events() ^(limit: 100) -> seq({ $ })
 ```
 
-Use `^(limit: N)` when you want a fixed-size sample from an unbounded stream.
+To stop early, use `break` inside the operator body. Inner scopes cannot reassign outer variables, so use the incoming value `$` or an `acc`/`fold` accumulator for stateful conditions:
+
+```text
+app::events() -> seq({
+  ($ > 100) ? break
+  $
+})
+```
 
 ### Iteration Ceiling
 
-Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R010 and halts execution. Use `^(limit: N)` to consume at most N chunks and stay within bounds.
+Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R010 and halts execution. Use `break` inside the body to consume at most N chunks and stay within bounds.
 
 ```text
 # Error: exceeds iteration ceiling

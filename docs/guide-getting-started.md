@@ -230,10 +230,10 @@ Inside the loop body, `$` is the current element. The loop collects all body res
 
 ### While Loop
 
-When the left side of `@` is a boolean, it's a while loop. Use `$` as the accumulator:
+Use `while (cond) do { body }` with `$` as the accumulator:
 
 ```rill
-0 -> ($ < 5) @ { $ + 1 }
+0 -> while ($ < 5) do { $ + 1 }
 # Result: 5
 ```
 
@@ -333,18 +333,14 @@ Use `return` to exit a block early:
 # Result: "big"
 ```
 
-## Annotations
+## Loop Limits
 
-Annotations modify how statements execute. The most common is `limit` for loops:
+Use `do<limit: N>` to cap iterations. Without a limit, while loops default to 10,000 max iterations.
 
 ```rill
 # Limit loop to 100 iterations max ($ flows through as accumulator)
-false -> ($ == false) @ ^(limit: 100) {
-  check_status()
-}
+false -> do<limit: 100> { check_status() } while ($ == false)
 ```
-
-Without a limit, while loops default to 10,000 max iterations.
 
 ## Putting It Together
 
@@ -395,11 +391,12 @@ cond                        # multi-line form
   ? then ! else
 
 # Loops
-list -> seq({ body })       # for-each
-(bool) @ { body }           # while
-@ { body } ? cond           # do-while
-break                       # exit loop
-return                      # exit block
+list -> seq({ body })             # for-each
+while (cond) do { body }          # while
+do { body } while (cond)          # do-while
+do<limit: N> { body }             # with iteration limit
+break                             # exit loop
+return                            # exit block
 
 # Collection Operators
 -> seq({ body })            # sequential, all results
@@ -413,6 +410,4 @@ $list[0]                    # list index
 $data.field ?? default      # with default
 $data.?field                # existence check
 
-# Annotations
-statement @ ^(limit: 100) { body }     # set iteration limit
 ```

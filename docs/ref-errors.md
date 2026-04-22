@@ -665,7 +665,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 ```text
 # Infinite loop without termination
-(true) @ { "looping" }  # Never terminates
+while (true) do { "looping" }  # Never terminates
 
 # Large collection with default limit
 range(0, 1000000) -> seq(|x| $x)  # May exceed default limit

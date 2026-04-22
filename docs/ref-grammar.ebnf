@@ -112,8 +112,8 @@ yaml-char     = letter | digit | ":" | " " | "-" | "_" | "." | "[" | "]" | "," |
 statement     = [ annotation ] , ( pipe-chain | assert-statement | error-statement ) ;
               (* pipe-chain includes optional terminator: capture | "break" | "return" *)
 
-(* Annotations: ^(key: value, ...) placed at operator level before a loop body.
-   Common use: loop limits via expr @ ^(limit: N) { body }.
+(* Annotations: ^(key: value, ...) placed at statement or expression level to attach metadata.
+   Loop iteration limits use the do<limit: N> construct option, not annotations.
    annotation    = "^" , "(" , [ annotation-arg , { "," , annotation-arg } ] , ")" ;
    annotation-arg = identifier , ":" , literal ;
 *)
@@ -538,7 +538,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | method-call        (* $ -> .len — method on $, $ -> .at(0) with args *)
               | string             (* $ -> "hello {$}" — template with interpolation *)
               | conditional        (* $ -> ? "yes" ! "no" — conditional on $ *)
-              | loop               (* $ -> @(cond) { body } — while loop *)
+              | loop               (* $ -> while (cond) do { body } — while loop, or do { body } while (cond) *)
                                    (* Collection operators seq, fan, fold, filter, acc *)
                                    (* parse as ordinary host-call: seq({ body }), fan({ body }), etc. *)
               | block              (* $ -> { .len } — block with implicit $ head *)
@@ -666,7 +666,7 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    Examples:
    42:number                       -- postfix assertion
    (1 + 2):number                  -- postfix on grouped expr
-   (($ < 5) @ ($ + 1)):number      -- postfix on loop result
+   (while ($ < 5) do { $ + 1 }):number  -- postfix on loop result
    "hello" -> :string              -- pipe target assertion
    $val -> :dict -> .keys          -- assert then continue chain
    tuple["x"] -> :$tt              -- passes when trailing fields have defaults *)
@@ -805,32 +805,43 @@ conditional   = body , "?" , body , [ "!" , else-clause ]
               | "?" , body , [ "!" , else-clause ] ; (* piped form: condition is $ *)
 else-clause   = conditional | body ;
 
-(* Loop syntax: condition @ body [? condition]
-   The @ operator is for while loops only. For iteration, use collection operators.
-   Both while and do-while conditions MUST evaluate to boolean (true or false).
-   Non-boolean values will cause a runtime error.
-
-   - bool input: while loop (re-evaluates condition each iteration)
-   - trailing ? condition: do-while (body first, then check)
-
+(* Loop syntax: keyword forms using "while" and "do".
+   Both forms require boolean conditions. Non-boolean values cause a runtime error.
    For-each iteration uses collection operators (seq, fan, fold, filter, acc).
-   See docs/collections.md for collection operators.
+
+   while_loop:    while (cond) do [<options>] { body }
+   do_while_loop: do [<options>] { body } while (cond)
+
+   construct_options: <limit: N> sets maximum iterations (default 10,000).
+   Unknown option keys or non-positive integer values are rejected at parse time.
 
    Examples:
-     ($x < 10) @ { ($x + 1) => $x }     -- while loop (condition is bool)
-     @ { $ } ? ($x < 10)                -- do-while (body, then check)
-     [1, 2, 3] -> seq({ $ * 2 })        -- sequential for-each
-     "abc" -> seq({ $ })                -- iterate over string chars
-     [a: 1, b: 2] -> seq({ $.key })     -- iterate over dict entries
-     $items -> seq({ process($) })      -- iterate over variable *)
+     0 -> while ($ < 10) do { $ + 1 }            -- while loop
+     0 -> do { $ + 1 } while ($ < 10)            -- do-while loop
+     0 -> while ($ < 50) do<limit: 100> { $ + 1 } -- while with iteration limit
+     0 -> do<limit: 50> { $ + 1 } while ($ < 50) -- do-while with iteration limit
+     [1, 2, 3] -> seq({ $ * 2 })                 -- sequential for-each *)
 
-loop          = [ body ] , "@" , [ annotation ] , body , [ "?" , body ] ;
-              (* First body: input (condition for while, iterable for for-each)
-                 Optional annotation: placed between @ and body, attaches metadata to this evaluation.
-                   0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
-                   @ ^(limit: 5) { app::prompt("Retry?") } ? (.contains("RETRY"))
-                 Second body: loop body
-                 Third body (after ?): do-while condition *)
+loop          = while_loop | do_while_loop ;
+
+while_loop    = "while" , "(" , expression , ")" , "do" , [ construct_options ] , body ;
+              (* Condition is evaluated before each iteration.
+                 The seeded value flows as $ into the first condition check.
+                 If condition is false on first check, body never runs.
+                 Example: 0 -> while ($ < 5) do { $ + 1 } *)
+
+do_while_loop = "do" , [ construct_options ] , body , "while" , "(" , expression , ")" ;
+              (* Body executes at least once before condition is checked.
+                 Example: 0 -> do { $ + 1 } while ($ < 5) *)
+
+construct_options = "<" , option , ">" ;
+              (* Attach a single named option to the loop construct.
+                 Currently only "limit" is defined; the grammar will extend to
+                 comma-separated options when additional option keys are added.
+                 Example: do<limit: 100> — sets iteration ceiling to 100
+                 Constraints: N must be a positive integer literal (RILL-P004). *)
+
+option        = identifier , ":" , number ;
 
 (* ============================================================ *)
 (* COLLECTION OPERATORS                                         *)
@@ -874,7 +885,7 @@ block         = "{" , statement , { statement } , "}" ;
                  Observable result identical to eager evaluation.
 
                  SYNTACTIC BODY (eager evaluation):
-                 - (cond) @ { }                     -- while loop body
+                 - while (cond) do { }              -- while loop body
                  - cond ? { } ! { }                 -- conditional branches
                  - |x| { }                          -- closure body
                  These use BlockNode as grammar body, not expression.

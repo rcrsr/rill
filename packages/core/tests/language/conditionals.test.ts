@@ -165,7 +165,7 @@ describe('Rill Runtime: Conditionals', () => {
     });
 
     it('rejects empty while loop block', async () => {
-      await expect(run('false @ { }')).rejects.toThrow(
+      await expect(run('while (false) do { }')).rejects.toThrow(
         'Empty blocks are not allowed'
       );
     });
@@ -457,16 +457,15 @@ describe('Rill Runtime: Conditionals', () => {
 
     describe('Regression: Do-While Must Not Gain Newline Lookahead', () => {
       it('AC-13: Same-line do-while works', async () => {
-        const result = await run(`0 -> @ { $ + 1 } ? ($ < 3)`);
+        const result = await run(`0 -> do { $ + 1 } while ($ < 3)`);
         expect(result).toBe(3);
       });
 
-      it('AC-14: Do-while ? on newline must not parse as do-while', async () => {
-        // This should fail to parse because ? cannot start a statement
-        await expect(
-          run(`@ { "body" }
-? "cond"`)
-        ).rejects.toThrow();
+      it('AC-14: Do-while while on newline still parses as do-while', async () => {
+        // do { body } while (cond) across lines is valid
+        const result = await run(`0 -> do { $ + 1 }
+while ($ < 3)`);
+        expect(result).toBe(3);
       });
     });
 

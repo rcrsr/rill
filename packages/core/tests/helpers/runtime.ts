@@ -162,3 +162,24 @@ export function createLogCollector(): {
     },
   };
 }
+
+/** Recursively find the first AST node with a matching type field */
+export function findNode(
+  node: unknown,
+  type: string
+): Record<string, unknown> | null {
+  if (
+    typeof node === 'object' &&
+    node !== null &&
+    (node as Record<string, unknown>)['type'] === type
+  ) {
+    return node as Record<string, unknown>;
+  }
+  if (typeof node === 'object' && node !== null) {
+    for (const val of Object.values(node as Record<string, unknown>)) {
+      const found = findNode(val, type);
+      if (found) return found;
+    }
+  }
+  return null;
+}

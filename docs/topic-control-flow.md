@@ -10,8 +10,9 @@ rill provides singular control flow with no exceptions and no try/catch. Errors 
 |--------|-------------|
 | `cond ? then ! else` | Conditional (if-else) |
 | `$val -> ? then ! else` | Piped conditional (uses $ as cond) |
-| `(cond) @ body` | While loop (cond is bool) |
-| `@ body ? cond` | Do-while (body first) |
+| `while (cond) do { body }` | While loop (cond is bool, evaluated before each iteration) |
+| `do { body } while (cond)` | Do-while (body first, cond after) |
+| `do<limit: N> { body }` | Construct option: sets iteration limit |
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
@@ -143,70 +144,78 @@ $input -> .empty
 
 Pre-condition loop. Condition is evaluated before each iteration. The body result becomes the next iteration's `$`.
 
-> **Note:** There is no `while` keyword. Use `(condition) @ { body }` syntax. Loop bodies cannot modify outer-scope variables; use `$` to carry all state. For multiple values, pack them in a dict.
+Loop bodies cannot modify outer-scope variables. Use `$` to carry all state. For multiple values, pack them in a dict.
 
 ### Syntax
 
 ```text
-initial -> (condition) @ { body }
+while (condition) do { body }
+initial -> while (condition) do { body }
 ```
 
 ### Basic Usage
 
 ```rill
 # Count to 5
-0 -> ($ < 5) @ { $ + 1 }            # Result: 5
+0 -> while ($ < 5) do { $ + 1 }
+# Result: 5
+```
 
+```rill
 # String accumulation
-"" -> (.len < 5) @ { "{$}x" }       # Result: "xxxxx"
+"" -> while (.len < 5) do { "{$}x" }
+# Result: "xxxxx"
 ```
 
 ### Condition Forms
 
 ```rill
-0 -> ($ < 10) @ { $ + 1 }           # comparison condition
-"" -> (.len < 5) @ { "{$}x" }       # method call condition
+0 -> while ($ < 10) do { $ + 1 }
+# Result: 10
+```
+
+```rill
+"" -> while (.len < 4) do { "{$}x" }
+# Result: "xxxx"
+```
+
+### Pipe-Seeded While Loop
+
+Pipe a seed value to `while` to prime the accumulator `$`:
+
+```rill
+0 -> while ($ < 3) do { $ + 1 }
+# Result: 3
+```
+
+```rill
+"start" -> while ($ != "done") do {
+  ($ == "start") ? "middle" ! "done"
+}
+# Result: "done"
 ```
 
 ### Infinite Loop with Break
 
 ```rill
-0 -> (true) @ {
+0 -> while (true) do {
   $ + 1 -> ($ > 5) ? break ! $
-}  # Result: 6
+}
+# Result: 6
 ```
 
-### Loop Limits
+### Iteration Limit
 
-Use `^(limit: N)` annotation to set maximum iterations (default: 10,000):
+Use `do<limit: N>` as the construct option to set maximum iterations (default: 10,000):
 
 ```rill
-0 -> ($ < 10) @ ^(limit: 100) { $ + 1 }   # Runs 10 iterations, returns 10
+0 -> while ($ < 10) do<limit: 100> { $ + 1 }
+# Result: 10
 ```
 
 Exceeding the limit throws `RuntimeError` with code `RUNTIME_LIMIT_EXCEEDED`.
 
-### Operator-Level Annotation Position
-
-The `^(...)` annotation appears between `@` and the loop body. It attaches metadata to that specific loop evaluation, not to the body closure itself.
-
-```text
-# while-loop: annotation between @ and body
-initial -> (condition) @ ^(limit: N) { body }
-
-# do-while: annotation between @ and body
-@ ^(limit: N) { body } ? (condition)
-```
-
-```rill
-0 -> ($ < 50) @ ^(limit: 100) { $ + 1 }
-```
-
-```text
-@ ^(limit: 5) {
-  app::prompt("Perform operation")
-} ? (.contains("RETRY"))
-```
+The `do<limit: N>` construct option applies only to that specific loop evaluation, not to the body closure.
 
 ### Multiple State Values
 
@@ -215,7 +224,7 @@ When you need to track multiple values across iterations, use `$` as a state dic
 ```text
 # Track iteration count, text, and done flag
 [iter: 0, text: $input, done: false]
-  -> (!$.done && $.iter < 3) @ {
+  -> while (!$.done && $.iter < 3) do {
     $.iter + 1 => $i
     app::process($.text) => $result
     $result.finished
@@ -236,39 +245,59 @@ Post-condition loop. Body executes first, then condition is checked. Use when yo
 ### Syntax
 
 ```text
-initial -> @ { body } ? (condition)
+do { body } while (condition)
+initial -> do { body } while (condition)
 ```
 
 ### Basic Usage
 
 ```rill
 # Execute at least once, continue while condition holds
-0 -> @ { $ + 1 } ? ($ < 5)          # Returns 5
+0 -> do { $ + 1 } while ($ < 5)
+# Result: 5
+```
 
+```rill
 # String accumulation
-"" -> @ { "{$}x" } ? (.len < 3)     # Returns "xxx"
+"" -> do { "{$}x" } while (.len < 3)
+# Result: "xxx"
+```
+
+### Pipe-Seeded Do-While Loop
+
+Pipe a seed value to prime the accumulator `$` before the first iteration:
+
+```rill
+0 -> do { $ + 1 } while ($ < 3)
+# Result: 3
+```
+
+```rill
+"" -> do { "{$}!" } while (.len < 4)
+# Result: "!!!!"
 ```
 
 ### When to Use
 
-- **While** `(condition) @ { body }`: condition checked BEFORE body (may execute 0 times)
-- **Do-while** `@ { body } ? (condition)`: condition checked AFTER body (executes at least once)
+- **While** `while (condition) do { body }`: condition checked BEFORE body (may execute 0 times)
+- **Do-while** `do { body } while (condition)`: condition checked AFTER body (executes at least once)
 
 ### Retry Pattern
 
 Do-while is ideal for retry patterns:
 
 ```text
-@ ^(limit: 5) {
+do<limit: 5> {
   app::prompt("Perform operation")
-} ? (.contains("RETRY"))
+} while (.contains("RETRY"))
 # Loop exits when result doesn't contain RETRY
 ```
 
-### Loop Limit
+### Iteration Limit
 
 ```rill
-0 -> @ ^(limit: 100) { $ + 1 } ? ($ < 10)   # Returns 10
+0 -> do<limit: 100> { $ + 1 } while ($ < 10)
+# Result: 10
 ```
 
 ---
@@ -297,7 +326,7 @@ $value -> break          # exit with value
 ### In While Loop
 
 ```rill
-0 -> (true) @ {
+0 -> while (true) do {
   ($ + 1) -> ($ > 3) ? break ! $
 }
 # Returns 4
@@ -735,7 +764,7 @@ $result.? ? $result ! error "all retries failed: {$result.!}"
 | Pattern | Use when |
 |---------|----------|
 | `retry<N> { guard { ... } }` | Fixed maximum attempts, automatic backoff not needed |
-| `@ { } ? cond` | Custom retry logic, delay, or condition-based exit |
+| `do { } while (cond)` | Custom retry logic, delay, or condition-based exit |
 
 See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 
@@ -776,9 +805,9 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ### Retry with Limit
 
 ```text
-@ ^(limit: 3) {
+do<limit: 3> {
   app::prompt("Try operation")
-} ? (.contains("RETRY"))
+} while (.contains("RETRY"))
 
 .contains("SUCCESS") ? [0, "Done"] ! list[1, "Failed"]
 ```
@@ -786,7 +815,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ### State Machine
 
 ```rill
-"start" -> ($ != "done") @ {
+"start" -> while ($ != "done") do {
   ($ == "start") ? "processing" ! ($ == "processing") ? "validating" ! ($ == "validating") ? "done" ! $
 }
 # Walks through states: start -> processing -> validating -> done
@@ -801,6 +830,21 @@ Exit early on invalid conditions (assumes host provides `error()`):
 })
 # Returns 4 (first element > 3)
 ```
+
+---
+
+## Loop Syntax Migration
+
+rill previously used `@` as the loop operator with `^(limit: N)` annotations. The current syntax uses `while`/`do` keywords with the `do<limit: N>` construct option.
+
+| Old syntax | New syntax |
+|------------|------------|
+| `initial -> (cond) @ { body }` | `initial -> while (cond) do { body }` |
+| `initial -> @ { body } ? (cond)` | `initial -> do { body } while (cond)` |
+| `initial -> (cond) @ ^(limit: N) { body }` | `initial -> while (cond) do<limit: N> { body }` |
+| `initial -> @ ^(limit: N) { body } ? (cond)` | `initial -> do<limit: N> { body } while (cond)` |
+
+See [CHANGELOG.md](../CHANGELOG.md) for the full change history.
 
 ---
 

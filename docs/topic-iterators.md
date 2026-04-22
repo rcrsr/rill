@@ -169,7 +169,7 @@ $it.value                    # 2
 **Loop pattern (using $ as accumulator):**
 
 ```text
-"hello" -> .first() -> !$.done @ {
+"hello" -> .first() -> while (!$.done) do {
   $.value -> log
   $.next()
 }

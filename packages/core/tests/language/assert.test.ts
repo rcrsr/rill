@@ -231,7 +231,7 @@ describe('Rill Runtime: Assert Statement', () => {
     it('works inside while loop body', async () => {
       expect(
         await run(`
-          1 -> ($ <= 3) @ {
+          1 -> while ($ <= 3) do {
             assert ($ > 0) "Must be positive"
             $ + 1
           }
@@ -242,7 +242,7 @@ describe('Rill Runtime: Assert Statement', () => {
     it('halts while loop on assertion failure', async () => {
       await expect(
         run(`
-          1 -> ($ <= 5) @ {
+          1 -> while ($ <= 5) do {
             ($ == 3) ? { assert false "Loop halted" }
             $ + 1
           }

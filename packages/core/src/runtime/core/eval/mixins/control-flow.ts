@@ -247,7 +247,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /**
-     * Evaluate do-while loop: @ body ? cond
+     * Evaluate do-while loop: `do { body } while (cond)`
      *
      * Body executes at least once, then condition is checked.
      * Condition must evaluate to boolean.

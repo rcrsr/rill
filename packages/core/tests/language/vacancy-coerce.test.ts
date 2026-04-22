@@ -115,13 +115,18 @@ describe('Vacancy coerce full semantics (Phase 2)', () => {
     expect(result.result).toBe('fallback');
   });
 
-  it.skip('substitutes default when LHS is an empty string (widened trigger)', () => {
-    // Gated by pipe-target disambiguation: widening bare-variable `??`
-    // for empty valid primitives would short-circuit the pipe
-    // dispatcher path (AC-19: `0 -> $empty_list ?? "default"` relies
-    // on dispatcher consuming `target.defaultValue` after receiving
-    // the empty collection). Lifting this requires distinguishing
-    // pipe-target position from expression position on VariableNode,
-    // tracked separately from task 2.2.
+  it('substitutes default when LHS is an empty string (widened trigger)', async () => {
+    // Expression-position `??` now uses isVacant, firing on empty valid primitives.
+    // Pipe-target position retains the narrow trigger so AC-19 dispatch still works.
+    const result = await run('"" => $x\n$x ?? "fallback"');
+    expect(result).toBe('fallback');
+  });
+
+  it('keeps pipe-target default-dispatch path when LHS is an empty list', async () => {
+    const result = await run(`
+      list[] => $empty
+      0 -> $empty ?? "default"
+    `);
+    expect(result).toBe('default');
   });
 });

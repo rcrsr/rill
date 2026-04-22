@@ -272,7 +272,7 @@ Include API design, data models, and component structure.
 "Specification created" -> log
 
 # Phase 3: Review loop - iterate until approved
-($spec -> .contains("REVISION")) @ {
+$spec -> while (.contains("REVISION")) do {
   """
 Review this specification for issues:
 {$}
@@ -320,7 +320,7 @@ args: plan: string
 app::prompt("Read {$plan} and find the first unchecked item (- [ ])") => $status
 
 # Work loop
-$status -> (!.contains("ALL COMPLETE")) @ {
+$status -> while (!.contains("ALL COMPLETE")) do {
   """
 Based on this status:
 {$}
@@ -346,7 +346,7 @@ args: target: string
 app::prompt("Run tests for {$target} and report results") => $result
 
 # Fix loop
-$result -> @(.contains("FAIL")) {
+$result -> while (.contains("FAIL")) do {
   "Fixing failures..." -> log
 
   """
@@ -445,13 +445,13 @@ args: operation: string
 ---
 
 # Do-while: body runs first, then condition checked
-@ ^(limit: 5) {
+do<limit: 5> {
   """
 Perform: {$operation}
 
 Output SUCCESS, RETRY, or FAILED.
   """ -> app::prompt()
-} ? (.contains("RETRY")) => $result
+} while (.contains("RETRY")) => $result
 
 # Loop exits when result doesn't contain RETRY
 $result -> .contains("SUCCESS") ? [code: 0, msg: "Succeeded"] ! dict[code: 1, msg: "Failed: {$result}"]
@@ -641,7 +641,7 @@ Rules:
 - Output :::DONE::: when complete
 """ -> app::prompt() => $result
 
-$result -> (!.contains(":::DONE:::")) @ {
+$result -> while (!.contains(":::DONE:::")) do {
   """
 Continue working on: {$task}
 

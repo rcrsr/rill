@@ -207,7 +207,7 @@ list[1, 2, 3] -> seq({ $double() })`;
     });
 
     it('pipes to while loop', async () => {
-      expect(await run('0 -> ($ < 3) @ { ($ + 1) }')).toBe(3);
+      expect(await run('0 -> while ($ < 3) do { ($ + 1) }')).toBe(3);
     });
 
     it('pipes to string template', async () => {

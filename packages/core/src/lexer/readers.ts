@@ -38,7 +38,7 @@ export type CompoundToken = {
  *
  * Three opener flavors:
  * - `[` bracket-body: collection literals (list, dict, tuple, ordered)
- * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry)
+ * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry, do)
  * - `{` brace-body: block heads (guard) — DEC-3 parallel path
  *
  * The brace-body flavor is a parallel addition per DEC-3 in the error-handling
@@ -57,6 +57,7 @@ const COMPOUND_KEYWORD_MAP: Record<
   slice: { bracket: '<', tokenType: TOKEN_TYPES.SLICE_LANGLE },
   use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },
   retry: { bracket: '<', tokenType: TOKEN_TYPES.RETRY_LANGLE },
+  do: { bracket: '<', tokenType: TOKEN_TYPES.DO_LANGLE },
   guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 

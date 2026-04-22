@@ -159,7 +159,7 @@ true -> ? { "yes" } ! { "no" }`;
       const script = `---
 iterations: 3
 ---
-0 -> ($ < 3) @ { ($ + 1) }`;
+0 -> while ($ < 3) do { ($ + 1) }`;
       expect(await run(script)).toBe(3);
     });
 

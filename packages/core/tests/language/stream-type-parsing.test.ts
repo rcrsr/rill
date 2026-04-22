@@ -288,7 +288,7 @@ describe('Stream Type in Closure Return Types', () => {
 
 describe('IC-2: Non-regression', () => {
   it('break still parses as chain terminator', () => {
-    const ast = parse('true @ { break }');
+    const ast = parse('while (true) do { break }');
     const loop = ast.statements[0]!.expression.head.primary;
     expect(loop.type).toBe('WhileLoop');
     const block = loop.body;
