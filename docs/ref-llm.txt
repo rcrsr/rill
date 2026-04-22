@@ -2,14 +2,6 @@
 
 > Scripting language designed for machine-generated code. LLMs generate rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. No null, no exceptions, no truthiness.
 
-## Essentials
-
-1. Variables use `$` prefix ALWAYS: `5 => $x` (no assignment operator `=`)
-2. Pipe with `->`, capture with `=>`: `"hello" => $x -> .upper => $y`
-3. No null/undefined, no try/catch, no truthiness (conditions must be boolean)
-4. Variables lock to first type: `"hi" => $x; 42 => $x` is an ERROR
-5. Loops cannot modify outer vars: use `fold`, `acc(init, { })`, or `$` as state dict
-
 ## Critical Differences from Mainstream Languages
 
 ### 1. No Assignment Operator
@@ -73,17 +65,11 @@ RIGHT — use `while (cond) do { }` with `$` as state dict for multiple values:
                          ! dict[iter: $i, max: $.max, text: $result.text, done: false]
       }
 
-Pattern summary:
+`for` keyword DOES NOT EXIST. See § Collection Operators for the full choice matrix.
 
-    Single value accumulation     -> fold(init, { $@ + $ })
-    Per-item results + running    -> acc(init, { ... $@ ... })
-    Multiple state values / while -> while (cond) do { } with $ as state dict
-    "for" keyword                 -> DOES NOT EXIST
+### 6. Errors Halt — Recover With `guard`
 
-### 6. No Exceptions
-
-Errors halt execution. No try/catch. Use conditionals for error handling.
-Keywords: `assert` (validate condition), `error` (halt with message).
+No try/catch. Failures either throw runtime errors (halt) or produce **invalid values** that halt on access. Recover access halts with `guard { body }` or `retry<N> { body }`. Inspect with `.!`, `.!code`, `.!message`. See § Error Handling.
 
 ### 7. Value Semantics (No References)
 
@@ -114,6 +100,7 @@ All copies are deep. All comparisons are by value. No object identity.
     Type annot:    "hi" => $x:string           # lock type on capture
     Modules:       use<module:greetings> => $g  # host-provided imports
     Comments:      # single line only
+    Frontmatter:   ---\nkey: value\n---          # YAML block at top of script
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is ERROR (RILL-P007).
 
@@ -162,21 +149,14 @@ Always prefer implicit `$` shorthand:
     func($)     ->  func               "x" -> log     (not log($))
     $fn($)      ->  $fn                5 -> $double   (not $double($))
 
-Don't capture just to continue — use line continuation instead:
-
-    # avoid                          # good
-    "x" => $a                        "x"
-    $a -> .upper => $b                 -> .upper
-    $b -> .len                         -> .len
-
-Only capture when the variable is reused later in the code.
+Don't capture just to continue a chain — use line continuation (`-> .method` on next line). Capture only when the variable is reused later.
 
 ## Control Flow
 
 Conditional (if-else):
 
     cond ? then_expr ! else_expr
-    cond ? then_expr                    # else returns empty string
+    cond ? then_expr                    # unpiped: returns null; piped: returns piped value
 
 Piped conditional (`$` becomes condition):
 
@@ -216,18 +196,7 @@ Return (exits block or script with value):
     "small"                                          # returns "big"
     "done" -> return                                     # exits script with "done"
 
-Assert (validate condition, halt if false, pass through if true):
-
-    5 -> assert ($ > 0)                   # returns 5
-    -1 -> assert ($ > 0)                  # ERROR: Assertion failed
-    "" -> assert !.empty "Input required" # ERROR: Input required
-    $val -> assert $:?list "Expected list" # type validation
-
-Error (halt execution immediately with message):
-
-    error "Something went wrong"           # halt with message
-    "Operation failed" -> error            # piped form (must be string)
-    error "Status: {$code}"               # interpolation works
+Assert / Error / Guard / Retry: see § Error Handling.
 
 Pass (returns `$` unchanged, explicit no-op):
 
@@ -237,6 +206,126 @@ Pass (returns `$` unchanged, explicit no-op):
     list[1, -2, 3] -> fan({ ($ > 0) ? pass ! 0 })  # list[1, 0, 3]
 
 Note: `pass` requires pipe context. Using `pass` without `$` throws error.
+
+## Error Handling
+
+Two failure modes, two recovery tools:
+
+| Failure | Caused by | Caught by |
+|---|---|---|
+| Runtime error (uncatchable) | `error`, `assert`, division by zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
+| Access halt (catchable) | Accessing an **invalid value** (one with a populated status sidecar, e.g. from a failed `:type` assertion or `ctx.invalidate` in an extension) | `guard { }`, `retry<N> { }` |
+
+### Assert and Error (non-catchable halts)
+
+    5 -> assert ($ > 0)                   # returns 5
+    -1 -> assert ($ > 0)                  # halts: Assertion failed
+    "" -> assert !.empty "Input required" # halts: Input required
+    $val -> assert $:?list "Expected list"
+    error "Something went wrong"          # halt with message
+    "Operation failed" -> error           # piped form (must be string)
+    error "Status: {$code}"               # interpolation works
+
+### Status Sidecar
+
+Every value carries a status sidecar. Read it with `.!`:
+
+| Probe | Returns |
+|---|---|
+| `$v.!` | bool — is this an invalid value? |
+| `$v.!code` | atom — error code (`#ok` on valid values) |
+| `$v.!message` | string — human-readable description |
+| `$v.!provider` | string — component that produced the error |
+| `$v.!trace` | list — trace frames |
+
+`.!` NEVER halts, even on invalid values. Use it to inspect without triggering access halts.
+
+### Atoms (`#NAME`)
+
+Atoms are interned identifiers used for error codes. Atom type name is `atom`.
+
+    #TIMEOUT                        # atom literal
+    #TIMEOUT == #TIMEOUT            # true (identity)
+    #TIMEOUT -> string              # "TIMEOUT" (no # sigil)
+    "TIMEOUT" -> atom               # #TIMEOUT
+    "BOGUS" -> atom                 # #R001 (unknown names fallback)
+    #TIMEOUT:?atom                  # true
+
+Pre-registered atoms (available everywhere):
+
+    #ok                             # sentinel on valid values (never appears as error)
+    #R001                           # unknown atom name
+    #R999                           # unhandled extension throw
+    #TIMEOUT  #AUTH  #RATE_LIMIT  #UNAVAILABLE
+    #NOT_FOUND  #CONFLICT  #INVALID_INPUT  #DISPOSED
+    #TYPE_MISMATCH                  # produced by failed `:type` assertion
+
+Extensions register additional atoms at init time.
+
+### Guard
+
+`guard { body }` runs body once; if body halts with a catchable signal, `guard` returns the invalid value instead of propagating:
+
+    "ok" => $v
+    guard { $v.upper }              # "OK" (body succeeded)
+
+    guard { "x":number } => $out    # catches access halt, returns invalid value
+    $out.!                          # true
+    $out.!code -> string            # "TYPE_MISMATCH"
+    $out.!message                   # "Type assertion failed: expected number, got string"
+
+Filtered form catches only matching atoms:
+
+    guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
+      app::fetch($url)
+    }
+
+`guard` does NOT catch halts from `error`, `assert`, or runtime errors (division by zero, OOB, missing field, failed conversion). Those propagate through.
+
+### Retry
+
+`retry<N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. N must be >= 1.
+
+    retry<3> {
+      app::fetch($url)
+    } => $result
+
+    retry<3, on: list[#UNAVAILABLE]> {
+      app::fetch($url)
+    }
+
+### Vacancy and `??`
+
+A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or invalid. `??` returns the fallback when the left side is vacant:
+
+    dict[a: 1] => $d
+    $d.missing ?? "default"         # "default"
+    $d.a ?? "default"               # 1
+
+    guard { "x":number } => $out
+    $out ?? "fallback"              # "fallback" (invalid is vacant)
+
+`.?field` checks presence without halting (already documented in § Property Access).
+
+### Recovery Patterns
+
+    # Check before access
+    $v.! ? "invalid" ! $v.upper
+
+    # Guard then inspect
+    guard { $v.upper } => $out
+    $out.! ? "failed: {$out.!message}" ! $out
+
+    # Retry with fallback
+    retry<3> { app::fetch($url) } => $result
+    $result ?? "fallback"
+
+    # Branch on error atom (flat chain; each comparison parenthesized)
+    guard { app::fetch($url) } => $result
+    ($result.!code == #TIMEOUT) ? "timed out"
+      ! ($result.!code == #AUTH) ? "auth failed"
+      ! $result.! ? "error: {$result.!message}"
+      ! $result
 
 ## Closures
 
@@ -325,7 +414,7 @@ String iteration (iterates over characters):
     $data.?$key&number                    # variable existence + type check
     $data.?($a -> "{$}_b")&list           # computed existence + type check
 
-Dict keys take priority over built-in methods. A dict with key `len` returns that key's value, not the built-in `.len` method.
+Built-in methods take priority over dict keys. `dict[len: "fake"].len` returns the dict length (method), not `"fake"`. Use bracket access `$d["len"]` to retrieve a key that conflicts with a method name.
 
 ## Types and Assertions
 
@@ -333,11 +422,12 @@ Dict keys take priority over built-in methods. A dict with key `len` returns tha
 
     string   number   bool     list     dict     ordered
     tuple    closure  vector   iterator any      type
+    atom     datetime duration
 
 **Type assertion** `:type` — errors if value does not match:
 
     42:number                             # passes
-    "x":number                           # RILL-R002: expected number, got string
+    "x":number                           # halts (RuntimeHaltSignal)
     $val:list(string)                     # assert parameterized type
 
 **Type check** `:?type` — returns boolean, never errors:
@@ -382,27 +472,15 @@ Use in closure params to validate input structure:
     tuple[1, 2] -> list                   # list[1, 2]
     ordered[a: 1] -> dict                 # dict[a: 1]
 
+**Datetime and duration** — constructed with function-call syntax:
+
+    datetime("2024-01-15T00:00:00Z") -> .year         # 2024
+    datetime(...dict[year: 2024, month: 1, day: 15])  # named components via spread
+    now()                                              # current datetime
+    duration(0, 0, 0, 25) -> .days                     # (years, months, days, hours): 1.04
+    duration(1) -> .months                             # 12 (one year)
+
 ## Common Patterns
-
-**Process an API response:**
-
-    app::fetch("https://api.example.com/users") => $response
-    $response.data
-      -> filter({ $.active })
-      -> fan({ dict[name: $.name, email: $.email] })
-      -> seq({
-        "Processing {$.name}" -> log
-        app::send_welcome($.email)
-      })
-
-**Build a result from a list:**
-
-    list["alice", "bob", "charlie"]
-      -> fan({ dict[name: $, greeting: "Hello, {$}!"] })
-      -> fold(dict[:], {
-        dict[...$@, $.name: $.greeting]
-      })
-    # dict[alice: "Hello, alice!", bob: "Hello, bob!", charlie: "Hello, charlie!"]
 
 **Validate and transform input:**
 
@@ -414,19 +492,10 @@ Use in closure params to validate input structure:
       -> fan({ $.trim })
       -> filter({ !.empty })
 
-**Stateful retry loop:**
+**Retry an extension call with fallback** (prefer `retry<N>` over manual while loops):
 
-    dict[attempts: 0, max: 3, result: "", done: false]
-      -> while (!$.done && $.attempts < $.max) do {
-        $.attempts + 1 => $try
-        app::fetch($url) => $res
-        $res.?status&number
-          ? ($res.status == 200)
-            ? dict[attempts: $try, max: $.max, result: $res.body, done: true]
-            ! dict[attempts: $try, max: $.max, result: "", done: false]
-          ! dict[attempts: $try, max: $.max, result: "", done: false]
-      }
-      -> $.done ? $.result ! error "Failed after {$.max} attempts"
+    retry<3, on: list[#UNAVAILABLE, #TIMEOUT]> { app::fetch($url) } => $res
+    $res ?? "fallback"
 
 **Reduce with running state:**
 
@@ -586,18 +655,18 @@ Examples:
     5 -> |number|{ $ * 2 }                  # 10
     |number|{ $ * 2 }:number => $double     # stored with return type assertion
     5 -> $double                             # 10
-    "hi" -> $double                          # RILL-R001: expected number, got string
+    "hi" -> $double                          # RILL-R001: Parameter type mismatch
 
-All 12 type names valid: string, number, bool, list, dict, ordered, tuple, closure, vector, iterator, any, type
-Parameterized: |list(number)|{ $ -> seq({ $ * 2 }) }
+Any type name (see § Types and Assertions) is valid here.
+Parameterized: `|list(number)|{ $ -> seq({ $ * 2 }) }`
 
 **Return type assertions** (enforced at runtime — halts with `#TYPE_MISMATCH` on mismatch):
 
     |x: number| { "{$x}" }:string => $fn    # asserts string return type
     $fn(42)                                  # "42" (passes assertion)
 
-    |x: number| { $x * 2 }:string => $fn    # mismatch halts with #TYPE_MISMATCH
-    $fn(5)                                   # #TYPE_MISMATCH: expected string, got number
+    |x: number| { $x * 2 }:string => $fn    # return-type mismatch halts at call
+    $fn(5)                                   # halts: return type mismatch (string expected, number produced)
 
 ### Callable Reflection
 
@@ -768,7 +837,7 @@ Override: `do<limit: N>` construct option on the `while` or `do` keyword.
 
     0 -> while ($ < 50) do<limit: 100> { $ + 1 }               # while loop with limit
     0 -> do<limit: 50> { $ + 1 } while ($ < 50)                # do-while loop with limit
-    $items -> fan({ slow_process($) }, [concurrency: 3])        # concurrency limit
+    $items -> fan({ slow_process($) }, dict[concurrency: 3])    # concurrency limit
 
 Invalid annotation keys produce a runtime error.
 
