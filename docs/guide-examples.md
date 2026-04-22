@@ -291,7 +291,8 @@ Update the specification based on this feedback:
 
 Original spec:
 {$}
-  """ -> $app.prompt()} => $approved_spec
+  """ -> $app.prompt()
+} => $approved_spec
 
 # Phase 4: Implementation
 """
@@ -360,7 +361,8 @@ Fix these test failures:
 {$}
 
 Make minimal changes. Then run tests again and report results.
-  """ -> $app.prompt()} => $final
+  """ -> $app.prompt()
+} => $final
 
 $final -> ?(.contains("PASS")) {
   "All tests passing"
@@ -432,12 +434,14 @@ Deploy {$service} to production.
 - Run full test suite first
 - Enable monitoring
 - Use blue-green deployment
-  """ -> $app.prompt()} ! ($ENV.DEPLOY_ENV == "staging") ? {
+  """ -> $app.prompt()
+} ! ($ENV.DEPLOY_ENV == "staging") ? {
   """
 Deploy {$service} to staging.
 - Run smoke tests
 - Enable debug logging
-  """ -> $app.prompt()} ! {
+  """ -> $app.prompt()
+} ! {
   $app.prompt("Deploy {$service} to development environment")
 } => $result
 

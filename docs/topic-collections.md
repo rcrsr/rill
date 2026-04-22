@@ -510,7 +510,7 @@ The `^(limit: N)` annotation is not valid inside collection operator calls. The 
 use<ext:app> => $app
 
 # Rejected — RILL-R081: ^(limit: N) is not accepted inside seq()
-$app.events() ^(limit: 100) -> seq({ $ })
+$app.events() -> seq(^(limit: 100) { $ })
 ```
 
 To stop early, use `break` inside the operator body. Inner scopes cannot reassign outer variables, so use the incoming value `$` or an `acc`/`fold` accumulator for stateful conditions:

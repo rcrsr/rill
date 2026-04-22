@@ -157,7 +157,7 @@ Don't capture just to continue a chain — use line continuation (`-> .method` o
 Conditional (if-else):
 
     cond ? then_expr ! else_expr
-    cond ? then_expr                    # unpiped: returns null; piped: returns piped value
+    cond ? then_expr                    # without else: returns the current $ (pipe value) when cond is false
 
 Piped conditional (`$` becomes condition):
 

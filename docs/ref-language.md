@@ -779,6 +779,8 @@ See [Host Integration](integration-host.md) for timeout and cancellation configu
 rill is a vanilla language. The host application registers domain-specific functions via `RuntimeContext`:
 
 ```typescript
+import { createRuntimeContext, toCallable } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   variables: {
     prompt: toCallable({ params: [{ name: 'text', type: { kind: 'string' } }], fn: async (args) => await callLLM(args[0]) }),
