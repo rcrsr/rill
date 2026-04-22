@@ -272,7 +272,8 @@ Insert `:type` assertions at pipe boundaries to catch unexpected types early.
 A stream can be iterated only once. Passing it to a second collection operator halts execution.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s -> seq({ $ })
 $s -> fan({ $ })
 # Error: RILL-R002: Stream already consumed; cannot re-iterate
@@ -281,7 +282,8 @@ $s -> fan({ $ })
 **Fix:** Consume the stream once and store results in a variable if you need the data again.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s -> fold("", { $@ ++ $ }) => $full_text
 $full_text -> log
 $full_text -> .len -> log
@@ -321,7 +323,8 @@ $full_text -> .len -> log
 Calling `$s()` on a stream that has not been fully iterated triggers internal consumption. All chunks are consumed before the resolution value is returned. This prevents separate chunk processing afterward.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s()    # forces internal consumption of all chunks
 $s -> seq({ $ -> log })
 # Error: RILL-R002: Stream already consumed; cannot re-iterate
@@ -330,7 +333,8 @@ $s -> seq({ $ -> log })
 **Fix:** Iterate chunks first, then call `$s()` for the resolution value.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s -> seq({ $ -> log })
 $s()    # safe: stream is closed, resolution is cached
 ```
@@ -340,7 +344,8 @@ $s()    # safe: stream is closed, resolution is cached
 Manual stream iteration with `.next()` creates new step objects. Holding a reference to an old step and calling `.next()` on it halts execution.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s.next() => $step1
 $step1.next() => $step2
 $step1.next()
@@ -350,7 +355,8 @@ $step1.next()
 **Fix:** Always reassign the step variable when advancing. Use `seq` for automatic iteration instead.
 
 ```text
-app::llm_stream("hello") => $s
+use<ext:app> => $app
+$app.llm_stream("hello") => $s
 $s -> seq({ $ -> log })
 ```
 

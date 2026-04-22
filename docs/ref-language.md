@@ -91,7 +91,7 @@ See [Collections](topic-collections.md) for detailed documentation. All five ope
 | Tuple | `tuple[...]` | `tuple[1, 2]` | Tuple value |
 | Datetime | `datetime(...)` or `now()` | `datetime("2024-01-15T10:30:00Z")`, `now()` | Datetime value |
 | Duration | `duration(...)` | `duration(...dict[days: 1, hours: 2])` | Duration value |
-| Vector | host-provided | `app::embed("text")` | Vector value |
+| Vector | host-provided | `$app.embed("text")` (after `use<ext:app> => $app`) | Vector value |
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
@@ -733,11 +733,19 @@ Place `^(...)` at the statement level to attach metadata to a statement. For loo
 0 -> while ($ < 50) do<limit: 100> { $ + 1 }
 ```
 
-**Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Use a statement-level annotation to attach metadata to a collection pipeline:
+**Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Collection operators (`seq`, `fan`, `filter`, `fold`, `acc`) enforce a built-in 10,000-chunk iteration ceiling; use `break` inside the body to stop earlier.
 
 ```text
-# Not accepted — RILL-R081: use do<limit: N> for loops
+# Rejected — RILL-R081: ^(limit: N) is not accepted inside collection operators
 [1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
+```
+
+```rill
+# Accepted — use break inside the body to cap iterations
+[1, 2, 3, 4, 5] -> seq({
+  ($ > 3) ? break
+  $
+})
 ```
 
 See [Control Flow](topic-control-flow.md) and [Collections](topic-collections.md) for detailed examples.
@@ -771,18 +779,20 @@ See [Host Integration](integration-host.md) for timeout and cancellation configu
 rill is a vanilla language. The host application registers domain-specific functions via `RuntimeContext`:
 
 ```typescript
+import { createRuntimeContext, toCallable } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
-  functions: {
-    prompt: async (args) => await callLLM(args[0]),
-    'io::read': async (args) => fs.readFile(String(args[0]), 'utf-8'),
-  },
   variables: {
+    prompt: toCallable({ params: [{ name: 'text', type: { kind: 'string' } }], fn: async (args) => await callLLM(args[0]) }),
+    io: {
+      read: toCallable({ params: [{ name: 'path', type: { kind: 'string' } }], fn: async (args) => fs.readFile(String(args[0]), 'utf-8') }),
+    },
     config: { apiUrl: 'https://api.example.com' },
   },
 });
 ```
 
-Scripts call these as `prompt("text")` or `io::read("file.txt")`.
+Scripts call these as `prompt("text")` or `io.read("file.txt")`.
 
 See [Host Integration](integration-host.md) for complete API documentation.
 

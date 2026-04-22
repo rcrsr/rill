@@ -311,13 +311,15 @@ Capture when you need the value in multiple places:
 Prefer implied `$` when the value flows directly to the next statement:
 
 ```text
+use<ext:app> => $app
+
 # Verbose — unnecessary capture
-app::prompt("check status") => $status
-$status -> .empty ? app::error("No status")
+$app.prompt("check status") => $status
+$status -> .empty ? $app.error("No status")
 
 # Idiomatic — data flows naturally
-app::prompt("check status")
-.empty ? app::error("No status")
+$app.prompt("check status")
+.empty ? $app.error("No status")
 ```
 
 ### Accumulation in Loops

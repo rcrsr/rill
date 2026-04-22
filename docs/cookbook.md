@@ -673,7 +673,9 @@ See [Types](topic-types.md) and [Collections](topic-collections.md) for stream d
 Accumulate all streaming tokens into a single string before processing:
 
 ```text
-app::llm_stream("Write a summary") => $s
+use<ext:app> => $app
+
+$app.llm_stream("Write a summary") => $s
 
 $s -> fold("", { $@ ++ $ }) => $full_response
 
@@ -687,7 +689,9 @@ $s -> fold("", { $@ ++ $ }) => $full_response
 Track token count across chunks and stop when a budget is reached:
 
 ```text
-app::llm_stream("Generate a long document") => $s
+use<ext:app> => $app
+
+$app.llm_stream("Generate a long document") => $s
 
 $s -> acc(0, {
   $ -> .len => $chunk_len
@@ -705,15 +709,17 @@ $s -> acc(0, {
 Consume multiple streams sequentially with `seq`, or in parallel with `fan`:
 
 ```text
+use<ext:app> => $app
+
 # Sequential: one stream at a time
 ["Summarize A", "Summarize B"] -> seq({
-  app::llm_stream($) => $s
+  $app.llm_stream($) => $s
   $s -> fold("", { $@ ++ $ })
 }) => $sequential_results
 
 # Parallel: all streams concurrently, results in order
 ["Summarize A", "Summarize B"] -> fan({
-  app::llm_stream($) => $s
+  $app.llm_stream($) => $s
   $s -> fold("", { $@ ++ $ })
 }) => $parallel_results
 ```
@@ -751,8 +757,10 @@ guard { "hello" -> .upper } ?? "fallback"
 Retry a failing operation up to N times, then coerce the result to a default:
 
 ```text
+use<ext:app> => $app
+
 retry<3> {
-  app::fetch("https://api.example.com/data")
+  $app.fetch("https://api.example.com/data")
 } => $result
 
 $result.! ? "unavailable" ! $result
@@ -763,7 +771,9 @@ $result.! ? "unavailable" ! $result
 Combine with `??` for a one-liner fallback:
 
 ```text
-retry<3> { app::fetch("https://api.example.com/data") } ?? "unavailable"
+use<ext:app> => $app
+
+retry<3> { $app.fetch("https://api.example.com/data") } ?? "unavailable"
 ```
 
 ### Nested Guard and Retry
@@ -771,9 +781,11 @@ retry<3> { app::fetch("https://api.example.com/data") } ?? "unavailable"
 Wrap an inner `guard` with an outer retry to re-execute on partial failure:
 
 ```text
+use<ext:app> => $app
+
 retry<3, on: list[#UNAVAILABLE]> {
   guard<on: list[#NOT_FOUND]> {
-    app::fetch("https://api.example.com/resource")
+    $app.fetch("https://api.example.com/resource")
   } => $inner
   $inner.! ? (error "not found") ! $inner
 } => $result
@@ -788,8 +800,10 @@ $result.! ? "all retries failed: {$result.!message}" ! $result
 Apply `guard` per item so one failure does not stop the whole collection:
 
 ```text
+use<ext:app> => $app
+
 ["https://a.example.com", "https://b.example.com", "https://c.example.com"] -> fan({
-  guard { app::fetch($) } => $r
+  guard { $app.fetch($) } => $r
   $r.! ? [url: $, ok: false, err: $r.!message] ! dict[url: $, ok: true, data: $r]
 })
 ```

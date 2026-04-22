@@ -248,15 +248,19 @@ Streams expose two annotation properties: `^chunk` and `^output`. Both return a 
 | `^output` | `RillTypeValue` | Resolution type; `any` when unconstrained |
 
 ```text
+use<ext:app> => $app
+
 # Accessing ^chunk and ^output on a stream value (requires host-provided stream)
-app::make_stream() => $s
+$app.make_stream() => $s
 $s.^chunk    # returns any (unconstrained stream)
 $s.^output   # returns any (unconstrained stream)
 ```
 
 ```text
+use<ext:app> => $app
+
 # Typed stream: ^chunk and ^output reflect declared types
-app::make_typed_stream() => $s   # chunk: string, output: number
+$app.make_typed_stream() => $s   # chunk: string, output: number
 $s.^chunk    # returns string type
 $s.^output   # returns number type
 ```
@@ -374,9 +378,11 @@ The `vector` type matches host-provided typed arrays. The `any` type name accept
 Both types are valid in closure parameter positions, capture type assertions, and type assertions:
 
 ```text
+use<ext:app> => $app
+
 # Closure parameter with vector type annotation
 |x: vector| { $x } => $fn
-app::embed("hello") => $v
+$app.embed("hello") => $v
 $fn($v) -> .model
 # Result: "mock-embed"
 ```
@@ -389,8 +395,10 @@ $fn("hello")
 ```
 
 ```text
+use<ext:app> => $app
+
 # Type assertion: :vector and :any
-app::embed("hello") => $v
+$app.embed("hello") => $v
 $v -> :vector
 # Result: vector(mock-embed, 3d)
 
@@ -399,8 +407,10 @@ $v -> :any
 ```
 
 ```text
+use<ext:app> => $app
+
 # Capture type assertion with vector type
-app::embed("hello") => $x:vector
+$app.embed("hello") => $x:vector
 $x -> .model
 # Result: "mock-embed"
 ```
@@ -417,26 +427,34 @@ $x[0]
 `:stream` asserts the value is a stream. `:stream(T)` additionally validates the chunk type. `:stream(T):R` validates both the chunk type and the resolution type. `:?stream` returns a boolean.
 
 ```text
+use<ext:app> => $app
+
 # :stream — assert value is a stream (requires host-provided stream)
-app::make_stream() => $s
+$app.make_stream() => $s
 $s -> :stream
 ```
 
 ```text
+use<ext:app> => $app
+
 # :stream(T) — assert stream with specific chunk type
-app::make_stream() => $s
+$app.make_stream() => $s
 $s -> :stream(string)
 ```
 
 ```text
+use<ext:app> => $app
+
 # :stream(T):R — assert stream with chunk and resolution types
-app::make_stream() => $s
+$app.make_stream() => $s
 $s -> :stream(string):number
 ```
 
 ```text
+use<ext:app> => $app
+
 # :?stream — check type without halting
-app::make_stream() => $s
+$app.make_stream() => $s
 $s -> :?stream
 # Result: true
 ```
@@ -682,7 +700,9 @@ $fn.^type.name == "closure"
 ```
 
 ```text
-app::embed("hello world") => $vec
+use<ext:app> => $app
+
+$app.embed("hello world") => $vec
 $vec.^type == vector
 # Result: true
 ```

@@ -38,8 +38,10 @@ No `=` operator exists. Data moves via `->`, values captured via `=>`.
 ```
 
 ```text
+use<ext:app> => $app
+
 # Capture only when a value appears more than once
-app::prompt("analyze") => $result
+$app.prompt("analyze") => $result
 $result -> log
 $result -> .contains("ERROR") ? { error "Analysis failed: {$result}" }
 ```

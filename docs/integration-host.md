@@ -222,9 +222,11 @@ The `ext::fn()` calling pattern is retained for compatibility but is not recomme
 LLM extensions expose `generate(prompt, options)` for schema-constrained structured output. The provider enforces the schema at the API level and returns a consistent dict.
 
 ```rill
+use<ext:llm> => $llm
+
 [name: "string", age: "number", active: "bool"] => $schema
 
-llm::generate("Extract user info from the following text: Alice, 30, active.", [
+$llm.generate("Extract user info from the following text: Alice, 30, active.", [
   schema: $schema,
 ]) => $result
 

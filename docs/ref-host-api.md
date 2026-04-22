@@ -542,7 +542,7 @@ When a rill script returns a stream, `execute()` returns a `RillStream` inside `
 import { parse, execute, createRuntimeContext, isRillStream } from '@rcrsr/rill';
 import type { RillStream } from '@rcrsr/rill';
 
-const ast = parse('app::stream_fn("prompt text")');
+const ast = parse('use<ext:app> => $app\n$app.stream_fn("prompt text")');
 const ctx = createRuntimeContext({ /* ... */ });
 const result = await execute(ast, ctx);
 

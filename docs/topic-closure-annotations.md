@@ -343,8 +343,8 @@ Annotation values are evaluated at closure creation:
 
 ```rill
 10 => $base
-^(limit: $base * 10) |x|($x) => $fn
-$fn.^limit  # 100
+^(budget: $base * 10) |x|($x) => $fn
+$fn.^budget  # 100
 ```
 
 ### Scope Rule: Direct Annotation Only
