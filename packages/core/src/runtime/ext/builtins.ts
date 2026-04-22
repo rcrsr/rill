@@ -113,6 +113,8 @@ function makeDictIterator(
  * Check if a value is a rill iterator (dict with value, done, next fields).
  */
 
+const MAX_ITER = 10000;
+
 export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   /** Identity function - returns its argument */
   identity: {
@@ -441,7 +443,6 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       const results: RillValue[] = [];
       let iterCount = 0;
-      const MAX_ITER = 10000;
 
       try {
         for (const element of elements) {
@@ -455,10 +456,15 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
             );
           }
 
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.pipeValue = element;
+          const closureToInvoke = isScriptCallable(body)
+            ? { ...body, definingScope: childCtx }
+            : body;
           const result = await invokeCallable(
-            body,
+            closureToInvoke,
             [element],
-            ctx as RuntimeContext,
+            childCtx,
             location
           );
           results.push(result);
@@ -628,7 +634,6 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       const results: RillValue[] = [];
       let accumulator: RillValue = seed;
       let iterCount = 0;
-      const MAX_ITER = 10000;
 
       try {
         for (const element of elements) {
@@ -722,7 +727,6 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       let accumulator: RillValue = seed;
       let iterCount = 0;
-      const MAX_ITER = 10000;
 
       for (const element of elements) {
         iterCount++;

@@ -315,7 +315,7 @@ In `seq`, break returns partial results collected before the break:
 # Returns ["a", "b"] (partial results before break)
 ```
 
-`acc` also catches `break` and returns the accumulator at the point of the break.
+`acc` also catches `break` and returns the partial results list collected up to that point.
 
 ### Break Not Allowed
 

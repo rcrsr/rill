@@ -395,6 +395,35 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
   });
 
+  // ── Context Isolation ─────────────────────────────────────────────────────
+
+  describe('Context Isolation', () => {
+    it('seq nested inside acc cannot access outer $@ accumulator', async () => {
+      // seq creates its own child context and does not bind @.
+      // Referencing $@ inside the seq body must raise an undefined-variable error.
+      const script = `
+        list[1, 2] -> acc(0, {
+          list[10, 20] -> seq({ $@ + $ })
+        })
+      `;
+      await expect(run(script)).rejects.toThrow();
+    });
+
+    it('seq nested inside acc can still access $ (the current seq element)', async () => {
+      // seq isolates @ but still binds $ for each element it processes.
+      // The inner seq should double its own elements independently per outer iteration.
+      const script = `
+        list[1, 2] -> acc(list[], {
+          list[10, 20] -> seq({ $ * 2 })
+        })
+      `;
+      expect(await run(script)).toEqual([
+        [20, 40],
+        [20, 40],
+      ]);
+    });
+  });
+
   // ── Infrastructure Assertions ─────────────────────────────────────────────
 
   describe('Infrastructure Assertions', () => {
