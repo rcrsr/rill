@@ -196,11 +196,11 @@ $email -> .is_match("^[^@]+@[^@]+$") ? process($email) ! { error "Invalid email"
 
 ```rill
 [[name: "Alice", value: 100], dict[name: "Bob", value: 42]] => $items
-$items -> each {
+$items -> seq({
   $.name -> .pad_end(20) => $name
   $.value -> string -> .pad_start(10) => $val
   "{$name}{$val}"
-} -> .join("\n")
+}) -> .join("\n")
 ```
 
 ### Replace Patterns
@@ -223,4 +223,4 @@ $m -> !.empty ? [key: $m.groups[0], value: $m.groups[1]]
 ## See Also
 
 - [Reference](ref-language.md) — Language specification
-- [Collections](topic-collections.md) — String processing with `map`, `filter`, `fold`
+- [Collections](topic-collections.md) — String processing with `seq`, `fan`, `filter`, `fold`, `acc`

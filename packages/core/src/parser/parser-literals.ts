@@ -796,18 +796,55 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
   skipNewlines(this.state);
 
-  // Anonymous typed closure detection: |type| body or |$typeVar| body
-  // Static: current is IDENTIFIER in VALID_TYPE_NAMES, next non-newline is PIPE_BAR
-  // Dynamic: current is DOLLAR ($typeVar form)
+  // Anonymous typed closure detection: |type| body, |$typeVar| body, or |type, type| body
+  // Static: current is IDENTIFIER in VALID_TYPE_NAMES, next non-newline is PIPE_BAR or COMMA+type+PIPE_BAR
+  // Dynamic: current is DOLLAR ($typeVar form), same terminal rules
   const isAnonymousTyped = (() => {
+    // Helper: check whether the token at `offset` starts a valid type reference
+    // (static type name or dynamic $typeVar). Parameterized types (LPAREN after
+    // the name) are accepted — detection only needs the start token.
+    const isTypeStart = (offset: number): boolean => {
+      const tok = peek(this.state, offset);
+      if (tok.type === TOKEN_TYPES.DOLLAR) return true;
+      if (
+        tok.type === TOKEN_TYPES.IDENTIFIER &&
+        VALID_TYPE_NAMES.includes(
+          tok.value as (typeof VALID_TYPE_NAMES)[number]
+        )
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     if (check(this.state, TOKEN_TYPES.DOLLAR)) {
-      // Dynamic type ref: $identifier — next non-newline after $ and name must be PIPE_BAR.
-      // Delegate detection to lookahead: offset 1 is identifier, offset 2 is PIPE_BAR (skip newlines).
+      // Dynamic type ref: $identifier — offset 0=$, offset 1=name, offset 2+ skip newlines.
       let lookahead = 2;
       while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
         lookahead++;
       }
-      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+      const afterFirst = peek(this.state, lookahead).type;
+      if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
+      // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
+      if (afterFirst === TOKEN_TYPES.COMMA) {
+        lookahead++;
+        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+          lookahead++;
+        }
+        if (!isTypeStart(lookahead)) return false;
+        // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
+        lookahead +=
+          peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
+        // Parameterized second type: list(string), dict(name: type), etc.
+        // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
+        if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN)
+          return true;
+        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+          lookahead++;
+        }
+        return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+      }
+      return false;
     }
     if (
       check(this.state, TOKEN_TYPES.IDENTIFIER) &&
@@ -820,19 +857,85 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       if (peek(this.state, 1).type === TOKEN_TYPES.LPAREN) {
         return true;
       }
-      // Static type name: peek past any newlines to find PIPE_BAR (not COLON)
+      // Static type name: peek past any newlines to find PIPE_BAR or COMMA+type+PIPE_BAR
       let lookahead = 1;
       while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
         lookahead++;
       }
-      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+      const afterFirst = peek(this.state, lookahead).type;
+      if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
+      // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
+      if (afterFirst === TOKEN_TYPES.COMMA) {
+        lookahead++;
+        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+          lookahead++;
+        }
+        if (!isTypeStart(lookahead)) return false;
+        // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
+        lookahead +=
+          peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
+        // Parameterized second type: list(string), dict(name: type), etc.
+        // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
+        if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN)
+          return true;
+        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+          lookahead++;
+        }
+        return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+      }
+      return false;
     }
     return false;
   })();
 
   if (isAnonymousTyped) {
     const paramStart = current(this.state).span.start;
-    const typeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
+    const firstTypeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
+
+    // Two-type anonymous closure: |type, type|{ body }
+    // Synthesizes params named '$' and '@' with their respective declared types.
+    if (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      skipNewlines(this.state);
+      const secondParamStart = current(this.state).span.start;
+      const secondTypeRef = parseTypeRef(this.state, {
+        allowTrailingPipe: true,
+      });
+      expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+      skipNewlines(this.state);
+      this.closureDepth++;
+      const body = this.parseBody(true);
+      this.closureDepth--;
+      const returnTypeTarget = parseClosureReturnTypeTarget(this);
+      validateYieldInClosure(body, returnTypeTarget, start);
+      const firstParam: ClosureParamNode = {
+        type: 'ClosureParam',
+        name: '$',
+        typeRef: firstTypeRef,
+        defaultValue: null,
+        span: makeSpan(paramStart, secondParamStart),
+      };
+      const secondParam: ClosureParamNode = {
+        type: 'ClosureParam',
+        name: '@',
+        typeRef: secondTypeRef,
+        defaultValue: null,
+        span: makeSpan(secondParamStart, current(this.state).span.start),
+      };
+      return {
+        type: 'Closure',
+        params: [firstParam, secondParam],
+        body,
+        returnTypeTarget,
+        span: makeSpan(
+          start,
+          returnTypeTarget ? current(this.state).span.end : body.span.end
+        ),
+      };
+    }
+
+    // Single-type anonymous closure: |type|{ body }
+    // Synthesizes one param named '$' with the declared type.
     expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
     skipNewlines(this.state);
     this.closureDepth++;
@@ -843,7 +946,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     const param: ClosureParamNode = {
       type: 'ClosureParam',
       name: '$',
-      typeRef,
+      typeRef: firstTypeRef,
       defaultValue: null,
       span: makeSpan(paramStart, current(this.state).span.start),
     };

@@ -162,7 +162,7 @@ describe('Rill Runtime: Type Assertions', () => {
       // Type check returns bool, so we need to use the original value in the branch
       const script = `
         list[1, 2, 3] => $data
-        $data -> :?list ? ($data -> each { ($ * 2) }) ! list[]
+        $data -> :?list ? ($data -> seq({ ($ * 2) })) ! list[]
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });

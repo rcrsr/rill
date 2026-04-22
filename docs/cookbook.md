@@ -79,9 +79,9 @@ Process a sequence of events through the machine:
 ["start", "pause", "resume", "stop"] => $events
 
 # Process events, accumulating state history
-$events -> fold("idle") {
+$events -> fold("idle", {
   $machine.($@).($)  # $@ is accumulator (current state), $ is event
-}
+})
 # Result: "idle"
 ```
 
@@ -96,14 +96,14 @@ Track state history with `fold`:
 
 ["start", "pause", "resume"] => $events
 
-$events -> fold([current: "idle", history: []]) {
+$events -> fold([current: "idle", history: []], {
   $ => $event
   $machine.($@.current) => $stateConfig
   $stateConfig -> .keys -> .has($event) ? {
     $stateConfig.($event) => $next
     [current: $next, history: [...$@.history, $next]]
   } ! $@
-}
+})
 # Result: [current: "running", history: ["running", "paused", "running"]]
 ```
 
@@ -191,7 +191,7 @@ Model nested states using path dispatch:
 $state -> .split(".") => $path
 
 # Navigate to current state config
-$path -> fold($machine) { $@.$  }
+$path -> fold($machine, { $@.$  })
 # Result: [pause: "paused", slow: "playing.slow", fast: "playing.fast"]
 ```
 
@@ -206,7 +206,7 @@ Route values through different processors based on type or content:
 [
   "application/json": |body|{ $body },
   "text/plain": |body|{ $body -> .trim },
-  "text/csv": |body|{ $body -> .lines -> map { .split(",") } }
+  "text/csv": |body|{ $body -> .lines -> fan({ .split(",") }) }
 ] => $parsers
 
 "application/json" => $contentType
@@ -260,14 +260,14 @@ Calculate statistics in a single pass:
 # Conceptual - dict spread [...$dict, key: val] not implemented
 [23, 45, 12, 67, 34, 89, 56] => $values
 
-$values -> fold([sum: 0, count: 0, min: 999999, max: -999999]) {
+$values -> fold([sum: 0, count: 0, min: 999999, max: -999999], {
   [
     sum: $@.sum + $,
     count: $@.count + 1,
     min: ($ < $@.min) ? $ ! $@.min,
     max: ($ > $@.max) ? $ ! $@.max
   ]
-} => $stats
+}) => $stats
 
 [...$stats, avg: $stats.sum / $stats.count]
 # Result: [sum: 326, count: 7, min: 12, max: 89, avg: 46.57...]
@@ -286,7 +286,7 @@ Group items by a computed key:
   [name: "Dave", dept: "Sales"]
 ] => $employees
 
-$employees -> fold([]) {
+$employees -> fold([], {
   $@.?($$.dept) ? {
     # Key exists - append to list
     [...$@, ($$.dept): [...$@.($$.dept), $$.name]]
@@ -294,7 +294,7 @@ $employees -> fold([]) {
     # New key - create list
     [...$@, ($$.dept): [$$.name]]
   }
-}
+})
 # Result: [Engineering: ["Alice", "Carol"], Sales: ["Bob", "Dave"]]
 ```
 
@@ -305,10 +305,10 @@ Remove duplicates while preserving order:
 ```rill
 ["a", "b", "a", "c", "b", "d", "a"] => $items
 
-$items -> fold([seen: [], result: []]) {
+$items -> fold([seen: [], result: []], {
   $ => $item
   $@.seen -> .has($item) ? [seen: $@.seen, result: $@.result] ! dict[seen: [...$@.seen, $item], result: list[...$@.result, $item]]
-} -> .result
+}) -> .result
 # Result: ["a", "b", "c", "d"]
 ```
 
@@ -397,7 +397,7 @@ Flatten arbitrarily nested lists:
 [list[1, 2], list[3, 4], list[5, 6]] => $nested
 
 # Flatten one level
-$nested -> fold([]) { [...$@, ...$] }
+$nested -> fold([], { [...$@, ...$] })
 # Result: [1, 2, 3, 4, 5, 6]
 ```
 
@@ -412,9 +412,9 @@ Convert rows to columns:
   [7, 8, 9]
 ] => $matrix
 
-range(0, $matrix[0] -> .len) -> map |col|{
-  $matrix -> map |row|{ $row[$col] }
-}
+range(0, $matrix[0] -> .len) -> fan(|col|{
+  $matrix -> fan(|row|{ $row[$col] })
+})
 # Result: [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
 ```
 
@@ -426,9 +426,9 @@ Combine parallel lists into dicts:
 ["a", "b", "c"] => $zipKeys
 [1, 2, 3] => $zipValues
 
-range(0, $zipKeys -> .len) -> map |i|{
+range(0, $zipKeys -> .len) -> fan(|i|{
   [key: $zipKeys[$i], value: $zipValues[$i]]
-}
+})
 # Result: [[key: "a", value: 1], [key: "b", value: 2], [key: "c", value: 3]]
 ```
 
@@ -436,9 +436,9 @@ Converting to a dict requires dict spread (not yet implemented):
 
 ```text
 # Conceptual - dict spread [...$@, (key): val] not implemented
-range(0, $zipKeys -> .len) -> fold([]) |i|{
+range(0, $zipKeys -> .len) -> fold([], |i|{
   [...$@, ($zipKeys[$i]): $zipValues[$i]]
-}
+})
 # Result: [a: 1, b: 2, c: 3]
 ```
 
@@ -453,9 +453,9 @@ Simple template with variable substitution (using angle brackets as delimiters):
 
 [name: "Alice", orderId: "12345", date: "2024-03-15"] => $templateVars
 
-$templateVars -> .entries -> fold($template) {
+$templateVars -> .entries -> fold($template, {
   $@.replace_all("<{$[0]}>", $[1] -> string)
-}
+})
 # Result: "Hello Alice, your order 12345 ships on 2024-03-15."
 ```
 
@@ -469,10 +469,10 @@ Extract structured data from formatted text:
 
 $input
   -> .split(";")
-  -> fold([:]) {
+  -> fold([:], {
     $ -> .split("=") -> destruct<$key, $value>
     [...$@, ($key): $value]
-  }
+  })
 # Result: [name: "Alice", age: "30", city: "Seattle"]
 ```
 
@@ -487,11 +487,11 @@ Count word occurrences:
 $text
   -> .lower
   -> .split(" ")
-  -> fold([]) {
+  -> fold([], {
     $@.?$
       ? [...$@, ($): $@.$ + 1]
       ! [...$@, ($): 1]
-  }
+  })
 # Result: [the: 3, quick: 1, brown: 1, fox: 2, jumps: 1, over: 1, lazy: 1, dog: 1]
 ```
 
@@ -569,7 +569,7 @@ Validate dict structure against rules:
 
 [name: "Alice", age: 200] => $data
 
-$schema.entries -> fold([valid: true, errors: []]) {
+$schema.entries -> fold([valid: true, errors: []], {
   $[0] => $field
   $[1] => $rules
 
@@ -596,7 +596,7 @@ $schema.entries -> fold([valid: true, errors: []]) {
       }
     } ! $@
   }
-}
+})
 # Result: [valid: false, errors: ["age above maximum"]]
 ```
 
@@ -675,50 +675,50 @@ Accumulate all streaming tokens into a single string before processing:
 ```text
 app::llm_stream("Write a summary") => $s
 
-$s -> fold("") { $@ ++ $ } => $full_response
+$s -> fold("", { $@ ++ $ }) => $full_response
 
 "Summary: {$full_response}" -> log
 ```
 
 `fold` consumes every chunk and concatenates it into `$@`. The result is available only after the stream closes.
 
-### Budget-Aware Iteration with break
+### Budget-Aware Accumulation with break
 
 Track token count across chunks and stop when a budget is reached:
 
 ```text
 app::llm_stream("Generate a long document") => $s
 
-$s -> each(0) {
+$s -> acc(0, {
   $ -> .len => $chunk_len
   ($@ + $chunk_len) => $running_total
   ($running_total > 500) ? break
   $ -> log
   $running_total
-}
+})
 ```
 
-`each(init)` carries `$@` across chunks. When the budget exceeds 500 characters, `break` stops iteration and the host disposes the stream.
+`acc(init, body)` carries `$@` across chunks. When the budget exceeds 500 characters, `break` stops iteration and the host disposes the stream.
 
 ### Multi-Source Orchestration
 
-Consume multiple streams sequentially with `each`, or in parallel with `map`:
+Consume multiple streams sequentially with `seq`, or in parallel with `fan`:
 
 ```text
 # Sequential: one stream at a time
-["Summarize A", "Summarize B"] -> each {
+["Summarize A", "Summarize B"] -> seq({
   app::llm_stream($) => $s
-  $s -> fold("") { $@ ++ $ }
-} => $sequential_results
+  $s -> fold("", { $@ ++ $ })
+}) => $sequential_results
 
 # Parallel: all streams concurrently, results in order
-["Summarize A", "Summarize B"] -> map {
+["Summarize A", "Summarize B"] -> fan({
   app::llm_stream($) => $s
-  $s -> fold("") { $@ ++ $ }
-} => $parallel_results
+  $s -> fold("", { $@ ++ $ })
+}) => $parallel_results
 ```
 
-Use `each` when order matters or streams depend on prior results. Use `map` when sources are independent and concurrency helps.
+Use `seq` when order matters or streams depend on prior results. Use `fan` when sources are independent and concurrency helps.
 
 ---
 
@@ -788,10 +788,10 @@ $result.! ? "all retries failed: {$result.!message}" ! $result
 Apply `guard` per item so one failure does not stop the whole collection:
 
 ```text
-["https://a.example.com", "https://b.example.com", "https://c.example.com"] -> map {
+["https://a.example.com", "https://b.example.com", "https://c.example.com"] -> fan({
   guard { app::fetch($) } => $r
   $r.! ? [url: $, ok: false, err: $r.!message] ! dict[url: $, ok: true, data: $r]
-}
+})
 ```
 
 Each item runs its own `guard`. Failed fetches produce an `[ok: false]` record. Downstream code filters or reports failures without halting.
@@ -805,7 +805,7 @@ Filter out failures after collection:
   [url: "c", ok: true, data: "response2"]
 ] => $results
 
-$results -> filter { $.ok }
+$results -> filter({ $.ok })
 # Result: list[dict[url: "a", ok: true, data: "response"], dict[url: "c", ok: true, data: "response2"]]
 ```
 
@@ -863,7 +863,7 @@ $result.! ? "wrapped: {$result.!message}" ! $result
 
 - [Examples](guide-examples.md) — Language feature demonstrations
 - [Reference](ref-language.md) — Complete language specification
-- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` details
+- [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` details
 - [Closures](topic-closures.md) — Function patterns and binding
 - [Host Integration](integration-host.md) — Embedding API
 - [Error Handling](topic-error-handling.md) — guard, retry, status probes

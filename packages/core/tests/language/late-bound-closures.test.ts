@@ -303,7 +303,7 @@ describe('Rill Runtime: Late-Bound Closures', () => {
     it('closures capture loop variables when explicitly stored', async () => {
       // $ (pipeValue) is not a variable - must capture explicitly
       const script = `
-        list[1, 2, 3] -> each { $ => $item \n || { $item } } => $closures
+        list[1, 2, 3] -> seq({ $ => $item \n || { $item } }) => $closures
         list[$closures[0](), $closures[1](), $closures[2]()]
       `;
       expect(await run(script)).toEqual([1, 2, 3]);
@@ -323,10 +323,10 @@ describe('Rill Runtime: Late-Bound Closures', () => {
     it('closures in different loop iterations have different scopes', async () => {
       // Each iteration creates a new child scope with its own $item
       const script = `
-        list[10, 20, 30] -> each {
+        list[10, 20, 30] -> seq({
           $ => $val
           || { $val * 2 }
-        } => $doublers
+        }) => $doublers
         list[$doublers[0](), $doublers[1](), $doublers[2]()]
       `;
       expect(await run(script)).toEqual([20, 40, 60]);

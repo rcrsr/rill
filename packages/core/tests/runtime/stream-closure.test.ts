@@ -227,7 +227,7 @@ describe('Stream Closure Execution', () => {
     it('emits multiple chunks when re-yielding list elements', async () => {
       const script = `
         || {
-          list[10, 20, 30] -> each { $ -> yield }
+          list[10, 20, 30] -> seq({ $ -> yield })
         } :stream() => $gen
         $gen()
       `;
@@ -239,7 +239,7 @@ describe('Stream Closure Execution', () => {
     it('emits chunks from range via each { yield }', async () => {
       const script = `
         || {
-          range(1, 4) -> each { $ -> yield }
+          range(1, 4) -> seq({ $ -> yield })
         } :stream(number) => $gen
         $gen()
       `;

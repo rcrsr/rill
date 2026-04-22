@@ -433,7 +433,7 @@ describe('Rill Runtime: List Membership Methods', () => {
   describe('performance', () => {
     it('handles large list search efficiently (AC-24)', async () => {
       // Create a 1000-element list and search for a value
-      const listExpr = `range(0, 1000) -> each { $ } -> .has(999)`;
+      const listExpr = `range(0, 1000) -> seq({ $ }) -> .has(999)`;
       const start = Date.now();
       const result = await run(listExpr);
       const duration = Date.now() - start;
@@ -443,7 +443,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     it('handles large list with has_any efficiently', async () => {
-      const listExpr = `range(0, 1000) -> each { $ } -> .has_any(list[500, 999])`;
+      const listExpr = `range(0, 1000) -> seq({ $ }) -> .has_any(list[500, 999])`;
       const start = Date.now();
       const result = await run(listExpr);
       const duration = Date.now() - start;
@@ -453,7 +453,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     it('handles large list with has_all efficiently', async () => {
-      const listExpr = `range(0, 1000) -> each { $ } -> .has_all(list[0, 500, 999])`;
+      const listExpr = `range(0, 1000) -> seq({ $ }) -> .has_all(list[0, 500, 999])`;
       const start = Date.now();
       const result = await run(listExpr);
       const duration = Date.now() - start;
@@ -490,7 +490,7 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     it('works with map and filter results', async () => {
-      expect(await run('list[1, 2, 3] -> map { $ * 2 } -> .has(4)')).toBe(true);
+      expect(await run('list[1, 2, 3] -> fan({ $ * 2 }) -> .has(4)')).toBe(true);
     });
   });
 });

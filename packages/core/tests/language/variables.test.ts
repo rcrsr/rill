@@ -80,7 +80,7 @@ describe('Rill Runtime: Variables', () => {
 
     it('=> in loop body is per-iteration', async () => {
       expect(
-        await run('list[1, 2, 3] -> each { $ => $curr -> { $curr * 2 } }')
+        await run('list[1, 2, 3] -> seq({ $ => $curr -> { $curr * 2 } })')
       ).toEqual([2, 4, 6]);
     });
   });

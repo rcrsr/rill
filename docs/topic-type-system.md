@@ -452,7 +452,7 @@ Attempting to convert a non-stream value to a stream with `-> stream` halts exec
 
 ```rill
 # Assert typed list and continue processing
-[1, 2, 3] -> :list(number) -> each { $ * 2 }
+[1, 2, 3] -> :list(number) -> seq({ $ * 2 })
 
 # Multiple assertions in chain
 "test" -> :string -> .len -> :number   # 4
@@ -464,7 +464,7 @@ Attempting to convert a non-stream value to a stream with `-> stream` halts exec
 # Validate function input
 |data| {
   $data -> :list              # assert input is list
-  $data -> each { $ * 2 }
+  $data -> seq({ $ * 2 })
 } => $process_items
 
 # Type-safe branching

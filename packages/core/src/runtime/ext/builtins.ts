@@ -8,7 +8,12 @@
  */
 
 import type { RillFunction } from '../core/callable.js';
-import { callable, isCallable, isDict } from '../core/callable.js';
+import {
+  callable,
+  isCallable,
+  isDict,
+  isScriptCallable,
+} from '../core/callable.js';
 import type { RuntimeContext } from '../core/types/runtime.js';
 import { type SourceLocation, RuntimeError } from '../../types.js';
 import { throwTypeHalt } from '../core/types/halt.js';
@@ -34,6 +39,10 @@ import {
 import { anyTypeValue, isEmpty, structureToTypeValue } from '../core/values.js';
 import { invokeCallable } from '../core/eval/index.js';
 import { populateBuiltinMethods } from '../core/types/registrations.js';
+import { BreakSignal } from '../core/signals.js';
+import { createChildContext } from '../core/context.js';
+
+import { getIterableElements } from '../core/eval/mixins/collections.js';
 
 /** Internal type alias for built-in method implementations. */
 type RillMethod = (
@@ -103,6 +112,8 @@ function makeDictIterator(
 /**
  * Check if a value is a rill iterator (dict with value, done, next fields).
  */
+
+const MAX_ITER = 10000;
 
 export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   /** Identity function - returns its argument */
@@ -389,6 +400,492 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         `chain: second argument must be a closure or list of closures, got ${inferType(arg)}`,
         location
       );
+    },
+  },
+
+  /**
+   * Sequential iteration: invoke body closure for each element, return all results.
+   * Catches BreakSignal and returns partial results.
+   * $ is bound to the current element per iteration.
+   * @ is NOT bound (RILL-R040 EC-3: undefined variable error if body references $@).
+   */
+  seq: {
+    params: [
+      {
+        name: 'body',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const body = args['body'] ?? null;
+
+      if (!isCallable(body)) {
+        throw new RuntimeError(
+          'RILL-R040',
+          `seq: body must be a closure, got ${inferType(body)}`,
+          location
+        );
+      }
+
+      // Fake node for getIterableElements location reporting
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      const results: RillValue[] = [];
+      let iterCount = 0;
+
+      try {
+        for (const element of elements) {
+          iterCount++;
+          if (iterCount > MAX_ITER) {
+            throw new RuntimeError(
+              'RILL-R010',
+              `seq: iteration exceeded ${MAX_ITER} iterations`,
+              location,
+              { limit: MAX_ITER, iterations: iterCount }
+            );
+          }
+
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.pipeValue = element;
+          const closureToInvoke = isScriptCallable(body)
+            ? { ...body, definingScope: childCtx }
+            : body;
+          const result = await invokeCallable(
+            closureToInvoke,
+            [element],
+            childCtx,
+            location
+          );
+          results.push(result);
+        }
+      } catch (e) {
+        if (e instanceof BreakSignal) {
+          return results;
+        }
+        throw e;
+      }
+
+      return results;
+    },
+  },
+
+  /**
+   * Parallel iteration: invoke body closure for each element concurrently, return all results.
+   * Does NOT catch BreakSignal.
+   * $ is bound to the current element per iteration via per-element child context.
+   * options dict may specify { concurrency: number } for batched execution.
+   */
+  fan: {
+    params: [
+      {
+        name: 'body',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'options',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const body = args['body'] ?? null;
+      const options = args['options'] ?? null;
+
+      if (!isCallable(body)) {
+        throw new RuntimeError(
+          'RILL-R040',
+          `fan: body must be a closure, got ${inferType(body)}`,
+          location
+        );
+      }
+
+      // Validate options if provided
+      let concurrency: number | undefined;
+      if (options !== null && options !== undefined) {
+        if (!isDict(options)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `fan: options must be a dict, got ${inferType(options)}`,
+            location
+          );
+        }
+        const concurrencyOpt = (options as Record<string, RillValue>)[
+          'concurrency'
+        ];
+        if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
+          if (typeof concurrencyOpt !== 'number') {
+            throw new RuntimeError(
+              'RILL-R001',
+              `fan: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
+              location
+            );
+          }
+          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+            throw new RuntimeError(
+              'RILL-R001',
+              `fan: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              location
+            );
+          }
+          concurrency = Math.floor(concurrencyOpt);
+        }
+      }
+
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (elements.length === 0) {
+        return [];
+      }
+
+      if (concurrency === undefined) {
+        // Unbounded parallel: Promise.all over all elements
+        const promises = elements.map((element) => {
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.pipeValue = element;
+          return invokeCallable(body, [element], childCtx, location);
+        });
+        return Promise.all(promises);
+      }
+
+      // Batched parallel execution
+      const results: RillValue[] = [];
+      for (let i = 0; i < elements.length; i += concurrency) {
+        const batch = elements.slice(i, i + concurrency);
+        const batchPromises = batch.map((element) => {
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.pipeValue = element;
+          return invokeCallable(body, [element], childCtx, location);
+        });
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      }
+
+      return results;
+    },
+  },
+
+  /**
+   * Sequential scan with accumulator: invoke body closure per element, accumulate results.
+   * Appends each body result to output AND sets it as the accumulator for the next iteration.
+   * Catches BreakSignal and returns partial scan results.
+   * $ is bound to the current element and @ is bound to the accumulator per iteration.
+   */
+  acc: {
+    params: [
+      {
+        name: 'seed',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'body',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const seed = args['seed'] ?? null;
+      const body = args['body'] ?? null;
+
+      if (!isCallable(body)) {
+        throw new RuntimeError(
+          'RILL-R040',
+          `acc: body must be a closure, got ${inferType(body)}`,
+          location
+        );
+      }
+
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      const results: RillValue[] = [];
+      let accumulator: RillValue = seed;
+      let iterCount = 0;
+
+      try {
+        for (const element of elements) {
+          iterCount++;
+          if (iterCount > MAX_ITER) {
+            throw new RuntimeError(
+              'RILL-R010',
+              `acc: iteration exceeded ${MAX_ITER} iterations`,
+              location,
+              { limit: MAX_ITER, iterations: iterCount }
+            );
+          }
+
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.variables.set('@', accumulator);
+          childCtx.pipeValue = element;
+          const closureToInvoke = isScriptCallable(body)
+            ? { ...body, definingScope: childCtx }
+            : body;
+          // Two-type closures |elem_type, acc_type|{ body } declare '@' as second param.
+          // Pass accumulator as second arg so marshalArgs can bind and type-check it.
+          const isTwoTypeBody =
+            isScriptCallable(body) &&
+            body.params.length === 2 &&
+            body.params[1]?.name === '@';
+          const invokeArgs: RillValue[] = isTwoTypeBody
+            ? [element, accumulator]
+            : [element];
+          const result = await invokeCallable(
+            closureToInvoke,
+            invokeArgs,
+            childCtx,
+            location
+          );
+          results.push(result);
+          accumulator = result;
+        }
+      } catch (e) {
+        if (e instanceof BreakSignal) {
+          return results;
+        }
+        throw e;
+      }
+
+      return results;
+    },
+  },
+
+  /**
+   * Sequential fold with accumulator: invoke body closure per element, return final accumulator only.
+   * Does NOT catch BreakSignal; break propagates out.
+   * $ is bound to the current element and @ is bound to the accumulator per iteration.
+   */
+  fold: {
+    params: [
+      {
+        name: 'seed',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'body',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const seed = args['seed'] ?? null;
+      const body = args['body'] ?? null;
+
+      if (!isCallable(body)) {
+        throw new RuntimeError(
+          'RILL-R040',
+          `fold: body must be a closure, got ${inferType(body)}`,
+          location
+        );
+      }
+
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      let accumulator: RillValue = seed;
+      let iterCount = 0;
+
+      for (const element of elements) {
+        iterCount++;
+        if (iterCount > MAX_ITER) {
+          throw new RuntimeError(
+            'RILL-R010',
+            `fold: iteration exceeded ${MAX_ITER} iterations`,
+            location,
+            { limit: MAX_ITER, iterations: iterCount }
+          );
+        }
+
+        const childCtx = createChildContext(ctx as RuntimeContext);
+        childCtx.variables.set('@', accumulator);
+        childCtx.pipeValue = element;
+        const closureToInvoke = isScriptCallable(body)
+          ? { ...body, definingScope: childCtx }
+          : body;
+        // Two-type closures |elem_type, acc_type|{ body } declare '@' as second param.
+        // Pass accumulator as second arg so marshalArgs can bind and type-check it.
+        const isTwoTypeBody =
+          isScriptCallable(body) &&
+          body.params.length === 2 &&
+          body.params[1]?.name === '@';
+        const invokeArgs: RillValue[] = isTwoTypeBody
+          ? [element, accumulator]
+          : [element];
+        const result = await invokeCallable(
+          closureToInvoke,
+          invokeArgs,
+          childCtx,
+          location
+        );
+        accumulator = result;
+      }
+
+      return accumulator;
+    },
+  },
+
+  /**
+   * Parallel predicate filter: invoke body closure for each element concurrently,
+   * return elements where predicate returned true.
+   * Does NOT catch BreakSignal.
+   * Predicate result must be a bool; non-bool raises RILL-R001.
+   * Preserves source order in the filtered output.
+   * options dict may specify { concurrency: number } for batched execution.
+   */
+  filter: {
+    params: [
+      {
+        name: 'body',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'options',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const body = args['body'] ?? null;
+      const options = args['options'] ?? null;
+
+      if (!isCallable(body)) {
+        throw new RuntimeError(
+          'RILL-R040',
+          `filter: body must be a closure, got ${inferType(body)}`,
+          location
+        );
+      }
+
+      // Validate options if provided
+      let concurrency: number | undefined;
+      if (options !== null && options !== undefined) {
+        if (!isDict(options)) {
+          throw new RuntimeError(
+            'RILL-R001',
+            `filter: options must be a dict, got ${inferType(options)}`,
+            location
+          );
+        }
+        const concurrencyOpt = (options as Record<string, RillValue>)[
+          'concurrency'
+        ];
+        if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
+          if (typeof concurrencyOpt !== 'number') {
+            throw new RuntimeError(
+              'RILL-R001',
+              `filter: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
+              location
+            );
+          }
+          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+            throw new RuntimeError(
+              'RILL-R001',
+              `filter: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              location
+            );
+          }
+          concurrency = Math.floor(concurrencyOpt);
+        }
+      }
+
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (elements.length === 0) {
+        return [];
+      }
+
+      /** Run the predicate for a single element and return keep/discard result. */
+      const runPredicate = async (element: RillValue) => {
+        const childCtx = createChildContext(ctx as RuntimeContext);
+        childCtx.pipeValue = element;
+        const result = await invokeCallable(
+          body,
+          [element],
+          childCtx,
+          location
+        );
+        if (typeof result !== 'boolean') {
+          throw new RuntimeError(
+            'RILL-R001',
+            `filter: predicate must return bool, got ${inferType(result)}`,
+            location
+          );
+        }
+        return { element, keep: result };
+      };
+
+      if (concurrency === undefined) {
+        // Unbounded parallel: Promise.all over all elements
+        const results = await Promise.all(elements.map(runPredicate));
+        return results.filter((r) => r.keep).map((r) => r.element);
+      }
+
+      // Batched parallel execution preserving source order
+      const kept: RillValue[] = [];
+      for (let i = 0; i < elements.length; i += concurrency) {
+        const batch = elements.slice(i, i + concurrency);
+        const batchResults = await Promise.all(batch.map(runPredicate));
+        for (const r of batchResults) {
+          if (r.keep) kept.push(r.element);
+        }
+      }
+
+      return kept;
     },
   },
 

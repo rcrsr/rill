@@ -114,16 +114,16 @@ describe('ref-llm: Variables Lock to First Type', () => {
 describe('ref-llm: No Variable Shadowing', () => {
   it('outer var reassignment from child scope errors', async () => {
     await expect(
-      run('0 => $count\nlist[1, 2, 3] -> each { $count + 1 => $count }\n$count')
+      run('0 => $count\nlist[1, 2, 3] -> seq({ $count + 1 => $count })\n$count')
     ).rejects.toThrow(/Cannot reassign outer variable/);
   });
 
-  it('fold(0) accumulates: list[1,2,3] -> fold(0) { $@ + $ } = 6', async () => {
-    expect(await run('list[1, 2, 3] -> fold(0) { $@ + $ }')).toBe(6);
+  it('fold(0) accumulates: list[1,2,3] -> fold(0, { $@ + $ }) = 6', async () => {
+    expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
   });
 
   it('each(init) gives running totals', async () => {
-    expect(await run('list[1, 2, 3] -> each(0) { $@ + $ }')).toEqual([1, 3, 6]);
+    expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([1, 3, 6]);
   });
 });
 
@@ -283,7 +283,7 @@ describe('ref-llm: Pipes and $ Binding', () => {
   });
 
   it('$ is current item in each', async () => {
-    expect(await run('list[1, 2, 3] -> each { $ * 2 }')).toEqual([2, 4, 6]);
+    expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
   });
 
   it('$ is accumulated value in @ loop', async () => {
@@ -323,7 +323,7 @@ describe('ref-llm: Control Flow', () => {
 
   it('break in each', async () => {
     expect(
-      await run('list[1,2,3,4,5] -> each { ($ == 3) ? break\n$ }')
+      await run('list[1,2,3,4,5] -> seq({ ($ == 3) ? break\n$ })')
     ).toEqual([1, 2]);
   });
 
@@ -388,7 +388,7 @@ describe('ref-llm: Control Flow', () => {
   });
 
   it('pass in map', async () => {
-    expect(await run('list[1, -2, 3] -> map { ($ > 0) ? pass ! 0 }')).toEqual([
+    expect(await run('list[1, -2, 3] -> fan({ ($ > 0) ? pass ! 0 })')).toEqual([
       1, 0, 3,
     ]);
   });
@@ -400,88 +400,89 @@ describe('ref-llm: Control Flow', () => {
 
 describe('ref-llm: Collection Operators', () => {
   it('each returns all body results', async () => {
-    expect(await run('list[1, 2, 3] -> each { $ * 2 }')).toEqual([2, 4, 6]);
+    expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
   });
 
   it('each(init) with accumulator', async () => {
-    expect(await run('list[1, 2, 3] -> each(0) { $@ + $ }')).toEqual([1, 3, 6]);
+    expect(await run('list[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([1, 3, 6]);
   });
 
   it('map returns all body results (parallel)', async () => {
-    expect(await run('list[1, 2, 3] -> map { $ * 2 }')).toEqual([2, 4, 6]);
+    expect(await run('list[1, 2, 3] -> fan({ $ * 2 })')).toEqual([2, 4, 6]);
   });
 
   it('filter returns matching elements', async () => {
-    expect(await run('list[1, 2, 3, 4] -> filter { $ > 2 }')).toEqual([3, 4]);
+    expect(await run('list[1, 2, 3, 4] -> filter({ $ > 2 })')).toEqual([3, 4]);
   });
 
   it('fold returns final result only', async () => {
-    expect(await run('list[1, 2, 3] -> fold(0) { $@ + $ }')).toBe(6);
+    expect(await run('list[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
   });
 
   it('method shorthand: map .upper', async () => {
-    expect(await run('list["a", "b"] -> map .upper')).toEqual(['A', 'B']);
+    expect(await run('list["a", "b"] -> fan({ $.upper })')).toEqual(['A', 'B']);
   });
 
   it('method shorthand: filter (!.empty)', async () => {
-    expect(await run('list["", "x"] -> filter (!.empty)')).toEqual(['x']);
+    expect(await run('list["", "x"] -> filter({ !.empty })')).toEqual(['x']);
   });
 
   it('method shorthand with args: map .pad_start(3, "0")', async () => {
-    expect(await run('list["a", "b"] -> map .pad_start(3, "0")')).toEqual([
-      '00a',
-      '00b',
-    ]);
+    expect(await run('list["a", "b"] -> fan({ $.pad_start(3, "0") })')).toEqual(
+      ['00a', '00b']
+    );
   });
 
   it('chained method shorthand: map .trim.lower', async () => {
-    expect(await run('list["  HI  "] -> map .trim.lower')).toEqual(['hi']);
+    expect(await run('list["  HI  "] -> fan({ $.trim.lower })')).toEqual([
+      'hi',
+    ]);
   });
 
   it('body form: block', async () => {
-    expect(await run('list[1, 2] -> each { $ * 2 }')).toEqual([2, 4]);
+    expect(await run('list[1, 2] -> seq({ $ * 2 })')).toEqual([2, 4]);
   });
 
   it('body form: grouped expression', async () => {
-    expect(await run('list[1, 2] -> each ($ + 10)')).toEqual([11, 12]);
+    expect(await run('list[1, 2] -> seq({ $ + 10 })')).toEqual([11, 12]);
   });
 
   it('body form: inline closure', async () => {
-    expect(await run('list[1, 2] -> each |x| ($x * 2)')).toEqual([2, 4]);
+    expect(await run('list[1, 2] -> seq(|x| ($x * 2))')).toEqual([2, 4]);
   });
 
   it('body form: variable closure', async () => {
     expect(
-      await run('|x|($x * 2) => $double\nlist[1, 2] -> each $double')
+      await run('|x|($x * 2) => $double\nlist[1, 2] -> seq($double)')
     ).toEqual([2, 4]);
   });
 
   it('body form: method shorthand', async () => {
-    expect(await run('list["a", "b"] -> each .upper')).toEqual(['A', 'B']);
+    expect(await run('list["a", "b"] -> seq({ $.upper })')).toEqual(['A', 'B']);
   });
 
   it('body form: built-in function', async () => {
-    // log passes through, so each log returns same elements
-    expect(await run('list[1, 2] -> each log')).toEqual([1, 2]);
+    // log passes through, so seq with log body returns same elements
+    expect(await run('list[1, 2] -> seq({ $ -> log })')).toEqual([1, 2]);
   });
 
   it('dict iteration: $ has key and value', async () => {
     expect(
-      await run('dict[a: 1, b: 2] -> each { "{$.key}={$.value}" }')
+      await run('dict[a: 1, b: 2] -> seq({ "{$.key}={$.value}" })')
     ).toEqual(['a=1', 'b=2']);
   });
 
   it('dict filter by value', async () => {
-    const r = await run('dict[a: 1, b: 5] -> filter { $.value > 2 }');
+    const r = await run('dict[a: 1, b: 5] -> filter({ $.value > 2 })');
     expect(r).toBeDefined();
   });
 
   it('string iteration: each character', async () => {
-    expect(await run('"abc" -> each { "{$}!" }')).toEqual(['a!', 'b!', 'c!']);
+    expect(await run('"abc" -> seq({ "{$}!" })')).toEqual(['a!', 'b!', 'c!']);
   });
 
   it('string filter characters', async () => {
-    expect(await run('"hello" -> filter { $ != "l" }')).toEqual([
+    expect(await run('"hello" -> filter({ $ != "l" })')).toEqual([
       'h',
       'e',
       'o',
@@ -774,7 +775,7 @@ describe('ref-llm: List Spread', () => {
 
   it('spread expression result', async () => {
     expect(
-      await run('list[1, 2, 3] => $nums\nlist[...($nums -> map {$ * 2})]')
+      await run('list[1, 2, 3] => $nums\nlist[...($nums -> fan({$ * 2}))]')
     ).toEqual([2, 4, 6]);
   });
 });
@@ -985,15 +986,15 @@ describe('ref-llm: Built-in Functions', () => {
   });
 
   it('range(start, end)', async () => {
-    expect(await run('range(0, 5) -> each { $ }')).toEqual([0, 1, 2, 3, 4]);
+    expect(await run('range(0, 5) -> seq({ $ })')).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('repeat(val, count)', async () => {
-    expect(await run('repeat("x", 3) -> each { $ }')).toEqual(['x', 'x', 'x']);
+    expect(await run('repeat("x", 3) -> seq({ $ })')).toEqual(['x', 'x', 'x']);
   });
 
   it('enumerate(list)', async () => {
-    const r = await run('enumerate(list["a", "b"]) -> each { $ }');
+    const r = await run('enumerate(list["a", "b"]) -> seq({ $ })');
     expect(r).toBeDefined();
   });
 
@@ -1012,11 +1013,11 @@ describe('ref-llm: Built-in Functions', () => {
 
 describe('ref-llm: Iterators', () => {
   it('range with each', async () => {
-    expect(await run('range(0, 5) -> each { $ * 2 }')).toEqual([0, 2, 4, 6, 8]);
+    expect(await run('range(0, 5) -> seq({ $ * 2 })')).toEqual([0, 2, 4, 6, 8]);
   });
 
   it('repeat with each', async () => {
-    expect(await run('repeat("x", 3) -> each { $ }')).toEqual(['x', 'x', 'x']);
+    expect(await run('repeat("x", 3) -> seq({ $ })')).toEqual(['x', 'x', 'x']);
   });
 
   it('.first() on list', async () => {

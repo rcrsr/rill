@@ -261,7 +261,7 @@ $val.^type.signature -> log
 Insert `:type` assertions at pipe boundaries to catch unexpected types early.
 
 ```rill
-[1, 2, 3] -> :list(number) -> map { $ * 2 }
+[1, 2, 3] -> :list(number) -> fan({ $ * 2 })
 # Result: [2, 4, 6]
 ```
 
@@ -273,8 +273,8 @@ A stream can be iterated only once. Passing it to a second collection operator h
 
 ```text
 app::llm_stream("hello") => $s
-$s -> each { $ }
-$s -> map { $ }
+$s -> seq({ $ })
+$s -> fan({ $ })
 # Error: RILL-R002: Stream already consumed; cannot re-iterate
 ```
 
@@ -282,7 +282,7 @@ $s -> map { $ }
 
 ```text
 app::llm_stream("hello") => $s
-$s -> fold("") { $@ ++ $ } => $full_text
+$s -> fold("", { $@ ++ $ }) => $full_text
 $full_text -> log
 $full_text -> .len -> log
 ```
@@ -323,7 +323,7 @@ Calling `$s()` on a stream that has not been fully iterated triggers internal co
 ```text
 app::llm_stream("hello") => $s
 $s()    # forces internal consumption of all chunks
-$s -> each { $ -> log }
+$s -> seq({ $ -> log })
 # Error: RILL-R002: Stream already consumed; cannot re-iterate
 ```
 
@@ -331,7 +331,7 @@ $s -> each { $ -> log }
 
 ```text
 app::llm_stream("hello") => $s
-$s -> each { $ -> log }
+$s -> seq({ $ -> log })
 $s()    # safe: stream is closed, resolution is cached
 ```
 
@@ -347,11 +347,11 @@ $step1.next()
 # Error: RILL-R002: Stale step; this step is no longer current
 ```
 
-**Fix:** Always reassign the step variable when advancing. Use `each` for automatic iteration instead.
+**Fix:** Always reassign the step variable when advancing. Use `seq` for automatic iteration instead.
 
 ```text
 app::llm_stream("hello") => $s
-$s -> each { $ -> log }
+$s -> seq({ $ -> log })
 ```
 
 `$s()` remains valid on stale steps. Only `.next()` fails when called on a non-current step.
@@ -375,7 +375,7 @@ To find which operation halted, read `.!trace`:
 
 ```text
 guard { app::fetch("https://api.example.com") } => $result
-$result.!trace -> each { log("{$.kind} at {$.site}") }
+$result.!trace -> seq({ log("{$.kind} at {$.site}") })
 ```
 
 Access halts are catchable. Halts from `error "..."` and `assert` are **non-catchable** and propagate through `guard`.

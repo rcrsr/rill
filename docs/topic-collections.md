@@ -1,158 +1,62 @@
 # rill Collection Operators
 
-*Sequential and parallel iteration with each, map, filter, and fold*
+*Sequential and parallel iteration with seq, fan, filter, fold, and acc*
 
 ## Overview
 
-rill provides four collection operators for transforming, filtering, and reducing data:
+rill provides five collection operators for transforming, filtering, and reducing data:
 
-| Operator | Execution | Accumulator | Returns |
-|----------|-----------|-------------|---------|
-| `each` | Sequential | Optional | List of all results |
-| `map` | Parallel | No | List of all results |
-| `filter` | Parallel | No | Elements where predicate is true |
-| `fold` | Sequential | Required | Final result only |
+| Operator | Execution | Accumulator | Returns | Catches break? |
+|----------|-----------|-------------|---------|----------------|
+| `seq` | Sequential | No | List of all results | Yes |
+| `fan` | Parallel | No | List of all results | No |
+| `filter` | Parallel | No | Elements where predicate is true | No |
+| `fold` | Sequential | Required | Final result only | No |
+| `acc` | Sequential | Required | List of all intermediate results | Yes |
 
-All four operators share similar syntax but differ in execution model and output.
+All five operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
 
-> **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `each(init)` with accumulators instead.
+> **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `acc` with accumulators instead.
 
 ```rill
 # Sequential: results in order, one at a time
-[1, 2, 3] -> each { $ * 2 }     # list[2, 4, 6]
+[1, 2, 3] -> seq({ $ * 2 })
+# Result: [2, 4, 6]
 
 # Parallel: results in order, concurrent execution
-[1, 2, 3] -> map { $ * 2 }      # list[2, 4, 6]
+[1, 2, 3] -> fan({ $ * 2 })
+# Result: [2, 4, 6]
 
 # Parallel filter: keep matching elements
-[1, 2, 3, 4, 5] -> filter { $ > 2 }  # list[3, 4, 5]
+[1, 2, 3, 4, 5] -> filter({ $ > 2 })
+# Result: [3, 4, 5]
 
 # Reduction: accumulates to single value
-[1, 2, 3] -> fold(0) { $@ + $ } # 6
-```
+[1, 2, 3] -> fold(0, { $@ + $ })
+# Result: 6
 
-## Body Forms
-
-Each operator accepts multiple body syntaxes. Choose based on readability and complexity.
-
-| Form | Syntax | When to Use |
-|------|--------|-------------|
-| Block | `{ body }` | Multi-statement logic; `$` is current element |
-| Grouped | `( expr )` | Single expression; `$` is current element |
-| Inline closure | `\|x\| body` | Named parameters; reusable logic |
-| Variable | `$fn` | Pre-defined closure; maximum reuse |
-| Identity | `$` | Return elements unchanged |
-| Method | `.method` | Apply method to each element |
-
-### Block Form
-
-Use braces for multi-statement bodies. `$` refers to the current element.
-
-```rill
-[1, 2, 3] -> each {
-  $ => $x
-  $x * 2
-}
-# Result: [2, 4, 6]
-```
-
-### Grouped Expression
-
-Use parentheses for single expressions. `$` refers to the current element.
-
-```rill
-[1, 2, 3] -> each ($ + 10)
-# Result: [11, 12, 13]
-```
-
-### Inline Closure
-
-Define parameters explicitly. The first parameter receives each element.
-
-```rill
-[1, 2, 3] -> each |x| ($x * 2)
-# Result: [2, 4, 6]
-```
-
-### Variable Closure
-
-Reference a pre-defined closure by variable.
-
-```rill
-|x| ($x * 2) => $double
-[1, 2, 3] -> each $double
-# Result: [2, 4, 6]
-```
-
-### Identity
-
-Use bare `$` to return elements unchanged.
-
-```rill
-[1, 2, 3] -> each $
-# Result: [1, 2, 3]
-```
-
-### Method Shorthand
-
-Use `.method` to apply a method to each element. Equivalent to `{ $.method() }`.
-
-```rill
-["hello", "world"] -> each .upper
-# Result: ["HELLO", "WORLD"]
-
-["  hi  ", " there "] -> map .trim
-# Result: ["hi", "there"]
-
-["hello", "", "world"] -> filter .empty
-# Result: [""]
-```
-
-Methods can take arguments:
-
-```rill
-["a", "b"] -> map .pad_start(3, "0")
-# Result: ["00a", "00b"]
-```
-
-Chain multiple methods:
-
-```rill
-["  HELLO  ", "  WORLD  "] -> map .trim.lower
-# Result: ["hello", "world"]
-```
-
-For negation, use grouped expression:
-
-```rill
-["hello", "", "world"] -> filter (!.empty)
-# Result: ["hello", "world"]
+# Scan: accumulates, returns all intermediate values
+[1, 2, 3] -> acc(0, { $@ + $ })
+# Result: [1, 3, 6]
 ```
 
 ---
 
-## each — Sequential Iteration
+## seq — Sequential Iteration
 
-`each` iterates over a collection in order. Each iteration completes before the next begins.
-
-```rill
-collection -> each body
-collection -> each (init) body   # with accumulator
-```
-
-### Basic Usage
+`seq` iterates over a collection in order. Each iteration completes before the next begins. Returns a list of all body results.
 
 ```rill
 # Double each number
-[1, 2, 3] -> each { $ * 2 }
+[1, 2, 3] -> seq({ $ * 2 })
 # Result: [2, 4, 6]
 
 # Transform strings
-["a", "b", "c"] -> each { "{$}!" }
+["a", "b", "c"] -> seq({ "{$}!" })
 # Result: ["a!", "b!", "c!"]
 
 # Iterate string characters
-"hello" -> each $
+"hello" -> seq({ $ })
 # Result: ["h", "e", "l", "l", "o"]
 ```
 
@@ -161,147 +65,112 @@ collection -> each (init) body   # with accumulator
 When iterating over a dict, `$` contains `key` and `value` fields.
 
 ```rill
-[name: "alice", age: 30] -> each { "{$.key}: {$.value}" }
+[name: "alice", age: 30] -> seq({ "{$.key}: {$.value}" })
 # Result: ["name: alice", "age: 30"]
 
-[a: 1, b: 2, c: 3] -> each { $.value * 2 }
+[a: 1, b: 2, c: 3] -> seq({ $.value * 2 })
 # Result: [2, 4, 6]
 ```
 
-### With Accumulator
+### Variable Closure
 
-`each` supports an optional accumulator for stateful iteration. Two syntaxes exist.
-
-#### Block Form with `$@`
-
-Place initial value in parentheses before the block. Access accumulator via `$@`.
+Pass a pre-defined closure by reference.
 
 ```rill
-# Running sum (scan pattern)
-[1, 2, 3] -> each(0) { $@ + $ }
-# Result: [1, 3, 6]
-
-# String concatenation
-["a", "b", "c"] -> each("") { "{$@}{$}" }
-# Result: ["a", "ab", "abc"]
-```
-
-#### Inline Closure Form
-
-Define accumulator as the last parameter with a default value.
-
-```rill
-# Running sum
-[1, 2, 3] -> each |x, acc = 0| ($acc + $x)
-# Result: [1, 3, 6]
+|x| ($x * 2) => $double
+[1, 2, 3] -> seq($double)
+# Result: [2, 4, 6]
 ```
 
 ### Early Termination
 
-Use `break` to exit `each` early. Returns partial results collected before the break.
+`seq` catches `break`. Returns partial results collected before the break.
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> seq({
   ($ == 3) ? break
   $ * 2
-}
-# Result: [2, 4] (partial results before break)
+})
+# Result: [2, 4]
 ```
 
 ### Empty Collections
 
-`each` returns `[]` for empty collections. The body never executes.
+`seq` returns `[]` for empty collections. The body never executes.
 
 ```rill
-[] -> each { $ * 2 }
-# Result: []
-
-# With accumulator, still returns [] (not the initial value)
-[] -> each(0) { $@ + $ }
+[] -> seq({ $ * 2 })
 # Result: []
 ```
 
-### Streams with each
-
-`each` consumes stream chunks sequentially. Each chunk is one iteration. Returns a `list` of body results.
+### Streams with seq
 
 ```text
 # Stream: each chunk is one call
-app::lines("file.txt") -> each { $ -> .upper }
+app::lines("file.txt") -> seq({ $ -> .upper })
 # Returns list of uppercased lines
 ```
 
 An empty stream returns `[]` without executing the body.
 
-`each(init)` carries the `$@` accumulator across chunks. Returns the list of per-chunk results (not the final accumulator).
-
-```text
-# Accumulator persists across stream chunks
-app::stream_numbers() -> each(0) { $@ + $ }
-# Returns running totals across all chunks
-```
-
 ---
 
-## map — Parallel Iteration
+## fan — Parallel Iteration
 
-`map` iterates concurrently using `Promise.all`. Order is preserved despite parallel execution.
-
-```rill
-collection -> map body
-```
-
-### Basic Usage
+`fan` iterates concurrently. Order is preserved despite parallel execution. Does not catch `break`.
 
 ```rill
 # Map with closure parameter
-["a", "b", "c"] -> map |x| { "{$x}!" }
+["a", "b", "c"] -> fan({ "{$}!" })
 # Result: ["a!", "b!", "c!"]
 
 # Block expression (implicit $)
-[1, 2, 3] -> map { $ * 2 }
-# Result: [2, 4, 6]
-
-# Grouped expression
-[1, 2, 3] -> map ($ * 2)
+[1, 2, 3] -> fan({ $ * 2 })
 # Result: [2, 4, 6]
 ```
 
-### Key Differences from each
+### Concurrency Limit
+
+Pass an options dict as the second argument to cap concurrent operations.
+
+```rill
+[1, 2, 3, 4, 5] -> fan({ $ * $ }, [concurrency: 2])
+# Result: [1, 4, 9, 16, 25]
+```
+
+### Key Differences from seq
 
 1. **No accumulator**: Parallel execution has no "previous" value
-2. **No break**: Cannot exit early from concurrent operations
+2. **No break**: `break` in a `fan` body bubbles up as a halt signal
 3. **Concurrent execution**: All iterations start immediately
 
-### When to Use map
+### When to Use fan
 
-Use `map` when:
+Use `fan` when:
 - Operations are independent (no shared state)
-- Order of execution doesn't matter (results still ordered)
+- Order of execution does not matter (results still ordered)
 - I/O-bound operations benefit from concurrency
 
 ```rill
-# CPU-bound: same result as each, but runs in parallel
-[1, 2, 3, 4, 5] -> map { $ * $ }
+# CPU-bound: same result as seq, but runs in parallel
+[1, 2, 3, 4, 5] -> fan({ $ * $ })
 # Result: [1, 4, 9, 16, 25]
 ```
 
 ### Empty Collections
 
-`map` returns `[]` for empty collections. The body never executes.
+`fan` returns `[]` for empty collections. The body never executes.
 
 ```rill
-[] -> map { $ * 2 }
+[] -> fan({ $ * 2 })
 # Result: []
 ```
 
-### Streams with map
-
-`map` transforms each stream chunk and returns a `list` (not a stream). All chunks are consumed before the result is available.
+### Streams with fan
 
 ```text
 # Each stream chunk is transformed; result is a list
-app::stream_numbers() -> map { $ * 2 }
+app::stream_numbers() -> fan({ $ * 2 })
 # Returns list[...] — not a stream
 ```
 
@@ -311,45 +180,30 @@ An empty stream returns `[]`.
 
 ## filter — Parallel Filtering
 
-`filter` keeps elements where the predicate returns `true`. Predicates must return boolean values. Executes concurrently using `Promise.all`.
-
-```rill
-collection -> filter body
-```
-
-### Basic Usage
+`filter` keeps elements where the predicate returns `true`. Predicates must return boolean values. Executes concurrently. Does not catch `break`.
 
 ```rill
 # Keep numbers greater than 2
-[1, 2, 3, 4, 5] -> filter { $ > 2 }
+[1, 2, 3, 4, 5] -> filter({ $ > 2 })
 # Result: [3, 4, 5]
 
 # Keep non-empty strings
-["hello", "", "world", ""] -> filter { !.empty }
+["hello", "", "world", ""] -> filter({ !.empty })
 # Result: ["hello", "world"]
 
 # Keep even numbers
-[1, 2, 3, 4, 5, 6] -> filter { ($ % 2) == 0 }
+[1, 2, 3, 4, 5, 6] -> filter({ ($ % 2) == 0 })
 # Result: [2, 4, 6]
 ```
 
-### All Body Forms
+### Variable Closure
 
-`filter` accepts the same body forms as `map`:
+Pass a pre-defined closure by reference.
 
 ```rill
-# Block form
-[1, 2, 3, 4, 5] -> filter { $ > 2 }
-
-# Grouped expression
-[1, 2, 3, 4, 5] -> filter ($ > 2)
-
-# Inline closure
-[1, 2, 3, 4, 5] -> filter |x| ($x > 2)
-
-# Variable closure
 |x| ($x > 2) => $gtTwo
-[1, 2, 3, 4, 5] -> filter $gtTwo
+[1, 2, 3, 4, 5] -> filter($gtTwo)
+# Result: [3, 4, 5]
 ```
 
 ### Dict Filtering
@@ -357,7 +211,7 @@ collection -> filter body
 When filtering a dict, `$` contains `key` and `value` fields. Returns list of matching entries.
 
 ```rill
-[a: 1, b: 5, c: 3] -> filter { $.value > 2 }
+[a: 1, b: 5, c: 3] -> filter({ $.value > 2 })
 # Result: [[key: "b", value: 5], [key: "c", value: 3]]
 ```
 
@@ -366,7 +220,7 @@ When filtering a dict, `$` contains `key` and `value` fields. Returns list of ma
 Filters characters in a string.
 
 ```rill
-"hello" -> filter { $ != "l" }
+"hello" -> filter({ $ != "l" })
 # Result: ["h", "e", "o"]
 ```
 
@@ -374,15 +228,15 @@ Filters characters in a string.
 
 ```rill
 # Filter then transform
-[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 }
+[1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 2 })
 # Result: [6, 8, 10]
 
 # Transform then filter
-[1, 2, 3, 4, 5] -> map { $ * 2 } -> filter { $ > 5 }
+[1, 2, 3, 4, 5] -> fan({ $ * 2 }) -> filter({ $ > 5 })
 # Result: [6, 8, 10]
 
 # Filter, transform, reduce
-[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 2 } -> fold(0) { $@ + $ }
+[1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 2 }) -> fold(0, { $@ + $ })
 # Result: 24
 ```
 
@@ -391,20 +245,18 @@ Filters characters in a string.
 `filter` returns `[]` for empty collections or when nothing matches.
 
 ```rill
-[] -> filter { $ > 0 }
+[] -> filter({ $ > 0 })
 # Result: []
 
-[1, 2, 3] -> filter { $ > 10 }
+[1, 2, 3] -> filter({ $ > 10 })
 # Result: []
 ```
 
 ### Streams with filter
 
-`filter` tests each stream chunk and returns a `list` (not a stream). Chunks that pass the predicate are included; others are dropped.
-
 ```text
 # Each stream chunk is tested; result is a list
-app::stream_numbers() -> filter { $ > 0 }
+app::stream_numbers() -> filter({ $ > 0 })
 # Returns list[...] of matching chunks — not a stream
 ```
 
@@ -414,22 +266,15 @@ An empty stream returns `[]`.
 
 ## fold — Sequential Reduction
 
-`fold` reduces a collection to a single value. Requires an accumulator.
-
-Syntax forms:
-- Block form: `collection -> fold(init) { body }`
-- Closure form: `collection -> fold |x, acc = init| (body)`
-- Variable closure: `collection -> fold $fn`
-
-### Basic Usage
+`fold` reduces a collection to a single value. Requires a seed and a body callable. Does not catch `break`.
 
 ```rill
 # Sum numbers
-[1, 2, 3] -> fold(0) { $@ + $ }
+[1, 2, 3] -> fold(0, { $@ + $ })
 # Result: 6
 
 # Same with inline closure
-[1, 2, 3] -> fold |x, sum = 0| ($sum + $x)
+[1, 2, 3] -> fold(0, |item|($@ + $item))
 # Result: 6
 ```
 
@@ -438,44 +283,47 @@ Syntax forms:
 #### Sum
 
 ```rill
-[1, 2, 3, 4, 5] -> fold(0) { $@ + $ }
+[1, 2, 3, 4, 5] -> fold(0, { $@ + $ })
 # Result: 15
 ```
 
 #### Product
 
 ```rill
-[1, 2, 3, 4] -> fold(1) { $@ * $ }
+[1, 2, 3, 4] -> fold(1, { $@ * $ })
 # Result: 24
 ```
 
 #### Maximum
 
 ```rill
-[3, 1, 4, 1, 5, 9] -> fold(0) {
+[3, 1, 4, 1, 5, 9] -> fold(0, {
   ($@ > $) ? $@ ! $
-}
+})
 # Result: 9
 ```
 
 #### Count
 
 ```rill
-[1, 2, 3, 4, 5] -> fold(0) { $@ + 1 }
+[1, 2, 3, 4, 5] -> fold(0, { $@ + 1 })
 # Result: 5
 ```
 
 #### String Join
 
 ```rill
-["a", "b", "c"] -> fold("") { "{$@}{$}" }
+["a", "b", "c"] -> fold("", { "{$@}{$}" })
 # Result: "abc"
+```
 
-# With separator
-["a", "b", "c"] -> fold |x, acc = ""| {
-  ($acc -> .empty) ? $x ! "{$acc},{$x}"
-}
-# Result: "a,b,c"
+### Typed Accumulator Closure
+
+Use a two-type anonymous closure to declare element and accumulator types.
+
+```rill
+[1, 2, 3] -> fold(0, |number, number|{ $@ + $ })
+# Result: 6
 ```
 
 ### Dict Reduction
@@ -483,7 +331,7 @@ Syntax forms:
 When folding over a dict, `$` contains `key` and `value` fields.
 
 ```rill
-[a: 1, b: 2, c: 3] -> fold |entry, sum = 0| ($sum + $entry.value)
+[a: 1, b: 2, c: 3] -> fold(0, { $@ + $.value })
 # Result: 6
 ```
 
@@ -492,14 +340,14 @@ When folding over a dict, `$` contains `key` and `value` fields.
 Define closures for common reductions.
 
 ```rill
-# Define reusable reducers
-|x, sum = 0| ($sum + $x) => $summer
-|x, max = 0| (($x > $max) ? $x ! $max) => $maxer
+|x| ($@ + $x) => $summer
+|x| (($x > $@) ? $x ! $@) => $maxer
 
-# Use with different data
-[1, 2, 3] -> fold $summer => $r1     # 6
-[3, 7, 2] -> fold $maxer => $r2      # 7
-[9, 1, 5] -> fold $maxer => $r3      # 9
+[1, 2, 3] -> fold(0, $summer) => $r1
+[3, 7, 2] -> fold(0, $maxer) => $r2
+[9, 1, 5] -> fold(0, $maxer) => $r3
+$r1
+# Result: 6
 ```
 
 ### Empty Collections
@@ -507,23 +355,18 @@ Define closures for common reductions.
 `fold` returns the initial value for empty collections. The body never executes.
 
 ```rill
-[] -> fold(0) { $@ + $ }
+[] -> fold(0, { $@ + $ })
 # Result: 0
 
-[] -> fold(42) { $@ + $ }
+[] -> fold(42, { $@ + $ })
 # Result: 42
-
-[] -> fold |x, acc = 100| ($acc + $x)
-# Result: 100
 ```
 
 ### Streams with fold
 
-`fold` reduces stream chunks with the accumulator, returning a single value. The accumulator `$@` carries state across every chunk.
-
 ```text
 # Reduce all stream chunks to a single value
-app::stream_numbers() -> fold(0) { $@ + $ }
+app::stream_numbers() -> fold(0, { $@ + $ })
 # Returns the sum of all chunks
 ```
 
@@ -531,34 +374,93 @@ An empty stream returns the initial value without executing the body.
 
 ---
 
-## Comparison: each vs fold
+## acc — Sequential Scan
 
-Both `each` and `fold` support accumulators. The difference is in what they return.
+`acc` iterates sequentially with a running accumulator. Unlike `fold`, it returns a list of all intermediate accumulator values, not just the final one. Catches `break`.
 
-| Feature | each | fold |
-|---------|------|------|
-| Returns | List of ALL results | Final result ONLY |
-| Use case | Scan/prefix-sum | Reduce/aggregate |
+```rill
+# Running sum (scan pattern)
+[1, 2, 3] -> acc(0, { $@ + $ })
+# Result: [1, 3, 6]
+
+# String concatenation scan
+["a", "b", "c"] -> acc("", { "{$@}{$}" })
+# Result: ["a", "ab", "abc"]
+```
+
+### Typed Accumulator Closure
+
+Use a two-type anonymous closure to declare element and accumulator types.
+
+```rill
+[1, 2, 3] -> acc(0, |number, number|{ $@ + $ })
+# Result: [1, 3, 6]
+```
+
+### Early Termination
+
+`acc` catches `break`. Returns partial intermediate results collected before the break.
+
+```rill
+[1, 2, 3, 4, 5] -> acc(0, {
+  ($ == 3) ? break
+  $@ + $
+})
+# Result: [1, 3]
+```
+
+### Empty Collections
+
+`acc` returns `[]` for empty collections. The body never executes.
+
+```rill
+[] -> acc(0, { $@ + $ })
+# Result: []
+```
+
+### Streams with acc
+
+```text
+# Accumulator persists across stream chunks
+app::stream_numbers() -> acc(0, { $@ + $ })
+# Returns running totals across all chunks
+```
+
+An empty stream returns `[]`.
+
+---
+
+## Comparison: acc vs fold
+
+Both `acc` and `fold` support accumulators. The difference is what they return.
+
+| Feature | acc | fold |
+|---------|-----|------|
+| Returns | List of ALL intermediate results | Final result ONLY |
+| Catches break | Yes | No |
+| Use case | Scan / prefix-sum | Reduce / aggregate |
 
 ### Side-by-Side Example
 
 ```rill
-# each: returns every intermediate result
-[1, 2, 3] -> each(0) { $@ + $ }
-# Result: [1, 3, 6]  (running totals)
+# acc: returns every intermediate result
+[1, 2, 3] -> acc(0, { $@ + $ })
+# Result: [1, 3, 6]
+```
 
+```rill
 # fold: returns only the final result
-[1, 2, 3] -> fold(0) { $@ + $ }
-# Result: 6  (final sum)
+[1, 2, 3] -> fold(0, { $@ + $ })
+# Result: 6
 ```
 
 ### When to Choose
 
-Use `each` with accumulator when you need intermediate states (scan pattern):
+Use `acc` when you need intermediate states (scan pattern):
 
 ```rill
 # Running balance
-[100, -50, 200, -75] -> each(0) { $@ + $ }
+[100, -50, 200, -75] -> acc(0, { $@ + $ })
 # Result: [100, 50, 250, 175]
 ```
 
@@ -566,7 +468,7 @@ Use `fold` when you only need the final result:
 
 ```rill
 # Final balance
-[100, -50, 200, -75] -> fold(0) { $@ + $ }
+[100, -50, 200, -75] -> fold(0, { $@ + $ })
 # Result: 175
 ```
 
@@ -582,10 +484,10 @@ Streams produce chunks over time. Collection operators consume all chunks before
 
 ```text
 # Stop after the first matching chunk; host disposes the stream
-app::log_stream() -> each {
+app::log_stream() -> seq({
   ($ -> .contains("ERROR")) ? break
   $
-}
+})
 ```
 
 ### ^(limit: N) on Streams
@@ -594,7 +496,7 @@ The `^(limit: N)` operator stops iteration after N chunks and calls host cleanup
 
 ```text
 # Process at most 100 chunks; host disposes the stream
-app::events() ^(limit: 100) -> each { $ }
+app::events() ^(limit: 100) -> seq({ $ })
 ```
 
 Use `^(limit: N)` when you want a fixed-size sample from an unbounded stream.
@@ -605,7 +507,7 @@ Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R
 
 ```text
 # Error: exceeds iteration ceiling
-app::infinite_stream() -> each { $ }
+app::infinite_stream() -> seq({ $ })
 # RILL-R010: halts on the 10,001st chunk
 ```
 
@@ -616,8 +518,8 @@ A consumed stream cannot be re-iterated. Passing a consumed stream to a second o
 ```text
 # Error: stream already consumed
 app::stream_numbers() => $s
-$s -> each { $ }
-$s -> each { $ }   # Halts: stream is consumed
+$s -> seq({ $ })
+$s -> seq({ $ })   # Halts: stream is consumed
 ```
 
 ---
@@ -628,47 +530,17 @@ Combine operators for multi-stage transformations.
 
 ```rill
 # Double each element, then sum
-[1, 2, 3] -> map { $ * 2 } -> fold(0) { $@ + $ }
+[1, 2, 3] -> fan({ $ * 2 }) -> fold(0, { $@ + $ })
 # Result: 12
 
 # Filter even numbers (using parallel filter)
-[1, 2, 3, 4, 5] -> filter { ($ % 2) == 0 }
+[1, 2, 3, 4, 5] -> filter({ ($ % 2) == 0 })
 # Result: [2, 4]
 
 # Complex pipeline: filter, then transform
-[1, 2, 3, 4, 5] -> filter { $ > 2 } -> map { $ * 10 }
+[1, 2, 3, 4, 5] -> filter({ $ > 2 }) -> fan({ $ * 10 })
 # Result: [30, 40, 50]
 ```
-
----
-
-## Closure Arity Rules
-
-For inline closures with accumulators, specific rules apply.
-
-### Requirements
-
-1. At least 2 parameters — first receives element, last is accumulator
-2. Last parameter must have default — the default is the initial value
-3. Parameters between first and last must have defaults — no gaps
-4. Incoming args must exactly fill params before accumulator
-
-### Valid Closures
-
-| Closure | Element Params | Accumulator | Notes |
-|---------|---------------|-------------|-------|
-| `\|x, acc = 0\|` | 1 required | `acc` | Standard case |
-| `\|x = 1, acc = 0\|` | 1 optional | `acc` | Element overrides default |
-| `\|a, b = 0, acc = 0\|` | 1 required, 1 optional | `acc` | `b` unused |
-
-### Invalid Closures
-
-| Closure | Problem |
-|---------|---------|
-| `\|x\|` | No accumulator parameter |
-| `\|acc = 0\|` | Only 1 param; element overwrites accumulator |
-| `\|x, acc\|` | Accumulator has no default |
-| `\|a, b, acc = 0\|` | Gap: `b` has no default |
 
 ---
 
@@ -676,10 +548,13 @@ For inline closures with accumulators, specific rules apply.
 
 | Case | Example | Error |
 |------|---------|-------|
-| fold without accumulator | `[1,2] -> fold { $ }` | fold requires accumulator |
-| fold closure missing default | `[1,2] -> fold \|x, acc\| body` | accumulator requires default |
-| break in map | `[1,2] -> map { break }` | break not supported in map |
-| break in fold | `[1,2] -> fold(0) { break }` | break not supported in fold |
+| Non-callable body | `[1,2] -> seq(42)` | RILL-R040 |
+| Non-iterable input | `42 -> seq({ $ })` | RILL-R002 |
+| Vector input | `$vec -> seq({ $ })` | RILL-R003 |
+| Iteration exceeds 10,000 | `range(0, 10001) -> seq({ $ })` | RILL-R010 |
+| Options not a dict | `[1] -> filter({ $ > 0 }, 42)` | RILL-R001 |
+| Concurrency not positive integer | `[1] -> fan({ $ }, [concurrency: -1])` | RILL-R001 |
+| Typed closure type violation | `[1,2,3] -> fold(0, \|string, number\|{ $@ + $ })` | RILL-R001 |
 
 ---
 
@@ -688,7 +563,7 @@ For inline closures with accumulators, specific rules apply.
 ### Lists
 
 ```rill
-[1, 2, 3] -> each { $ * 2 }
+[1, 2, 3] -> seq({ $ * 2 })
 # Result: [2, 4, 6]
 ```
 
@@ -697,7 +572,7 @@ For inline closures with accumulators, specific rules apply.
 Iterates over characters.
 
 ```rill
-"abc" -> each { "{$}!" }
+"abc" -> seq({ "{$}!" })
 # Result: ["a!", "b!", "c!"]
 ```
 
@@ -706,7 +581,7 @@ Iterates over characters.
 Iterates over entries with `key` and `value` fields.
 
 ```rill
-[a: 1, b: 2] -> each { "{$.key}={$.value}" }
+[a: 1, b: 2] -> seq({ "{$.key}={$.value}" })
 # Result: ["a=1", "b=2"]
 ```
 
@@ -718,11 +593,13 @@ Process nested structures with nested operators.
 
 ```rill
 # Double nested values
-[list[1, 2], list[3, 4]] -> map |inner| { $inner -> map { $ * 2 } }
-# Result: [list[2, 4], list[6, 8]]
+[list[1, 2], list[3, 4]] -> fan({ $ -> seq({ $ * 2 }) })
+# Result: [[2, 4], [6, 8]]
+```
 
+```rill
 # Sum all nested values
-[list[1, 2], list[3, 4]] -> fold(0) |inner, total = 0| { $total + ($inner -> fold(0) { $@ + $ }) }
+[list[1, 2], list[3, 4]] -> fold(0, { $@ + ($ -> fold(0, { $@ + $ })) })
 # Result: 10
 ```
 
@@ -734,14 +611,14 @@ Process nested structures with nested operators.
 
 | Scenario | Recommendation |
 |----------|----------------|
-| CPU-bound computation | `each` or `map` (similar performance) |
-| I/O-bound operations | `map` (concurrent benefits) |
-| Order-dependent logic | `each` (guaranteed order) |
-| Stateful accumulation | `each` or `fold` (no parallel option) |
+| CPU-bound computation | `seq` or `fan` (similar performance) |
+| I/O-bound operations | `fan` (concurrent benefits) |
+| Order-dependent logic | `seq` (guaranteed order) |
+| Stateful accumulation | `acc` or `fold` (no parallel option) |
 
 ### Memory
 
-- `each` and `map` allocate result lists proportional to input size
+- `seq`, `fan`, `acc` allocate result lists proportional to input size
 - `fold` maintains constant memory (accumulator only)
 
 ---
@@ -749,35 +626,35 @@ Process nested structures with nested operators.
 ## Quick Reference
 
 ```text
-# each - sequential, all results
-[1, 2, 3] -> each { $ * 2 }           # list[2, 4, 6]
-[1, 2, 3] -> each(0) { $@ + $ }       # list[1, 3, 6] (running sum)
+# seq - sequential, all results
+[1, 2, 3] -> seq({ $ * 2 })            # [2, 4, 6]
 
-# map - parallel, all results
-[1, 2, 3] -> map { $ * 2 }            # list[2, 4, 6]
-["a", "b"] -> map |x| { "{$x}!" }     # list["a!", "b!"]
+# fan - parallel, all results
+[1, 2, 3] -> fan({ $ * 2 })            # [2, 4, 6]
+[1, 2, 3] -> fan({ $ * 2 }, [concurrency: 2])   # concurrency cap
 
 # filter - parallel, matching elements
-[1, 2, 3, 4, 5] -> filter { $ > 2 }   # list[3, 4, 5]
-|x| { $x % 2 == 0 } => $isEven
-[1, 2, 3, 4, 5] -> filter $isEven     # list[2, 4]
+[1, 2, 3, 4, 5] -> filter({ $ > 2 })   # [3, 4, 5]
 
 # fold - sequential, final result only
-[1, 2, 3] -> fold(0) { $@ + $ }       # 6
-[1, 2, 3] -> fold |x, s = 0| ($s + $x) # 6
+[1, 2, 3] -> fold(0, { $@ + $ })       # 6
+
+# acc - sequential, all intermediate results
+[1, 2, 3] -> acc(0, { $@ + $ })        # [1, 3, 6]
 
 # Dict iteration
-[a: 1, b: 2] -> each { $.key }        # ["a", "b"]
-[a: 1, b: 2] -> each { $.value }      # [1, 2]
+[a: 1, b: 2] -> seq({ $.key })         # ["a", "b"]
+[a: 1, b: 2] -> seq({ $.value })       # [1, 2]
 
-# Break (each only)
-[1, 2, 3] -> each { ($ > 2) ? break ! $ }  # list[1, 2] (partial results)
+# Break (seq and acc only)
+[1, 2, 3] -> seq({ ($ > 2) ? break ! $ })  # [1, 2]
 
 # Empty collections
-[] -> each { $ }      # []
-[] -> map { $ }       # []
-[] -> filter { $ }    # []
-[] -> fold(42) { $ }  # 42
+[] -> seq({ $ })       # []
+[] -> fan({ $ })       # []
+[] -> filter({ $ })    # []
+[] -> fold(42, { $ })  # 42
+[] -> acc(0, { $ })    # []
 ```
 
 ---

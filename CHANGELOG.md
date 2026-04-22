@@ -33,6 +33,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Error signal unification** — Public API surfaces halt errors as `RuntimeHaltSignal` only. Code catching legacy `AbortError` or `AutoExceptionError` must migrate to `instanceof RuntimeHaltSignal` with `getStatus()` or `atomName()` checks for differentiation
 
+- **Collection operators migrated from keyword syntax to callable builtins** — `each`, `map`, `fold`, `filter` are no longer reserved keywords. Five callable builtins replace them. Scripts using the old keyword forms must migrate to the pipe-call forms.
+
+  **Removed keyword forms (no longer valid):**
+  ```text
+  list -> each { body }
+  list -> map { body }
+  list -> fold(init) { body }
+  list -> filter { body }
+  list -> each(init) { body }
+  ```
+
+  **New callable forms (registered in `BUILTIN_FUNCTIONS`):**
+  ```rill
+  list -> seq({ body })
+  list -> fan({ body })
+  list -> fold(init, { body })
+  list -> filter({ body })
+  list -> acc(init, { body })
+  ```
+
+  Call shapes:
+
+  | Builtin | Signature | Behaviour |
+  |---------|-----------|-----------|
+  | `seq` | `input -> seq({ body })` | Sequential iteration; catches `break`; returns partial list |
+  | `fan` | `input -> fan({ body }, [concurrency: N])` | Parallel iteration; does not catch `break`; returns all results |
+  | `fold` | `input -> fold(seed, { body })` | Sequential reduction; returns final accumulator (scalar) |
+  | `filter` | `input -> filter({ body }, [concurrency: N])` | Parallel predicate filter; returns matching elements |
+  | `acc` | `input -> acc(seed, { body })` | Sequential scan; catches `break`; returns list of intermediate accumulators |
+
+  **Migration cheat sheet:**
+
+  | Old form | New form |
+  |----------|----------|
+  | `list -> each { body }` | `list -> seq({ body })` |
+  | `list -> map { body }` | `list -> fan({ body })` |
+  | `list -> fold(init) { body }` | `list -> fold(init, { body })` |
+  | `list -> filter { body }` | `list -> filter({ body })` |
+  | `list -> each(init) { body }` | `list -> acc(init, { body })` |
+
+- **Two-type anonymous closure syntax** — `|type1, type2|{ body }` synthesizes `$` (bound to `type1`) and `$@` (bound to `type2`) closure parameters. Used by `fold` and `acc` closures to receive both the accumulator and the current element.
+
+  ```rill
+  list -> fold(0, |number, string|{ $ + $@->number })
+  ```
+
+- **Removed AST nodes** — `EachExprNode`, `MapExprNode`, `FoldExprNode`, `FilterExprNode` are removed from the AST type union. Host code inspecting raw AST node types must migrate.
+
+- **Removed token types** — `EACH`, `MAP`, `FOLD`, `FILTER` are removed from the token type set. Lexer consumers testing for these token types must migrate.
+
+- **Removed parser module** — `packages/core/src/parser/parser-collect.ts` is removed. The collection operators are now evaluated as standard host-call builtins with no dedicated parser module.
+
 ### Added
 
 - **Status probe operator (`.!`)** — `.!` returns `false` for valid values and `true` for invalid values without halting execution. `.!code` returns the atom code (e.g., `#TIMEOUT`, `#ok`) from the status sidecar. See [Error Handling](docs/topic-error-handling.md)

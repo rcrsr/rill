@@ -73,13 +73,13 @@ function makeStreamFn(
 // ============================================================
 
 describe('Streams: Success Cases', () => {
-  // AC-S1: $s -> each { } processes chunks sequentially, returns list
+  // AC-S1: $s -> seq({ }) processes chunks sequentially, returns list
   describe('AC-S1: each on stream', () => {
     it('processes chunks sequentially and returns list', async () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> each { $ }
+          $s -> seq({ $ })
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
       );
@@ -90,7 +90,7 @@ describe('Streams: Success Cases', () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> each { $ * 2 }
+          $s -> seq({ $ * 2 })
         `,
         { functions: { make_stream: makeStreamFn([10, 20, 30]) } }
       );
@@ -98,13 +98,13 @@ describe('Streams: Success Cases', () => {
     });
   });
 
-  // AC-S2: $s -> map { } transforms chunks, returns list
+  // AC-S2: $s -> fan({ }) transforms chunks, returns list
   describe('AC-S2: map on stream', () => {
     it('transforms chunks and returns list', async () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> map { $ + 1 }
+          $s -> fan({ $ + 1 })
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
       );
@@ -112,13 +112,13 @@ describe('Streams: Success Cases', () => {
     });
   });
 
-  // AC-S3: $s -> filter { } filters chunks, returns filtered list
+  // AC-S3: $s -> filter({ }) filters chunks, returns filtered list
   describe('AC-S3: filter on stream', () => {
     it('filters chunks by predicate', async () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> filter { $ > 2 }
+          $s -> filter({ $ > 2 })
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3, 4, 5]) } }
       );
@@ -126,13 +126,13 @@ describe('Streams: Success Cases', () => {
     });
   });
 
-  // AC-S4: $s -> fold(init) { } reduces chunks, returns single value
+  // AC-S4: $s -> fold(init, { }) reduces chunks, returns single value
   describe('AC-S4: fold on stream', () => {
     it('reduces chunks to single value', async () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> fold(0) { $@ + $ }
+          $s -> fold(0, { $@ + $ })
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
       );
@@ -275,7 +275,7 @@ describe('Streams: Success Cases', () => {
             "world" -> yield
           } :stream(string) => $gen
           $gen() => $s
-          $s -> each { $ }
+          $s -> seq({ $ })
         `
       );
       expect(result).toEqual(['hello', 'world']);
@@ -289,7 +289,7 @@ describe('Streams: Success Cases', () => {
             2 -> yield
             3 -> yield
           } :stream(number) => $gen
-          $gen() -> each { $ * 10 }
+          $gen() -> seq({ $ * 10 })
         `
       );
       expect(result).toEqual([10, 20, 30]);
@@ -302,7 +302,7 @@ describe('Streams: Success Cases', () => {
       const result = await run(
         `
           make_stream() => $s
-          $s -> each(0) { $@ + $ }
+          $s -> acc(0, { $@ + $ })
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
       );
@@ -314,28 +314,28 @@ describe('Streams: Success Cases', () => {
   // AC-S12: Host stream via createRillStream consumed by all operators
   describe('AC-S12: host stream with all operators', () => {
     it('each consumes host stream', async () => {
-      const result = await run('make_stream() -> each { $ }', {
+      const result = await run('make_stream() -> seq({ $ })', {
         functions: { make_stream: makeStreamFn([10, 20, 30]) },
       });
       expect(result).toEqual([10, 20, 30]);
     });
 
     it('map consumes host stream', async () => {
-      const result = await run('make_stream() -> map { $ + 1 }', {
+      const result = await run('make_stream() -> fan({ $ + 1 })', {
         functions: { make_stream: makeStreamFn([10, 20, 30]) },
       });
       expect(result).toEqual([11, 21, 31]);
     });
 
     it('filter consumes host stream', async () => {
-      const result = await run('make_stream() -> filter { $ > 15 }', {
+      const result = await run('make_stream() -> filter({ $ > 15 })', {
         functions: { make_stream: makeStreamFn([10, 20, 30]) },
       });
       expect(result).toEqual([20, 30]);
     });
 
     it('fold consumes host stream', async () => {
-      const result = await run('make_stream() -> fold(0) { $@ + $ }', {
+      const result = await run('make_stream() -> fold(0, { $@ + $ })', {
         functions: { make_stream: makeStreamFn([10, 20, 30]) },
       });
       expect(result).toBe(60);
@@ -363,9 +363,9 @@ describe('Streams: Success Cases', () => {
       const result = await run(
         `
           |items: list| {
-            $items -> each { $ -> yield }
+            $items -> seq({ $ -> yield })
           } :stream(number) => $producer
-          $producer(list[10, 20, 30]) -> each { $ }
+          $producer(list[10, 20, 30]) -> seq({ $ })
         `
       );
       expect(result).toEqual([10, 20, 30]);
@@ -379,7 +379,7 @@ describe('Streams: Success Cases', () => {
             "b" -> yield
           } :stream(string) => $gen
           $gen => $alias
-          $alias() -> map { $ }
+          $alias() -> fan({ $ })
         `
       );
       expect(result).toEqual(['a', 'b']);
@@ -391,7 +391,7 @@ describe('Streams: Success Cases', () => {
     it('stream passed to closure is consumable', async () => {
       const result = await run(
         `
-          |s| ($s -> each { $ * 2 }) => $consume
+          |s| ($s -> seq({ $ * 2 })) => $consume
           make_stream() -> $consume
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3]) } }
@@ -406,10 +406,10 @@ describe('Streams: Success Cases', () => {
       let disposed = false;
       const result = await run(
         `
-          make_stream() -> each {
+          make_stream() -> seq({
             ($ == 2) ? break
             $
-          }
+          })
         `,
         {
           functions: {
@@ -439,8 +439,8 @@ describe('Streams: Error Cases', () => {
         run(
           `
             make_stream() => $s
-            $s -> each { $ }
-            $s -> each { $ }
+            $s -> seq({ $ })
+            $s -> seq({ $ })
           `,
           { functions: { make_stream: makeStreamFn([1, 2]) } }
         )
@@ -499,7 +499,7 @@ describe('Streams: Error Cases', () => {
             || {
               42 -> yield
             } :stream(string) => $gen
-            $gen() -> each { $ }
+            $gen() -> seq({ $ })
           `
           ),
         'Yielded value type mismatch'
@@ -522,7 +522,7 @@ describe('Streams: Error Cases', () => {
       // 10000 data chunks + 1 initial step = 10001 iterations, exceeds 10000 limit
       const largeChunks = Array.from({ length: 10000 }, (_, i) => i);
       await expect(
-        run('make_stream() -> each { $ }', {
+        run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(largeChunks) },
         })
       ).rejects.toThrow('exceeded');
@@ -540,7 +540,7 @@ describe('Streams: Error Cases', () => {
               1 -> yield
               "not-a-number"
             } :stream():number => $gen
-            $gen() -> each { $ }
+            $gen() -> seq({ $ })
           `
           ),
         'Stream resolution type mismatch'
@@ -557,7 +557,7 @@ describe('Streams: Boundary Conditions', () => {
   // BC-1: Empty stream (0 chunks)
   describe('BC-1: empty stream', () => {
     it('each returns empty list for empty stream', async () => {
-      const result = await run('make_stream() -> each { $ }', {
+      const result = await run('make_stream() -> seq({ $ })', {
         functions: { make_stream: makeStreamFn([]) },
       });
       expect(result).toEqual([]);
@@ -578,28 +578,28 @@ describe('Streams: Boundary Conditions', () => {
   // BC-2: Single-chunk stream
   describe('BC-2: single-chunk stream', () => {
     it('each handles single chunk', async () => {
-      const result = await run('make_stream() -> each { $ }', {
+      const result = await run('make_stream() -> seq({ $ })', {
         functions: { make_stream: makeStreamFn([42]) },
       });
       expect(result).toEqual([42]);
     });
 
     it('map handles single chunk', async () => {
-      const result = await run('make_stream() -> map { $ * 2 }', {
+      const result = await run('make_stream() -> fan({ $ * 2 })', {
         functions: { make_stream: makeStreamFn([42]) },
       });
       expect(result).toEqual([84]);
     });
 
     it('filter handles single chunk', async () => {
-      const result = await run('make_stream() -> filter { $ > 10 }', {
+      const result = await run('make_stream() -> filter({ $ > 10 })', {
         functions: { make_stream: makeStreamFn([42]) },
       });
       expect(result).toEqual([42]);
     });
 
     it('fold handles single chunk', async () => {
-      const result = await run('make_stream() -> fold(0) { $@ + $ }', {
+      const result = await run('make_stream() -> fold(0, { $@ + $ })', {
         functions: { make_stream: makeStreamFn([42]) },
       });
       expect(result).toBe(42);
@@ -613,7 +613,7 @@ describe('Streams: Boundary Conditions', () => {
   describe('BC-3: stream at ceiling', () => {
     it('processes 9998 chunks without error', async () => {
       const chunks = Array.from({ length: 9998 }, (_, i) => i);
-      const result = await run('make_stream() -> fold(0) { $@ + 1 }', {
+      const result = await run('make_stream() -> fold(0, { $@ + 1 })', {
         functions: { make_stream: makeStreamFn(chunks) },
       });
       expect(result).toBe(9998);
@@ -625,7 +625,7 @@ describe('Streams: Boundary Conditions', () => {
     it('halts with RILL-R010 at 9999 chunks', async () => {
       const chunks = Array.from({ length: 9999 }, (_, i) => i);
       await expect(
-        run('make_stream() -> each { $ }', {
+        run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(chunks) },
         })
       ).rejects.toThrow('exceeded');
@@ -652,9 +652,9 @@ describe('Streams: Boundary Conditions', () => {
       let disposed = false;
       const result = await run(
         `
-          make_stream() -> each {
+          make_stream() -> seq({
             break
-          }
+          })
         `,
         {
           functions: {
@@ -741,7 +741,7 @@ describe('Streams: Boundary Conditions', () => {
             make_stream("a"),
             make_stream("b"),
             make_stream("c")
-          ] -> map { $() }
+          ] -> fan({ $() })
         `,
         {
           functions: {
@@ -769,9 +769,9 @@ describe('Streams: Boundary Conditions', () => {
       const result = await run(
         `
           || {
-            list[10, 20, 30] -> each { $ -> yield }
+            list[10, 20, 30] -> seq({ $ -> yield })
           } :stream() => $gen
-          $gen() -> each { $ }
+          $gen() -> seq({ $ })
         `
       );
       expect(result).toEqual([10, 20, 30]);
@@ -781,9 +781,9 @@ describe('Streams: Boundary Conditions', () => {
       const result = await run(
         `
           || {
-            range(1, 4) -> each { $ -> yield }
+            range(1, 4) -> seq({ $ -> yield })
           } :stream(number) => $gen
-          $gen() -> each { $ }
+          $gen() -> seq({ $ })
         `
       );
       expect(result).toEqual([1, 2, 3]);
@@ -836,8 +836,8 @@ describe('Streams: Error Contracts', () => {
         run(
           `
             make_stream() => $s
-            $s -> each { $ }
-            $s -> each { $ }
+            $s -> seq({ $ })
+            $s -> seq({ $ })
           `,
           { functions: { make_stream: makeStreamFn([1]) } }
         )
@@ -848,7 +848,7 @@ describe('Streams: Error Contracts', () => {
   // EC-4: Non-iterable to collection operator (updated message with "or stream")
   describe('EC-4: non-iterable to collection operator', () => {
     it('error message includes stream in type list', async () => {
-      await expect(run('42 -> each { $ }')).rejects.toThrow(
+      await expect(run('42 -> seq({ $ })')).rejects.toThrow(
         /list, string, dict, iterator, or stream/
       );
     });
@@ -859,7 +859,7 @@ describe('Streams: Error Contracts', () => {
     it('throws RILL-R010 when stream exceeds default ceiling', async () => {
       const chunks = Array.from({ length: 10001 }, (_, i) => i);
       await expect(
-        run('make_stream() -> each { $ }', {
+        run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(chunks) },
         })
       ).rejects.toThrow('Stream expansion exceeded');
@@ -873,7 +873,7 @@ describe('Streams: Error Contracts', () => {
       const mixedChunks: RillValue[] = [1, 'two', 3];
       await expectHaltMessage(
         () =>
-          run('make_stream() -> each { $ }', {
+          run('make_stream() -> seq({ $ })', {
             functions: { make_stream: makeStreamFn(mixedChunks) },
           }),
         'Stream chunk type mismatch'
@@ -891,7 +891,7 @@ describe('Streams: Error Contracts', () => {
             || {
               42 -> yield
             } :stream(string) => $gen
-            $gen() -> each { $ }
+            $gen() -> seq({ $ })
           `
           ),
         'Yielded value type mismatch'
@@ -984,7 +984,7 @@ describe('Streams: Error Contracts', () => {
               1 -> yield
               "wrong"
             } :stream():number => $gen
-            $gen() -> each { $ }
+            $gen() -> seq({ $ })
           `
           ),
         'Stream resolution type mismatch'
@@ -998,9 +998,9 @@ describe('Streams: Error Contracts', () => {
       await expect(
         run(
           `
-            make_stream() -> each {
+            make_stream() -> seq({
               break
-            }
+            })
           `,
           {
             functions: {

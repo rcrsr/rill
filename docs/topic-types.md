@@ -169,7 +169,7 @@ Spread expressions evaluate before inlining:
 
 ```rill
 [1, 2, 3] => $nums
-[...($nums -> map {$ * 2})]  # list[2, 4, 6]
+[...($nums -> fan({ $ * 2 }))]  # list[2, 4, 6]
 ```
 
 Spreading a non-list throws an error:
@@ -460,11 +460,11 @@ If any required child field lacks a default, the conversion raises RILL-R044.
 
 ### Parallel Spread with Tuples
 
-Use tuples with explicit spread `...` to pass positional args in `map`:
+Use tuples with explicit spread `...` to pass positional args in `fan`:
 
 ```rill
 |x, y|($x * $y) => $mul
-[tuple[1, 2], tuple[3, 4]] -> map { $mul(...) }    # list[2, 12]
+[tuple[1, 2], tuple[3, 4]] -> fan({ $mul(...) })    # list[2, 12]
 ```
 
 ### Uniform Value Type
@@ -571,7 +571,7 @@ $v1 == $v2
 - **Immutable**: Vector data cannot be modified after creation
 - **Always truthy**: Vectors evaluate to true in boolean contexts (non-empty by construction)
 - **No string coercion**: Cannot be used in string interpolation or concatenation
-- **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on vectors
+- **No collection operations**: Cannot use `seq`, `fan`, `filter`, `fold`, `acc` on vectors
 
 ## Datetime
 
@@ -737,7 +737,7 @@ now() -> .empty -> .unix
 - **Immutable**: Datetime values cannot be modified after creation
 - **Scalar**: A single UTC timestamp; no timezone or locale stored on the value
 - **String coercion permitted**: Datetimes can appear in string interpolation; they format as ISO UTC
-- **No collection operations**: Cannot use `each`, `map`, `filter`, `fold` on datetimes
+- **No collection operations**: Cannot use `seq`, `fan`, `filter`, `fold`, `acc` on datetimes
 
 ### Extension Boundary
 
@@ -955,25 +955,25 @@ A zero-chunk stream resolves immediately. Calling `$s()` returns the resolution 
 
 ### Single-Use Constraint
 
-A stream can be iterated only once. Passing a stream to a collection operator (`each`, `map`, `filter`, `fold`) consumes all its chunks. After that, the stream is done and produces no further chunks.
+A stream can be iterated only once. Passing a stream to a collection operator (`seq`, `fan`, `filter`, `fold`, `acc`) consumes all its chunks. After that, the stream is done and produces no further chunks.
 
 ```text
 make_stream() => $s
-$s -> each { $ }   # consumes the stream
-$s -> map { $ }    # Error: stream already consumed
+$s -> seq({ $ })   # consumes the stream
+$s -> fan({ $ })   # Error: stream already consumed
 ```
 
 Calling `$s()` after consuming the stream still returns the resolution value. The resolution is cached after the stream closes. `$s()` also works on any `.next()` step, including stale steps that can no longer advance. Only `.next()` fails on stale steps.
 
 ### Stream as Collection
 
-All four collection operators work on streams. They consume chunks as the stream emits them and collect results when the stream closes.
+All five collection operators work on streams. They consume chunks as the stream emits them and collect results when the stream closes.
 
 ```text
 make_stream() => $s
-$s -> map { $ * 2 }           # transforms each chunk, returns list
-$s -> filter { $ > 0 }        # keeps matching chunks, returns list
-$s -> fold(0) { $@ + $ }      # reduces all chunks to a single value
+$s -> fan({ $ * 2 })           # transforms each chunk, returns list
+$s -> filter({ $ > 0 })        # keeps matching chunks, returns list
+$s -> fold(0, { $@ + $ })      # reduces all chunks to a single value
 ```
 
 See [Collections](topic-collections.md) for full operator documentation including stream behavior.

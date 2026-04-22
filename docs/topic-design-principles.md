@@ -100,12 +100,12 @@ Inner scopes cannot read or modify outer variables created after the scope opens
 ```text
 # This does NOT work — inner => creates a local:
 0 => $count
-[1, 2, 3] -> each { $count + 1 => $count }
+[1, 2, 3] -> seq({ $count + 1 => $count })
 $count  # Still 0
 
 # Use accumulators instead:
-[1, 2, 3] -> fold(0) { $@ + 1 }            # Final: 3
-[1, 2, 3] -> each(0) { $@ + $ }            # Running: list[1, 3, 6]
+[1, 2, 3] -> fold(0, { $@ + 1 })            # Final: 3
+[1, 2, 3] -> acc(0, { $@ + $ })            # Running: list[1, 3, 6]
 0 -> ($ < 5) @ { $ + 1 }                       # While: 5
 [result: "", done: false] -> (!.done) @ {  # While: "aaaaa"
   [result: "a{.result}", done: (.result.len == 5)]
@@ -184,10 +184,10 @@ $step3
 
 ```rill
 # Not rillistic: verbose closure
-["hello", "world"] -> map |x| { $x.upper() }
+["hello", "world"] -> fan(|x| { $x.upper() })
 
 # Rillistic: method shorthand
-["hello", "world"] -> map .upper
+["hello", "world"] -> fan({ $.upper })
 ```
 
 ### Defaults Over Conditionals
@@ -205,10 +205,10 @@ $dict.field ?? "default"
 ```text
 # Not rillistic: trying to mutate outer scope
 "" => $result
-["a", "b", "c"] -> each { $result + $ => $result }
+["a", "b", "c"] -> seq({ $result + $ => $result })
 
 # Rillistic: fold produces the value
-["a", "b", "c"] -> fold("") { $@ + $ }
+["a", "b", "c"] -> fold("", { $@ + $ })
 ```
 
 ### Explicit Booleans Over Coercion
@@ -223,7 +223,7 @@ $str -> .empty ? "no" ! "yes"
 ```text
 # Rillistic: $ in inline pipes and loops
 "hello" -> { .upper }
-[1, 2, 3] -> each { $ * 2 }
+[1, 2, 3] -> seq({ $ * 2 })
 0 -> ($ < 5) @ { $ + 1 }
 
 # Rillistic: named params in stored closures
@@ -243,7 +243,7 @@ $str -> .empty ? "no" ! "yes"
 | `null` / `undefined` | `??` default, `.?` existence check |
 | Truthiness (`if ""`) | `.empty`, `== 0`, `:?type` |
 | `try { } catch { }` | `assert`, conditionals, `error()` |
-| `for (i = 0; ...)` | `each`, `map`, `filter`, `fold` |
+| `for (i = 0; ...)` | `seq`, `fan`, `filter`, `fold`, `acc` |
 | `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
 | `a = b` (shared ref) | `=>` binds immutable values — no mutation possible |

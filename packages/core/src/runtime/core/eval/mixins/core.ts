@@ -629,22 +629,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (this as any).evaluateTypeCheck(target, input);
 
-        case 'EachExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateEach(target, input);
-
-        case 'MapExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateMap(target, input);
-
-        case 'FoldExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateFold(target, input);
-
-        case 'FilterExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateFilter(target, input);
-
         case 'Variable': {
           // $.field is property access on pipe value, not closure invocation
           if (

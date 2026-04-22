@@ -91,7 +91,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('throws RuntimeError for non-iterable input to each', async () => {
       try {
-        await run('42 -> each { $ }');
+        await run('42 -> seq({ $ })');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);
@@ -311,9 +311,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('evaluates complex pipe chains with multiple operations', async () => {
       const result = await run(`
         list[1, 2, 3, 4, 5]
-        -> map |x| { $x * 2 }
-        -> filter { $ > 5 }
-        -> fold(0) { $@ + $ }
+        -> fan(|x| { $x * 2 })
+        -> filter({ $ > 5 })
+        -> fold(0, { $@ + $ })
       `);
       expect(result).toBe(24); // [6, 8, 10] -> sum = 24
     });
@@ -350,12 +350,12 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('evaluates each loops with break', async () => {
       const result = await run(`
-        list[1, 2, 3, 4, 5] -> each {
+        list[1, 2, 3, 4, 5] -> seq({
           ($ > 2) ? ($ -> break)
           $
-        }
+        })
       `);
-      // each with break returns partial results
+      // seq with break returns partial results
       expect(result).toEqual([1, 2]);
     });
   });
@@ -399,7 +399,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
     it('error propagates through collection operator', async () => {
       try {
-        await run('list[1, 2, 3] -> map { $undefined }');
+        await run('list[1, 2, 3] -> fan({ $undefined })');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(RuntimeError);

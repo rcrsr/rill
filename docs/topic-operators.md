@@ -32,7 +32,7 @@ The pipe operator passes the left-hand value to the right-hand side:
 ```rill
 "hello" -> .upper              # "HELLO"
 42 -> ($ + 8)                  # 50
-[1, 2, 3] -> each { $ * 2 }    # list[2, 4, 6]
+[1, 2, 3] -> seq({ $ * 2 })    # list[2, 4, 6]
 ```
 
 ### Piped Value as `$`
@@ -848,35 +848,35 @@ Place `^(...)` between the collection operator name and its body to attach opera
 **Syntax:**
 
 ```text
-collection -> each ^(limit: N) { body }
-collection -> map ^(limit: N) { body }
-collection -> filter ^(limit: N) { body }
-collection -> fold ^(limit: N) |acc, x=0| { body }
+collection -> seq(^(limit: N) { body })
+collection -> fan(^(limit: N) { body })
+collection -> filter(^(limit: N) { body })
+collection -> fold(seed, ^(limit: N) |x|($@ + $x))
 ```
 
 **Examples:**
 
 ```rill
-[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
+[1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
 # [2, 4, 6]
 ```
 
 ```rill
-[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
+[1, 2, 3] -> fan(^(limit: 10) { $ + 1 })
 # [2, 3, 4]
 ```
 
 ```rill
-[1, 2, 3, 4] -> filter ^(limit: 50) { $ > 2 }
+[1, 2, 3, 4] -> filter(^(limit: 50) { $ > 2 })
 # [3, 4]
 ```
 
 ```rill
-[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+[1, 2, 3] -> fold(0, ^(limit: 20) |x|($@ + $x))
 # 6
 ```
 
-The `limit` key controls maximum iterations for sequential operators and maximum concurrency for parallel operators (`map`, `filter`). Invalid annotation keys produce a runtime error.
+The `limit` key controls maximum iterations for sequential operators and maximum concurrency for parallel operators (`fan`, `filter`). Invalid annotation keys produce a runtime error.
 
 ---
 

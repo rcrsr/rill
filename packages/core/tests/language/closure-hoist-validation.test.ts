@@ -25,7 +25,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside map block body (hoisted closure path)', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> map { $multiplier * $ }
+        list[1, 2, 3] -> fan({ $multiplier * $ })
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -33,7 +33,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside each block body (hoisted closure path)', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> each { $multiplier * $ }
+        list[1, 2, 3] -> seq({ $multiplier * $ })
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -41,7 +41,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside map inline closure body', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> map |x| ($x * $multiplier)
+        list[1, 2, 3] -> fan(|x| ($x * $multiplier))
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -49,7 +49,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
     it('resolves outer variable inside each inline closure body', async () => {
       const script = `
         10 => $multiplier
-        list[1, 2, 3] -> each |x| ($x * $multiplier)
+        list[1, 2, 3] -> seq(|x| ($x * $multiplier))
       `;
       expect(await run(script)).toEqual([10, 20, 30]);
     });
@@ -58,7 +58,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
       const script = `
         "" -> {
           4 => $multiplier
-          list[1, 2, 3] -> map { $multiplier * $ }
+          list[1, 2, 3] -> fan({ $multiplier * $ })
         }
       `;
       expect(await run(script)).toEqual([4, 8, 12]);
@@ -68,7 +68,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
       const script = `
         "" -> {
           4 => $multiplier
-          list[1, 2, 3] -> each { $multiplier * $ }
+          list[1, 2, 3] -> seq({ $multiplier * $ })
         }
       `;
       expect(await run(script)).toEqual([4, 8, 12]);
@@ -79,7 +79,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
         2 => $base
         "" -> {
           5 => $multiplier
-          list[1, 2, 3] -> map { ($multiplier * $) + $base }
+          list[1, 2, 3] -> fan({ ($multiplier * $) + $base })
         }
       `;
       expect(await run(script)).toEqual([7, 12, 17]);
@@ -90,7 +90,7 @@ describe('Rill Runtime: Closure Hoist Validation', () => {
         2 => $base
         "" -> {
           5 => $multiplier
-          list[1, 2, 3] -> each { ($multiplier * $) + $base }
+          list[1, 2, 3] -> seq({ ($multiplier * $) + $base })
         }
       `;
       expect(await run(script)).toEqual([7, 12, 17]);

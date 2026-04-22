@@ -108,7 +108,7 @@ describe('executeRill', () => {
     });
 
     it('handles errors in loops', async () => {
-      const result = await executeRill('range(1, 5) -> each { $undefined }');
+      const result = await executeRill('range(1, 5) -> seq({ $undefined })');
 
       expect(result.status).toBe('error');
       expect(result.error?.category).toBe('runtime');

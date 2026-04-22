@@ -108,6 +108,7 @@ import type { CallFrame } from '../../../../types.js';
 import { haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 import { throwTypeHalt } from '../../types/halt.js';
+import { getEvaluator } from '../evaluator.js';
 
 /**
  * Result of bindArgsToParams: parameter names mapped to evaluated values.
@@ -279,6 +280,19 @@ function createStreamChannel(): StreamChannel {
     },
   } as StreamChannel & { readonly resolution: RillValue };
 }
+
+/**
+ * Allows child evaluators (e.g. created by seq via getEvaluator(callableCtx)) to locate
+ * the active stream channel by walking the RuntimeContext parent chain.
+ * Populated by invokeStreamClosure for the duration of the stream body execution.
+ */
+const activeStreamContexts = new WeakMap<
+  RuntimeContext,
+  {
+    channel: StreamChannel & { readonly resolution: RillValue };
+    chunkType: TypeStructure | null;
+  }
+>();
 
 function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ClosuresEvaluator extends Base {
@@ -669,12 +683,36 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
 
-      // Push to stream channel if inside a stream closure body
+      // Push to stream channel if inside a stream closure body (fast path)
       if (this.activeStreamChannel) {
         return this.activeStreamChannel.push(value);
       }
 
-      // Fallback: throw YieldSignal (caught by stream body wrapper)
+      // Fallback: walk RuntimeContext parent chain for child evaluators
+      // (e.g. seq creates a child evaluator via getEvaluator(callableCtx))
+      let searchCtx: RuntimeContext | undefined = this.ctx;
+      while (searchCtx != null) {
+        const streamCtx = activeStreamContexts.get(searchCtx);
+        if (streamCtx !== undefined) {
+          if (streamCtx.chunkType !== null) {
+            if (!structureMatches(value, streamCtx.chunkType)) {
+              const expected = formatStructure(streamCtx.chunkType);
+              const actual = inferType(value);
+              throwTypeHalt(
+                { location, sourceId: this.ctx.sourceId, fn: 'yield' },
+                'TYPE_MISMATCH',
+                `Yielded value type mismatch: expected ${expected}, got ${actual}`,
+                'runtime',
+                { expected, actual }
+              );
+            }
+          }
+          return streamCtx.channel.push(value);
+        }
+        searchCtx = searchCtx.parent;
+      }
+
+      // No active stream channel found — throw YieldSignal
       throw new YieldSignal(value);
     }
 
@@ -853,20 +891,36 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         readonly resolution: RillValue;
       };
 
+      // Create a dedicated evaluator for the stream body so that concurrent
+      // execution of the body IIFE and the outer consumer (e.g. outer seq)
+      // never share mutable state (this.ctx, this.activeStreamChannel).
+      //
+      // getEvaluator creates new Evaluator(callableCtx) and caches it under
+      // callableCtx — this is also the registration so inner builtins like seq
+      // that call getEvaluator(callableCtx) receive the body evaluator (with
+      // activeStreamChannel set) rather than a fresh one.
+      const bodyEvaluator = getEvaluator(callableCtx);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (bodyEvaluator as any).activeStreamChannel = channel;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (bodyEvaluator as any).activeStreamChunkType =
+        streamStructure.chunk ?? null;
+
       // Start body execution asynchronously.
-      // Arrow function captures `this` from invokeStreamClosure scope.
       // The body runs concurrently with consumption, blocking at each yield
       // until the consumer pulls the next chunk.
+      // bodyEvaluator.ctx is already callableCtx (set by its constructor).
+      // No mutations to this.ctx or this.activeStreamChannel are made here.
       const bodyPromise = (async () => {
-        const savedCtx = this.ctx;
-        const savedChannel = this.activeStreamChannel;
-        const savedChunkType = this.activeStreamChunkType;
-        this.ctx = callableCtx;
-        this.activeStreamChannel = channel;
-        this.activeStreamChunkType = streamStructure.chunk ?? null;
+        // activeStreamContexts allows rare nested cases where a host function
+        // creates a fresh evaluator via getEvaluator(someChildCtx) and yields.
+        activeStreamContexts.set(callableCtx, {
+          channel,
+          chunkType: streamStructure.chunk ?? null,
+        });
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await (this as any).evaluateBodyExpression(
+          const result = await (bodyEvaluator as any).evaluateBodyExpression(
             callable.body
           );
           // Validate resolution type if declared
@@ -877,7 +931,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               throwTypeHalt(
                 {
                   location: callLocation,
-                  sourceId: this.ctx.sourceId,
+                  sourceId: callableCtx.sourceId,
                   fn: 'stream-resolve',
                 },
                 'TYPE_MISMATCH',
@@ -900,7 +954,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   throwTypeHalt(
                     {
                       location: callLocation,
-                      sourceId: this.ctx.sourceId,
+                      sourceId: callableCtx.sourceId,
                       fn: 'stream-resolve',
                     },
                     'TYPE_MISMATCH',
@@ -919,9 +973,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             channel.error(error);
           }
         } finally {
-          this.ctx = savedCtx;
-          this.activeStreamChannel = savedChannel;
-          this.activeStreamChunkType = savedChunkType;
+          activeStreamContexts.delete(callableCtx);
         }
       })();
 

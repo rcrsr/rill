@@ -95,10 +95,10 @@ describe('Rill Runtime: Loops', () => {
     it('exits each loop early with break', async () => {
       // Break in each terminates iteration and returns partial results
       const script = `
-        list[1, 2, 3, 4, 5] -> each {
+        list[1, 2, 3, 4, 5] -> seq({
           ($ == 3) ? break
           $
-        }
+        })
       `;
       // each returns results collected before break
       expect(await run(script)).toEqual([1, 2]);
@@ -206,9 +206,9 @@ describe('Rill Runtime: Loops', () => {
   describe('Nested Loops (using each)', () => {
     it('handles nested each loops', async () => {
       const script = `
-        list[list[1, 2], list[3, 4]] -> each {
-          $ -> each { $ * 2 }
-        }
+        list[list[1, 2], list[3, 4]] -> seq({
+          $ -> seq({ $ * 2 })
+        })
       `;
       expect(await run(script)).toEqual([
         [2, 4],
@@ -218,13 +218,13 @@ describe('Rill Runtime: Loops', () => {
 
     it('break only exits inner loop', async () => {
       const script = `
-        list[list[1, 2, 3], list[4, 5, 6]] -> each {
-          $ -> each {
+        list[list[1, 2, 3], list[4, 5, 6]] -> seq({
+          $ -> seq({
             ($ == 2) ? break
             ($ == 5) ? break
             $
-          }
-        }
+          })
+        })
       `;
       // Inner loops break and return partial results
       // First inner loop: collects [1], breaks at 2

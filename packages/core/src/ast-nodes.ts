@@ -285,10 +285,6 @@ export type PipeTargetNode =
   | SliceNode
   | TypeAssertionNode
   | TypeCheckNode
-  | EachExprNode
-  | MapExprNode
-  | FoldExprNode
-  | FilterExprNode
   | PostfixExprNode
   | VariableNode
   | AssertNode
@@ -757,118 +753,6 @@ export interface StatusProbeNode extends BaseNode {
 }
 
 // ============================================================
-// COLLECTION OPERATORS
-// ============================================================
-
-/**
- * Collection operator body types.
- * These are the valid forms for the body of each/map/fold operators.
- */
-export type IteratorBody =
-  | ClosureNode // |x| body or |x, acc = init| body
-  | BlockNode // { body }
-  | GroupedExprNode // (expr)
-  | VariableNode // $fn
-  | PostfixExprNode // $ or other simple expression
-  | HostCallNode // greet (bare function name)
-  | HostRefNode; // ns::func (namespaced host function reference)
-
-/**
- * Each expression: sequential iteration returning list of all results.
- *
- * Syntax forms:
- *   collection -> each |x| body
- *   collection -> each { body }
- *   collection -> each (expr)
- *   collection -> each $fn
- *   collection -> each $
- *
- * With accumulator:
- *   collection -> each(init) { body }         -- $@ is accumulator
- *   collection -> each |x, acc = init| body   -- $acc is accumulator
- *
- * Returns: list of all body results (or scan results if accumulator)
- */
-export interface EachExprNode extends BaseNode {
-  readonly type: 'EachExpr';
-  /** The body to execute for each element */
-  readonly body: IteratorBody;
-  /**
-   * Optional accumulator initial value (for block form with $@ access).
-   * null when using inline closure with accumulator (it's in the closure params)
-   * or when no accumulator is used.
-   */
-  readonly accumulator: ExpressionNode | null;
-  readonly annotations?: AnnotationArg[] | undefined;
-}
-
-/**
- * Map expression: parallel iteration returning list of all results.
- *
- * Syntax forms:
- *   collection -> map |x| body
- *   collection -> map { body }
- *   collection -> map (expr)
- *   collection -> map $fn
- *   collection -> map $
- *
- * No accumulator (parallel execution has no "previous").
- * Concurrency limit via ^(limit: N) annotation.
- *
- * Returns: list of all body results (order preserved)
- */
-export interface MapExprNode extends BaseNode {
-  readonly type: 'MapExpr';
-  /** The body to execute for each element (in parallel) */
-  readonly body: IteratorBody;
-  readonly annotations?: AnnotationArg[] | undefined;
-}
-
-/**
- * Fold expression: sequential reduction returning final result only.
- *
- * Syntax forms:
- *   collection -> fold |x, acc = init| body   -- $acc is accumulator
- *   collection -> fold(init) { body }         -- $@ is accumulator
- *   collection -> fold $fn                    -- fn must have accumulator param
- *
- * Accumulator is required.
- *
- * Returns: final accumulated value only
- */
-export interface FoldExprNode extends BaseNode {
-  readonly type: 'FoldExpr';
-  /** The body to execute for each element */
-  readonly body: IteratorBody;
-  /**
-   * Accumulator initial value (for block form with $@ access).
-   * null when using inline closure (accumulator is in closure params).
-   */
-  readonly accumulator: ExpressionNode | null;
-  readonly annotations?: AnnotationArg[] | undefined;
-}
-
-/**
- * Filter expression: parallel filtering returning elements where predicate is truthy.
- *
- * Syntax forms:
- *   collection -> filter |x| body
- *   collection -> filter { body }
- *   collection -> filter (expr)
- *   collection -> filter $fn
- *
- * Predicate returns truthy/falsy. Elements where predicate is truthy are kept.
- *
- * Returns: list of elements where body was truthy
- */
-export interface FilterExprNode extends BaseNode {
-  readonly type: 'FilterExpr';
-  /** The predicate body to evaluate for each element */
-  readonly body: IteratorBody;
-  readonly annotations?: AnnotationArg[] | undefined;
-}
-
-// ============================================================
 // EXTRACTION OPERATORS
 // ============================================================
 
@@ -1160,10 +1044,6 @@ export type ASTNode =
   | AnnotatedExprNode
   | NamedArgNode
   | SpreadArgNode
-  | EachExprNode
-  | MapExprNode
-  | FoldExprNode
-  | FilterExprNode
   | RecoveryErrorNode
   | ErrorNode
   | TypeNameExprNode

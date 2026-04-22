@@ -1121,20 +1121,6 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return this.parseUseExpr();
   }
 
-  // Collection operators
-  if (check(this.state, TOKEN_TYPES.EACH)) {
-    return this.parseEachExpr();
-  }
-  if (check(this.state, TOKEN_TYPES.MAP)) {
-    return this.parseMapExpr();
-  }
-  if (check(this.state, TOKEN_TYPES.FOLD)) {
-    return this.parseFoldExpr();
-  }
-  if (check(this.state, TOKEN_TYPES.FILTER)) {
-    return this.parseFilterExpr();
-  }
-
   // Inline closure: -> |x| { body }
   if (isClosureStart(this.state)) {
     return this.parseClosure();

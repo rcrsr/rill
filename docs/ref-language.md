@@ -69,13 +69,13 @@ See [Control Flow](topic-control-flow.md) for detailed documentation. Script-lev
 
 | Syntax | Description |
 |--------|-------------|
-| `-> each { body }` | Sequential iteration, all results |
-| `-> each(init) { body }` | Sequential with accumulator (`$@`) |
-| `-> map { body }` | Parallel iteration, all results |
-| `-> filter { cond }` | Parallel filter, matching elements |
-| `-> fold(init) { body }` | Sequential reduction, final result |
+| `-> seq({ body })` | Sequential iteration, all results |
+| `-> acc(init, { body })` | Sequential with accumulator (`$@`) |
+| `-> fan({ body })` | Parallel iteration, all results |
+| `-> filter({ cond })` | Parallel filter, matching elements |
+| `-> fold(init, { body })` | Sequential reduction, final result |
 
-See [Collections](topic-collections.md) for detailed documentation. All four operators (`each`, `map`, `filter`, `fold`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
+See [Collections](topic-collections.md) for detailed documentation. All five operators (`seq`, `acc`, `fan`, `filter`, `fold`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
 
 ### Types
 
@@ -153,7 +153,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Context | `$` contains |
 |---------|--------------|
 | Inline block `-> { }` | Piped value |
-| Each loop `-> each { }` | Current item |
+| Each loop `-> seq({ })` | Current item |
 | While-loop `(cond) @ { }` | Accumulated value |
 | Do-while `@ { } ? cond` | Accumulated value |
 | Conditional `cond ? { }` | Tested value |
@@ -239,7 +239,7 @@ $list.^type.name
 Type constructors are also valid in annotation positions:
 
 ```rill
-|x: list(number)| { $x -> each { $ * 2 } } => $fn
+|x: list(number)| { $x -> seq({ $ * 2 }) } => $fn
 $fn(list[1, 2, 3])
 # Result: list[2, 4, 6]
 ```
@@ -735,10 +735,10 @@ Place `^(...)` between the operator name and its body to attach metadata to that
 **Collection operators:**
 
 ```rill
-[1, 2, 3] -> each ^(limit: 1000) { $ * 2 }
-[1, 2, 3] -> map ^(limit: 10) { $ + 1 }
-[1, 2, 3] -> filter ^(limit: 50) { $ > 1 }
-[1, 2, 3] -> fold ^(limit: 20) |acc, x=0| { $acc + $x }
+[1, 2, 3] -> seq(^(limit: 1000) { $ * 2 })
+[1, 2, 3] -> fan(^(limit: 10) { $ + 1 })
+[1, 2, 3] -> filter(^(limit: 50) { $ > 1 })
+[1, 2, 3] -> fold(0, ^(limit: 20) |x|($@ + $x))
 ```
 
 Invalid annotation keys for operator context produce a runtime error.
@@ -757,10 +757,10 @@ Loops have a default maximum of **10,000 iterations**. Place `^(limit: N)` at op
 
 ### Concurrency Limits
 
-The `^(limit: N)` annotation also controls parallel concurrency in `map`:
+The `^(limit: N)` annotation also controls parallel concurrency in `fan`:
 
 ```text
-$items -> map ^(limit: 3) { slow_process($) }
+$items -> fan ^(limit: 3) { slow_process($) }
 ```
 
 See [Host Integration](integration-host.md) for timeout and cancellation configuration.
@@ -932,7 +932,7 @@ For detailed documentation on specific topics:
 - [Control Flow](topic-control-flow.md): Conditionals, loops
 - [Operators](topic-operators.md): All operators
 - [Closures](topic-closures.md): Late binding, dict closures
-- [Collections](topic-collections.md): `each`, `map`, `filter`, `fold`
+- [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc`
 - [Iterators](topic-iterators.md): `range`, `repeat`, `.first()`
 - [Strings](topic-strings.md): String methods
 - [Host Integration](integration-host.md): Embedding API

@@ -163,18 +163,18 @@ $length -> ($ * 2)`;
     });
 
     it('for loop with block on same line', async () => {
-      const script = `list[1, 2, 3] -> each { ($ > 1) ? ($ * 10) ! $ }`;
+      const script = `list[1, 2, 3] -> seq({ ($ > 1) ? ($ * 10) ! $ })`;
       expect(await run(script)).toEqual([1, 20, 30]);
     });
 
     it('capture, transform, and loop', async () => {
       const script = `"a,b,c".split(",") => $parts
-$parts -> each { "{$}!" }`;
+$parts -> seq({ "{$}!" })`;
       expect(await run(script)).toEqual(['a!', 'b!', 'c!']);
     });
 
     it('nested control flow on single lines', async () => {
-      const script = `list[1, 2, 3] -> each { ($ > 1) ? "big" ! "small" }`;
+      const script = `list[1, 2, 3] -> seq({ ($ > 1) ? "big" ! "small" })`;
       expect(await run(script)).toEqual(['small', 'big', 'big']);
     });
   });

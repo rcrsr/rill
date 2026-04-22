@@ -22,7 +22,7 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('works with list elements in each loop (AC-4)', async () => {
-      const result = await run('list[1, 2, 3] -> each { assert ($ > 0) }');
+      const result = await run('list[1, 2, 3] -> seq({ assert ($ > 0) })');
       expect(result).toEqual([1, 2, 3]);
     });
 
@@ -60,7 +60,7 @@ describe('Rill Runtime: Assert Statement', () => {
 
     it('halts loop at first assertion failure (AC-8)', async () => {
       await expect(
-        run('list[1, 0, 3] -> each { assert ($ > 0) "Must be positive" }')
+        run('list[1, 0, 3] -> seq({ assert ($ > 0) "Must be positive" })')
       ).rejects.toThrow('Must be positive');
     });
 
@@ -252,29 +252,29 @@ describe('Rill Runtime: Assert Statement', () => {
 
     it('works with map operator', async () => {
       expect(
-        await run('list[1, 2, 3] -> map { assert ($ > 0)\n$ * 2 }')
+        await run('list[1, 2, 3] -> fan({ assert ($ > 0)\n$ * 2 })')
       ).toEqual([2, 4, 6]);
     });
 
     it('halts map on assertion failure', async () => {
       await expect(
-        run('list[1, 0, 3] -> map { assert ($ > 0) "Invalid element" }')
+        run('list[1, 0, 3] -> fan({ assert ($ > 0) "Invalid element" })')
       ).rejects.toThrow('Invalid element');
     });
 
     it('works with filter operator', async () => {
       expect(
-        await run('list[1, 2, 3, 4] -> filter { assert ($ > 0)\n$ > 2 }')
+        await run('list[1, 2, 3, 4] -> filter({ assert ($ > 0)\n$ > 2 })')
       ).toEqual([3, 4]);
     });
 
     it('works with fold operator', async () => {
       expect(
         await run(`
-          list[1, 2, 3] -> fold(0) {
+          list[1, 2, 3] -> fold(0, {
             assert ($@ >= 0) "Accumulator invalid"
             $@ + $
-          }
+          })
         `)
       ).toBe(6);
     });

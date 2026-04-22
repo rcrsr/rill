@@ -48,10 +48,6 @@ export function isIdentifierOrKeyword(token: { type: string }): boolean {
     token.type === TOKEN_TYPES.YIELD ||
     token.type === TOKEN_TYPES.ASSERT ||
     token.type === TOKEN_TYPES.ERROR ||
-    token.type === TOKEN_TYPES.EACH ||
-    token.type === TOKEN_TYPES.MAP ||
-    token.type === TOKEN_TYPES.FOLD ||
-    token.type === TOKEN_TYPES.FILTER ||
     token.type === TOKEN_TYPES.PASS
   );
 }

@@ -18,12 +18,12 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 
 - Value-based: `.next()` returns a new iterator, original unchanged
 - Lazy: Elements generated on demand
-- Composable: Work with all collection operators (`each`, `map`, `filter`, `fold`)
+- Composable: Work with all collection operators (`seq`, `fan`, `filter`, `fold`, `acc`)
 
 ```rill
-range(0, 5) -> each { $ * 2 }           # [0, 2, 4, 6, 8]
-repeat("x", 3) -> each { $ }            # ["x", "x", "x"]
-[1, 2, 3] -> .first() -> each { $ } # list[1, 2, 3]
+range(0, 5) -> seq({ $ * 2 })           # [0, 2, 4, 6, 8]
+repeat("x", 3) -> seq({ $ })            # ["x", "x", "x"]
+[1, 2, 3] -> .first() -> seq({ $ }) # list[1, 2, 3]
 ```
 
 ---
@@ -50,9 +50,9 @@ Iterators are dicts with three fields:
 Collection operators automatically recognize and expand iterators:
 
 ```rill
-range(1, 4) -> map { $ * 10 }     # [10, 20, 30]
-range(0, 10) -> filter { $ > 5 }  # [6, 7, 8, 9]
-range(1, 6) -> fold(0) { $@ + $ } # 15
+range(1, 4) -> fan({ $ * 10 })     # [10, 20, 30]
+range(0, 10) -> filter({ $ > 5 })  # [6, 7, 8, 9]
+range(1, 6) -> fold(0, { $@ + $ }) # 15
 ```
 
 ---
@@ -142,8 +142,8 @@ true
 **Using `.first()` with collection operators:**
 
 ```rill
-[1, 2, 3] -> .first() -> each { $ * 2 }    # list[2, 4, 6]
-"hello" -> .first() -> each { $ }              # ["h", "e", "l", "l", "o"]
+[1, 2, 3] -> .first() -> seq({ $ * 2 })    # list[2, 4, 6]
+"hello" -> .first() -> seq({ $ })              # ["h", "e", "l", "l", "o"]
 ```
 
 ---
@@ -176,10 +176,10 @@ $it.value                    # 2
 # logs: h, e, l, l, o
 ```
 
-**Preferred: use `each` for iteration:**
+**Preferred: use `seq` for iteration:**
 
 ```rill
-"hello" -> each { log($) }
+"hello" -> seq({ log($) })
 # logs: h, e, l, l, o
 ```
 
@@ -203,13 +203,13 @@ Streams and iterators share the same protocol fields but differ in source, state
 | Statefulness | Stateless, re-iterable | Stateful, single-use |
 | Protocol | `done`, `value`, `next` | `done`, `value`, `next` (shared) |
 | Stale access | N/A (immutable) | Halts with error |
-| Operators | `each`, `map`, `filter`, `fold` | Same four operators |
+| Operators | `seq`, `fan`, `filter`, `fold`, `acc` | Same operators |
 | Invocation | Not callable | `$s()` returns resolution value |
 | Production | Built-in functions | Host helper or `:stream(T):R` closure |
 
 Iterators are value types: calling `.next()` returns a new iterator and the original is unchanged. Streams are stateful: each chunk consumed advances the stream permanently.
 
-See [Types](topic-types.md) for stream type signatures and chunk semantics. See [Collections](topic-collections.md) for how `each`, `map`, `filter`, and `fold` behave on streams.
+See [Types](topic-types.md) for stream type signatures and chunk semantics. See [Collections](topic-collections.md) for how `seq`, `fan`, `filter`, `fold`, and `acc` behave on streams.
 
 ---
 
@@ -225,7 +225,7 @@ Create custom iterators by implementing the protocol:
   next: || { $counter($.value + 1, $max) }
 ] => $counter
 
-$counter(1, 5) -> each { $ }    # [1, 2, 3, 4, 5]
+$counter(1, 5) -> seq({ $ })    # [1, 2, 3, 4, 5]
 ```
 
 **Fibonacci sequence:**
@@ -237,7 +237,7 @@ $counter(1, 5) -> each { $ }    # [1, 2, 3, 4, 5]
   next: || { $fib($.b, $.a + $.b, $max) }
 ] => $fib
 
-$fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+$fib(0, 1, 50) -> seq({ $ })    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
 
 **Infinite iterator (use with limit):**
@@ -250,12 +250,12 @@ $fib(0, 1, 50) -> each { $ }    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ] => $naturals
 
 # Take first 5 using fold with compound accumulator
-$naturals(1) -> .first() -> fold([list: [], it: $]) {
+$naturals(1) -> .first() -> fold([list: [], it: $], {
   ($@.list -> .len >= 5) ? $@ -> break ! [
     list: [...$@.list, $@.it.value],
     it: $@.it.next()
   ]
-} -> $.list    # [1, 2, 3, 4, 5]
+}) -> $.list    # [1, 2, 3, 4, 5]
 ```
 
 ---
@@ -297,39 +297,39 @@ For direct element access (not iteration), use `.head` and `.tail`:
 ### Sum of squares
 
 ```rill
-range(1, 11) -> map { $ * $ } -> fold(0) { $@ + $ }
+range(1, 11) -> fan({ $ * $ }) -> fold(0, { $@ + $ })
 # 385 (1 + 4 + 9 + ... + 100)
 ```
 
 ### Generate index markers
 
 ```rill
-range(0, 5) -> each { "Item {$}" }
+range(0, 5) -> seq({ "Item {$}" })
 # ["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"]
 ```
 
 ### Retry pattern
 
 ```text
-repeat(1, 3) -> each {
+repeat(1, 3) -> seq({
   attempt() => $result
   ($result.success == true) ? ($result -> break)
   pause("00:00:01")
   $result
-}
+})
 ```
 
 ### Filter even numbers
 
 ```rill
-range(0, 20) -> filter { ($ % 2) == 0 }
+range(0, 20) -> filter({ ($ % 2) == 0 })
 # [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 ```
 
 ### Nested iteration
 
 ```rill
-range(1, 4) -> each { $ => $row -> range(1, 4) -> each { $row * $ } }
+range(1, 4) -> seq({ $ => $row -> range(1, 4) -> seq({ $row * $ }) })
 # [list[1, 2, 3], list[2, 4, 6], list[3, 6, 9]]
 ```
 
@@ -339,16 +339,16 @@ range(1, 4) -> each { $ => $row -> range(1, 4) -> each { $row * $ } }
 
 Iterators are expanded eagerly when passed to collection operators. A default limit of 10000 elements prevents infinite loops:
 
-```rill
+```text
 # This would error after 10000 elements
 |n| [value: $n, done: false, next: || { $inf($.value + 1) }] => $inf
-$inf(0) -> each { $ }    # ERROR: Iterator exceeded 10000 elements
+$inf(0) -> seq({ $ })    # ERROR: Iterator exceeded 10000 elements
 ```
 
 ---
 
 ## See Also
 
-- [Collections](topic-collections.md) — `each`, `map`, `filter`, `fold` operators
+- [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` operators
 - [Closures](topic-closures.md) — Closure semantics for custom iterators
 - [Reference](ref-language.md) — Complete language specification

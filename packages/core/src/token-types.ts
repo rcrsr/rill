@@ -92,10 +92,6 @@ export const TOKEN_TYPES = {
   PASS: 'PASS',
   ASSERT: 'ASSERT',
   ERROR: 'ERROR',
-  EACH: 'EACH',
-  MAP: 'MAP',
-  FOLD: 'FOLD',
-  FILTER: 'FILTER',
   GUARD: 'GUARD',
   RETRY: 'RETRY',
 

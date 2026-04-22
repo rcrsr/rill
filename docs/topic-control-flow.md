@@ -284,13 +284,13 @@ break                    # exit with current $
 $value -> break          # exit with value
 ```
 
-### In Each Loop
+### In seq Loop
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> seq({
   ($ > 3) ? ("found {$}" -> break)
   $
-}
+})
 # Returns "found 4"
 ```
 
@@ -305,22 +305,24 @@ $value -> break          # exit with value
 
 ### Break Value
 
-In `each`, break returns partial results collected before the break:
+In `seq`, break returns partial results collected before the break:
 
 ```rill
-["a", "b", "STOP", "c"] -> each {
+["a", "b", "STOP", "c"] -> seq({
   ($ == "STOP") ? break
   $
-}
+})
 # Returns ["a", "b"] (partial results before break)
 ```
 
+`acc` also catches `break` and returns the partial results list collected up to that point.
+
 ### Break Not Allowed
 
-`break` is not supported in `map`, `filter`, or `fold` (parallel operations):
+`break` is not supported in `fan`, `filter`, or `fold`:
 
 ```text
-[1, 2, 3] -> map { break }    # ERROR: break not supported in map
+[1, 2, 3] -> fan({ break })    # ERROR: break not supported in fan
 ```
 
 ---
@@ -411,16 +413,16 @@ Combine with type checks to validate input:
 Assert validates each iteration. The loop halts on the first failing assertion:
 
 ```rill
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   assert ($ > 0) "Must be positive"
-}
+})
 # Returns [1, 2, 3] (all elements valid)
 ```
 
 ```text
-[1, 0, 3] -> each {
+[1, 0, 3] -> seq({
   assert ($ > 0) "Must be positive"
-}
+})
 # Error: Must be positive
 ```
 
@@ -462,7 +464,7 @@ Guard clauses at function start:
 |data| {
   assert $data:?list "Expected list"
   assert !$data.empty "List cannot be empty"
-  $data -> each { $ * 2 }
+  $data -> seq({ $ * 2 })
 } => $process
 true
 ```
@@ -614,10 +616,10 @@ Use `assert` when you need to validate a condition. Use `error` when you've alre
 Error halts the loop immediately:
 
 ```text
-[1, 2, 3] -> each {
+[1, 2, 3] -> seq({
   ($ == 2) ? { error "Halted at 2" }
   $ * 2
-}
+})
 # Halts on second iteration with: Halted at 2
 ```
 
@@ -655,7 +657,7 @@ Use `pass` to include the piped value in dict construction:
 Preserve elements conditionally:
 
 ```rill
-[1, -2, 3, -4] -> map { ($ > 0) ? pass ! 0 }
+[1, -2, 3, -4] -> fan({ ($ > 0) ? pass ! 0 })
 # Returns [1, 0, 3, 0]
 ```
 
@@ -767,7 +769,7 @@ Exit early on invalid conditions (assumes host provides `error()`):
 |data| {
   $data -> .empty ? app::error("Empty input")
   $data -> :?list ? $ ! app::error("Expected list")
-  $data -> each { $ * 2 }
+  $data -> seq({ $ * 2 })
 } => $process
 ```
 
@@ -793,10 +795,10 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ### Find First Match
 
 ```rill
-[1, 2, 3, 4, 5] -> each {
+[1, 2, 3, 4, 5] -> seq({
   ($ > 3) ? ($ -> break)
   $
-}
+})
 # Returns 4 (first element > 3)
 ```
 
@@ -805,6 +807,6 @@ Exit early on invalid conditions (assumes host provides `error()`):
 ## See Also
 
 - [Variables](topic-variables.md): Scope rules and `$` binding
-- [Collections](topic-collections.md): `each`, `map`, `filter`, `fold` iteration
+- [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc` iteration
 - [Operators](topic-operators.md): Comparison and logical operators
 - [Reference](ref-language.md): Quick reference tables

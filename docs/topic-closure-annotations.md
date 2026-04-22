@@ -76,9 +76,9 @@ $describe($add)    # "Function has 2 parameter(s)"
 
 ```text
 |fn| {
-  $fn.params -> .entries -> each {
+  $fn.params -> .entries -> seq({
     $[1].type -> .empty ? "Missing type annotation: {$[0]}" ! ""
-  } -> filter { !$ -> .empty }
+  }) -> filter({ !$ -> .empty })
 } => $checkTypes
 
 |x, y: number| { $x + $y } => $partial
@@ -198,11 +198,11 @@ Use parameter annotations to drive runtime behavior:
 
 ```text
 |processor| {
-  $processor.params -> .entries -> each {
+  $processor.params -> .entries -> seq({
     $[1].?__annotations ? {
       $[1].__annotations.?required ? "Parameter {$[0]} is required" ! ""
     } ! ""
-  } -> filter { !$ -> .empty }
+  }) -> filter({ !$ -> .empty })
 } => $getRequiredParams
 
 |x, ^(required: true) y: string, z|($x) => $fn
@@ -263,7 +263,7 @@ $fn(42)    # "42" (string from interpolation)
 Valid return type targets: any type name (`string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`, `ordered`, `vector`, `any`, `type`), or a parameterized type constructor (`list(string)`, `dict(a: number, b: string)`).
 
 ```rill
-|items: list(number)| { $items -> each { $ * 2 } }:list(number) => $double_all
+|items: list(number)| { $items -> seq({ $ * 2 }) }:list(number) => $double_all
 $double_all(list[1, 2, 3])
 # Result: list[2, 4, 6]
 ```

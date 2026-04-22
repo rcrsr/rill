@@ -145,7 +145,7 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('block-closure passed as argument', async () => {
       const script = `
-        list[1, 2, 3] -> map { $ * 2 }
+        list[1, 2, 3] -> fan({ $ * 2 })
       `;
       expect(await run(script)).toEqual([2, 4, 6]);
     });

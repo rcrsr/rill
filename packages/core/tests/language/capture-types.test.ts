@@ -110,12 +110,12 @@ describe('Rill Runtime: Capture Type Assertions', () => {
   describe('Type Validation in Context', () => {
     it('validates type in for loop capture', async () => {
       // Each iteration captures as number
-      const script = `list[1, 2, 3] -> each { $ => $n:number\n$n }`;
+      const script = `list[1, 2, 3] -> seq({ $ => $n:number\n$n })`;
       expect(await run(script)).toEqual([1, 2, 3]);
     });
 
     it('rejects wrong type in for loop', async () => {
-      const script = `list["a", "b"] -> each { $ => $n:number }`;
+      const script = `list["a", "b"] -> seq({ $ => $n:number })`;
       await expect(run(script)).rejects.toThrow();
     });
 
