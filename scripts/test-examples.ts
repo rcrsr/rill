@@ -15,10 +15,12 @@ import * as path from 'path';
 import {
   createRuntimeContext,
   execute,
+  extResolver,
   formatRillLiteral,
   formatValue,
   parse,
   RillError,
+  toCallable,
   type RillFunction,
   type RillValue,
 } from '@rcrsr/rill';
@@ -1004,6 +1006,34 @@ function createMockVariables(): Record<string, RillValue> {
   };
 }
 
+// Group the flat `ns::fn` mock functions into per-namespace dicts so the
+// extResolver can satisfy `use<ext:ns> => $ns` + `$ns.fn(...)` dotted access.
+function createExtExtensionDict(
+  functions: Record<string, RillFunction>
+): Record<string, RillValue> {
+  const extensions: Record<string, Record<string, RillValue>> = {};
+  for (const [fullName, fn] of Object.entries(functions)) {
+    const sep = fullName.indexOf('::');
+    if (sep === -1) continue;
+    const ns = fullName.slice(0, sep);
+    const rest = fullName.slice(sep + 2);
+    // Only handle single-level namespaces (ns::method). Skip nested forms
+    // like io::file::read — those stay in the flat registry.
+    if (rest.includes('::')) continue;
+    if (!extensions[ns]) extensions[ns] = {};
+    extensions[ns][rest] = toCallable(fn) as unknown as RillValue;
+  }
+  const out: Record<string, RillValue> = {};
+  for (const [ns, members] of Object.entries(extensions)) {
+    out[ns] = members as unknown as RillValue;
+  }
+  return out;
+}
+
+// Also expose top-level single-word host functions (e.g. `prompt`) under the
+// same convention so `use<ext:app> => $app; $app.prompt(...)` works in docs
+// that hoist a synthetic `app` extension covering all `app::*` entries.
+
 async function testBlock(block: CodeBlock): Promise<TestResult> {
   const location = `${block.file}:${block.lineNumber}`;
 
@@ -1016,12 +1046,19 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
     return { block, success: true, skipped: true, skipReason };
   }
 
+  const mockFunctions = createMockFunctions();
   const ctx = createRuntimeContext({
     callbacks: {
       onLog: () => {}, // Suppress output
     },
-    functions: createMockFunctions(),
+    functions: mockFunctions,
     variables: { ...createMockVariables(), ...frontmatterVars },
+    resolvers: { ext: extResolver },
+    configurations: {
+      resolvers: {
+        ext: createExtExtensionDict(mockFunctions),
+      },
+    },
   });
 
   try {
