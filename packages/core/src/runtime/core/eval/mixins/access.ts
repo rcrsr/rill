@@ -64,7 +64,7 @@ export { RuntimeHaltSignal };
  * `"+"`), host fn name, or method name. Empty string when not
  * applicable; matches the TraceFrame.fn contract.
  */
-export interface AccessSite {
+interface AccessSite {
   readonly location?: SourceLocation | undefined;
   readonly sourceId?: string | undefined;
   readonly fn: string;

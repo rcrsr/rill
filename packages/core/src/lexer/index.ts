@@ -4,5 +4,4 @@
  */
 
 export { LexerError } from './errors.js';
-export { createLexerState, type LexerState } from './state.js';
-export { nextToken, tokenize } from './tokenizer.js';
+export { tokenize } from './tokenizer.js';

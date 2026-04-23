@@ -23,26 +23,3 @@ import type { EvaluatorBase } from './base.js';
 export type EvaluatorConstructor<TBase extends EvaluatorBase = EvaluatorBase> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new (...args: any[]) => TBase;
-
-/**
- * Mixin function type.
- * Receives a constructor extending EvaluatorBase and returns an extended constructor.
- *
- * @template TBase - The base class being extended (must extend EvaluatorBase)
- * @template TExtension - The extended class returned by the mixin
- *
- * Example usage:
- * ```typescript
- * const CoreMixin: Mixin<EvaluatorBase, CoreEvaluator> = (Base) => {
- *   return class extends Base {
- *     protected async evaluateExpression(expr: ExpressionNode): Promise<RillValue> {
- *       // implementation
- *     }
- *   };
- * };
- * ```
- */
-export type Mixin<
-  TBase extends EvaluatorBase = EvaluatorBase,
-  TExtension extends TBase = TBase,
-> = (Base: EvaluatorConstructor<TBase>) => EvaluatorConstructor<TExtension>;

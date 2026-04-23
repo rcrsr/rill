@@ -26,7 +26,7 @@ import {
 // ============================================================
 
 /** Named shape returned by tokenizeCompoundKeyword. */
-export type CompoundToken = {
+type CompoundToken = {
   keyword: string;
   bracket: string;
   tokenType: TokenType;
@@ -61,11 +61,6 @@ const COMPOUND_KEYWORD_MAP: Record<
   guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 
-/** Returns true when the identifier is one of the compound-keyword heads. */
-export function isCollectionKeyword(identifier: string): boolean {
-  return Object.prototype.hasOwnProperty.call(COMPOUND_KEYWORD_MAP, identifier);
-}
-
 /**
  * Attempts to recognize a compound token at the given position in source.
  * Checks whether the character sequence starting at `position` is a collection
@@ -74,7 +69,7 @@ export function isCollectionKeyword(identifier: string): boolean {
  *
  * This function is informational: the caller must consume the characters.
  */
-export function tokenizeCompoundKeyword(
+function tokenizeCompoundKeyword(
   source: string,
   position: number
 ): CompoundToken | null {

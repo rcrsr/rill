@@ -62,7 +62,7 @@ export class RuntimeHaltSignal extends Error {
  * `sourceId` defaults to `"<script>"` when the runtime context did not
  * supply one.
  */
-export function formatSite(
+function formatSite(
   location: SourceLocation | undefined,
   sourceId: string | undefined
 ): string {

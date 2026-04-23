@@ -21,7 +21,7 @@ export interface ParserState {
   readonly source: string;
 }
 
-export interface ParserStateOptions {
+interface ParserStateOptions {
   /** Enable recovery mode for IDE/tooling scenarios */
   recoveryMode?: boolean;
   /** Original source text (required for recovery mode) */

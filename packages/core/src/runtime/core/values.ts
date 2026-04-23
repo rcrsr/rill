@@ -34,8 +34,6 @@ const isCallable = _isCallableGuard as (
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
-  deepEquals as registryDeepEquals,
-  serializeValue as registrySerializeValue,
 } from './types/registrations.js';
 import type {
   RillTypeValue,
@@ -128,10 +126,6 @@ export interface NativeResult {
   value: NativeValue;
 }
 
-/** Serialize a Rill value for JSON transport. Delegates to type-registrations. */
-export const serializeValue: (value: RillValue) => unknown =
-  registrySerializeValue;
-
 /**
  * Convert a RillValue to a NativeResult for host consumption.
  * Non-representable types (closures, vectors, type values, iterators) produce descriptor objects.
@@ -217,10 +211,6 @@ function toNativeValue(value: RillValue): NativeValue {
   }
   return result;
 }
-
-/** Deep structural equality for all Rill values. Delegates to type-registrations. */
-export const deepEquals: (a: RillValue, b: RillValue) => boolean =
-  registryDeepEquals;
 
 /** Reserved dict method names that cannot be overridden */
 const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;

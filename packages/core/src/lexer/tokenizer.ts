@@ -65,7 +65,7 @@ function readComment(state: LexerState): Token | null {
   return makeToken(TOKEN_TYPES.COMMENT, value, start, end);
 }
 
-export function nextToken(state: LexerState): Token {
+function nextToken(state: LexerState): Token {
   skipWhitespace(state);
 
   // Check for comment token

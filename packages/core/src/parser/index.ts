@@ -130,6 +130,3 @@ export {
 
 // Type parsing (for advanced usage)
 export { parseTypeRef } from './parser-types.js';
-
-// Parser class (for advanced usage)
-export { Parser } from './parser.js';

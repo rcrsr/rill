@@ -188,7 +188,7 @@ function parseSignatureAnnotations(
 /**
  * Result of parsing a signature string at registration time.
  */
-export interface ParsedSignature {
+interface ParsedSignature {
   readonly params: RillParam[];
   readonly returnType: TypeStructure | undefined;
   readonly description: string | undefined;
