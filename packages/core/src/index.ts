@@ -186,7 +186,134 @@ export {
   TOKEN_HIGHLIGHT_MAP,
 } from './highlight-map.js';
 
-export * from './types.js';
+// ============================================================
+// AST, TYPE, ERROR, TOKEN DEFINITIONS
+// Surfaces formerly exposed via `export * from './types.js'`.
+// Keep this list explicit so additions to the underlying files are
+// not accidentally published. Use `pnpm exec tsx scripts/list-public-exports.ts`
+// to audit the full public surface.
+// ============================================================
+
+// --- from ./ast-nodes.js ---
+export type {
+  AnnotatedExprNode,
+  AnnotatedStatementNode,
+  AnnotationAccessNode,
+  AnnotationArg,
+  ArithHead,
+  AssertNode,
+  ASTNode,
+  AtomLiteralNode,
+  BinaryExprNode,
+  BinaryOp,
+  BlockNode,
+  BodyNode,
+  BoolLiteralNode,
+  BracketAccess,
+  BreakNode,
+  CaptureNode,
+  ChainTerminator,
+  ClosureCallNode,
+  ClosureNode,
+  ClosureParamNode,
+  ClosureSigLiteralNode,
+  ConditionalNode,
+  DestructNode,
+  DestructPatternNode,
+  DestructureNode,
+  DictEntryNode,
+  DictKeyComputed,
+  DictKeyVariable,
+  DictLiteralNode,
+  DictNode,
+  DoWhileLoopNode,
+  ExistenceCheck,
+  ExpressionNode,
+  FieldAccess,
+  FieldAccessAlternatives,
+  FieldAccessAnnotation,
+  FieldAccessBlock,
+  FieldAccessComputed,
+  FieldAccessLiteral,
+  FieldAccessVariable,
+  FrontmatterNode,
+  GroupedExprNode,
+  GuardBlockNode,
+  HostCallNode,
+  HostRefNode,
+  InterpolationNode,
+  InvokeNode,
+  ListLiteralNode,
+  ListSpreadNode,
+  LiteralNode,
+  MethodCallNode,
+  NamedArgNode,
+  NumberLiteralNode,
+  OrderedLiteralNode,
+  PassNode,
+  PipeChainNode,
+  PipeInvokeNode,
+  PipeTargetNode,
+  PostfixExprNode,
+  PrimaryNode,
+  PropertyAccess,
+  RetryBlockNode,
+  ReturnNode,
+  ScriptNode,
+  SimplePrimaryNode,
+  SliceBoundNode,
+  SliceNode,
+  SpreadArgNode,
+  StatementNode,
+  StatusProbeNode,
+  StringLiteralNode,
+  TupleLiteralNode,
+  TypeAssertionNode,
+  TypeCheckNode,
+  TypeConstructorNode,
+  TypeNameExprNode,
+  UnaryExprNode,
+  UseExprNode,
+  UseIdentifier,
+  VariableNode,
+  WhileLoopNode,
+  YieldNode,
+} from './ast-nodes.js';
+
+// --- from ./ast-unions.js ---
+export type { NodeType } from './ast-unions.js';
+
+// --- from ./error-classes.js ---
+export type { RillErrorData } from './error-classes.js';
+export {
+  ParseError,
+  RillError,
+  RuntimeError,
+  TimeoutError,
+} from './error-classes.js';
+
+// --- from ./error-patterns.js ---
+export type {
+  ErrorHandlingExample,
+  ErrorHandlingPattern,
+} from './error-patterns.js';
+export { ERROR_HANDLING_PATTERNS } from './error-patterns.js';
+
+// --- from ./error-registry.js ---
+export type { ErrorExample, ErrorRegistry } from './error-registry.js';
+
+// --- from ./source-location.js ---
+export type { SourceLocation, SourceSpan } from './source-location.js';
+
+// --- from ./token-types.js ---
+export type { Token, TokenType } from './token-types.js';
+export { TOKEN_TYPES } from './token-types.js';
+
+// --- from ./types.js ---
+export type { ParseOptions } from './types.js';
+
+// --- from ./value-types.js ---
+export type { FieldArg, RillTypeName, TypeRef } from './value-types.js';
 
 // ============================================================
 // CONSTANTS
