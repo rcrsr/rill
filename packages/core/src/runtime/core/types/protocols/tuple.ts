@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillTuple } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isTuple } from '../guards.js';
 import {
   formatNested,

@@ -9,7 +9,7 @@
  */
 
 import type { RillValue } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { resolveAtom } from '../atom-registry.js';
 import { RuntimeError } from '../../../../types.js';
 

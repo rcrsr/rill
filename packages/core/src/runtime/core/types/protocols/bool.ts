@@ -8,7 +8,7 @@
  */
 
 import type { RillValue } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 
 // ============================================================
 // FORMAT

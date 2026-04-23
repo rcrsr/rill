@@ -12,7 +12,7 @@
  */
 
 import type { RillValue } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isDict } from '../guards.js';
 import {
   formatNested,

@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillTypeValue } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isTypeValue } from '../guards.js';
 import { formatStructure, structureEquals } from '../operations.js';
 import { throwNotSerializable } from './shared.js';

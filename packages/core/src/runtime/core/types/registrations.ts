@@ -1,10 +1,11 @@
 /** @internal Type Registration Definitions */
 
-import type { RillValue, TypeStructure } from './structures.js';
+import type { RillValue } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
 import { throwTypeHalt } from './halt.js';
 import { initFormatNested, initDeepEquals } from './protocols/shared.js';
+import type { TypeDefinition } from './protocols/types.js';
 import {
   stringType,
   numberType,
@@ -24,26 +25,7 @@ import {
   dictType,
 } from './protocols/index.js';
 
-/** Protocol functions that define per-type behavior. */
-export interface TypeProtocol {
-  format: (v: RillValue) => string;
-  structure?: ((v: RillValue) => TypeStructure) | undefined;
-  eq?: ((a: RillValue, b: RillValue) => boolean) | undefined;
-  compare?: ((a: RillValue, b: RillValue) => number) | undefined;
-  convertTo?: Record<string, (v: RillValue) => RillValue> | undefined;
-  serialize?: ((v: RillValue) => unknown) | undefined;
-  deserialize?: ((data: unknown) => RillValue) | undefined;
-}
-
-/** A single type registration record. One per built-in type. */
-export interface TypeDefinition {
-  name: string;
-  identity: (v: RillValue) => boolean;
-  isLeaf: boolean;
-  immutable: boolean;
-  methods: Record<string, RillFunction>;
-  protocol: TypeProtocol;
-}
+export type { TypeProtocol, TypeDefinition } from './protocols/types.js';
 
 /** All 16 built-in type registrations (NFR-TPC-1). dict is last (fallback). */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
@@ -65,17 +47,15 @@ export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
   dictType,
 ]);
 
-/** Module-private identity dispatcher. Falls back when no match (returns fallback). */
+/** Module-private identity dispatcher. Falls back only when no type identity matches. */
 function dispatchByIdentity<T>(
   v: RillValue,
-  fn: (reg: TypeDefinition) => T | undefined,
+  fn: (reg: TypeDefinition) => T,
   fallback: T
 ): T {
   for (const reg of BUILT_IN_TYPES) {
     if (reg.identity(v)) {
-      const result = fn(reg);
-      if (result !== undefined) return result;
-      return fallback;
+      return fn(reg);
     }
   }
   return fallback;
@@ -114,8 +94,7 @@ initDeepEquals(deepEquals);
 export function serializeValue(value: RillValue): unknown {
   return dispatchByIdentity<unknown>(
     value,
-    (reg) =>
-      reg.protocol.serialize ? reg.protocol.serialize(value) : undefined,
+    (reg) => (reg.protocol.serialize ? reg.protocol.serialize(value) : value),
     value
   );
 }

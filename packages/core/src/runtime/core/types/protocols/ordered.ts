@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillOrdered } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isOrdered } from '../guards.js';
 import {
   formatNested,

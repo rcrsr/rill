@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillDuration } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
 import { throwTypeHalt } from '../halt.js';
 import { RuntimeError } from '../../../../types.js';

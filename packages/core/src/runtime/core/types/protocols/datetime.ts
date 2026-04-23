@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillDatetime } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isDatetime } from '../guards.js';
 import { throwTypeHalt } from '../halt.js';
 

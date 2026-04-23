@@ -9,7 +9,7 @@
  */
 
 import type { RillValue, RillVector } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isVector } from '../guards.js';
 import { throwNotSerializable } from './shared.js';
 

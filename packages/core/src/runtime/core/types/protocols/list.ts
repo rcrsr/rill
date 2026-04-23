@@ -9,7 +9,7 @@
  */
 
 import type { RillValue } from '../structures.js';
-import type { TypeDefinition } from '../registrations.js';
+import type { TypeDefinition } from './types.js';
 import { isTuple, isOrdered } from '../guards.js';
 import { createTuple } from '../constructors.js';
 import {

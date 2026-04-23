@@ -47,7 +47,7 @@ export function initFormatNested(fn: (v: RillValue) => string): void {
 
 /**
  * Quote strings when nested inside containers for unambiguous display.
- * Mirrors the local formatNested in registrations.ts (lines 122-125).
+ * Mirrors the local formatNested behavior used in registrations.ts.
  */
 export function formatNested(v: RillValue): string {
   if (typeof v === 'string') return formatRillLiteral(v);
