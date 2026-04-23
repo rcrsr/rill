@@ -185,7 +185,7 @@ export function nextToken(state: LexerState): Token {
   throw new LexerError('RILL-L002', `Unexpected character: ${ch}`, start);
 }
 
-export interface TokenizeOptions {
+interface TokenizeOptions {
   includeComments?: boolean;
 }
 

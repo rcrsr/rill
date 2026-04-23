@@ -127,10 +127,6 @@ export function getStatus(value: RillValue): RillStatus {
  * path). The singleton is deeply frozen: mutation attempts throw in
  * strict mode and are silently ignored in sloppy mode.
  */
-export function emptyStatus(): RillStatus {
-  return EMPTY_STATUS;
-}
-
 // ============================================================
 // VALIDITY PROBES
 // ============================================================

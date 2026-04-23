@@ -223,7 +223,7 @@ export const deepEquals: (a: RillValue, b: RillValue) => boolean =
   registryDeepEquals;
 
 /** Reserved dict method names that cannot be overridden */
-export const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
+const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
 
 /**
  * Singleton RillTypeValue representing the 'any' type.
