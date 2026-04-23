@@ -17,9 +17,10 @@
  * 10. UseMixin - use<...> imports
  * 11. ConversionMixin - :> conversion
  * 12. ClosuresMixin - Function calls and invocation
- * 13. ExpressionsMixin - Binary, unary, grouped expressions
- * 14. TypesMixin - Type assertions and checks
- * 15. AnnotationsMixin - Annotated statement execution (outermost)
+ * 13. StreamClosuresMixin - Stream creation, disposal, and inflight tracking
+ * 14. ExpressionsMixin - Binary, unary, grouped expressions
+ * 15. TypesMixin - Type assertions and checks
+ * 16. AnnotationsMixin - Annotated statement execution (outermost)
  *
  * The order ensures that each mixin can depend on the methods provided
  * by mixins below it in the stack.
@@ -114,6 +115,7 @@ import { ExtractionMixin } from './mixins/extraction.js';
 import { ListDispatchMixin } from './mixins/list-dispatch.js';
 import { ControlFlowMixin } from './mixins/control-flow.js';
 import { ClosuresMixin } from './mixins/closures.js';
+import { StreamClosuresMixin } from './invocation/stream-closures.js';
 import { ExpressionsMixin } from './mixins/expressions.js';
 import { TypesMixin } from './mixins/types.js';
 import { AnnotationsMixin } from './mixins/annotations.js';
@@ -132,15 +134,17 @@ import type { RuntimeContext } from '../types/runtime.js';
 export const Evaluator = AnnotationsMixin(
   TypesMixin(
     ExpressionsMixin(
-      ClosuresMixin(
-        ConversionMixin(
-          UseMixin(
-            ControlFlowMixin(
-              RecoveryMixin(
-                ExtractionMixin(
-                  ListDispatchMixin(
-                    CollectionsMixin(
-                      VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+      StreamClosuresMixin(
+        ClosuresMixin(
+          ConversionMixin(
+            UseMixin(
+              ControlFlowMixin(
+                RecoveryMixin(
+                  ExtractionMixin(
+                    ListDispatchMixin(
+                      CollectionsMixin(
+                        VariablesMixin(LiteralsMixin(CoreMixin(EvaluatorBase)))
+                      )
                     )
                   )
                 )
