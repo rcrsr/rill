@@ -33,7 +33,7 @@
  */
 
 import { getStatus, isInvalid } from '../src/runtime/core/types/status.js';
-import type { RillValue } from '../src/runtime/core/types/index.js';
+import type { RillValue } from '../src/runtime/core/types/structures.js';
 
 // ============================================================
 // CONSTANTS
@@ -128,7 +128,7 @@ function main(): void {
   const gcAvailable = typeof globalThis.gc === 'function';
   // Console output is the intentional product of this bench script; it
   // is not part of library code, so the ESLint rule does not apply.
-  /* eslint-disable no-console */
+   
   console.log('AC-N3 allocation measurement');
   console.log(
     `  warmup=${WARMUP_ITERATIONS}, measured=${MEASURED_ITERATIONS}, threshold=${BYTES_PER_PROBE_THRESHOLD} B/iter`
@@ -164,7 +164,7 @@ function main(): void {
     // Non-zero exit so CI flags the regression.
     process.exit(1);
   }
-  /* eslint-enable no-console */
+   
 }
 
 main();

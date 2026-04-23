@@ -21,6 +21,12 @@
 // PUBLIC TYPES (from types/ barrel)
 // ============================================================
 
+export type { RillAtom } from './core/types/atom-registry.js';
+export type { FieldComparisonCallbacks } from './core/types/operations.js';
+export type {
+  TypeDefinition,
+  TypeProtocol,
+} from './core/types/registrations.js';
 export type {
   CaptureEvent,
   ErrorEvent,
@@ -28,17 +34,24 @@ export type {
   ExecutionStepper,
   ExtensionEvent,
   ExtensionFactoryCtx,
-  FieldComparisonCallbacks,
   FunctionReturnEvent,
   HostCallEvent,
-  InvalidateMeta,
   InvalidMeta,
   NativeArray,
   NativePlainObject,
   NativeValue,
   ObservabilityCallbacks,
   ResolverResult,
-  RillAtom,
+  RuntimeCallbacks,
+  RuntimeContext,
+  RuntimeOptions,
+  SchemeResolver,
+  StepEndEvent,
+  StepResult,
+  StepStartEvent,
+} from './core/types/runtime.js';
+export type { InvalidateMeta } from './core/types/status.js';
+export type {
   RillAtomValue,
   RillDatetime,
   RillDuration,
@@ -50,19 +63,9 @@ export type {
   RillTypeValue,
   RillValue,
   RillVector,
-  RuntimeCallbacks,
-  RuntimeContext,
-  RuntimeOptions,
-  SchemeResolver,
-  StepEndEvent,
-  StepResult,
-  StepStartEvent,
-  TraceFrame,
-  TraceKind,
-  TypeDefinition,
-  TypeProtocol,
   TypeStructure,
-} from './core/types/index.js';
+} from './core/types/structures.js';
+export type { TraceFrame, TraceKind } from './core/types/trace.js';
 
 // ============================================================
 // CALLABLE TYPES AND GUARDS
@@ -100,24 +103,18 @@ export type { NativeResult } from './core/values.js';
 // Extracted to types/ sub-modules (via barrel)
 export {
   atomName,
-  BUILT_IN_TYPES,
-  commonType,
-  compareStructuredFields,
+  registerErrorCode,
+  resolveAtom,
+} from './core/types/atom-registry.js';
+export {
   copyValue,
   createOrdered,
   createRillStream,
   createTuple,
   createVector,
-  deepEquals,
-  deserializeValue,
-  formatHalt,
-  formatRillLiteral,
-  formatStructure,
-  formatValue,
+} from './core/types/constructors.js';
+export {
   getStatus,
-  inferElementType,
-  inferStructure,
-  inferType,
   isAtom,
   isDatetime,
   isDuration,
@@ -129,13 +126,27 @@ export {
   isTypeValue,
   isVacant,
   isVector,
+} from './core/types/guards.js';
+export {
+  commonType,
+  compareStructuredFields,
+  formatRillLiteral,
+  formatStructure,
+  inferElementType,
+  inferStructure,
   paramToFieldDef,
-  registerErrorCode,
-  resolveAtom,
-  serializeValue,
   structureEquals,
   structureMatches,
-} from './core/types/index.js';
+} from './core/types/operations.js';
+export {
+  BUILT_IN_TYPES,
+  deepEquals,
+  deserializeValue,
+  formatValue,
+  inferType,
+  serializeValue,
+} from './core/types/registrations.js';
+export { formatHalt } from './core/types/status.js';
 
 // Remain in values.ts
 export {
@@ -155,7 +166,7 @@ export { buildFieldDescriptor } from './core/field-descriptor.js';
 // ============================================================
 
 export { BreakSignal, ReturnSignal, YieldSignal } from './core/signals.js';
-export { RuntimeHaltSignal } from './core/types/index.js';
+export { RuntimeHaltSignal } from './core/types/halt.js';
 
 // ============================================================
 // EXTENSION API
