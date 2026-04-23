@@ -1,68 +1,30 @@
-/**
- * Type Registration Definitions
- *
- * Defines the TypeDefinition interface, TypeProtocol interface, and
- * BUILT_IN_TYPES registration array. Each of the 16 built-in types
- * carries identity predicates, protocol functions (format, eq, compare,
- * convertTo, serialize), and a methods record populated from BUILTIN_METHODS.
- *
- * Dispatch functions (inferType, formatValue, deepEquals, serializeValue,
- * deserializeValue) iterate registrations and delegate to per-type
- * protocol implementations.
- *
- * Registration order:
- *   primitives -> discriminator-based -> structural -> list -> dict fallback
- *
- * @internal
- */
+/** @internal Type Registration Definitions */
 
-import type {
-  TypeStructure,
-  RillValue,
-  RillTuple,
-  RillOrdered,
-  RillVector,
-  RillTypeValue,
-  RillDatetime,
-  RillDuration,
-  RillAtomValue,
-} from './structures.js';
+import type { RillValue, TypeStructure } from './structures.js';
 import type { RillFunction } from '../callable.js';
-import {
-  isStream,
-  isTuple,
-  isVector,
-  isOrdered,
-  isTypeValue,
-  isIterator,
-  isDatetime,
-  isDuration,
-  isAtom,
-} from './guards.js';
-import { resolveAtom } from './atom-registry.js';
-import { createTuple } from './constructors.js';
-import {
-  formatRillLiteral,
-  formatStructure,
-  structureEquals,
-} from './operations.js';
-import {
-  isCallable,
-  isDict,
-  isScriptCallable,
-  callableEquals,
-} from '../callable.js';
 import { RuntimeError } from '../../../types.js';
 import { throwTypeHalt } from './halt.js';
+import { initFormatNested, initDeepEquals } from './protocols/shared.js';
+import {
+  stringType,
+  numberType,
+  boolType,
+  tupleType,
+  orderedType,
+  vectorType,
+  datetimeType,
+  durationType,
+  atomType,
+  typeType,
+  closureType,
+  fieldDescriptorType,
+  streamType,
+  iteratorType,
+  listType,
+  dictType,
+} from './protocols/index.js';
 
-// ============================================================
-// TYPE PROTOCOL INTERFACE
-// ============================================================
-
-/**
- * Protocol functions that define per-type behavior.
- * Every type must provide `format`. All other protocols are optional.
- */
+/** Protocol functions that define per-type behavior. */
 export interface TypeProtocol {
   format: (v: RillValue) => string;
   structure?: ((v: RillValue) => TypeStructure) | undefined;
@@ -73,14 +35,7 @@ export interface TypeProtocol {
   deserialize?: ((data: unknown) => RillValue) | undefined;
 }
 
-// ============================================================
-// TYPE DEFINITION INTERFACE
-// ============================================================
-
-/**
- * A single type registration record. Each of the 15 built-in types
- * has exactly one TypeDefinition in the BUILT_IN_TYPES array.
- */
+/** A single type registration record. One per built-in type. */
 export interface TypeDefinition {
   name: string;
   identity: (v: RillValue) => boolean;
@@ -90,997 +45,82 @@ export interface TypeDefinition {
   protocol: TypeProtocol;
 }
 
-// ============================================================
-// IDENTITY HELPERS
-// ============================================================
-
-/** Identity predicate for field_descriptor values. */
-function isFieldDescriptor(value: RillValue): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_field_descriptor' in value &&
-    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
-  );
-}
-
-/** Identity predicate for closure values. */
-function isClosure(value: RillValue): boolean {
-  return isCallable(value);
-}
-
-// ============================================================
-// PROTOCOL IMPLEMENTATIONS: FORMAT
-// ============================================================
-
-function formatString(v: RillValue): string {
-  if (v === null) return 'type(null)';
-  return v as string;
-}
-
-/** Quote strings when nested inside containers for unambiguous display. */
-function formatNested(v: RillValue): string {
-  if (typeof v === 'string') return formatRillLiteral(v);
-  return formatValue(v);
-}
-
-function formatNumber(v: RillValue): string {
-  return String(v as number);
-}
-
-function formatBool(v: RillValue): string {
-  return (v as boolean) ? 'true' : 'false';
-}
-
-function formatTuple(v: RillValue): string {
-  const t = v as unknown as RillTuple;
-  return `tuple[${t.entries.map(formatNested).join(', ')}]`;
-}
-
-function formatOrdered(v: RillValue): string {
-  const o = v as unknown as RillOrdered;
-  const parts = o.entries.map(([k, val]) => `${k}: ${formatNested(val)}`);
-  return `ordered[${parts.join(', ')}]`;
-}
-
-function formatVector(v: RillValue): string {
-  const vec = v as unknown as RillVector;
-  return `vector(${vec.model}, ${vec.data.length}d)`;
-}
-
-function formatTypeValue(v: RillValue): string {
-  const tv = v as unknown as RillTypeValue;
-  return formatStructure(tv.structure);
-}
-
-function formatClosure(_v: RillValue): string {
-  return 'type(closure)';
-}
-
-function formatFieldDescriptor(_v: RillValue): string {
-  return 'type(field_descriptor)';
-}
-
-function formatIterator(_v: RillValue): string {
-  return 'type(iterator)';
-}
-
-function formatStream(_v: RillValue): string {
-  return 'type(stream)';
-}
-
-function formatDatetime(v: RillValue): string {
-  const dt = v as unknown as RillDatetime;
-  return new Date(dt.unix).toISOString();
-}
-
-function formatCode(v: RillValue): string {
-  const c = v as unknown as RillAtomValue;
-  return `#${c.atom.name}`;
-}
-
-/**
- * Format a duration as a compact display string.
- * Omits zero components. Zero duration = "0ms".
- *
- * Calendar decomposition: years = floor(months / 12), remaining months.
- * Clock decomposition: days, hours, minutes, seconds, ms from the ms field.
- */
-function formatDuration(v: RillValue): string {
-  const dur = v as unknown as RillDuration;
-  const parts: string[] = [];
-
-  // Calendar components
-  const years = Math.floor(dur.months / 12);
-  const remainingMonths = dur.months % 12;
-  if (years > 0) parts.push(`${years}y`);
-  if (remainingMonths > 0) parts.push(`${remainingMonths}mo`);
-
-  // Clock components: decompose ms field
-  let remainder = dur.ms;
-  const days = Math.floor(remainder / 86400000);
-  remainder -= days * 86400000;
-  const hours = Math.floor(remainder / 3600000);
-  remainder -= hours * 3600000;
-  const minutes = Math.floor(remainder / 60000);
-  remainder -= minutes * 60000;
-  const seconds = Math.floor(remainder / 1000);
-  remainder -= seconds * 1000;
-
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (seconds > 0) parts.push(`${seconds}s`);
-  if (remainder > 0) parts.push(`${remainder}ms`);
-
-  return parts.length === 0 ? '0ms' : parts.join('');
-}
-
-function formatList(v: RillValue): string {
-  const arr = v as RillValue[];
-  return `list[${arr.map(formatNested).join(', ')}]`;
-}
-
-function formatDict(v: RillValue): string {
-  const dict = v as Record<string, RillValue>;
-  const parts = Object.entries(dict).map(
-    ([k, val]) => `${k}: ${formatNested(val)}`
-  );
-  return `dict[${parts.join(', ')}]`;
-}
-
-// ============================================================
-// PROTOCOL IMPLEMENTATIONS: EQ
-// ============================================================
-
-function eqString(a: RillValue, b: RillValue): boolean {
-  return a === b;
-}
-
-function eqNumber(a: RillValue, b: RillValue): boolean {
-  return a === b;
-}
-
-function eqBool(a: RillValue, b: RillValue): boolean {
-  return a === b;
-}
-
-/**
- * Parameterized element-wise comparison for collections.
- * Replaces duplicated loops in eqTuple, eqList, eqOrdered.
- *
- * AC-40: Zero-length collections return true.
- * AC-19: eqTuple, eqList, eqOrdered delegate loop body here.
- */
-function compareElements(
-  aEntries: readonly unknown[],
-  bEntries: readonly unknown[],
-  comparator: (a: unknown, b: unknown) => boolean
-): boolean {
-  if (aEntries.length !== bEntries.length) return false;
-  for (let i = 0; i < aEntries.length; i++) {
-    if (!comparator(aEntries[i], bEntries[i])) return false;
-  }
-  return true;
-}
-
-/** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
-function compareByDeepEquals(a: unknown, b: unknown): boolean {
-  if (a === undefined || b === undefined) return a === b;
-  return deepEquals(a as RillValue, b as RillValue);
-}
-
-/** Entry comparator for ordered: keys by identity, values by deepEquals. */
-function compareOrderedEntry(a: unknown, b: unknown): boolean {
-  const aEntry = a as [string, RillValue] | undefined;
-  const bEntry = b as [string, RillValue] | undefined;
-  if (aEntry === undefined || bEntry === undefined) return false;
-  if (aEntry[0] !== bEntry[0]) return false;
-  return deepEquals(aEntry[1], bEntry[1]);
-}
-
-function eqTuple(a: RillValue, b: RillValue): boolean {
-  if (!isTuple(a) || !isTuple(b)) return false;
-  return compareElements(a.entries, b.entries, compareByDeepEquals);
-}
-
-function eqOrdered(a: RillValue, b: RillValue): boolean {
-  if (!isOrdered(a) || !isOrdered(b)) return false;
-  return compareElements(a.entries, b.entries, compareOrderedEntry);
-}
-
-function eqVector(a: RillValue, b: RillValue): boolean {
-  if (!isVector(a) || !isVector(b)) return false;
-  if (a.model !== b.model) return false;
-  if (a.data.length !== b.data.length) return false;
-  for (let i = 0; i < a.data.length; i++) {
-    if (a.data[i] !== b.data[i]) return false;
-  }
-  return true;
-}
-
-function eqTypeValue(a: RillValue, b: RillValue): boolean {
-  if (!isTypeValue(a) || !isTypeValue(b)) return false;
-  return structureEquals(a.structure, b.structure);
-}
-
-function eqClosure(a: RillValue, b: RillValue): boolean {
-  if (!isCallable(a) || !isCallable(b)) return false;
-  // Script callables: structural equality
-  if (isScriptCallable(a) && isScriptCallable(b)) {
-    return callableEquals(a, b, deepEquals);
-  }
-  // Runtime/application callables: reference equality
-  return a === b;
-}
-
-function eqFieldDescriptor(a: RillValue, b: RillValue): boolean {
-  // Field descriptors use reference equality
-  return a === b;
-}
-
-function eqDatetime(a: RillValue, b: RillValue): boolean {
-  if (!isDatetime(a) || !isDatetime(b)) return false;
-  return a.unix === b.unix;
-}
-
-function eqDuration(a: RillValue, b: RillValue): boolean {
-  if (!isDuration(a) || !isDuration(b)) return false;
-  return a.months === b.months && a.ms === b.ms;
-}
-
-/**
- * Equality for `:atom` primitives.
- *
- * AC-3: atoms are identity-compared. `resolveAtom` interns one
- * frozen RillAtom per name, so identical names share the same atom
- * reference.
- */
-function eqCode(a: RillValue, b: RillValue): boolean {
-  if (!isAtom(a) || !isAtom(b)) return false;
-  return a.atom === b.atom;
-}
-
-function eqList(a: RillValue, b: RillValue): boolean {
-  if (!Array.isArray(a) || !Array.isArray(b)) return false;
-  return compareElements(a, b, compareByDeepEquals);
-}
-
-function eqDict(a: RillValue, b: RillValue): boolean {
-  const aDict = a as Record<string, RillValue>;
-  const bDict = b as Record<string, RillValue>;
-  const aKeys = Object.keys(aDict);
-  const bKeys = Object.keys(bDict);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (!(key in bDict)) return false;
-    const aVal = aDict[key];
-    const bVal = bDict[key];
-    if (aVal === undefined || bVal === undefined) {
-      if (aVal !== bVal) return false;
-    } else if (!deepEquals(aVal, bVal)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// ============================================================
-// PROTOCOL IMPLEMENTATIONS: COMPARE
-// ============================================================
-
-function compareString(a: RillValue, b: RillValue): number {
-  const sa = a as string;
-  const sb = b as string;
-  if (sa < sb) return -1;
-  if (sa > sb) return 1;
-  return 0;
-}
-
-function compareNumber(a: RillValue, b: RillValue): number {
-  return (a as number) - (b as number);
-}
-
-function compareDatetime(a: RillValue, b: RillValue): number {
-  const da = (a as unknown as RillDatetime).unix;
-  const db = (b as unknown as RillDatetime).unix;
-  return da - db;
-}
-
-/**
- * Three-way comparison for durations.
- * Only defined when both durations have equal months fields.
- * When months differ, ordering is ambiguous (month length varies),
- * so we halt with RILL-R002.
- */
-function compareDuration(a: RillValue, b: RillValue): number {
-  const da = a as unknown as RillDuration;
-  const db = b as unknown as RillDuration;
-  if (da.months !== db.months) {
-    throw new RuntimeError(
-      'RILL-R002',
-      'Cannot order durations with different calendar components'
-    );
-  }
-  return da.ms - db.ms;
-}
-
-// ============================================================
-// PROTOCOL IMPLEMENTATIONS: CONVERT-TO
-// ============================================================
-
-/**
- * String convertTo targets.
- * - string -> number: parse numeric string
- * - string -> bool: "true"/"false" only
- */
-const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  number: (v: RillValue): RillValue => {
-    const str = v as string;
-    const parsed = Number(str);
-    if (isNaN(parsed) || str.trim() === '') {
-      throw new RuntimeError(
-        'RILL-R064',
-        `cannot convert string "${str}" to number`
-      );
-    }
-    return parsed;
-  },
-  bool: (v: RillValue): RillValue => {
-    const s = v as string;
-    if (s === 'true') return true;
-    if (s === 'false') return false;
-    throw new RuntimeError('RILL-R065', `cannot convert string "${s}" to bool`);
-  },
-  atom: (v: RillValue): RillValue => {
-    const atom = resolveAtom(v as string);
-    return { __rill_atom: true, atom } as unknown as RillValue;
-  },
-};
-
-/**
- * Number convertTo targets.
- * - number -> string: via String()
- * - number -> bool: 0 -> false, 1 -> true
- */
-const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => String(v as number),
-  bool: (v: RillValue): RillValue => {
-    const n = v as number;
-    if (n === 0) return false;
-    if (n === 1) return true;
-    throw new RuntimeError('RILL-R066', `cannot convert number ${n} to bool`);
-  },
-};
-
-/**
- * Bool convertTo targets.
- * - bool -> string: "true"/"false"
- * - bool -> number: true -> 1, false -> 0
- */
-const boolConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => ((v as boolean) ? 'true' : 'false'),
-  number: (v: RillValue): RillValue => ((v as boolean) ? 1 : 0),
-};
-
-/**
- * Tuple convertTo targets.
- * - tuple -> list: extract entries
- */
-const tupleConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  list: (v: RillValue): RillValue => (v as unknown as RillTuple).entries,
-  string: (v: RillValue): RillValue => formatTuple(v),
-};
-
-/**
- * Ordered convertTo targets.
- * - ordered -> dict: convert entries to plain object
- */
-const orderedConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  dict: (v: RillValue): RillValue => {
-    const o = v as unknown as RillOrdered;
-    const result: Record<string, RillValue> = {};
-    for (const [key, value] of o.entries) {
-      result[key] = value;
-    }
-    return result;
-  },
-  string: (v: RillValue): RillValue => formatOrdered(v),
-};
-
-/**
- * List convertTo targets.
- * - list -> tuple: wrap in tuple
- * - list -> string: format
- */
-const listConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  tuple: (v: RillValue): RillValue => createTuple(v as RillValue[]),
-  string: (v: RillValue): RillValue => formatList(v),
-};
-
-/**
- * Dict convertTo targets.
- * - dict -> string: format
- */
-const dictConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => formatDict(v),
-};
-
-/**
- * Vector convertTo targets.
- * - vector -> string: format
- */
-const vectorConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => formatVector(v),
-};
-
-/**
- * Type value convertTo targets.
- * - type -> string: format
- */
-const typeConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => formatTypeValue(v),
-};
-
-/**
- * Closure convertTo targets.
- * - closure -> string: format
- */
-const closureConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (_v: RillValue): RillValue => 'type(closure)',
-};
-
-/**
- * Iterator convertTo targets.
- * - iterator -> string: format
- */
-const iteratorConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (_v: RillValue): RillValue => 'type(iterator)',
-};
-
-/**
- * Stream convertTo targets.
- * - stream -> string: format
- */
-const streamConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (_v: RillValue): RillValue => 'type(stream)',
-};
-
-/**
- * Atom convertTo targets.
- * - atom -> string: bare atom name (no `#` sigil), matches `atomName`.
- */
-const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue =>
-    (v as unknown as RillAtomValue).atom.name,
-};
-
-/**
- * Serialize a `:atom` value as its bare uppercase atom name string.
- * The `#` sigil is a syntactic convenience, not part of the identity.
- */
-function serializeAtom(v: RillValue): unknown {
-  return (v as unknown as RillAtomValue).atom.name;
-}
-
-/**
- * Deserialize a string into a `:atom` value via `resolveAtom`.
- *
- * Unregistered names resolve to `#R001` (EC-3) rather than throwing.
- */
-function deserializeAtom(data: unknown): RillValue {
-  if (typeof data !== 'string') {
-    throwTypeHalt(
-      { fn: 'deserialize-atom' },
-      'INVALID_INPUT',
-      `Cannot deserialize ${typeof data} as atom, expected string`,
-      'runtime',
-      { actualType: typeof data }
-    );
-  }
-  const atom = resolveAtom(data);
-  return { __rill_atom: true, atom } as unknown as RillValue;
-}
-
-// ============================================================
-// PROTOCOL IMPLEMENTATIONS: SERIALIZE
-// ============================================================
-
-function serializeString(v: RillValue): unknown {
-  if (v === null) return null;
-  return v;
-}
-
-function serializeNumber(v: RillValue): unknown {
-  return v;
-}
-
-function serializeBool(v: RillValue): unknown {
-  return v;
-}
-
-function serializeList(v: RillValue): unknown {
-  return (v as RillValue[]).map(serializeListElement);
-}
-
-/** Recursive serialization for list elements. */
-function serializeListElement(v: RillValue): unknown {
-  if (v === null) return null;
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number') return v;
-  if (typeof v === 'boolean') return v;
-  if (Array.isArray(v)) return v.map(serializeListElement);
-  if (isCallable(v))
-    throw new RuntimeError('RILL-R067', 'closures are not JSON-serializable');
-  if (isTuple(v))
-    throw new RuntimeError('RILL-R067', 'tuples are not JSON-serializable');
-  if (isOrdered(v))
-    throw new RuntimeError(
-      'RILL-R067',
-      'ordered values are not JSON-serializable'
-    );
-  if (isVector(v))
-    throw new RuntimeError('RILL-R067', 'vectors are not JSON-serializable');
-  if (isTypeValue(v))
-    throw new RuntimeError(
-      'RILL-R067',
-      'type values are not JSON-serializable'
-    );
-  if (isIterator(v))
-    throw new RuntimeError('RILL-R067', 'iterators are not JSON-serializable');
-  if (isStream(v))
-    throw new RuntimeError('RILL-R067', 'streams are not JSON-serializable');
-  // Plain dict
-  const dict = v as Record<string, RillValue>;
-  const result: Record<string, unknown> = {};
-  for (const [k, val] of Object.entries(dict)) {
-    result[k] = serializeListElement(val);
-  }
-  return result;
-}
-
-function serializeDict(v: RillValue): unknown {
-  const dict = v as Record<string, RillValue>;
-  const result: Record<string, unknown> = {};
-  for (const [k, val] of Object.entries(dict)) {
-    result[k] = serializeListElement(val);
-  }
-  return result;
-}
-
-/** Serialize datetime as ISO 8601 string with milliseconds. */
-function serializeDatetime(v: RillValue): unknown {
-  const dt = v as unknown as RillDatetime;
-  return new Date(dt.unix).toISOString();
-}
-
-/**
- * Serialize duration.
- * Fixed durations (months=0): ms number.
- * Calendar durations (months>0): {months, ms} object.
- */
-function serializeDuration(v: RillValue): unknown {
-  const dur = v as unknown as RillDuration;
-  if (dur.months === 0) return dur.ms;
-  return { months: dur.months, ms: dur.ms };
-}
-
-/**
- * Deserialize ISO 8601 string to RillDatetime.
- * Accepts a string, parses via Date constructor.
- */
-function deserializeDatetime(data: unknown): RillValue {
-  if (typeof data !== 'string') {
-    throwTypeHalt(
-      { fn: 'deserialize-datetime' },
-      'INVALID_INPUT',
-      `Cannot deserialize ${typeof data} as datetime, expected ISO 8601 string`,
-      'runtime',
-      { actualType: typeof data }
-    );
-  }
-  const ms = Date.parse(data);
-  if (isNaN(ms)) {
-    throwTypeHalt(
-      { fn: 'deserialize-datetime' },
-      'INVALID_INPUT',
-      `Cannot deserialize invalid ISO 8601 string as datetime: ${data}`,
-      'runtime'
-    );
-  }
-  return { __rill_datetime: true, unix: ms } as unknown as RillValue;
-}
-
-/**
- * Deserialize duration from number (ms) or {months, ms} object.
- */
-function deserializeDuration(data: unknown): RillValue {
-  if (typeof data === 'number') {
-    return {
-      __rill_duration: true,
-      months: 0,
-      ms: data,
-    } as unknown as RillValue;
-  }
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    'months' in data &&
-    'ms' in data
-  ) {
-    const obj = data as { months: unknown; ms: unknown };
-    if (typeof obj.months !== 'number' || typeof obj.ms !== 'number') {
-      throwTypeHalt(
-        { fn: 'deserialize-duration' },
-        'INVALID_INPUT',
-        'Cannot deserialize duration: months and ms must be numbers',
-        'runtime'
-      );
-    }
-    return {
-      __rill_duration: true,
-      months: obj.months,
-      ms: obj.ms,
-    } as unknown as RillValue;
-  }
-  throwTypeHalt(
-    { fn: 'deserialize-duration' },
-    'INVALID_INPUT',
-    `Cannot deserialize ${typeof data} as duration, expected number or {months, ms}`,
-    'runtime',
-    { actualType: typeof data }
-  );
-}
-
-function throwNotSerializable(typeName: string): (v: RillValue) => never {
-  return (_v: RillValue): never => {
-    throw new RuntimeError(
-      'RILL-R067',
-      `${typeName}s are not JSON-serializable`
-    );
-  };
-}
-
-// ============================================================
-// BUILT-IN TYPE REGISTRATIONS
-// ============================================================
-
-/**
- * All 15 built-in type registrations.
- *
- * Registration order:
- * 1. Primitives: string, number, bool
- * 2. Discriminator-based: tuple, ordered, vector, datetime, duration, type, closure, field_descriptor
- * 3. Structural: iterator, stream
- * 4. list
- * 5. dict (fallback, must be last)
- *
- * AC-1: 15 registrations, one per type.
- * BC-2: Vector identity checked before dict fallback.
- * EC-3: Iterator has no protocol.eq.
- * EC-4: Bool has no protocol.compare.
- * EC-5: Cross-type datetime/duration comparisons raise RILL-R002.
- * EC-8: Non-serializable types throw RuntimeError (RILL-R067).
- */
+/** All 16 built-in type registrations (NFR-TPC-1). dict is last (fallback). */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
-  // ---- Primitives ----
-  {
-    name: 'string',
-    identity: (v: RillValue): boolean => typeof v === 'string' || v === null,
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatString,
-      eq: eqString,
-      compare: compareString,
-      convertTo: stringConvertTo,
-      serialize: serializeString,
-    },
-  },
-  {
-    name: 'number',
-    identity: (v: RillValue): boolean => typeof v === 'number',
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatNumber,
-      eq: eqNumber,
-      compare: compareNumber,
-      convertTo: numberConvertTo,
-      serialize: serializeNumber,
-    },
-  },
-  {
-    name: 'bool',
-    // EC-4: no protocol.compare (ordering unsupported for bool)
-    identity: (v: RillValue): boolean => typeof v === 'boolean',
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatBool,
-      eq: eqBool,
-      convertTo: boolConvertTo,
-      serialize: serializeBool,
-    },
-  },
-
-  // ---- Discriminator-based ----
-  {
-    name: 'tuple',
-    identity: (v: RillValue): boolean => isTuple(v),
-    isLeaf: false,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatTuple,
-      eq: eqTuple,
-      convertTo: tupleConvertTo,
-      serialize: throwNotSerializable('tuple'),
-    },
-  },
-  {
-    name: 'ordered',
-    identity: (v: RillValue): boolean => isOrdered(v),
-    isLeaf: false,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatOrdered,
-      eq: eqOrdered,
-      convertTo: orderedConvertTo,
-      serialize: throwNotSerializable('ordered value'),
-    },
-  },
-  {
-    // BC-2: Vector identity checked before dict fallback
-    name: 'vector',
-    identity: (v: RillValue): boolean => isVector(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatVector,
-      eq: eqVector,
-      convertTo: vectorConvertTo,
-      serialize: throwNotSerializable('vector'),
-    },
-  },
-  {
-    name: 'datetime',
-    identity: (v: RillValue): boolean => isDatetime(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatDatetime,
-      eq: eqDatetime,
-      compare: compareDatetime,
-      serialize: serializeDatetime,
-      deserialize: deserializeDatetime,
-    },
-  },
-  {
-    name: 'duration',
-    identity: (v: RillValue): boolean => isDuration(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatDuration,
-      eq: eqDuration,
-      compare: compareDuration,
-      serialize: serializeDuration,
-      deserialize: deserializeDuration,
-    },
-  },
-  {
-    // `:atom` is the 16th primitive. Atoms compare by identity (AC-3):
-    // `resolveAtom` interns one frozen RillAtom per name.
-    name: 'atom',
-    identity: (v: RillValue): boolean => isAtom(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatCode,
-      eq: eqCode,
-      convertTo: atomConvertTo,
-      serialize: serializeAtom,
-      deserialize: deserializeAtom,
-    },
-  },
-  {
-    name: 'type',
-    identity: (v: RillValue): boolean => isTypeValue(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatTypeValue,
-      eq: eqTypeValue,
-      convertTo: typeConvertTo,
-      serialize: throwNotSerializable('type value'),
-    },
-  },
-  {
-    name: 'closure',
-    identity: (v: RillValue): boolean => isClosure(v),
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatClosure,
-      eq: eqClosure,
-      convertTo: closureConvertTo,
-      serialize: throwNotSerializable('closure'),
-    },
-  },
-  {
-    name: 'field_descriptor',
-    identity: isFieldDescriptor,
-    isLeaf: true,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatFieldDescriptor,
-      eq: eqFieldDescriptor,
-      serialize: throwNotSerializable('field_descriptor'),
-    },
-  },
-
-  // ---- Structural ----
-  // Stream must precede iterator: streams satisfy the iterator shape
-  // (done + next + value) but have the __rill_stream discriminator.
-  {
-    name: 'stream',
-    identity: (v: RillValue): boolean => isStream(v),
-    isLeaf: false,
-    immutable: true,
-    methods: {},
-    protocol: {
-      format: formatStream,
-      convertTo: streamConvertTo,
-      serialize: throwNotSerializable('stream'),
-      structure: (v: RillValue): TypeStructure => {
-        const raw = v as unknown as Record<string, TypeStructure | undefined>;
-        const chunk = raw['__rill_stream_chunk_type'];
-        const ret = raw['__rill_stream_ret_type'];
-        const result: {
-          kind: 'stream';
-          chunk?: TypeStructure;
-          ret?: TypeStructure;
-        } = { kind: 'stream' };
-        if (chunk !== undefined) result.chunk = chunk;
-        if (ret !== undefined) result.ret = ret;
-        return result;
-      },
-    },
-  },
-  {
-    // EC-3: iterator has no protocol.eq (equality raises RILL-R002)
-    name: 'iterator',
-    identity: (v: RillValue): boolean => isIterator(v),
-    isLeaf: false,
-    immutable: false,
-    methods: {},
-    protocol: {
-      format: formatIterator,
-      convertTo: iteratorConvertTo,
-      serialize: throwNotSerializable('iterator'),
-    },
-  },
-
-  // ---- List ----
-  {
-    name: 'list',
-    identity: (v: RillValue): boolean =>
-      Array.isArray(v) && !isTuple(v) && !isOrdered(v),
-    isLeaf: false,
-    immutable: false,
-    methods: {},
-    protocol: {
-      format: formatList,
-      eq: eqList,
-      convertTo: listConvertTo,
-      serialize: serializeList,
-    },
-  },
-
-  // ---- Dict fallback (must be last) ----
-  {
-    name: 'dict',
-    identity: (v: RillValue): boolean => isDict(v),
-    isLeaf: false,
-    immutable: false,
-    methods: {},
-    protocol: {
-      format: formatDict,
-      eq: eqDict,
-      convertTo: dictConvertTo,
-      serialize: serializeDict,
-    },
-  },
+  stringType,
+  numberType,
+  boolType,
+  tupleType,
+  orderedType,
+  vectorType,
+  datetimeType,
+  durationType,
+  atomType,
+  typeType,
+  closureType,
+  fieldDescriptorType,
+  streamType,
+  iteratorType,
+  listType,
+  dictType,
 ]);
 
-// ============================================================
-// DISPATCH FUNCTIONS
-// ============================================================
+/** Module-private identity dispatcher. Falls back when no match (returns fallback). */
+function dispatchByIdentity<T>(
+  v: RillValue,
+  fn: (reg: TypeDefinition) => T | undefined,
+  fallback: T
+): T {
+  for (const reg of BUILT_IN_TYPES) {
+    if (reg.identity(v)) {
+      const result = fn(reg);
+      if (result !== undefined) return result;
+      return fallback;
+    }
+  }
+  return fallback;
+}
 
-/**
- * Infer the Rill type name from a runtime value.
- * Iterates registrations in order; returns first matching name.
- * Returns 'string' as fallback (BC-1: null IS type string, not a coercion).
- *
- * IR-2: Return type widens from RillTypeName to string for extensibility.
- */
+/** Infer the Rill type name from a runtime value. Returns 'string' as fallback (BC-1). */
 export function inferType(value: RillValue): string {
-  for (const reg of BUILT_IN_TYPES) {
-    if (reg.identity(value)) return reg.name;
-  }
-  return 'string';
+  return dispatchByIdentity(value, (reg) => reg.name, 'string');
 }
 
-/**
- * Format a value as a human-readable string.
- * Determines type via inferType, then calls protocol.format.
- * Falls back to String(value) when no registration matches.
- *
- * IR-3: Protocol dispatcher for formatting.
- */
+/** Format a value as a human-readable string. */
 export function formatValue(value: RillValue): string {
-  for (const reg of BUILT_IN_TYPES) {
-    if (reg.identity(value)) return reg.protocol.format(value);
-  }
-  return String(value);
+  return dispatchByIdentity(
+    value,
+    (reg) => reg.protocol.format(value),
+    String(value)
+  );
 }
+initFormatNested(formatValue);
 
-/**
- * Deep equality comparison for two Rill values.
- * Short-circuit: a === b returns true.
- * Dispatches to left operand's protocol.eq.
- * No protocol.eq returns false.
- *
- * IR-4: Container protocol.eq calls deepEquals recursively.
- */
+/** Deep equality. Short-circuits on reference equality (EC-3, AC-18, AC-20). */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
-  for (const reg of BUILT_IN_TYPES) {
-    if (reg.identity(a)) {
+  return dispatchByIdentity(
+    a,
+    (reg) => {
       if (!reg.protocol.eq) return false;
       return reg.protocol.eq(a, b);
-    }
-  }
-  return false;
+    },
+    false
+  );
 }
+initDeepEquals(deepEquals);
 
-/**
- * Serialize a Rill value for JSON transport.
- * Dispatches to protocol.serialize; container types recurse.
- *
- * IR-7: Renamed from valueToJSON.
- */
+/** Serialize a Rill value for JSON transport. */
 export function serializeValue(value: RillValue): unknown {
-  for (const reg of BUILT_IN_TYPES) {
-    if (reg.identity(value)) {
-      if (reg.protocol.serialize) return reg.protocol.serialize(value);
-      break;
-    }
-  }
-  return value;
+  return dispatchByIdentity<unknown>(
+    value,
+    (reg) =>
+      reg.protocol.serialize ? reg.protocol.serialize(value) : undefined,
+    value
+  );
 }
 
-/**
- * Deserialize raw data into a Rill value.
- * Dispatches to protocol.deserialize for the given type name.
- * Falls back to raw value when no protocol.deserialize exists (primitives).
- *
- * IR-8: Raw value fallback rejects null/undefined inputs with INVALID_INPUT.
- * EC-9: Invalid data raises INVALID_INPUT.
- * EC-10: null/undefined input raises INVALID_INPUT.
- */
+/** Deserialize raw data into a Rill value by type name. */
 export function deserializeValue(data: unknown, typeName: string): RillValue {
   if (data === null || data === undefined) {
     throwTypeHalt(
@@ -1106,10 +146,6 @@ export function deserializeValue(data: unknown, typeName: string): RillValue {
   );
 }
 
-// ============================================================
-// METHOD POPULATION
-// ============================================================
-
 /** Names of types that carry methods from BUILTIN_METHODS. */
 const METHOD_BEARING_TYPES = new Set([
   'string',
@@ -1124,33 +160,22 @@ const METHOD_BEARING_TYPES = new Set([
 
 /**
  * Populate registration `methods` fields from BUILTIN_METHODS.
- *
- * Called after builtins.ts finishes initialization to avoid circular
- * dependency at module load time. The 8 method-bearing types (string,
- * number, bool, list, dict, vector, datetime, duration) receive their methods records;
- * other types keep `methods: {}`.
- *
- * AC-3: Consolidates method data into registrations.
- *
- * MUTATION NOTE: BUILT_IN_TYPES is shallow-frozen (the array), but each
- * registration object is mutable. This function relies on that mutability.
- * If registration objects are ever deep-frozen (e.g. Object.freeze(reg)),
- * this assignment will throw in strict mode. The runtime guard below catches
- * that condition early with a clear error rather than a silent no-op.
+ * Called after builtins.ts finishes initialization to avoid circular deps.
  */
 export function populateBuiltinMethods(
   builtinMethods: Record<string, Record<string, RillFunction>>
 ): void {
-  for (const reg of BUILT_IN_TYPES) {
-    if (METHOD_BEARING_TYPES.has(reg.name) && reg.name in builtinMethods) {
-      if (Object.isFrozen(reg)) {
-        throw new RuntimeError(
-          'RILL-R068',
-          `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
-        );
-      }
-      (reg as { methods: Record<string, RillFunction> }).methods =
-        builtinMethods[reg.name]!;
+  for (const typeName of METHOD_BEARING_TYPES) {
+    if (!(typeName in builtinMethods)) continue;
+    const reg = BUILT_IN_TYPES.find((r) => r.name === typeName);
+    if (reg === undefined) continue;
+    if (Object.isFrozen(reg)) {
+      throw new RuntimeError(
+        'RILL-R068',
+        `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
+      );
     }
+    (reg as { methods: Record<string, RillFunction> }).methods =
+      builtinMethods[typeName]!;
   }
 }
