@@ -114,7 +114,7 @@ export async function getIterableElements(
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
-export async function expandIterator(
+async function expandIterator(
   iterator: RillValue,
   ctx: RuntimeContext,
   node: { span: { start: SourceLocation } },
@@ -185,7 +185,7 @@ export async function expandIterator(
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
-export async function expandStream(
+async function expandStream(
   stream: RillStream,
   ctx: RuntimeContext,
   node: { span: { start: SourceLocation } },

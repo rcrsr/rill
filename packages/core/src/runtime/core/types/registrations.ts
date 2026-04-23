@@ -19,13 +19,10 @@
 import type {
   TypeStructure,
   RillValue,
-  RillFieldDef,
   RillTuple,
   RillOrdered,
   RillVector,
   RillTypeValue,
-  RillIterator,
-  RillStream,
   RillDatetime,
   RillDuration,
   RillAtomValue,
@@ -43,7 +40,7 @@ import {
   isAtom,
 } from './guards.js';
 import { resolveAtom } from './atom-registry.js';
-import { createTuple, createOrdered, createVector } from './constructors.js';
+import { createTuple } from './constructors.js';
 import {
   formatRillLiteral,
   formatStructure,
@@ -1157,31 +1154,3 @@ export function populateBuiltinMethods(
     }
   }
 }
-
-// ============================================================
-// RE-EXPORTED FACTORY FUNCTIONS
-// ============================================================
-
-export { createTuple, createOrdered, createVector };
-
-// ============================================================
-// RE-EXPORTED GUARD FUNCTIONS
-// ============================================================
-
-export { isStream, isTuple, isVector, isTypeValue, isOrdered, isIterator };
-
-// ============================================================
-// RE-EXPORTED TYPES
-// ============================================================
-
-export type { TypeStructure };
-export type {
-  RillValue,
-  RillTuple,
-  RillOrdered,
-  RillVector,
-  RillTypeValue,
-  RillIterator,
-  RillStream,
-  RillFieldDef,
-};

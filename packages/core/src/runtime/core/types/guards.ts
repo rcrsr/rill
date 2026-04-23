@@ -167,4 +167,4 @@ export function isIterator(value: RillValue): value is RillIterator {
  * predicates from the central guards module alongside the structural
  * type guards.
  */
-export { isInvalid, isVacant, getStatus, emptyStatus } from './status.js';
+export { isInvalid, isVacant, getStatus } from './status.js';

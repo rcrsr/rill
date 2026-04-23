@@ -17,7 +17,6 @@ import type { RillCallable } from './callable.js';
 import {
   isCallable as _isCallableGuard,
   isDatetime,
-  isDict,
   isDuration,
   isInvalid,
   isIterator,
@@ -35,78 +34,18 @@ const isCallable = _isCallableGuard as (
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
-  deepEquals as registryDeepEquals,
-  serializeValue as registrySerializeValue,
 } from './types/registrations.js';
 import type {
-  RillFieldDef,
-  RillIterator,
-  RillOrdered,
-  RillTuple,
   RillTypeValue,
   RillValue,
-  RillVector,
   TypeStructure,
 } from './types/structures.js';
 
-export type {
-  RillFieldDef,
-  RillIterator,
-  RillOrdered,
-  RillTuple,
-  RillTypeValue,
-  RillValue,
-  RillVector,
-  TypeStructure,
-};
-
-// Re-export narrowed variant types from operations.ts
-export type {
-  DictStructure,
-  TupleStructure,
-  OrderedStructure,
-} from './types/operations.js';
 import type {
   DictStructure,
-  TupleStructure,
   OrderedStructure,
+  TupleStructure,
 } from './types/operations.js';
-
-// Re-export guards from canonical source (types/guards.ts)
-export {
-  isCallable,
-  isDict,
-  isIterator,
-  isOrdered,
-  isStream,
-  isTuple,
-  isTypeValue,
-  isVector,
-};
-
-// Value constructors re-exported from canonical source (types/constructors.ts)
-export {
-  copyValue,
-  createOrdered,
-  createTuple,
-  createVector,
-  emptyForType,
-} from './types/constructors.js';
-
-// Structural operations re-exported from types/operations.ts
-export {
-  commonType,
-  compareStructuredFields,
-  formatStructure,
-  inferElementType,
-  inferStructure,
-  paramToFieldDef,
-  structureEquals,
-  structureMatches,
-} from './types/operations.js';
-export type { FieldComparisonCallbacks } from './types/operations.js';
-
-// Re-import for local use (toNative, structureToTypeValue)
 import { formatStructure, inferStructure } from './types/operations.js';
 
 /** Infer the Rill type from a runtime value. Delegates to type-registrations. */
@@ -186,10 +125,6 @@ export interface NativeResult {
   /** Native JS representation. Non-native types produce descriptor objects. */
   value: NativeValue;
 }
-
-/** Serialize a Rill value for JSON transport. Delegates to type-registrations. */
-export const serializeValue: (value: RillValue) => unknown =
-  registrySerializeValue;
 
 /**
  * Convert a RillValue to a NativeResult for host consumption.
@@ -277,12 +212,8 @@ function toNativeValue(value: RillValue): NativeValue {
   return result;
 }
 
-/** Deep structural equality for all Rill values. Delegates to type-registrations. */
-export const deepEquals: (a: RillValue, b: RillValue) => boolean =
-  registryDeepEquals;
-
 /** Reserved dict method names that cannot be overridden */
-export const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
+const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
 
 /**
  * Singleton RillTypeValue representing the 'any' type.

@@ -322,7 +322,8 @@ export function createRuntimeContext(
   const variables = new Map<string, RillValue>();
   const variableTypes = new Map<
     string,
-    import('../../types.js').RillTypeName | import('./values.js').TypeStructure
+    | import('../../types.js').RillTypeName
+    | import('./types/structures.js').TypeStructure
   >();
   const functions = new Map<
     string,
@@ -625,7 +626,7 @@ export function createChildContext(
     variableTypes: new Map<
       string,
       | import('../../types.js').RillTypeName
-      | import('./values.js').TypeStructure
+      | import('./types/structures.js').TypeStructure
     >(),
     functions: parent.functions,
     typeMethodDicts: parent.typeMethodDicts,

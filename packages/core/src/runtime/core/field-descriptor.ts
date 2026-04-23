@@ -16,7 +16,7 @@ import type { RillFieldDef, TypeStructure } from './types/structures.js';
  * Field descriptor — carries field name and structural type when accessing a
  * dict-kind RillType field.
  */
-export interface RillFieldDescriptor {
+interface RillFieldDescriptor {
   readonly __rill_field_descriptor: true;
   readonly fieldName: string;
   readonly fieldType: RillFieldDef;

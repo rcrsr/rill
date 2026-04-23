@@ -65,7 +65,7 @@ function readComment(state: LexerState): Token | null {
   return makeToken(TOKEN_TYPES.COMMENT, value, start, end);
 }
 
-export function nextToken(state: LexerState): Token {
+function nextToken(state: LexerState): Token {
   skipWhitespace(state);
 
   // Check for comment token
@@ -185,7 +185,7 @@ export function nextToken(state: LexerState): Token {
   throw new LexerError('RILL-L002', `Unexpected character: ${ch}`, start);
 }
 
-export interface TokenizeOptions {
+interface TokenizeOptions {
   includeComments?: boolean;
 }
 

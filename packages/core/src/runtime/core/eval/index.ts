@@ -10,21 +10,13 @@
 import type {
   AnnotatedStatementNode,
   ASTNode,
-  CaptureNode,
-  ExpressionNode,
-  RillTypeName,
   SourceLocation,
   StatementNode,
 } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types/runtime.js';
-import type { RillValue, TypeStructure } from '../types/structures.js';
+import type { RillValue } from '../types/structures.js';
 import { getEvaluator } from './evaluator.js';
-
-/**
- * Capture information returned by handleCapture.
- */
-export type CaptureInfo = { name: string; value: RillValue };
 
 /**
  * Check if execution has been aborted via AbortSignal.
@@ -53,117 +45,6 @@ export function checkAutoExceptions(
 }
 
 /**
- * Handle statement capture: set variable and fire observability event.
- * Returns capture info if a capture occurred.
- *
- * Note: Accepts CaptureNode | null because internal calls from CoreMixin
- * pass chain.terminator which may be null.
- */
-export async function handleCapture(
-  capture: CaptureNode | null,
-  value: RillValue,
-  ctx: RuntimeContext
-): Promise<CaptureInfo | undefined> {
-  if (!capture) return undefined;
-
-  const evaluator = getEvaluator(ctx);
-  // Access protected evaluateCapture method via type assertion
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (evaluator as any).evaluateCapture(capture, value);
-
-  // Return capture info for observability
-  return { name: capture.name, value };
-}
-
-/**
- * Assert that a value is of the expected type.
- * Returns the value unchanged if assertion passes, throws on mismatch.
- */
-export function assertType(
-  value: RillValue,
-  expected: RillTypeName | TypeStructure,
-  location?: SourceLocation
-): RillValue {
-  // Create a minimal context for standalone type assertions
-  // This is needed for assertType calls that occur outside expression evaluation
-  const minimalContext: RuntimeContext = {
-    variables: new Map(),
-    variableTypes: new Map(),
-    functions: new Map(),
-    callbacks: { onLog: () => {} },
-    pipeValue: null,
-    parent: undefined,
-    signal: undefined,
-    observability: {},
-    timeout: undefined,
-    autoExceptions: [],
-    maxCallStackDepth: 100,
-    annotationStack: [],
-    callStack: [],
-    immediateAnnotation: undefined,
-    resolvers: new Map(),
-    resolverConfigs: new Map(),
-    resolvingSchemes: new Set(),
-    typeMethodDicts: new Map(),
-    leafTypes: new Set([
-      'string',
-      'number',
-      'bool',
-      'vector',
-      'type',
-      'any',
-      'closure',
-      'field_descriptor',
-    ]),
-    unvalidatedMethodReceivers: new Set(),
-    hostContext: {},
-    // Minimal type-check context: assertType does not participate in the
-    // dispose / invalidate / catch flow, so these slots remain stubs that
-    // throw if reached. Real bindings live on the factory-scope context
-    // produced by createRuntimeContext.
-    invalidate: () => {
-      throw new Error(
-        'RuntimeContext.invalidate not available in type-check minimal context'
-      );
-    },
-    catch: () => {
-      throw new Error(
-        'RuntimeContext.catch not available in type-check minimal context'
-      );
-    },
-    dispose: () => {
-      throw new Error(
-        'RuntimeContext.dispose not available in type-check minimal context'
-      );
-    },
-    isDisposed: () => false,
-    createDisposedResult: () => {
-      throw new Error(
-        'RuntimeContext.createDisposedResult not available in type-check minimal context'
-      );
-    },
-    trackInflight: () => {
-      // No-op: minimal type-check context never participates in dispose flow.
-    },
-  };
-
-  const evaluator = getEvaluator(minimalContext);
-  return evaluator.assertType(value, expected, location);
-}
-
-/**
- * Evaluate an expression and return its value.
- * Main entry point for expression evaluation.
- */
-export async function evaluateExpression(
-  expr: ExpressionNode,
-  ctx: RuntimeContext
-): Promise<RillValue> {
-  const evaluator = getEvaluator(ctx);
-  return evaluator.evaluateExpression(expr);
-}
-
-/**
  * Execute a statement and return the result.
  * Handles annotations and observability events.
  */
@@ -173,18 +54,6 @@ export async function executeStatement(
 ): Promise<RillValue> {
   const evaluator = getEvaluator(ctx);
   return evaluator.executeStatement(stmt);
-}
-
-/**
- * Get annotation value by key from the context's annotation stack.
- * Returns undefined if annotation is not set.
- */
-export function getAnnotation(
-  ctx: RuntimeContext,
-  key: string
-): RillValue | undefined {
-  const evaluator = getEvaluator(ctx);
-  return evaluator.getAnnotation(key);
 }
 
 /**
