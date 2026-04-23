@@ -17,7 +17,6 @@ import type { RillCallable } from './callable.js';
 import {
   isCallable as _isCallableGuard,
   isDatetime,
-  isDict,
   isDuration,
   isInvalid,
   isIterator,
@@ -39,74 +38,16 @@ import {
   serializeValue as registrySerializeValue,
 } from './types/registrations.js';
 import type {
-  RillFieldDef,
-  RillIterator,
-  RillOrdered,
-  RillTuple,
   RillTypeValue,
   RillValue,
-  RillVector,
   TypeStructure,
 } from './types/structures.js';
 
-export type {
-  RillFieldDef,
-  RillIterator,
-  RillOrdered,
-  RillTuple,
-  RillTypeValue,
-  RillValue,
-  RillVector,
-  TypeStructure,
-};
-
-// Re-export narrowed variant types from operations.ts
-export type {
-  DictStructure,
-  TupleStructure,
-  OrderedStructure,
-} from './types/operations.js';
 import type {
   DictStructure,
-  TupleStructure,
   OrderedStructure,
+  TupleStructure,
 } from './types/operations.js';
-
-// Re-export guards from canonical source (types/guards.ts)
-export {
-  isCallable,
-  isDict,
-  isIterator,
-  isOrdered,
-  isStream,
-  isTuple,
-  isTypeValue,
-  isVector,
-};
-
-// Value constructors re-exported from canonical source (types/constructors.ts)
-export {
-  copyValue,
-  createOrdered,
-  createTuple,
-  createVector,
-  emptyForType,
-} from './types/constructors.js';
-
-// Structural operations re-exported from types/operations.ts
-export {
-  commonType,
-  compareStructuredFields,
-  formatStructure,
-  inferElementType,
-  inferStructure,
-  paramToFieldDef,
-  structureEquals,
-  structureMatches,
-} from './types/operations.js';
-export type { FieldComparisonCallbacks } from './types/operations.js';
-
-// Re-import for local use (toNative, structureToTypeValue)
 import { formatStructure, inferStructure } from './types/operations.js';
 
 /** Infer the Rill type from a runtime value. Delegates to type-registrations. */
