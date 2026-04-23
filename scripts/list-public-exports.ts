@@ -2,8 +2,13 @@
 /**
  * Enumerate the full public export surface of @rcrsr/rill.
  *
- * Loads the module's declaration file via the TypeScript compiler API
- * and lists every exported name with its kind (value/type/interface/class/const).
+ * Parses `packages/core/src/index.ts` (the published entry) and its
+ * transitive imports via the TypeScript compiler API, resolves every
+ * exported name to its originating source file, and prints one row per
+ * export with its kind.
+ *
+ * Kinds emitted: class, function, interface, type, enum, const-enum,
+ * const, let, var, namespace, unknown.
  *
  * Usage:
  *   pnpm exec tsx scripts/list-public-exports.ts [--json]
@@ -48,7 +53,22 @@ function classify(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   if (flags & ts.SymbolFlags.TypeAlias) return 'type';
   if (flags & ts.SymbolFlags.Enum) return 'enum';
   if (flags & ts.SymbolFlags.ConstEnum) return 'const-enum';
-  if (flags & ts.SymbolFlags.BlockScopedVariable) return 'const';
+  if (flags & ts.SymbolFlags.BlockScopedVariable) {
+    // BlockScopedVariable covers both `const` and `let`. Inspect the
+    // declaration's parent to distinguish; default to `let` when the
+    // list flag is not present.
+    const decl = symbol.declarations?.[0];
+    if (decl && ts.isVariableDeclaration(decl)) {
+      const list = decl.parent;
+      if (
+        ts.isVariableDeclarationList(list) &&
+        list.flags & ts.NodeFlags.Const
+      ) {
+        return 'const';
+      }
+    }
+    return 'let';
+  }
   if (flags & ts.SymbolFlags.FunctionScopedVariable) return 'var';
   if (flags & ts.SymbolFlags.Namespace || flags & ts.SymbolFlags.Module)
     return 'namespace';
