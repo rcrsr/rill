@@ -3,13 +3,12 @@
  * Exports lexer, parser, runtime, and AST types
  */
 
-export { LexerError, tokenize, type TokenizeOptions } from './lexer/index.js';
+export { LexerError, tokenize } from './lexer/index.js';
 export {
   parse,
   parseWithRecovery,
   parseTypeRef,
   createParserState,
-  type ParserState,
 } from './parser/index.js';
 export type { ParseResult, RecoveryErrorNode, ErrorNode } from './types.js';
 export {
@@ -69,12 +68,10 @@ export {
   type HandlerParamStatic,
   type HostCallEvent,
   hydrateFieldDefaults,
-  inferElementType,
   inferStructure,
   inferType,
   introspectHandlerFromAST,
   type InvalidateMeta,
-  type InvalidMeta,
   invokeCallable,
   isApplicationCallable,
   isAtom,
@@ -85,7 +82,6 @@ export {
   isEmpty,
   isInvalid,
   isIterator,
-  isReservedMethod,
   isRillStream,
   isRuntimeCallable,
   isScriptCallable,
@@ -104,17 +100,13 @@ export {
   type NativeValue,
   type ObservabilityCallbacks,
   type ParamMetadata,
-  paramToFieldDef,
   popCallFrame,
   pushCallFrame,
-  registerErrorCode,
-  RESERVED_DICT_METHODS,
   resolveAtom,
   type ResolverResult,
   ReturnSignal,
   RuntimeHaltSignal,
   YieldSignal,
-  type RillAtom,
   type RillAtomValue,
   type RillCallable,
   type RillDatetime,
@@ -123,13 +115,11 @@ export {
   type RillFunction,
   type RillIterator,
   type RillParam,
-  type RillStatus,
   type RillStream,
   type RillTuple,
   type RillTypeValue,
   type RillValue,
   type RillVector,
-  type RuntimeCallable,
   type RuntimeCallbacks,
   type RuntimeContext,
   type RuntimeOptions,
@@ -284,7 +274,6 @@ export type {
 export type { NodeType } from './ast-unions.js';
 
 // --- from ./error-classes.js ---
-export type { RillErrorData } from './error-classes.js';
 export {
   ParseError,
   RillError,
