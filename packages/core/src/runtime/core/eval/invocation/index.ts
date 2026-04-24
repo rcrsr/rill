@@ -19,10 +19,7 @@ export { ArgumentsBinder } from './arguments-binder.js';
 export { CallableInvocationStrategy } from './callable-strategy.js';
 
 // ============================================================
-// STREAM CLOSURES MIXIN
+// STREAM CLOSURES
 // ============================================================
-export {
-  StreamClosuresMixin,
-  activeStreamContexts,
-} from './stream-closures.js';
+export { activeStreamContexts } from './stream-closures.js';
 export type { StreamChannel } from './stream-closures.js';
