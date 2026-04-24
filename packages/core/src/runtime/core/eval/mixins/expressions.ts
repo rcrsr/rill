@@ -33,6 +33,7 @@ import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 
@@ -102,8 +103,11 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           ? []
           : [this.ctx.pipeValue];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (this as any).invokeCallable(value, args, undefined);
+      return await (this as unknown as EvaluatorInterface).invokeCallable(
+        value,
+        args,
+        undefined
+      );
     }
     /**
      * Evaluate binary expression: left op right.
@@ -344,8 +348,9 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'UnaryExpr':
           return this.evaluateUnaryExpr(node);
         case 'PostfixExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePostfixExpr(node);
+          return (this as unknown as EvaluatorInterface).evaluatePostfixExpr(
+            node
+          );
       }
     }
 
@@ -359,8 +364,9 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const savedCtx = this.ctx;
       this.ctx = childCtx;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluatePipeChain(node.expression);
+        return await (this as unknown as EvaluatorInterface).evaluatePipeChain(
+          node.expression
+        );
       } finally {
         this.ctx = savedCtx;
       }
@@ -372,3 +378,13 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ExpressionsMixin = createExpressionsMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ExpressionsMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type ExpressionsMixinCapability = {
+  evaluateBinaryExpr(node: BinaryExprNode): Promise<RillValue>;
+  evaluateUnaryExpr(node: UnaryExprNode): Promise<RillValue>;
+  evaluateGroupedExpr(node: GroupedExprNode): Promise<RillValue>;
+};

@@ -17,6 +17,7 @@ import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types/runtime.js';
 import type { RillValue } from '../types/structures.js';
 import { getEvaluator } from './evaluator.js';
+import type { EvaluatorInterface } from './interface.js';
 
 /**
  * Check if execution has been aborted via AbortSignal.
@@ -24,9 +25,7 @@ import { getEvaluator } from './evaluator.js';
  */
 export function checkAborted(ctx: RuntimeContext, node?: ASTNode): void {
   const evaluator = getEvaluator(ctx);
-  // Access protected method via type assertion
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (evaluator as any).checkAborted(node);
+  (evaluator as unknown as EvaluatorInterface).checkAborted(node);
 }
 
 /**
@@ -39,9 +38,7 @@ export function checkAutoExceptions(
   node?: ASTNode
 ): void {
   const evaluator = getEvaluator(ctx);
-  // Access protected method via type assertion
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (evaluator as any).checkAutoExceptions(value, node);
+  (evaluator as unknown as EvaluatorInterface).checkAutoExceptions(value, node);
 }
 
 /**
@@ -76,7 +73,9 @@ export async function invokeCallable(
   location?: SourceLocation
 ): Promise<RillValue> {
   const evaluator = getEvaluator(ctx);
-  // Access protected method via type assertion (same pattern as checkAborted, etc.)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (evaluator as any).invokeCallable(callable, args, location);
+  return (evaluator as unknown as EvaluatorInterface).invokeCallable(
+    callable,
+    args,
+    location
+  );
 }

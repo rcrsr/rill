@@ -24,6 +24,7 @@ import type { RillValue } from '../../types/structures.js';
 import { inferElementType } from '../../types/operations.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * ListDispatchMixin implementation.
@@ -82,8 +83,9 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
         // Use default value if provided via ??
         if (node.defaultValue) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateExpression(node.defaultValue);
+          return await (this as unknown as EvaluatorInterface).evaluateBody(
+            node.defaultValue
+          );
         }
         throw new RuntimeError(
           'RILL-R042',
@@ -107,10 +109,9 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if ((elem as unknown as { type: string }).type === 'ListSpread') {
           // Spread: ...$other — expand collection inline
           const spreadNode = elem as unknown as ListSpreadNode;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const spreadValue = await (this as any).evaluateExpression(
-            spreadNode.expression
-          );
+          const spreadValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(spreadNode.expression);
           if (Array.isArray(spreadValue)) {
             result.push(...spreadValue);
           } else {
@@ -122,8 +123,11 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          result.push(await (this as any).evaluateExpression(elem));
+          result.push(
+            await (this as unknown as EvaluatorInterface).evaluateExpression(
+              elem
+            )
+          );
         }
       }
       // Validate homogeneity: all elements must share the same structural type
@@ -136,3 +140,14 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // Export with type assertion to work around TS4094 limitation
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ListDispatchMixin = createListDispatchMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ListDispatchMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type ListDispatchMixinCapability = {
+  evaluateListLiteralDispatch(
+    node: ListLiteralNode,
+    input: RillValue
+  ): Promise<RillValue>;
+};

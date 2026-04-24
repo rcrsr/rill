@@ -34,6 +34,7 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
+  BodyNode,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -41,6 +42,7 @@ import type {
   DictKeyVariable,
   DictKeyComputed,
   PassNode,
+  TypeRef,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
@@ -56,6 +58,7 @@ import {
 import { throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { getVariable } from '../../context.js';
 
@@ -212,8 +215,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // InterpolationNode: evaluate the expression
           // Restore pipeValue before each interpolation so they all see the same value
           this.ctx.pipeValue = savedPipeValue;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const value = await (this as any).evaluateExpression(part.expression);
+          const value = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(part.expression);
           // Vector coercion guard [EC-31]
           if (isVector(value)) {
             throw RuntimeError.fromNode(
@@ -239,8 +243,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        elements.push(await (this as any).evaluateExpression(elem));
+        elements.push(
+          await (this as unknown as EvaluatorInterface).evaluateExpression(elem)
+        );
       }
       // Validate homogeneity: all elements must share the same structural type [C-1]
       inferElementType(elements);
@@ -255,10 +260,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       value: ExpressionNode
     ): Promise<Array<[string, RillValue]>> {
       // Evaluate list elements to get keys
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keys: RillValue[] = await (this as any).evaluateListLiteralElements(
-        keyList.elements
-      );
+      const keys: RillValue[] = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateListLiteralElements(keyList.elements);
 
       // Validate non-empty [EC-4]
       if (keys.length === 0) {
@@ -297,8 +301,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const fnLit = head.primary as ClosureNode;
         evaluatedValue = await this.createClosure(fnLit);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        evaluatedValue = await (this as any).evaluateExpression(value);
+        evaluatedValue = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateExpression(value);
       }
 
       // Create entry for each key
@@ -379,10 +384,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
               } else {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                result[stringKey] = await (this as any).evaluateExpression(
-                  entry.value
-                );
+                result[stringKey] = await (
+                  this as unknown as EvaluatorInterface
+                ).evaluateExpression(entry.value);
               }
 
               continue;
@@ -390,10 +394,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // Handle DictKeyComputed: evaluate expression and validate string type
             if (keyObj.kind === 'computed') {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const computedValue = await (this as any).evaluatePipeChain(
-                keyObj.expression
-              );
+              const computedValue = await (
+                this as unknown as EvaluatorInterface
+              ).evaluatePipeChain(keyObj.expression);
 
               // EC-8: Computed key must evaluate to string
               if (typeof computedValue !== 'string') {
@@ -431,10 +434,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
               } else {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                result[stringKey] = await (this as any).evaluateExpression(
-                  entry.value
-                );
+                result[stringKey] = await (
+                  this as unknown as EvaluatorInterface
+                ).evaluateExpression(entry.value);
               }
 
               continue;
@@ -491,10 +493,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const closure = await this.createClosure(fnLit);
           result[stringKey] = closure;
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          result[stringKey] = await (this as any).evaluateExpression(
-            entry.value
-          );
+          result[stringKey] = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(entry.value);
         }
       }
 
@@ -555,10 +556,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
           // ListLiteralNode key - evaluate to get list of candidates
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const keyValue = (await (this as any).evaluateListLiteralElements(
+          const keyValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateListLiteralElements(
             (entry.key as ListLiteralNode).elements
-          )) as RillValue[];
+          );
 
           // Check if input matches any element in the list (type-aware)
           for (const candidate of keyValue) {
@@ -575,18 +577,18 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         if (matchFound) {
           // Found match - evaluate and return the value
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const matchedValue = await (this as any).evaluateExpression(
-            entry.value
-          );
+          const matchedValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(entry.value);
           return this.resolveDispatchValue(matchedValue, input, node);
         }
       }
 
       // No match found - check for default value
       if (node.defaultValue) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateExpression(node.defaultValue);
+        return await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(node.defaultValue);
       }
 
       // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
@@ -636,8 +638,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
         // Check for default value
         if (node.defaultValue) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateExpression(node.defaultValue);
+          return await (
+            this as unknown as EvaluatorInterface
+          ).evaluateBodyExpression(node.defaultValue);
         }
 
         // No default - throw EC-16 out-of-bounds error
@@ -689,8 +692,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (hasParams) {
           // Application callable with params: invoke with input as argument
           // Note: Script callables with params already threw error above
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).invokeCallable(
+          return await (this as unknown as EvaluatorInterface).invokeCallable(
             value,
             [input],
             node.span?.start
@@ -700,12 +702,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const savedPipeValue = this.ctx.pipeValue;
           this.ctx.pipeValue = input;
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const result = await (this as any).invokeCallable(
-              value,
-              [],
-              node.span?.start
-            );
+            const result = await (
+              this as unknown as EvaluatorInterface
+            ).invokeCallable(value, [], node.span?.start);
             return result;
           } finally {
             this.ctx.pipeValue = savedPipeValue;
@@ -728,7 +727,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async dispatchToDict(
       dict: Record<string, RillValue>,
       input: RillValue,
-      defaultValue: ExpressionNode | null,
+      defaultValue: BodyNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
       },
@@ -749,8 +748,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // No match found - check for default value
       if (defaultValue) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateExpression(defaultValue);
+        return await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(defaultValue);
       }
 
       // No match and no default - throw error
@@ -776,7 +776,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async dispatchToList(
       list: RillValue[],
       input: RillValue,
-      defaultValue: ExpressionNode | null,
+      defaultValue: BodyNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
       },
@@ -802,8 +802,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (normalizedIndex < 0 || normalizedIndex >= list.length) {
         // Check for default value
         if (defaultValue) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateExpression(defaultValue);
+          return await (
+            this as unknown as EvaluatorInterface
+          ).evaluateBodyExpression(defaultValue);
         }
 
         // No default - throw error
@@ -846,8 +847,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         if (hasParams) {
           // Block-closure: invoke with input as argument
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).invokeCallable(
+          return await (this as unknown as EvaluatorInterface).invokeCallable(
             value,
             [input],
             location.span?.start
@@ -857,12 +857,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const savedPipeValue = this.ctx.pipeValue;
           this.ctx.pipeValue = input;
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const result = await (this as any).invokeCallable(
-              value,
-              [],
-              location.span?.start
-            );
+            const result = await (
+              this as unknown as EvaluatorInterface
+            ).invokeCallable(value, [], location.span?.start);
             return result;
           } finally {
             this.ctx.pipeValue = savedPipeValue;
@@ -890,10 +887,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const param of node.params) {
         let defaultValue: RillValue | undefined = undefined;
         if (param.defaultValue) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          defaultValue = await (this as any).evaluatePrimary(
-            param.defaultValue
-          );
+          defaultValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluatePrimary(param.defaultValue);
         }
 
         // Resolve typeRef at closure-creation time (AC-12).
@@ -901,10 +897,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // so the closure captures the concrete type, not the variable reference.
         let resolvedType: TypeStructure | undefined = undefined;
         if (param.typeRef !== null) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const resolved = await (this as any).resolveTypeRef(
-            param.typeRef,
-            (name: string) => getVariable(this.ctx, name)
+          const resolved = await (
+            this as unknown as EvaluatorInterface
+          ).resolveTypeRef(param.typeRef, (name: string) =>
+            getVariable(this.ctx, name)
           );
           if (!isTypeValue(resolved)) {
             throwTypeHalt(
@@ -940,8 +936,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (param.annotations && param.annotations.length > 0) {
           paramAnnots = await evaluateAnnotations(
             param.annotations,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).evaluateExpression.bind(this)
+            (this as unknown as EvaluatorInterface).evaluateExpression.bind(
+              this
+            )
           );
         }
 
@@ -965,15 +962,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           'type' in node.returnTypeTarget &&
           node.returnTypeTarget.type === 'TypeConstructor'
         ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          returnType = await (this as any).evaluateTypeConstructor(
-            node.returnTypeTarget
-          );
+          returnType = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateTypeConstructor(node.returnTypeTarget);
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          returnType = await (this as any).resolveTypeRef(
-            node.returnTypeTarget,
-            (name: string) => getVariable(this.ctx, name)
+          returnType = await (
+            this as unknown as EvaluatorInterface
+          ).resolveTypeRef(node.returnTypeTarget as TypeRef, (name: string) =>
+            getVariable(this.ctx, name)
           );
         }
       }
@@ -1062,3 +1058,32 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const LiteralsMixin = createLiteralsMixin as any;
+
+/**
+ * Capability fragment: methods contributed by LiteralsMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type LiteralsMixinCapability = {
+  evaluateString(
+    node: StringLiteralNode
+  ): Promise<{ value: string; interpolated: boolean }>;
+  evaluateDict(node: DictNode): Promise<Record<string, RillValue>>;
+  createClosure(node: ClosureNode): Promise<ScriptCallable>;
+  createBlockClosure(node: BlockNode): ScriptCallable;
+  evaluatePass(node: PassNode): Promise<RillValue>;
+  evaluateDictDispatch(node: DictNode, input: RillValue): Promise<RillValue>;
+  dispatchToDict(
+    dict: Record<string, RillValue>,
+    input: RillValue,
+    defaultValue: BodyNode | null,
+    location: { span?: { start: SourceLocation; end: SourceLocation } },
+    skipClosureResolution?: boolean
+  ): Promise<RillValue>;
+  dispatchToList(
+    list: RillValue[],
+    input: RillValue,
+    defaultValue: BodyNode | null,
+    location: { span?: { start: SourceLocation; end: SourceLocation } },
+    skipClosureResolution?: boolean
+  ): Promise<RillValue>;
+};

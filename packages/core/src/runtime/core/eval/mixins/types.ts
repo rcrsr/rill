@@ -53,6 +53,7 @@ import { checkType, structureToTypeValue } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * TypesMixin implementation.
@@ -96,7 +97,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-B6: Default type mismatch -> TYPE_MISMATCH
      * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
      */
-    async buildCollectionType(
+    protected async buildCollectionType(
       name: 'list' | 'dict' | 'tuple' | 'ordered',
       args: FieldArg[],
       resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
@@ -221,9 +222,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // IR-2: Evaluate per-field annotations
             if (arg.annotations) {
               if (arg.annotations.length > 0) {
-                const annots: Record<string, RillValue> =
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  await (this as any).evaluateAnnotations(arg.annotations);
+                const annots: Record<string, RillValue> = await (
+                  this as unknown as EvaluatorInterface
+                ).evaluateAnnotations(arg.annotations);
                 fieldDef.annotations = annots;
               } else {
                 // Empty ^() — attach empty annotations record
@@ -272,9 +273,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // IR-2: Evaluate per-field annotations
           if (arg.annotations) {
             if (arg.annotations.length > 0) {
-              const annots: Record<string, RillValue> =
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (this as any).evaluateAnnotations(arg.annotations);
+              const annots: Record<string, RillValue> = await (
+                this as unknown as EvaluatorInterface
+              ).evaluateAnnotations(arg.annotations);
               fieldDef.annotations = annots;
             } else {
               fieldDef.annotations = {};
@@ -370,9 +371,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // IR-2: Evaluate per-field annotations
         if (arg.annotations) {
           if (arg.annotations.length > 0) {
-            const annots: Record<string, RillValue> =
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await (this as any).evaluateAnnotations(arg.annotations);
+            const annots: Record<string, RillValue> = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateAnnotations(arg.annotations);
             fieldDef.annotations = annots;
           } else {
             fieldDef.annotations = {};
@@ -428,7 +429,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * EC-9: Default evaluation failure -> propagated.
      * EC-10: Tuple non-trailing default -> TYPE_MISMATCH.
      */
-    async resolveTypeRef(
+    protected async resolveTypeRef(
       typeRef: TypeRef,
       getVariableFn: (name: string) => RillValue | undefined
     ): Promise<RillTypeValue> {
@@ -493,8 +494,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             return resolved.structure;
           },
           async (node: LiteralNode): Promise<RillValue> => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).evaluatePrimary(node);
+            return (this as unknown as EvaluatorInterface).evaluatePrimary(
+              node
+            );
           }
         );
       }
@@ -549,7 +551,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * dispatches to structureMatches for deep validation.
      * Exported for use by type assertion evaluation.
      */
-    assertType(
+    protected assertType(
       value: RillValue,
       expected: RillTypeName | TypeStructure,
       location?: SourceLocation
@@ -606,15 +608,16 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type assertion: expr:type or :type (shorthand for $:type).
      * Returns the value if type matches, throws on mismatch.
      */
-    async evaluateTypeAssertion(
+    protected async evaluateTypeAssertion(
       node: TypeAssertionNode,
       input: RillValue
     ): Promise<RillValue> {
       // If operand is null, use the input (pipe value)
       // Otherwise, evaluate the operand
       const value = node.operand
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluatePostfixExpr(node.operand)
+        ? await (this as unknown as EvaluatorInterface).evaluatePostfixExpr(
+            node.operand
+          )
         : input;
 
       const resolved = await this.resolveTypeRef(node.typeRef, (name) =>
@@ -627,15 +630,16 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type check: expr:?type or :?type (shorthand for $:?type).
      * Returns true if type matches, false otherwise.
      */
-    async evaluateTypeCheck(
+    protected async evaluateTypeCheck(
       node: TypeCheckNode,
       input: RillValue
     ): Promise<boolean> {
       // If operand is null, use the input (pipe value)
       // Otherwise, evaluate the operand
       const value = node.operand
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluatePostfixExpr(node.operand)
+        ? await (this as unknown as EvaluatorInterface).evaluatePostfixExpr(
+            node.operand
+          )
         : input;
 
       const resolved = await this.resolveTypeRef(node.typeRef, (name) =>
@@ -674,8 +678,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           'host'
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const value = await (this as any).evaluatePostfixExpr(node.operand);
+      const value = await (
+        this as unknown as EvaluatorInterface
+      ).evaluatePostfixExpr(node.operand);
       return this.evaluateTypeAssertion(node, value);
     }
 
@@ -698,8 +703,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           'host'
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const value = await (this as any).evaluatePostfixExpr(node.operand);
+      const value = await (
+        this as unknown as EvaluatorInterface
+      ).evaluatePostfixExpr(node.operand);
       return this.evaluateTypeCheck(node, value);
     }
 
@@ -713,7 +719,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Error contracts delegated to buildCollectionType.
      */
-    async evaluateTypeConstructor(
+    protected async evaluateTypeConstructor(
       node: TypeConstructorNode
     ): Promise<RillTypeValue> {
       const name = node.constructorName;
@@ -756,8 +762,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             : resolved.structure;
         },
         async (node: LiteralNode): Promise<RillValue> => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePrimary(node);
+          return (this as unknown as EvaluatorInterface).evaluatePrimary(node);
         },
         location
       );
@@ -773,7 +778,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-8: missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
      * - EC-9: non-type in parameter position -> TYPE_MISMATCH
      */
-    async evaluateClosureSigLiteral(
+    protected async evaluateClosureSigLiteral(
       node: ClosureSigLiteralNode
     ): Promise<RillTypeValue> {
       const location = node.span.start;
@@ -804,10 +809,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate parameter types
       const params: RillFieldDef[] = [];
       for (const param of node.params) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const paramVal: RillValue = await (this as any).evaluateExpression(
-          param.typeExpr
-        );
+        const paramVal: RillValue = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateExpression(param.typeExpr);
         const paramType = await resolveTypeExpr(paramVal);
         params.push({ name: param.name, type: paramType });
       }
@@ -815,10 +819,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate return type (EC-8: required -- parser enforces this at parse time)
       // returnType is PostfixExprNode (stops before pipe operators) so the
       // return type annotation cannot accidentally consume a trailing pipe chain.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const retVal: RillValue = await (this as any).evaluatePostfixExpr(
-        node.returnType
-      );
+      const retVal: RillValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluatePostfixExpr(node.returnType);
       if (!isTypeValue(retVal)) {
         throwTypeHalt(
           {
@@ -852,3 +855,28 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const TypesMixin = createTypesMixin as any;
+
+/**
+ * Capability fragment: methods contributed by TypesMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type TypesMixinCapability = {
+  evaluateTypeAssertion(
+    node: TypeAssertionNode,
+    input: RillValue
+  ): Promise<RillValue>;
+  evaluateTypeCheck(node: TypeCheckNode, input: RillValue): Promise<boolean>;
+  evaluateTypeConstructor(node: TypeConstructorNode): Promise<RillTypeValue>;
+  evaluateClosureSigLiteral(
+    node: ClosureSigLiteralNode
+  ): Promise<RillTypeValue>;
+  assertType(
+    value: RillValue,
+    expected: RillTypeName | TypeStructure,
+    location?: SourceLocation
+  ): RillValue;
+  resolveTypeRef(
+    typeRef: TypeRef,
+    getVariableFn: (name: string) => RillValue | undefined
+  ): Promise<RillTypeValue>;
+};

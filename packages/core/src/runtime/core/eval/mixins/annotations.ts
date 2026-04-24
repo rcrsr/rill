@@ -28,6 +28,7 @@ import type { RillValue } from '../../types/structures.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /** Default maximum loop iterations */
 const DEFAULT_MAX_ITERATIONS = 10000;
@@ -65,8 +66,9 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Regular statement: evaluate expression
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const value = await (this as any).evaluateExpression(stmt.expression);
+      const value = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateExpression(stmt.expression);
 
       // Note: Do NOT set ctx.pipeValue = value here.
       // Statements don't propagate $ to siblings. $ flows only via explicit ->.
@@ -117,19 +119,16 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       annotations: AnnotationArg[]
     ): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
+      const self = this as unknown as EvaluatorInterface;
 
       for (const arg of annotations) {
         if (arg.type === 'NamedArg') {
           const namedArg = arg as NamedArgNode;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          result[namedArg.name] = await (this as any).evaluateExpression(
-            namedArg.value
-          );
+          result[namedArg.name] = await self.evaluateExpression(namedArg.value);
         } else {
           // SpreadArg: spread tuple/dict keys as annotations
           const spreadArg = arg as SpreadArgNode;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const spreadValue = await (this as any).evaluateExpression(
+          const spreadValue = await self.evaluateExpression(
             spreadArg.expression
           );
 
@@ -193,3 +192,17 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const AnnotationsMixin = createAnnotationsMixin as any;
+
+/**
+ * Capability fragment: methods contributed by AnnotationsMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type AnnotationsMixinCapability = {
+  evaluateAnnotations(
+    annotations: AnnotationArg[]
+  ): Promise<Record<string, RillValue>>;
+  executeStatement(
+    stmt: StatementNode | AnnotatedStatementNode
+  ): Promise<RillValue>;
+  getIterationLimit(operatorAnnotations?: Record<string, RillValue>): number;
+};

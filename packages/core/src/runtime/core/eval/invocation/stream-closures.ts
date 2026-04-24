@@ -24,6 +24,7 @@
  */
 
 import type { SourceLocation, BlockNode } from '../../../../types.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { RuntimeError } from '../../../../types.js';
 import type { ScriptCallable } from '../../callable.js';
 import { marshalArgs } from '../../callable.js';
@@ -281,8 +282,9 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       args: RillValue[],
       callLocation?: SourceLocation
     ): Promise<RillValue> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const callableCtx = (this as any).createCallableContext(callable);
+      const callableCtx = (
+        this as unknown as EvaluatorInterface
+      ).createCallableContext(callable);
 
       // Marshal positional args to named record (IC-1).
       const record = marshalArgs(args, callable.params, {
@@ -432,3 +434,17 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // Export with type assertion to work around TS4094 limitation
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const StreamClosuresMixin = createStreamClosuresMixin as any;
+
+/**
+ * Capability fragment: methods contributed by StreamClosuresMixin that are
+ * called from other mixin files. Used as the structural cast target in
+ * EvaluatorInterface.
+ */
+export type StreamClosuresMixinCapability = {
+  invokeStreamClosure(
+    callable: ScriptCallable,
+    args: RillValue[],
+    callLocation?: SourceLocation
+  ): Promise<RillValue>;
+  trackStream(stream: RillStream): void;
+};

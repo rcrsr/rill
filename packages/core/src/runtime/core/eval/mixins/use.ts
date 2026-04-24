@@ -29,6 +29,7 @@ import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * UseMixin implementation.
@@ -54,7 +55,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Resolves the identifier to a scheme + resource string, calls the
      * registered resolver, and returns the result value (or executes source).
      */
-    async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
+    protected async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
       let scheme: string;
       let resource: string;
 
@@ -72,10 +73,12 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           isPipeVar: false,
           accessChain: [],
           defaultValue: null,
+          existenceCheck: null,
           span: node.span,
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const varValue = await (this as any).evaluateVariableAsync(varNode);
+        const varValue = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateVariableAsync(varNode);
         if (typeof varValue !== 'string') {
           throw RuntimeError.fromNode(
             'RILL-R057',
@@ -88,10 +91,9 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         resource = parsed.resource;
       } else {
         // Computed form: evaluate the expression, expect string
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const exprValue = await (this as any).evaluateExpression(
-          identifier.expression
-        );
+        const exprValue = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateExpression(identifier.expression);
         if (typeof exprValue !== 'string') {
           throw RuntimeError.fromNode(
             'RILL-R057',
@@ -235,3 +237,11 @@ function parseSchemeString(
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const UseMixin = createUseMixin as any;
+
+/**
+ * Capability fragment: methods contributed by UseMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type UseMixinCapability = {
+  evaluateUseExpr(node: UseExprNode): Promise<RillValue>;
+};

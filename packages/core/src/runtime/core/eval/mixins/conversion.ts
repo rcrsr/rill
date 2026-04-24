@@ -51,6 +51,7 @@ import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import type { RillTypeName } from '../../../../types.js';
 
 /**
@@ -89,8 +90,8 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         typeRef.constructorName === 'dict' ||
         typeRef.constructorName === 'tuple'
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
+        const iface = this as unknown as EvaluatorInterface;
+        const typeValue = await iface.evaluateTypeConstructor(typeRef);
         const structure = typeValue.structure;
 
         // Uniform types (valueType present): use general convert-then-assert path
@@ -100,8 +101,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             typeRef.constructorName,
             node
           );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).assertType(result, structure, node.span.start);
+          iface.assertType(result, structure, node.span.start);
           return result;
         }
 
@@ -116,11 +116,10 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Non-dict/ordered/tuple constructors: convert first, then assert structural type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typeValue = await (this as any).evaluateTypeConstructor(typeRef);
+      const iface = this as unknown as EvaluatorInterface;
+      const typeValue = await iface.evaluateTypeConstructor(typeRef);
       const result = this.applyConversion(input, typeRef.constructorName, node);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as any).assertType(result, typeValue.structure, node.span.start);
+      iface.assertType(result, typeValue.structure, node.span.start);
       return result;
     }
 
@@ -136,7 +135,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - String-to-number parse failure raises RILL-R038 (EC-12)
      * - Missing convertTo target raises RILL-R036 (EC-10)
      */
-    private applyConversion(
+    protected applyConversion(
       input: RillValue,
       targetType: RillTypeName,
       node: ASTNode
@@ -239,12 +238,18 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const sourceType = isOrdered(input) ? 'ordered' : 'dict';
 
       // Evaluate the full type constructor to get resolved fields with defaults.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedFields: RillFieldDef[] =
-        typeValue.structure.kind === 'ordered' && typeValue.structure.fields
-          ? (typeValue.structure.fields as RillFieldDef[])
-          : [];
+      const typeValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateTypeConstructor(sigNode);
+      const { structure: orderedStructure } = typeValue;
+      let resolvedFields: RillFieldDef[] = [];
+      if (orderedStructure.kind === 'ordered') {
+        const os = orderedStructure as {
+          kind: 'ordered';
+          fields?: RillFieldDef[];
+        };
+        resolvedFields = os.fields ?? [];
+      }
 
       const entries: [string, RillValue][] = [];
 
@@ -310,12 +315,18 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const sourceType = isOrdered(input) ? 'ordered' : 'dict';
 
       // Evaluate the full type constructor to get resolved fields with defaults.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedFields: Record<string, RillFieldDef> =
-        typeValue.structure.kind === 'dict' && typeValue.structure.fields
-          ? (typeValue.structure.fields as Record<string, RillFieldDef>)
-          : {};
+      const typeValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateTypeConstructor(sigNode);
+      const { structure: dictStructure } = typeValue;
+      let resolvedFields: Record<string, RillFieldDef> = {};
+      if (dictStructure.kind === 'dict') {
+        const ds = dictStructure as {
+          kind: 'dict';
+          fields?: Record<string, RillFieldDef>;
+        };
+        resolvedFields = ds.fields ?? {};
+      }
       const result: Record<string, RillValue> = {};
 
       for (const arg of sigNode.args) {
@@ -397,12 +408,18 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Evaluate the full type constructor to get resolved elements with defaults.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typeValue = await (this as any).evaluateTypeConstructor(sigNode);
-      const resolvedElements: RillFieldDef[] =
-        typeValue.structure.kind === 'tuple' && typeValue.structure.elements
-          ? (typeValue.structure.elements as RillFieldDef[])
-          : [];
+      const typeValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateTypeConstructor(sigNode);
+      const { structure: tupleStructure } = typeValue;
+      let resolvedElements: RillFieldDef[] = [];
+      if (tupleStructure.kind === 'tuple') {
+        const ts = tupleStructure as {
+          kind: 'tuple';
+          elements?: RillFieldDef[];
+        };
+        resolvedElements = ts.elements ?? [];
+      }
 
       const inputEntries: RillValue[] = isTupleInput
         ? (input as unknown as RillTuple).entries
@@ -595,3 +612,20 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // Export with type assertion to work around TS4094 limitation
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ConversionMixin = createConversionMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ConversionMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type ConversionMixinCapability = {
+  applyConversion(
+    input: RillValue,
+    targetType: RillTypeName,
+    node: ASTNode
+  ): RillValue;
+  applyConstructorConversion(
+    input: RillValue,
+    typeRef: TypeConstructorNode,
+    node: ASTNode
+  ): Promise<RillValue>;
+};

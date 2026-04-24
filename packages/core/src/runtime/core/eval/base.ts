@@ -8,6 +8,7 @@
  */
 
 import type { ASTNode, CaptureNode, SourceLocation } from '../../../types.js';
+import type { EvaluatorInterface } from './interface.js';
 import { RuntimeError, TimeoutError } from '../../../types.js';
 import type { RuntimeContext } from '../types/runtime.js';
 import { isCallable, isDict } from '../callable.js';
@@ -167,8 +168,7 @@ export class EvaluatorBase {
         // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
         // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
         const args = dictValue.kind === 'script' ? [] : [value];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).invokeCallable(
+        return await (this as unknown as EvaluatorInterface).invokeCallable(
           dictValue as RillCallable,
           args,
           location
@@ -179,3 +179,38 @@ export class EvaluatorBase {
     return dictValue;
   }
 }
+
+/**
+ * Structural capability type for EvaluatorBase.
+ *
+ * Lists all base-class members (including those declared `protected`) using
+ * plain method signatures, stripping the class access modifier. External
+ * wrapper functions in index.ts cast to EvaluatorInterface (which intersects
+ * this type) so they can call `checkAborted` and `checkAutoExceptions` without
+ * a TS2445 error.
+ *
+ * Runtime behaviour is unchanged: `protected` is enforced at the class
+ * declaration site, not at every cast-target reference.
+ */
+export type EvaluatorBaseCapability = {
+  ctx: RuntimeContext;
+  getNodeLocation(node?: ASTNode): SourceLocation | undefined;
+  checkAborted(node?: ASTNode): void;
+  checkAutoExceptions(value: RillValue, node?: ASTNode): void;
+  withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number | undefined,
+    functionName: string,
+    node?: ASTNode
+  ): Promise<T>;
+  handleCapture(
+    capture: CaptureNode | null,
+    value: RillValue
+  ): Promise<{ name: string; value: RillValue } | undefined>;
+  accessDictField(
+    value: RillValue,
+    field: string,
+    location?: SourceLocation,
+    allowMissing?: boolean
+  ): Promise<RillValue>;
+};

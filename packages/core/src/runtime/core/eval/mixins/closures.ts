@@ -54,6 +54,7 @@ import { anyTypeValue, structureToTypeValue } from '../../values.js';
 import { YieldSignal } from '../../signals.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 import {
@@ -115,8 +116,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const arg of argExprs) {
         const isSpread = arg.type === 'SpreadArg';
         const expr = isSpread ? arg.expression : arg;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const evaluated = await (this as any).evaluateExpression(expr);
+        const evaluated = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateExpression(expr);
         let gated: RillValue;
         if (
           evaluated !== null &&
@@ -165,8 +167,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
         if (isStream(result)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).trackStream(result as RillStream);
+          (this as unknown as EvaluatorInterface).trackStream(
+            result as RillStream
+          );
         }
         return result;
       }
@@ -183,8 +186,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           functionName
         );
         if (isStream(result)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).trackStream(result as RillStream);
+          (this as unknown as EvaluatorInterface).trackStream(
+            result as RillStream
+          );
         }
         return result;
       }
@@ -202,8 +206,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
       if (isStream(result)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this as any).trackStream(result as RillStream);
+        (this as unknown as EvaluatorInterface).trackStream(
+          result as RillStream
+        );
       }
       return result;
     }
@@ -354,8 +359,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       callLocation?: SourceLocation
     ): Promise<RillValue> {
       if (callable.returnType.structure.kind === 'stream') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (this as any).invokeStreamClosure(callable, args, callLocation);
+        return (this as unknown as EvaluatorInterface).invokeStreamClosure(
+          callable,
+          args,
+          callLocation
+        );
       }
       return this.invokeRegularScriptCallable(callable, args, callLocation);
     }
@@ -404,13 +412,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const savedCtx = this.ctx;
       this.ctx = callableCtx;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await (this as any).evaluateBodyExpression(
-          callable.body
-        );
+        const result = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(callable.body);
         if (callable.returnType.typeName !== 'any') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).assertType(
+          (this as unknown as EvaluatorInterface).assertType(
             result,
             callable.returnType.structure,
             callLocation
@@ -499,8 +505,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           node.args,
           fn,
           this.ctx.pipeValue ?? undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (expr) => (this as any).evaluateExpression(expr),
+          (expr) =>
+            (this as unknown as EvaluatorInterface).evaluateExpression(expr),
           node.span.start
         );
         const orderedArgs = fn.params!.map(
@@ -689,8 +695,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           closure,
           node.args,
           pipeInput,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (expr) => (this as any).evaluateExpression(expr),
+          (expr) =>
+            (this as unknown as EvaluatorInterface).evaluateExpression(expr),
           node.span.start
         );
         const orderedArgs = closure.params!.map(
@@ -759,8 +765,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       if (value === null && node.defaultValue) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value = await (this as any).evaluateExpression(node.defaultValue);
+        value = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(node.defaultValue);
       }
       return value;
     }
@@ -795,8 +802,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           node.args,
           input,
           this.ctx.pipeValue ?? undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (expr) => (this as any).evaluateExpression(expr),
+          (expr) =>
+            (this as unknown as EvaluatorInterface).evaluateExpression(expr),
           node.span.start
         );
         const orderedArgs = input.params.map(
@@ -1005,8 +1012,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           node.args,
           receiver,
           this.ctx.pipeValue ?? undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (expr) => (this as any).evaluateExpression(expr),
+          (expr) =>
+            (this as unknown as EvaluatorInterface).evaluateExpression(expr),
           node.span.start
         );
         const orderedArgs = receiver.params!.map(
@@ -1022,7 +1029,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async evaluateAnnotationAccess(
       value: RillValue,
       key: string,
-      location: SourceLocation
+      location: SourceLocation | undefined
     ): Promise<RillValue> {
       if (key === 'type') {
         const typeValue: RillTypeValue = Object.freeze({
@@ -1111,7 +1118,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /** Evaluate .params property access on callables; builds dict from parameter metadata. */
     protected async evaluateParamsProperty(
       callable: RillValue,
-      location: SourceLocation
+      location: SourceLocation | undefined
     ): Promise<Record<string, RillValue>> {
       if (!isCallable(callable)) {
         throw new RuntimeError(
@@ -1141,3 +1148,55 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ClosuresMixin = createClosuresMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ClosuresMixin that are called from
+ * other mixin files. These are the public-signature declarations used as the
+ * structural cast target in EvaluatorInterface.
+ *
+ * TypeScript `protected` is a class modifier; type aliases use plain method
+ * signatures. The cast target works because `this` inside a mixin class already
+ * has access to its own protected members.
+ */
+export type ClosuresMixinCapability = {
+  createCallableContext(callable: ScriptCallable): RuntimeContext;
+  invokeCallable(
+    callable: RillCallable,
+    args: RillValue[],
+    callLocation?: SourceLocation,
+    functionName?: string,
+    internal?: boolean
+  ): Promise<RillValue>;
+  evaluateHostCall(node: HostCallNode): Promise<RillValue>;
+  evaluateHostRef(node: HostRefNode): Promise<RillValue>;
+  evaluateClosureCall(node: ClosureCallNode): Promise<RillValue>;
+  evaluateClosureCallWithPipe(
+    node: ClosureCallNode,
+    pipeInput: RillValue
+  ): Promise<RillValue>;
+  evaluatePipePropertyAccess(
+    node: VariableNode,
+    pipeInput: RillValue
+  ): Promise<RillValue>;
+  evaluatePipeInvoke(
+    node: PipeInvokeNode,
+    input: RillValue
+  ): Promise<RillValue>;
+  evaluateMethod(
+    node: MethodCallNode | InvokeNode,
+    receiver: RillValue
+  ): Promise<RillValue>;
+  evaluateAnnotationAccess(
+    value: RillValue,
+    key: string,
+    location: SourceLocation | undefined
+  ): Promise<RillValue>;
+  evaluateParamsProperty(
+    callable: RillValue,
+    location: SourceLocation | undefined
+  ): Promise<Record<string, RillValue>>;
+  evaluateYield(
+    value: RillValue,
+    location?: SourceLocation
+  ): never | Promise<void>;
+};

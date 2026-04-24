@@ -41,6 +41,7 @@ import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { throwErrorHalt, type TypeHaltSite } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * ControlFlowMixin implementation.
@@ -86,10 +87,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       let conditionResult: boolean;
       if (node.condition) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const conditionValue = await (this as any).evaluateBodyExpression(
-          node.condition
-        );
+        const conditionValue = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(node.condition);
         // Condition must be boolean
         if (typeof conditionValue !== 'boolean') {
           throw RuntimeError.fromNode(
@@ -124,8 +124,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const savedCtx = this.ctx;
         this.ctx = thenCtx;
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateBody(node.thenBranch);
+          return await (this as unknown as EvaluatorInterface).evaluateBody(
+            node.thenBranch
+          );
         } finally {
           this.ctx = savedCtx;
         }
@@ -137,11 +138,13 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         this.ctx = elseCtx;
         try {
           if (node.elseBranch.type === 'Conditional') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).evaluateConditional(node.elseBranch);
+            return await (
+              this as unknown as EvaluatorInterface
+            ).evaluateConditional(node.elseBranch);
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateBody(node.elseBranch);
+          return await (this as unknown as EvaluatorInterface).evaluateBody(
+            node.elseBranch
+          );
         } finally {
           this.ctx = savedCtx;
         }
@@ -165,10 +168,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const originalPipeValue = this.ctx.pipeValue;
 
       // Evaluate condition
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const conditionValue = await (this as any).evaluateExpression(
-        node.condition
-      );
+      const conditionValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateExpression(node.condition);
 
       // Restore original pipe value for loop body
       this.ctx.pipeValue = originalPipeValue;
@@ -187,11 +189,13 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
       // Statement-level annotationStack is not consulted (EC-5).
       const operatorAnnotations = node.annotations?.length
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluateAnnotations(node.annotations)
+        ? await (this as unknown as EvaluatorInterface).evaluateAnnotations(
+            node.annotations
+          )
         : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
+      const maxIter = (this as unknown as EvaluatorInterface).getIterationLimit(
+        operatorAnnotations
+      );
 
       try {
         let conditionResult = conditionValue;
@@ -213,18 +217,18 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const savedCtx = this.ctx;
           this.ctx = iterCtx;
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateBody(node.body);
+            value = await (this as unknown as EvaluatorInterface).evaluateBody(
+              node.body
+            );
           } finally {
             this.ctx = savedCtx;
           }
           this.ctx.pipeValue = value;
 
           // Re-evaluate condition for next iteration
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const nextCondition = await (this as any).evaluateExpression(
-            node.condition
-          );
+          const nextCondition = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(node.condition);
           if (typeof nextCondition !== 'boolean') {
             throw RuntimeError.fromNode(
               'RILL-R002',
@@ -265,11 +269,13 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
       // Statement-level annotationStack is not consulted (EC-5).
       const operatorAnnotations = node.annotations?.length
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluateAnnotations(node.annotations)
+        ? await (this as unknown as EvaluatorInterface).evaluateAnnotations(
+            node.annotations
+          )
         : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const maxIter = (this as any).getIterationLimit(operatorAnnotations);
+      const maxIter = (this as unknown as EvaluatorInterface).getIterationLimit(
+        operatorAnnotations
+      );
       let iterCount = 0;
 
       try {
@@ -293,17 +299,17 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const savedCtx = this.ctx;
           this.ctx = iterCtx;
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateBody(node.body);
+            value = await (this as unknown as EvaluatorInterface).evaluateBody(
+              node.body
+            );
           } finally {
             this.ctx = savedCtx;
           }
           this.ctx.pipeValue = value;
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const conditionValue = await (this as any).evaluateBodyExpression(
-            node.condition
-          );
+          const conditionValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateBodyExpression(node.condition);
           // Condition must be boolean
           if (typeof conditionValue !== 'boolean') {
             throw RuntimeError.fromNode(
@@ -354,8 +360,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const savedCtx = this.ctx;
         this.ctx = stmtCtx;
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          lastValue = await (this as any).executeStatement(stmt);
+          lastValue = await (
+            this as unknown as EvaluatorInterface
+          ).executeStatement(stmt);
         } finally {
           this.ctx = savedCtx;
         }
@@ -421,10 +428,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const savedPipeValue = this.ctx.pipeValue;
 
       // Evaluate the condition
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const conditionResult = await (this as any).evaluateExpression(
-        node.condition
-      );
+      const conditionResult = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateExpression(node.condition);
 
       // Restore the pipe value (condition evaluation may have changed it)
       this.ctx.pipeValue = savedPipeValue;
@@ -444,8 +450,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         let errorMessage: string;
         if (node.message) {
           // Evaluate the message string literal
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { value } = await (this as any).evaluateString(node.message);
+          const { value } = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateString(node.message);
           errorMessage = value;
         } else {
           errorMessage = 'Assertion failed';
@@ -484,8 +491,9 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (node.message) {
         // Direct form: error "message"
         // Evaluate the message string literal (handles interpolation)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const evaluated = await (this as any).evaluateString(node.message);
+        const evaluated = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateString(node.message);
         messageValue = evaluated.value;
         interpolated = evaluated.interpolated === true;
       } else if (input !== undefined) {
@@ -532,14 +540,17 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'Block':
           return this.evaluateBlock(node);
         case 'GroupedExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateGroupedExpr(node);
+          return (this as unknown as EvaluatorInterface).evaluateGroupedExpr(
+            node
+          );
         case 'PostfixExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePostfixExpr(node);
+          return (this as unknown as EvaluatorInterface).evaluatePostfixExpr(
+            node
+          );
         case 'PipeChain':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePipeChain(node);
+          return (this as unknown as EvaluatorInterface).evaluatePipeChain(
+            node
+          );
       }
     }
 
@@ -569,3 +580,17 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ControlFlowMixin = createControlFlowMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ControlFlowMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type ControlFlowMixinCapability = {
+  evaluateConditional(node: ConditionalNode): Promise<RillValue>;
+  evaluateWhileLoop(node: WhileLoopNode): Promise<RillValue>;
+  evaluateDoWhileLoop(node: DoWhileLoopNode): Promise<RillValue>;
+  evaluateAssert(node: AssertNode, input?: RillValue): Promise<RillValue>;
+  evaluateError(node: ErrorNode, input?: RillValue): Promise<never>;
+  evaluateBody(node: BodyNode): Promise<RillValue>;
+  evaluateBodyExpression(node: BodyNode): Promise<RillValue>;
+};

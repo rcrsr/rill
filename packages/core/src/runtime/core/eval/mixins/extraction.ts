@@ -29,6 +29,7 @@ import { inferElementType } from '../../types/operations.js';
 import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * ExtractionMixin implementation.
@@ -132,14 +133,12 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // and TypesMixin which are applied before ExtractionMixin in the composition order
           const dictResolved =
             elem.typeRef !== null
-              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (this as any).resolveTypeRef(
+              ? await (this as unknown as EvaluatorInterface).resolveTypeRef(
                   elem.typeRef,
                   (name: string) => getVariable(this.ctx, name) as RillValue
                 )
               : undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).setVariable(
+          (this as unknown as EvaluatorInterface).setVariable(
             elem.name,
             dictValue,
             dictResolved?.structure,
@@ -192,14 +191,12 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // and TypesMixin which are applied before ExtractionMixin in the composition order
           const listResolved =
             elem.typeRef !== null
-              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (this as any).resolveTypeRef(
+              ? await (this as unknown as EvaluatorInterface).resolveTypeRef(
                   elem.typeRef,
                   (name: string) => getVariable(this.ctx, name) as RillValue
                 )
               : undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any).setVariable(
+          (this as unknown as EvaluatorInterface).setVariable(
             elem.name,
             value,
             listResolved?.structure,
@@ -283,8 +280,9 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'Variable': {
           // Note: evaluateVariable will be available from VariablesMixin
           // which is applied before ExtractionMixin in the composition order
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const value = (this as any).evaluateVariable(bound);
+          const value = (
+            this as unknown as EvaluatorInterface
+          ).evaluateVariable(bound);
           if (typeof value !== 'number') {
             throw new RuntimeError(
               'RILL-R002',
@@ -298,10 +296,9 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         case 'GroupedExpr': {
           // Note: evaluateGroupedExpr will be available from ExpressionsMixin
           // which is applied after ExtractionMixin, so we need to call evaluateExpression
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const value = await (this as any).evaluateExpression(
-            (bound as GroupedExprNode).expression
-          );
+          const value = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression((bound as GroupedExprNode).expression);
           if (typeof value !== 'number') {
             throw new RuntimeError(
               'RILL-R002',
@@ -453,17 +450,16 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate list/tuple literal elements, expanding spread nodes inline.
      * Spread: ...$other expands the referenced collection into the result.
      */
-    private async evaluateListLiteralElements(
+    protected async evaluateListLiteralElements(
       rawElements: ExpressionNode[]
     ): Promise<RillValue[]> {
       const result: RillValue[] = [];
       for (const elem of rawElements) {
         if ((elem as unknown as { type: string }).type === 'ListSpread') {
           const spreadNode = elem as unknown as ListSpreadNode;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const spreadValue = await (this as any).evaluateExpression(
-            spreadNode.expression
-          );
+          const spreadValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(spreadNode.expression);
           if (Array.isArray(spreadValue)) {
             result.push(...spreadValue);
           } else {
@@ -475,8 +471,11 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          result.push(await (this as any).evaluateExpression(elem));
+          result.push(
+            await (this as unknown as EvaluatorInterface).evaluateExpression(
+              elem
+            )
+          );
         }
       }
       return result;
@@ -508,10 +507,14 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
           if ('kind' in key) {
             if (key.kind === 'variable') {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const varVal = (this as any).evaluateVariable
-                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (this as any).evaluateVariable({
+              const iface = this as unknown as EvaluatorInterface;
+              const varVal = iface.evaluateVariable
+                ? iface.evaluateVariable({
+                    type: 'Variable',
+                    span: {
+                      start: { line: 0, column: 0, offset: 0 },
+                      end: { line: 0, column: 0, offset: 0 },
+                    },
                     name: key.variableName,
                     isPipeVar: false,
                     accessChain: [],
@@ -525,10 +528,9 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   : String(varVal ?? key.variableName);
             } else {
               // computed: evaluate expression
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const computed = await (this as any).evaluateExpression(
-                key.expression
-              );
+              const computed = await (
+                this as unknown as EvaluatorInterface
+              ).evaluateExpression(key.expression);
               stringKey = String(computed);
             }
           } else {
@@ -536,8 +538,9 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const value = await (this as any).evaluateExpression(entry.value);
+        const value = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateExpression(entry.value);
         result.push([stringKey, value]);
       }
       return result;
@@ -549,3 +552,26 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ExtractionMixin = createExtractionMixin as any;
+
+/**
+ * Capability fragment: methods contributed by ExtractionMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type ExtractionMixinCapability = {
+  evaluateDestructure(
+    node: DestructureNode,
+    input: RillValue
+  ): Promise<RillValue>;
+  evaluateDestruct(node: DestructNode, input: RillValue): Promise<RillValue>;
+  evaluateSlice(node: SliceNode, input: RillValue): Promise<RillValue>;
+  evaluateCollectionLiteral(
+    node:
+      | ListLiteralNode
+      | DictLiteralNode
+      | TupleLiteralNode
+      | OrderedLiteralNode
+  ): Promise<RillValue>;
+  evaluateListLiteralElements(
+    rawElements: ExpressionNode[]
+  ): Promise<RillValue[]>;
+};
