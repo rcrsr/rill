@@ -34,8 +34,9 @@
     "bench": "vitest bench --run benchmarks/hot-paths.bench.ts && node --expose-gc --import tsx benchmarks/allocations.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --config ../../eslint.config.js src/",
+    "lint:self-test": "node ../../eslint-rules/lint-glob-self-test.cjs",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
-    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
+    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint:self-test && pnpm run lint"
   },
   "repository": {
     "type": "git",

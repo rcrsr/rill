@@ -55,7 +55,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Resolves the identifier to a scheme + resource string, calls the
      * registered resolver, and returns the result value (or executes source).
      */
-    async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
+    protected async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
       let scheme: string;
       let resource: string;
 

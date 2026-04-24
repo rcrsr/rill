@@ -72,7 +72,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Main expression evaluation entry point [IR-8].
      * Delegates to pipe chain evaluator.
      */
-    async evaluateExpression(expr: ExpressionNode): Promise<RillValue> {
+    protected async evaluateExpression(
+      expr: ExpressionNode
+    ): Promise<RillValue> {
       this.checkAborted();
       return this.evaluatePipeChain(expr);
     }
@@ -88,7 +90,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Break: throws BreakSignal with value
      * - Return: throws ReturnSignal with value
      */
-    async evaluatePipeChain(chain: PipeChainNode): Promise<RillValue> {
+    protected async evaluatePipeChain(
+      chain: PipeChainNode
+    ): Promise<RillValue> {
       // Save parent's $ - chains don't leak $ modifications to parent scope
       const savedPipeValue = this.ctx.pipeValue;
 
@@ -191,7 +195,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - RUNTIME_UNDEFINED_METHOD is thrown when accessing a missing field via .field syntax.
      * - All other errors propagate normally.
      */
-    async evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue> {
+    protected async evaluatePostfixExpr(
+      expr: PostfixExprNode
+    ): Promise<RillValue> {
       try {
         let value = await this.evaluatePrimary(expr.primary);
 
@@ -235,7 +241,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Control flow constructs
      * - Grouped expressions
      */
-    async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
+    protected async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
       switch (primary.type) {
         case 'StringLiteral': {
           const { value } = await (

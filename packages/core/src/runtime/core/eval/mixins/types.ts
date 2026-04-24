@@ -97,7 +97,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-B6: Default type mismatch -> TYPE_MISMATCH
      * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
      */
-    async buildCollectionType(
+    protected async buildCollectionType(
       name: 'list' | 'dict' | 'tuple' | 'ordered',
       args: FieldArg[],
       resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
@@ -429,7 +429,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * EC-9: Default evaluation failure -> propagated.
      * EC-10: Tuple non-trailing default -> TYPE_MISMATCH.
      */
-    async resolveTypeRef(
+    protected async resolveTypeRef(
       typeRef: TypeRef,
       getVariableFn: (name: string) => RillValue | undefined
     ): Promise<RillTypeValue> {
@@ -551,7 +551,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * dispatches to structureMatches for deep validation.
      * Exported for use by type assertion evaluation.
      */
-    assertType(
+    protected assertType(
       value: RillValue,
       expected: RillTypeName | TypeStructure,
       location?: SourceLocation
@@ -608,7 +608,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type assertion: expr:type or :type (shorthand for $:type).
      * Returns the value if type matches, throws on mismatch.
      */
-    async evaluateTypeAssertion(
+    protected async evaluateTypeAssertion(
       node: TypeAssertionNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -630,7 +630,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type check: expr:?type or :?type (shorthand for $:?type).
      * Returns true if type matches, false otherwise.
      */
-    async evaluateTypeCheck(
+    protected async evaluateTypeCheck(
       node: TypeCheckNode,
       input: RillValue
     ): Promise<boolean> {
@@ -719,7 +719,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Error contracts delegated to buildCollectionType.
      */
-    async evaluateTypeConstructor(
+    protected async evaluateTypeConstructor(
       node: TypeConstructorNode
     ): Promise<RillTypeValue> {
       const name = node.constructorName;
@@ -778,7 +778,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-8: missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
      * - EC-9: non-type in parameter position -> TYPE_MISMATCH
      */
-    async evaluateClosureSigLiteral(
+    protected async evaluateClosureSigLiteral(
       node: ClosureSigLiteralNode
     ): Promise<RillTypeValue> {
       const location = node.span.start;
