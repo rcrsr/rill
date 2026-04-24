@@ -22,7 +22,7 @@ module.exports = {
     schema: [],
     messages: {
       crossMixinAny:
-        'Cross-mixin calls must use `EvaluatorInterface`, not `as any`. Cast `this as EvaluatorInterface` instead.',
+        'Cross-mixin calls must use `EvaluatorInterface`, not `as any`. Cast `this as unknown as EvaluatorInterface` instead.',
     },
   },
 

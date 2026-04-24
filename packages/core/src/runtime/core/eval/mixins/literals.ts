@@ -34,6 +34,7 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
+  BodyNode,
   SourceLocation,
   AnnotationArg,
   NamedArgNode,
@@ -585,9 +586,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // No match found - check for default value
       if (node.defaultValue) {
-        return await (this as unknown as EvaluatorInterface).evaluateExpression(
-          node.defaultValue as ExpressionNode
-        );
+        return await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(node.defaultValue);
       }
 
       // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
@@ -639,7 +640,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (node.defaultValue) {
           return await (
             this as unknown as EvaluatorInterface
-          ).evaluateExpression(node.defaultValue as ExpressionNode);
+          ).evaluateBodyExpression(node.defaultValue);
         }
 
         // No default - throw EC-16 out-of-bounds error
@@ -726,7 +727,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async dispatchToDict(
       dict: Record<string, RillValue>,
       input: RillValue,
-      defaultValue: ExpressionNode | null,
+      defaultValue: BodyNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
       },
@@ -747,9 +748,9 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // No match found - check for default value
       if (defaultValue) {
-        return await (this as unknown as EvaluatorInterface).evaluateExpression(
-          defaultValue
-        );
+        return await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBodyExpression(defaultValue);
       }
 
       // No match and no default - throw error
@@ -775,7 +776,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async dispatchToList(
       list: RillValue[],
       input: RillValue,
-      defaultValue: ExpressionNode | null,
+      defaultValue: BodyNode | null,
       location: {
         span?: { start: SourceLocation; end: SourceLocation };
       },
@@ -803,7 +804,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (defaultValue) {
           return await (
             this as unknown as EvaluatorInterface
-          ).evaluateExpression(defaultValue);
+          ).evaluateBodyExpression(defaultValue);
         }
 
         // No default - throw error
@@ -1074,14 +1075,14 @@ export type LiteralsMixinCapability = {
   dispatchToDict(
     dict: Record<string, RillValue>,
     input: RillValue,
-    defaultValue: ExpressionNode | null,
+    defaultValue: BodyNode | null,
     location: { span?: { start: SourceLocation; end: SourceLocation } },
     skipClosureResolution?: boolean
   ): Promise<RillValue>;
   dispatchToList(
     list: RillValue[],
     input: RillValue,
-    defaultValue: ExpressionNode | null,
+    defaultValue: BodyNode | null,
     location: { span?: { start: SourceLocation; end: SourceLocation } },
     skipClosureResolution?: boolean
   ): Promise<RillValue>;

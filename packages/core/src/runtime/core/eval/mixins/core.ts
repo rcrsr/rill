@@ -26,6 +26,7 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   PipeTargetNode,
+  BodyNode,
   SourceLocation,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
@@ -619,9 +620,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             ).evaluateHierarchicalDispatch(
               dictValue,
               input,
-              // defaultValue is BodyNode | null; ExpressionNode = PipeChainNode
-              // which is the common case — cast matches pre-as-any behaviour
-              target.defaultValue as ExpressionNode | undefined,
+              target.defaultValue ?? undefined,
               this.getNodeLocation(target)
             );
           }
@@ -662,8 +661,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             ).evaluateHierarchicalDispatch(
               listValue,
               input,
-              // defaultValue is BodyNode | null; cast matches pre-as-any behaviour
-              target.defaultValue as ExpressionNode | undefined,
+              target.defaultValue ?? undefined,
               this.getNodeLocation(target)
             );
           }
@@ -753,9 +751,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           // Variable dispatch: if value is dict or list, dispatch into it
           // Hierarchical dispatch: detect list input (not tuple) for path navigation
-          // target.defaultValue is BodyNode | null; cast to ExpressionNode | null
-          // matches pre-as-any behaviour (PipeChainNode is the common case).
-          const defaultVal = target.defaultValue as ExpressionNode | null;
+          const defaultVal: BodyNode | null = target.defaultValue;
           if (Array.isArray(input) && !isTuple(input)) {
             if (isDict(value) || (Array.isArray(value) && !isTuple(value))) {
               return await (
@@ -895,7 +891,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     async evaluateHierarchicalDispatch(
       target: RillValue,
       path: RillValue[],
-      defaultExpr?: ExpressionNode,
+      defaultExpr?: BodyNode,
       location?: SourceLocation
     ): Promise<RillValue> {
       // Target is already evaluated
@@ -937,7 +933,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (defaultExpr) {
             return await (
               this as unknown as EvaluatorInterface
-            ).evaluateExpression(defaultExpr);
+            ).evaluateBodyExpression(defaultExpr);
           }
           // No default - re-throw original error
           throw error;
@@ -1186,7 +1182,7 @@ export type CoreMixinCapability = {
   evaluateHierarchicalDispatch(
     target: RillValue,
     path: RillValue[],
-    defaultExpr?: ExpressionNode,
+    defaultExpr?: BodyNode,
     location?: SourceLocation
   ): Promise<RillValue>;
   traversePathStep(

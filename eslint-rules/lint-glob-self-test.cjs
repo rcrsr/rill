@@ -13,7 +13,15 @@ const path = require('path');
 
 const cwd = process.cwd();
 const fixturePath = path.join(cwd, 'src', 'runtime', '__lint_self_test__.ts');
-const eslintBin = path.join(cwd, '..', '..', 'node_modules', '.bin', 'eslint');
+// Resolve the ESLint entry module rather than the platform-specific shim
+// (.bin/eslint on POSIX, eslint.cmd on Windows). Spawning via process.execPath
+// works on all platforms without appending a file extension. We resolve via
+// package.json because `eslint`'s package exports do not expose `./bin/*`.
+const eslintPkg = require.resolve('eslint/package.json');
+const eslintEntry = path.join(
+  path.dirname(eslintPkg),
+  require(eslintPkg).bin.eslint
+);
 const configPath = path.join(cwd, '..', '..', 'eslint.config.js');
 const fixtureContent = '(this as any).crossMixinCall();\n';
 
@@ -26,9 +34,11 @@ function cleanup() {
 try {
   fs.writeFileSync(fixturePath, fixtureContent, 'utf8');
 
-  const result = spawnSync(eslintBin, ['--config', configPath, fixturePath], {
-    encoding: 'utf8',
-  });
+  const result = spawnSync(
+    process.execPath,
+    [eslintEntry, '--config', configPath, fixturePath],
+    { encoding: 'utf8' }
+  );
 
   const output = (result.stdout ?? '') + (result.stderr ?? '');
 
