@@ -38,6 +38,7 @@ import { createTraceFrame } from '../../types/trace.js';
 import { resolveAtom } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
 import { throwTypeHalt } from '../../types/halt.js';
 
@@ -95,12 +96,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       let value: RillValue;
       switch (chain.head.type) {
         case 'BinaryExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          value = await (this as any).evaluateBinaryExpr(chain.head);
+          value = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateBinaryExpr(chain.head);
           break;
         case 'UnaryExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          value = await (this as any).evaluateUnaryExpr(chain.head);
+          value = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateUnaryExpr(chain.head);
           break;
         case 'PostfixExpr':
           value = await this.evaluatePostfixExpr(chain.head);
@@ -113,8 +116,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       for (const target of chain.pipes) {
         // Handle inline captures (act as identity: store and pass through)
         if (target.type === 'Capture') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).handleCapture(target, value);
+          await (this as unknown as EvaluatorInterface).handleCapture(
+            target,
+            value
+          );
           // Value flows through unchanged
           continue;
         }
@@ -153,15 +158,19 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // When inside a stream closure body, evaluateYield pushes to the
           // channel and blocks until the consumer pulls (returns Promise<void>).
           // When outside, it throws YieldSignal synchronously.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this as any).evaluateYield(value, chain.terminator.span.start);
+          await (this as unknown as EvaluatorInterface).evaluateYield(
+            value,
+            chain.terminator.span.start
+          );
           // After yield resumes (stream channel case), restore pipe value
           // and return the yielded value as the chain result
           return value;
         }
         // Capture
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (this as any).handleCapture(chain.terminator, value);
+        await (this as unknown as EvaluatorInterface).handleCapture(
+          chain.terminator,
+          value
+        );
       }
 
       // Restore parent's $ - chain result is returned, but $ doesn't leak
@@ -188,15 +197,13 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         for (const method of expr.methods) {
           if (method.type === 'AnnotationAccess') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateAnnotationAccess(
-              value,
-              method.key,
-              method.span.start
-            );
+            value = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateAnnotationAccess(value, method.key, method.span.start);
           } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateMethod(method, value);
+            value = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateMethod(method, value);
           }
         }
 
@@ -209,8 +216,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           error.errorId === 'RILL-R007' &&
           expr.defaultValue !== null
         ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateBody(expr.defaultValue);
+          return (this as unknown as EvaluatorInterface).evaluateBody(
+            expr.defaultValue
+          );
         }
         // All other errors propagate
         throw error;
@@ -230,8 +238,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
       switch (primary.type) {
         case 'StringLiteral': {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { value } = await (this as any).evaluateString(primary);
+          const { value } = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateString(primary);
           return value;
         }
 
@@ -242,32 +251,34 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return primary.value;
 
         case 'Dict':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDict(primary);
+          return (this as unknown as EvaluatorInterface).evaluateDict(primary);
 
         case 'Closure':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).createClosure(primary);
+          return await (this as unknown as EvaluatorInterface).createClosure(
+            primary
+          );
 
         case 'Variable':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateVariableAsync(primary);
+          return (this as unknown as EvaluatorInterface).evaluateVariableAsync(
+            primary
+          );
 
         case 'HostCall':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateHostCall(primary);
+          return (this as unknown as EvaluatorInterface).evaluateHostCall(
+            primary
+          );
 
         case 'HostRef':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateHostRef(primary);
+          return (this as unknown as EvaluatorInterface).evaluateHostRef(
+            primary
+          );
 
         case 'AnnotatedExpr': {
           // Set immediateAnnotation before evaluating the inner primary so
           // createClosure() can consume it via captureClosureAnnotations [IR-5].
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const annots = await (this as any).evaluateAnnotations(
-            primary.annotations
-          );
+          const annots = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateAnnotations(primary.annotations);
           this.ctx.immediateAnnotation = annots;
           try {
             const innerResult = await this.evaluatePrimary(primary.expression);
@@ -284,8 +295,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         case 'ClosureCall':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateClosureCall(primary);
+          return (this as unknown as EvaluatorInterface).evaluateClosureCall(
+            primary
+          );
 
         case 'MethodCall':
           if (this.ctx.pipeValue === null) {
@@ -296,40 +308,46 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               { variable: '$' }
             );
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateMethod(primary, this.ctx.pipeValue);
+          return (this as unknown as EvaluatorInterface).evaluateMethod(
+            primary,
+            this.ctx.pipeValue
+          );
 
         case 'Conditional':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateConditional(primary);
+          return (this as unknown as EvaluatorInterface).evaluateConditional(
+            primary
+          );
 
         case 'WhileLoop':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateWhileLoop(primary);
+          return (this as unknown as EvaluatorInterface).evaluateWhileLoop(
+            primary
+          );
 
         case 'DoWhileLoop':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDoWhileLoop(primary);
+          return (this as unknown as EvaluatorInterface).evaluateDoWhileLoop(
+            primary
+          );
 
         case 'Block':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).createBlockClosure(primary);
+          return (this as unknown as EvaluatorInterface).createBlockClosure(
+            primary
+          );
 
         case 'GroupedExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateGroupedExpr(primary);
+          return (this as unknown as EvaluatorInterface).evaluateGroupedExpr(
+            primary
+          );
 
         case 'Assert':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateAssert(primary);
+          return (this as unknown as EvaluatorInterface).evaluateAssert(
+            primary
+          );
 
         case 'Error':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateError(primary);
+          return (this as unknown as EvaluatorInterface).evaluateError(primary);
 
         case 'Pass':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePass(primary);
+          return (this as unknown as EvaluatorInterface).evaluatePass(primary);
 
         case 'TypeAssertion': {
           // Postfix type assertion: the operand is already evaluated
@@ -348,8 +366,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
           const assertValue = await this.evaluatePostfixExpr(primary.operand);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTypeAssertion(primary, assertValue);
+          return (this as unknown as EvaluatorInterface).evaluateTypeAssertion(
+            primary,
+            assertValue
+          );
         }
 
         case 'TypeCheck': {
@@ -369,8 +389,10 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             );
           }
           const checkValue = await this.evaluatePostfixExpr(primary.operand);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTypeCheck(primary, checkValue);
+          return (this as unknown as EvaluatorInterface).evaluateTypeCheck(
+            primary,
+            checkValue
+          );
         }
 
         case 'TypeNameExpr':
@@ -394,35 +416,42 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           });
 
         case 'TypeConstructor':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTypeConstructor(primary);
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateTypeConstructor(primary);
 
         case 'ClosureSigLiteral':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateClosureSigLiteral(primary);
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateClosureSigLiteral(primary);
 
         case 'ListLiteral':
         case 'DictLiteral':
         case 'TupleLiteral':
         case 'OrderedLiteral':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateCollectionLiteral(primary);
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateCollectionLiteral(primary);
 
         case 'UseExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateUseExpr(primary);
+          return (this as unknown as EvaluatorInterface).evaluateUseExpr(
+            primary
+          );
 
         case 'GuardBlock':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateGuardBlock(primary);
+          return (this as unknown as EvaluatorInterface).evaluateGuardBlock(
+            primary
+          );
 
         case 'RetryBlock':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateRetryBlock(primary);
+          return (this as unknown as EvaluatorInterface).evaluateRetryBlock(
+            primary
+          );
 
         case 'StatusProbe':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateStatusProbe(primary);
+          return (this as unknown as EvaluatorInterface).evaluateStatusProbe(
+            primary
+          );
 
         case 'AtomLiteral':
           // Atom literals (`#NAME`) resolve via the atom registry. Unregistered
@@ -482,45 +511,55 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       switch (target.type) {
         case 'HostCall':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateHostCall(target);
+          return (this as unknown as EvaluatorInterface).evaluateHostCall(
+            target
+          );
 
         case 'HostRef':
           // pipeValue is already set to input above; evaluateHostRef invokes
           // with it when pipeValue is non-null [IR-4].
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateHostRef(target);
+          return (this as unknown as EvaluatorInterface).evaluateHostRef(
+            target
+          );
 
         case 'ClosureCall':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateClosureCallWithPipe(target, input);
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateClosureCallWithPipe(target, input);
 
         case 'PipeInvoke':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluatePipeInvoke(target, input);
+          return (this as unknown as EvaluatorInterface).evaluatePipeInvoke(
+            target,
+            input
+          );
 
         case 'MethodCall':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateMethod(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateMethod(
+            target,
+            input
+          );
 
         case 'Conditional':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateConditional(target);
+          return (this as unknown as EvaluatorInterface).evaluateConditional(
+            target
+          );
 
         case 'WhileLoop':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateWhileLoop(target);
+          return (this as unknown as EvaluatorInterface).evaluateWhileLoop(
+            target
+          );
 
         case 'DoWhileLoop':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDoWhileLoop(target);
+          return (this as unknown as EvaluatorInterface).evaluateDoWhileLoop(
+            target
+          );
 
         case 'Block': {
           // Create block-closure then invoke with input as $
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const closure = (this as any).createBlockClosure(target);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).invokeCallable(
+          const closure = (
+            this as unknown as EvaluatorInterface
+          ).createBlockClosure(target);
+          return (this as unknown as EvaluatorInterface).invokeCallable(
             closure,
             [input],
             this.getNodeLocation(target)
@@ -529,14 +568,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         case 'Closure': {
           // Inline closure: create and invoke
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const closure = await (this as any).createClosure(target);
+          const closure = await (
+            this as unknown as EvaluatorInterface
+          ).createClosure(target);
 
           // Per closure-semantics spec: check params.length to determine invocation style
           if (closure.params.length > 0) {
             // Has params: invoke with input as first argument
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).invokeCallable(
+            return (this as unknown as EvaluatorInterface).invokeCallable(
               closure,
               [input],
               this.getNodeLocation(target)
@@ -546,12 +585,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const savedPipeValue = this.ctx.pipeValue;
             this.ctx.pipeValue = input;
             try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return await (this as any).invokeCallable(
-                closure,
-                [],
-                this.getNodeLocation(target)
-              );
+              return await (
+                this as unknown as EvaluatorInterface
+              ).invokeCallable(closure, [], this.getNodeLocation(target));
             } finally {
               this.ctx.pipeValue = savedPipeValue;
             }
@@ -559,8 +595,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         case 'StringLiteral': {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { value } = await (this as any).evaluateString(target);
+          const { value } = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateString(target);
           return value;
         }
 
@@ -568,66 +605,85 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Hierarchical dispatch: detect list input (not tuple)
           if (Array.isArray(input) && !isTuple(input)) {
             // Evaluate dict literal first, then dispatch through path
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const dictValue = await (this as any).evaluateDict(target);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).evaluateHierarchicalDispatch(
+            const dictValue = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateDict(target);
+            return await (
+              this as unknown as EvaluatorInterface
+            ).evaluateHierarchicalDispatch(
               dictValue,
               input,
-              target.defaultValue,
+              // defaultValue is BodyNode | null; ExpressionNode = PipeChainNode
+              // which is the common case — cast matches pre-as-any behaviour
+              target.defaultValue as ExpressionNode | undefined,
               this.getNodeLocation(target)
             );
           }
           // Dict dispatch: lookup key matching piped value
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDictDispatch(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateDictDispatch(
+            target,
+            input
+          );
         }
 
         case 'GroupedExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateGroupedExpr(target);
+          return (this as unknown as EvaluatorInterface).evaluateGroupedExpr(
+            target
+          );
 
         case 'Destructure':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDestructure(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateDestructure(
+            target,
+            input
+          );
 
         case 'Destruct':
           // Keyword-based destruct<$a, $b, ...> form [IR-26]
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateDestruct(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateDestruct(
+            target,
+            input
+          );
 
         case 'ListLiteral': {
           // Hierarchical dispatch: detect list input (not tuple)
           if (Array.isArray(input) && !isTuple(input)) {
             // Evaluate list literal first, then dispatch through path
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const listValue = await (this as any).evaluateCollectionLiteral(
-              target
-            );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).evaluateHierarchicalDispatch(
+            const listValue = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateCollectionLiteral(target);
+            return await (
+              this as unknown as EvaluatorInterface
+            ).evaluateHierarchicalDispatch(
               listValue,
               input,
-              target.defaultValue,
+              // defaultValue is BodyNode | null; cast matches pre-as-any behaviour
+              target.defaultValue as ExpressionNode | undefined,
               this.getNodeLocation(target)
             );
           }
           // list[...] as pipe target: index-based dispatch [IR-11]
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateListLiteralDispatch(target, input);
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateListLiteralDispatch(target, input);
         }
 
         case 'Slice':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateSlice(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateSlice(
+            target,
+            input
+          );
 
         case 'TypeAssertion':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTypeAssertion(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateTypeAssertion(
+            target,
+            input
+          );
 
         case 'TypeCheck':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateTypeCheck(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateTypeCheck(
+            target,
+            input
+          );
 
         case 'Variable': {
           // $.field is property access on pipe value, not closure invocation
@@ -636,12 +692,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             !target.name &&
             target.accessChain.length > 0
           ) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).evaluatePipePropertyAccess(target, input);
+            return (
+              this as unknown as EvaluatorInterface
+            ).evaluatePipePropertyAccess(target, input);
           }
           // Variable in pipe chain: evaluate and invoke if callable
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const value = await (this as any).evaluateVariableAsync(target);
+          const value = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateVariableAsync(target);
           // If value is callable, invoke it with the pipe input
           // Per closure-semantics spec: check params.length to determine invocation style
           if (isCallable(value)) {
@@ -654,8 +712,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             if (hasParams) {
               // Block-closure: invoke with input as argument
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return (this as any).invokeCallable(
+              return (this as unknown as EvaluatorInterface).invokeCallable(
                 value,
                 [input],
                 this.getNodeLocation(target)
@@ -665,12 +722,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               const savedPipeValue = this.ctx.pipeValue;
               this.ctx.pipeValue = input;
               try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const result = await (this as any).invokeCallable(
-                  value,
-                  [],
-                  this.getNodeLocation(target)
-                );
+                const result = await (
+                  this as unknown as EvaluatorInterface
+                ).invokeCallable(value, [], this.getNodeLocation(target));
                 return result;
               } finally {
                 this.ctx.pipeValue = savedPipeValue;
@@ -684,19 +738,26 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // checks, since RillTypeValue is a plain object that isDict() would
           // otherwise match.
           if (isTypeValue(value)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).applyConversion(input, value.typeName, target);
+            return (this as unknown as EvaluatorInterface).applyConversion(
+              input,
+              value.typeName,
+              target
+            );
           }
 
           // Variable dispatch: if value is dict or list, dispatch into it
           // Hierarchical dispatch: detect list input (not tuple) for path navigation
+          // target.defaultValue is BodyNode | null; cast to ExpressionNode | null
+          // matches pre-as-any behaviour (PipeChainNode is the common case).
+          const defaultVal = target.defaultValue as ExpressionNode | null;
           if (Array.isArray(input) && !isTuple(input)) {
             if (isDict(value) || (Array.isArray(value) && !isTuple(value))) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return await (this as any).evaluateHierarchicalDispatch(
+              return await (
+                this as unknown as EvaluatorInterface
+              ).evaluateHierarchicalDispatch(
                 value,
                 input,
-                target.defaultValue,
+                defaultVal ?? undefined,
                 this.getNodeLocation(target)
               );
             }
@@ -704,22 +765,20 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
           if (Array.isArray(value) && !isTuple(value)) {
             // List dispatch
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).dispatchToList(
+            return await (this as unknown as EvaluatorInterface).dispatchToList(
               value,
               input,
-              target.defaultValue,
+              defaultVal,
               target
             );
           }
 
           if (isDict(value)) {
             // Dict dispatch
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).dispatchToDict(
+            return await (this as unknown as EvaluatorInterface).dispatchToDict(
               value,
               input,
-              target.defaultValue,
+              defaultVal,
               target
             );
           }
@@ -744,59 +803,59 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           let value = input;
           for (const method of target.methods) {
             if (method.type === 'AnnotationAccess') {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              value = await (this as any).evaluateAnnotationAccess(
-                value,
-                method.key,
-                method.span.start
-              );
+              value = await (
+                this as unknown as EvaluatorInterface
+              ).evaluateAnnotationAccess(value, method.key, method.span.start);
             } else {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              value = await (this as any).evaluateMethod(method, value);
+              value = await (
+                this as unknown as EvaluatorInterface
+              ).evaluateMethod(method, value);
             }
           }
           return value;
         }
 
         case 'AnnotationAccess':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateAnnotationAccess(
-            input,
-            target.key,
-            target.span.start
-          );
+          return (
+            this as unknown as EvaluatorInterface
+          ).evaluateAnnotationAccess(input, target.key, target.span.start);
 
         case 'Assert':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateAssert(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateAssert(
+            target,
+            input
+          );
 
         case 'Error':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateError(target, input);
+          return (this as unknown as EvaluatorInterface).evaluateError(
+            target,
+            input
+          );
 
         case 'TypeNameExpr': {
           // Pipe target: `-> type` (bare type keyword). Delegate directly to
           // applyConversion, which enforces the full conversion compatibility
           // matrix (no-op short-circuits, RILL-R036, RILL-R037, etc.).
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).applyConversion(input, target.typeName, target);
+          return (this as unknown as EvaluatorInterface).applyConversion(
+            input,
+            target.typeName,
+            target
+          );
         }
 
         case 'TypeConstructor': {
           // Pipe target: `-> type(...)` (parameterized type constructor).
           // Delegate to applyConstructorConversion, which handles structural
           // signatures (dict/ordered/tuple with fields) and uniform types.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).applyConstructorConversion(
-            input,
-            target,
-            target
-          );
+          return (
+            this as unknown as EvaluatorInterface
+          ).applyConstructorConversion(input, target, target);
         }
 
         case 'UseExpr':
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateUseExpr(target);
+          return (this as unknown as EvaluatorInterface).evaluateUseExpr(
+            target
+          );
 
         default:
           throwTypeHalt(
@@ -848,39 +907,31 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Traverse all elements except the last
         for (let i = 0; i < path.length - 1; i++) {
-          const key = path[i];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          current = await (this as any).traversePathStep(
-            current,
-            key,
-            false,
-            location
-          );
+          // Bounds-checked loop: path[i] is always defined
+          const key = path[i]!;
+          current = await (
+            this as unknown as EvaluatorInterface
+          ).traversePathStep(current, key, false, location);
         }
 
         // Handle last element separately for terminal closure support
-        lastKey = path[path.length - 1];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await (this as any).traversePathStep(
-          current,
-          lastKey,
-          true,
-          location
-        );
+        // path.length > 0 is guaranteed above so this index is always valid
+        lastKey = path[path.length - 1]!;
+        const result = await (
+          this as unknown as EvaluatorInterface
+        ).traversePathStep(current, lastKey, true, location);
 
         // Resolve terminal value (handles terminal closures with $ = lastKey)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).resolveTerminalValue(
-          result,
-          lastKey,
-          location
-        );
+        return await (
+          this as unknown as EvaluatorInterface
+        ).resolveTerminalValue(result, lastKey, location);
       } catch (error) {
         // Handle missing key/index errors with default value
         if (error instanceof RuntimeError && error.errorId === 'RILL-R009') {
           if (defaultExpr) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return await (this as any).evaluateExpression(defaultExpr);
+            return await (
+              this as unknown as EvaluatorInterface
+            ).evaluateExpression(defaultExpr);
           }
           // No default - re-throw original error
           throw error;
@@ -915,12 +966,15 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       // Dict + string key: dispatch to dict
       if (isDict(current) && typeof key === 'string') {
-        // Create location-like object for dispatchToDict signature
-        const locObj = {
-          span: location ? { start: location, end: location } : undefined,
-        };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await (this as any).dispatchToDict(
+        // Create location-like object for dispatchToDict signature.
+        // exactOptionalPropertyTypes requires explicit conditional assignment.
+        const locObj: {
+          span?: { start: SourceLocation; end: SourceLocation };
+        } = {};
+        if (location) locObj.span = { start: location, end: location };
+        const result = await (
+          this as unknown as EvaluatorInterface
+        ).dispatchToDict(
           current,
           key,
           null, // No default value for intermediate steps
@@ -930,11 +984,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Non-terminal closures must be resolved via resolveIntermediateClosure
         if (!isTerminal && isCallable(result)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).resolveIntermediateClosure(
-            result,
-            location
-          );
+          return await (
+            this as unknown as EvaluatorInterface
+          ).resolveIntermediateClosure(result, location);
         }
 
         // Terminal closures will be handled by evaluateHierarchicalDispatch
@@ -947,12 +999,15 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         !isTuple(current) &&
         typeof key === 'number'
       ) {
-        // Create location-like object for dispatchToList signature
-        const locObj = {
-          span: location ? { start: location, end: location } : undefined,
-        };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await (this as any).dispatchToList(
+        // Create location-like object for dispatchToList signature.
+        // exactOptionalPropertyTypes requires explicit conditional assignment.
+        const locObj: {
+          span?: { start: SourceLocation; end: SourceLocation };
+        } = {};
+        if (location) locObj.span = { start: location, end: location };
+        const result = await (
+          this as unknown as EvaluatorInterface
+        ).dispatchToList(
           current,
           key,
           null, // No default value for intermediate steps
@@ -962,11 +1017,9 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Non-terminal closures must be resolved via resolveIntermediateClosure
         if (!isTerminal && isCallable(result)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).resolveIntermediateClosure(
-            result,
-            location
-          );
+          return await (
+            this as unknown as EvaluatorInterface
+          ).resolveIntermediateClosure(result, location);
         }
 
         // Terminal closures will be handled by evaluateHierarchicalDispatch
@@ -1027,8 +1080,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       // Zero-param closure or block-closure: auto-invoke with args = []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (this as any).invokeCallable(value, [], location);
+      return await (this as unknown as EvaluatorInterface).invokeCallable(
+        value,
+        [],
+        location
+      );
     }
 
     /**
@@ -1080,19 +1136,19 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       if (hasParams) {
         // Block-closure or application callable with params: invoke with finalKey as argument
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).invokeCallable(value, [finalKey], location);
+        return await (this as unknown as EvaluatorInterface).invokeCallable(
+          value,
+          [finalKey],
+          location
+        );
       } else {
         // Zero-param closure: invoke with pipeValue = finalKey
         const savedPipeValue = this.ctx.pipeValue;
         this.ctx.pipeValue = finalKey;
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await (this as any).invokeCallable(
-            value,
-            [],
-            location
-          );
+          const result = await (
+            this as unknown as EvaluatorInterface
+          ).invokeCallable(value, [], location);
           return result;
         } finally {
           this.ctx.pipeValue = savedPipeValue;
@@ -1106,3 +1162,40 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const CoreMixin = createCoreMixin as any;
+
+/**
+ * Capability fragment: methods contributed by CoreMixin that are called from
+ * other mixin files. These are the public-signature declarations used as the
+ * structural cast target in EvaluatorInterface.
+ *
+ * TypeScript `protected` is a class modifier; type aliases use plain method
+ * signatures. The cast target works because `this` inside a mixin class already
+ * has access to its own protected members.
+ */
+export type CoreMixinCapability = {
+  evaluateExpression(expr: ExpressionNode): Promise<RillValue>;
+  evaluatePipeChain(chain: PipeChainNode): Promise<RillValue>;
+  evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue>;
+  evaluatePrimary(primary: PrimaryNode): Promise<RillValue>;
+  evaluateHierarchicalDispatch(
+    target: RillValue,
+    path: RillValue[],
+    defaultExpr?: ExpressionNode,
+    location?: SourceLocation
+  ): Promise<RillValue>;
+  traversePathStep(
+    current: RillValue,
+    key: RillValue,
+    isTerminal: boolean,
+    location?: SourceLocation
+  ): Promise<RillValue>;
+  resolveTerminalValue(
+    value: RillValue,
+    finalKey: RillValue,
+    location?: SourceLocation
+  ): Promise<RillValue>;
+  resolveIntermediateClosure(
+    value: RillValue,
+    location?: SourceLocation
+  ): Promise<RillValue>;
+};

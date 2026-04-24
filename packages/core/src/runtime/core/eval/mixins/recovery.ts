@@ -44,6 +44,7 @@ import type { RillAtom } from '../../types/atom-registry.js';
 import { resolveAtom } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 
 // ============================================================
@@ -102,7 +103,7 @@ function shouldCatch(
  *
  * Depends on:
  * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
- * - ControlFlowMixin: evaluateBlock(node) (for body execution)
+ * - ControlFlowMixin: evaluateBody(node) (for body execution)
  * - CoreMixin / VariablesMixin: evaluateExpression() (for probe target)
  *
  * Methods added:
@@ -125,8 +126,9 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       const onCodes = resolveOnCodes(node.onCodes);
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (this as any).evaluateBlock(node.body);
+        return await (this as unknown as EvaluatorInterface).evaluateBody(
+          node.body
+        );
       } catch (e) {
         if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
           const frame = createTraceFrame({
@@ -190,8 +192,9 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       let lastInvalid: RillValue | undefined;
       for (let attempt = 0; attempt < node.attempts; attempt++) {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (this as any).evaluateBlock(node.body);
+          return await (this as unknown as EvaluatorInterface).evaluateBody(
+            node.body
+          );
         } catch (e) {
           if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
             const frame = createTraceFrame({
@@ -238,8 +241,9 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async evaluateStatusProbe(
       node: StatusProbeNode
     ): Promise<RillValue> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const target = await (this as any).evaluateExpression(node.target);
+      const target = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateExpression(node.target);
       const status = getStatus(target);
 
       if (node.field === undefined) {
@@ -292,3 +296,13 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // established by AnnotationsMixin.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const RecoveryMixin = createRecoveryMixin as any;
+
+/**
+ * Capability fragment: methods contributed by RecoveryMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type RecoveryMixinCapability = {
+  evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue>;
+  evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue>;
+  evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue>;
+};

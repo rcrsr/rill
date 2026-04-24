@@ -53,12 +53,28 @@
  *
  * ## Trade-offs
  *
- * The mixin pattern trades compile-time type safety for simpler cross-cutting
- * dispatch. Cross-mixin calls use `(this as any).methodName()` because
- * TypeScript cannot infer the final composed type within each mixin.
- * These casts are localized to cross-mixin call sites.
+ * Cross-mixin calls are fully type-checked via `EvaluatorInterface`. All
+ * `(this as any)` casts have been migrated to
+ * `(this as unknown as EvaluatorInterface)`. TypeScript errors TS2339 and
+ * TS2352 now catch signature drift at compile time. The ESLint rule
+ * `rill/no-cross-mixin-any` (registered in root `eslint.config.js`) prevents
+ * reintroduction of the untyped pattern in all eval mixin source files.
  *
  * ## Alternatives Considered
+ *
+ * **EvaluatorInterface — SELECTED**
+ *
+ * `EvaluatorInterface` (defined in `interface.ts`) is a type alias that
+ * intersects `EvaluatorBaseCapability` with 15 per-mixin `*MixinCapability`
+ * fragments. Cross-mixin calls cast `this` to `EvaluatorInterface` and invoke
+ * the target method. Zero runtime overhead: the cast is type-erased and the
+ * import is `import type` only.
+ *
+ * Rationale:
+ * - Avoids declaration-merging cycles on `EvaluatorBase`
+ * - Preserves the factory-composition model (no refactoring of mixin factories required)
+ * - Zero runtime overhead (type-erased, `import type` only)
+ * - Mechanical, incremental migration (per-mixin capability fragments)
  *
  * **Handler Registry with Central Dispatch**
  * ```
@@ -100,8 +116,9 @@
  *
  * The coupling between expression evaluation, closure invocation, and
  * variable resolution is fundamental to the domain. The mixin pattern
- * reflects this reality with minimal indirection. The `as any` casts
- * are the localized cost; alternatives trade this for other complexity.
+ * reflects this reality with minimal indirection. `EvaluatorInterface`
+ * provides compile-time type safety for cross-mixin calls without altering
+ * the composition model or adding runtime cost.
  *
  * @internal
  */

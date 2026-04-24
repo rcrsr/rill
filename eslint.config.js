@@ -3,6 +3,7 @@ import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import globals from 'globals';
 import noDuplicateErrorId from './eslint-rules/no-duplicate-error-id.cjs';
+import noCrossMixinAny from './eslint-rules/no-cross-mixin-any.cjs';
 
 export default [
   {
@@ -97,16 +98,21 @@ export default [
     },
   },
   {
-    files: ['packages/core/src/runtime/**/*.ts'],
+    files: [
+      'packages/core/src/runtime/**/*.ts',
+      'src/runtime/**/*.ts', // When run from packages/core
+    ],
     plugins: {
       rill: {
         rules: {
           'no-duplicate-error-id': noDuplicateErrorId,
+          'no-cross-mixin-any': noCrossMixinAny,
         },
       },
     },
     rules: {
       'rill/no-duplicate-error-id': 'error',
+      'rill/no-cross-mixin-any': 'error',
     },
   },
 ];

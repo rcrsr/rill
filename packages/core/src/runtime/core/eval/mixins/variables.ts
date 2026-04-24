@@ -49,6 +49,7 @@ import { isDict, isCallable } from '../../callable.js';
 import { isVacant, isInvalid } from '../../types/status.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import type { EvaluatorInterface } from '../interface.js';
 import { accessHaltGateFast } from './access.js';
 
 /**
@@ -273,8 +274,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         if (isVacant(value)) {
           // Use default value if available
           if (node.defaultValue) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (this as any).evaluateBody(node.defaultValue);
+            return (this as unknown as EvaluatorInterface).evaluateBody(
+              node.defaultValue
+            );
           }
           if (value === null) {
             throw new RuntimeError(
@@ -296,10 +298,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Check if this is a bracket access
         if ('accessKind' in access) {
           // Bracket access: [expr]
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const indexValue = await (this as any).evaluatePipeChain(
-            access.expression
-          );
+          const indexValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluatePipeChain(access.expression);
 
           if (Array.isArray(value)) {
             if (typeof indexValue !== 'number') {
@@ -356,11 +357,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Handle .params property on closures
           if (field === 'params') {
             if (isCallable(value)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              value = await (this as any).evaluateParamsProperty(
-                value,
-                this.getNodeLocation(node)
-              );
+              value = await (
+                this as unknown as EvaluatorInterface
+              ).evaluateParamsProperty(value, this.getNodeLocation(node));
             } else {
               // .params on non-callable: throw or return null based on default value
               if (node.defaultValue !== null) {
@@ -387,8 +386,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               receiverSpan: null,
               span: node.span,
             };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateMethod(methodNode, value);
+            value = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateMethod(methodNode, value);
           } else if (isTypeValue(value)) {
             if (field === 'name') {
               value = value.typeName;
@@ -429,8 +429,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Delegates to evaluateAnnotationAccess from ClosuresMixin
           // Convert RUNTIME_UNDEFINED_ANNOTATION to null ONLY if defaultValue exists (for ?? coalescing)
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value = await (this as any).evaluateAnnotationAccess(
+            value = await (
+              this as unknown as EvaluatorInterface
+            ).evaluateAnnotationAccess(
               value,
               access.key,
               this.getNodeLocation(node)
@@ -468,8 +469,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Helper: check type match using structural resolution (EC-4: mismatch returns false)
         const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
           if (typeRef === null) return true;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const resolved = await (this as any).resolveTypeRef(
+          const resolved = await (
+            this as unknown as EvaluatorInterface
+          ).resolveTypeRef(
             typeRef,
             (name: string) => getVariable(this.ctx, name) as RillValue
           );
@@ -548,10 +550,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         if (finalAccess.kind === 'computed') {
           // Evaluate the computed expression (EC-11)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const keyValue = await (this as any).evaluatePipeChain(
-            finalAccess.expression
-          );
+          const keyValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluatePipeChain(finalAccess.expression);
 
           // EC-11: Computed key non-string
           if (typeof keyValue !== 'string') {
@@ -611,8 +612,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               ? value === null || isInvalid(value)
               : isVacant(value);
         if (trigger) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (this as any).evaluateBody(node.defaultValue);
+          return (this as unknown as EvaluatorInterface).evaluateBody(
+            node.defaultValue
+          );
         }
       }
 
@@ -733,8 +735,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: VariableNode
     ): Promise<RillValue> {
       // Evaluate the expression to get the key
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keyValue = await (this as any).evaluatePipeChain(access.expression);
+      const keyValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluatePipeChain(access.expression);
 
       // EC-4: Expression result is closure
       if (isCallable(keyValue)) {
@@ -863,8 +866,9 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       if (node.typeRef !== null) {
         // Resolve TypeRef and validate against the declared type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const resolved = await (this as any).resolveTypeRef(
+        const resolved = await (
+          this as unknown as EvaluatorInterface
+        ).resolveTypeRef(
           node.typeRef,
           (name: string) => getVariable(this.ctx, name) as RillValue
         );
@@ -897,3 +901,22 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const VariablesMixin = createVariablesMixin as any;
+
+/**
+ * Capability fragment: methods contributed by VariablesMixin that are called
+ * from core.ts cast sites. Covers only the methods core.ts invokes.
+ */
+export type VariablesMixinCapability = {
+  handleCapture(
+    capture: CaptureNode | null,
+    value: RillValue
+  ): Promise<{ name: string; value: RillValue } | undefined>;
+  evaluateVariableAsync(node: VariableNode): Promise<RillValue>;
+  setVariable(
+    name: string,
+    value: RillValue,
+    explicitType?: RillTypeName | TypeStructure,
+    location?: SourceLocation
+  ): void;
+  evaluateVariable(node: VariableNode): RillValue;
+};

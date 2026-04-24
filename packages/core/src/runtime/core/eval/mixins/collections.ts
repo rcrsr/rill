@@ -31,6 +31,7 @@ import { throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
+import type { EvaluatorInterface } from '../interface.js';
 
 /**
  * Default maximum iteration count for iterators.
@@ -81,13 +82,14 @@ export async function getIterableElements(
   if (typeof input === 'string') {
     return [...input];
   }
+  const evaluator = getEvaluator(ctx) as unknown as EvaluatorInterface;
   // Check for stream BEFORE iterator (streams satisfy iterator shape)
   if (isStream(input)) {
-    return expandStream(input, ctx, node, limit);
+    return expandStream(input, evaluator, node, limit);
   }
   // Check for iterator protocol BEFORE generic dict handling
   if (isIterator(input)) {
-    return expandIterator(input, ctx, node, limit);
+    return expandIterator(input, evaluator, node, limit);
   }
   if (isDict(input)) {
     // Dict iteration: sorted keys, each element is { key, value }
@@ -110,24 +112,22 @@ export async function getIterableElements(
  * Respects iteration limits to prevent infinite loops.
  *
  * @param iterator - The iterator value ({ done, value, next })
- * @param ctx - Runtime context used for abort checks and callable invocation
+ * @param evaluator - Evaluator instance used for abort checks and callable invocation
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
 async function expandIterator(
   iterator: RillValue,
-  ctx: RuntimeContext,
+  evaluator: EvaluatorInterface,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
-  const evaluator = getEvaluator(ctx);
   const elements: RillValue[] = [];
   let current = iterator as Record<string, RillValue>;
   let count = 0;
 
   while (!current['done'] && count < limit) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (evaluator as any).checkAborted();
+    evaluator.checkAborted();
     const val = current['value'];
     if (val !== undefined) {
       elements.push(val);
@@ -143,8 +143,7 @@ async function expandIterator(
         node.span.start
       );
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nextIterator = await (evaluator as any).invokeCallable(
+    const nextIterator = await evaluator.invokeCallable(
       nextClosure,
       [],
       node.span.start,
@@ -181,17 +180,16 @@ async function expandIterator(
  * before re-throwing (NFR-STREAM-2).
  *
  * @param stream - The stream value ({ __rill_stream, done, value, next })
- * @param ctx - Runtime context used for abort checks, callable invocation, and sourceId
+ * @param evaluator - Evaluator instance used for abort checks, callable invocation, and sourceId
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
 async function expandStream(
   stream: RillStream,
-  ctx: RuntimeContext,
+  evaluator: EvaluatorInterface,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
-  const evaluator = getEvaluator(ctx);
   const elements: RillValue[] = [];
   let current: RillStream = stream;
   let count = 0;
@@ -199,8 +197,7 @@ async function expandStream(
 
   try {
     while (!current.done && count < limit) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (evaluator as any).checkAborted();
+      evaluator.checkAborted();
       const val = current['value'];
       if (val !== undefined) {
         const actualType = inferType(val);
@@ -210,7 +207,7 @@ async function expandStream(
           throwTypeHalt(
             {
               location: node.span.start,
-              sourceId: ctx.sourceId,
+              sourceId: evaluator.ctx.sourceId,
               fn: 'stream-chunk',
             },
             'TYPE_MISMATCH',
@@ -232,8 +229,7 @@ async function expandStream(
           node.span.start
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nextStep = await (evaluator as any).invokeCallable(
+      const nextStep = await evaluator.invokeCallable(
         nextClosure,
         [],
         node.span.start,
@@ -319,7 +315,12 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: { span: { start: SourceLocation } },
       limit: number = DEFAULT_MAX_ITERATIONS
     ): Promise<RillValue[]> {
-      return expandIterator(iterator, this.ctx, node, limit);
+      return expandIterator(
+        iterator,
+        this as unknown as EvaluatorInterface,
+        node,
+        limit
+      );
     }
 
     /**
@@ -331,7 +332,12 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: { span: { start: SourceLocation } },
       limit: number = DEFAULT_MAX_ITERATIONS
     ): Promise<RillValue[]> {
-      return expandStream(stream, this.ctx, node, limit);
+      return expandStream(
+        stream,
+        this as unknown as EvaluatorInterface,
+        node,
+        limit
+      );
     }
   };
 }
@@ -340,3 +346,10 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 // TypeScript can't generate declarations for functions returning classes with protected members
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const CollectionsMixin = createCollectionsMixin as any;
+
+/**
+ * Capability fragment: CollectionsMixin contributes only protected helpers
+ * (getIterableElements, expandIterator, expandStream) which are not called
+ * from external cast sites. No public methods are added to the evaluator.
+ */
+export type CollectionsMixinCapability = Record<never, never>;
