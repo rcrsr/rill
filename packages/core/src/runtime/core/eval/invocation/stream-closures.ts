@@ -23,7 +23,7 @@
  * @internal
  */
 
-import type { SourceLocation } from '../../../../types.js';
+import type { SourceLocation, BlockNode } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { ScriptCallable } from '../../callable.js';
 import { marshalArgs } from '../../callable.js';
@@ -198,6 +198,28 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * creation order; disposed in reverse order on scope exit.
      */
     private streamScopeStack: RillStream[][] = [];
+
+    /**
+     * Override: push a stream scope, evaluate the block, then dispose any
+     * unconsumed streams created inside it (IR-14).
+     *
+     * Co-located with `streamScopeStack` to keep all stream-lifecycle state
+     * and overrides inside this mixin.
+     */
+    protected async evaluateBlock(node: BlockNode): Promise<RillValue> {
+      this.streamScopeStack.push([]);
+      try {
+        // Base chain provides evaluateBlock via ControlFlowMixin; TypeScript
+        // cannot see it through the mixin composition, so reach it via the
+        // prototype chain rather than widening `super` to `any`.
+        return await Object.getPrototypeOf(
+          StreamClosuresEvaluator.prototype
+        ).evaluateBlock.call(this, node);
+      } finally {
+        const streams = this.streamScopeStack.pop() ?? [];
+        await this.disposeStreams(streams);
+      }
+    }
 
     /**
      * Track a stream in the current scope for cleanup on scope exit (IR-14).

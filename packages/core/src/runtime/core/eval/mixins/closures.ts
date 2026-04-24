@@ -80,42 +80,30 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /** Invocation strategy; dispatches to invokeScriptCallable or invokeFnCallable. */
     private readonly invocationStrategy: CallableInvocationStrategy =
-      new CallableInvocationStrategy(this.ctx, this.argumentsBinder, (async (
-        callable: RillCallable,
-        args: RillValue[],
-        location: SourceLocation | undefined,
-        functionName?: string
-      ) => {
-        if (callable.kind === 'script') {
-          return this.invokeScriptCallable(
-            callable as ScriptCallable,
+      new CallableInvocationStrategy(
+        () => this.ctx,
+        this.argumentsBinder,
+        (async (
+          callable: RillCallable,
+          args: RillValue[],
+          location: SourceLocation | undefined,
+          functionName?: string
+        ) => {
+          if (callable.kind === 'script') {
+            return this.invokeScriptCallable(
+              callable as ScriptCallable,
+              args,
+              location
+            );
+          }
+          return this.invokeFnCallable(
+            callable as RuntimeCallable | ApplicationCallable,
             args,
-            location
+            location,
+            functionName
           );
-        }
-        return this.invokeFnCallable(
-          callable as RuntimeCallable | ApplicationCallable,
-          args,
-          location,
-          functionName
-        );
-      }) as InvocationCaller);
-
-    /** Override: push/pop stream scope and dispose unconsumed streams on exit. */
-    protected async evaluateBlock(node: BlockNode): Promise<RillValue> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as any).streamScopeStack?.push([]);
-      try {
-        return await Object.getPrototypeOf(
-          ClosuresEvaluator.prototype
-        ).evaluateBlock.call(this, node);
-      } finally {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const streams = (this as any).streamScopeStack?.pop() ?? [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (this as any).disposeStreams(streams);
-      }
-    }
+        }) as InvocationCaller
+      );
 
     /** Evaluate argument expressions, preserving the current pipeValue. */
     protected async evaluateArgs(
@@ -681,10 +669,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       if (!isCallable(value)) {
         throw new RuntimeError(
-          'RILL-R001',
+          'RILL-R002',
           `'${fullPath}' is not callable`,
           this.getNodeLocation(node),
-          { path: fullPath, location: this.getNodeLocation(node) }
+          { path: fullPath, actualType: inferType(value) }
         );
       }
       const closure = value;
@@ -796,10 +784,9 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       if (!isScriptCallable(input)) {
         throw new RuntimeError(
-          'RILL-R001',
+          'RILL-R002',
           `Cannot invoke non-closure value (got ${typeof input})`,
-          this.getNodeLocation(node),
-          { location: this.getNodeLocation(node) }
+          this.getNodeLocation(node)
         );
       }
 
@@ -999,13 +986,10 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       if (!isCallable(receiver)) {
         throw new RuntimeError(
-          'RILL-R001',
+          'RILL-R002',
           `Cannot invoke non-callable value (got ${inferType(receiver)})`,
           this.getNodeLocation(node),
-          {
-            actualType: inferType(receiver),
-            location: this.getNodeLocation(node),
-          }
+          { actualType: inferType(receiver) }
         );
       }
 

@@ -59,16 +59,16 @@ export type InvocationCaller = (
  * Each public method covers exactly one phase; callers sequence them.
  */
 export class CallableInvocationStrategy {
-  private readonly ctx: RuntimeContext;
+  private readonly getCtx: () => RuntimeContext;
   private readonly binder: ArgumentsBinder;
   private readonly caller: InvocationCaller;
 
   constructor(
-    ctx: RuntimeContext,
+    getCtx: () => RuntimeContext,
     binder: ArgumentsBinder,
     caller: InvocationCaller
   ) {
-    this.ctx = ctx;
+    this.getCtx = getCtx;
     this.binder = binder;
     this.caller = caller;
   }
@@ -138,44 +138,50 @@ export class CallableInvocationStrategy {
     location: SourceLocation,
     functionName?: string
   ): Promise<RillValue> {
-    const name =
+    // Read ctx lazily — callers may rebind their `this.ctx` during script
+    // callable execution (e.g. nested closure contexts). Capturing at
+    // construction would leave the frame pointing at a stale sourceId.
+    const ctx = this.getCtx();
+    const frameName =
       functionName ?? (callable.kind === 'script' ? '<closure>' : '<callable>');
 
     const span: SourceSpan = { start: location, end: location };
     const frame: CallFrame = {
       location: span,
-      functionName: name,
-      sourceId: this.ctx.sourceId,
+      functionName: frameName,
+      sourceId: ctx.sourceId,
     };
-    pushCallFrame(this.ctx, frame);
+    pushCallFrame(ctx, frame);
 
     try {
-      // BoundArguments carries parameter bindings; extract positional values for dispatch.
+      // Pass the original functionName through — downstream marshalling
+      // (e.g. marshalArgs in invokeFnCallable) preserves its own default
+      // when `functionName` is undefined. Only the call frame uses `frameName`.
       return await this.caller(
         callable,
         [...args.params.values()],
         location,
-        name
+        functionName
       );
     } catch (error) {
       // EC-6: snapshot call stack onto the RillError before finally pops frame.
       // First snapshot wins — nested calls capture the deepest stack.
-      if (error instanceof RillError && this.ctx.callStack.length > 0) {
-        const ctx = error.context as Record<string, unknown> | undefined;
-        if (ctx && !ctx['callStack']) {
-          ctx['callStack'] = [...this.ctx.callStack];
-        } else if (!ctx) {
+      if (error instanceof RillError && ctx.callStack.length > 0) {
+        const errCtx = error.context as Record<string, unknown> | undefined;
+        if (errCtx && !errCtx['callStack']) {
+          errCtx['callStack'] = [...ctx.callStack];
+        } else if (!errCtx) {
           // context is readonly on the property; override via cast for errors
           // constructed without a context object.
           (error as { context: Record<string, unknown> }).context = {
-            callStack: [...this.ctx.callStack],
+            callStack: [...ctx.callStack],
           };
         }
       }
       throw error;
     } finally {
       // AC-16: pop frame on both success and failure paths.
-      popCallFrame(this.ctx);
+      popCallFrame(ctx);
     }
   }
 }
