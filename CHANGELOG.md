@@ -120,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Parser expression dispatch** — Expression parsing now uses structured dispatch tables instead of inline branching, improving clarity and maintainability
 - **Evaluator type safety improvements** — Core evaluator now enforces typed dispatch across mixins, reducing the likelihood of type errors in the runtime layer
 - **Atom type rename** — The `:code` primitive type is now spelled `:atom`. Host API exports are renamed: `RillCode` → `RillAtom`, `RillCodeValue` → `RillAtomValue`, `isCode` → `isAtom`. Scripts using `:code` type annotations must migrate to `:atom`; sidecar field access (`.!code`) is unaffected
 - **Error message interpolation preservation** — `error "..."` statements with string interpolation now attach wrap trace frames preserving the evaluated message content at runtime

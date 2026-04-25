@@ -27,6 +27,18 @@ declare module './parser.js' {
 // TYPE CONSTRUCTOR PARSING
 // ============================================================
 
+type TypeConstructorName = TypeConstructorNode['constructorName'];
+
+/** Canonical list of type-constructor identifiers recognized by the parser. */
+const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<TypeConstructorName> =
+  new Set<TypeConstructorName>(['list', 'dict', 'tuple', 'ordered', 'stream']);
+
+export function isTypeConstructorName(
+  name: string
+): name is TypeConstructorName {
+  return TYPE_CONSTRUCTOR_NAMES.has(name as TypeConstructorName);
+}
+
 /**
  * Parse a type constructor: list(args), dict(k: T, ...), tuple(T...), ordered(k: T, ...).
  * Called when current identifier is in ['list', 'dict', 'tuple', 'ordered'] and next token is LPAREN.
@@ -37,8 +49,7 @@ Parser.prototype.parseTypeConstructor = function (
   this: Parser,
   constructorName: string
 ): TypeConstructorNode {
-  const validNames = ['list', 'dict', 'tuple', 'ordered', 'stream'] as const;
-  if (!validNames.includes(constructorName as (typeof validNames)[number])) {
+  if (!isTypeConstructorName(constructorName)) {
     throw new ParseError(
       'RILL-P001',
       `Expected type constructor name (list, dict, tuple, ordered, stream), got: ${constructorName}`,
