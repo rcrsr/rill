@@ -51,7 +51,7 @@ demo/**/data/
 # Internal files
 internal/
 brand/
-conduct/
+conduct
 .claude/
 .serena/
 .codanna/
