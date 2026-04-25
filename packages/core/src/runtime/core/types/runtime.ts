@@ -134,31 +134,59 @@ export type SchemeResolver = (
   config?: unknown
 ) => ResolverResult | Promise<ResolverResult>;
 
-/** Runtime context with variables, functions, and callbacks */
-export interface RuntimeContext {
+/** Scope facade: variable storage and lexical parent chain */
+export interface ScopeContext {
   /** Parent scope for lexical variable lookup (undefined = root scope) */
   readonly parent?: RuntimeContext | undefined;
   /** Named variables ($varname) - local to this scope */
   readonly variables: Map<string, RillValue>;
   /** Variable types - locked after first assignment (local to this scope) */
   readonly variableTypes: Map<string, RillTypeName | TypeStructure>;
+  /**
+   * Walk the parent chain and return the value bound to `name`,
+   * or `undefined` if no scope in the chain contains a binding.
+   * O(depth) lookup.
+   */
+  getVariable(this: ScopeContext, name: string): RillValue | undefined;
+  /**
+   * Walk the parent chain and return `true` if any scope contains
+   * a binding for `name`, `false` otherwise.
+   */
+  hasVariable(this: ScopeContext, name: string): boolean;
+}
+
+/** Dispatch facade: function tables and type method registries */
+export interface DispatchContext {
   /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
   readonly functions: Map<
     string,
     CallableFn | import('../callable.js').ApplicationCallable
   >;
-  /** I/O callbacks */
-  readonly callbacks: RuntimeCallbacks;
-  /** Observability callbacks */
-  readonly observability: ObservabilityCallbacks;
-  /** Current pipe value ($) */
-  pipeValue: RillValue;
-  /** Timeout in milliseconds for user-supplied functions (undefined = no timeout) */
-  readonly timeout: number | undefined;
-  /** Compiled regex patterns for auto-exceptions */
-  readonly autoExceptions: RegExp[];
-  /** AbortSignal for cancellation (undefined = no cancellation) */
-  readonly signal: AbortSignal | undefined;
+  /**
+   * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
+   * Keys: "string", "list", "dict", "number", "bool", "vector".
+   * Populated at context creation from type registrations; propagated to child contexts.
+   */
+  readonly typeMethodDicts: ReadonlyMap<
+    string,
+    Readonly<Record<string, RillValue>>
+  >;
+  /**
+   * Type names that reject type arguments in type constructors.
+   * Derived from BUILT_IN_TYPES registrations where isLeaf === true, plus 'any'.
+   * Used by type assertion/check evaluation to reject e.g. string(number).
+   */
+  readonly leafTypes: ReadonlySet<string>;
+  /**
+   * Method names that handle their own receiver type checking with specific
+   * error messages. Generic RILL-R003 must not fire before the method body runs.
+   * Derived from registration method dicts at context creation.
+   */
+  readonly unvalidatedMethodReceivers: ReadonlySet<string>;
+}
+
+/** Lifecycle facade: dispose, inflight tracking, and error classification */
+export interface LifecycleContext {
   /**
    * Produce an invalid RillValue from an arbitrary error and structured meta.
    * Never throws at the call site: `meta.code` that names an unregistered atom
@@ -204,6 +232,18 @@ export interface RuntimeContext {
    * contexts); safe to call from any dispatch site.
    */
   trackInflight(promise: Promise<unknown>): void;
+}
+
+/** Control-flow facade: pipe value, call stack, annotations, and execution limits */
+export interface ControlFlowContext {
+  /** Current pipe value ($) */
+  pipeValue: RillValue;
+  /** Timeout in milliseconds for user-supplied functions (undefined = no timeout) */
+  readonly timeout: number | undefined;
+  /** Compiled regex patterns for auto-exceptions */
+  readonly autoExceptions: RegExp[];
+  /** AbortSignal for cancellation (undefined = no cancellation) */
+  readonly signal: AbortSignal | undefined;
   /** Maximum call stack depth */
   readonly maxCallStackDepth: number;
   /**
@@ -223,31 +263,10 @@ export interface RuntimeContext {
    * Managed by evaluator; pushed on function entry, popped on exit.
    */
   readonly callStack: import('../../../types.js').CallFrame[];
-  /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
-  readonly metadata?: Record<string, string> | undefined;
-  /** Arbitrary host-provided values accessible by extensions at call time */
-  readonly hostContext: Record<string, unknown>;
-  /**
-   * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
-   * Keys: "string", "list", "dict", "number", "bool", "vector".
-   * Populated at context creation from type registrations; propagated to child contexts.
-   */
-  readonly typeMethodDicts: ReadonlyMap<
-    string,
-    Readonly<Record<string, RillValue>>
-  >;
-  /**
-   * Type names that reject type arguments in type constructors.
-   * Derived from BUILT_IN_TYPES registrations where isLeaf === true, plus 'any'.
-   * Used by type assertion/check evaluation to reject e.g. string(number).
-   */
-  readonly leafTypes: ReadonlySet<string>;
-  /**
-   * Method names that handle their own receiver type checking with specific
-   * error messages. Generic RILL-R003 must not fire before the method body runs.
-   * Derived from registration method dicts at context creation.
-   */
-  readonly unvalidatedMethodReceivers: ReadonlySet<string>;
+}
+
+/** Resolver facade: scheme resolvers, configurations, and source parsing */
+export interface ResolverContext {
   /** Scheme-to-resolver map, populated from RuntimeOptions.resolvers (empty Map when absent) */
   readonly resolvers: ReadonlyMap<string, SchemeResolver>;
   /** Per-scheme config data, populated from RuntimeOptions.configurations.resolvers (empty Map when absent) */
@@ -262,6 +281,18 @@ export interface RuntimeContext {
   readonly parseSource?:
     | ((text: string) => import('../../../types.js').ScriptNode)
     | undefined;
+}
+
+/** Metadata facade: I/O callbacks, observability, host context, and source identity */
+export interface MetadataContext {
+  /** I/O callbacks */
+  readonly callbacks: RuntimeCallbacks;
+  /** Observability callbacks */
+  readonly observability: ObservabilityCallbacks;
+  /** Arbitrary string metadata passed from the host (e.g. request IDs, user IDs) */
+  readonly metadata?: Record<string, string> | undefined;
+  /** Arbitrary host-provided values accessible by extensions at call time */
+  readonly hostContext: Record<string, unknown>;
   /** Identifies the current source file for cross-module error reporting */
   readonly sourceId?: string | undefined;
   /** Source text of the current file for cross-module error snippets */
@@ -271,6 +302,14 @@ export interface RuntimeContext {
   /** Fixed millisecond timestamp for deterministic Date.now() (undefined = live Date.now()) */
   readonly nowMs?: number | undefined;
 }
+
+/** Runtime context with variables, functions, and callbacks */
+export type RuntimeContext = ScopeContext &
+  DispatchContext &
+  LifecycleContext &
+  ControlFlowContext &
+  ResolverContext &
+  MetadataContext;
 
 /** Options for creating a runtime context */
 export interface RuntimeOptions {
