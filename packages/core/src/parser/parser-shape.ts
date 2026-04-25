@@ -27,10 +27,10 @@ declare module './parser.js' {
 // TYPE CONSTRUCTOR PARSING
 // ============================================================
 
-export type TypeConstructorName = TypeConstructorNode['constructorName'];
+type TypeConstructorName = TypeConstructorNode['constructorName'];
 
 /** Canonical list of type-constructor identifiers recognized by the parser. */
-export const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<TypeConstructorName> =
+const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<TypeConstructorName> =
   new Set<TypeConstructorName>(['list', 'dict', 'tuple', 'ordered', 'stream']);
 
 export function isTypeConstructorName(
