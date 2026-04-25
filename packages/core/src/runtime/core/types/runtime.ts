@@ -147,12 +147,12 @@ export interface ScopeContext {
    * or `undefined` if no scope in the chain contains a binding.
    * O(depth) lookup.
    */
-  getVariable(name: string): RillValue | undefined;
+  getVariable(this: ScopeContext, name: string): RillValue | undefined;
   /**
    * Walk the parent chain and return `true` if any scope contains
    * a binding for `name`, `false` otherwise.
    */
-  hasVariable(name: string): boolean;
+  hasVariable(this: ScopeContext, name: string): boolean;
 }
 
 /** Dispatch facade: function tables and type method registries */

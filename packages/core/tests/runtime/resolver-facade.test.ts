@@ -8,11 +8,11 @@
  * - resolvingSchemes: fresh empty Set on root context (BC-7).
  * - parseSource: undefined when omitted, function reference when provided (BC-4).
  * - Shared-by-reference: child shares resolvers, resolverConfigs, resolvingSchemes,
- *   and parseSource with parent (createChildContext line 677-680).
+ *   and parseSource with parent.
  *
  * Construction strategy:
  * - Uses createRuntimeContext for root scope.
- * - Uses createChildContext (internal export) for child scopes.
+ * - Uses createChildContext for child scopes.
  * - No standalone facade constructors (TD-3).
  */
 

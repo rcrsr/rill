@@ -13,7 +13,7 @@
  *
  * Construction strategy:
  * - Uses createRuntimeContext for root scope.
- * - Uses createChildContext (internal export) for child scopes.
+ * - Uses createChildContext for child scopes.
  * - No standalone facade constructors (TD-3).
  */
 

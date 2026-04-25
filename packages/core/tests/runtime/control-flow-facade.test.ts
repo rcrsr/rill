@@ -13,7 +13,7 @@
  *
  * Construction strategy:
  * - Uses createRuntimeContext for root scope.
- * - Uses createChildContext (internal export) for child scopes.
+ * - Uses createChildContext for child scopes.
  * - Uses pushCallFrame / popCallFrame from public barrel.
  * - No standalone facade constructors (TD-3).
  */
@@ -145,7 +145,7 @@ describe('ControlFlowContext', () => {
   });
 
   describe('BC-5: signal propagation', () => {
-    it('signal is undefined when no signal option is provided', () => {
+    it('signal is a non-aborted factory-scope controller when no signal option is provided', () => {
       // A fresh context with no signal option has a chained factory signal,
       // not undefined; the factory controller's signal is always present.
       // What BC-5 means: the optional host-supplied signal is not required.
