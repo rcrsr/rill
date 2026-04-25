@@ -22,6 +22,8 @@ export type {
 } from './runtime/core/types/registrations.js';
 export type {
   CaptureEvent,
+  ControlFlowContext,
+  DispatchContext,
   ErrorEvent,
   ExecutionResult,
   ExecutionStepper,
@@ -29,15 +31,19 @@ export type {
   ExtensionFactoryCtx,
   FunctionReturnEvent,
   HostCallEvent,
+  LifecycleContext,
+  MetadataContext,
   NativeArray,
   NativePlainObject,
   NativeValue,
   ObservabilityCallbacks,
+  ResolverContext,
   ResolverResult,
   RuntimeCallbacks,
   RuntimeContext,
   RuntimeOptions,
   SchemeResolver,
+  ScopeContext,
   StepEndEvent,
   StepResult,
   StepStartEvent,
@@ -182,7 +188,12 @@ export {
 // CONTEXT FACTORY
 // ============================================================
 
-export { createRuntimeContext } from './runtime/core/context.js';
+export {
+  createRuntimeContext,
+  createChildContext,
+  getVariable,
+  hasVariable,
+} from './runtime/core/context.js';
 
 export {
   createTestContext,

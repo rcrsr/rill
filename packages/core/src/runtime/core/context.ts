@@ -542,6 +542,16 @@ export function createRuntimeContext(
     parent: undefined,
     variables,
     variableTypes,
+    getVariable(name: string): RillValue | undefined {
+      if (this.variables.has(name)) return this.variables.get(name);
+      if (this.parent !== undefined) return this.parent.getVariable(name);
+      return undefined;
+    },
+    hasVariable(name: string): boolean {
+      if (this.variables.has(name)) return true;
+      if (this.parent !== undefined) return this.parent.hasVariable(name);
+      return false;
+    },
     functions,
     typeMethodDicts,
     leafTypes,
@@ -628,6 +638,16 @@ export function createChildContext(
       | import('../../types.js').RillTypeName
       | import('./types/structures.js').TypeStructure
     >(),
+    getVariable(name: string): RillValue | undefined {
+      if (this.variables.has(name)) return this.variables.get(name);
+      if (this.parent !== undefined) return this.parent.getVariable(name);
+      return undefined;
+    },
+    hasVariable(name: string): boolean {
+      if (this.variables.has(name)) return true;
+      if (this.parent !== undefined) return this.parent.hasVariable(name);
+      return false;
+    },
     functions: parent.functions,
     typeMethodDicts: parent.typeMethodDicts,
     leafTypes: parent.leafTypes,
@@ -671,31 +691,23 @@ export function createChildContext(
 /**
  * Get a variable value, walking the parent chain.
  * Returns undefined if not found in any scope.
+ *
+ * Thin wrapper delegating to the ScopeContext method (TD-1).
  */
 export function getVariable(
   ctx: RuntimeContext,
   name: string
 ): RillValue | undefined {
-  if (ctx.variables.has(name)) {
-    return ctx.variables.get(name);
-  }
-  if (ctx.parent) {
-    return getVariable(ctx.parent, name);
-  }
-  return undefined;
+  return ctx.getVariable(name);
 }
 
 /**
  * Check if a variable exists in any scope.
+ *
+ * Thin wrapper delegating to the ScopeContext method (TD-1).
  */
 export function hasVariable(ctx: RuntimeContext, name: string): boolean {
-  if (ctx.variables.has(name)) {
-    return true;
-  }
-  if (ctx.parent) {
-    return hasVariable(ctx.parent, name);
-  }
-  return false;
+  return ctx.hasVariable(name);
 }
 
 /**
