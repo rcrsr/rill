@@ -61,6 +61,7 @@ import {
   VALID_TYPE_NAMES,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
+import { isTypeConstructorName } from './parser-shape.js';
 
 /** Constructs valid as both primary expressions and pipe targets */
 type CommonConstruct =
@@ -1053,18 +1054,9 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   }
 
   // Type constructor: list(...), dict(...), tuple(...), ordered(...), stream(...)
-  const TYPE_CONSTRUCTORS = [
-    'list',
-    'dict',
-    'tuple',
-    'ordered',
-    'stream',
-  ] as const;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    TYPE_CONSTRUCTORS.includes(
-      current(this.state).value as (typeof TYPE_CONSTRUCTORS)[number]
-    ) &&
+    isTypeConstructorName(current(this.state).value) &&
     this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
   ) {
     const name = current(this.state).value;
@@ -1397,19 +1389,9 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // Parameterized type constructor as pipe target:
   //   -> list(...), -> dict(...), -> tuple(...), -> ordered(...), -> stream(...)
   // Mirrors the primary-expression dispatch in parsePrimary (see parseTypeConstructor).
-  const PIPE_TARGET_TYPE_CONSTRUCTORS = [
-    'list',
-    'dict',
-    'tuple',
-    'ordered',
-    'stream',
-  ] as const;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    PIPE_TARGET_TYPE_CONSTRUCTORS.includes(
-      current(this.state)
-        .value as (typeof PIPE_TARGET_TYPE_CONSTRUCTORS)[number]
-    ) &&
+    isTypeConstructorName(current(this.state).value) &&
     this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
   ) {
     const name = current(this.state).value;
