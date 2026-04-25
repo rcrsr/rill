@@ -35,7 +35,7 @@ import type {
   UseExprNode,
   VariableNode,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
+import { type TokenType, ParseError, TOKEN_TYPES } from '../types.js';
 import {
   check,
   advance,
@@ -69,6 +69,16 @@ type CommonConstruct =
   | DoWhileLoopNode
   | BlockNode
   | GroupedExprNode;
+
+/**
+ * Mutable state shared between parsePostfixExprBase and its dispatch handlers.
+ * Handlers mutate this object in place (void return per IR-NOD-2).
+ */
+interface PostfixLoopState {
+  primary: PrimaryNode;
+  methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
+  receiverEnd: SourceLocation;
+}
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -107,6 +117,19 @@ declare module './parser.js' {
     ): PostfixExprNode;
     parseClosureSigLiteral(): ClosureSigLiteralNode;
     parseUseExpr(): UseExprNode;
+    parseBinaryExprChain(
+      nextParser: (this: Parser) => ArithHead,
+      opTokens: TokenType[],
+      opMap: Map<TokenType, BinaryOp>,
+      maxChain?: number
+    ): ArithHead;
+    parsePipeTargetDot(): PipeTargetNode;
+    parsePipeTargetBracket(): PipeTargetNode;
+    parsePipeTargetDictLiteral(): PipeTargetNode;
+    parsePostfixDotBang(
+      loopState: PostfixLoopState,
+      start: SourceLocation
+    ): void;
   }
 }
 
@@ -563,6 +586,71 @@ Parser.prototype.parsePostfixExpr = function (this: Parser): PostfixExprNode {
   return postfixExpr;
 };
 
+// ============================================================
+// POSTFIX DISPATCH TABLE AND HANDLERS
+// ============================================================
+
+// Handler: .! (bare) or .!field — status probe
+// Wraps accumulated primary+methods as probe target; resets methods array [IR-NOD-2].
+Parser.prototype.parsePostfixDotBang = function (
+  this: Parser,
+  loopState: PostfixLoopState,
+  start: SourceLocation
+): void {
+  const probeToken = advance(this.state);
+  let field: string | undefined = undefined;
+  let probeEnd = probeToken.span.end;
+  if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+    const fieldToken = advance(this.state);
+    field = fieldToken.value;
+    probeEnd = fieldToken.span.end;
+  }
+  // Wrap the current primary+methods so far as the probe target.
+  const targetSpan = makeSpan(start, loopState.receiverEnd);
+  const targetPipeChain: PipeChainNode = {
+    type: 'PipeChain',
+    head: {
+      type: 'PostfixExpr',
+      primary: loopState.primary,
+      methods: [...loopState.methods],
+      defaultValue: null,
+      span: targetSpan,
+    },
+    pipes: [],
+    terminator: null,
+    span: targetSpan,
+  };
+  const probeNode: StatusProbeNode = {
+    type: 'StatusProbe',
+    target: targetPipeChain,
+    field,
+    span: makeSpan(start, probeEnd),
+  };
+  // The probe becomes the new primary; clear collected methods [IR-NOD-2 preserve].
+  loopState.primary = probeNode;
+  loopState.methods.length = 0;
+  loopState.receiverEnd = probeEnd;
+};
+
+// Handler: (...) — invoke expression
+// Dispatch table for the postfix loop inside parsePostfixExprBase.
+// Multi-token guards (isAnnotationAccess, isMethodCall) are evaluated before this table.
+// Not exported — file-local per DR-NOD-4.
+const postfixDispatchTable: Record<
+  string,
+  (this: Parser, loopState: PostfixLoopState, start: SourceLocation) => void
+> = {
+  [TOKEN_TYPES.DOT_BANG]: Parser.prototype.parsePostfixDotBang,
+  [TOKEN_TYPES.LPAREN]: function (
+    this: Parser,
+    loopState: PostfixLoopState
+  ): void {
+    const invoke = this.parseInvoke();
+    loopState.methods.push(invoke);
+    loopState.receiverEnd = invoke.span.end;
+  },
+};
+
 Parser.prototype.parsePostfixExprBase = function (
   this: Parser
 ): PostfixExprNode {
@@ -589,6 +677,9 @@ Parser.prototype.parsePostfixExprBase = function (
       (primary.thenBranch?.type === 'PipeChain' &&
         primary.thenBranch.terminator !== null));
 
+  // Mutable state object shared with dispatch handlers [IR-NOD-2].
+  const loopState: PostfixLoopState = { primary, methods, receiverEnd };
+
   while (
     !shouldStopPostfix &&
     (isAnnotationAccess(this.state) ||
@@ -596,43 +687,6 @@ Parser.prototype.parsePostfixExprBase = function (
       check(this.state, TOKEN_TYPES.LPAREN) ||
       check(this.state, TOKEN_TYPES.DOT_BANG))
   ) {
-    if (check(this.state, TOKEN_TYPES.DOT_BANG)) {
-      // Status probe: .! (bare) or .!field (field projection)
-      const probeToken = advance(this.state);
-      let field: string | undefined = undefined;
-      let probeEnd = probeToken.span.end;
-      if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-        const fieldToken = advance(this.state);
-        field = fieldToken.value;
-        probeEnd = fieldToken.span.end;
-      }
-      // Wrap the current primary+methods so far as the probe target.
-      const targetSpan = makeSpan(start, receiverEnd);
-      const targetPipeChain: PipeChainNode = {
-        type: 'PipeChain',
-        head: {
-          type: 'PostfixExpr',
-          primary,
-          methods: [...methods],
-          defaultValue: null,
-          span: targetSpan,
-        },
-        pipes: [],
-        terminator: null,
-        span: targetSpan,
-      };
-      const probeNode: StatusProbeNode = {
-        type: 'StatusProbe',
-        target: targetPipeChain,
-        field,
-        span: makeSpan(start, probeEnd),
-      };
-      // The probe becomes the new primary; clear collected methods.
-      primary = probeNode;
-      methods.length = 0;
-      receiverEnd = probeEnd;
-      continue;
-    }
     if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;
       advance(this.state); // consume .
@@ -647,34 +701,30 @@ Parser.prototype.parsePostfixExprBase = function (
         key: nameToken.value,
         span: makeSpan(dotStart, nameToken.span.end),
       };
-      methods.push(annotationAccess);
-      receiverEnd = nameToken.span.end;
+      loopState.methods.push(annotationAccess);
+      loopState.receiverEnd = nameToken.span.end;
     } else if (isMethodCall(this.state)) {
       // Capture receiver span: from start to current receiver end
-      const receiverSpan = makeSpan(start, receiverEnd);
+      const receiverSpan = makeSpan(start, loopState.receiverEnd);
       const method = this.parseMethodCall(receiverSpan);
-      methods.push(method);
+      loopState.methods.push(method);
       // Update receiver end: position before the next dot (= current token start)
       // After parsing .trim, current token is the dot before .upper
       // We want receiverEnd to be just before that dot (= after 'trim')
-      receiverEnd = current(this.state).span.start;
+      loopState.receiverEnd = current(this.state).span.start;
     } else {
-      const invoke = this.parseInvoke();
-      methods.push(invoke);
-      // Update receiver end for potential method after invoke
-      receiverEnd = invoke.span.end;
+      const tokenType = current(this.state).type;
+      const tableHandler = postfixDispatchTable[tokenType];
+      if (tableHandler !== undefined) {
+        tableHandler.call(this, loopState, start);
+      }
     }
   }
 
-  // Note: `??` is no longer consumed here; it has general-expression
-  // precedence now (task 1.4). The wrapper in parsePipeChain handles it,
-  // populating `defaultValue` on the resulting PostfixExprNode when the
-  // head is already a PostfixExprNode (preserves existing runtime behaviour
-  // for `$x.method() ?? default`).
   return {
     type: 'PostfixExpr',
-    primary,
-    methods,
+    primary: loopState.primary,
+    methods: loopState.methods,
     defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),
   };
@@ -955,44 +1005,14 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     }
   }
 
-  // Keyword-prefixed collection literals: list[...], tuple[...], ordered[...]
-  // Note: dict[...] is handled below — it produces a DictNode (same as bare [key:val])
-  if (
-    check(
-      this.state,
-      TOKEN_TYPES.LIST_LBRACKET,
-      TOKEN_TYPES.TUPLE_LBRACKET,
-      TOKEN_TYPES.ORDERED_LBRACKET
-    )
-  ) {
-    const token = advance(this.state);
-    const collectionTypeMap: Record<string, 'list' | 'tuple' | 'ordered'> = {
-      [TOKEN_TYPES.LIST_LBRACKET]: 'list',
-      [TOKEN_TYPES.TUPLE_LBRACKET]: 'tuple',
-      [TOKEN_TYPES.ORDERED_LBRACKET]: 'ordered',
-    };
-    const collectionType = collectionTypeMap[token.type]!;
-    return this.parseCollectionLiteral(collectionType);
+  // Compound-token guard: GUARD_LBRACE → guard{ body } (no angle bracket).
+  if (check(this.state, TOKEN_TYPES.GUARD_LBRACE)) {
+    return this.parseGuardBlock();
   }
 
-  // dict[...] in expression context: same semantics as bare [key: val] (DictNode)
-  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
-    const start = current(this.state).span.start;
-    advance(this.state); // consume dict[
-    skipNewlines(this.state);
-
-    // Handle empty dict: dict[]
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-      const rbracket = advance(this.state); // consume ]
-      return {
-        type: 'Dict',
-        entries: [],
-        defaultValue: null,
-        span: makeSpan(start, rbracket.span.end),
-      };
-    }
-
-    return this.parseDict(start);
+  // Compound-token guard: RETRY_LANGLE → retry<N> { body }.
+  if (check(this.state, TOKEN_TYPES.RETRY_LANGLE)) {
+    return this.parseRetryBlock();
   }
 
   // Atom literal: #NAME (always expression-position primary)
@@ -1000,21 +1020,13 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseAtomLiteral();
   }
 
-  // Guard block: guard { body } or guard<on: list[#X]> { body }
-  if (
-    check(this.state, TOKEN_TYPES.GUARD_LBRACE) ||
-    check(this.state, TOKEN_TYPES.GUARD)
-  ) {
-    return this.parseGuardBlock();
+  const tokenType = current(this.state).type;
+  const tableHandler = primaryDispatchTable[tokenType];
+  if (tableHandler !== undefined) {
+    return tableHandler.call(this);
   }
 
-  // Retry block: retry<N> { body } or retry<N, on: list[#X]> { body }
-  if (
-    check(this.state, TOKEN_TYPES.RETRY_LANGLE) ||
-    check(this.state, TOKEN_TYPES.RETRY)
-  ) {
-    return this.parseRetryBlock();
-  }
+  // Residual fallthrough
 
   // Literal
   if (isLiteralStart(this.state)) {
@@ -1080,10 +1092,6 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return parseBareHostCall(this.state);
   }
 
-  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    return this.parseTupleOrDict();
-  }
-
   // Use expression: use<identifier>
   if (check(this.state, TOKEN_TYPES.USE_LANGLE)) {
     return this.parseUseExpr();
@@ -1123,135 +1131,80 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
 };
 
 // ============================================================
-// PIPE TARGET PARSING
+// PRIMARY DISPATCH TABLE
 // ============================================================
 
-/**
- * Parses the right-hand side of a `->` pipe operator.
- *
- * Dispatch order:
- *    1. `assert` keyword
- *    2. `error` keyword
- *    3. Legacy `:>` migration error (RILL-R078)
- *    4. `:type` / `:?type` type operations
- *    5. Extraction operators (`<...>`, slice `[<...>]`)
- *    6. `use<...>` expression
- *    7. Collection operators (`each`, `map`, `fold`, `filter`)
- *    8. Inline closure `|x| { ... }`
- *    9. Method / annotation chain starting with `.`
- *   10. Closure call with property access (e.g. `$math.double()`)
- *   11. Pipe invoke `$(...)`
- *   12. Bare pipe variable (`$`, `$var`, `$.field`)
- *   13. String literal
- *   14. Bracket literal (`[...]`) as dispatch target
- *   15. `list[...]` keyword literal
- *   16. `dict[...]` keyword literal
- *   17. Type constructor (`list(...)`, `dict(...)`, `tuple(...)`,
- *       `ordered(...)`, `stream(...)`) -> TypeConstructorNode
- *   18. Bare type keyword (VALID_TYPE_NAMES) -> TypeNameExprNode
- *   19. Host call with parens `fn(...)`
- *   20. Bare function name (`greet`, `ns::func`)
- *   21. Common construct fallthrough (optionally followed by `:type`)
- *   22. Error: RILL-P001 (no matching pipe target)
- */
-Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
-  // Assert: -> assert
-  if (check(this.state, TOKEN_TYPES.ASSERT)) {
-    return this.parseAssert();
-  }
-
-  // Error: -> error
-  if (check(this.state, TOKEN_TYPES.ERROR)) {
-    return this.parseError();
-  }
-
-  // Legacy convert operator: -> :>type (retired; emit migration error RILL-R078)
-  if (
-    check(this.state, TOKEN_TYPES.COLON) &&
-    peek(this.state, 1).type === TOKEN_TYPES.GT
-  ) {
-    throw new ParseError(
-      'RILL-R078',
-      "Legacy ':>' conversion syntax removed; use '-> type' instead",
-      current(this.state).span.start
-    );
-  }
-
-  // Type operations: -> :type or -> :?type
-  if (check(this.state, TOKEN_TYPES.COLON)) {
-    return this.parseTypeOperation();
-  }
-
-  // Extraction operators
-  if (check(this.state, TOKEN_TYPES.DESTRUCT_LANGLE)) {
-    return this.parseDestructTarget();
-  }
-  if (check(this.state, TOKEN_TYPES.SLICE_LANGLE)) {
-    return this.parseSlice();
-  }
-
-  // Use expression: use<identifier>
-  if (check(this.state, TOKEN_TYPES.USE_LANGLE)) {
-    return this.parseUseExpr();
-  }
-
-  // Inline closure: -> |x| { body }
-  if (isClosureStart(this.state)) {
-    return this.parseClosure();
-  }
-
-  // Method call or annotation access (possibly chained: .a.b.c or .^type)
-  if (check(this.state, TOKEN_TYPES.DOT)) {
-    const methods: (MethodCallNode | AnnotationAccessNode)[] = [];
+const primaryDispatchTable: Record<string, (this: Parser) => PrimaryNode> = {
+  [TOKEN_TYPES.LIST_LBRACKET]: function (this: Parser): PrimaryNode {
+    advance(this.state); // consume LIST_LBRACKET
+    return this.parseCollectionLiteral('list');
+  },
+  [TOKEN_TYPES.TUPLE_LBRACKET]: function (this: Parser): PrimaryNode {
+    advance(this.state); // consume TUPLE_LBRACKET
+    return this.parseCollectionLiteral('tuple');
+  },
+  [TOKEN_TYPES.ORDERED_LBRACKET]: function (this: Parser): PrimaryNode {
+    advance(this.state); // consume ORDERED_LBRACKET
+    return this.parseCollectionLiteral('ordered');
+  },
+  [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PrimaryNode {
     const start = current(this.state).span.start;
-
-    // Collect all chained method calls and annotation accesses
-    while (check(this.state, TOKEN_TYPES.DOT)) {
-      if (isAnnotationAccess(this.state)) {
-        const dotStart = current(this.state).span.start;
-        advance(this.state); // consume .
-        advance(this.state); // consume ^
-        const nameToken = expect(
-          this.state,
-          TOKEN_TYPES.IDENTIFIER,
-          'Expected annotation key after .^'
-        );
-        methods.push({
-          type: 'AnnotationAccess',
-          key: nameToken.value,
-          span: makeSpan(dotStart, nameToken.span.end),
-        });
-      } else {
-        methods.push(this.parseMethodCall(null));
-      }
-    }
-
-    if (check(this.state, TOKEN_TYPES.QUESTION)) {
-      const postfixExpr: PostfixExprNode = {
-        type: 'PostfixExpr',
-        primary: {
-          type: 'Variable',
-          name: null,
-          isPipeVar: true,
-          accessChain: [],
-          defaultValue: null,
-          existenceCheck: null,
-          span: methods[0]!.span,
-        },
-        methods,
+    advance(this.state); // consume DICT_LBRACKET
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+      const rbracket = advance(this.state); // consume ]
+      return {
+        type: 'Dict',
+        entries: [],
         defaultValue: null,
-        span: makeSpan(start, current(this.state).span.end),
+        span: makeSpan(start, rbracket.span.end),
       };
-      return this.parseConditionalWithCondition(postfixExpr);
     }
+    return this.parseDict(start);
+  },
+  [TOKEN_TYPES.LBRACKET]: function (this: Parser): PrimaryNode {
+    return this.parseTupleOrDict();
+  },
+  [TOKEN_TYPES.GUARD]: function (this: Parser): PrimaryNode {
+    return this.parseGuardBlock();
+  },
+  [TOKEN_TYPES.RETRY]: function (this: Parser): PrimaryNode {
+    return this.parseRetryBlock();
+  },
+};
 
-    // Single method: return as-is
-    if (methods.length === 1) {
-      return methods[0]!;
+// ============================================================
+// PIPE TARGET DISPATCH TABLE AND HANDLERS
+// ============================================================
+
+// Handler: -> .method(...) or -> .^annotation  (possibly chained)
+Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
+  const methods: (MethodCallNode | AnnotationAccessNode)[] = [];
+  const start = current(this.state).span.start;
+
+  // Collect all chained method calls and annotation accesses
+  while (check(this.state, TOKEN_TYPES.DOT)) {
+    if (isAnnotationAccess(this.state)) {
+      const dotStart = current(this.state).span.start;
+      advance(this.state); // consume .
+      advance(this.state); // consume ^
+      const nameToken = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected annotation key after .^'
+      );
+      methods.push({
+        type: 'AnnotationAccess',
+        key: nameToken.value,
+        span: makeSpan(dotStart, nameToken.span.end),
+      });
+    } else {
+      methods.push(this.parseMethodCall(null));
     }
+  }
 
-    // Multiple methods: wrap in PostfixExpr with $ as primary
-    return {
+  if (check(this.state, TOKEN_TYPES.QUESTION)) {
+    const postfixExpr: PostfixExprNode = {
       type: 'PostfixExpr',
       primary: {
         type: 'Variable',
@@ -1265,7 +1218,148 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
       methods,
       defaultValue: null,
       span: makeSpan(start, current(this.state).span.end),
-    } as PostfixExprNode;
+    };
+    return this.parseConditionalWithCondition(postfixExpr);
+  }
+
+  // Single method: return as-is
+  if (methods.length === 1) {
+    return methods[0]!;
+  }
+
+  // Multiple methods: wrap in PostfixExpr with $ as primary
+  return {
+    type: 'PostfixExpr',
+    primary: {
+      type: 'Variable',
+      name: null,
+      isPipeVar: true,
+      accessChain: [],
+      defaultValue: null,
+      existenceCheck: null,
+      span: methods[0]!.span,
+    },
+    methods,
+    defaultValue: null,
+    span: makeSpan(start, current(this.state).span.end),
+  } as PostfixExprNode;
+};
+
+// Handler: -> [...] — bare bracket literal (tuple or dict) with optional nullish coalesce
+Parser.prototype.parsePipeTargetBracket = function (
+  this: Parser
+): PipeTargetNode {
+  const literal = this.parseTupleOrDict();
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    advance(this.state);
+    const defaultValue = this.parseDefaultValue();
+    return { ...literal, defaultValue };
+  }
+  return literal;
+};
+
+// Handler: -> dict[...] — keyword-prefixed dict literal with optional nullish coalesce
+Parser.prototype.parsePipeTargetDictLiteral = function (
+  this: Parser
+): PipeTargetNode {
+  const start = current(this.state).span.start;
+  advance(this.state); // consume dict[
+  skipNewlines(this.state);
+
+  // Handle empty dict: dict[]
+  if (check(this.state, TOKEN_TYPES.RBRACKET)) {
+    const rbracket = advance(this.state); // consume ]
+    let defaultValue = null;
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      defaultValue = this.parseDefaultValue();
+    }
+    return {
+      type: 'Dict',
+      entries: [],
+      defaultValue,
+      span: makeSpan(start, rbracket.span.end),
+    };
+  }
+
+  const dict = this.parseDict(start);
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    advance(this.state);
+    const defaultValue = this.parseDefaultValue();
+    return { ...dict, defaultValue };
+  }
+  return dict;
+};
+
+// Dispatch table for parsePipeTarget. Single-token forms only.
+// Inline guards handle multi-token conditions before this table is checked.
+// Not exported — file-local per DR-NOD-4.
+const pipeTargetDispatchTable: Record<
+  string,
+  (this: Parser) => PipeTargetNode
+> = {
+  [TOKEN_TYPES.ASSERT]: function (this: Parser) {
+    return this.parseAssert();
+  },
+  [TOKEN_TYPES.ERROR]: function (this: Parser) {
+    return this.parseError();
+  },
+  [TOKEN_TYPES.COLON]: function (this: Parser) {
+    return this.parseTypeOperation();
+  },
+  [TOKEN_TYPES.DESTRUCT_LANGLE]: function (this: Parser) {
+    return this.parseDestructTarget();
+  },
+  [TOKEN_TYPES.SLICE_LANGLE]: function (this: Parser) {
+    return this.parseSlice();
+  },
+  [TOKEN_TYPES.USE_LANGLE]: function (this: Parser) {
+    return this.parseUseExpr();
+  },
+  [TOKEN_TYPES.DOT]: Parser.prototype.parsePipeTargetDot,
+  [TOKEN_TYPES.STRING]: function (this: Parser) {
+    return this.parseString();
+  },
+  [TOKEN_TYPES.LBRACKET]: Parser.prototype.parsePipeTargetBracket,
+  [TOKEN_TYPES.LIST_LBRACKET]: function (this: Parser): PipeTargetNode {
+    const listStart = current(this.state).span.start;
+    advance(this.state); // consume list[
+    const listLiteral = this.parseCollectionLiteral('list') as ListLiteralNode;
+    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+      advance(this.state);
+      const defaultValue = this.parseDefaultValue();
+      return {
+        ...listLiteral,
+        defaultValue,
+        span: makeSpan(listStart, defaultValue.span.end),
+      };
+    }
+    return listLiteral;
+  },
+  [TOKEN_TYPES.DICT_LBRACKET]: Parser.prototype.parsePipeTargetDictLiteral,
+};
+
+// ============================================================
+// PIPE TARGET PARSING
+// ============================================================
+
+Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
+  // Legacy convert operator: -> :>type (retired; emit migration error RILL-R078)
+  // Must precede the COLON entry in pipeTargetDispatchTable.
+  if (
+    check(this.state, TOKEN_TYPES.COLON) &&
+    peek(this.state, 1).type === TOKEN_TYPES.GT
+  ) {
+    throw new ParseError(
+      'RILL-R078',
+      "Legacy ':>' conversion syntax removed; use '-> type' instead",
+      current(this.state).span.start
+    );
+  }
+
+  // Inline closure: -> |x| { body }
+  if (isClosureStart(this.state)) {
+    return this.parseClosure();
   }
 
   // Closure call as pipe target (supports property access: $math.double())
@@ -1287,69 +1381,14 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return { ...varNode, isPipeTarget: true };
   }
 
-  // String literal
-  if (check(this.state, TOKEN_TYPES.STRING)) {
-    return this.parseString();
+  // Table dispatch: single-token forms (ASSERT/ERROR precede isHostCall check)
+  const tokenType = current(this.state).type;
+  const tableHandler = pipeTargetDispatchTable[tokenType];
+  if (tableHandler !== undefined) {
+    return tableHandler.call(this);
   }
 
-  // Bare bracket literal as dispatch target: ["a", "b"] or [a: 1]
-  if (check(this.state, TOKEN_TYPES.LBRACKET)) {
-    const literal = this.parseTupleOrDict();
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      const defaultValue = this.parseDefaultValue();
-      return { ...literal, defaultValue };
-    }
-    return literal;
-  }
-
-  // Keyword list literal as dispatch target: list["a", "b"]
-  if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
-    const listStart = current(this.state).span.start;
-    advance(this.state); // consume list[
-    const listLiteral = this.parseCollectionLiteral('list') as ListLiteralNode;
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      const defaultValue = this.parseDefaultValue();
-      return {
-        ...listLiteral,
-        defaultValue,
-        span: makeSpan(listStart, defaultValue.span.end),
-      } satisfies ListLiteralNode;
-    }
-    return listLiteral;
-  }
-
-  // Keyword dict literal as dispatch target: dict[key: val, ...]
-  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
-    const start = current(this.state).span.start;
-    advance(this.state); // consume dict[
-    skipNewlines(this.state);
-
-    // Handle empty dict: dict[]
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) {
-      const rbracket = advance(this.state); // consume ]
-      let defaultValue = null;
-      if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-        advance(this.state);
-        defaultValue = this.parseDefaultValue();
-      }
-      return {
-        type: 'Dict',
-        entries: [],
-        defaultValue,
-        span: makeSpan(start, rbracket.span.end),
-      };
-    }
-
-    const dict = this.parseDict(start);
-    if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
-      advance(this.state);
-      const defaultValue = this.parseDefaultValue();
-      return { ...dict, defaultValue };
-    }
-    return dict;
-  }
+  // Residual fallthrough for IDENTIFIER-based forms
 
   // Parameterized type constructor as pipe target:
   //   -> list(...), -> dict(...), -> tuple(...), -> ordered(...), -> stream(...)
@@ -1529,44 +1568,73 @@ Parser.prototype.wrapLoopInPostfixExpr = function (
   };
 };
 
-Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
+Parser.prototype.parseBinaryExprChain = function (
+  this: Parser,
+  nextParser: (this: Parser) => ArithHead,
+  opTokens: TokenType[],
+  opMap: Map<TokenType, BinaryOp>,
+  maxChain?: number
+): ArithHead {
   const start = current(this.state).span.start;
-  let left = this.parseLogicalAnd();
+  let left = nextParser.call(this);
 
-  while (check(this.state, TOKEN_TYPES.OR)) {
-    advance(this.state);
+  const applyOp = (): void => {
+    const opToken = advance(this.state);
     skipNewlines(this.state);
-    const right = this.parseLogicalAnd();
+    const op = opMap.get(opToken.type);
+    if (op === undefined) {
+      const _exhaustive: never = opToken.type as never;
+      throw new Error(
+        `parseBinaryExprChain: no opMap entry for token '${_exhaustive}'`
+      );
+    }
+    const right = nextParser.call(this);
     left = {
       type: 'BinaryExpr',
-      op: '||',
+      op,
       left,
       right,
       span: makeSpan(start, current(this.state).span.end),
     };
+  };
+
+  if (maxChain === 1) {
+    if (check(this.state, ...opTokens)) {
+      applyOp();
+    }
+  } else {
+    while (check(this.state, ...opTokens)) {
+      applyOp();
+    }
   }
 
   return left;
 };
 
+const LOGICAL_OR_OP_TOKENS: TokenType[] = [TOKEN_TYPES.OR];
+const LOGICAL_OR_OP_MAP = new Map<TokenType, BinaryOp>([
+  [TOKEN_TYPES.OR, '||'],
+]);
+
+Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
+  return this.parseBinaryExprChain(
+    (this as Parser).parseLogicalAnd,
+    LOGICAL_OR_OP_TOKENS,
+    LOGICAL_OR_OP_MAP
+  );
+};
+
+const LOGICAL_AND_OP_TOKENS: TokenType[] = [TOKEN_TYPES.AND];
+const LOGICAL_AND_OP_MAP = new Map<TokenType, BinaryOp>([
+  [TOKEN_TYPES.AND, '&&'],
+]);
+
 Parser.prototype.parseLogicalAnd = function (this: Parser): ArithHead {
-  const start = current(this.state).span.start;
-  let left = this.parseComparison();
-
-  while (check(this.state, TOKEN_TYPES.AND)) {
-    advance(this.state);
-    skipNewlines(this.state);
-    const right = this.parseComparison();
-    left = {
-      type: 'BinaryExpr',
-      op: '&&',
-      left,
-      right,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  return left;
+  return this.parseBinaryExprChain(
+    (this as Parser).parseComparison,
+    LOGICAL_AND_OP_TOKENS,
+    LOGICAL_AND_OP_MAP
+  );
 };
 
 Parser.prototype.parseComparison = function (this: Parser): ArithHead {
@@ -1590,53 +1658,37 @@ Parser.prototype.parseComparison = function (this: Parser): ArithHead {
   return left;
 };
 
+const ADDITIVE_OP_TOKENS: TokenType[] = [TOKEN_TYPES.PLUS, TOKEN_TYPES.MINUS];
+const ADDITIVE_OP_MAP = new Map<TokenType, BinaryOp>([
+  [TOKEN_TYPES.PLUS, '+'],
+  [TOKEN_TYPES.MINUS, '-'],
+]);
+
 Parser.prototype.parseAdditive = function (this: Parser): ArithHead {
-  const start = current(this.state).span.start;
-  let left = this.parseMultiplicative();
-
-  while (check(this.state, TOKEN_TYPES.PLUS, TOKEN_TYPES.MINUS)) {
-    const opToken = advance(this.state);
-    skipNewlines(this.state);
-    const op: BinaryOp = opToken.type === TOKEN_TYPES.PLUS ? '+' : '-';
-    const right = this.parseMultiplicative();
-    left = {
-      type: 'BinaryExpr',
-      op,
-      left,
-      right,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  return left;
+  return this.parseBinaryExprChain(
+    (this as Parser).parseMultiplicative,
+    ADDITIVE_OP_TOKENS,
+    ADDITIVE_OP_MAP
+  );
 };
 
+const MULTIPLICATIVE_OP_TOKENS: TokenType[] = [
+  TOKEN_TYPES.STAR,
+  TOKEN_TYPES.SLASH,
+  TOKEN_TYPES.PERCENT,
+];
+const MULTIPLICATIVE_OP_MAP = new Map<TokenType, BinaryOp>([
+  [TOKEN_TYPES.STAR, '*'],
+  [TOKEN_TYPES.SLASH, '/'],
+  [TOKEN_TYPES.PERCENT, '%'],
+]);
+
 Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
-  const start = current(this.state).span.start;
-  let left: ArithHead = this.parseUnary();
-
-  while (
-    check(this.state, TOKEN_TYPES.STAR, TOKEN_TYPES.SLASH, TOKEN_TYPES.PERCENT)
-  ) {
-    const opToken = advance(this.state);
-    skipNewlines(this.state);
-    const op: BinaryOp =
-      opToken.type === TOKEN_TYPES.STAR
-        ? '*'
-        : opToken.type === TOKEN_TYPES.SLASH
-          ? '/'
-          : '%';
-    const right = this.parseUnary();
-    left = {
-      type: 'BinaryExpr',
-      op,
-      left,
-      right,
-      span: makeSpan(start, current(this.state).span.end),
-    };
-  }
-
-  return left;
+  return this.parseBinaryExprChain(
+    (this as Parser).parseUnary,
+    MULTIPLICATIVE_OP_TOKENS,
+    MULTIPLICATIVE_OP_MAP
+  );
 };
 
 Parser.prototype.parseUnary = function (
