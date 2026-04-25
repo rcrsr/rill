@@ -717,6 +717,10 @@ Parser.prototype.parsePostfixExprBase = function (
       const tableHandler = postfixDispatchTable[tokenType];
       if (tableHandler !== undefined) {
         tableHandler.call(this, loopState, start);
+      } else {
+        throw new Error(
+          `Internal parser error: missing postfix handler for token type '${tokenType}'`
+        );
       }
     }
   }
@@ -1578,7 +1582,9 @@ Parser.prototype.parseBinaryExprChain = function (
   const start = current(this.state).span.start;
   let left = nextParser.call(this);
 
-  const applyOp = (): void => {
+  const limit = maxChain ?? Number.POSITIVE_INFINITY;
+  let applied = 0;
+  while (applied < limit && check(this.state, ...opTokens)) {
     const opToken = advance(this.state);
     skipNewlines(this.state);
     const op = opMap.get(opToken.type);
@@ -1596,16 +1602,7 @@ Parser.prototype.parseBinaryExprChain = function (
       right,
       span: makeSpan(start, current(this.state).span.end),
     };
-  };
-
-  if (maxChain === 1) {
-    if (check(this.state, ...opTokens)) {
-      applyOp();
-    }
-  } else {
-    while (check(this.state, ...opTokens)) {
-      applyOp();
-    }
+    applied++;
   }
 
   return left;

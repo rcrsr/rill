@@ -31,7 +31,6 @@
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
-    "bench": "vitest bench --run benchmarks/hot-paths.bench.ts && node --expose-gc --import tsx benchmarks/allocations.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --config ../../eslint.config.js src/",
     "lint:self-test": "node ../../eslint-rules/lint-glob-self-test.cjs",
