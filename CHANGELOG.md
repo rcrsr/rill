@@ -105,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Control-flow signal discrimination** — Host code catching control-flow exceptions can now distinguish between break/return/yield signals and halt errors via `instanceof` checks on unified `ControlSignal` base
 - **Status probe operator (`.!`)** — `.!` returns `false` for valid values and `true` for invalid values without halting execution. `.!code` returns the atom code (e.g., `#TIMEOUT`, `#ok`) from the status sidecar. See [Error Handling](docs/topic-error-handling.md)
 - **Presence check operator (`.?field`)** — `$x.?field` returns `true` if the field exists, `false` otherwise, without halting. Composable with `??` for fallback values
 - **`guard` keyword** — `guard { body }` catches operational halts raised inside `body` and substitutes an invalid value with a `guard-caught` trace frame. Does not catch `error "..."` or `assert` halts

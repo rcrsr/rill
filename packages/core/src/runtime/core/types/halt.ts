@@ -215,6 +215,110 @@ export function throwAutoExceptionHalt(
 }
 
 // ============================================================
+// CATCHABLE HOST HALT BUILDER (IR-3)
+// ============================================================
+
+/**
+ * Build an invalid RillValue for a user-recoverable evaluator failure, then
+ * throw a catchable `RuntimeHaltSignal` wrapping it.
+ *
+ * Use this builder for runtime errors that a script can recover via `guard`
+ * or `retry` — for example: unknown function/variable/method, type mismatches
+ * on call arguments, invalid access on a non-dict, callable not found, and
+ * similar operator-level failures where the user may reasonably handle the
+ * bad path.
+ *
+ * Emits a `host`-kind trace frame with `provider="runtime"`. The atom is
+ * resolved from `code`; unregistered codes fall back to `#R001` (never
+ * throw). Phase 2 tasks register per-code atoms and extend
+ * `HALT_ATOM_TO_ERROR_ID` in `execute.ts` so escaped halts surface as
+ * properly-coded `RuntimeError` instances.
+ *
+ * `raw` accepts arbitrary provider metadata; `message` is stored under
+ * `raw.message` so `.!message` surfaces it. Additional fields flow through
+ * untouched.
+ *
+ * @param site      Site descriptor (location, sourceId, fn).
+ * @param code      Atom name in underscore form (e.g. `"RILL_R006"`).
+ * @param message   Human-readable error description.
+ * @param raw       Optional provider-specific payload (merged with message).
+ * @throws RuntimeHaltSignal with catchable=true.
+ */
+export function throwCatchableHostHalt(
+  site: TypeHaltSite,
+  code: string,
+  message: string,
+  raw?: Record<string, unknown>
+): never {
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind: TRACE_KINDS.HOST,
+    fn: site.fn,
+  });
+  const invalid = invalidate(
+    {},
+    {
+      code,
+      provider: 'runtime',
+      raw: { message, ...(raw ?? {}) },
+    },
+    frame
+  );
+  throw new RuntimeHaltSignal(invalid, true);
+}
+
+// ============================================================
+// FATAL HOST HALT BUILDER (IR-3)
+// ============================================================
+
+/**
+ * Build an invalid RillValue for a non-recoverable evaluator failure, then
+ * throw a non-catchable `RuntimeHaltSignal` wrapping it.
+ *
+ * Use this builder for fatal runtime errors that must not be caught by
+ * `guard` or `retry` — for example: iteration limit exceeded, script
+ * produced no value, removed frontmatter keys, internal invariant
+ * violations, and similar conditions where allowing recovery would mask
+ * programmer errors or leave execution in an undefined state.
+ *
+ * Emits a `host`-kind trace frame with `provider="runtime"`. The atom is
+ * resolved from `code`; unregistered codes fall back to `#R001` (never
+ * throw). Phase 2 tasks register per-code atoms and extend
+ * `HALT_ATOM_TO_ERROR_ID` in `execute.ts`.
+ *
+ * `raw` accepts arbitrary provider metadata; `message` is stored under
+ * `raw.message` so `.!message` surfaces it.
+ *
+ * @param site      Site descriptor (location, sourceId, fn).
+ * @param code      Atom name in underscore form (e.g. `"RILL_R010"`).
+ * @param message   Human-readable error description.
+ * @param raw       Optional provider-specific payload (merged with message).
+ * @throws RuntimeHaltSignal with catchable=false.
+ */
+export function throwFatalHostHalt(
+  site: TypeHaltSite,
+  code: string,
+  message: string,
+  raw?: Record<string, unknown>
+): never {
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind: TRACE_KINDS.HOST,
+    fn: site.fn,
+  });
+  const invalid = invalidate(
+    {},
+    {
+      code,
+      provider: 'runtime',
+      raw: { message, ...(raw ?? {}) },
+    },
+    frame
+  );
+  throw new RuntimeHaltSignal(invalid, false);
+}
+
+// ============================================================
 // ERROR WRAP HALT BUILDER (IR-3)
 // ============================================================
 

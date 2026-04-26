@@ -249,6 +249,30 @@ export function appendTraceFrame(
   return attachStatus(value, newStatus);
 }
 
+/**
+ * Merges additional fields into an invalid value's `raw` payload.
+ * Returns a new RillValue carrying the extended status. Existing
+ * fields are preserved unless overwritten by `extension`.
+ *
+ * Used at call boundaries to attach side-channel context (e.g. a
+ * call-stack snapshot) onto a halt without mutating its trace.
+ */
+export function mergeRaw(
+  value: RillValue,
+  extension: Record<string, RillValue>
+): RillValue {
+  const prior = getStatus(value);
+  const newRaw = Object.freeze({ ...prior.raw, ...extension });
+  const newStatus: RillStatus = Object.freeze({
+    code: prior.code,
+    message: prior.message,
+    provider: prior.provider,
+    raw: newRaw,
+    trace: prior.trace,
+  });
+  return attachStatus(value, newStatus);
+}
+
 // ============================================================
 // INTERNAL HELPERS
 // ============================================================

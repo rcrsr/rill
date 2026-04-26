@@ -9,7 +9,7 @@
 
 import type { ASTNode, CaptureNode, SourceLocation } from '../../../types.js';
 import type { EvaluatorInterface } from './interface.js';
-import { RuntimeError, TimeoutError } from '../../../types.js';
+import { TimeoutError } from '../../../types.js';
 import type { RuntimeContext } from '../types/runtime.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
@@ -17,6 +17,7 @@ import type { RillValue } from '../types/structures.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
+  throwCatchableHostHalt,
   type TypeHaltSite,
 } from '../types/halt.js';
 
@@ -141,10 +142,10 @@ export class EvaluatorBase {
     allowMissing = false
   ): Promise<RillValue> {
     if (!isDict(value)) {
-      throw new RuntimeError(
-        'RILL-R003',
-        `Cannot access field '${field}' on non-dict`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
+        'RILL_R003',
+        `Cannot access field '${field}' on non-dict`
       );
     }
 
@@ -155,10 +156,10 @@ export class EvaluatorBase {
       if (allowMissing) {
         return null;
       }
-      throw new RuntimeError(
-        'RILL-R009',
-        `Dict has no field '${field}'`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
+        'RILL_R009',
+        `Dict has no field '${field}'`
       );
     }
 

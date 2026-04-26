@@ -24,7 +24,10 @@ import type {
   SpreadArgNode,
   CallFrame,
 } from '../../../../types.js';
-import { RillError, RuntimeError } from '../../../../types.js';
+import { RillError } from '../../../../types.js';
+import { RuntimeHaltSignal, throwCatchableHostHalt } from '../../types/halt.js';
+import { getStatus, mergeRaw } from '../../types/status.js';
+import { isExtensionThrow, markExtensionThrow } from '../../extension-throw.js';
 import type { RillCallable } from '../../callable.js';
 import { isCallable } from '../../callable.js';
 import { pushCallFrame, popCallFrame } from '../../context.js';
@@ -85,10 +88,10 @@ export class CallableInvocationStrategy {
    */
   validate(target: RillCallable, path: string, location: SourceLocation): void {
     if (!isCallable(target as RillValue)) {
-      throw new RuntimeError(
-        'RILL-R001',
+      throwCatchableHostHalt(
+        { location, sourceId: this.getCtx().sourceId, fn: 'validate' },
+        'RILL_R001',
         `'${path}' is not callable`,
-        location,
         { path }
       );
     }
@@ -111,7 +114,14 @@ export class CallableInvocationStrategy {
     evaluate: (node: ExpressionNode) => Promise<RillValue>,
     location: SourceLocation
   ): Promise<BoundArguments> {
-    return this.binder.bind(args, callable, pipeInput, evaluate, location);
+    return this.binder.bind(
+      args,
+      callable,
+      pipeInput,
+      evaluate,
+      location,
+      this.getCtx().sourceId
+    );
   }
 
   // ============================================================
@@ -164,7 +174,7 @@ export class CallableInvocationStrategy {
         functionName
       );
     } catch (error) {
-      // EC-6: snapshot call stack onto the RillError before finally pops frame.
+      // EC-6: snapshot call stack onto the error before finally pops frame.
       // First snapshot wins — nested calls capture the deepest stack.
       if (error instanceof RillError && ctx.callStack.length > 0) {
         const errCtx = error.context as Record<string, unknown> | undefined;
@@ -176,6 +186,25 @@ export class CallableInvocationStrategy {
           (error as { context: Record<string, unknown> }).context = {
             callStack: [...ctx.callStack],
           };
+        }
+      } else if (
+        error instanceof RuntimeHaltSignal &&
+        ctx.callStack.length > 0
+      ) {
+        // Halt path: attach call stack to raw so the host-boundary bridge
+        // surfaces it on RuntimeError.context.callStack (AC-NOD-6 parity).
+        const priorRaw = getStatus(error.value).raw;
+        if (!('callStack' in priorRaw)) {
+          const enriched = mergeRaw(error.value, {
+            callStack: [...ctx.callStack] as unknown as RillValue,
+          });
+          const newSignal = new RuntimeHaltSignal(enriched, error.catchable);
+          // Preserve extension-throw tag across the rewrap (markExtensionThrow
+          // tracks identity in a WeakSet, so the new signal needs re-marking).
+          if (isExtensionThrow(error)) {
+            markExtensionThrow(newSignal);
+          }
+          throw newSignal;
         }
       }
       throw error;

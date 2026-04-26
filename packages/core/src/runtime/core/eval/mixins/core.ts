@@ -34,14 +34,46 @@ import type { RillValue } from '../../types/structures.js';
 import { isTuple, isTypeValue } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
-import { invalidate } from '../../types/status.js';
+import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
-import { resolveAtom } from '../../types/atom-registry.js';
+import { resolveAtom, atomName } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwTypeHalt,
+  RuntimeHaltSignal,
+} from '../../types/halt.js';
+
+// ============================================================
+// ERROR-ID MATCHER (Fix A: ??)
+// ============================================================
+
+/**
+ * Returns true when `error` matches either the legacy `RuntimeError` with
+ * the given `runtimeErrorId`, or a `RuntimeHaltSignal` whose halt-atom
+ * name equals `haltAtomCode`.
+ *
+ * Used by `evaluatePostfixExpr` and the path-traversal catch block to
+ * coalesce RILL_R007 / RILL_R009 halts into the `??` default value after
+ * the Phase 2 halt-builder migration replaced direct `RuntimeError` throws
+ * with `throwCatchableHostHalt` in closures.ts.
+ */
+function matchesErrorId(
+  error: unknown,
+  runtimeErrorId: string,
+  haltAtomCode: string
+): boolean {
+  if (error instanceof RuntimeError && error.errorId === runtimeErrorId) {
+    return true;
+  }
+  if (error instanceof RuntimeHaltSignal) {
+    return atomName(getStatus(error.value).code) === haltAtomCode;
+  }
+  return false;
+}
 
 /**
  * CoreMixin implementation.
@@ -216,16 +248,23 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         return value;
       } catch (error) {
-        // If method chain throws RUNTIME_UNDEFINED_METHOD and defaultValue exists,
-        // evaluate and return the default value
-        if (
-          error instanceof RuntimeError &&
-          error.errorId === 'RILL-R007' &&
-          expr.defaultValue !== null
-        ) {
-          return (this as unknown as EvaluatorInterface).evaluateBody(
-            expr.defaultValue
-          );
+        // If method chain throws a recoverable "not found" error and defaultValue
+        // exists, evaluate and return the default value. After the Phase 2
+        // halt-builder migration, evaluateMethod and evaluateAnnotationAccess throw
+        // RuntimeHaltSignal instead of RuntimeError directly; matchesErrorId handles
+        // both the legacy and migrated forms.
+        //
+        // RILL-R007 / RILL_R007: missing method or field on a value.
+        // RILL-R008 / RILL_R008: annotation key not found (evaluateAnnotationAccess).
+        if (expr.defaultValue !== null) {
+          if (
+            matchesErrorId(error, 'RILL-R007', 'RILL_R007') ||
+            matchesErrorId(error, 'RILL-R008', 'RILL_R008')
+          ) {
+            return (this as unknown as EvaluatorInterface).evaluateBody(
+              expr.defaultValue
+            );
+          }
         }
         // All other errors propagate
         throw error;
@@ -308,10 +347,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         case 'MethodCall':
           if (this.ctx.pipeValue === null) {
-            throw new RuntimeError(
-              'RILL-R005',
+            throwCatchableHostHalt(
+              {
+                location: primary.span?.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluatePrimaryExpression',
+              },
+              'RILL_R005',
               'Undefined variable: $',
-              primary.span?.start,
               { variable: '$' }
             );
           }
@@ -792,10 +835,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 ? 'tuple'
                 : 'dict'
               : typeof value;
-          throw RuntimeError.fromNode(
-            'RILL-R002',
-            `Cannot dispatch to ${valueType}`,
-            target
+          return throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(target),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluatePipeChain',
+            },
+            'RILL_R002',
+            `Cannot dispatch to ${valueType}`
           );
         }
 
@@ -928,8 +975,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this as unknown as EvaluatorInterface
         ).resolveTerminalValue(result, lastKey, location);
       } catch (error) {
-        // Handle missing key/index errors with default value
-        if (error instanceof RuntimeError && error.errorId === 'RILL-R009') {
+        // Handle missing key/index errors with default value. After the Phase 2
+        // halt-builder migration, traversePathStep throws RuntimeHaltSignal with
+        // atom RILL_R009 instead of RuntimeError directly; matchesErrorId handles
+        // both the legacy and migrated forms.
+        if (matchesErrorId(error, 'RILL-R009', 'RILL_R009')) {
           if (defaultExpr) {
             return await (
               this as unknown as EvaluatorInterface
@@ -1038,10 +1088,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           : typeof current;
       const keyType = typeof key;
 
-      throw new RuntimeError(
-        'RILL-R002',
+      throwCatchableHostHalt(
+        {
+          location,
+          sourceId: this.ctx.sourceId,
+          fn: 'hierarchicalDispatch',
+        },
+        'RILL_R002',
         `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
-        location,
         { currentType, keyType, key }
       );
     }
@@ -1073,10 +1127,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Check if first param is '$' (block-closure) or user-defined (parameterized)
         if (value.params[0]!.name !== '$') {
           // Parameterized closure at intermediate position: error per EC-8
-          throw new RuntimeError(
-            'RILL-R002',
-            'Cannot invoke parameterized closure at intermediate path position',
-            location
+          throwCatchableHostHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'resolveIntermediateClosure',
+            },
+            'RILL_R002',
+            'Cannot invoke parameterized closure at intermediate path position'
           );
         }
       }
@@ -1121,10 +1179,14 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Check if first param is '$' (block-closure) or user-defined (parameterized)
         if (value.params[0]!.name !== '$') {
           // Parameterized closure at terminal position: error per EC-9
-          throw new RuntimeError(
-            'RILL-R002',
-            'Dispatch does not provide arguments for parameterized closure',
-            location
+          throwCatchableHostHalt(
+            {
+              location,
+              sourceId: this.ctx.sourceId,
+              fn: 'resolveTerminalValue',
+            },
+            'RILL_R002',
+            'Dispatch does not provide arguments for parameterized closure'
           );
         }
       }

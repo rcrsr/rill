@@ -33,12 +33,16 @@ import type {
   AssertNode,
   ErrorNode,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
-import { throwErrorHalt, type TypeHaltSite } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwErrorHalt,
+  throwFatalHostHalt,
+  type TypeHaltSite,
+} from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
@@ -92,10 +96,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         ).evaluateBodyExpression(node.condition);
         // Condition must be boolean
         if (typeof conditionValue !== 'boolean') {
-          throw RuntimeError.fromNode(
-            'RILL-R002',
-            `Conditional expression must be boolean, got ${inferType(conditionValue)}`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateConditional',
+            },
+            'RILL_R002',
+            `Conditional expression must be boolean, got ${inferType(conditionValue)}`
           );
         }
         conditionResult = conditionValue;
@@ -103,10 +111,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Piped conditional: $ -> ? then ! else
         // The pipe value must be boolean
         if (typeof this.ctx.pipeValue !== 'boolean') {
-          throw RuntimeError.fromNode(
-            'RILL-R002',
-            `Piped conditional requires boolean, got ${inferType(this.ctx.pipeValue)}`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateConditional',
+            },
+            'RILL_R002',
+            `Piped conditional requires boolean, got ${inferType(this.ctx.pipeValue)}`
           );
         }
         conditionResult = this.ctx.pipeValue;
@@ -177,10 +189,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Condition must be boolean
       if (typeof conditionValue !== 'boolean') {
-        throw RuntimeError.fromNode(
-          'RILL-R002',
-          `While loop condition must be boolean, got ${typeof conditionValue}`,
-          node
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateWhileLoop',
+          },
+          'RILL_R002',
+          `While loop condition must be boolean, got ${typeof conditionValue}`
         );
       }
 
@@ -202,10 +218,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         while (conditionResult) {
           iterCount++;
           if (iterCount > maxIter) {
-            throw new RuntimeError(
-              'RILL-R010',
+            throwFatalHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateWhileLoop',
+              },
+              'RILL_R010',
               `While loop exceeded ${maxIter} iterations`,
-              this.getNodeLocation(node),
               { limit: maxIter, iterations: iterCount }
             );
           }
@@ -230,10 +250,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             this as unknown as EvaluatorInterface
           ).evaluateExpression(node.condition);
           if (typeof nextCondition !== 'boolean') {
-            throw RuntimeError.fromNode(
-              'RILL-R002',
-              `While loop condition must be boolean, got ${typeof nextCondition}`,
-              node
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateWhileLoop',
+              },
+              'RILL_R002',
+              `While loop condition must be boolean, got ${typeof nextCondition}`
             );
           }
           conditionResult = nextCondition;
@@ -285,10 +309,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         while (shouldContinue) {
           iterCount++;
           if (iterCount > maxIter) {
-            throw new RuntimeError(
-              'RILL-R010',
+            throwFatalHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateDoWhileLoop',
+              },
+              'RILL_R010',
               `Do-while loop exceeded ${maxIter} iterations`,
-              this.getNodeLocation(node),
               { limit: maxIter, iterations: iterCount }
             );
           }
@@ -312,10 +340,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           ).evaluateBodyExpression(node.condition);
           // Condition must be boolean
           if (typeof conditionValue !== 'boolean') {
-            throw RuntimeError.fromNode(
-              'RILL-R002',
-              `Do-while condition must be boolean, got ${inferType(conditionValue)}`,
-              node
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateDoWhileLoop',
+              },
+              'RILL_R002',
+              `Do-while condition must be boolean, got ${inferType(conditionValue)}`
             );
           }
           shouldContinue = conditionValue;
@@ -437,10 +469,14 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Condition must be boolean
       if (typeof conditionResult !== 'boolean') {
-        throw RuntimeError.fromNode(
-          'RILL-R002',
-          `assert requires boolean condition, got ${inferType(conditionResult)}`,
-          node
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAssert',
+          },
+          'RILL_R002',
+          `assert requires boolean condition, got ${inferType(conditionResult)}`
         );
       }
 
@@ -458,7 +494,15 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           errorMessage = 'Assertion failed';
         }
 
-        throw RuntimeError.fromNode('RILL-R015', errorMessage, node);
+        throwFatalHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAssert',
+          },
+          'RILL_R015',
+          errorMessage
+        );
       }
 
       // Assertion passed, return original pipe value unchanged
@@ -501,19 +545,27 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         messageValue = input;
       } else {
         // No message and no input - should not happen if parser is correct
-        throw RuntimeError.fromNode(
-          'RILL-R002',
-          'error statement requires string message',
-          node
+        throwFatalHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateError',
+          },
+          'RILL_R002',
+          'error statement requires string message'
         );
       }
 
       // Message must be string
       if (typeof messageValue !== 'string') {
-        throw RuntimeError.fromNode(
-          'RILL-R002',
-          `error statement requires string message, got ${inferType(messageValue)}`,
-          node
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateError',
+          },
+          'RILL_R002',
+          `error statement requires string message, got ${inferType(messageValue)}`
         );
       }
 

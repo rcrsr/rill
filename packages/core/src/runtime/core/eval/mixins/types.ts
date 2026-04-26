@@ -34,7 +34,6 @@ import type {
   TypeRef,
   FieldArg,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
 import type {
   RillValue,
   RillTypeValue,
@@ -48,7 +47,7 @@ import {
   inferStructure,
   formatStructure,
 } from '../../types/operations.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { checkType, structureToTypeValue } from '../../values.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -524,8 +523,9 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const result = getVariableFn(typeRef.varName);
       if (result === undefined) {
-        throw new RuntimeError(
-          'RILL-R005',
+        throwCatchableHostHalt(
+          { sourceId: this.ctx.sourceId, fn: 'resolveTypeRef' },
+          'RILL_R005',
           `Variable $${typeRef.varName} is not defined`
         );
       }

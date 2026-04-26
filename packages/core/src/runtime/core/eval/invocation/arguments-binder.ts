@@ -39,7 +39,7 @@ import type {
   SpreadArgNode,
   SourceLocation,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillCallable, ApplicationCallable } from '../../callable.js';
 import {
   isApplicationCallable,
@@ -118,7 +118,8 @@ export class ArgumentsBinder {
     callable: RillCallable,
     _pipeInput: RillValue | undefined,
     evaluate: (node: ExpressionNode) => Promise<RillValue>,
-    location: SourceLocation
+    location: SourceLocation,
+    sourceId?: string
   ): Promise<BoundArguments> {
     // AC-14: zero args — return sentinel with no allocation
     if (args.length === 0) {
@@ -138,10 +139,10 @@ export class ArgumentsBinder {
       ((callable as ApplicationCallable).params as unknown) === undefined
     ) {
       const name = _getCallableName(callable);
-      throw new RuntimeError(
-        'RILL-R001',
-        `Spread not supported for host function '${name}': parameter metadata required`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId, fn: 'bind' },
+        'RILL_R001',
+        `Spread not supported for host function '${name}': parameter metadata required`
       );
     }
 
@@ -154,10 +155,10 @@ export class ArgumentsBinder {
 
     if (isUntypedBuiltin) {
       const name = _getCallableName(callable);
-      throw new RuntimeError(
-        'RILL-R001',
-        `Spread not supported for built-in function '${name}'`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId, fn: 'bind' },
+        'RILL_R001',
+        `Spread not supported for built-in function '${name}'`
       );
     }
 
@@ -174,10 +175,10 @@ export class ArgumentsBinder {
         if (param === undefined) {
           // EC-2: extra positional arg beyond param count.
           // Message matches closures.ts:1893 verbatim.
-          throw new RuntimeError(
-            'RILL-R001',
-            `Extra positional argument at position ${positionalIndex} (function has ${params.length} parameters)`,
-            location
+          throwCatchableHostHalt(
+            { location, sourceId, fn: 'bind' },
+            'RILL_R001',
+            `Extra positional argument at position ${positionalIndex} (function has ${params.length} parameters)`
           );
         }
         const value = await evaluate(argNode);
@@ -190,10 +191,10 @@ export class ArgumentsBinder {
         // EC-3: spread source is null (bare ... with no pipe value).
         // Message matches closures.ts:1912 verbatim.
         if (spreadValue === null) {
-          throw new RuntimeError(
-            'RILL-R001',
-            'Spread requires an active pipe value ($)',
-            location
+          throwCatchableHostHalt(
+            { location, sourceId, fn: 'bind' },
+            'RILL_R001',
+            'Spread requires an active pipe value ($)'
           );
         }
 
@@ -203,20 +204,20 @@ export class ArgumentsBinder {
           const tupleEntries = spreadValue.entries;
           const remaining = params.length - positionalIndex;
           if (tupleEntries.length > remaining) {
-            throw new RuntimeError(
-              'RILL-R001',
-              `Spread tuple has ${tupleEntries.length} values but only ${remaining} parameter(s) remain`,
-              location
+            throwCatchableHostHalt(
+              { location, sourceId, fn: 'bind' },
+              'RILL_R001',
+              `Spread tuple has ${tupleEntries.length} values but only ${remaining} parameter(s) remain`
             );
           }
           for (let i = 0; i < tupleEntries.length; i++) {
             const param = params[positionalIndex + i]!;
             // EC-7: duplicate binding
             if (bound.has(param.name)) {
-              throw new RuntimeError(
-                'RILL-R001',
-                `Duplicate binding for parameter '${param.name}': already bound positionally`,
-                location
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                'RILL_R001',
+                `Duplicate binding for parameter '${param.name}': already bound positionally`
               );
             }
             bound.set(param.name, tupleEntries[i]!);
@@ -231,18 +232,18 @@ export class ArgumentsBinder {
             // EC-6: key-order mismatch
             if (expectedParam === undefined || expectedParam.name !== key) {
               const expectedName = expectedParam?.name ?? '<none>';
-              throw new RuntimeError(
-                'RILL-R001',
-                `Ordered spread key '${key}' at position ${i} does not match expected parameter '${expectedName}' at position ${positionalIndex + i}`,
-                location
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                'RILL_R001',
+                `Ordered spread key '${key}' at position ${i} does not match expected parameter '${expectedName}' at position ${positionalIndex + i}`
               );
             }
             // EC-7: duplicate binding
             if (bound.has(key)) {
-              throw new RuntimeError(
-                'RILL-R001',
-                `Duplicate binding for parameter '${key}': already bound positionally`,
-                location
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                'RILL_R001',
+                `Duplicate binding for parameter '${key}': already bound positionally`
               );
             }
             bound.set(key, value);
@@ -256,18 +257,18 @@ export class ArgumentsBinder {
             // EC-5: key matches no parameter
             if (!paramNames.has(key)) {
               const validParams = params.map((p) => p.name).join(', ');
-              throw new RuntimeError(
-                'RILL-R001',
-                `Dict spread key '${key}' does not match any parameter. Valid parameters: ${validParams}`,
-                location
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                'RILL_R001',
+                `Dict spread key '${key}' does not match any parameter. Valid parameters: ${validParams}`
               );
             }
             // EC-7: duplicate binding
             if (bound.has(key)) {
-              throw new RuntimeError(
-                'RILL-R001',
-                `Duplicate binding for parameter '${key}': already bound positionally`,
-                location
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                'RILL_R001',
+                `Duplicate binding for parameter '${key}': already bound positionally`
               );
             }
             bound.set(key, value);
@@ -275,10 +276,10 @@ export class ArgumentsBinder {
         } else {
           // EC-4: spread value is not tuple/dict/ordered
           const actualType = inferType(spreadValue);
-          throw new RuntimeError(
-            'RILL-R001',
-            `Spread requires a tuple, dict, or ordered value, got ${actualType}`,
-            location
+          throwCatchableHostHalt(
+            { location, sourceId, fn: 'bind' },
+            'RILL_R001',
+            `Spread requires a tuple, dict, or ordered value, got ${actualType}`
           );
         }
       }

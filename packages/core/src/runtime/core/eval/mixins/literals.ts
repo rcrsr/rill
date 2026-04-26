@@ -44,7 +44,6 @@ import type {
   PassNode,
   TypeRef,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { deepEquals, formatValue } from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
@@ -55,7 +54,7 @@ import {
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
@@ -127,16 +126,16 @@ async function evaluateAnnotations(
         Object.assign(result, spreadValue);
       } else if (Array.isArray(spreadValue)) {
         // Tuple/list: not valid for annotations (need named keys)
-        throw new RuntimeError(
-          'RILL-R002',
-          'Annotation spread requires dict with named keys, got list',
-          spreadArg.span.start
+        throwCatchableHostHalt(
+          { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
+          'RILL_R002',
+          'Annotation spread requires dict with named keys, got list'
         );
       } else {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Annotation spread requires dict, got ${typeof spreadValue}`,
-          spreadArg.span.start
+        throwCatchableHostHalt(
+          { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
+          'RILL_R002',
+          `Annotation spread requires dict, got ${typeof spreadValue}`
         );
       }
     }
@@ -179,10 +178,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      */
     protected async evaluatePass(node: PassNode): Promise<RillValue> {
       if (this.ctx.pipeValue === null) {
-        throw new RuntimeError(
-          'RILL-R005',
+        throwCatchableHostHalt(
+          {
+            location: node.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluatePass',
+          },
+          'RILL_R005',
           "Variable '$' not defined",
-          node.span?.start,
           { variable: '$' }
         );
       }
@@ -220,10 +223,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           ).evaluateExpression(part.expression);
           // Vector coercion guard [EC-31]
           if (isVector(value)) {
-            throw RuntimeError.fromNode(
-              'RILL-R003',
-              'cannot coerce vector to string',
-              part
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(part),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateString',
+              },
+              'RILL_R003',
+              'cannot coerce vector to string'
             );
           }
           result += formatValue(value);
@@ -266,10 +273,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // Validate non-empty [EC-4]
       if (keys.length === 0) {
-        throw new RuntimeError(
-          'RILL-R002',
-          'Multi-key dict entry requires non-empty list',
-          keyList.span?.start
+        throwCatchableHostHalt(
+          {
+            location: keyList.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateDictMultiKeyFromList',
+          },
+          'RILL_R002',
+          'Multi-key dict entry requires non-empty list'
         );
       }
 
@@ -281,10 +292,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           keyType !== 'number' &&
           keyType !== 'boolean'
         ) {
-          throw new RuntimeError(
-            'RILL-R002',
+          throwCatchableHostHalt(
+            {
+              location: keyList.span?.start,
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateDictMultiKeyFromList',
+            },
+            'RILL_R002',
             `Dict key must be string, number, or boolean, got ${keyType}`,
-            keyList.span?.start,
             { got: keyType }
           );
         }
@@ -341,19 +356,27 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // EC-6: Variable undefined
               if (varValue === undefined) {
-                throw new RuntimeError(
-                  'RILL-R005',
-                  `Variable '${keyObj.variableName}' is undefined`,
-                  entry.span.start
+                throwCatchableHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  'RILL_R005',
+                  `Variable '${keyObj.variableName}' is undefined`
                 );
               }
 
               // EC-7: Variable non-string
               if (typeof varValue !== 'string') {
-                throw new RuntimeError(
-                  'RILL-R002',
-                  `Dict key must be string, got ${typeof varValue}`,
-                  entry.span.start
+                throwCatchableHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  'RILL_R002',
+                  `Dict key must be string, got ${typeof varValue}`
                 );
               }
 
@@ -361,10 +384,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               const stringKey = varValue;
 
               if (isReservedMethod(stringKey)) {
-                throw new RuntimeError(
-                  'RILL-R002',
+                throwCatchableHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  'RILL_R002',
                   `Cannot use reserved method name '${stringKey}' as dict key`,
-                  entry.span.start,
                   {
                     key: stringKey,
                     reservedMethods: ['keys', 'values', 'entries'],
@@ -400,10 +427,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // EC-8: Computed key must evaluate to string
               if (typeof computedValue !== 'string') {
-                throw new RuntimeError(
-                  'RILL-R002',
-                  `Dict key evaluated to ${typeof computedValue}, expected string`,
-                  entry.span.start
+                throwCatchableHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  'RILL_R002',
+                  `Dict key evaluated to ${typeof computedValue}, expected string`
                 );
               }
 
@@ -411,10 +442,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               const stringKey = computedValue;
 
               if (isReservedMethod(stringKey)) {
-                throw new RuntimeError(
-                  'RILL-R002',
+                throwCatchableHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  'RILL_R002',
                   `Cannot use reserved method name '${stringKey}' as dict key`,
-                  entry.span.start,
                   {
                     key: stringKey,
                     reservedMethods: ['keys', 'values', 'entries'],
@@ -449,10 +484,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
           for (const [stringKey, value] of pairs) {
             if (isReservedMethod(stringKey)) {
-              throw new RuntimeError(
-                'RILL-R002',
+              throwCatchableHostHalt(
+                {
+                  location: entry.span.start,
+                  sourceId: this.ctx.sourceId,
+                  fn: 'evaluateDict',
+                },
+                'RILL_R002',
                 `Cannot use reserved method name '${stringKey}' as dict key`,
-                entry.span.start,
                 {
                   key: stringKey,
                   reservedMethods: ['keys', 'values', 'entries'],
@@ -472,10 +511,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const stringKey = String(entry.key);
 
         if (isReservedMethod(stringKey)) {
-          throw new RuntimeError(
-            'RILL-R002',
+          throwCatchableHostHalt(
+            {
+              location: entry.span.start,
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateDict',
+            },
+            'RILL_R002',
             `Cannot use reserved method name '${stringKey}' as dict key`,
-            entry.span.start,
             { key: stringKey, reservedMethods: ['keys', 'values', 'entries'] }
           );
         }
@@ -593,10 +636,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
       const location = node.span?.start;
-      throw new RuntimeError(
-        'RILL-R009',
+      throwCatchableHostHalt(
+        { location, sourceId: this.ctx.sourceId, fn: 'evaluateDictDispatch' },
+        'RILL_R009',
         `Dict dispatch: key '${formatValue(input)}' not found`,
-        location,
         { key: input }
       );
     }
@@ -618,10 +661,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       // Validate input is an integer (EC-15)
       if (typeof input !== 'number' || !Number.isInteger(input)) {
-        throw new RuntimeError(
-          'RILL-R041',
+        throwCatchableHostHalt(
+          {
+            location: node.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateListDispatch',
+          },
+          'RILL_R041',
           `List dispatch requires integer index, got ${typeof input !== 'number' ? typeof input : 'non-integer number'}`,
-          node.span?.start,
           { input, expectedType: 'integer' }
         );
       }
@@ -644,10 +691,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         // No default - throw EC-16 out-of-bounds error
-        throw new RuntimeError(
-          'RILL-R042',
+        throwCatchableHostHalt(
+          {
+            location: node.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateListDispatch',
+          },
+          'RILL_R042',
           `List dispatch: index ${index} out of range (length: ${elements.length})`,
-          node.span?.start,
           { index, listLength: elements.length }
         );
       }
@@ -674,10 +725,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Check if first param is '$' (block-closure) or user-defined (parameterized)
           if (value.params[0]!.name !== '$') {
             // Parameterized closure at terminal position: error
-            throw new RuntimeError(
-              'RILL-R002',
-              'Dispatch does not provide arguments for parameterized closure',
-              node.span?.start
+            throwCatchableHostHalt(
+              {
+                location: node.span?.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'resolveDispatchValue',
+              },
+              'RILL_R002',
+              'Dispatch does not provide arguments for parameterized closure'
             );
           }
         }
@@ -755,10 +810,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // No match and no default - throw error
       const loc = location.span?.start;
-      throw new RuntimeError(
-        'RILL-R009',
+      throwCatchableHostHalt(
+        { location: loc, sourceId: this.ctx.sourceId, fn: 'dispatchToDict' },
+        'RILL_R009',
         `Dict dispatch: key '${formatValue(input)}' not found`,
-        loc,
         { key: input }
       );
     }
@@ -784,10 +839,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       // Validate input is number
       if (typeof input !== 'number') {
-        throw new RuntimeError(
-          'RILL-R002',
+        throwCatchableHostHalt(
+          {
+            location: location.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'dispatchToList',
+          },
+          'RILL_R002',
           `List dispatch requires number index, got ${typeof input}`,
-          location.span?.start,
           { input, expectedType: 'number' }
         );
       }
@@ -808,10 +867,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         // No default - throw error
-        throw new RuntimeError(
-          'RILL-R009',
+        throwCatchableHostHalt(
+          {
+            location: location.span?.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'dispatchToList',
+          },
+          'RILL_R009',
           `List dispatch: index '${index}' not found`,
-          location.span?.start,
           { index, listLength: list.length }
         );
       }

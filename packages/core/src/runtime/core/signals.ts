@@ -8,26 +8,37 @@
 
 import type { RillValue } from './types/structures.js';
 
+/**
+ * Abstract base for all control-flow signals.
+ * Subclasses pass their name and message to the protected constructor.
+ * Never instantiated directly.
+ */
+export abstract class ControlSignal extends Error {
+  readonly value: RillValue;
+  protected constructor(name: string, message: string, value: RillValue) {
+    super(message);
+    this.name = name;
+    this.value = value;
+  }
+}
+
 /** Signal thrown by `break` to exit loops */
-export class BreakSignal extends Error {
-  constructor(public readonly value: RillValue) {
-    super('break');
-    this.name = 'BreakSignal';
+export class BreakSignal extends ControlSignal {
+  constructor(value: RillValue) {
+    super('BreakSignal', 'break', value);
   }
 }
 
 /** Signal thrown by `return` to exit blocks */
-export class ReturnSignal extends Error {
-  constructor(public readonly value: RillValue) {
-    super('return');
-    this.name = 'ReturnSignal';
+export class ReturnSignal extends ControlSignal {
+  constructor(value: RillValue) {
+    super('ReturnSignal', 'return', value);
   }
 }
 
 /** Signal thrown when a stream yields a chunk value */
-export class YieldSignal extends Error {
-  constructor(public readonly value: RillValue) {
-    super('yield');
-    this.name = 'YieldSignal';
+export class YieldSignal extends ControlSignal {
+  constructor(value: RillValue) {
+    super('YieldSignal', 'yield', value);
   }
 }
