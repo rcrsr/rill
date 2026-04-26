@@ -12,13 +12,12 @@ import type {
   PipeInvokeNode,
   VariableNode,
   SourceLocation,
-  SourceSpan,
   ExpressionNode,
   SpreadArgNode,
   BlockNode,
   RillTypeName,
 } from '../../../../types.js';
-import { RillError, RuntimeError } from '../../../../types.js';
+import { RillError } from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
@@ -56,7 +55,11 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { haltSlowPath } from './access.js';
-import { STATUS_SYM, type RillStatus } from '../../types/status.js';
+import {
+  STATUS_SYM,
+  appendTraceFrame,
+  type RillStatus,
+} from '../../types/status.js';
 import {
   ArgumentsBinder,
   CallableInvocationStrategy,
@@ -64,7 +67,28 @@ import {
 } from '../invocation/index.js';
 import type { BoundArguments, StreamChannel } from '../invocation/index.js';
 import type { InvocationCaller } from '../invocation/callable-strategy.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import {
+  throwTypeHalt,
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+  RuntimeHaltSignal,
+} from '../../types/halt.js';
+import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
+
+/**
+ * Format a source location into `file:line:col` form for trace frame `site`.
+ * Mirrors the internal `formatSite` logic from `types/halt.ts`.
+ */
+function formatCallSite(
+  location: SourceLocation | undefined,
+  sourceId: string | undefined
+): string {
+  if (location === undefined) {
+    return sourceId ?? '<unknown>';
+  }
+  const file = sourceId ?? '<script>';
+  return `${file}:${location.line}:${location.column}`;
+}
 
 function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
   return class ClosuresEvaluator extends Base {
@@ -243,22 +267,25 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       this.ctx.trackInflight(dispatchPromise);
       try {
         return await dispatchPromise;
-      } catch (error) {
-        markExtensionThrow(error);
-
-        if (error instanceof RuntimeError && !error.location && callLocation) {
-          const span: SourceSpan = { start: callLocation, end: callLocation };
-          const enriched = new RuntimeError(
-            error.errorId,
-            error.toData().message,
-            callLocation,
-            error.context,
-            span
+      } catch (e) {
+        // Enrichment site 1: extension-dispatch boundary (IR-4, AC-NOD-4).
+        // Tag every thrown value as extension-originated first, then enrich
+        // RuntimeHaltSignal payloads with a host-kind trace frame.
+        markExtensionThrow(e);
+        if (e instanceof RuntimeHaltSignal) {
+          const enriched = appendTraceFrame(
+            e.value,
+            createTraceFrame({
+              site: formatCallSite(callLocation, this.ctx.sourceId),
+              kind: TRACE_KINDS.HOST,
+              fn: functionName,
+            })
           );
-          markExtensionThrow(enriched);
-          throw enriched;
+          const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
+          markExtensionThrow(newSignal);
+          throw newSignal;
         }
-        throw error;
+        throw e;
       }
     }
 
@@ -293,10 +320,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (!structureMatches(value, param.type)) {
         const expectedType = formatStructure(param.type);
         const actualType = inferType(value);
-        throw new RuntimeError(
-          'RILL-R001',
+        throwCatchableHostHalt(
+          {
+            location: callLocation,
+            sourceId: this.ctx.sourceId,
+            fn: 'validateParamType',
+          },
+          'RILL_R001',
           `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
-          callLocation,
           { paramName: param.name, expectedType, actualType }
         );
       }
@@ -402,10 +433,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         callable.body.type === 'Block' &&
         (callable.body as BlockNode).statements.length === 0
       ) {
-        throw new RuntimeError(
-          'RILL-R043',
+        throwFatalHostHalt(
+          {
+            location: callLocation,
+            sourceId: this.ctx.sourceId,
+            fn: 'invokeRegularScriptCallable',
+          },
+          'RILL_R043',
           'Closure body produced no value',
-          callLocation,
           { context: 'Closure body' }
         );
       }
@@ -423,20 +458,38 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         }
         return result;
-      } catch (error) {
-        if (
-          error instanceof RillError &&
-          !error.sourceId &&
-          callableCtx.sourceId
-        ) {
-          (error as { sourceId: string }).sourceId = callableCtx.sourceId;
+      } catch (e) {
+        // Enrichment site 2: script-callable boundary (IR-4, AC-NOD-4).
+        // Tag every thrown value as extension-originated first, then enrich
+        // RuntimeHaltSignal payloads with a host-kind trace frame.
+        markExtensionThrow(e);
+        if (e instanceof RuntimeHaltSignal) {
+          const enriched = appendTraceFrame(
+            e.value,
+            createTraceFrame({
+              site: formatCallSite(callLocation, callableCtx.sourceId),
+              kind: TRACE_KINDS.HOST,
+              fn: 'invokeRegularScriptCallable',
+            })
+          );
+          const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
+          markExtensionThrow(newSignal);
+          throw newSignal;
+        }
+        // Restore sourceId on RillError instances that escaped without one.
+        // Pre-migration this block was explicit; after the halt-builder migration
+        // the unmigrated RuntimeError sites (e.g. variables.ts RILL_R005) still
+        // throw RuntimeError directly and need sourceId enriched at this boundary
+        // so host callers observe the AC-NOD-6 sourceId contract.
+        if (e instanceof RillError && !e.sourceId && callableCtx.sourceId) {
+          (e as { sourceId: string }).sourceId = callableCtx.sourceId;
           if (callableCtx.sourceText) {
-            const ctx = (error.context ?? {}) as Record<string, unknown>;
+            const ctx = (e.context ?? {}) as Record<string, unknown>;
             ctx['sourceText'] = callableCtx.sourceText;
-            (error as { context: Record<string, unknown> }).context = ctx;
+            (e as { context: Record<string, unknown> }).context = ctx;
           }
         }
-        throw error;
+        throw e;
       } finally {
         this.ctx = savedCtx;
       }
@@ -451,7 +504,11 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         >
       )['__rill_stream_resolve'];
       if (typeof resolveFn !== 'function') {
-        throw new RuntimeError('RILL-R002', 'Stream has no resolve function');
+        throwFatalHostHalt(
+          { sourceId: this.ctx.sourceId, fn: 'invokeStream' },
+          'RILL_R002',
+          'Stream has no resolve function'
+        );
       }
 
       let current: RillStream = stream;
@@ -480,10 +537,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const fn = this.ctx.functions.get(node.name);
       if (!fn) {
-        throw new RuntimeError(
-          'RILL-R006',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateHostCall',
+          },
+          'RILL_R006',
           `Unknown function: ${node.name}`,
-          this.getNodeLocation(node),
           { functionName: node.name }
         );
       }
@@ -494,10 +555,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           typeof fn === 'function' ||
           (isApplicationCallable(fn) && (fn.params?.length ?? 0) === 0);
         if (isUntypedBuiltin) {
-          throw new RuntimeError(
-            'RILL-R001',
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateHostCall',
+            },
+            'RILL_R001',
             `Spread not supported for built-in function '${node.name}'`,
-            this.getNodeLocation(node),
             { functionName: node.name }
           );
         }
@@ -584,10 +649,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       const fn = this.ctx.functions.get(node.name);
       if (!fn) {
-        throw new RuntimeError(
-          'RILL-R006',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateHostRef',
+          },
+          'RILL_R006',
           `Function "${node.name}" not found`,
-          this.getNodeLocation(node),
           { functionName: node.name }
         );
       }
@@ -635,10 +704,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       let value: RillValue | undefined = getVariable(this.ctx, node.name);
       if (value === undefined || value === null) {
-        throw new RuntimeError(
-          'RILL-R005',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateClosureCallWithPipe',
+          },
+          'RILL_R005',
           `Unknown variable: $${node.name}`,
-          this.getNodeLocation(node),
           { variableName: node.name }
         );
       }
@@ -646,26 +719,38 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const fullPath = ['$' + node.name, ...node.accessChain].join('.');
       for (const prop of node.accessChain) {
         if (value === null) {
-          throw new RuntimeError(
-            'RILL-R009',
-            `Cannot access property '${prop}' on null`,
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateClosureCallWithPipe',
+            },
+            'RILL_R009',
+            `Cannot access property '${prop}' on null`
           );
         }
         if (isDict(value)) {
           value = (value as Record<string, RillValue>)[prop];
           if (value === undefined || value === null) {
-            throw new RuntimeError(
-              'RILL-R009',
-              `Dict has no field '${prop}'`,
-              this.getNodeLocation(node)
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateClosureCallWithPipe',
+              },
+              'RILL_R009',
+              `Dict has no field '${prop}'`
             );
           }
         } else {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Cannot access property on non-dict value at '${fullPath}'`,
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateClosureCallWithPipe',
+            },
+            'RILL_R002',
+            `Cannot access property on non-dict value at '${fullPath}'`
           );
         }
       }
@@ -674,10 +759,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return this.invokeStream(value as RillStream);
       }
       if (!isCallable(value)) {
-        throw new RuntimeError(
-          'RILL-R002',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateClosureCallWithPipe',
+          },
+          'RILL_R002',
           `'${fullPath}' is not callable`,
-          this.getNodeLocation(node),
           { path: fullPath, actualType: inferType(value) }
         );
       }
@@ -685,10 +774,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       if (this.argumentsBinder.hasSpread(node.args)) {
         if (!isScriptCallable(closure) && !isApplicationCallable(closure)) {
-          throw new RuntimeError(
-            'RILL-R001',
-            `Spread not supported for built-in callable at '${fullPath}'`,
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateClosureCallWithPipe',
+            },
+            'RILL_R001',
+            `Spread not supported for built-in callable at '${fullPath}'`
           );
         }
         const boundArgs = await this.invocationStrategy.bind(
@@ -733,18 +826,26 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       for (const access of node.accessChain) {
         if (value === null) {
-          throw new RuntimeError(
-            'RILL-R009',
-            `Cannot access property on null`,
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluatePipePropertyAccess',
+            },
+            'RILL_R009',
+            'Cannot access property on null'
           );
         }
 
         if ('accessKind' in access) {
-          throw new RuntimeError(
-            'RILL-R002',
-            'Bracket access not supported in this context',
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluatePipePropertyAccess',
+            },
+            'RILL_R002',
+            'Bracket access not supported in this context'
           );
         }
 
@@ -756,10 +857,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             this.getNodeLocation(node)
           );
         } else {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Field access kind '${access.kind}' not supported in this context`,
-            this.getNodeLocation(node)
+          throwFatalHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluatePipePropertyAccess',
+            },
+            'RILL_R002',
+            `Field access kind '${(access as { kind: string }).kind}' not supported in this context`
           );
         }
       }
@@ -777,10 +882,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       node: PipeInvokeNode,
       _pipeInput: RillValue
     ): Promise<RillValue> {
-      throw new RuntimeError(
-        'RILL-R002',
-        'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin',
-        this.getNodeLocation(node)
+      throwFatalHostHalt(
+        {
+          location: this.getNodeLocation(node),
+          sourceId: this.ctx.sourceId,
+          fn: 'evaluateVariableInvoke',
+        },
+        'RILL_R002',
+        'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin'
       );
     }
 
@@ -790,10 +899,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       input: RillValue
     ): Promise<RillValue> {
       if (!isScriptCallable(input)) {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Cannot invoke non-closure value (got ${typeof input})`,
-          this.getNodeLocation(node)
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluatePipeInvoke',
+          },
+          'RILL_R002',
+          `Cannot invoke non-closure value (got ${typeof input})`
         );
       }
 
@@ -830,10 +943,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return this.evaluateInvoke(node, receiver);
       }
       if (isCallable(receiver)) {
-        throw new RuntimeError(
-          'RILL-R003',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateMethod',
+          },
+          'RILL_R003',
           `Method .${node.name} not available on callable (invoke with -> $() first)`,
-          this.getNodeLocation(node),
           { methodName: node.name, receiverType: 'callable' }
         );
       }
@@ -870,22 +987,20 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         try {
           const result = typeMethod.fn(methodArgs, this.ctx, callLocation);
           return result instanceof Promise ? await result : result;
-        } catch (error) {
-          if (
-            error instanceof RuntimeError &&
-            !error.location &&
-            callLocation
-          ) {
-            const span: SourceSpan = { start: callLocation, end: callLocation };
-            throw new RuntimeError(
-              error.errorId,
-              error.toData().message,
-              callLocation,
-              error.context,
-              span
+        } catch (e) {
+          // Enrichment site 3: type-method boundary (IR-4, AC-NOD-4).
+          if (e instanceof RuntimeHaltSignal) {
+            const enriched = appendTraceFrame(
+              e.value,
+              createTraceFrame({
+                site: formatCallSite(callLocation, this.ctx.sourceId),
+                kind: TRACE_KINDS.HOST,
+                fn: node.name,
+              })
             );
+            throw new RuntimeHaltSignal(enriched, e.catchable);
           }
-          throw error;
+          throw e;
         }
       }
       if (isDict(receiver)) {
@@ -908,10 +1023,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       if (isTypeValue(receiver)) {
-        throw new RuntimeError(
-          'RILL-R009',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateMethod',
+          },
+          'RILL_R009',
           `Property '${node.name}' not found on type value (available: name, signature)`,
-          this.getNodeLocation(node),
           { property: node.name, type: 'type value' }
         );
       }
@@ -923,10 +1042,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           }
         }
         if (supportedTypes.length > 0) {
-          throw new RuntimeError(
-            'RILL-R003',
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateMethod',
+            },
+            'RILL_R003',
             `Method '${node.name}' not supported on ${typeName}; supported: ${supportedTypes.join(', ')}`,
-            this.getNodeLocation(node),
             { methodName: node.name, receiverType: typeName }
           );
         }
@@ -951,34 +1074,33 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 this.getNodeLocation(node)
               );
               return result instanceof Promise ? await result : result;
-            } catch (error) {
+            } catch (e) {
+              // Enrichment site 4: fallback-method boundary (IR-4, AC-NOD-4).
               const callLocation = this.getNodeLocation(node);
-              if (
-                error instanceof RuntimeError &&
-                !error.location &&
-                callLocation
-              ) {
-                const span: SourceSpan = {
-                  start: callLocation,
-                  end: callLocation,
-                };
-                throw new RuntimeError(
-                  error.errorId,
-                  error.toData().message,
-                  callLocation,
-                  error.context,
-                  span
+              if (e instanceof RuntimeHaltSignal) {
+                const enriched = appendTraceFrame(
+                  e.value,
+                  createTraceFrame({
+                    site: formatCallSite(callLocation, this.ctx.sourceId),
+                    kind: TRACE_KINDS.HOST,
+                    fn: node.name,
+                  })
                 );
+                throw new RuntimeHaltSignal(enriched, e.catchable);
               }
-              throw error;
+              throw e;
             }
           }
         }
       }
-      throw new RuntimeError(
-        'RILL-R007',
+      throwCatchableHostHalt(
+        {
+          location: this.getNodeLocation(node),
+          sourceId: this.ctx.sourceId,
+          fn: 'evaluateMethod',
+        },
+        'RILL_R007',
         `Unknown method: ${node.name} on type ${typeName}`,
-        this.getNodeLocation(node),
         { methodName: node.name, typeName }
       );
     }
@@ -992,20 +1114,28 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         return this.invokeStream(receiver as RillStream);
       }
       if (!isCallable(receiver)) {
-        throw new RuntimeError(
-          'RILL-R002',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateInvoke',
+          },
+          'RILL_R002',
           `Cannot invoke non-callable value (got ${inferType(receiver)})`,
-          this.getNodeLocation(node),
           { actualType: inferType(receiver) }
         );
       }
 
       if (this.argumentsBinder.hasSpread(node.args)) {
         if (!isScriptCallable(receiver) && !isApplicationCallable(receiver)) {
-          throw new RuntimeError(
-            'RILL-R001',
-            `Spread not supported for built-in callable`,
-            this.getNodeLocation(node)
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateInvoke',
+            },
+            'RILL_R001',
+            'Spread not supported for built-in callable'
           );
         }
         const boundArgs = await this.argumentsBinder.bind(
@@ -1041,10 +1171,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
 
       if (isTypeValue(value)) {
-        throw new RuntimeError(
-          'RILL-R008',
-          `Annotation access not supported on type values`,
-          location,
+        throwCatchableHostHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAnnotationAccess',
+          },
+          'RILL_R008',
+          'Annotation access not supported on type values',
           { annotationKey: key }
         );
       }
@@ -1064,19 +1198,27 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (retType === undefined) return anyTypeValue;
           return structureToTypeValue(retType);
         }
-        throw new RuntimeError(
-          'RILL-R003',
+        throwCatchableHostHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAnnotationAccess',
+          },
+          'RILL_R003',
           `annotation not found: ^${key}`,
-          location,
           { actualType: 'stream' }
         );
       }
 
       if (!isCallable(value)) {
-        throw new RuntimeError(
-          'RILL-R003',
+        throwCatchableHostHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAnnotationAccess',
+          },
+          'RILL_R003',
           `annotation not found: ^${key}`,
-          location,
           { actualType: inferType(value) }
         );
       }
@@ -1104,10 +1246,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       }
       const annotationValue = value.annotations[key];
       if (annotationValue === undefined) {
-        throw new RuntimeError(
-          'RILL-R008',
+        throwCatchableHostHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateAnnotationAccess',
+          },
+          'RILL_R008',
           `Annotation '${key}' not found`,
-          location,
           { annotationKey: key }
         );
       }
@@ -1121,10 +1267,14 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       location: SourceLocation | undefined
     ): Promise<Record<string, RillValue>> {
       if (!isCallable(callable)) {
-        throw new RuntimeError(
-          'RILL-R003',
+        throwCatchableHostHalt(
+          {
+            location,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateParamsProperty',
+          },
+          'RILL_R003',
           `Cannot access .params on ${inferType(callable)}`,
-          location,
           { actualType: inferType(callable) }
         );
       }

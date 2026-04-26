@@ -42,7 +42,7 @@ import {
   checkAutoExceptions,
   checkAborted,
 } from './eval/index.js';
-import { ReturnSignal } from './signals.js';
+import { ControlSignal, ReturnSignal } from './signals.js';
 import { isExtensionThrow } from './extension-throw.js';
 import type {
   ExecutionResult,
@@ -52,10 +52,33 @@ import type {
 } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { getStatus, invalidate } from './types/status.js';
-import { atomName } from './types/atom-registry.js';
-import { RuntimeHaltSignal } from './types/halt.js';
+import { atomName, registerErrorCode } from './types/atom-registry.js';
+import { RuntimeHaltSignal, throwFatalHostHalt } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import { formatAccessSite } from './eval/mixins/access.js';
+
+// ============================================================
+// HALT-ATOM REGISTRATIONS (IC-6, Phase 2)
+// ============================================================
+//
+// Atoms for fatal host halts thrown by execute() itself (frontmatter
+// validation and script-no-value) are registered here at module load.
+// The underscore form is required by ATOM_NAME_REGEX; the hyphen form
+// (RILL-R043, RILL-R060) is the host-facing error ID in error-registry.ts.
+//
+// Idempotent: re-registering with the same kind is a no-op. Re-registering
+// with a different kind throws, which would surface at module load.
+registerErrorCode('RILL_R043', 'runtime');
+registerErrorCode('RILL_R060', 'runtime');
+// IC-5: closures.ts halt-builder migration atoms.
+registerErrorCode('RILL_R001', 'runtime');
+registerErrorCode('RILL_R005', 'runtime');
+registerErrorCode('RILL_R006', 'runtime');
+registerErrorCode('RILL_R007', 'runtime');
+registerErrorCode('RILL_R008', 'runtime');
+registerErrorCode('RILL_R009', 'runtime');
+// IC-3: control-flow.ts assert halt site.
+registerErrorCode('RILL_R015', 'runtime');
 
 /**
  * Execute a parsed Rill script.
@@ -68,32 +91,53 @@ export async function execute(
   script: ScriptNode,
   context: RuntimeContext
 ): Promise<ExecutionResult> {
-  // Guard against removed frontmatter keys
-  if (script.frontmatter) {
-    const content = script.frontmatter.content;
-    if (/(?:^|\n)\s*use\s*:/.test(content)) {
-      throw new RuntimeError(
-        'RILL-R060',
-        'Frontmatter key removed: use: frontmatter removed; use use<module:...> instead',
-        undefined,
-        { context: 'Script' }
-      );
+  try {
+    // Guard against removed frontmatter keys
+    if (script.frontmatter) {
+      const content = script.frontmatter.content;
+      if (/(?:^|\n)\s*use\s*:/.test(content)) {
+        throwFatalHostHalt(
+          {
+            location: script.frontmatter.span.start,
+            sourceId: context.sourceId,
+            fn: 'execute',
+          },
+          'RILL_R060',
+          'Frontmatter key removed: use: frontmatter removed; use use<module:...> instead'
+        );
+      }
+      if (/(?:^|\n)\s*export\s*:/.test(content)) {
+        throwFatalHostHalt(
+          {
+            location: script.frontmatter.span.start,
+            sourceId: context.sourceId,
+            fn: 'execute',
+          },
+          'RILL_R060',
+          'Frontmatter key removed: export: frontmatter removed; use last-expression result instead'
+        );
+      }
     }
-    if (/(?:^|\n)\s*export\s*:/.test(content)) {
-      throw new RuntimeError(
-        'RILL-R060',
-        'Frontmatter key removed: export: frontmatter removed; use last-expression result instead',
-        undefined,
-        { context: 'Script' }
-      );
-    }
-  }
 
-  const stepper = createStepper(script, context);
-  while (!stepper.done) {
-    await stepper.step();
+    const stepper = createStepper(script, context);
+    while (!stepper.done) {
+      await stepper.step();
+    }
+    return stepper.getResult();
+  } catch (error) {
+    // Convert fatal RuntimeHaltSignal instances that escape the stepper
+    // (frontmatter validation and getResult() no-value halts) into
+    // RuntimeError so host callers see the same err.errorId contract
+    // they observed pre-migration (AC-NOD-6).
+    if (error instanceof RuntimeHaltSignal) {
+      const converted = convertHaltToRuntimeError(
+        error,
+        script as unknown as StatementNode
+      );
+      if (converted !== undefined) throw converted;
+    }
+    throw error;
   }
-  return stepper.getResult();
 }
 
 /**
@@ -313,11 +357,10 @@ export function createStepper(
       // Empty script implicitly evaluates to $
       if (total === 0) {
         if (context.pipeValue === null) {
-          throw new RuntimeError(
-            'RILL-R043',
-            'Script produced no value',
-            undefined,
-            { context: 'Script' }
+          throwFatalHostHalt(
+            { sourceId: context.sourceId, fn: 'execute' },
+            'RILL_R043',
+            'Script produced no value'
           );
         }
         return { result: context.pipeValue };
@@ -361,14 +404,11 @@ function reshapeUnhandledThrow(
   stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode,
   ctx: RuntimeContext
 ): RillValue | undefined {
-  // Preserve control-flow signals: these are legitimate non-error flows
-  // carrying values/break/yield state through the statement boundary.
-  if (
-    error instanceof ReturnSignal ||
-    (error instanceof Error && error.name === 'RuntimeHaltSignal') ||
-    (error instanceof Error && error.name === 'BreakSignal') ||
-    (error instanceof Error && error.name === 'YieldSignal')
-  ) {
+  // Preserve control-flow signals and halt signals: these are legitimate
+  // non-error flows carrying values/break/yield/halt state through the
+  // statement boundary.  ControlSignal covers all three subclasses
+  // (BreakSignal, ReturnSignal, YieldSignal) uniformly via instanceof.
+  if (error instanceof ControlSignal || error instanceof RuntimeHaltSignal) {
     return undefined;
   }
 
@@ -470,6 +510,36 @@ function getInnerStatement(
  */
 const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
   RILL_R016: 'RILL-R016',
+  // IC-4: collections.ts halt-builder migration mappings.
+  RILL_R002: 'RILL-R002',
+  RILL_R003: 'RILL-R003',
+  RILL_R010: 'RILL-R010',
+  // IC-6: execute.ts frontmatter-validation and script-no-value halt sites.
+  RILL_R043: 'RILL-R043',
+  RILL_R060: 'RILL-R060',
+  // Phase 2 migrations: closures.ts halt sites (IC-5).
+  RILL_R001: 'RILL-R001',
+  RILL_R005: 'RILL-R005',
+  RILL_R006: 'RILL-R006',
+  RILL_R007: 'RILL-R007',
+  RILL_R008: 'RILL-R008',
+  RILL_R009: 'RILL-R009',
+  // Phase 2 migrations: control-flow.ts assert site (IC-3).
+  RILL_R015: 'RILL-R015',
+  // Evaluator-mixin migration: type-conversion and list-dispatch.
+  RILL_R036: 'RILL-R036',
+  RILL_R037: 'RILL-R037',
+  RILL_R038: 'RILL-R038',
+  RILL_R041: 'RILL-R041',
+  RILL_R042: 'RILL-R042',
+  RILL_R044: 'RILL-R044',
+  // use.ts resolver migration.
+  RILL_R054: 'RILL-R054',
+  RILL_R055: 'RILL-R055',
+  RILL_R056: 'RILL-R056',
+  RILL_R057: 'RILL-R057',
+  RILL_R058: 'RILL-R058',
+  RILL_R061: 'RILL-R061',
 };
 
 /**
@@ -493,6 +563,26 @@ const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
  * property is non-enumerable to preserve serialization shape of
  * `RuntimeError` for existing consumers that iterate own keys.
  */
+/**
+ * Parse the source identifier from a TraceFrame.site string.
+ *
+ * Sites are formatted by halt.ts:formatSite as `<sourceId>:line:col`,
+ * `<sourceId>` alone, or `"<unknown>"` / `"<script>"`. Returns `undefined`
+ * when the source is a synthetic placeholder or no real file path is present.
+ *
+ * Used by convertHaltToRuntimeError to recover the originating module's
+ * sourceId from a RuntimeHaltSignal's first trace frame so host callers see
+ * the same `err.sourceId` contract they observed pre-migration (AC-NOD-6).
+ */
+function parseSourceIdFromSite(site: string): string | undefined {
+  if (site === '<unknown>' || site === '<script>') return undefined;
+  // Strip optional ":line:column" numeric suffix (e.g. "/path/to/greet.rill:1:5")
+  const m = site.match(/^(.*?):\d+:\d+$/);
+  const sourceId = m ? m[1] : site;
+  if (sourceId === '<unknown>' || sourceId === '<script>') return undefined;
+  return sourceId;
+}
+
 function convertHaltToRuntimeError(
   signal: RuntimeHaltSignal,
   stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode
@@ -501,11 +591,23 @@ function convertHaltToRuntimeError(
   const code = atomName(status.code);
   const errorId = HALT_ATOM_TO_ERROR_ID[code];
   if (errorId === undefined) return undefined;
+
+  // Restore original context metadata: status.raw carries the message and any
+  // extra payload fields (e.g. limit/iterations for RILL_R010). Strip the
+  // message key and pass the rest as the RuntimeError context if non-empty.
+  const rawDict = status.raw as Record<string, unknown>;
+  const rest: Record<string, unknown> = {};
+  for (const key of Object.keys(rawDict)) {
+    if (key !== 'message') rest[key] = rawDict[key];
+  }
+  const context: Record<string, unknown> | undefined =
+    Object.keys(rest).length > 0 ? rest : undefined;
+
   const err = new RuntimeError(
     errorId,
     status.message,
     stmt.span.start,
-    undefined,
+    context,
     stmt.span
   );
   Object.defineProperty(err, 'haltValue', {
@@ -514,5 +616,18 @@ function convertHaltToRuntimeError(
     writable: false,
     configurable: false,
   });
+
+  // Propagate sourceId from the first trace frame's site string so host
+  // callers observe the same err.sourceId contract pre-migration (AC-NOD-6).
+  // The first frame is the origin (origin-first ordering per appendFrame).
+  const traces = status.trace;
+  if (traces.length > 0) {
+    const firstSite = traces[0]!.site;
+    const sourceId = parseSourceIdFromSite(firstSite);
+    if (sourceId !== undefined) {
+      (err as { sourceId: string }).sourceId = sourceId;
+    }
+  }
+
   return err;
 }

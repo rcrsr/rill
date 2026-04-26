@@ -13,7 +13,6 @@
  */
 
 import type { SourceLocation } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import {
@@ -27,7 +26,11 @@ import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+  throwTypeHalt,
+} from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
@@ -60,20 +63,29 @@ export async function getIterableElements(
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
-  // Vector guard [EC-6, RILL-R003]
+  // Vector guard [EC-6, RILL-R003] — catchable: user supplied wrong type
   if (isVector(input)) {
-    throw new RuntimeError(
-      'RILL-R003',
-      'Collection operators require list, string, dict, iterator, or stream, got vector',
-      node.span.start
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: ctx.sourceId,
+        fn: 'getIterableElements',
+      },
+      'RILL_R003',
+      'Collection operators require list, string, dict, iterator, or stream, got vector'
     );
   }
   // Datetime/Duration guard: these are plain objects but not iterable
+  // catchable: user supplied wrong type
   if (isDatetime(input) || isDuration(input)) {
-    throw new RuntimeError(
-      'RILL-R002',
-      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`,
-      node.span.start
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: ctx.sourceId,
+        fn: 'getIterableElements',
+      },
+      'RILL_R002',
+      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
     );
   }
   if (Array.isArray(input)) {
@@ -99,11 +111,15 @@ export async function getIterableElements(
       value: (input as Record<string, RillValue>)[key]!,
     }));
   }
-  // Non-iterable [EC-5, RILL-R002]
-  throw new RuntimeError(
-    'RILL-R002',
-    `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`,
-    node.span.start
+  // Non-iterable [EC-5, RILL-R002] — catchable: user supplied wrong type
+  throwCatchableHostHalt(
+    {
+      location: node.span.start,
+      sourceId: ctx.sourceId,
+      fn: 'getIterableElements',
+    },
+    'RILL_R002',
+    `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
   );
 }
 
@@ -137,10 +153,15 @@ async function expandIterator(
     // Invoke next() to get the next iterator
     const nextClosure = current['next'];
     if (nextClosure === undefined || !isCallable(nextClosure)) {
-      throw new RuntimeError(
-        'RILL-R002',
-        'Iterator .next must be a closure',
-        node.span.start
+      // fatal: iterator invariant violation, not user-recoverable
+      throwFatalHostHalt(
+        {
+          location: node.span.start,
+          sourceId: evaluator.ctx.sourceId,
+          fn: 'expandIterator',
+        },
+        'RILL_R002',
+        'Iterator .next must be a closure'
       );
     }
     const nextIterator = await evaluator.invokeCallable(
@@ -150,20 +171,30 @@ async function expandIterator(
       'next'
     );
     if (typeof nextIterator !== 'object' || nextIterator === null) {
-      throw new RuntimeError(
-        'RILL-R002',
-        'Iterator .next must return iterator',
-        node.span.start
+      // fatal: iterator invariant violation, not user-recoverable
+      throwFatalHostHalt(
+        {
+          location: node.span.start,
+          sourceId: evaluator.ctx.sourceId,
+          fn: 'expandIterator',
+        },
+        'RILL_R002',
+        'Iterator .next must return iterator'
       );
     }
     current = nextIterator as Record<string, RillValue>;
   }
 
   if (count >= limit) {
-    throw new RuntimeError(
-      'RILL-R010',
+    // fatal: resource limit exceeded
+    throwFatalHostHalt(
+      {
+        location: node.span.start,
+        sourceId: evaluator.ctx.sourceId,
+        fn: 'expandIterator',
+      },
+      'RILL_R010',
       `Iterator expansion exceeded ${limit} iterations`,
-      node.span.start,
       { limit, iterations: count }
     );
   }
@@ -223,10 +254,15 @@ async function expandStream(
       // Invoke next() to advance the stream
       const nextClosure = current['next'];
       if (nextClosure === undefined || !isCallable(nextClosure)) {
-        throw new RuntimeError(
-          'RILL-R002',
-          'Stream .next must be a closure',
-          node.span.start
+        // fatal: stream invariant violation, not user-recoverable
+        throwFatalHostHalt(
+          {
+            location: node.span.start,
+            sourceId: evaluator.ctx.sourceId,
+            fn: 'expandStream',
+          },
+          'RILL_R002',
+          'Stream .next must be a closure'
         );
       }
       const nextStep = await evaluator.invokeCallable(
@@ -236,10 +272,15 @@ async function expandStream(
         'next'
       );
       if (typeof nextStep !== 'object' || nextStep === null) {
-        throw new RuntimeError(
-          'RILL-R002',
-          'Stream .next must return a stream step',
-          node.span.start
+        // fatal: stream invariant violation, not user-recoverable
+        throwFatalHostHalt(
+          {
+            location: node.span.start,
+            sourceId: evaluator.ctx.sourceId,
+            fn: 'expandStream',
+          },
+          'RILL_R002',
+          'Stream .next must return a stream step'
         );
       }
       current = nextStep as RillStream;
@@ -254,14 +295,17 @@ async function expandStream(
         try {
           disposeFn();
         } catch (disposeErr) {
-          // Propagate dispose errors as RILL-R002 (EC-15)
-          if (disposeErr instanceof RuntimeError) throw disposeErr;
-          throw new RuntimeError(
-            'RILL-R002',
+          // fatal: dispose failures are not user-recoverable (EC-15)
+          throwFatalHostHalt(
+            {
+              location: node.span.start,
+              sourceId: evaluator.ctx.sourceId,
+              fn: 'expandStream',
+            },
+            'RILL_R002',
             disposeErr instanceof Error
               ? disposeErr.message
-              : String(disposeErr),
-            node.span.start
+              : String(disposeErr)
           );
         }
       }
@@ -271,10 +315,15 @@ async function expandStream(
   }
 
   if (count >= limit) {
-    throw new RuntimeError(
-      'RILL-R010',
+    // fatal: resource limit exceeded
+    throwFatalHostHalt(
+      {
+        location: node.span.start,
+        sourceId: evaluator.ctx.sourceId,
+        fn: 'expandStream',
+      },
+      'RILL_R010',
       `Stream expansion exceeded ${limit} iterations`,
-      node.span.start,
       { limit, iterations: count }
     );
   }

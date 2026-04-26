@@ -24,6 +24,7 @@
 
 import type { UseExprNode } from '../../../../types.js';
 import { RillError, RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
@@ -80,13 +81,22 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this as unknown as EvaluatorInterface
         ).evaluateVariableAsync(varNode);
         if (typeof varValue !== 'string') {
-          throw RuntimeError.fromNode(
-            'RILL-R057',
-            `use<> identifier must resolve to string, got ${typeof varValue}`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUseExpr',
+            },
+            'RILL_R057',
+            `use<> identifier must resolve to string, got ${typeof varValue}`
           );
         }
-        const parsed = parseSchemeString(varValue, node);
+        const parsed = parseSchemeString(
+          varValue,
+          node,
+          this.getNodeLocation(node),
+          this.ctx.sourceId
+        );
         scheme = parsed.scheme;
         resource = parsed.resource;
       } else {
@@ -95,13 +105,22 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this as unknown as EvaluatorInterface
         ).evaluateExpression(identifier.expression);
         if (typeof exprValue !== 'string') {
-          throw RuntimeError.fromNode(
-            'RILL-R057',
-            `use<> identifier must resolve to string, got ${typeof exprValue}`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUseExpr',
+            },
+            'RILL_R057',
+            `use<> identifier must resolve to string, got ${typeof exprValue}`
           );
         }
-        const parsed = parseSchemeString(exprValue, node);
+        const parsed = parseSchemeString(
+          exprValue,
+          node,
+          this.getNodeLocation(node),
+          this.ctx.sourceId
+        );
         scheme = parsed.scheme;
         resource = parsed.resource;
       }
@@ -109,20 +128,28 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Look up resolver
       const resolver = this.ctx.resolvers.get(scheme);
       if (!resolver) {
-        throw RuntimeError.fromNode(
-          'RILL-R054',
-          `No resolver registered for scheme '${scheme}'`,
-          node
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateUseExpr',
+          },
+          'RILL_R054',
+          `No resolver registered for scheme '${scheme}'`
         );
       }
 
       // Cycle detection: check before calling resolver
       const key = `${scheme}:${resource}`;
       if (this.ctx.resolvingSchemes.has(key)) {
-        throw RuntimeError.fromNode(
-          'RILL-R055',
-          `Circular resolution detected: ${key} is already being resolved`,
-          node
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateUseExpr',
+          },
+          'RILL_R055',
+          `Circular resolution detected: ${key} is already being resolved`
         );
       }
 
@@ -137,10 +164,14 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           result = await resolver(resource, config);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          throw RuntimeError.fromNode(
-            'RILL-R056',
-            `Resolver error for '${key}': ${message}`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUseExpr',
+            },
+            'RILL_R056',
+            `Resolver error for '${key}': ${message}`
           );
         }
 
@@ -152,10 +183,14 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // source: parse and execute in child scope
         const parseSource = this.ctx.parseSource;
         if (!parseSource) {
-          throw RuntimeError.fromNode(
-            'RILL-R061',
-            `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`,
-            node
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUseExpr',
+            },
+            'RILL_R061',
+            `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`
           );
         }
 
@@ -167,6 +202,10 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // Use the parse error's location within the resolved source, not the use<> call site
           const parseLocation =
             err instanceof RillError ? err.location : undefined;
+          // Preserve the JS-standard `.cause` chain so host callers can
+          // inspect the original parse error. Halt builders cannot carry
+          // a live `cause` through to the bridge (only raw fields), so
+          // this single wrap site keeps the RuntimeError construction.
           const wrapped =
             parseLocation !== undefined
               ? new RuntimeError(
@@ -212,19 +251,21 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 }
 
 /**
- * Parse a "scheme:resource" string, throwing RILL-R058 if ':' is absent.
+ * Parse a "scheme:resource" string, throwing RILL_R058 if ':' is absent.
  * @internal
  */
 function parseSchemeString(
   value: string,
-  node: UseExprNode
+  _node: UseExprNode,
+  location: ReturnType<EvaluatorBase['getNodeLocation']>,
+  sourceId: string | undefined
 ): { scheme: string; resource: string } {
   const colonIndex = value.indexOf(':');
   if (colonIndex === -1) {
-    throw RuntimeError.fromNode(
-      'RILL-R058',
-      `use<> identifier must contain ':' scheme separator`,
-      node
+    throwCatchableHostHalt(
+      { location, sourceId, fn: 'parseSchemeString' },
+      'RILL_R058',
+      `use<> identifier must contain ':' scheme separator`
     );
   }
   return {

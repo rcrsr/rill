@@ -19,7 +19,7 @@ import type {
   ExpressionNode,
   ListSpreadNode,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferElementType } from '../../types/operations.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -54,20 +54,28 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       // EC-15: index must be a number
       if (typeof input !== 'number') {
-        throw new RuntimeError(
-          'RILL-R041',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateListLiteralDispatch',
+          },
+          'RILL_R041',
           'list index must be an integer',
-          this.getNodeLocation(node),
           { index: input }
         );
       }
 
       // EC-15: index must be an integer (no fractional part)
       if (!Number.isInteger(input)) {
-        throw new RuntimeError(
-          'RILL-R041',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateListLiteralDispatch',
+          },
+          'RILL_R041',
           'list index must be an integer',
-          this.getNodeLocation(node),
           { index: input }
         );
       }
@@ -87,10 +95,14 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             node.defaultValue
           );
         }
-        throw new RuntimeError(
-          'RILL-R042',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateListLiteralDispatch',
+          },
+          'RILL_R042',
           `list index ${index} out of range (length: ${elements.length})`,
-          this.getNodeLocation(node),
           { n: index, m: elements.length }
         );
       }
@@ -115,10 +127,14 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           if (Array.isArray(spreadValue)) {
             result.push(...spreadValue);
           } else {
-            throw new RuntimeError(
-              'RILL-R002',
+            throwCatchableHostHalt(
+              {
+                location: spreadNode.span?.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateListLiteralElements',
+              },
+              'RILL_R002',
               `Spread in list literal requires list, got ${typeof spreadValue}`,
-              spreadNode.span?.start,
               { got: typeof spreadValue }
             );
           }

@@ -23,7 +23,7 @@ import type {
   NamedArgNode,
   SpreadArgNode,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
@@ -142,16 +142,24 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             Object.assign(result, spreadValue);
           } else if (Array.isArray(spreadValue)) {
             // Tuple/list: not valid for annotations (need named keys)
-            throw new RuntimeError(
-              'RILL-R002',
-              'Annotation spread requires dict with named keys, got list',
-              spreadArg.span.start
+            throwCatchableHostHalt(
+              {
+                location: spreadArg.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateAnnotations',
+              },
+              'RILL_R002',
+              'Annotation spread requires dict with named keys, got list'
             );
           } else {
-            throw new RuntimeError(
-              'RILL-R002',
-              `Annotation spread requires dict, got ${typeof spreadValue}`,
-              spreadArg.span.start
+            throwCatchableHostHalt(
+              {
+                location: spreadArg.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateAnnotations',
+              },
+              'RILL_R002',
+              `Annotation spread requires dict, got ${typeof spreadValue}`
             );
           }
         }

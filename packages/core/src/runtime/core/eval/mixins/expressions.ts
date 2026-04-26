@@ -24,7 +24,7 @@ import type {
   GroupedExprNode,
   ArithHead,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTruthy } from '../../values.js';
@@ -179,10 +179,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         resolvedLeft = resolvedLeftRaw;
       }
       if (typeof resolvedLeft !== 'number') {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Arithmetic requires number, got ${inferType(resolvedLeft)}`,
-          node.left.span.start
+        throwCatchableHostHalt(
+          {
+            location: node.left.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateArithmetic',
+          },
+          'RILL_R002',
+          `Arithmetic requires number, got ${inferType(resolvedLeft)}`
         );
       }
       const left = resolvedLeft;
@@ -206,10 +210,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         resolvedRight = resolvedRightRaw;
       }
       if (typeof resolvedRight !== 'number') {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Arithmetic requires number, got ${inferType(resolvedRight)}`,
-          node.right.span.start
+        throwCatchableHostHalt(
+          {
+            location: node.right.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateArithmetic',
+          },
+          'RILL_R002',
+          `Arithmetic requires number, got ${inferType(resolvedRight)}`
         );
       }
       const right = resolvedRight;
@@ -223,19 +231,27 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           return left * right;
         case '/':
           if (right === 0) {
-            throw new RuntimeError(
-              'RILL-R002',
-              'Division by zero',
-              node.span.start
+            throwCatchableHostHalt(
+              {
+                location: node.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateArithmetic',
+              },
+              'RILL_R002',
+              'Division by zero'
             );
           }
           return left / right;
         case '%':
           if (right === 0) {
-            throw new RuntimeError(
-              'RILL-R002',
-              'Modulo by zero',
-              node.span.start
+            throwCatchableHostHalt(
+              {
+                location: node.span.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateArithmetic',
+              },
+              'RILL_R002',
+              'Modulo by zero'
             );
           }
           return left % right;
@@ -262,10 +278,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       if (op === '==' || op === '!=') {
         if (!reg || !reg.protocol.eq) {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Cannot compare ${typeName} using ${op}`,
-            node.span.start
+          throwCatchableHostHalt(
+            {
+              location: node.span.start,
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateBinaryComparison',
+            },
+            'RILL_R002',
+            `Cannot compare ${typeName} using ${op}`
           );
         }
         const eqResult = reg.protocol.eq(left, right);
@@ -275,10 +295,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Ordering ops: <, >, <=, >=
       const rightTypeName = inferType(right);
       if (!reg || !reg.protocol.compare || typeName !== rightTypeName) {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Cannot compare ${typeName} with ${rightTypeName} using ${op}`,
-          node.span.start
+        throwCatchableHostHalt(
+          {
+            location: node.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateBinaryComparison',
+          },
+          'RILL_R002',
+          `Cannot compare ${typeName} with ${rightTypeName} using ${op}`
         );
       }
       const cmp = reg.protocol.compare(left, right);
@@ -303,10 +327,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         const rawValue = await this.evaluateExprHead(node.operand);
         const value = await this.resolveExpressionValue(rawValue);
         if (typeof value !== 'boolean') {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Negation operator (!) requires boolean operand, got ${inferType(value)}`,
-            node.span.start
+          throwCatchableHostHalt(
+            {
+              location: node.span.start,
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUnaryExpr',
+            },
+            'RILL_R002',
+            `Negation operator (!) requires boolean operand, got ${inferType(value)}`
           );
         }
         return !value;
@@ -317,10 +345,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (operand.type === 'UnaryExpr') {
         const inner = await this.evaluateUnaryExpr(operand);
         if (typeof inner !== 'number') {
-          throw new RuntimeError(
-            'RILL-R002',
-            `Arithmetic requires number, got ${inferType(inner)}`,
-            node.span.start
+          throwCatchableHostHalt(
+            {
+              location: node.span.start,
+              sourceId: this.ctx.sourceId,
+              fn: 'evaluateUnaryExpr',
+            },
+            'RILL_R002',
+            `Arithmetic requires number, got ${inferType(inner)}`
           );
         }
         return -inner;
@@ -328,10 +360,14 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const rawValue = await this.evaluateExprHead(operand);
       const value = await this.resolveExpressionValue(rawValue);
       if (typeof value !== 'number') {
-        throw new RuntimeError(
-          'RILL-R002',
-          `Arithmetic requires number, got ${inferType(value)}`,
-          node.span.start
+        throwCatchableHostHalt(
+          {
+            location: node.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateUnaryExpr',
+          },
+          'RILL_R002',
+          `Arithmetic requires number, got ${inferType(value)}`
         );
       }
       return -value;

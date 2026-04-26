@@ -155,6 +155,7 @@ export { buildFieldDescriptor } from './runtime/core/field-descriptor.js';
 
 export {
   BreakSignal,
+  ControlSignal,
   ReturnSignal,
   YieldSignal,
 } from './runtime/core/signals.js';

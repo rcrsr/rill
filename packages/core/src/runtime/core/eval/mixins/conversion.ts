@@ -25,7 +25,7 @@
  */
 
 import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import type {
   RillValue,
   TypeStructure,
@@ -149,19 +149,27 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       // IR-11: :>stream is not supported — stream type cannot be a conversion target
       if (targetType === 'stream') {
-        throw new RuntimeError(
-          'RILL-R003',
-          'Type conversion not supported for stream type',
-          this.getNodeLocation(node)
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertType',
+          },
+          'RILL_R003',
+          'Type conversion not supported for stream type'
         );
       }
 
       // dict -> :>ordered without structural sig is always RILL-R037 (EC-11)
       if (sourceType === 'dict' && targetType === 'ordered') {
-        throw new RuntimeError(
-          'RILL-R037',
-          'dict to ordered conversion requires structural type signature',
-          this.getNodeLocation(node)
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertType',
+          },
+          'RILL_R037',
+          'dict to ordered conversion requires structural type signature'
         );
       }
 
@@ -170,10 +178,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const converter = reg?.protocol.convertTo?.[targetType];
 
       if (!converter) {
-        throw new RuntimeError(
-          'RILL-R036',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertType',
+          },
+          'RILL_R036',
           `cannot convert ${sourceType} to ${targetType}`,
-          this.getNodeLocation(node),
           { source: sourceType, target: targetType }
         );
       }
@@ -188,20 +200,28 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Preserve the protocol's detailed message (includes unparseable value).
         if (sourceType === 'string' && targetType === 'number') {
           const message = err instanceof Error ? err.message : String(err);
-          throw new RuntimeError(
-            'RILL-R038',
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'convertType',
+            },
+            'RILL_R038',
             message,
-            this.getNodeLocation(node),
             { value: input }
           );
         }
 
         // All other conversion failures use RILL-R036 (EC-10)
         // Use consistent "cannot convert X to Y" format.
-        throw new RuntimeError(
-          'RILL-R036',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertType',
+          },
+          'RILL_R036',
           `cannot convert ${sourceType} to ${targetType}`,
-          this.getNodeLocation(node),
           { source: sourceType, target: targetType }
         );
       }
@@ -227,10 +247,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else if (isDict(input)) {
         dictInput = input as Record<string, RillValue>;
       } else {
-        throw new RuntimeError(
-          'RILL-R036',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertToOrderedWithSig',
+          },
+          'RILL_R036',
           `cannot convert ${inferType(input)} to ordered`,
-          this.getNodeLocation(node),
           { source: inferType(input), target: 'ordered' }
         );
       }
@@ -271,10 +295,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             this.hydrateNested(emptyForType(field.type), field.type, node),
           ]);
         } else {
-          throw new RuntimeError(
-            'RILL-R044',
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'convertToOrderedWithSig',
+            },
+            'RILL_R044',
             `cannot convert ${sourceType} to ordered: missing required field '${fieldName}'`,
-            this.getNodeLocation(node),
             { source: sourceType, target: 'ordered' }
           );
         }
@@ -304,10 +332,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } else if (isDict(input)) {
         dictInput = input as Record<string, RillValue>;
       } else {
-        throw new RuntimeError(
-          'RILL-R036',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertToDictWithSig',
+          },
+          'RILL_R036',
           `cannot convert ${inferType(input)} to dict`,
-          this.getNodeLocation(node),
           { source: inferType(input), target: 'dict' }
         );
       }
@@ -368,10 +400,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               node
             );
           } else {
-            throw new RuntimeError(
-              'RILL-R044',
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'convertToDictWithSig',
+              },
+              'RILL_R044',
               `cannot convert ${sourceType} to dict: missing required field '${fieldName}'`,
-              this.getNodeLocation(node),
               { source: sourceType, target: 'dict' }
             );
           }
@@ -399,10 +435,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const isListInput =
         Array.isArray(input) && !isTupleInput && !isOrdered(input);
       if (!isTupleInput && !isListInput) {
-        throw new RuntimeError(
-          'RILL-R036',
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'convertToTupleWithSig',
+          },
+          'RILL_R036',
           `cannot convert ${inferType(input)} to tuple`,
-          this.getNodeLocation(node),
           { source: inferType(input), target: 'tuple' }
         );
       }
@@ -449,10 +489,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           );
         } else {
           // Missing element without default
-          throw new RuntimeError(
-            'RILL-R044',
+          throwCatchableHostHalt(
+            {
+              location: this.getNodeLocation(node),
+              sourceId: this.ctx.sourceId,
+              fn: 'convertToTupleWithSig',
+            },
+            'RILL_R044',
             `cannot convert ${inferType(input)} to tuple: missing required element at position ${i}`,
-            this.getNodeLocation(node),
             { source: inferType(input), target: 'tuple' }
           );
         }
@@ -501,10 +545,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 node
               );
             } else {
-              throw new RuntimeError(
-                'RILL-R044',
+              throwCatchableHostHalt(
+                {
+                  location: this.getNodeLocation(node),
+                  sourceId: this.ctx.sourceId,
+                  fn: 'hydrateNested',
+                },
+                'RILL_R044',
                 `cannot convert dict to dict: missing required field '${fieldName}'`,
-                this.getNodeLocation(node),
                 { source: 'dict', target: 'dict' }
               );
             }
@@ -552,10 +600,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               this.hydrateNested(emptyForType(field.type), field.type, node),
             ]);
           } else {
-            throw new RuntimeError(
-              'RILL-R044',
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'hydrateNested',
+              },
+              'RILL_R044',
               `cannot convert ${source} to ordered: missing required field '${name}'`,
-              this.getNodeLocation(node),
               { source, target: 'ordered' }
             );
           }
@@ -594,10 +646,14 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               this.hydrateNested(emptyForType(element.type), element.type, node)
             );
           } else {
-            throw new RuntimeError(
-              'RILL-R044',
+            throwCatchableHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'hydrateNested',
+              },
+              'RILL_R044',
               `cannot convert tuple to tuple: missing required element at position ${i}`,
-              this.getNodeLocation(node),
               { source: 'tuple', target: 'tuple' }
             );
           }

@@ -186,6 +186,25 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   // ATOM_NAME_REGEX. Host-facing error ID `RILL-R015`/`RILL-R016`
   // (hyphen form) is a separate string namespace in error-registry.ts.
   ['RILL_R016', 'runtime'],
+  // IC-4: collections.ts halt-builder migration atoms. Underscore form
+  // per ATOM_NAME_REGEX. Host-facing IDs use hyphen form (RILL-Rxxx).
+  ['RILL_R002', 'runtime'],
+  ['RILL_R003', 'runtime'],
+  ['RILL_R010', 'runtime'],
+  // Evaluator-mixin migration: type-conversion and list-dispatch atoms.
+  ['RILL_R036', 'runtime'],
+  ['RILL_R037', 'runtime'],
+  ['RILL_R038', 'runtime'],
+  ['RILL_R041', 'runtime'],
+  ['RILL_R042', 'runtime'],
+  ['RILL_R044', 'runtime'],
+  // use.ts resolver atoms.
+  ['RILL_R054', 'runtime'],
+  ['RILL_R055', 'runtime'],
+  ['RILL_R056', 'runtime'],
+  ['RILL_R057', 'runtime'],
+  ['RILL_R058', 'runtime'],
+  ['RILL_R061', 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {

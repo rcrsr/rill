@@ -4,8 +4,8 @@
  * Owns the stream lifecycle for script-defined stream closures:
  * - Stream creation from a ScriptCallable with a stream return type
  * - Scope-level stream tracking for disposal on scope exit (IR-14)
- * - Dispose error propagation: RuntimeError re-thrown directly; other errors
- *   wrapped as RILL-R002 (IR-14 fix, EC-9/EC-10)
+ * - Dispose error propagation: halt and control signals re-thrown directly;
+ *   other errors wrapped as catchable RILL_R002 halts (IR-14 fix, EC-9/EC-10)
  *
  * Methods added:
  * - invokeStreamClosure(closure, args, location) -> Promise<RillStream>  [IR-7]
@@ -25,7 +25,8 @@
 
 import type { SourceLocation, BlockNode } from '../../../../types.js';
 import type { EvaluatorInterface } from '../interface.js';
-import { RuntimeError } from '../../../../types.js';
+import { ControlSignal } from '../../signals.js';
+import { RuntimeHaltSignal } from '../../types/halt.js';
 import type { ScriptCallable } from '../../callable.js';
 import { marshalArgs } from '../../callable.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -38,7 +39,7 @@ import { inferType } from '../../types/registrations.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { createRillStream } from '../../types/constructors.js';
 import { ReturnSignal } from '../../signals.js';
-import { throwTypeHalt } from '../../types/halt.js';
+import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvaluator } from '../evaluator.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -235,10 +236,10 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
     /**
      * Dispose a list of unconsumed streams in reverse creation order (IR-14).
-     * Propagates dispose errors as RILL-R002 — does not swallow.
+     * Propagates dispose errors as RILL_R002 — does not swallow.
      *
-     * RuntimeError instances are re-thrown directly (IR-14 fix, EC-10).
-     * Non-RuntimeError errors are wrapped as RILL-R002 (EC-9).
+     * Halt and control signals are re-thrown directly (IR-14 fix, EC-10).
+     * Other errors are wrapped as a catchable host halt (RILL_R002, EC-9).
      *
      * Idempotent on empty arrays and repeated calls after stack drain.
      */
@@ -255,9 +256,15 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             disposeFn();
           } catch (err) {
             // Propagate dispose errors — do not swallow (IR-14)
-            if (err instanceof RuntimeError) throw err;
-            throw new RuntimeError(
-              'RILL-R002',
+            if (
+              err instanceof RuntimeHaltSignal ||
+              err instanceof ControlSignal
+            ) {
+              throw err;
+            }
+            throwCatchableHostHalt(
+              { sourceId: this.ctx.sourceId, fn: 'disposeStreams' },
+              'RILL_R002',
               err instanceof Error ? err.message : String(err)
             );
           }
