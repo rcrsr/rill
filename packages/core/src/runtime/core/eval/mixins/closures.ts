@@ -12,12 +12,13 @@ import type {
   PipeInvokeNode,
   VariableNode,
   SourceLocation,
+  SourceSpan,
   ExpressionNode,
   SpreadArgNode,
   BlockNode,
   RillTypeName,
 } from '../../../../types.js';
-import { RillError } from '../../../../types.js';
+import { RillError, RuntimeError } from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
@@ -270,7 +271,8 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       } catch (e) {
         // Enrichment site 1: extension-dispatch boundary (IR-4, AC-NOD-4).
         // Tag every thrown value as extension-originated first, then enrich
-        // RuntimeHaltSignal payloads with a host-kind trace frame.
+        // either RuntimeHaltSignal payloads or unmigrated RuntimeError sites
+        // with call-site metadata.
         markExtensionThrow(e);
         if (e instanceof RuntimeHaltSignal) {
           const enriched = appendTraceFrame(
@@ -284,6 +286,22 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
           markExtensionThrow(newSignal);
           throw newSignal;
+        }
+        if (e instanceof RuntimeError && !e.location && callLocation) {
+          // Extensions that throw RuntimeError without a location lose call-site
+          // attribution at the host boundary. Rewrap with the call-site span so
+          // host-visible error metadata stays consistent across migrated and
+          // unmigrated throw sites.
+          const span: SourceSpan = { start: callLocation, end: callLocation };
+          const enriched = new RuntimeError(
+            e.errorId,
+            e.toData().message,
+            callLocation,
+            e.context,
+            span
+          );
+          markExtensionThrow(enriched);
+          throw enriched;
         }
         throw e;
       }

@@ -118,7 +118,8 @@ export class ArgumentsBinder {
     callable: RillCallable,
     _pipeInput: RillValue | undefined,
     evaluate: (node: ExpressionNode) => Promise<RillValue>,
-    location: SourceLocation
+    location: SourceLocation,
+    sourceId?: string
   ): Promise<BoundArguments> {
     // AC-14: zero args — return sentinel with no allocation
     if (args.length === 0) {
@@ -139,7 +140,7 @@ export class ArgumentsBinder {
     ) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
-        { location, fn: 'bind' },
+        { location, sourceId, fn: 'bind' },
         'RILL_R001',
         `Spread not supported for host function '${name}': parameter metadata required`
       );
@@ -155,7 +156,7 @@ export class ArgumentsBinder {
     if (isUntypedBuiltin) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
-        { location, fn: 'bind' },
+        { location, sourceId, fn: 'bind' },
         'RILL_R001',
         `Spread not supported for built-in function '${name}'`
       );
@@ -175,7 +176,7 @@ export class ArgumentsBinder {
           // EC-2: extra positional arg beyond param count.
           // Message matches closures.ts:1893 verbatim.
           throwCatchableHostHalt(
-            { location, fn: 'bind' },
+            { location, sourceId, fn: 'bind' },
             'RILL_R001',
             `Extra positional argument at position ${positionalIndex} (function has ${params.length} parameters)`
           );
@@ -191,7 +192,7 @@ export class ArgumentsBinder {
         // Message matches closures.ts:1912 verbatim.
         if (spreadValue === null) {
           throwCatchableHostHalt(
-            { location, fn: 'bind' },
+            { location, sourceId, fn: 'bind' },
             'RILL_R001',
             'Spread requires an active pipe value ($)'
           );
@@ -204,7 +205,7 @@ export class ArgumentsBinder {
           const remaining = params.length - positionalIndex;
           if (tupleEntries.length > remaining) {
             throwCatchableHostHalt(
-              { location, fn: 'bind' },
+              { location, sourceId, fn: 'bind' },
               'RILL_R001',
               `Spread tuple has ${tupleEntries.length} values but only ${remaining} parameter(s) remain`
             );
@@ -214,7 +215,7 @@ export class ArgumentsBinder {
             // EC-7: duplicate binding
             if (bound.has(param.name)) {
               throwCatchableHostHalt(
-                { location, fn: 'bind' },
+                { location, sourceId, fn: 'bind' },
                 'RILL_R001',
                 `Duplicate binding for parameter '${param.name}': already bound positionally`
               );
@@ -232,7 +233,7 @@ export class ArgumentsBinder {
             if (expectedParam === undefined || expectedParam.name !== key) {
               const expectedName = expectedParam?.name ?? '<none>';
               throwCatchableHostHalt(
-                { location, fn: 'bind' },
+                { location, sourceId, fn: 'bind' },
                 'RILL_R001',
                 `Ordered spread key '${key}' at position ${i} does not match expected parameter '${expectedName}' at position ${positionalIndex + i}`
               );
@@ -240,7 +241,7 @@ export class ArgumentsBinder {
             // EC-7: duplicate binding
             if (bound.has(key)) {
               throwCatchableHostHalt(
-                { location, fn: 'bind' },
+                { location, sourceId, fn: 'bind' },
                 'RILL_R001',
                 `Duplicate binding for parameter '${key}': already bound positionally`
               );
@@ -257,7 +258,7 @@ export class ArgumentsBinder {
             if (!paramNames.has(key)) {
               const validParams = params.map((p) => p.name).join(', ');
               throwCatchableHostHalt(
-                { location, fn: 'bind' },
+                { location, sourceId, fn: 'bind' },
                 'RILL_R001',
                 `Dict spread key '${key}' does not match any parameter. Valid parameters: ${validParams}`
               );
@@ -265,7 +266,7 @@ export class ArgumentsBinder {
             // EC-7: duplicate binding
             if (bound.has(key)) {
               throwCatchableHostHalt(
-                { location, fn: 'bind' },
+                { location, sourceId, fn: 'bind' },
                 'RILL_R001',
                 `Duplicate binding for parameter '${key}': already bound positionally`
               );
@@ -276,7 +277,7 @@ export class ArgumentsBinder {
           // EC-4: spread value is not tuple/dict/ordered
           const actualType = inferType(spreadValue);
           throwCatchableHostHalt(
-            { location, fn: 'bind' },
+            { location, sourceId, fn: 'bind' },
             'RILL_R001',
             `Spread requires a tuple, dict, or ordered value, got ${actualType}`
           );

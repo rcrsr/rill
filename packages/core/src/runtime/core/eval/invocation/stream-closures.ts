@@ -39,7 +39,7 @@ import { inferType } from '../../types/registrations.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { createRillStream } from '../../types/constructors.js';
 import { ReturnSignal } from '../../signals.js';
-import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
+import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvaluator } from '../evaluator.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
@@ -239,7 +239,9 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Propagates dispose errors as RILL_R002 — does not swallow.
      *
      * Halt and control signals are re-thrown directly (IR-14 fix, EC-10).
-     * Other errors are wrapped as a catchable host halt (RILL_R002, EC-9).
+     * Other errors are wrapped as a fatal host halt (RILL_R002, EC-9): dispose
+     * failures are not user-recoverable and must not be swallowed by guard/retry,
+     * matching the lifecycle policy in collections.ts:expandStream.
      *
      * Idempotent on empty arrays and repeated calls after stack drain.
      */
@@ -262,7 +264,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             ) {
               throw err;
             }
-            throwCatchableHostHalt(
+            throwFatalHostHalt(
               { sourceId: this.ctx.sourceId, fn: 'disposeStreams' },
               'RILL_R002',
               err instanceof Error ? err.message : String(err)

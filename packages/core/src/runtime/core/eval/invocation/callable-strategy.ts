@@ -89,7 +89,7 @@ export class CallableInvocationStrategy {
   validate(target: RillCallable, path: string, location: SourceLocation): void {
     if (!isCallable(target as RillValue)) {
       throwCatchableHostHalt(
-        { location, fn: 'validate' },
+        { location, sourceId: this.getCtx().sourceId, fn: 'validate' },
         'RILL_R001',
         `'${path}' is not callable`,
         { path }
@@ -114,7 +114,14 @@ export class CallableInvocationStrategy {
     evaluate: (node: ExpressionNode) => Promise<RillValue>,
     location: SourceLocation
   ): Promise<BoundArguments> {
-    return this.binder.bind(args, callable, pipeInput, evaluate, location);
+    return this.binder.bind(
+      args,
+      callable,
+      pipeInput,
+      evaluate,
+      location,
+      this.getCtx().sourceId
+    );
   }
 
   // ============================================================
