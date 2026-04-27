@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-04-26
+
 ### Breaking Changes
 
 - **`retry` syntax now requires `limit:` named argument** — `retry<N>` is a parse error; use `retry<limit: N>`. Likewise `retry<N, on: list[...]>` becomes `retry<limit: N, on: list[...]>`.
