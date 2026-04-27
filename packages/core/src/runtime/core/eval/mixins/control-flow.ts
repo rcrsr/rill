@@ -46,6 +46,7 @@ import {
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * ControlFlowMixin implementation.
@@ -102,7 +103,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateConditional',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Conditional expression must be boolean, got ${inferType(conditionValue)}`
           );
         }
@@ -117,7 +118,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateConditional',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Piped conditional requires boolean, got ${inferType(this.ctx.pipeValue)}`
           );
         }
@@ -195,7 +196,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateWhileLoop',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `While loop condition must be boolean, got ${typeof conditionValue}`
         );
       }
@@ -224,7 +225,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateWhileLoop',
               },
-              'RILL_R010',
+              ERROR_ATOMS[ERROR_IDS.RILL_R010],
               `While loop exceeded ${maxIter} iterations`,
               { limit: maxIter, iterations: iterCount }
             );
@@ -256,7 +257,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateWhileLoop',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `While loop condition must be boolean, got ${typeof nextCondition}`
             );
           }
@@ -315,7 +316,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDoWhileLoop',
               },
-              'RILL_R010',
+              ERROR_ATOMS[ERROR_IDS.RILL_R010],
               `Do-while loop exceeded ${maxIter} iterations`,
               { limit: maxIter, iterations: iterCount }
             );
@@ -346,7 +347,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDoWhileLoop',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Do-while condition must be boolean, got ${inferType(conditionValue)}`
             );
           }
@@ -475,7 +476,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAssert',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `assert requires boolean condition, got ${inferType(conditionResult)}`
         );
       }
@@ -500,7 +501,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAssert',
           },
-          'RILL_R015',
+          ERROR_ATOMS[ERROR_IDS.RILL_R015],
           errorMessage
         );
       }
@@ -551,7 +552,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateError',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'error statement requires string message'
         );
       }
@@ -564,7 +565,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateError',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `error statement requires string message, got ${inferType(messageValue)}`
         );
       }

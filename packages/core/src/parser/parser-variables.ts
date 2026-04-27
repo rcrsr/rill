@@ -22,6 +22,7 @@ import {
 } from './state.js';
 import { isMethodCallWithArgs } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -140,7 +141,7 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
         this.state,
         TOKEN_TYPES.RBRACKET,
         'Expected ] after index expression',
-        'RILL-P005'
+        ERROR_IDS.RILL_P005
       );
       const span = makeSpan(openBracket.span.start, closeBracket.span.end);
       accessChain.push({ accessKind: 'bracket', expression, span });
@@ -242,7 +243,7 @@ Parser.prototype.parseComputedOrAlternatives = function (
         this.state,
         TOKEN_TYPES.RPAREN,
         'Expected ) after alternatives',
-        'RILL-P005'
+        ERROR_IDS.RILL_P005
       );
       return { kind: 'alternatives', alternatives };
     }
@@ -253,7 +254,7 @@ Parser.prototype.parseComputedOrAlternatives = function (
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected ) after expression',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
   return { kind: 'computed', expression };
 };

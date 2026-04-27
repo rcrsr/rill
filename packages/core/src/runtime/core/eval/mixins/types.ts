@@ -53,6 +53,7 @@ import { getVariable } from '../../context.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * TypesMixin implementation.
@@ -525,7 +526,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (result === undefined) {
         throwCatchableHostHalt(
           { sourceId: this.ctx.sourceId, fn: 'resolveTypeRef' },
-          'RILL_R005',
+          ERROR_ATOMS[ERROR_IDS.RILL_R005],
           `Variable $${typeRef.varName} is not defined`
         );
       }

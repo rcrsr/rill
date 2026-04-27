@@ -18,6 +18,7 @@ import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
 import { formatStructure } from '../core/types/operations.js';
 import { RuntimeError } from '../../types.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 // ============================================================
 // ERROR CLASS
@@ -137,7 +138,7 @@ function createExtModuleResolver(bindingSource: string): SchemeResolver {
     if (resource === 'ext') {
       return { kind: 'source', text: bindingSource, sourceId: 'module:ext' };
     }
-    throw new RuntimeError('RILL-R076', `Unknown module '${resource}'`);
+    throw new RuntimeError(ERROR_IDS.RILL_R076, `Unknown module '${resource}'`);
   };
 }
 

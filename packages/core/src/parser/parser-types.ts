@@ -23,6 +23,7 @@ import {
   skipNewlines,
 } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 /**
  * Parse a type reference from the current position in the token stream.
@@ -93,7 +94,7 @@ export function parseTypeRef(
       // Dangling pipe followed by an unrecognized identifier: RILL-P011.
       advance(state); // consume "|"
       throw new ParseError(
-        'RILL-P011',
+        ERROR_IDS.RILL_P011,
         "Expected type name after '|'",
         current(state).span.start
       );
@@ -108,7 +109,7 @@ export function parseTypeRef(
       // In non-closure contexts, a dangling "|" with no following type is an error.
       advance(state); // consume "|"
       throw new ParseError(
-        'RILL-P011',
+        ERROR_IDS.RILL_P011,
         "Expected type name after '|'",
         current(state).span.start
       );
@@ -253,7 +254,7 @@ export function parseFieldArgList(
       advance(state); // consume ^
       expect(state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
       const block = opts.parseAnnotations();
-      expect(state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+      expect(state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
       skipNewlines(state);
 
       if (!annotations) {
@@ -265,7 +266,7 @@ export function parseFieldArgList(
       // Guard: annotation must be followed by a field
       if (check(state, TOKEN_TYPES.RPAREN)) {
         throw new ParseError(
-          'RILL-P014',
+          ERROR_IDS.RILL_P014,
           'Expected field after annotation',
           current(state).span.start
         );
@@ -320,7 +321,7 @@ export function parseFieldArgList(
     } else if (!check(state, TOKEN_TYPES.RPAREN)) {
       // Neither comma nor closing paren — malformed arg list (EC-1)
       throw new ParseError(
-        'RILL-P014',
+        ERROR_IDS.RILL_P014,
         "Expected ',' or ')' in type argument list",
         current(state).span.start
       );
@@ -330,7 +331,7 @@ export function parseFieldArgList(
   // Verify closing ")" is present (EC-2)
   if (!check(state, TOKEN_TYPES.RPAREN)) {
     throw new ParseError(
-      'RILL-P014',
+      ERROR_IDS.RILL_P014,
       "Expected ')' to close type argument list",
       current(state).span.start
     );

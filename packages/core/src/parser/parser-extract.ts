@@ -16,6 +16,7 @@ import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan } from './state.js';
 import { isDictStart, isNegativeNumber } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -46,7 +47,7 @@ Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.GT, 'Expected >', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.GT, 'Expected >', ERROR_IDS.RILL_P005);
 
   return {
     type: 'Destructure',
@@ -162,7 +163,7 @@ Parser.prototype.parseDestructTarget = function (this: Parser): DestructNode {
     this.state,
     TOKEN_TYPES.GT,
     "expected '>' to close destruct form",
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -183,7 +184,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
   // EC-8: slice<> with no ':' separator is an error
   if (check(this.state, TOKEN_TYPES.GT)) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       "slice requires at least one ':' separator",
       current(this.state).span.start
     );
@@ -206,7 +207,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
 
     if (!check(this.state, TOKEN_TYPES.COLON)) {
       throw new ParseError(
-        'RILL-P001',
+        ERROR_IDS.RILL_P001,
         "slice requires at least one ':' separator",
         current(this.state).span.start
       );
@@ -233,7 +234,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
     this.state,
     TOKEN_TYPES.GT,
     "expected '>' to close slice form",
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -275,7 +276,7 @@ Parser.prototype.parseSliceBound = function (this: Parser): SliceBoundNode {
   }
 
   throw new ParseError(
-    'RILL-P001',
+    ERROR_IDS.RILL_P001,
     `Expected slice bound (number, variable, or grouped expression), got: ${current(this.state).value}`,
     current(this.state).span.start
   );

@@ -420,6 +420,26 @@ export type BinaryOp =
   | '>='; // comparison
 
 /**
+ * Named constants for the {@link BinaryOp} string literals so parser and
+ * runtime sites reference symbols instead of repeating operator characters.
+ */
+export const BINARY_OPS = {
+  ADD: '+',
+  SUB: '-',
+  MUL: '*',
+  DIV: '/',
+  MOD: '%',
+  AND: '&&',
+  OR: '||',
+  EQ: '==',
+  NE: '!=',
+  LT: '<',
+  GT: '>',
+  LE: '<=',
+  GE: '>=',
+} as const satisfies Record<string, BinaryOp>;
+
+/**
  * Expression head types for binary/unary expressions.
  * Includes arithmetic (+, -, *, /, %) and logical (&&, ||, !) operators.
  */
@@ -903,7 +923,7 @@ export interface TypeNameExprNode extends BaseNode {
  */
 export interface ListLiteralNode extends BaseNode {
   readonly type: 'ListLiteral';
-  readonly elements: ExpressionNode[];
+  readonly elements: (ExpressionNode | ListSpreadNode)[];
   readonly defaultValue: BodyNode | null;
 }
 
@@ -930,7 +950,7 @@ export interface DictLiteralNode extends BaseNode {
  */
 export interface TupleLiteralNode extends BaseNode {
   readonly type: 'TupleLiteral';
-  readonly elements: ExpressionNode[];
+  readonly elements: (ExpressionNode | ListSpreadNode)[];
 }
 
 /**

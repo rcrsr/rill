@@ -29,6 +29,7 @@ import {
   type ApplicationCallable,
   type RillParam,
 } from './callable.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 /**
  * Maximum time (ms) `dispose()` waits for in-flight operations before
@@ -281,6 +282,8 @@ function deriveUnvalidatedMethodReceivers(
 }
 
 // Module-level caches: parse signatures once at load time, not per context creation.
+// Contract: BUILTIN_FUNCTIONS is treated as frozen after module initialization.
+// Mutating BUILTIN_FUNCTIONS after load produces stale cache entries.
 
 type BuiltinFnEntry = {
   appCallable: import('./callable.js').ApplicationCallable;
@@ -370,7 +373,7 @@ export function createRuntimeContext(
           description.trim().length === 0
         ) {
           throw new RuntimeError(
-            'RILL-R069',
+            ERROR_IDS.RILL_R069,
             `Function '${name}' requires description (requireDescriptions enabled)`
           );
         }
@@ -384,7 +387,7 @@ export function createRuntimeContext(
             paramDesc.trim().length === 0
           ) {
             throw new RuntimeError(
-              'RILL-R070',
+              ERROR_IDS.RILL_R070,
               `Parameter '${param.name}' of function '${name}' requires description (requireDescriptions enabled)`
             );
           }
@@ -414,7 +417,7 @@ export function createRuntimeContext(
         autoExceptions.push(new RegExp(pattern));
       } catch {
         throw new RuntimeError(
-          'RILL-R011',
+          ERROR_IDS.RILL_R011,
           `Invalid autoException pattern: ${pattern}`,
           undefined,
           { pattern }
@@ -437,7 +440,7 @@ export function createRuntimeContext(
   for (const reg of BUILT_IN_TYPES) {
     if (seenTypeNames.has(reg.name)) {
       throw new RuntimeError(
-        'RILL-R071',
+        ERROR_IDS.RILL_R071,
         `Duplicate type registration '${reg.name}'`
       );
     }
@@ -448,7 +451,7 @@ export function createRuntimeContext(
   for (const reg of BUILT_IN_TYPES) {
     if (!reg.protocol.format) {
       throw new RuntimeError(
-        'RILL-R072',
+        ERROR_IDS.RILL_R072,
         `Type '${reg.name}' missing required format protocol`
       );
     }
@@ -489,7 +492,7 @@ export function createRuntimeContext(
     for (const [name, fn] of Object.entries(methods)) {
       if (seen.has(name)) {
         throw new RuntimeError(
-          'RILL-R073',
+          ERROR_IDS.RILL_R073,
           `Duplicate method '${name}' on type '${reg.name}'`
         );
       }

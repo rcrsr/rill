@@ -53,6 +53,7 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import type { RillTypeName } from '../../../../types.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * ConversionMixin implementation.
@@ -155,7 +156,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertType',
           },
-          'RILL_R003',
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
           'Type conversion not supported for stream type'
         );
       }
@@ -168,7 +169,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertType',
           },
-          'RILL_R037',
+          ERROR_ATOMS[ERROR_IDS.RILL_R037],
           'dict to ordered conversion requires structural type signature'
         );
       }
@@ -184,7 +185,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertType',
           },
-          'RILL_R036',
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
           `cannot convert ${sourceType} to ${targetType}`,
           { source: sourceType, target: targetType }
         );
@@ -206,7 +207,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'convertType',
             },
-            'RILL_R038',
+            ERROR_ATOMS[ERROR_IDS.RILL_R038],
             message,
             { value: input }
           );
@@ -220,7 +221,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertType',
           },
-          'RILL_R036',
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
           `cannot convert ${sourceType} to ${targetType}`,
           { source: sourceType, target: targetType }
         );
@@ -253,7 +254,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertToOrderedWithSig',
           },
-          'RILL_R036',
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
           `cannot convert ${inferType(input)} to ordered`,
           { source: inferType(input), target: 'ordered' }
         );
@@ -301,7 +302,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'convertToOrderedWithSig',
             },
-            'RILL_R044',
+            ERROR_ATOMS[ERROR_IDS.RILL_R044],
             `cannot convert ${sourceType} to ordered: missing required field '${fieldName}'`,
             { source: sourceType, target: 'ordered' }
           );
@@ -338,7 +339,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertToDictWithSig',
           },
-          'RILL_R036',
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
           `cannot convert ${inferType(input)} to dict`,
           { source: inferType(input), target: 'dict' }
         );
@@ -406,7 +407,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'convertToDictWithSig',
               },
-              'RILL_R044',
+              ERROR_ATOMS[ERROR_IDS.RILL_R044],
               `cannot convert ${sourceType} to dict: missing required field '${fieldName}'`,
               { source: sourceType, target: 'dict' }
             );
@@ -441,7 +442,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'convertToTupleWithSig',
           },
-          'RILL_R036',
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
           `cannot convert ${inferType(input)} to tuple`,
           { source: inferType(input), target: 'tuple' }
         );
@@ -495,7 +496,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'convertToTupleWithSig',
             },
-            'RILL_R044',
+            ERROR_ATOMS[ERROR_IDS.RILL_R044],
             `cannot convert ${inferType(input)} to tuple: missing required element at position ${i}`,
             { source: inferType(input), target: 'tuple' }
           );
@@ -551,7 +552,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'hydrateNested',
                 },
-                'RILL_R044',
+                ERROR_ATOMS[ERROR_IDS.RILL_R044],
                 `cannot convert dict to dict: missing required field '${fieldName}'`,
                 { source: 'dict', target: 'dict' }
               );
@@ -606,7 +607,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'hydrateNested',
               },
-              'RILL_R044',
+              ERROR_ATOMS[ERROR_IDS.RILL_R044],
               `cannot convert ${source} to ordered: missing required field '${name}'`,
               { source, target: 'ordered' }
             );
@@ -652,7 +653,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'hydrateNested',
               },
-              'RILL_R044',
+              ERROR_ATOMS[ERROR_IDS.RILL_R044],
               `cannot convert tuple to tuple: missing required element at position ${i}`,
               { source: 'tuple', target: 'tuple' }
             );

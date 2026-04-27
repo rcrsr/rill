@@ -8,6 +8,7 @@
 import { RuntimeError } from '../../error-classes.js';
 import type { ResolverResult, SchemeResolver } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 // ============================================================
 // MODULE RESOLVER
@@ -31,7 +32,7 @@ export const moduleResolver: SchemeResolver = async (
 ): Promise<ResolverResult> => {
   if (typeof config !== 'object' || config === null || Array.isArray(config)) {
     throw new RuntimeError(
-      'RILL-R059',
+      ERROR_IDS.RILL_R059,
       'moduleResolver config must be a plain object'
     );
   }
@@ -41,7 +42,7 @@ export const moduleResolver: SchemeResolver = async (
   const filePath = cfg[resource];
   if (typeof filePath !== 'string') {
     throw new RuntimeError(
-      'RILL-R050',
+      ERROR_IDS.RILL_R050,
       `Module '${resource}' not found in resolver config`,
       undefined,
       { resource }
@@ -56,7 +57,7 @@ export const moduleResolver: SchemeResolver = async (
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     throw new RuntimeError(
-      'RILL-R051',
+      ERROR_IDS.RILL_R051,
       `Failed to read module '${resource}': ${reason}`,
       undefined,
       { resource, reason }
@@ -116,7 +117,7 @@ export const contextResolver: SchemeResolver = (
 
   if (!(key in cfg)) {
     throw new RuntimeError(
-      'RILL-R062',
+      ERROR_IDS.RILL_R062,
       `Context key '${resource}' not found`,
       undefined,
       { key: resource }
@@ -130,7 +131,7 @@ export const contextResolver: SchemeResolver = (
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       const path = segments.slice(0, i).join('.');
       throw new RuntimeError(
-        'RILL-R063',
+        ERROR_IDS.RILL_R063,
         `Context path '${resource}': '${path}' is not a dict`,
         undefined,
         { path, segment }
@@ -139,7 +140,7 @@ export const contextResolver: SchemeResolver = (
     value = (value as Record<string, unknown>)[segment];
     if (value === undefined) {
       throw new RuntimeError(
-        'RILL-R062',
+        ERROR_IDS.RILL_R062,
         `Context key '${resource}' not found`,
         undefined,
         { key: resource }
@@ -161,7 +162,7 @@ export const extResolver: SchemeResolver = (
 
   if (!(name in cfg)) {
     throw new RuntimeError(
-      'RILL-R052',
+      ERROR_IDS.RILL_R052,
       `Extension '${name}' not found in resolver config`,
       undefined,
       { name }
@@ -180,7 +181,7 @@ export const extResolver: SchemeResolver = (
     ) {
       const path = segments.slice(1, i + 1).join('.');
       throw new RuntimeError(
-        'RILL-R053',
+        ERROR_IDS.RILL_R053,
         `Member '${path}' not found in extension '${name}'`,
         undefined,
         { path, name }

@@ -11,6 +11,7 @@
 import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import type { RillFieldDef, TypeStructure } from './types/structures.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 /**
  * Field descriptor — carries field name and structural type when accessing a
@@ -41,7 +42,7 @@ export function buildFieldDescriptor(
   const fieldType = fields?.[fieldName];
   if (fieldType === undefined) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `Shape has no field "${fieldName}"`,
       location
     );

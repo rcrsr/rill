@@ -31,6 +31,7 @@ import {
   peek,
   peekString,
 } from './state.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 function skipWhitespace(state: LexerState): void {
   while (!isAtEnd(state) && isWhitespace(peek(state))) {
@@ -182,7 +183,11 @@ function nextToken(state: LexerState): Token {
     return advanceAndMakeToken(state, 1, singleCharType, ch, start);
   }
 
-  throw new LexerError('RILL-L002', `Unexpected character: ${ch}`, start);
+  throw new LexerError(
+    ERROR_IDS.RILL_L002,
+    `Unexpected character: ${ch}`,
+    start
+  );
 }
 
 interface TokenizeOptions {

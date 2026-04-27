@@ -4,7 +4,12 @@
  */
 
 import type { SourceLocation, SourceSpan } from './source-location.js';
-import { ERROR_REGISTRY, renderMessage, getHelpUrl } from './error-registry.js';
+import {
+  ERROR_REGISTRY,
+  renderMessage,
+  getHelpUrl,
+  ERROR_IDS,
+} from './error-registry.js';
 import { VERSION } from './generated/version-data.js';
 
 // ============================================================
@@ -259,7 +264,7 @@ export class TimeoutError extends RuntimeError {
     location?: SourceLocation
   ) {
     super(
-      'RILL-R012',
+      ERROR_IDS.RILL_R012,
       `Function '${functionName}' timed out after ${timeoutMs}ms`,
       location,
       { functionName, timeoutMs }

@@ -5,6 +5,7 @@ import type {
 } from '../core/types/runtime.js';
 import type { RillValue } from '../core/types/structures.js';
 import { RuntimeError } from '../../types.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 /**
  * Minimal interface for extension event emission.
@@ -104,7 +105,7 @@ export function emitExtensionEvent(
     event['event'].trim() === ''
   ) {
     throw new RuntimeError(
-      'RILL-R075',
+      ERROR_IDS.RILL_R075,
       'Event must include non-empty event field'
     );
   }

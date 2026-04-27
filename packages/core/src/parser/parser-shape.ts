@@ -15,6 +15,7 @@ import type {
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { advance, expect, current, makeSpan } from './state.js';
 import { parseFieldArgList } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -51,7 +52,7 @@ Parser.prototype.parseTypeConstructor = function (
 ): TypeConstructorNode {
   if (!isTypeConstructorName(constructorName)) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       `Expected type constructor name (list, dict, tuple, ordered, stream), got: ${constructorName}`,
       current(this.state).span.start
     );
@@ -77,7 +78,7 @@ Parser.prototype.parseTypeConstructor = function (
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {

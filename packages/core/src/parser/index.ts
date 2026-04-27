@@ -77,7 +77,7 @@ export function parseWithRecovery(source: string): ParseResult {
         offset: 0,
       };
       const parseError = new ParseError(
-        'RILL-P001',
+        ERROR_IDS.RILL_P001,
         err.message.replace(/ at line \d+, column \d+$/, ''),
         location
       );
@@ -127,6 +127,7 @@ export {
   skipNewlines,
   isAtEnd,
 } from './state.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Type parsing (for advanced usage)
 export { parseTypeRef } from './parser-types.js';

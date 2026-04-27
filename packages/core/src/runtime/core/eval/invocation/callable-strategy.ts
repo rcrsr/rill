@@ -34,6 +34,7 @@ import { pushCallFrame, popCallFrame } from '../../context.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import type { RillValue } from '../../types/structures.js';
 import type { ArgumentsBinder, BoundArguments } from './arguments-binder.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
 // CALLER TYPE
@@ -90,7 +91,7 @@ export class CallableInvocationStrategy {
     if (!isCallable(target as RillValue)) {
       throwCatchableHostHalt(
         { location, sourceId: this.getCtx().sourceId, fn: 'validate' },
-        'RILL_R001',
+        ERROR_ATOMS[ERROR_IDS.RILL_R001],
         `'${path}' is not callable`,
         { path }
       );

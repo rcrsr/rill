@@ -24,6 +24,7 @@ import { appendTraceFrame, getStatus, invalidate } from './status.js';
 import { atomName } from './atom-registry.js';
 import { createTraceFrame, TRACE_KINDS, type TraceKind } from './trace.js';
 import type { RillValue } from './structures.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 
 // ============================================================
 // RUNTIME HALT SIGNAL
@@ -361,7 +362,7 @@ export function throwErrorHalt(
   let invalid = invalidate(
     {},
     {
-      code: 'RILL_R016',
+      code: ERROR_ATOMS[ERROR_IDS.RILL_R016],
       provider: 'runtime',
       raw: { message },
     },

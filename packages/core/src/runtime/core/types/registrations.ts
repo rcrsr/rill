@@ -24,6 +24,7 @@ import {
   listType,
   dictType,
 } from './protocols/index.js';
+import { ERROR_IDS } from '../../../error-registry.js';
 
 export type { TypeProtocol, TypeDefinition } from './protocols/types.js';
 
@@ -76,17 +77,41 @@ export function formatValue(value: RillValue): string {
 }
 initFormatNested(formatValue);
 
+// Cycle-detection for deepEquals. Tracks visited pairs (a, b) so that
+// shared references on one side don't cause false positives when paired
+// with different subtrees on the other. Only object pairs are tracked;
+// primitives short-circuit on === above.
+let _deepEqualsVisited: WeakMap<object, WeakSet<object>> | null = null;
+
 /** Deep equality. Short-circuits on reference equality (EC-3, AC-18, AC-20). */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
-  return dispatchByIdentity(
-    a,
-    (reg) => {
-      if (!reg.protocol.eq) return false;
-      return reg.protocol.eq(a, b);
-    },
-    false
-  );
+  const isRoot = _deepEqualsVisited === null;
+  if (isRoot) _deepEqualsVisited = new WeakMap<object, WeakSet<object>>();
+  const visited = _deepEqualsVisited!;
+  const aObj = typeof a === 'object' && a !== null ? (a as object) : null;
+  const bObj = typeof b === 'object' && b !== null ? (b as object) : null;
+  if (aObj !== null && bObj !== null) {
+    let partners = visited.get(aObj);
+    if (partners?.has(bObj)) return true;
+    if (!partners) {
+      partners = new WeakSet<object>();
+      visited.set(aObj, partners);
+    }
+    partners.add(bObj);
+  }
+  try {
+    return dispatchByIdentity(
+      a,
+      (reg) => {
+        if (!reg.protocol.eq) return false;
+        return reg.protocol.eq(a, b);
+      },
+      false
+    );
+  } finally {
+    if (isRoot) _deepEqualsVisited = null;
+  }
 }
 initDeepEquals(deepEquals);
 
@@ -150,7 +175,7 @@ export function populateBuiltinMethods(
     if (reg === undefined) continue;
     if (Object.isFrozen(reg)) {
       throw new RuntimeError(
-        'RILL-R068',
+        ERROR_IDS.RILL_R068,
         `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
       );
     }

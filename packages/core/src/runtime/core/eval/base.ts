@@ -20,6 +20,7 @@ import {
   throwCatchableHostHalt,
   type TypeHaltSite,
 } from '../types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 
 /**
  * Base class for the evaluator.
@@ -144,7 +145,7 @@ export class EvaluatorBase {
     if (!isDict(value)) {
       throwCatchableHostHalt(
         { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
-        'RILL_R003',
+        ERROR_ATOMS[ERROR_IDS.RILL_R003],
         `Cannot access field '${field}' on non-dict`
       );
     }
@@ -158,7 +159,7 @@ export class EvaluatorBase {
       }
       throwCatchableHostHalt(
         { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
-        'RILL_R009',
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
         `Dict has no field '${field}'`
       );
     }

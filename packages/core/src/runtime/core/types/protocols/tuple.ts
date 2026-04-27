@@ -33,6 +33,8 @@ function formatTuple(v: RillValue): string {
 
 function eqTuple(a: RillValue, b: RillValue): boolean {
   if (!isTuple(a) || !isTuple(b)) return false;
+  // Tuple entries are positional and always present; undefined cannot arise here,
+  // unlike dict values which may be absent from deserialization.
   return compareElements(a.entries, b.entries, compareByDeepEquals);
 }
 
